@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools >= 42.0","wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["GEMstack*"]  # package names should match these glob patterns (["*"] by default)
+
+[tool.setuptools.package-data]
+GEMstack = ["*.yaml","*.yml","*.json"]   #include config files in the knowledge directory
+
+[project]
+name = 'GEMstack'
+version = '0.1'
+description='GEM stack'
+authors = [
+    {name='Kris Hauser', email='hauser.kris@gmail.com' }
+]
+requires-python = ">=3.7"
+readme = 'README.md'
+license = {file='LICENSE'}
+dependencies=['numpy',
+        'shapely',
+        'pyyaml',
+        'klampt'
+        ]
+
+classifiers = [
+    'Development Status :: 5 - Production/Stable',
+    'Intended Audience :: Developers',
+    'Programming Language :: Python',
+    'License :: OSI Approved :: Apache Software License',
+    'Topic :: Communications',
+]
+
+[project.urls]
+Repository = "https://www.github.com/krishauser/GEMstack"

@@ -1,0 +1,15 @@
+mass: 200.0  #kg
+gravity: 9.81 #m/s^2
+longitudinal_friction : 1.0  # unitless
+lateral_friction : 1.0       # unitless
+max_brake_deceleration: 2.0  #m/s^2.  Deceleration at max brake pedal
+max_accelerator_acceleration: #m/s^2. Acceleration at max accelerator pedal, by gear
+  - 0.0
+  - 2.5
+max_accelerator_acceleration_reverse: 2.5 #m/s^2. Acceleration (backwards) in reverse gear
+max_accelerator_power:  #Watts.  Power at max accelerator pedal, by gear
+  - 0.0
+  - 10000.0
+max_accelerator_power_reverse: 10000.0 #Watts.  Power (backwards) in reverse gear
+internal_viscous_deceleration: 0.2  #1/s: scales the current velocity to get deceleration due to internal viscous friction
+aerodynamic_drag_coefficient: 0.3  #unitless
