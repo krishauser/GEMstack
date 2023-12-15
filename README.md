@@ -198,8 +198,8 @@ Another way to think about this is that we are trying to **evolve the onboard so
 
 To count as a contribution to the team, you will need to check in your code via pull requests (PRs).  PRs should be reviewed by at least one other approver.
 
-- `main`: will contain content that persists between years.  Approver: Kris Hauser.
-- `s2024`: is the "official class vehicle" for this semester's class.  Approver: instructor, TAs.
+- `main`: will contain content that persists between years.  Approvers: Kris Hauser.
+- `s2024`: is the "official class vehicle" for this semester's class.  Approvers: instructor, Hang Cui, TAs.
 - `s2024_teamX`: will be your team's branch. Approver: instructor, TAs, team members.  
 
 Guidelines:
