@@ -79,7 +79,7 @@ All packages are within the `GEMstack/` folder.
 `launch/`: Launch scripts are listed here.  Specify which configuration you want to use as an argument to `main.py`.
 
 `onboard/`: All algorithms governing onboard behavior are located here.  These algorithms may make use of items in the `knowledge/` stack.
-	`perception/`: Perception components.
+  - `perception/`: Perception components.
 	  - `state_estimation`: State estimators.
 	  - `roadgraph_update`: Roadgraph updaters.
 	  - `lane_detection`: Lane detection.
@@ -91,7 +91,7 @@ All packages are within the `GEMstack/` folder.
 	  - `relation_estimation`: Entity relation estimation.
 	  - `agent_prediction`: Agent motion prediction.
 
-	`planning/`: Planning components.
+  - `planning/`: Planning components.
 	  - `route_planner`: Decides which route to drive from the roadgraph.
 	  - `driving_logic`: Performs all necessary logic to develop a planning problem specification, e.g., select obstacles, design cost functions, etc.
 	  - `heuristics`: Implements various planning heuristics.
@@ -101,12 +101,12 @@ All packages are within the `GEMstack/` folder.
 	  - `pure_pursuit`: Implements a pure pursuit controller.
 	  - `recovery`: Implements recovery behavior.
 
-	`execution/`: Executes the onboard driving behavior.
+  - `execution/`: Executes the onboard driving behavior.
 	  - `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'
 	  - `executor`: Base classes for executors.
 	  - `log_replay`: A generic component that replays from a log.
 
-	`interface/`: Defines interfaces to vehicle hardware / simulators / external signals
+  - `interface/`: Defines interfaces to vehicle hardware / simulators / external signals
 	  - `gem.py`: Base class for the Polaris GEM e2 vehicle.
 	  - `gem_hardware.py`: Interface to the real GEM vehicle.
 	  - `gem_simulator.py`: Interfaces to simulated GEM vehicles.
