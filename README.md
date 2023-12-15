@@ -185,7 +185,14 @@ from GEMutils.utils import settings
 settings.get('key1.key2.attribute')
 ```
 
-The entrypoint will consume a run launch file and a settings file.
+To override a setting temporarily (just for a few run), you can run your script with an optional `--key=value` command-line argument.  For example, to set the simulation scene, you can use `--simulator.scene=PATH/TO/SCENE/FILE`.  
+
+To create new settings or override a setting more permanently, you should dive into `GEMstack/knowledge/defaults/current.yaml`.  This [YAML](https://yaml.org/) formatted configuration file specifies the entire configuration that can be accessed through the `utils.settings` module.  One of these files may `!include` other configuration files, so if you are adding a large number of related settings, e.g., for some component module, it would make sense to create that module's own YAML file.  For example, you may create a YAML file `mymodule_default_config.yaml` add it to `current.yaml` under the `mymodule` key, e.g.,`mymodule: !include mymodule_default_config.yaml`.  (Of course, replace `mymodule` with a descriptive name of your module, duh.)
+
+Note that there are settings that configure **an algorithm's behavior** that persist between runs, and there are settings that configure **a particular run**.  If you want to configure an algorithm, put it in `current.yaml`, a descendant configuration file, or elsewhere in `knowledge`.  If you want to configure a single run, you should place those options in the launch file.  The `main.py` entrypoint will consume a run launch file and a settings file, and will place all the run configurations in the `run` attribute of the global settings.  So if you wish to inspect run details or specify per-run behavior, e.g., see whether we are in a simulation run or a hardware run, your algorithm can check `settings.get('run.mode')`.  In general, you should try to minimize how dependent your algorithms are on run settings.
+
+Another way to think about this is that we are trying to **evolve the onboard software stack to generate better behavior** by changing algorithms and their settings. The evolution mechanism is implemented by commits to the repository.  On a day to day level, you will be performing different types of runs, such as simulation tests, unit tests, and full integration tests.  You may be testing a lot of different conditions but the software stack should remain constant for that suite of tests.  If you wish to do an apples-to-apples comparison against a different version of the stack, you should git check out another commit ID, and then perform those same tests.  So if you are configuring the software stack, the setting changes should go into `knowledge`.  If you are configuring how the software stack works just for a single test, the setting changes should go into the launch script or a keyword argument.
+
 
 ## Branches and submitting pull requests
 
@@ -198,6 +205,7 @@ To count as a contribution to the team, you will need to check in your code via 
 Guidelines:
 - DO NOT check in large datasets.  Instead, keep these around on SSDs.
 - DO check in trained models, named descriptively.  In your PR, describe how you evaluated the model and its results.  Choose which model you use in your tests in the settings.
+
 
 ## Homework assignments
 
