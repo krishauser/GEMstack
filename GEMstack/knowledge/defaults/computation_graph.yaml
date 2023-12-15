@@ -1,0 +1,50 @@
+#lists the components in order.
+#Defines the permissable inputs and outputs for each component.
+#The actual implementation of the components must use a subset of these inputs
+#and must generate a superset of these outputs.
+components:   
+  - state_estimation: 
+      outputs: vehicle
+  - roadgraph_update:
+      inputs: vehicle
+      outputs: roadgraph
+  - obstacle_detection:
+      inputs: vehicle
+      outputs: obstacles
+  - agent_detection:
+      inputs: vehicle
+      outputs: agents
+  - lane_detection:
+      inputs: [vehicle, roadgraph]
+      outputs: vehicle_lane
+  - sign_detection: 
+      inputs: [vehicle, roadgraph]
+      outputs: roadgraph.signs
+  - environment_detection:
+      inputs: vehicle
+      outputs: environment
+  - intent_estimation:
+      inputs: [vehicle, roadgraph, agents]
+      outputs: agent_intents
+  - relations_estimation:
+      inputs: [vehicle, roadgraph, agents, obstacles]
+      outputs: relations
+  - predicate_evaluation:
+      inputs: [vehicle, roadgraph, agents, obstacles]
+      outputs: predicates
+  - perception_normalization:
+      inputs: all
+  - mission_execution:
+      outputs: mission
+  - route_planning:
+      inputs: [vehicle, roadgraph, mission]
+      outputs: route
+  - driving_logic:
+      inputs: all
+      outputs: intent
+  - motion_planning:
+      inputs: all
+      outputs: trajectory
+  - trajectory_tracking:
+      inputs: [vehicle, trajectory]
+      outputs: 

@@ -1,0 +1,8 @@
+opencv-python
+numpy
+scipy
+torch
+shapely
+klampt
+pyyaml
+dacite

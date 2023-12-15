@@ -1,0 +1,30 @@
+# Configure settings for the vehicle / vehicle model
+vehicle: 
+    name: GEM
+    version: e2
+    max_gear : 1
+    num_wiper_settings : 1
+    #using !include directives helps maintain reuse of common settings
+    geometry: !include gem_geometry.yaml
+    dynamics: !include gem_dynamics.yaml
+    limits: !include gem_slow_limits.yaml
+    control_defaults: !include gem_control_defaults.yaml
+    calibration: !include ../calibration/gem.yaml
+
+#arguments for algorithm components here
+mission_executor:
+    frequency: 0.5
+model_predictive_controller:
+    frequency: 0.1
+control:
+    recovery:
+        brake_amount : 0.5
+        brake_speed : 2.0
+    pure_pursuit:
+        lookahead: 4.0
+        lookahead_scale: 3.0
+        crosstrack_gain: 0.41
+
+simulator:
+    dt: 0.01
+    real_time_multiplier: 1.0    # make the simulator run faster than real time by making this > 1

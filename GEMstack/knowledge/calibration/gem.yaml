@@ -1,0 +1,4 @@
+reference: rear_axle_center
+gnss_location: [1.1,0.0] # meters
+gnss_yaw: 0.0 # radians
+

@@ -1,0 +1,87 @@
+import json
+import yaml
+import os
+from typing import Any, IO
+
+def save_config(fn : str, config : dict) -> None:
+    """Saves a configuration file."""
+    if fn.endswith('yaml') or fn.endswith('yml'):
+        with open(fn,'w') as f:
+            yaml.dump(config, f, yaml.Dumper)
+    elif fn.endswith('json'):
+        with open(fn,'w') as f:
+             json.dump(config,f)
+    else:
+        raise IOError("Config file not specified as .yaml, .yml, or .json extension")
+
+
+def load_config_recursive(fn : str) -> dict:
+    """Loads a configuration file with !include directives."""
+    if fn.endswith('yaml') or fn.endswith('yml'):
+        with open(fn,'r') as f:
+            res = yaml.load(f,_Loader)
+        return res
+    elif fn.endswith('json'):
+        with open(fn,'r') as f:
+            res = json.load(f)
+        base,f = os.path.split(fn)
+        return _load_recursive(res,base)
+    else:
+        raise IOError("Config file not specified as .yaml, .yml, or .json extension")
+
+
+
+
+class _Loader(yaml.SafeLoader):
+    """YAML Loader with `!include` constructor."""
+
+    def __init__(self, stream: IO) -> None:
+        """Initialise Loader."""
+
+        try:
+            self._root = os.path.split(stream.name)[0]
+        except AttributeError:
+            self._root = os.path.curdir
+
+        super().__init__(stream)
+
+
+def _construct_include(loader: _Loader, node: yaml.Node) -> Any:
+    """Include file referenced at node."""
+    return _load_config_or_text_recursive(os.path.join(loader._root, loader.construct_scalar(node)))
+
+def _construct_relative_path(loader: _Loader, node: yaml.Node) -> Any:
+    return os.path.join(loader._root, loader.construct_scalar(node))
+
+yaml.add_constructor('!include', _construct_include, _Loader)
+
+yaml.add_constructor('!relative_path', _construct_relative_path, _Loader)
+
+def _load_config_or_text_recursive(fn : str) -> dict:
+    """Loads a configuration file with !include directives."""
+    if fn.endswith('yaml') or fn.endswith('yml'):
+        with open(fn,'r') as f:
+            res = yaml.load(f,_Loader)
+        return res
+    elif fn.endswith('json'):
+        with open(fn,'r') as f:
+            res = json.load(f)
+        base,f = os.path.split(fn)
+        return _load_recursive(res,base)
+    else:
+        return ''.join(f.readlines())
+
+def _load_recursive(obj, folder : str):
+    if isinstance(obj,dict):
+        for k,v in obj.copy().items():
+            obj[k] = _load_recursive(v,folder)
+    elif isinstance(obj,list):
+        for i in range(len(obj)):
+            obj[i] = _load_recursive(obj[i],folder)
+    elif isinstance(obj,str):
+        if obj.startswith('!include '):
+            fn = obj.split(' ',1)[1]
+            return _load_config_or_text_recursive(os.path.normpath(os.path.join(folder,fn)))
+        elif obj.startswith('!!include'):
+            return obj[1:]
+    return obj

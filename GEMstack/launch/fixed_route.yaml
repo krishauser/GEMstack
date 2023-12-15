@@ -1,0 +1,27 @@
+mode: hardware
+vehicle_interface: gem_hardware.GEMHardwareInterface
+mission_execution: StandardExecutor
+# Recovery behavior after a component failure
+recovery: 
+    planning: 
+        trajectory_tracking : recovery.StopTrajectoryTracker
+# Driving behavior for the GEM vehicle following a fixed route
+drive: 
+    perception:
+        state_estimation : GNSSStateEstimator
+        perception_normalization : StandardPerceptionNormalizer
+    planning:
+        route_planning:
+            type: StaticRoutePlanner
+            args: [!relative_path '../routes/xyhead_demo_pp.csv']
+        motion_planning: RouteToTrajectoryPlanner
+        trajectory_tracking: pure_pursuit.PurePursuitTrajectoryTracker
+log:
+    ros_topics : []
+    components : ['state_estimation','trajectory_tracking']
+replay:  #add items here to set certain topics / inputs to be replayed from logs
+    ros_topics : []
+    components : []
+
+#usually can keep this constant
+computation_graph: !include "../knowledge/defaults/computation_graph.yaml"
