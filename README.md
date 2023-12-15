@@ -30,6 +30,7 @@ All packages are within the `GEMstack/` folder.
   - `dubins`: Contains first- and second-order Dubins car dynamics models.
   - `control`: Contains standard control techniques, e.g., PID controller.
   - `collisions`: Provides collision detection and proximity detection.
+  
 `utils/`: Other utilities common to onboard / offboard use.
   - `logging`: Provides logging and log replay functionality.
   - `simulation`: Interfaces with the Gazebo (possibly other?) simulators.
@@ -37,6 +38,7 @@ All packages are within the `GEMstack/` folder.
   - `settings`: Tools for managing settings for onboard behaviour.  If you're tempted to write a magic parameter or global variable, it should be placed here instead.
   - `config`: Tools for loading config files.
   - `serialization`: Tools for serializing / deserializing objects.
+
 `state/`: Representations of state of the vehicle and its environment, including internal state that persists from step to step.
   - `physical_object`: A generic physical object base class.
   - `trajectory`: Stores a generic path or trajectory.
@@ -55,12 +57,14 @@ All packages are within the `GEMstack/` folder.
   - `predicates`: Any items predicates that are estimated to be true in the current world.
   - `route`: Stores a 2d route, coming from the router.
   - `all`: State or the current scene, all intent and relation estimates, and the driving logic (objective, predicates, route).
+
 `offboard/`: Creation and management of data and knowledge.
   - `calibration/`: Sensor calibration.
   - `log_management/`: Provides log management, browsing, and query functionality.
   - `detection_learning/`: Detection model learning.
   - `prediction_learning/`: Prediction model learning.
   - `heuristic_learning/`: Driving heuristic learning.
+
 `knowledge/`: Models and parameters common to onboard / offboard use.  The file "current.py" in each directory will store the current model being used.
   - `vehicle/`: Vehicle geometry and physics.
   - `calibration/`: Calibrated sensor parameters.
@@ -71,7 +75,9 @@ All packages are within the `GEMstack/` folder.
   - `routes/`: Stores precomputed routes.
   - `predicates/`: Stores named predicates that may be true in a world state.
   - `defaults/`: Stores the default settings.
+
 `launch/`: Launch scripts are listed here.  Specify which configuration you want to use as an argument to `main.py`.
+
 `onboard/`: All algorithms governing onboard behavior are located here.  These algorithms may make use of items in the `knowledge/` stack.
 	`perception/`: Perception components.
 	  - `state_estimation`: State estimators.
@@ -84,6 +90,7 @@ All packages are within the `GEMstack/` folder.
 	  - `intent_estimation`: Agent intent estimation.
 	  - `relation_estimation`: Entity relation estimation.
 	  - `agent_prediction`: Agent motion prediction.
+
 	`planning/`: Planning components.
 	  - `route_planner`: Decides which route to drive from the roadgraph.
 	  - `driving_logic`: Performs all necessary logic to develop a planning problem specification, e.g., select obstacles, design cost functions, etc.
@@ -93,10 +100,12 @@ All packages are within the `GEMstack/` folder.
 	  - `selection`: Implements best-trajectory selection.
 	  - `pure_pursuit`: Implements a pure pursuit controller.
 	  - `recovery`: Implements recovery behavior.
+
 	`execution/`: Executes the onboard driving behavior.
 	  - `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'
 	  - `executor`: Base classes for executors.
 	  - `log_replay`: A generic component that replays from a log.
+
 	`interface/`: Defines interfaces to vehicle hardware / simulators / external signals
 	  - `gem.py`: Base class for the Polaris GEM e2 vehicle.
 	  - `gem_hardware.py`: Interface to the real GEM vehicle.
