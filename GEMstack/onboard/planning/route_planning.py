@@ -15,6 +15,8 @@ class StaticRoutePlanner(Component):
                 self.route = serialization.load(f)
         elif ext == '.csv':
             waypoints = np.loadtxt(routefn,delimiter=',',dtype=float)
+            if waypoints.shape[1] == 3:
+                waypoints = waypoints[:,:2]
             self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
         else:
             raise ValueError("Unknown route file extension",ext)

@@ -1,3 +1,5 @@
+# ********* Main settings entry point for behavior stack ***********
+
 # Configure settings for the vehicle / vehicle model
 vehicle: 
     name: GEM
@@ -25,6 +27,7 @@ control:
         lookahead_scale: 3.0
         crosstrack_gain: 0.41
 
+#configure the simulator, if using
 simulator:
     dt: 0.01
     real_time_multiplier: 1.0    # make the simulator run faster than real time by making this > 1

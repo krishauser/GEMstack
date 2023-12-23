@@ -1,6 +1,6 @@
 from ...utils import settings,config
 from ..component import Component
-from .execution import ExecutorBase
+from .execution import EXECUTION_PREFIX,ExecutorBase
 from .log_replay import LogReplay
 import importlib
 from typing import Dict,List,Optional
@@ -18,6 +18,7 @@ def make_class(config_info, component_module, parent_module=None, extra_args = N
     if extra_args is None:
         extra_args = {}
     args = ()
+    kwargs = {}
     if isinstance(config_info,str):
         if '.' in config_info:
             component_module,class_name = config_info.rsplit('.',1)
@@ -31,16 +32,24 @@ def make_class(config_info, component_module, parent_module=None, extra_args = N
             component_module = config_info['module']
         if 'args' in config_info:
             args = config_info['args']
+            if isinstance(args,dict):
+                kwargs = args
+                args = ()
     if parent_module is not None:
-        print("Importing",component_module,"from",parent_module,"to get",class_name)
+        print(EXECUTION_PREFIX,"Importing",component_module,"from",parent_module,"to get",class_name)
     else:
-        print("Importing",component_module,"to get",class_name)
+        print(EXECUTION_PREFIX,"Importing",component_module,"to get",class_name)
     module = import_module_dynamic(component_module,parent_module)
     klass = getattr(module,class_name)
     try:
-        return klass(*args,**extra_args)
+        return klass(*args,**kwargs,**extra_args)
     except TypeError:
-        return klass(*args)
+        try:
+            return klass(*args,**kwargs)
+        except TypeError:
+            print(EXECUTION_PREFIX,"Unable to launch module",component_module,"with class",class_name,"and args",args,"kwargs",kwargs)
+            raise
+        
 
 
 def main():
@@ -53,7 +62,7 @@ def main():
 
     #create top-level components
     vehicle_interface = make_class(vehicle_interface_settings,'default','GEMstack.onboard.interface')
-    mission_executor = make_class(mission_executor_settings,'execution','GEMstack.onboard.execution')
+    mission_executor = make_class(mission_executor_settings,'execution','GEMstack.onboard.execution',{'vehicle_interface':vehicle_interface})
     if not isinstance(mission_executor,ExecutorBase):
         raise ValueError("Mission executor must be an Executor")
 
@@ -67,7 +76,7 @@ def main():
         if isinstance(v,dict) and ('perception' in v or 'planning' in v or 'other' in v):
             #possible pipeline
             if k not in pipeline_settings:
-                print("Adding non-standard pipeline",k)
+                print(EXECUTION_PREFIX,"Adding non-standard pipeline",k)
                 pipeline_settings[k] = v
 
     existing_components = {}
@@ -101,15 +110,13 @@ def main():
                 other_components[k] = make_class(v,k,'GEMstack.onboard.execution', {'vehicle_interface':vehicle_interface})
                 existing_components[str((k,v))] = other_components[k]
 
-        #TODO: add logging and ROS topic replay
-        if 'replay' in runconfig:
-            logfolder = runconfig['replay'].get('log',None)
+        #configure components that would be replayed from log rather than run
+        if replay_settings:
+            logfolder = replay_settings.get('log',None)
             if logfolder is not None:
                 logmeta = config.load_config_recursive(os.path.join(logfolder,'meta.yaml'))
-                replay_topics = runconfig['replay'].get('ros_topics',[])
-                
-                #TODO: launch a roslog replay of the topics in replay_topics, disable in the vehicle interface
-                replay_components = runconfig['replay'].get('components',[])
+
+                replay_components = replay_settings.get('components',[])
                 for c in replay_components:
                     found = False
                     for component in (perception_components,planning_components,other_components):
@@ -118,7 +125,7 @@ def main():
                             for o in outputs:
                                 if o not in logmeta['state_log_items']:
                                     raise ValueError("Replay component",c,"has output",o,"which is not in log")
-                            print("Replaying component",c,"from log",logfolder,"with outputs",outputs)
+                            print(EXECUTION_PREFIX,"Replaying component",c,"from log",logfolder,"with outputs",outputs)
                             component[c] = LogReplay(outputs,
                                                     os.path.join(logfolder,'state_log.json'),
                                                     rate=component[c].rate())
@@ -129,5 +136,54 @@ def main():
         mission_executor.add_pipeline(name,perception_components,planning_components,other_components)
 
 
-    mission_executor.run()
+    #TODO: ROS topic replay
+    if replay_settings:
+        logfolder = replay_settings.get('log',None)
+        if logfolder is not None:
+            logmeta = config.load_config_recursive(os.path.join(logfolder,'meta.yaml'))
+            replay_topics = replay_settings.get('ros_topics',[])
+            
+            #TODO: launch a roslog replay of the topics in replay_topics, disable in the vehicle interface
+
+    #configure logging
+    if log_settings:
+        topfolder = log_settings.get('log','logs')
+        prefix = log_settings.get('prefix','')
+        from datetime import datetime
+        default_suffix = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        suffix = log_settings.get('suffix',default_suffix)
+        logfolder = os.path.join(topfolder,prefix+suffix)
+        print(EXECUTION_PREFIX,"Logging to",logfolder)
+        os.makedirs(logfolder,exist_ok=True)
+
+        #save settings.yaml
+        config.save_config(os.path.join(logfolder,'settings.yaml'),settings.settings())
+        #configure logging for components
+        mission_executor.set_log_folder(logfolder)
+        #configure ROS logging
+        log_topics = replay_settings.get('ros_topics',[])
+        rosbag_options = log_settings.get('rosbag_options','')
+        if log_topics:
+            command = 'rosbag record --output-name={} {} {}'.format(os.path.join(logfolder,'vehicle.bag'),rosbag_options,' '.join(log_topics))
+            print(EXECUTION_PREFIX,"Recording ROS topics with command",command)
+            os.system(command)
+        #determine whether to log vehicle interface
+        log_vehicle_interface = log_settings.get('vehicle_interface',False)
+        mission_executor.log_vehicle_interface(log_vehicle_interface)
+        #determine whether to log components
+        log_components = log_settings.get('components',[])
+        mission_executor.log_components(log_components)
+        #determine whether to log state
+        log_state_attributes = log_settings.get('state',[])
+        log_state_rate = log_settings.get('state_rate',None)
+        if log_state_attributes:
+            mission_executor.log_state(log_state_attributes,log_state_rate)
+
+    vehicle_interface.start()
+    try:
+        mission_executor.run()
+    except Exception as e:
+        raise
+    finally:
+        vehicle_interface.stop()
 

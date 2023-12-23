@@ -19,6 +19,7 @@ class StopTrajectoryTracker(Component):
         return []
 
     def update(self):
+        print("StopTrajectoryTracker: Stopping, current speed %.3f m/s"%(self.vehicle_interface.last_reading.speed))
         brake_amount = settings.get('control.recovery.brake_amount')
         brake_speed = settings.get('control.recovery.brake_speed')
         if self.vehicle_interface.last_command is not None:
