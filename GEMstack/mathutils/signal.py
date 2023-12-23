@@ -15,7 +15,7 @@ class OnlineLowPassFilter(object):
     
     def __call__(self, data: float):
         filtered, self.z = signal.lfilter(self.b, self.a, [data], zi=self.z)
-        return filtered
+        return filtered[0]
 
     def reset(self) -> None:
         self.z = signal.lfilter_zi(self.b, self.a)

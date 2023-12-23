@@ -1,3 +1,8 @@
+"""Functions to model the vehicle's steering geometry.
+
+TODO: double-check steer2front and front2steer coefficients.
+"""
+
 from ...utils import settings
 import math
 

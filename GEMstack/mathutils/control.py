@@ -75,4 +75,5 @@ class PID(object):
         self.last_t = t
         self.derror = de
 
+        print(feedforward_term,self.kp,e,self.ki,self.iterm,self.kd,de)
         return feedforward_term + self.kp * e + self.ki * self.iterm + self.kd * de

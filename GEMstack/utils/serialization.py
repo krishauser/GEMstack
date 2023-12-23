@@ -124,7 +124,7 @@ def deserialize_raw(data) -> tuple:
 
 def serialize_collection(objs, format=str):
     """Serializes a collection of registered objects into a serialized
-    collection objects.
+    format.
     
     `format` can be `str`, `bytes`, `dict`, or `"ros"`.
     """
@@ -143,7 +143,8 @@ def deserialize_collection(data):
     """Deserializes a message into a collection of registered object instances.
 
     We detect registered types as dicts with "type" and "data" keys, and
-    optional "version" key."""
+    optional "version" key.
+    """
     frame = json_decode(data)
     def _recurse(obj):
         if isinstance(obj,dict) and 'type' in obj and 'data' in obj:

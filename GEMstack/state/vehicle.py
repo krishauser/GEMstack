@@ -20,7 +20,7 @@ class VehicleGearEnum(Enum):
 @register
 class VehicleState:
     """Represents the state of the ego-vehicle."""
-    pose : ObjectPose                       #pose of the vehicle
+    pose : ObjectPose                       #pose of the vehicle, including time
     v : float                               #forward velocity in m/s
     acceleration : float                    #current acceleration / deceleration in m/s^2
     steering_wheel_angle : float            #angle of the steering wheel, in radians
@@ -29,6 +29,7 @@ class VehicleState:
     gear : VehicleGearEnum                  #the current gear
     left_turn_indicator : bool = False      #whether left turn indicator is on
     right_turn_indicator : bool = False     #whether right turn indicator is on
+    headlights_on : bool = False            #whether headlights are on
     horn_on : bool = False                  #whether horn is on
     wiper_level : int = 0                   #whether wipers are on
 

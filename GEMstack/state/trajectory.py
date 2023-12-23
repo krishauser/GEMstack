@@ -80,7 +80,7 @@ class Path:
 
     def get_dims(self, dims : List[int]) -> Path:
         """Returns a new path with only the given dimensions."""
-        return replace(self,points=[p[dims] for p in self.points])
+        return replace(self,points=[[p[d] for d in dims] for p in self.points])
 
     def append_dim(self, value : Union[float,List[float]] = 0.0) -> None:
         """Appends a dimension to every point.  If value is a list, then it
@@ -159,9 +159,9 @@ def compute_headings(path : Path, smoothed = False) -> Path:
         else:
             dunit = transforms.normalize_vector(d)
             if nd == 1:
-                coords.append((transforms.vector2_angle(dunit,[1,0])))
+                coords.append((transforms.vector2_angle(dunit,[1,0]),))
             elif nd == 2:
                 azimuth = transforms.vector2_angle(dunit[:2],[1,0])
                 elevation = transforms.vector2_angle((dunit[2],transforms.vector_norm(dunit[:2])),[0,0,1])
                 coords.append((azimuth,elevation))
-    return replace(path,points=[tuple(p)+c for p,c in zip(path.points,coords)])
+    return replace(path,points=[tuple(p)+tuple(c) for p,c in zip(path.points,coords)])

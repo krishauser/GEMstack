@@ -11,5 +11,6 @@ max_accelerator_power:  #Watts.  Power at max accelerator pedal, by gear
   - 0.0
   - 10000.0
 max_accelerator_power_reverse: 10000.0 #Watts.  Power (backwards) in reverse gear
-internal_viscous_deceleration: 0.2  #1/s: scales the current velocity to get deceleration due to internal viscous friction
-aerodynamic_drag_coefficient: 0.3  #unitless
+internal_dry_deceleration: 0.01      #m/s^2: deceleration due to internal dry friction (non-speed dependent)
+internal_viscous_deceleration: 0.05  #1/s: scales the current velocity to get deceleration due to internal viscous friction (speed dependent)
+aerodynamic_drag_coefficient: 0.01  #units in s, scaled by velocity^2 to get deceleration due to aerodynamic drag
