@@ -1,5 +1,5 @@
 Welcome to the GEMstack documentation!
-===================================
+======================================
 
 Documentation coming soon.
 
