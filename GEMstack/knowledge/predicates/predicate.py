@@ -3,8 +3,8 @@ working with predicates.
 
 The PredicateBase class is the base class for all predicates and can be
 composed, serialized, and deserialized.  You can compose predicates using
-the and_, all_, or_, any_, and not_ functions.  You can also compare numeric
-predicates to one another using ==, !=, <, <=, >, and >=.
+the `and_`, `all_`, `or_`, `any_`, and `not_` functions.  You can also
+compare numeric predicates to one another using ==, !=, <, <=, >, and >=.
 
 Predicates can be placed in this folder, and they need a unique name. By
 default, each predicate is named after its class name.  You can override

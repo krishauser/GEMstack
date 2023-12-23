@@ -21,6 +21,7 @@ class ObjectPose:
     Represents a hypothetical object position / orientation.
     
     Attributes:
+        frame: the frame of reference for the pose. 
         t: if frame=GLOBAL or ABSOLUTE_CARTESIAN, the time in s since the
             epoch, i.e., time.time()  Otherwise, the time since start / current
             in the future, in s
@@ -34,6 +35,7 @@ class ObjectPose:
             CCW yaw.
         pitch: the optional pitch, in radians and around left direction in the object's frame
         roll: the optional roll, in radians and around forward direction in the object's frame
+
     """
     frame : ObjectFrameEnum
     t : float
@@ -177,6 +179,7 @@ class PhysicalObject:
             of the object.
         outline: an optional list of vertices in CCW order denoting the
             object's outline polygon in its local frame (x:forward, y:left).
+
     """
     pose : ObjectPose
     dimensions : Tuple[float,float,float] 

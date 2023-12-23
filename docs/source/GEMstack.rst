@@ -1,11 +1,16 @@
 GEMstack package
 ================
 
+.. automodule:: GEMstack
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
 
    GEMstack.knowledge
    GEMstack.mathutils
@@ -13,11 +18,3 @@ Subpackages
    GEMstack.onboard
    GEMstack.state
    GEMstack.utils
-
-Module contents
----------------
-
-.. automodule:: GEMstack
-   :members:
-   :undoc-members:
-   :show-inheritance:

@@ -13,7 +13,9 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
-
+import os
+import sys 	
+sys.path.insert(0, os.path.abspath('../'))
 
 # -- Project information -----------------------------------------------------
 
@@ -31,14 +33,19 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
+    'sphinx.ext.napoleon',
 ]
-
+ 
 intersphinx_mapping = {
     "rtd": ("https://docs.readthedocs.io/en/stable/", None),
     "python": ("https://docs.python.org/3/", None),
     "sphinx": ("https://www.sphinx-doc.org/en/master/", None),
 }
 intersphinx_disabled_domains = ["std"]
+
+napoleon_google_docstring = True
+napoleon_use_param = False
+napoleon_use_ivar = True
 
 templates_path = ["_templates"]
 

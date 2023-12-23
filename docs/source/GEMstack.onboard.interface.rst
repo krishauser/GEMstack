@@ -1,6 +1,11 @@
 GEMstack.onboard.interface package
 ==================================
 
+.. automodule:: GEMstack.onboard.interface
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -24,14 +29,6 @@ GEMstack.onboard.interface.gem\_simulator module
 ------------------------------------------------
 
 .. automodule:: GEMstack.onboard.interface.gem_simulator
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: GEMstack.onboard.interface
    :members:
    :undoc-members:
    :show-inheritance:
