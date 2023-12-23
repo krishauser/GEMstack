@@ -143,7 +143,7 @@ You can also install `GEMstack` into the system Python by calling `pip install .
 
 
 
-## Communication protocols
+## Communication and serialization protocols
 
 Sending commands to the vehicle is handled by the ROS-PACMOD interface.  Receiving sensor messages is handled through standard ROS sensor messages.
 
