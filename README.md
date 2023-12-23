@@ -2,13 +2,12 @@
 
 ## Dependencies
 
-Python 3.7+
+Python 3.7+ and ROS Noetic.  It is possible to do some offline and simulation work without ROS, but 
 
-PACMOD - low level Autonomoustuff's interface to vehicle
+In order to interface with the actual vehicle, you will need [PACMOD](http://wiki.ros.org/pacmod) - Autonomoustuff's low level interface to vehicle.  If you are using the course SSDs these will be provided for you.
 
-ROS (Noetic?) - messaging with cameras, simulator
+You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
 
-Python dependencies:
 - opencv-python
 - numpy
 - scipy
