@@ -51,7 +51,7 @@ def _construct_include(loader: _Loader, node: yaml.Node) -> Any:
     return _load_config_or_text_recursive(os.path.join(loader._root, loader.construct_scalar(node)))
 
 def _construct_relative_path(loader: _Loader, node: yaml.Node) -> Any:
-    return os.path.join(loader._root, loader.construct_scalar(node))
+    return os.path.normpath(os.path.join(loader._root, loader.construct_scalar(node)))
 
 yaml.add_constructor('!include', _construct_include, _Loader)
 

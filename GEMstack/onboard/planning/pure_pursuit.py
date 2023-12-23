@@ -2,7 +2,8 @@ from ...mathutils.control import PID
 from ...mathutils.signal import OnlineLowPassFilter
 from ...utils import settings
 from ...mathutils import transforms
-from ...state.vehicle import VehicleState
+from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
+from ...state.vehicle import VehicleState,ObjectFrameEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
 from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
@@ -18,9 +19,10 @@ class PurePursuit(object):
         self.wheelbase  = wheelbase if wheelbase is not None else settings.get('vehicle.geometry.wheelbase')
         self.wheel_angle_range = [settings.get('vehicle.geometry.min_wheel_angle'),settings.get('vehicle.geometry.max_wheel_angle')]
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
-
+        
         self.desired_speed = 1.5  # m/s, reference speed
-        self.max_accel     = settings.get('vehicle.limits.max_accelerator_pedal') # % of acceleration
+        self.max_accel     = settings.get('vehicle.limits.max_acceleration') # m/s^2
+        self.max_decel     = settings.get('vehicle.limits.max_deceleration') # m/s^2
         self.pid_speed     = PID(0.5, 0.0, 0.1, windup_limit=20)
         self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
 
@@ -39,21 +41,24 @@ class PurePursuit(object):
         self.path_with_headings = compute_headings(self.path)
 
     def compute(self, state : VehicleState):
+        assert state.pose.frame != ObjectFrameEnum.CURRENT
+        t = state.pose.t
+
         if self.path is None:
             #just stop
-            accel = self.pid_speed(0.0, state.t)
+            accel = self.pid_speed(0.0, t)
 
         if self.t_start is None:
-            self.t_start = state.t
-        dt = state.t - self.t_start
+            self.t_start = t
+        dt = t - self.t_start
 
-        if self.path.frame != state.frame:
-            self.path = self.path.to_frame(state.frame)
-            self.path_with_headings = self.path_with_headings.to_frame(state.frame)
+        if self.path.frame != state.pose.frame:
+            self.path = self.path.to_frame(state.pose.frame)
+            self.path_with_headings = self.path_with_headings.to_frame(state.pose.frame)
     
-        curr_x = state.x
-        curr_y = state.y
-        curr_yaw = state.heading
+        curr_x = state.pose.x
+        curr_y = state.pose.y
+        curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
         speed = state.v
 
         
@@ -74,26 +79,30 @@ class PurePursuit(object):
 
         f_delta = np.clip(angle, self.wheel_angle_range[0], self.wheel_angle_range[1])
 
-        steering_angle = np.clip(front2steer(f_delta), self.steering_angle_range[0], self.steering_angle_range[1])
 
         print("Closest point distance: " + str(L))
         print("Forward velocity: " + str(speed))
         ct_error = np.sin(alpha) * L
         print("Crosstrack Error: " + str(round(ct_error,3)))
-        print("Front steering angle: " + str(np.degrees(f_delta)) + " degrees")
-        print("Steering wheel angle: " + str(np.degrees(steering_angle)) + " degrees" )
+        print("Front steering angle: " + str(round(np.degrees(f_delta),2)) + " degrees")
+        steering_angle = np.clip(front2steer(f_delta), self.steering_angle_range[0], self.steering_angle_range[1])
+        print("Steering wheel angle: " + str(round(np.degrees(steering_angle),2)) + " degrees" )
         print("\n")
 
         filt_vel     = self.speed_filter(speed)
-        output_accel = self.pid_speed.advance(state.t, self.desired_speed - filt_vel)
+        print("Filtered velocity: " + str(filt_vel))
+        output_accel = self.pid_speed.advance(e = self.desired_speed - filt_vel, t = t)
+        print(output_accel)
+        assert isinstance(output_accel, (int,float))
 
         if output_accel > self.max_accel:
             output_accel = self.max_accel
 
-        if output_accel < 0.3:
-            output_accel = 0.3
+        if output_accel < -self.max_decel:
+            output_accel = -self.max_decel
         
         self.path_progress += speed * dt
+        return (output_accel, f_delta)
 
 
 class PurePursuitTrajectoryTracker(Component):
@@ -112,9 +121,9 @@ class PurePursuitTrajectoryTracker(Component):
 
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
         self.pure_pursuit.set_path(trajectory)
-        res = self.pure_pursuit.compute(vehicle)
-        res = GEMVehicleCommand(accelerator_pedal_position=res.accel, brake_pedal_position=res.brake, steering_wheel_angle=res.steer)
-        self.vehicle_interface.send_command(res)
+        accel,wheel_angle = self.pure_pursuit.compute(vehicle)
+        steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
+        self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
     
     def healthy(self):
         return self.pure_pursuit.path is not None

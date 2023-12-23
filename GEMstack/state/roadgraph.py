@@ -193,29 +193,29 @@ class Roadgraph:
         keys.update(self.static_obstacles.keys())
         return list(keys)
     
-    def to_frame(self, frame : ObjectFrameEnum, current_origin = None, global_origin = None) -> Roadgraph:
+    def to_frame(self, frame : ObjectFrameEnum, current_pose = None, start_pose_abs = None) -> Roadgraph:
         newcurves = dict()
         for (k,c) in self.curves.items():
-            newc = c.to_frame(self.frame,frame,current_origin,global_origin)
+            newc = c.to_frame(self.frame,frame,current_pose,start_pose_abs)
             newcurves[k] = newc
         newlanes = dict()
         for (k,l) in self.lanes.items():
-            newl = l.to_frame(self.frame,frame,current_origin,global_origin)
+            newl = l.to_frame(self.frame,frame,current_pose,start_pose_abs)
             newlanes[k] = newl
         newregions = dict()
         for (k,r) in self.regions.items():
-            newr = r.to_frame(self.frame,frame,current_origin,global_origin)
+            newr = r.to_frame(self.frame,frame,current_pose,start_pose_abs)
             newregions[k] = newr
         newsigns = dict()
         for (k,s) in self.signs.items():
-            news = s.to_frame(frame,current_origin,global_origin)
+            news = s.to_frame(frame,current_pose,start_pose_abs)
             newsigns[k] = news
         newstatic_obstacles = dict()
         for (k,o) in self.static_obstacles.items():
-            newo = o.to_frame(frame,current_origin,global_origin)
+            newo = o.to_frame(frame,current_pose,start_pose_abs)
             newstatic_obstacles[k] = newo
         newconnections = []
         for c in self.connections:
-            newc = c.to_frame(self.frame,frame,current_origin,global_origin)
+            newc = c.to_frame(self.frame,frame,current_pose,start_pose_abs)
             newconnections.append(newc)
         return replace(self, frame = frame, curves = newcurves, lanes = newlanes, regions = newregions, signs = newsigns, static_obstacles = newstatic_obstacles, connections=newconnections)

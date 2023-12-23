@@ -1,7 +1,11 @@
-#lists the components in order.
-#Defines the permissable inputs and outputs for each component.
-#The actual implementation of the components must use a subset of these inputs
-#and must generate a superset of these outputs.
+# This file defines all of the possible elements of the computation
+# graph for the onboard behavior stack.
+#
+# `components` lists the components in order, and defines their permissable inputs and outputs.
+# See AllState for attributes that can be listed as inputs or outputs.
+#
+# The actual implementation of each component must use a subset of the specified inputs
+# and must generate a superset of the specified outputs.
 components:   
   - state_estimation: 
       outputs: vehicle

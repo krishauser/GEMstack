@@ -83,7 +83,7 @@ class GEMHardwareInterface(GEMInterface):
         self.last_reading.speed = msg.vehicle_speed   # forward velocity in m/s
 
     def steer_callback(self, msg):
-        self.last_reading.steering_wheel_angle = round(math.degrees(msg.output),1)
+        self.last_reading.steering_wheel_angle = msg.output
 
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading

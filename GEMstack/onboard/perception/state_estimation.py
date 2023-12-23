@@ -15,7 +15,7 @@ class GNSSStateEstimator(Component):
         self.vehicle_interface = vehicle_interface
         vehicle_interface.subscribe_gnss(self.inspva_callback)
         self.gnss_pose = None
-        self.location = settings.get('vehicle.calibration.gnss_location')
+        self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
 
     # Get GNSS information

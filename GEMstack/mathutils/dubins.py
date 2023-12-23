@@ -113,5 +113,5 @@ class SecondOrderDubinsCar(Dynamics):
         assert len(u) == 2
         v,phi = x[3:5]
         turn_rate = np.tan(phi)/self.wheelBase
-        return np.hstack(self.dubins(x[:3],[v,turn_rate]),[u[0],u[1]])
+        return np.hstack((self.dubins.derivative(x[:3],[v,turn_rate]),[u[0],u[1]]))
         
