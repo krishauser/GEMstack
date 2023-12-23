@@ -1,3 +1,8 @@
+"""Representations of state of the vehicle and its environment.
+
+Most significant is the :class:`AllState` object, which declares all internal
+state of the behavior stack that persists from step to step.
+"""
 __all__ = ['PhysicalObject','ObjectPose','ObjectFrameEnum',
            'Path','Trajectory',
            'VehicleState',

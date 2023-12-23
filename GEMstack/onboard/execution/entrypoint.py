@@ -1,6 +1,6 @@
 from ...utils import settings,config
 from ..component import Component
-from .execution import EXECUTION_PREFIX,ExecutorBase
+from .execution import EXECUTION_PREFIX,ExecutorBase,load_computation_graph
 from .log_replay import LogReplay
 import importlib
 from typing import Dict,List,Optional
@@ -53,12 +53,14 @@ def make_class(config_info, component_module, parent_module=None, extra_args = N
 
 
 def main():
+    """The main entrypoint for the execution stack."""
     runconfig = settings.get('run')
     mode = settings.get('run.mode')
     vehicle_interface_settings = settings.get('run.vehicle_interface')
     mission_executor_settings = settings.get('run.mission_execution')
     log_settings = settings.get('run.log',{})
     replay_settings = settings.get('run.replay',{})
+    load_computation_graph()
 
     #create top-level components
     vehicle_interface = make_class(vehicle_interface_settings,'default','GEMstack.onboard.interface')

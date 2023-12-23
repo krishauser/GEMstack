@@ -1,6 +1,11 @@
 GEMstack.onboard.execution package
 ==================================
 
+.. automodule:: GEMstack.onboard.execution
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -32,14 +37,6 @@ GEMstack.onboard.execution.multiprocess\_execution module
 ---------------------------------------------------------
 
 .. automodule:: GEMstack.onboard.execution.multiprocess_execution
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: GEMstack.onboard.execution
    :members:
    :undoc-members:
    :show-inheritance:

@@ -1,8 +1,4 @@
-API
-===
+API Documentation
+=================
 
-.. autosummary::
-   :toctree: generated
-   :caption: Contents:
-
-   GEMstack
+See :doc:`source/GEMstack`

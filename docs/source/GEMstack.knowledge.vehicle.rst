@@ -1,6 +1,11 @@
 GEMstack.knowledge.vehicle package
 ==================================
 
+.. automodule:: GEMstack.knowledge.vehicle
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -16,14 +21,6 @@ GEMstack.knowledge.vehicle.geometry module
 ------------------------------------------
 
 .. automodule:: GEMstack.knowledge.vehicle.geometry
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: GEMstack.knowledge.vehicle
    :members:
    :undoc-members:
    :show-inheritance:

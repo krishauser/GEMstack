@@ -1,6 +1,11 @@
 GEMstack.onboard.perception package
 ===================================
 
+.. automodule:: GEMstack.onboard.perception
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -24,14 +29,6 @@ GEMstack.onboard.perception.state\_estimation module
 ----------------------------------------------------
 
 .. automodule:: GEMstack.onboard.perception.state_estimation
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: GEMstack.onboard.perception
    :members:
    :undoc-members:
    :show-inheritance:

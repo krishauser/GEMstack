@@ -57,7 +57,7 @@ All packages are within the `GEMstack/` folder.
   - `route`: Stores a 2d route, coming from the router.
   - `all`: State or the current scene, all intent and relation estimates, and the driving logic (objective, predicates, route).
 
-`offboard/`: Creation and management of data and knowledge.
+`offboard/`: Programs for creation and management of data and knowledge.
   - `calibration/`: Sensor calibration.
   - `log_management/`: Provides log management, browsing, and query functionality.
   - `detection_learning/`: Detection model learning.
@@ -105,7 +105,7 @@ All packages are within the `GEMstack/` folder.
 	  - `executor`: Base classes for executors.
 	  - `log_replay`: A generic component that replays from a log.
 
-  - `interface/`: Defines interfaces to vehicle hardware / simulators / external signals
+  - `interface/`: Defines interfaces to vehicle hardware and simulators.
 	  - `gem.py`: Base class for the Polaris GEM e2 vehicle.
 	  - `gem_hardware.py`: Interface to the real GEM vehicle.
 	  - `gem_simulator.py`: Interfaces to simulated GEM vehicles.

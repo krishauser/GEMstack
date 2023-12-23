@@ -24,6 +24,7 @@ class PID(object):
         self.derror = 0.0                          #differenced error, for debugging
 
     def reset(self):
+        """Resets the controller to its initial state."""
         self.iterm  = 0.0
         self.last_e = 0.0
         self.last_t = None
@@ -34,7 +35,8 @@ class PID(object):
                 t : float = None,
                 dt : float = None,
                 feedforward_term : float = 0) -> float:
-        """Parameters:
+        """
+        Parameters:
             e (float): error
             de (optional, float): error derivative. If not provided, will be
                 computed via finite differences.
@@ -44,6 +46,7 @@ class PID(object):
                 for the D or I term to have any effect.
             feedforward_term (optional, float): feedforward term to add to the
                 output. Defaults to 0.
+
         """
         if de is None:
             if dt is None:
@@ -75,5 +78,5 @@ class PID(object):
         self.last_t = t
         self.derror = de
 
-        print(feedforward_term,self.kp,e,self.ki,self.iterm,self.kd,de)
+        #print(feedforward_term,self.kp,e,self.ki,self.iterm,self.kd,de)
         return feedforward_term + self.kp * e + self.ki * self.iterm + self.kd * de

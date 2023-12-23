@@ -1,6 +1,11 @@
 GEMstack.onboard.planning package
 =================================
 
+.. automodule:: GEMstack.onboard.planning
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -32,14 +37,6 @@ GEMstack.onboard.planning.route\_planning module
 ------------------------------------------------
 
 .. automodule:: GEMstack.onboard.planning.route_planning
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: GEMstack.onboard.planning
    :members:
    :undoc-members:
    :show-inheritance:
