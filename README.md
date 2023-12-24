@@ -112,38 +112,38 @@ Legend:
 
 `onboard/`: 🚗 All algorithms governing onboard behavior are located here.  These algorithms may make use of items in the `knowledge/` stack.
   - `perception/`: Perception components.
-	  - 🟨 `state_estimation`: State estimators.
-	  - 🟨 `roadgraph_update`: Roadgraph updaters. 
+    - 🟨 `state_estimation`: State estimators.
+    - 🟨 `roadgraph_update`: Roadgraph updaters. 
     - 🟨 `perception_normalization`: Normalizes the scene before planning.  
-	  - 🟥 `lane_detection`: Lane detection.
-	  - 🟥 `sign_detection`: Sign detection. 
-	  - 🟥 `obstacle_detection`: Obstacle detction. 
-	  - 🟥 `agent_detection`: Agent detection. 
-	  - 🟥 `environment_detection`: Environment condition detection. 
-	  - 🟥 `intent_estimation`: Agent intent estimation. 
-	  - 🟥 `relation_estimation`: Entity relation estimation. 
-	  - 🟥 `agent_prediction`: Agent motion prediction. 
+    - 🟥 `lane_detection`: Lane detection.
+    - 🟥 `sign_detection`: Sign detection. 
+    - 🟥 `obstacle_detection`: Obstacle detction. 
+    - 🟥 `agent_detection`: Agent detection. 
+    - 🟥 `environment_detection`: Environment condition detection. 
+    - 🟥 `intent_estimation`: Agent intent estimation. 
+    - 🟥 `relation_estimation`: Entity relation estimation. 
+    - 🟥 `agent_prediction`: Agent motion prediction. 
 
   - `planning/`: Planning components.
-	  - 🟨 `route_planner`: Decides which route to drive from the roadgraph. 
-	  - 🟥 `driving_logic`: Performs all necessary logic to develop a planning problem specification, e.g., select obstacles, design cost functions, etc. 
-	  - 🟥 `heuristics`: Implements various planning heuristics. 
-	  - 🟥 `motion_planning`: Implements one or more motion planners. 
-	  - 🟥 `optimization`: Implements one or more trajectory optimizers.  
-	  - 🟥 `selection`: Implements best-trajectory selection.
-	  - 🟨 `pure_pursuit`: Implements a pure pursuit controller.
-	  - 🟨 `recovery`: Implements recovery behavior.
+    - 🟨 `route_planner`: Decides which route to drive from the roadgraph. 
+    - 🟥 `driving_logic`: Performs all necessary logic to develop a planning problem specification, e.g., select obstacles, design cost functions, etc. 
+    - 🟥 `heuristics`: Implements various planning heuristics. 
+    - 🟥 `motion_planning`: Implements one or more motion planners. 
+    - 🟥 `optimization`: Implements one or more trajectory optimizers.  
+    - 🟥 `selection`: Implements best-trajectory selection.
+    - 🟨 `pure_pursuit`: Implements a pure pursuit controller.
+    - 🟨 `recovery`: Implements recovery behavior.
 
   - `execution/`: Executes the onboard driving behavior.
-	  - 🟩 `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'.
-	  - 🟩 `executor`: Base classes for executors.
-	  - 🟩 `log_replay`: A generic component that replays from a log.
+    - 🟩 `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'.
+    - 🟩 `executor`: Base classes for executors.
+    - 🟩 `log_replay`: A generic component that replays from a log.
     - 🟧 `multiprocess_execution`: Component executors that work in separate process
 
   - `interface/`: Defines interfaces to vehicle hardware and simulators.
-	  - 🟩 `gem`: Base class for the Polaris GEM e2 vehicle.
-	  - 🟨 `gem_hardware`: Interface to the real GEM vehicle.
-	  - 🟨 `gem_simulator`: Interfaces to simulated GEM vehicles.
+    - 🟩 `gem`: Base class for the Polaris GEM e2 vehicle.
+    - 🟨 `gem_hardware`: Interface to the real GEM vehicle.
+    - 🟨 `gem_simulator`: Interfaces to simulated GEM vehicles.
 
 
 ## Launching the stack
@@ -194,15 +194,15 @@ from dataclasses import dataclass
 @dataclass
 @register(name="MyClass",version="1")
 class MyClass_Original:
-	x : float
-	y : float
+  x : float
+  y : float
 
 @dataclass
 @register(name="MyClass",version="2")
 class MyClass:
-	x : float
-	y : float
-	time : float
+  x : float
+  y : float
+  time : float
 
 ```
 
