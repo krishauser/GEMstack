@@ -2,13 +2,12 @@
 
 ## Dependencies
 
-Python 3.7+
+Python 3.7+ and ROS Noetic.  It is possible to do some offline and simulation work without ROS, but 
 
-PACMOD - low level Autonomoustuff's interface to vehicle
+In order to interface with the actual vehicle, you will need [PACMOD](http://wiki.ros.org/pacmod) - Autonomoustuff's low level interface to vehicle.  If you are using the course SSDs these will be provided for you.
 
-ROS (Noetic?) - messaging with cameras, simulator
+You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
 
-Python dependencies:
 - opencv-python
 - numpy
 - scipy
@@ -16,6 +15,27 @@ Python dependencies:
 - shapely
 - dacite
 - pyyaml
+
+
+## In this folder
+
+Your work will be typically confined to the `GEMstack/` folder, and you may use the `testing/`, `logs/`, `data/`, and `scenes/` folders.
+
+- `GEMstack/`: the software package (see [below](#package-structure)).
+- `main.py`: the standard entry point to running onboard behavior (see [below](#launching-the-stack)).
+- `logs/`: logs will be placed here.  These will not be committed to the Github repo.
+- `data/`: standard location to place datasets for training, i.e., downloaded or curated from other sources.  These will not be committed to the Github repo.
+- `scenes/`: standard location to place scenes for simulation.
+- `testing/`: test scripts to check whether GEMstack components are functioning.
+- `README.md`: this file.
+- `LICENSE`: MIT license.
+- `.gitignore`: Git ignore file. All files that match these patterns will not be added to Git.
+- `docs/`: ReadTheDocs documentation source files are placed here. Used by automated tools to build the [online documentation](https://gemstack.readthedocs.org).
+- `.readthedocs.yaml`: ReadTheDocs configuration file.  
+- `pyproject.toml`: Describes the GEMstack Python package for pip install. 
+- `requirements.txt`: A list of Python dependencies for the software stack, used via `pip install -r requirements.txt`.
+
+In addition, some tools (e.g., pip) will build temporary folders, such as `build` and `GEMstack.egg-info`. You can ignore these.
 
 ## Package structure 
 
@@ -58,7 +78,7 @@ All packages are within the `GEMstack/` folder.
   - `route`: Stores a 2d route, coming from the router.
   - `all`: State or the current scene, all intent and relation estimates, and the driving logic (objective, predicates, route).
 
-`offboard/`: Creation and management of data and knowledge.
+`offboard/`: Programs for creation and management of data and knowledge.
   - `calibration/`: Sensor calibration.
   - `log_management/`: Provides log management, browsing, and query functionality.
   - `detection_learning/`: Detection model learning.
@@ -106,7 +126,7 @@ All packages are within the `GEMstack/` folder.
 	  - `executor`: Base classes for executors.
 	  - `log_replay`: A generic component that replays from a log.
 
-  - `interface/`: Defines interfaces to vehicle hardware / simulators / external signals
+  - `interface/`: Defines interfaces to vehicle hardware and simulators.
 	  - `gem.py`: Base class for the Polaris GEM e2 vehicle.
 	  - `gem_hardware.py`: Interface to the real GEM vehicle.
 	  - `gem_simulator.py`: Interfaces to simulated GEM vehicles.
@@ -144,7 +164,7 @@ You can also install `GEMstack` into the system Python by calling `pip install .
 
 
 
-## Communication protocols
+## Communication and serialization protocols
 
 Sending commands to the vehicle is handled by the ROS-PACMOD interface.  Receiving sensor messages is handled through standard ROS sensor messages.
 

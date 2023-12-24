@@ -52,7 +52,7 @@ def get(path : Union[str,List[str]], defaultValue=KeyError) -> Any:
         return val
     except KeyError:
         if defaultValue is KeyError:
-            print("Available keys:",val.keys())
+            print("settings.py: Unable to get",path,"available keys:",val.keys())
             raise
         return defaultValue
 

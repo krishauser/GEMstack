@@ -40,9 +40,17 @@ def normalize_computation_graph(components : list) -> List[Dict]:
             normalized_components.append({k:v})
     return normalized_components
 
-COMPONENTS = normalize_computation_graph(settings.get('run.computation_graph.components'))
-COMPONENT_ORDER = [list(c.keys())[0] for c in COMPONENTS]
-COMPONENT_SETTINGS = dict(list(c.items())[0] for c in COMPONENTS)
+COMPONENTS = None 
+COMPONENT_ORDER = None
+COMPONENT_SETTINGS = None
+
+def load_computation_graph():
+    """Loads the computation graph from settings[run.computation_graph.components]
+    and sets global variables COMPONENTS, COMPONENT_ORDER, and COMPONENT_SETTINGS."""
+    global COMPONENTS, COMPONENT_ORDER, COMPONENT_SETTINGS
+    COMPONENTS = normalize_computation_graph(settings.get('run.computation_graph.components'))
+    COMPONENT_ORDER = [list(c.keys())[0] for c in COMPONENTS]
+    COMPONENT_SETTINGS = dict(list(c.items())[0] for c in COMPONENTS)
 
 
 def validate_components(components : Dict[str,Component], provided : List = None):
@@ -170,10 +178,14 @@ class ExecutorBase:
         self.behavior_log = None
         self.vehicle_log_t_last = None
         self.run_metadata = dict()    # type: dict
+        self.run_metadata['pipelines'] = []
+        self.run_metadata['events'] = []
+        self.run_metadata['exit_reason'] = 'unknown'
         self.last_loop_time = time.time()
 
     def begin(self):
-        """Override me to do any initialization"""
+        """Override me to do any initialization.  The vehicle will have
+        already been started and sensors will have been validated."""
         pass
 
     def update(self, state : AllState) -> Optional[str]:
@@ -183,9 +195,12 @@ class ExecutorBase:
         return None
 
     def done(self):
+        """Override me to implement mission completion logic."""
         return False
 
     def end(self):
+        """Override me to do any mission cleanup.  This will be called before
+        the vehicle is stopped."""
         pass
 
     def add_pipeline(self,name : str, perception : Dict[str,Component], planning : Dict[str,Component], other : Dict[str,Component]):
@@ -234,11 +249,27 @@ class ExecutorBase:
                 self.state_log = Logfile(os.path.join(self.log_folder,'state.json'),delta_format=False,mode='w')
 
     def dump_log_metadata(self):
+        if not self.log_folder:
+            return
         import os
         from ...utils import config
         config.save_config(os.path.join(self.log_folder,'meta.yaml'),self.run_metadata)
+    
+    def event(self,event_description : str, event_print_string : str = None):
+        """Logs an event to the metadata and prints a message to the console."""
+        if event_print_string is None:
+            event_print_string = event_description if event_description.endswith('.') else event_description + '.'
+        self.run_metadata['events'].append({'time':time.time(),'vehicle_time':self.state.t,'description':event_description})
+        print(EXECUTION_PREFIX,event_print_string)
+        self.dump_log_metadata()
+
+    def set_exit_reason(self, description):
+        """Sets a main loop exit reason"""
+        self.run_metadata['exit_reason'] = description
+        self.dump_log_metadata()
 
     def run(self):
+        """Main entry point.  Runs the mission execution loop."""
         if self.current_pipeline not in self.pipelines:
             print(EXECUTION_PREFIX,"Pipeline {} not found".format(self.current_pipeline))
             return
@@ -260,10 +291,13 @@ class ExecutorBase:
         
         validated = False
         try:
-            self.validate_sensors()
-            validated = True
+            validated = self.validate_sensors()
+            if not validated:
+                self.event("Sensor validation failed","Could not validate sensors, stopping components and exiting")
+                self.set_exit_reason("Sensor validation failed")
         except KeyboardInterrupt:
-            print(EXECUTION_PREFIX,"Could not validate sensors, stopping components and exiting")
+            self.event("Ctrl+C interrupt during sensor validation","Could not validate sensors, stopping components and exiting")
+            self.set_exit_reason("Sensor validation failed")
             if time.time() - self.last_loop_time > 0.5:
                 print(EXECUTION_PREFIX,"A component may have hung. Traceback:")
                 import traceback
@@ -272,11 +306,15 @@ class ExecutorBase:
         if validated:
             self.begin()
         while validated:
+            self.run_metadata['pipelines'].append({'time':time.time(),'vehicle_time':self.state.t,'name':self.current_pipeline})
+            self.dump_log_metadata()
             try:
                 print(EXECUTION_PREFIX,"Executing pipeline {}".format(self.current_pipeline))
                 next = self.run_until_switch()
                 if next is None:
                     #done
+                    if self.run_metadata['exit_reason'] == 'unknown':
+                        self.set_exit_reason("normal exit")
                     break
                 if next not in self.pipelines:
                     print(EXECUTION_PREFIX,"Pipeline {} not found, switching to recovery".format(next))
@@ -286,10 +324,11 @@ class ExecutorBase:
                     print("************************************************")
                     print("   Recovery pipeline is not working, exiting!   ")
                     print("************************************************")
+                    self.set_exit_reason("recovery pipeline not working")
                     break
                 self.current_pipeline = next
                 if not self.validate_sensors(1):
-                    print(EXECUTION_PREFIX,"Sensors in desired pipeline {} are not working, switching to recovery".format(self.current_pipeline))
+                    self.event("Sensors in desired pipeline {} are not working, switching to recovery".format(self.current_pipeline))
                     self.current_pipeline = 'recovery'
             except KeyboardInterrupt:
                 if self.current_pipeline == 'recovery':
@@ -297,9 +336,10 @@ class ExecutorBase:
                     print("************************************************")
                     print("    Ctrl+C interrupt during recovery, exiting!  ")
                     print("************************************************")
+                    self.set_exit_reason("Ctrl+C interrupt during recovery")
                     break
                 self.current_pipeline = 'recovery'
-                print(EXECUTION_PREFIX,"Ctrl+C pressed, switching to recovery mode.")
+                self.event("Ctrl+C pressed, switching to recovery mode")
                 if time.time() - self.last_loop_time > 0.5:
                     print(EXECUTION_PREFIX,"A component may have hung. Traceback:")
                     import traceback
@@ -307,7 +347,7 @@ class ExecutorBase:
         if validated:
             self.end()
             #done with mission
-            print(EXECUTION_PREFIX,"Done with mission execution, stopping components and exiting")
+            self.event("Mission execution ended","Done with mission execution, stopping components and exiting")
 
         for (name,(perception_components,planning_components,other_components)) in self.pipelines.items():
             for (k,c) in perception_components.items():
@@ -323,9 +363,10 @@ class ExecutorBase:
         if self.behavior_log:
             self.behavior_log.close()
             self.behavior_log = None
+        
 
     def validate_sensors(self,numsteps=None):
-        #verify sensors are working
+        """Verifies sensors are working"""
         (perception_components,planning_components,other_components) = self.pipelines[self.current_pipeline]
         dt_min = min([c.dt for c in perception_components.values()])
         if self.log_state_rate is not None:
@@ -348,6 +389,7 @@ class ExecutorBase:
         return True
 
     def run_until_switch(self):
+        """Runs a pipeline until a switch is requested."""
         if self.current_pipeline == 'recovery':        
             self.state.mission.type = MissionEnum.RECOVERY_STOP
         
