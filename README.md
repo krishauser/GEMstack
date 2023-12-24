@@ -46,96 +46,104 @@ In addition, some tools (e.g., pip) will build temporary folders, such as `build
 
 All packages are within the `GEMstack/` folder.  
 
+Legend:
+- 🟥: TODO
+- 🟧: early development (not usable)
+- 🟨: in development (usable, but many features not complete or tested)
+- 🟩: stable (most features complete and tested)
+- 🟦: mature
+
 `mathutils/`: 🧮 Math utilities common to onboard / offboard use.
-  - `transforms`: 2d and 3d rotations and rigid transforms.
-  - `filters`: 1d signal processing.
-  - `cameras`: Contains standard camera models.
-  - `differences`: Finite differences for derivative approximation.
-  - `dynamics`: Contains standard dynamics models.
-  - `dubins`: Contains first- and second-order Dubins car dynamics models.
-  - `control`: Contains standard control techniques, e.g., PID controller.
-  - `collisions`: Provides collision detection and proximity detection.
+  - 🟩 `transforms`: 2d and 3d rotations and rigid transforms.
+  - 🟩 `filters`: 1d signal processing.
+  - 🟥 `cameras`: Contains standard camera models.
+  - 🟦 `differences`: Finite differences for derivative approximation.
+  - 🟦 `dynamics`: Contains standard dynamics models.
+  - 🟦 `dubins`: Contains first- and second-order Dubins car dynamics models.
+  - 🟩 `control`: Contains standard control techniques, e.g., PID controller.
+  - 🟧 `collisions`: Provides collision detection and proximity detection.
   
 `utils/`: 🛠️ Other utilities common to onboard / offboard use.
-  - `logging`: Provides logging and log replay functionality.
-  - `simulation`: Interfaces with the Gazebo (possibly other?) simulators.
-  - `visualization`: Tools for converting internal data on knowledge, state, etc. to visualization apps.
-  - `settings`: Tools for managing settings for onboard behaviour.  If you're tempted to write a magic parameter or global variable, it should be placed here instead.
-  - `config`: Tools for loading config files.
-  - `serialization`: Tools for serializing / deserializing objects.
+  - 🟩 `logging`: Provides logging and log replay functionality.
+  - 🟧 `visualization`: Tools for converting internal data on knowledge, state, etc. to visualization apps.
+  - 🟦 `settings`: Tools for managing settings for onboard behaviour.  If you're tempted to write a magic parameter or global variable, it should be [placed in settings instead](#settings).
+  - 🟦 `config`: Tools for loading config files. 
+  - 🟦 `serialization`: Tools for serializing / deserializing objects.
+  - 🟦 `loops`: Tools for writing timed loops.
 
 `state/`: 💾 Representations of state of the vehicle and its environment, including internal state that persists from step to step.
-  - `physical_object`: A generic physical object base class.
-  - `trajectory`: Stores a generic path or trajectory.
-  - `vehicle`: Ego-vehicle state.
-  - `intent`: Ego-vehicle intent that may involve special logic or signaling behavior, e.g., lane change, take exit, shutting down.
-  - `roadgraph`: A section of the roadmap around the ego-vehicle.
-  - `roadmap`: A map created for offline use.
-  - `environment`: Environmental conditions, e.g., weather, road conditions.
-  - `obstacle`: A static obstacle or debris.
-  - `sign`: A traffic sign.
-  - `agent`: Another moving object, e.g., pedestrian, bicyclist, vehicle.
-  - `scene`: All physical items that may be relevant to the current scene, i.e., vehicle, roadgraph, environment, obstacles, and agent states.
-  - `agent_intent`: Maintains an estimate of agent intent.
-  - `entity_relation`: Maintains an estimate of a relationship between entities, e.g. VISIBLE, FOLLOWING, PASSING, YIELDING.
-  - `mission`: Stores the current mission objective, e.g., IDLE, DRIVE_ROUTE, ESTOP, used by routing, logic, planning, and execution.
-  - `predicates`: Any items predicates that are estimated to be true in the current world.
-  - `route`: Stores a 2d route, coming from the router.
-  - `all`: State or the current scene, all intent and relation estimates, and the driving logic (objective, predicates, route).
+  - 🟩 `physical_object`: A generic physical object base class.
+  - 🟩 `trajectory`: Stores a generic path or trajectory. 
+  - 🟩 `vehicle`: Ego-vehicle state. 
+  - 🟨 `intent`: Ego-vehicle intent that may involve special logic or signaling behavior, e.g., lane change, take exit, shutting down. 
+  - 🟨 `roadgraph`: A section of the roadmap around the ego-vehicle. 
+  - 🟨 `roadmap`: A map created for offline use. 
+  - 🟨 `environment`: Environmental conditions, e.g., weather, road conditions. 
+  - 🟨 `obstacle`: A static obstacle or debris. 
+  - 🟨 `sign`: A traffic sign. 
+  - 🟨 `agent`: Another moving object, e.g., pedestrian, bicyclist, vehicle. 
+  - 🟩 `scene`: All physical items that may be relevant to the current scene, i.e., vehicle, roadgraph, environment, obstacles, and agent states. 
+  - 🟨 `agent_intent`: Maintains an estimate of agent intent. 
+  - 🟨 `entity_relation`: Maintains an estimate of a relationship between entities, e.g. VISIBLE, FOLLOWING, PASSING, YIELDING. 
+  - 🟨 `mission`: Stores the current mission objective, e.g., IDLE, DRIVE_ROUTE, ESTOP, used by routing, logic, planning, and execution. 
+  - 🟩 `predicates`: Any items predicates that are estimated to be true in the current world. 
+  - 🟩 `route`: Stores a 2d route, coming from the router. 
+  - 🟩 `all`: State or the current scene, all intent and relation estimates, and the driving logic (objective, predicates, route). 
 
 `offboard/`: 💻 Programs for creation and management of data and knowledge.
-  - `calibration/`: Sensor calibration.
-  - `log_management/`: Provides log management, browsing, and query functionality.
-  - `detection_learning/`: Detection model learning.
-  - `prediction_learning/`: Prediction model learning.
-  - `heuristic_learning/`: Driving heuristic learning.
+  - 🟥 `calibration/`: Sensor calibration.
+  - 🟥 `log_management/`: Provides log management, browsing, and query functionality. 
+  - 🟥 `detection_learning/`: Detection model learning. 
+  - 🟥 `prediction_learning/`: Prediction model learning. 
+  - 🟥 `heuristic_learning/`: Driving heuristic learning. 
 
 `knowledge/`: 🧠 Models and parameters common to onboard / offboard use.  The file "current.py" in each directory will store the current model being used.
-  - `vehicle/`: Vehicle geometry and physics.
-  - `calibration/`: Calibrated sensor parameters.
-  - `detection/`: Stores detection models.
-  - `prediction/`: Stores prediction models.
-  - `heuristics/`: Stores heuristic models.
-  - `roadmaps/`: Stores roadmap knowledge, e.g., lanes, regions, obstacles, signs.
-  - `routes/`: Stores precomputed routes.
-  - `predicates/`: Stores named predicates that may be true in a world state.
-  - `defaults/`: Stores the default settings.
+  - 🟨 `vehicle/`: Vehicle geometry and physics. (needs testing)
+  - 🟨 `calibration/`: Calibrated sensor parameters.
+  - 🟥 `detection/`: Stores detection models.
+  - 🟥 `prediction/`: Stores prediction models.
+  - 🟥 `heuristics/`: Stores heuristic models.
+  - 🟥 `roadmaps/`: Stores roadmap knowledge, e.g., lanes, regions, obstacles, signs.
+  - 🟨 `routes/`: Stores precomputed routes. 
+  - 🟥 `predicates/`: Stores named predicates that may be true in a world state.
+  - 🟩 `defaults/`: Stores the default settings. 
 
 `launch/`: 🚀 Launch scripts are listed here.  Specify which configuration you want to use as an argument to `main.py`.
 
 `onboard/`: 🚗 All algorithms governing onboard behavior are located here.  These algorithms may make use of items in the `knowledge/` stack.
   - `perception/`: Perception components.
-	  - `state_estimation`: State estimators.
-	  - `roadgraph_update`: Roadgraph updaters.
-	  - `lane_detection`: Lane detection.
-	  - `sign_detection`: Sign detection.
-	  - `obstacle_detection`: Obstacle detction.
-	  - `agent_detection`: Agent detection.
-	  - `environment_detection`: Environment condition detection.
-	  - `intent_estimation`: Agent intent estimation.
-	  - `relation_estimation`: Entity relation estimation.
-	  - `agent_prediction`: Agent motion prediction.
+	  - 🟨 `state_estimation`: State estimators.
+	  - 🟨 `roadgraph_update`: Roadgraph updaters. 
+    - 🟨 `perception_normalization`: Normalizes the scene before planning.  
+	  - 🟥 `lane_detection`: Lane detection.
+	  - 🟥 `sign_detection`: Sign detection. 
+	  - 🟥 `obstacle_detection`: Obstacle detction. 
+	  - 🟥 `agent_detection`: Agent detection. 
+	  - 🟥 `environment_detection`: Environment condition detection. 
+	  - 🟥 `intent_estimation`: Agent intent estimation. 
+	  - 🟥 `relation_estimation`: Entity relation estimation. 
+	  - 🟥 `agent_prediction`: Agent motion prediction. 
 
   - `planning/`: Planning components.
-	  - `route_planner`: Decides which route to drive from the roadgraph.
-	  - `driving_logic`: Performs all necessary logic to develop a planning problem specification, e.g., select obstacles, design cost functions, etc.
-	  - `heuristics`: Implements various planning heuristics.
-	  - `motion_planning`: Implements one or more motion planners.
-	  - `optimization`: Implements one or more trajectory optimizers.
-	  - `selection`: Implements best-trajectory selection.
-	  - `pure_pursuit`: Implements a pure pursuit controller.
-	  - `recovery`: Implements recovery behavior.
+	  - 🟨 `route_planner`: Decides which route to drive from the roadgraph. 
+	  - 🟥 `driving_logic`: Performs all necessary logic to develop a planning problem specification, e.g., select obstacles, design cost functions, etc. 
+	  - 🟥 `heuristics`: Implements various planning heuristics. 
+	  - 🟥 `motion_planning`: Implements one or more motion planners. 
+	  - 🟥 `optimization`: Implements one or more trajectory optimizers.  
+	  - 🟥 `selection`: Implements best-trajectory selection.
+	  - 🟨 `pure_pursuit`: Implements a pure pursuit controller.
+	  - 🟨 `recovery`: Implements recovery behavior.
 
   - `execution/`: Executes the onboard driving behavior.
-	  - `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'
-	  - `executor`: Base classes for executors.
-	  - `log_replay`: A generic component that replays from a log.
+	  - 🟩 `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'.
+	  - 🟩 `executor`: Base classes for executors.
+	  - 🟩 `log_replay`: A generic component that replays from a log.
+    - 🟧 `multiprocess_execution`: Component executors that work in separate process
 
   - `interface/`: Defines interfaces to vehicle hardware and simulators.
-	  - `gem.py`: Base class for the Polaris GEM e2 vehicle.
-	  - `gem_hardware.py`: Interface to the real GEM vehicle.
-	  - `gem_simulator.py`: Interfaces to simulated GEM vehicles.
-	  - `teleop`: Teleoperator control signals.
+	  - 🟩 `gem`: Base class for the Polaris GEM e2 vehicle.
+	  - 🟨 `gem_hardware`: Interface to the real GEM vehicle.
+	  - 🟨 `gem_simulator`: Interfaces to simulated GEM vehicles.
 
 
 ## Launching the stack
