@@ -16,6 +16,27 @@ You should also have the following Python dependencies installed, which you can 
 - dacite
 - pyyaml
 
+
+## In this folder
+
+Your work will be typically confined to the `GEMstack/` folder, and you may use the `testing/`, `logs/`, `data/`, and `scenes/` folders.
+
+- `GEMstack/`: the software package (see [below](#package-structure)).
+- `main.py`: the standard entry point to running onboard behavior (see [below](#launching-the-stack)).
+- `logs/`: logs will be placed here.  These will not be committed to the Github repo.
+- `data/`: standard location to place datasets for training, i.e., downloaded or curated from other sources.  These will not be committed to the Github repo.
+- `scenes/`: standard location to place scenes for simulation.
+- `testing/`: test scripts to check whether GEMstack components are functioning.
+- `README.md`: this file.
+- `LICENSE`: MIT license.
+- `.gitignore`: Git ignore file. All files that match these patterns will not be added to Git.
+- `docs/`: ReadTheDocs documentation source files are placed here. Used by automated tools to build the [online documentation](https://gemstack.readthedocs.org).
+- `.readthedocs.yaml`: ReadTheDocs configuration file.  
+- `pyproject.toml`: Describes the GEMstack Python package for pip install. 
+- `requirements.txt`: A list of Python dependencies for the software stack, used via `pip install -r requirements.txt`.
+
+In addition, some tools (e.g., pip) will build temporary folders, such as `build` and `GEMstack.egg-info`. You can ignore these.
+
 ## Package structure 
 
 All packages are within the `GEMstack/` folder.  
