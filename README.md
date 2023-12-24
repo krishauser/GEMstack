@@ -1,14 +1,14 @@
-# GEMstack: software structure for CS588 Autonomous Vehicle System Engineering
+# GEMstack: software for CS588 Autonomous Vehicle System Engineering
 
-[📖 Online documentation](https://gemstack.readthedocs.org)
+📖 [Online documentation](https://gemstack.readthedocs.org)
 
-[🚗 About the GEM e2 vehicle](https://publish.illinois.edu/robotics-autonomy-resources/gem/)
+🚗 [About the GEM e2 vehicle](https://publish.illinois.edu/robotics-autonomy-resources/gem/)
 
-[🗎 ROS code for launching vehicle](https://github.com/hangcui1201/POLARIS_GEM_e2_Real/tree/main)
+🗎 [ROS code for launching vehicle](https://github.com/hangcui1201/POLARIS_GEM_e2_Real/tree/main)
 
 ## Dependencies
 
-Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior.)
+GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior.)
 
 In order to interface with the actual vehicle, you will need [PACMOD](http://wiki.ros.org/pacmod) - Autonomoustuff's low level interface to vehicle. 
 
