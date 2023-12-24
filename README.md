@@ -1,10 +1,16 @@
 # GEMstack: software structure for CS588 Autonomous Vehicle System Engineering
 
+[📖 Online documentation](https://gemstack.readthedocs.org)
+
+[🚗 About the GEM e2 vehicle](https://publish.illinois.edu/robotics-autonomy-resources/gem/)
+
+[🗎 ROS code for launching vehicle](https://github.com/hangcui1201/POLARIS_GEM_e2_Real/tree/main)
+
 ## Dependencies
 
-Python 3.7+ and ROS Noetic.  It is possible to do some offline and simulation work without ROS, but 
+Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior.)
 
-In order to interface with the actual vehicle, you will need [PACMOD](http://wiki.ros.org/pacmod) - Autonomoustuff's low level interface to vehicle.  If you are using the course SSDs these will be provided for you.
+In order to interface with the actual vehicle, you will need [PACMOD](http://wiki.ros.org/pacmod) - Autonomoustuff's low level interface to vehicle. 
 
 You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
 
@@ -15,7 +21,6 @@ You should also have the following Python dependencies installed, which you can 
 - shapely
 - dacite
 - pyyaml
-
 
 ## In this folder
 
@@ -41,7 +46,7 @@ In addition, some tools (e.g., pip) will build temporary folders, such as `build
 
 All packages are within the `GEMstack/` folder.  
 
-`mathutils/`: Math utilities common to onboard / offboard use.
+`mathutils/`: 🧮 Math utilities common to onboard / offboard use.
   - `transforms`: 2d and 3d rotations and rigid transforms.
   - `filters`: 1d signal processing.
   - `cameras`: Contains standard camera models.
@@ -51,7 +56,7 @@ All packages are within the `GEMstack/` folder.
   - `control`: Contains standard control techniques, e.g., PID controller.
   - `collisions`: Provides collision detection and proximity detection.
   
-`utils/`: Other utilities common to onboard / offboard use.
+`utils/`: 🛠️ Other utilities common to onboard / offboard use.
   - `logging`: Provides logging and log replay functionality.
   - `simulation`: Interfaces with the Gazebo (possibly other?) simulators.
   - `visualization`: Tools for converting internal data on knowledge, state, etc. to visualization apps.
@@ -59,7 +64,7 @@ All packages are within the `GEMstack/` folder.
   - `config`: Tools for loading config files.
   - `serialization`: Tools for serializing / deserializing objects.
 
-`state/`: Representations of state of the vehicle and its environment, including internal state that persists from step to step.
+`state/`: 💾 Representations of state of the vehicle and its environment, including internal state that persists from step to step.
   - `physical_object`: A generic physical object base class.
   - `trajectory`: Stores a generic path or trajectory.
   - `vehicle`: Ego-vehicle state.
@@ -78,14 +83,14 @@ All packages are within the `GEMstack/` folder.
   - `route`: Stores a 2d route, coming from the router.
   - `all`: State or the current scene, all intent and relation estimates, and the driving logic (objective, predicates, route).
 
-`offboard/`: Programs for creation and management of data and knowledge.
+`offboard/`: 💻 Programs for creation and management of data and knowledge.
   - `calibration/`: Sensor calibration.
   - `log_management/`: Provides log management, browsing, and query functionality.
   - `detection_learning/`: Detection model learning.
   - `prediction_learning/`: Prediction model learning.
   - `heuristic_learning/`: Driving heuristic learning.
 
-`knowledge/`: Models and parameters common to onboard / offboard use.  The file "current.py" in each directory will store the current model being used.
+`knowledge/`: 🧠 Models and parameters common to onboard / offboard use.  The file "current.py" in each directory will store the current model being used.
   - `vehicle/`: Vehicle geometry and physics.
   - `calibration/`: Calibrated sensor parameters.
   - `detection/`: Stores detection models.
@@ -96,9 +101,9 @@ All packages are within the `GEMstack/` folder.
   - `predicates/`: Stores named predicates that may be true in a world state.
   - `defaults/`: Stores the default settings.
 
-`launch/`: Launch scripts are listed here.  Specify which configuration you want to use as an argument to `main.py`.
+`launch/`: 🚀 Launch scripts are listed here.  Specify which configuration you want to use as an argument to `main.py`.
 
-`onboard/`: All algorithms governing onboard behavior are located here.  These algorithms may make use of items in the `knowledge/` stack.
+`onboard/`: 🚗 All algorithms governing onboard behavior are located here.  These algorithms may make use of items in the `knowledge/` stack.
   - `perception/`: Perception components.
 	  - `state_estimation`: State estimators.
 	  - `roadgraph_update`: Roadgraph updaters.
