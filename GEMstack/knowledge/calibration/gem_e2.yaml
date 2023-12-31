@@ -1,4 +1,4 @@
-reference: rear_axle_center
+reference: rear_axle_center  # ground point below rear axle center
 gnss_location: [1.1,0.0,0.3] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/vehicle_drivers/gem_gnss_control/scripts/gem_gnss_tracker_stanley_rtk.py.  Note conflict with pure pursuit location?
 gnss_yaw: 0.0 # radians
 front_radar_location: [1.45,0,0.07] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/platform_launch/launch/white_e2/platform.launch

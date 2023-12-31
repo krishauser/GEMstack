@@ -7,17 +7,16 @@ vehicle:
     max_gear : 1
     num_wiper_settings : 1
     #using !include directives helps maintain reuse of common settings
-    geometry: !include gem_geometry.yaml
-    dynamics: !include gem_dynamics.yaml
-    limits: !include gem_slow_limits.yaml
-    control_defaults: !include gem_control_defaults.yaml
-    calibration: !include ../calibration/gem.yaml
+    geometry: !include ../vehicle/gem_e2_geometry.yaml
+    dynamics: !include ../vehicle/gem_e2_dynamics.yaml
+    limits: !include ../vehicle/gem_e2_slow_limits.yaml
+    control_defaults: !include ../vehicle/gem_e2_control_defaults.yaml
+    calibration: !include ../calibration/gem_e2.yaml
 
 #arguments for algorithm components here
-mission_executor:
-    frequency: 0.5
 model_predictive_controller:
-    frequency: 0.1
+    dt: 0.1
+    lookahead: 20
 control:
     recovery:
         brake_amount : 0.5
