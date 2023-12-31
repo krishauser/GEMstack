@@ -61,11 +61,12 @@ Legend:
   - 🟦 `dynamics`: Contains standard dynamics models.
   - 🟦 `dubins`: Contains first- and second-order Dubins car dynamics models.
   - 🟩 `control`: Contains standard control techniques, e.g., PID controller.
-  - 🟧 `collisions`: Provides collision detection and proximity detection.
+  - 🟨 `collisions`: Provides collision detection and proximity detection.
   
 `utils/`: 🛠️ Other utilities common to onboard / offboard use.
   - 🟩 `logging`: Provides logging and log replay functionality.
-  - 🟧 `visualization`: Tools for converting internal data on knowledge, state, etc. to visualization apps.
+  - 🟨 `mpl_visualization`: Tools for plotting data on knowledge, state, etc. in Matplotlib.
+  - 🟥 `gazebo_visualization`: Tools for converting data on knowledge, state, etc. to ROS messages used in Gazebo.
   - 🟦 `settings`: Tools for managing settings for onboard behaviour.  If you're tempted to write a magic parameter or global variable, it should be [placed in settings instead](#settings).
   - 🟦 `config`: Tools for loading config files. 
   - 🟦 `serialization`: Tools for serializing / deserializing objects.
@@ -138,7 +139,10 @@ Legend:
     - 🟩 `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'.
     - 🟩 `executor`: Base classes for executors.
     - 🟩 `log_replay`: A generic component that replays from a log.
-    - 🟧 `multiprocess_execution`: Component executors that work in separate process
+    - 🟨 `multiprocess_execution`: Component executors that work in separate process.  (Stdout logging not done yet. Still hangs on exception.)
+  
+  - `visualization/`: Visualization components on-board the vehicle
+    - 🟨 `mpl_visualization`: Matplotlib visualization
 
   - `interface/`: Defines interfaces to vehicle hardware and simulators.
     - 🟩 `gem`: Base class for the Polaris GEM e2 vehicle.

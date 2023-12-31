@@ -37,7 +37,7 @@ class GEMVehicleReading:
             pose = ObjectPose(frame = ObjectFrameEnum.CURRENT,t=0,x=0,y=0,yaw=0)
         pitch = pose.pitch if pose.pitch is not None else 0.0
         wheel_base = settings.get('vehicle.geometry.wheelbase')
-        front_wheel_angle=front2steer(self.steering_wheel_angle)
+        front_wheel_angle=steer2front(self.steering_wheel_angle)
         turn_rate=heading_rate(front_wheel_angle,self.speed,wheel_base)
         acc = pedal_positions_to_acceleration(self.accelerator_pedal_position, self.brake_pedal_position, self.speed, pitch, self.gear)
         return VehicleState(pose,v=self.speed,acceleration=acc,gear=self.gear,steering_wheel_angle=self.steering_wheel_angle,

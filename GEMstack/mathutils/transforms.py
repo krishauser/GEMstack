@@ -2,6 +2,7 @@
 import numpy as np
 from klampt.math import vectorops as vo
 from klampt.math import so2
+from typing import Tuple
 
 def normalize_angle(angle : float) -> float:
     """Normalizes an angle to be in the range [0,2pi]"""
@@ -44,6 +45,25 @@ def vector2_angle(v1, v2 = None) -> float:
 def vector2_dist(v1, v2) -> float:
     """Euclidean distance between two 2D vectors"""
     return np.linalg.norm([v1[0] - v2[0], v1[1] - v2[1]])
+
+def point_segment_distance(x,a,b) -> Tuple[float,float]:
+    """Computes the distance from point x to segment ab.  Returns
+    a tuple (distance, parameter) where parameter is the parameter
+    value on the segment in the range [0,1] indicating the closest
+    point.
+    """
+    v = vector_sub(b,a)
+    u = vector_sub(x,a)
+    vnorm = vector_norm(v)
+    if vnorm < 1e-6:
+        return vector_norm(u),0
+    udotv = np.dot(u,v)
+    if udotv < 0:
+        return vector_norm(u),0
+    elif udotv > vnorm:
+        return vector_norm(vector_sub(x,b)),1
+    else:
+        return vector_norm(vector_sub(u,vector_madd(v,u,udotv/vnorm))),udotv/vnorm
 
 def rotate2d(point, angle : float, origin=None):
     """Rotates a point about the origin by an angle"""

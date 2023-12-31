@@ -1,9 +1,10 @@
-from dataclasses import dataclass, field, fields, asdict
+from __future__ import annotations
+from dataclasses import dataclass, field, fields, asdict, replace
 from ..utils.serialization import register
-from .physical_object import ObjectPose
+from .physical_object import ObjectFrameEnum,ObjectPose
 from .scene import SceneState
 from .intent import VehicleIntent
-from .agent_intent import AgentIntent
+from .agent_intent import AgentIntent,AgentIntentMixture
 from .relations import EntityRelation
 from .mission import MissionObjective
 from .route import Route
@@ -19,7 +20,7 @@ class AllState(SceneState):
     """
     # non-physical scene state
     start_vehicle_pose : Optional[ObjectPose] = None
-    agent_intents : Dict[str,AgentIntent] = field(default_factory=dict)
+    agent_intents : Dict[str,AgentIntentMixture] = field(default_factory=dict)
     relations : List[EntityRelation] = field(default_factory=list)
     predicates : PredicateValues = field(default_factory=PredicateValues)
     
@@ -51,3 +52,10 @@ class AllState(SceneState):
         scene_zero = SceneState.zero()
         keys = dict((k.name,getattr(scene_zero,k.name)) for k in fields(scene_zero))
         return AllState(**keys)
+    
+    def to_frame(self, frame : ObjectFrameEnum) -> AllState:
+        scene_to_frame = SceneState.to_frame(self,frame,current_pose=self.vehicle.pose,start_pose_abs=self.start_vehicle_pose)
+        new_intents = None if self.agent_intents is None else dict((k,v.to_frame(frame,current_pose=self.vehicle.pose,start_pose_abs=self.start_vehicle_pose)) for k,v in self.agent_intents.items())
+        new_route = None if self.route is None else self.route.to_frame(frame,current_pose=self.vehicle.pose,start_pose_abs=self.start_vehicle_pose)
+        new_trajectory = None if self.trajectory is None else self.trajectory.to_frame(frame,current_pose=self.vehicle.pose,start_pose_abs=self.start_vehicle_pose)
+        return replace(scene_to_frame, agent_intents = new_intents, route = new_route, trajectory = new_trajectory)
