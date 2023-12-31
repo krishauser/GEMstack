@@ -1,5 +1,5 @@
-from ...utils import serialization,logging
 from ..component import Component
+from ...utils import serialization,logging
 from typing import List
 import time
 
@@ -52,3 +52,60 @@ class LogReplay(Component):
             return None
         return res
 
+    def cleanup(self):
+        self.logfile.close()
+
+
+
+class VehicleBehaviorLogger(Component):
+    def __init__(self,behavior_log, vehicle_interface):
+        if isinstance(behavior_log,str):
+            behavior_log = logging.Logfile(behavior_log,delta_format=True,mode='w')
+        self.behavior_log = behavior_log
+        self.vehicle_interface = vehicle_interface
+        self.vehicle_log_t_last = None
+
+    def rate(self):
+        return None
+
+    def state_inputs(self):
+        return ['all']
+    
+    def state_outputs(self):
+        return []
+
+    def update(self,state):
+        if state.t != self.vehicle_log_t_last:
+            collection = {'vehicle_interface_command':self.vehicle_interface.last_command,
+                        'vehicle_interface_reading':self.vehicle_interface.last_reading}
+            self.behavior_log.log(collection,t=state.t)
+            self.vehicle_log_t_last = state.t
+
+
+class AllStateLogger(Component):
+    def __init__(self,attributes,rate,log_fn,vehicle_interface):   
+        self._rate = rate     
+        self.attributes = attributes
+        self.vehicle_interface = vehicle_interface
+        self.state_log = logging.Logfile(log_fn,delta_format=False,mode='w')
+
+    def rate(self):
+        return self._rate
+
+    def state_inputs(self):
+        return ['all']
+    
+    def state_outputs(self):
+        return []
+    
+    def cleanup(self):
+        if self.state_log:
+            self.state_log.close()
+            self.state_log = None
+
+    def update(self,state):
+        if self.attributes:
+            if self.attributes[0] == 'all':
+                self.state_log.log(state)
+            else:
+                self.state_log.log(state,self.attributes)

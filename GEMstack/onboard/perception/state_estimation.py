@@ -70,7 +70,7 @@ class FakeStateEstimator(Component):
         self.vehicle_state = vehicle_state
     
     def rate(self):
-        return 10.0
+        return 50.0
     
     def state_outputs(self) -> List[str]:
         return ['vehicle']

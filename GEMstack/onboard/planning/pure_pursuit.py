@@ -27,46 +27,56 @@ class PurePursuit(object):
         self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
 
         self.path = None
-        self.path_with_headings = None
-        self.path_progress = 0.0
-        self.t_start = None
+        self.current_path_parameter = 0.0
+        self.t_last = None
 
     def set_path(self, path : Path):
+        if path == self.path:
+            return
         self.path = path
-        self.path_progress = 0.0
         if len(self.path.points[0]) > 2:
             self.path = self.path.get_dims([0,1])
         if not isinstance(self.path,Trajectory):
             self.path = self.path.arc_length_parameterize()
-        self.path_with_headings = compute_headings(self.path)
+        self.current_path_parameter = 0.0
 
     def compute(self, state : VehicleState):
         assert state.pose.frame != ObjectFrameEnum.CURRENT
         t = state.pose.t
 
-        if self.path is None:
-            #just stop
-            accel = self.pid_speed(0.0, t)
-
-        if self.t_start is None:
-            self.t_start = t
-        dt = t - self.t_start
-
-        if self.path.frame != state.pose.frame:
-            self.path = self.path.to_frame(state.pose.frame)
-            self.path_with_headings = self.path_with_headings.to_frame(state.pose.frame)
-    
+        if self.t_last is None:
+            self.t_last = t
+        dt = t - self.t_last
+  
         curr_x = state.pose.x
         curr_y = state.pose.y
         curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
         speed = state.v
 
-        
-        desired_x,desired_y,desired_yaw = self.path_with_headings.eval(self.path_progress + self.look_ahead)
+        filt_vel     = self.speed_filter(speed)
 
-        # finding the distance between the goal point and the vehicle
-        # true look-ahead distance between a waypoint and current position
-        L = transforms.vector_dist((curr_x, curr_y), (desired_x, desired_y))
+        if self.path is None:
+            #just stop
+            accel = self.pid_speed.advance(0.0, t)
+            # TODO
+
+        if self.path.frame != state.pose.frame:
+            print("Transforming path from",self.path.frame.name,"to",state.pose.frame.name)
+            self.path = self.path.to_frame(state.pose.frame)
+
+        closest_dist,closest_parameter = self.path.closest_point_local((curr_x,curr_y),[self.current_path_parameter-5.0,self.current_path_parameter+5.0])
+        #TODO: calculate parameter that is look_ahead distance away from the closest point
+        #(rather than just advancing the parameter)
+        des_parameter = closest_parameter + self.look_ahead + self.look_ahead_scale * filt_vel
+        self.current_path_parameter = closest_parameter
+        print("Closest parameter: " + str(closest_parameter),"distance to path",closest_dist)
+        print("Closest point",self.path.eval(closest_parameter),"vs",(curr_x,curr_y))
+        desired_x,desired_y = self.path.eval(des_parameter)
+        desired_yaw = np.arctan2(desired_y-curr_y,desired_x-curr_x)
+        print("Current yaw",curr_yaw,"desired yaw",desired_yaw)
+
+        # distance between the desired point and the vehicle
+        L = transforms.vector2_dist((desired_x,desired_y),(curr_x,curr_y))
 
         # find the curvature and the angle 
         alpha = desired_yaw - curr_yaw
@@ -78,8 +88,7 @@ class PurePursuit(object):
         # ----------------- tuning this part as needed -----------------
 
         f_delta = np.clip(angle, self.wheel_angle_range[0], self.wheel_angle_range[1])
-
-
+        
         print("Closest point distance: " + str(L))
         print("Forward velocity: " + str(speed))
         ct_error = np.sin(alpha) * L
@@ -87,21 +96,17 @@ class PurePursuit(object):
         print("Front steering angle: " + str(round(np.degrees(f_delta),2)) + " degrees")
         steering_angle = np.clip(front2steer(f_delta), self.steering_angle_range[0], self.steering_angle_range[1])
         print("Steering wheel angle: " + str(round(np.degrees(steering_angle),2)) + " degrees" )
-        print("\n")
-
-        filt_vel     = self.speed_filter(speed)
-        print("Filtered velocity: " + str(filt_vel))
+        
         output_accel = self.pid_speed.advance(e = self.desired_speed - filt_vel, t = t)
-        print(output_accel)
-        assert isinstance(output_accel, (int,float))
+        print("Output acceleration",output_accel)
 
         if output_accel > self.max_accel:
             output_accel = self.max_accel
 
         if output_accel < -self.max_decel:
             output_accel = -self.max_decel
-        
-        self.path_progress += speed * dt
+
+        self.t_last = t
         return (output_accel, f_delta)
 
 

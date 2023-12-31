@@ -1,5 +1,7 @@
-from dataclasses import dataclass, field
+from __future__ import annotations
+from dataclasses import dataclass, field, replace
 from ..utils.serialization import register
+from .physical_object import ObjectFrameEnum,ObjectPose
 from .vehicle import VehicleState
 from .agent import AgentState
 from .roadgraph import Roadgraph
@@ -37,3 +39,9 @@ class SceneState:
     @staticmethod
     def zero():
         return SceneState(0.0,VehicleState.zero(),Roadgraph.zero(),EnvironmentState(),None,{},{})
+
+    def to_frame(self, frame : ObjectFrameEnum, current_pose = None, start_pose_abs = None) -> SceneState:
+        return replace(self, vehicle=self.vehicle.to_frame(frame,current_pose,start_pose_abs),
+            roadgraph=self.roadgraph.to_frame(frame,current_pose,start_pose_abs),
+            agents={k:v.to_frame(frame,current_pose,start_pose_abs) for k,v in self.agents.items()},
+            obstacles={k:v.to_frame(frame,current_pose,start_pose_abs) for k,v in self.obstacles.items()})

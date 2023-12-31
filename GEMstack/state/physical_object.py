@@ -62,15 +62,6 @@ class ObjectPose:
             rpy[2] = transforms.heading_to_yaw(rpy[2],False)
         return so3.ndarray(so3.from_rpy(rpy))
 
-    def rotation(self) -> np.ndarray:
-        """Returns the 3x3 rotation matrix of this pose relative to the specified frame."""
-        rpy = [(self.roll if self.roll is not None else 0.0),
-               (self.pitch if self.pitch is not None else 0.0),
-               (self.yaw if self.yaw is not None else 0.0)]
-        if self.frame == ObjectFrameEnum.GLOBAL:
-            rpy[2] = transforms.heading_to_yaw(rpy[2],False)
-        return so3.ndarray(so3.from_rpy(rpy))
-
     def translation(self) -> np.ndarray:
         """Returns the 3D translation of this pose relative to the specified frame."""
         if self.frame == ObjectFrameEnum.GLOBAL:
@@ -170,13 +161,16 @@ class ObjectPose:
 @dataclass
 @register
 class PhysicalObject:
-    """Base class for some physical possibly movble object.  Assumed to be
-    gravity-aligned so the z-axis always points up.
+    """Base class for some physical possibly movable object.
+    
+    The origin is at the object's center in the x-y plane but at the bottom
+    in the z axis.  I.e., if l,w,h are the dimensions, then the object is
+    contained in a bounding box [-l/2,l/2] x [-w/2,w/2] x [0,h].
     
     Attributes:
         pose: the position / rotation coordinates of the object.
-        dimensions: the depth (forward), width (sideways), and height (up)
-            of the object.
+        dimensions: the length (forward), width (sideways), and height (up)
+            of the object, in the object's local frame.
         outline: an optional list of vertices in CCW order denoting the
             object's outline polygon in its local frame (x:forward, y:left).
 
@@ -185,6 +179,14 @@ class PhysicalObject:
     dimensions : Tuple[float,float,float] 
     outline : Optional[List[Tuple[float,float]]]
 
+    def bounds(self) -> Tuple[Tuple[float,float],Tuple[float,float],Tuple[float,float]]:
+        """Returns the bounding box of the object in its local frame."""
+        l,w,h = self.dimensions
+        return [[-l/2,l/2],[-w/2,w/2],[0,h]]
+
+    def to_frame(self, frame : ObjectFrameEnum, current_pose = None, start_pose_abs = None):
+        newpose = self.pose.to_frame(frame,current_pose,start_pose_abs)
+        return replace(self,pose=newpose)
 
 
 
@@ -235,7 +237,7 @@ def _get_frame_chain(source_frame : ObjectFrameEnum, target_frame : ObjectFrameE
 
 
 def convert_point(source_pt : tuple, source_frame : ObjectFrameEnum, target_frame : ObjectFrameEnum,
-                  current_pose : ObjectPose = None, start_pose_abs : ObjectPose = None) -> Tuple[float,float]:
+                  current_pose : ObjectPose = None, start_pose_abs : ObjectPose = None) -> tuple:
     """Converts an (x,y) or (x,y,z) point from one frame to another. 
 
     start_pose_abs must be in GLOBAL or ABSOLUTE_CARTESIAN frame.
@@ -253,8 +255,30 @@ def convert_point(source_pt : tuple, source_frame : ObjectFrameEnum, target_fram
             pt = pose.apply_inv(pt)
     return pt
 
+def convert_vector(source_vec : tuple, source_frame : ObjectFrameEnum, target_frame : ObjectFrameEnum,
+                  current_pose : ObjectPose = None, start_pose_abs : ObjectPose = None) -> tuple:
+    """Converts an (x,y) or (x,y,z) vector from one frame to another. 
 
-def convert_xyhead(source_state : tuple, source_frame : ObjectFrameEnum, target_frame : ObjectFrameEnum,
+    start_pose_abs must be in GLOBAL or ABSOLUTE_CARTESIAN frame.
+
+    current_pose may be in START, GLOBAL, or ABSOLUTE_CARTESIAN frame.
+
+    GLOBAL and ABSOLUTE_CARTESIAN are incompatible.
+    """
+    frame_chain = _get_frame_chain(source_frame,target_frame,current_pose,start_pose_abs)
+    vec = source_vec
+    for (frame,pose,dir) in frame_chain[1:]:
+        if len(vec) == 2:
+            R = pose.rotation2d()
+        else:
+            R = pose.rotation()
+        if dir == 1:
+            vec = R.dot(vec)
+        else:
+            vec = R.T.dot(vec)
+    return tuple(vec)
+
+def convert_xyhead(source_state : Tuple[float,float,float], source_frame : ObjectFrameEnum, target_frame : ObjectFrameEnum,
                    current_pose : ObjectPose = None, start_pose_abs : ObjectPose = None) -> Tuple[float,float,float]:
     """Converts an (x,y,heading) state from one frame to another.
     

@@ -1,10 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass, replace, field
 from ..utils.serialization import register
 from .physical_object import ObjectFrameEnum, convert_point
 from .obstacle import Obstacle
 from .sign import Sign
 from enum import Enum
+from collections import defaultdict
+from dataclasses import dataclass, replace, field, asdict
 from typing import List,Tuple,Any,Optional,Dict
 
 
@@ -17,8 +18,9 @@ class RoadgraphCurveEnum(Enum):
     CURB = 5
     WALL = 6
     OBSTACLES = 7
-    OVERPASS_BOUNDARY = 8
-    UNDERPASS_BOUNDARY = 9
+    CLIFF = 8
+    OVERPASS_BOUNDARY = 9
+    UNDERPASS_BOUNDARY = 10
 
 
 class RoadgraphLaneEnum(Enum):
@@ -50,9 +52,9 @@ class RoadgraphRegionEnum(Enum):
 
 class RoadgraphConnectionEnum(Enum):
     CONTINUES = 0           # after lane1 is complete it converts to lane2
-    ADJACENT = 1            # lane1 and lane2 are going the same way, allows a lane change
+    ADJACENT = 1            # lane2 is to the left of lane1 and are going the same way, allows a lane change
     ONCOMING = 2            # lane1 and lane2 are adjacent but going opposite ways
-    CROSSING = 3            # lane2 or curve2 crosses over lane1
+    CROSSING = 3            # lane1 is crossed by lane2, curve2, or region2
     MERGE = 4               # lane1 merges into lane2 
     DIVERGE = 5             # lane2 diverges from lane1
     BORDERING = 6           # lane1 is bordered by curve2
@@ -64,10 +66,12 @@ class RoadgraphConnectionEnum(Enum):
 @dataclass
 @register
 class RoadgraphCurve:
+    """Any curve in the roadgraph, whether a stopline, lane boundary, crossing,
+    wall, etc."""
     type : RoadgraphCurveEnum
-    segments : List[List[Tuple[float,float,float]]]     #Polyline representation of the curve. List of lists of 3D positions.  Last element is height above road surface, usually 0
-    crossable : bool = True
-    elevation : Optional[float] = None                   #for CURB, WALL, OBSTACLES, OVERPASS_BOUNDARY, UNDERPASS_BOUNDARY, elevation over road surface, in m
+    segments : List[List[Tuple[float,float,float]]]     #Polyline representation of the curve. List of lists of 3D positions.  3rd element is height above road surface, usually 0
+    crossable : bool = True                             #Whether the curve is crossable by ego vehicle
+    elevation : Optional[float] = None                  #for CURB, WALL, OBSTACLES, OVERPASS_BOUNDARY, UNDERPASS_BOUNDARY, elevation over road surface, in m
     height : Optional[float] = None                     #for CURB, WALL, OBSTACLES, OVERPASS_BOUNDARY, UNDERPASS_BOUNDARY, height in m
 
     def to_frame(self, orig_frame : ObjectFrameEnum, new_frame : ObjectFrameEnum,
@@ -78,13 +82,14 @@ class RoadgraphCurve:
 @dataclass
 @register
 class RoadgraphLane:
-    type : RoadgraphLaneEnum = RoadgraphLaneEnum.LANE
-    surface : RoadgraphSurfaceEnum = RoadgraphSurfaceEnum.PAVEMENT
-    left : Optional[RoadgraphCurve] = None
-    right : Optional[RoadgraphCurve] = None
-    center : Optional[RoadgraphCurve] = None
-    begin : Optional[RoadgraphCurve] = None
-    end : Optional[RoadgraphCurve] = None
+    type : RoadgraphLaneEnum = RoadgraphLaneEnum.LANE               # type of lane
+    surface : RoadgraphSurfaceEnum = RoadgraphSurfaceEnum.PAVEMENT  # surface of lane
+    route_name : str = ''                                           # name of the route (e.g., street name) that this lane is on
+    left : Optional[RoadgraphCurve] = None                          # left boundary of lane
+    right : Optional[RoadgraphCurve] = None                         # right boundary of lane
+    center : Optional[RoadgraphCurve] = None                        # centerline of lane
+    begin : Optional[RoadgraphCurve] = None                         # Optional curve that begins at the start of the lane
+    end : Optional[RoadgraphCurve] = None                           # Optional curve that ends at the end of the lane
 
     def to_frame(self, orig_frame : ObjectFrameEnum, new_frame : ObjectFrameEnum,
                  current_origin = None, global_origin = None) -> RoadgraphCurve:
@@ -93,6 +98,7 @@ class RoadgraphLane:
                         center=self.center.to_frame(orig_frame,new_frame,current_origin,global_origin) if self.center is not None else None,
                         begin=self.begin.to_frame(orig_frame,new_frame,current_origin,global_origin) if self.begin is not None else None,
                         end=self.end.to_frame(orig_frame,new_frame,current_origin,global_origin) if self.end is not None else None)
+
 
 
 @dataclass
@@ -135,9 +141,12 @@ class Roadgraph:
 
     @staticmethod
     def zero():
+        """Returns an empty roadgraph."""
         return Roadgraph(ObjectFrameEnum.GLOBAL)
 
     def is_valid(self) -> bool:
+        """Returns true if the roadgraph is valid, i.e., all entities are in
+        the roadgraph, all keys are unique, and all connections are valid."""
         keys = set()
         keys.update(self.curves.keys())
         for k in self.lanes.keys():
@@ -172,6 +181,7 @@ class Roadgraph:
         return True
 
     def get_entity(self, name : str) -> Any:
+        """Returns a named entity in the roadgraph."""
         if name in self.curves:
             return self.curves[name]
         if name in self.lanes:
@@ -185,6 +195,7 @@ class Roadgraph:
         raise KeyError("Entity {} not found".format(name))
     
     def entity_names(self) -> List[str]:
+        """Returns names of all entities in the roadgraph."""
         keys = set()
         keys.update(self.curves.keys())
         keys.update(self.lanes.keys())
@@ -219,3 +230,84 @@ class Roadgraph:
             newc = c.to_frame(self.frame,frame,current_pose,start_pose_abs)
             newconnections.append(newc)
         return replace(self, frame = frame, curves = newcurves, lanes = newlanes, regions = newregions, signs = newsigns, static_obstacles = newstatic_obstacles, connections=newconnections)
+
+
+
+class RoadgraphNetwork(Roadgraph):
+    """Stores all of the items within a Roadgraph but also allows for fast
+    lookup of connections. This is used in routing.
+    
+    NOT TESTED YET.
+    """
+    def __init__(self, roadgraph = None):
+        if roadgraph is not None:
+            Roadgraph.__init__(self,**asdict(roadgraph))
+        else:
+            Roadgraph.__init__(self,ObjectFrameEnum.GLOBAL)
+        
+        self.connections_by_name = defaultdict(list)
+        self.update_network()
+    
+    def update_network(self):
+        self.connections_by_name = defaultdict(list)
+        for c in self.connections:
+            self.connections_by_name[c.lane1].append(c)
+            if c.lane2 is not None:
+                self.connections_by_name[c.lane2].append(c)
+            if c.curve2 is not None:
+                self.connections_by_name[c.curve2].append(c)
+            if c.region2 is not None:
+                self.connections_by_name[c.region2].append(c)
+    
+    def get_connections(self, name : str) -> List[RoadgraphConnection]:
+        return self.connections_by_name[name]
+
+    def continuations(self, name : str) -> List[str]:
+        """Returns the names of all lanes that continue from the given lane."""
+        if name not in self.lanes:
+            return []
+        conns = self.connections_by_name[name]
+        return [c.lane2 for c in conns if c.type == RoadgraphConnectionEnum.CONTINUES and c.lane1 == name]
+
+    def extend(self, name : str, maximum = None) -> List[str]:
+        """Returns a sequence of lanes that extend from the current lane
+        without taking any options, e.g., diverging, turning, etc."""
+        if maximum is None:
+            maximum = len(self.lanes)
+        result = [name]
+        for i in range(maximum):
+            cont = self.continuations(result[-1])
+            if len(cont) != 1:
+                break
+            result.append(cont[0])
+            if cont[0] == name:  #loop
+                break
+        return result
+    
+    def left_adjacent(self, name : str) -> Optional[str]:
+        """Returns the name of the lane to the left of the given lane, if it exists."""
+        if name not in self.lanes:
+            return None
+        lane = self.lanes[name]
+        if lane.left is None:
+            # no left curve?
+            return None
+        conns = self.connections_by_name[name]
+        for c in conns:
+            if c.type == RoadgraphConnectionEnum.ADJACENT and c.lane1 == name:
+                return c.lane2
+        return None
+
+    def right_adjacent(self, name : str) -> Optional[str]:
+        """Returns the name of the lane to the right of the given lane, if it exists."""
+        if name not in self.lanes:
+            return None
+        lane = self.lanes[name]
+        if lane.right is None:
+            # no left curve?
+            return None
+        conns = self.connections_by_name[name]
+        for c in conns:
+            if c.type == RoadgraphConnectionEnum.ADJACENT and c.lane2 == name:
+                return c.lane1
+        return None
