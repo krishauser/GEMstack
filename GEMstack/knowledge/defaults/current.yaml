@@ -25,6 +25,7 @@ control:
         lookahead: 4.0
         lookahead_scale: 3.0
         crosstrack_gain: 0.41
+        desired_speed: 2.0   #m/s
 
 #configure the simulator, if using
 simulator:

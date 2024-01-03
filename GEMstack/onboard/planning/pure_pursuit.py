@@ -20,7 +20,7 @@ class PurePursuit(object):
         self.wheel_angle_range = [settings.get('vehicle.geometry.min_wheel_angle'),settings.get('vehicle.geometry.max_wheel_angle')]
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         
-        self.desired_speed = 1.5  # m/s, reference speed
+        self.desired_speed = settings.get('control.pure_pursuit.desired_speed',2.5)  #approximately 5 mph
         self.max_accel     = settings.get('vehicle.limits.max_acceleration') # m/s^2
         self.max_decel     = settings.get('vehicle.limits.max_deceleration') # m/s^2
         self.pid_speed     = PID(0.5, 0.0, 0.1, windup_limit=20)
