@@ -5,7 +5,9 @@ import math
 import rospy
 from ackermann_msgs.msg import AckermannDrive
 from std_msgs.msg import String, Bool, Float32, Float64
+from sensor_msgs import PointCloud2
 from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
+from radar_msgs import RadarTracks
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # GEM PACMod Headers
@@ -31,6 +33,10 @@ class GEMHardwareInterface(GEMInterface):
         self.speed_sub  = rospy.Subscriber("/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
         self.steer_sub = rospy.Subscriber("/pacmod/parsed_tx/steer_rpt", SystemRptFloat, self.steer_callback)
         self.gnss_sub = None
+        self.imu_sub = None
+        self.front_radar_sub = None
+        self.lidar_sub = None
+        self.stereo_sub = None
 
         # -------------------- PACMod setup --------------------
 
@@ -79,6 +85,8 @@ class GEMHardwareInterface(GEMInterface):
         /pacmod/as_rx/wiper_cmd
         """
 
+        #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
+
     def speed_callback(self,msg : VehicleSpeedRpt):
         self.last_reading.speed = msg.vehicle_speed   # forward velocity in m/s
 
@@ -88,11 +96,14 @@ class GEMHardwareInterface(GEMInterface):
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading
 
-    def subscribe_gnss(self, callback):
-        self.gnss_sub = rospy.Subscriber("/novatel/inspva", Inspva, callback)
+    def subscribe_sensor(self, name, callback):
+        if name == 'gnss':
+            self.gnss_sub = rospy.Subscriber("/novatel/inspva", Inspva, callback)
+        elif name == 'lidar':
+            self.lidar_sub = rospy.Subscriber("/lidar1/velodyne_points", PointCloud2, callback)
+        elif name == 'front_radar':
+            self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
     
-    
-
 
     # PACMod enable callback function
     def pacmod_enable_callback(self, msg):

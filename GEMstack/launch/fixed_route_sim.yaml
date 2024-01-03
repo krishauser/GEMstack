@@ -20,11 +20,11 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../knowledge/routes/xyhead_demo_pp.csv']
+            args: [!relative_path '../knowledge/routes/xyhead_highbay_backlot_p.csv']
         motion_planning: RouteToTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
-            print: False
+            print: True
 
 #visualization methods
 visualization:

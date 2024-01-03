@@ -253,6 +253,8 @@ class ComponentExecutor:
         timestr = datetime.datetime.fromtimestamp(t).strftime("%H:%M:%S.%f")[:-3]
         if stdout:
             lines = stdout.split('\n')
+            if len(lines) > 0 and len(lines[-1])==0:
+                lines = lines[:-1]
             if self.print_stdout:
                 print("------ Component",self.c.__class__.__name__,"stdout ---------")
                 for l in lines:
@@ -265,6 +267,8 @@ class ComponentExecutor:
                     self.stdout_log_file.write(timestr + ': ' + l + '\n')
         if stderr:
             lines = stderr.split('\n')
+            if len(lines) > 0 and len(lines[-1])==0:
+                lines = lines[:-1]
             if self.print_stderr:
                 print("------ Component",self.c.__class__.__name__,"stderr ---------")
                 for l in lines:
@@ -391,8 +395,9 @@ class ExecutorBase:
     def set_log_folder(self,folder : str):
         self.log_folder = folder
         #save meta.yaml
-        import subprocess
         self.run_metadata['start_time'] = time.time()
+        self.run_metadata['start_time_human_readable'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        import subprocess
         git_commit_id = subprocess.check_output(['git','rev-parse','HEAD'])
         self.run_metadata['git_commit_id'] = git_commit_id.decode('utf-8').strip()
         git_branch = subprocess.check_output(['git','rev-parse','--abbrev-ref','HEAD'])

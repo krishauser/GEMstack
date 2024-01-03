@@ -1,3 +1,4 @@
+from typing import List
 from .gem import *
 from ...mathutils.dubins import SecondOrderDubinsCar
 from ...mathutils.dynamics import simulate
@@ -85,11 +86,15 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
     def hardware_faults(self) -> list:
         return []    
     
-    def subscribe_gnss(self, callback):
-        self.gnss_callback = callback
-    
-    def subscribe_imu(self, callback):
-        self.imu_callback = callback
+    def sensors(self):
+        #TODO: simulate other sensors?
+        return ['gnss','imu']
+
+    def subscribe_sensor(self, name, callback):
+        if name == 'gnss':
+            self.gnss_callback = callback
+        elif name == 'imu':
+            self.imu_callback = callback
         
     def send_command(self, command : GEMVehicleCommand):
         self.last_command = command
@@ -144,6 +149,10 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
                     pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=self.simulation_time,x=x,y=y,yaw=theta)
                     vehicle_state = self.last_reading.to_state(pose)
                     self.gnss_callback(vehicle_state)
+                if self.imu_callback is not None:
+                    pose = ObjectPose(frame=ObjectFrameEnum.CURRENT,t=self.simulation_time,x=0,y=0,yaw=theta)
+                    vehicle_state = self.last_reading.to_state(pose)
+                    self.imu_callback(vehicle_state)
 
                 self.cur_vehicle_state = next_state
                 self.simulation_time += self.dt
