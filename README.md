@@ -264,57 +264,9 @@ To count as a contribution to the team, you will need to check in your code via 
 
 - `main`: will contain content that persists between years.  Approver: Kris Hauser.
 - `s2024`: is the "official class vehicle" for this semester's class.  Approver: instructor, TAs.
-- `s2024_teamX`: will be your team's branch. Approver: instructor, TAs, team members.  
+- `s2024_groupX`: will be your group's branch. Approver: instructor, TAs, team members.  
 
 Guidelines:
 - DO NOT check in large datasets.  Instead, keep these around on SSDs.
 - DO check in trained models, named descriptively.  In your PR, describe how you evaluated the model and its results.  Choose which model you use in your tests in the settings.
-
-
-## Homework assignments
-
-HW1 (out 1/17, in 1/24): Distress signals
-- Skills: Familiarization with ROS and GEMstack structure, Git
-- Receive low-level messages from the sensors via ROS and print them
-- Send low-level messages to flash distress to the vehicle via ROS
-- Use Git to create a fork, create a behavior with your distress signal.  Push contributions, and run your fork on GEM.
-
-HW2 (out 1/24, in 2/7): Stop for a pedestrian.
-- Skills: Object detection, trajectory tracking, logic-based motion planning, safety driver training
-- Use provided object detector to identify pedestrian from front camera. Run on the vehicle.
-- Use a motion planner to create a trajectory that slows and stops at a safe distance when pedestrian appears.
-- Modify the planner to resume slowly when the pedestrian disappears
-- Run on the vehicle
-
-HW3 (out 2/7, in 2/21): Pedestrian tracking
-- Sensor calibration, scene state, coordinate conversions
-- Perform sensor calibration and update current calibration in the knowledge directory
-- Use pedestrian detector on multiple cameras to place agents in the scene
-- Visualize the sensor data and the estimated agents in `rviz` using `visualization_msgs/MarkerArray`.
-- Record the agent trajectories in the START coordinate frame into a log.
-- Plot agent trajectories from the log as curves in matplotlib.
-
-After HW3, the class will split into teams and work on different parts of the stack.  Your grades will be determined by your team presentations, individual contributions, within-team peer reviews, and between-team peer reviews.
-
-Checkpoint 1 (out 2/21, in 3/6)
-- Produce design document and present at design review on 3/6.
-- Design document should: establish a list of goals.  Describe plan for implementation.  Assign personnel.  Show timeline to implementation and evaluation.
-- Peer reviews due next day.
-
-Checkpoint 2 (out 3/6, in 3/27)
-- Progress report presentation on 3/27
-- Presentation should describe implementation progress, unit testing results (concisely describe metrics used), changes in direction, demonstrations, review of code contributions.  Discuss integration plans.
-- Peer reviews due next day.
-
-Integration checkpoint 3 (out 3/27, in 4/10)
-- Progress report presentation on 4/10
-- Presentation should describe integration results (i.e., pull reviews, metrics), changes in direction, demonstrations, review of code contributions. 
-- Peer reviews due next day.
-
-Checkpoint 4 (out 4/10, in 4/24)
-- Revise design document to mark achieved checkpoints, integration metrics, and changes of plans.  Present at design review on 4/24.
-
-Final presentation (5/8)
-- Pitch contribution of team to "investor" / "CEO".  Describe final integration results.
-- Reflect on how design has evolved.  Review code contributions.
 
