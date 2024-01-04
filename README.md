@@ -231,6 +231,33 @@ Note that there are settings that configure **an algorithm's behavior** that per
 Another way to think about this is that we are trying to **evolve the onboard software stack to generate better behavior** by changing algorithms and their settings. The evolution mechanism is implemented by commits to the repository.  On a day to day level, you will be performing different types of runs, such as simulation tests, unit tests, and full integration tests.  You may be testing a lot of different conditions but the software stack should remain constant for that suite of tests.  If you wish to do an apples-to-apples comparison against a different version of the stack, you should git check out another commit ID, and then perform those same tests.  So if you are configuring the software stack, the setting changes should go into `knowledge`.  If you are configuring how the software stack works just for a single test, the setting changes should go into the launch script or a keyword argument.
 
 
+## Launch files, pipeline state machine, and the computation graph
+
+Onboard behavior begins by launching an executor, which maintains a *pipeline state machine* that can switch between different top-level behaviors.  Pipelines are usually switched depending on the health state of the system, and are not appropriate for handling driving logic.  For example, the `recovery` pipeline is a mandatory fallback pipeline in case an essential component fails on the vehicle.  For most cases, `drive` and `recovery` are sufficient.  
+
+Each pipeline defines a *computation graph* consisting of `Component` subclasses (see `GEMstack.onboard.component`), such as state estimators, object detectors, routing, planners, etc. Each component operates in a loop on attributes of the `AllState` object (see `GEMstack.state.allstate`).  Each component defines a *rate* at which its loop should be executed, a set of *state inputs* (part or all of the `AllState`), a set of *state outputs*, and *initialize*, *update*, and *cleanup* callbacks.  The basic idea is that all components in the computation graph will be run in a loop as follows:
+
+```python
+state = [SHARED_STATE]
+component = MyComponent()
+component.initialize()
+for every 1/component.rate() seconds, and while still active:
+    inputs = [state.X for X in component.state_inputs()]
+    outputs = component.update(*inputs)
+    for Y,outY in zip(component.state_outputs(),outputs)
+        state.Y = outY
+component.cleanup()
+```
+
+The computation graph defines an execution order of components and a set of allowable inputs and outputs for each component. This structure is defined in the `run.computation_graph` setting and by default uses `GEMstack/knowledge/defaults/computation_graph.yaml`.
+
+You should think of `AllState` as a strictly typed blackboard architecture in which items can be read from and written to.  If you need to pass data between components, you should add it to the state rather than use alternative techniques, e.g., global variables.  This will allow the logging / replay to save and restore system state.  Over a long development period, it would be best to be disciplined at versioning.
+
+It is generally assumed that components will not maintain significant internal state.  If you implement a component that does update internal state, then the executor will not be able to reproduce prior behavior from logs. This causes headaches with replay tools and A/B testing.
+
+If you wish to override the executor to add more pipelines, you will need to create a new executor by subclassing from `ExecutorBase`.  This will need to implement the pipeline switching and termination logic as detailed in the `begin`, `update`, `done`, and `end` callbacks.
+
+
 ## Branches and submitting pull requests
 
 To count as a contribution to the team, you will need to check in your code via pull requests (PRs).  PRs should be reviewed by at least one other approver.

@@ -3,14 +3,11 @@ from dataclasses import asdict
 from ...state import AllState, MissionEnum
 from ..component import Component
 from ...utils.loops import TimedLooper
-from ...utils import settings,config
+from ...utils import settings
 from ...utils.serialization import serialize
-from ...utils.logging import Logfile
-from .logging import VehicleBehaviorLogger,AllStateLogger,LogReplay
+from .logging import LoggingManager
 import json
 import time
-import datetime
-import os
 import importlib
 import io
 import contextlib
@@ -169,8 +166,7 @@ class ComponentExecutor:
         self.essential = essential
         self.print_stdout = True
         self.print_stderr = False
-        self.stdout_log_file = None
-        self.stderr_log_file = None
+        self.logging_manager = None  # Optional[LoggingManager]
         self.inputs = c.state_inputs()
         self.output = c.state_outputs()
         self.last_update_time = None
@@ -189,12 +185,6 @@ class ComponentExecutor:
 
     def stop(self):
         self.c.cleanup()
-        if isinstance(self.stdout_log_file,io.TextIOWrapper):
-            self.stdout_log_file.close()
-            self.stdout_log_file = None
-        if isinstance(self.stderr_log_file,io.TextIOWrapper):
-            self.stderr_log_file.close()
-            self.stderr_log_file = None
 
     def update(self, t : float, state : AllState):
         if self.next_update_time is None or t >= self.next_update_time:
@@ -250,7 +240,6 @@ class ComponentExecutor:
                 setattr(state,self.output[0]+'_update_time', t)
 
     def log_output(self,t,stdout,stderr):
-        timestr = datetime.datetime.fromtimestamp(t).strftime("%H:%M:%S.%f")[:-3]
         if stdout:
             lines = stdout.split('\n')
             if len(lines) > 0 and len(lines[-1])==0:
@@ -260,11 +249,8 @@ class ComponentExecutor:
                 for l in lines:
                     print("   ",l)
                 print("-------------------------------------------")
-            if isinstance(self.stdout_log_file,str):
-                self.stdout_log_file = open(self.stdout_log_file,'w')
-            if isinstance(self.stdout_log_file,io.TextIOWrapper):
-                for l in lines:
-                    self.stdout_log_file.write(timestr + ': ' + l + '\n')
+            if self.logging_manager is not None:
+                self.logging_manager.log_component_stdout(self.c.__class__.__name__, t, lines)
         if stderr:
             lines = stderr.split('\n')
             if len(lines) > 0 and len(lines[-1])==0:
@@ -274,11 +260,8 @@ class ComponentExecutor:
                 for l in lines:
                     print("   ",l)
                 print("-------------------------------------------")
-            if isinstance(self.stderr_log_file,str):
-                self.stderr_log_file = open(self.stderr_log_file,'w')
-            if isinstance(self.stderr_log_file,io.TextIOWrapper):
-                for l in lines:
-                    self.stderr_log_file.write(timestr + ': ' + l + '\n')
+            if self.logging_manager is not None:
+                self.logging_manager.log_component_stderr(self.c.__class__.__name__, t, lines)
 
 
 
@@ -293,14 +276,7 @@ class ExecutorBase:
         self.pipelines = dict()       # type: Dict[str,Tuple[Dict[str,ComponentExecutor],Dict[str,ComponentExecutor],Dict[str,ComponentExecutor]]]
         self.current_pipeline = 'drive'  # type: str
         self.state = None             # type: Optional[AllState]
-        self.replayed_components = dict()  # type Dict[str,str]
-        self.log_folder = None        # type: Optional[str]
-        self.logged_components = set() # type: Set[str]
-        self.behavior_log = None
-        self.run_metadata = dict()    # type: dict
-        self.run_metadata['pipelines'] = []
-        self.run_metadata['events'] = []
-        self.run_metadata['exit_reason'] = 'unknown'
+        self.logging_manager = LoggingManager()
         self.last_loop_time = time.time()
 
     def begin(self):
@@ -336,17 +312,11 @@ class ExecutorBase:
             component = make_class(config_info,component_name,parent_module,extra_args)
             if not isinstance(component,Component):
                 raise RuntimeError("Component {} is not a subclass of Component".format(component_name))
-            if component_name in self.replayed_components:
-                #replace behavior of class with the LogReplay class
-                replay_folder = self.replayed_components[component_name]
-                outputs = component.state_outputs()
-                rate = component.rate()
-                assert rate is not None and rate > 0, "Replayed component {} must have a positive rate".format(component_name)
+            replacement = self.logging_manager.component_replayer(component_name, component)
+            if replacement is not None:
                 if EXECUTION_VERBOSITY >= 1:
-                    print(EXECUTION_PREFIX,"Replaying component",component_name,"from log",replay_folder,"with outputs",outputs)
-                component = LogReplay(outputs,
-                                    os.path.join(replay_folder,'behavior_log.json'),
-                                    rate=rate)
+                    print(EXECUTION_PREFIX,"Replaying component",component_name,"from log",replacement.logfn,"with outputs",component.state_outputs())
+                component = replacement
             if isinstance(config_info,dict) and config_info.get('multiprocess',False):
                 #wrap component in a multiprocess executor.  TODO: not tested yet
                 from .multiprocess_execution import MPComponentExecutor
@@ -358,9 +328,7 @@ class ExecutorBase:
                 if 'rate' in config_info:
                     executor.dt = 1.0/config_info['rate']
                 executor.print_stderr = executor.print_stdout = config_info.get('print',True)
-            if self.log_folder:
-                executor.stdout_log_file = os.path.join(self.log_folder,component.__class__.__name__+'.stdout.log')
-                executor.stderr_log_file = os.path.join(self.log_folder,component.__class__.__name__+'.stderr.log')
+            executor.logging_manager = self.logging_manager
             self.all_components[identifier] = executor
             return executor
     
@@ -369,11 +337,39 @@ class ExecutorBase:
         self.always_run_components[component_name] = component
 
     def add_pipeline(self,name : str, perception : Dict[str,ComponentExecutor], planning : Dict[str,ComponentExecutor], other : Dict[str,ComponentExecutor]):
+        """Creates a new pipeline with the given components.  The pipeline will be
+        executed in the order perception, planning, other.
+        """
         output = validate_components(perception)
         output = validate_components(planning, output)
         validate_components(other, output)
         self.pipelines[name] = (perception,planning,other)
-        #TODO: set any custom do_update functions here
+
+    def set_log_folder(self,folder : str):
+        self.logging_manager.set_log_folder(folder)
+    
+    def log_vehicle_interface(self,enabled=True):
+        """Indicates that the vehicle interface should be logged"""
+        if enabled:
+            logger = self.logging_manager.log_vehicle_behavior(self.vehicle_interface)
+            self.always_run('vehicle_behavior_logger',ComponentExecutor(logger))
+        else:
+            raise NotImplementedError("Disabling vehicle interface logging not supported yet")
+    
+    def log_components(self,components : List[str]):
+        """Indicates that the designated component outputs should be logged."""
+        self.logging_manager.log_components(components)
+    
+    def log_state(self,state_attributes : List[str], rate : Optional[float]=None):
+        """Indicates that the designated state attributes should be logged at the given rate."""
+        logger = self.logging_manager.log_state(state_attributes,rate)
+        self.always_run('state_logger',ComponentExecutor(logger))
+
+    def log_ros_topics(self, topics : List[str], rosbag_options : str = '') -> Optional[str]:
+        """Indicates that the designated ros topics should be logged with the given options."""
+        command = self.logging_manager.log_ros_topics(topics,rosbag_options)
+        if command:
+            print(EXECUTION_PREFIX,"Recording ROS topics with command",command)
 
     def replay_components(self, replayed_components : list, replay_folder : str):
         """Declare that the given components should be replayed from a log folder.
@@ -381,70 +377,19 @@ class ExecutorBase:
         Further make_component calls to this component will be replaced with
         LogReplay objects.
         """
-        #sanity check: was this item logged?
-        settings = config.load_config_recursive(os.path.join(replay_folder,'settings.yaml'))
-        try:
-            logged_components = settings['run']['log']['components']
-        except KeyError:
-            logged_components = []
-        for c in replayed_components:
-            if c not in logged_components:
-                raise ValueError("Replay component",c,"was not logged in",replay_folder,"(see settings.yaml)")
-            self.replayed_components[c] = replay_folder
+        self.logging_manager.replay_components(replayed_components,replay_folder)
 
-    def set_log_folder(self,folder : str):
-        self.log_folder = folder
-        #save meta.yaml
-        self.run_metadata['start_time'] = time.time()
-        self.run_metadata['start_time_human_readable'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        import subprocess
-        git_commit_id = subprocess.check_output(['git','rev-parse','HEAD'])
-        self.run_metadata['git_commit_id'] = git_commit_id.decode('utf-8').strip()
-        git_branch = subprocess.check_output(['git','rev-parse','--abbrev-ref','HEAD'])
-        self.run_metadata['git_branch'] = git_branch.decode('utf-8').strip()
-        for k,c in self.all_components.items():
-            c.stdout_log_file = os.path.join(self.log_folder,c.c.__class__.__name__+'.stdout.log')
-            c.stderr_log_file = os.path.join(self.log_folder,c.c.__class__.__name__+'.stderr.log')
-        self.dump_log_metadata()
-    
-    def log_vehicle_interface(self,enabled=True):
-        if enabled:
-            if self.behavior_log is None:
-                self.behavior_log = Logfile(os.path.join(self.log_folder,'behavior.json'),delta_format=True,mode='w')
-            self.always_run('vehicle_behavior_logger',ComponentExecutor(VehicleBehaviorLogger(self.behavior_log,self.vehicle_interface)))
-        else:
-            raise NotImplementedError("Disabling vehicle interface logging not supported yet")
-    
-    def log_components(self,components : List[str]):
-        if components:
-            if self.behavior_log is None:
-                self.behavior_log = Logfile(os.path.join(self.log_folder,'behavior.json'),delta_format=True,mode='w')
-        self.logged_components = set(components)
-    
-    def log_state(self,state_attributes : List[str], rate : Optional[float]=None):
-        log_fn = os.path.join(self.log_folder,'state.json')
-        self.always_run('state_logger',ComponentExecutor(AllStateLogger(state_attributes,rate,log_fn,self.vehicle_interface)))
-
-    def dump_log_metadata(self):
-        if not self.log_folder:
-            return
-        import os
-        from ...utils import config
-        config.save_config(os.path.join(self.log_folder,'meta.yaml'),self.run_metadata)
-    
     def event(self,event_description : str, event_print_string : str = None):
         """Logs an event to the metadata and prints a message to the console."""
-        if event_print_string is None:
-            event_print_string = event_description if event_description.endswith('.') else event_description + '.'
-        self.run_metadata['events'].append({'time':time.time(),'vehicle_time':self.state.t,'description':event_description})
+        self.logging_manager.event(self.state.t,event_description)
         if EXECUTION_VERBOSITY >= 1:
+            if event_print_string is None:
+                event_print_string = event_description if event_description.endswith('.') else event_description + '.'
             print(EXECUTION_PREFIX,event_print_string)
-        self.dump_log_metadata()
 
     def set_exit_reason(self, description):
         """Sets a main loop exit reason"""
-        self.run_metadata['exit_reason'] = description
-        self.dump_log_metadata()
+        self.logging_manager.exit_event(description)
 
     def run(self):
         """Main entry point.  Runs the mission execution loop."""
@@ -457,7 +402,7 @@ class ExecutorBase:
             print(EXECUTION_PREFIX,"'recovery' pipeline not found")
             return
         #did we ask to replay any components that don't exist in any pipelines?
-        for c in self.replayed_components.keys():
+        for c in self.logging_manager.replayed_components.keys():
             found = False
             for (name,(perception_components,planning_components,other_components)) in self.pipelines.items():
                 if c in perception_components or c in planning_components or c in other_components:
@@ -491,16 +436,14 @@ class ExecutorBase:
         if validated:
             self.begin()
         while validated:
-            self.run_metadata['pipelines'].append({'time':time.time(),'vehicle_time':self.state.t,'name':self.current_pipeline})
-            self.dump_log_metadata()
+            self.logging_manager.pipeline_start_event(self.state.t,self.current_pipeline)
             try:
                 if EXECUTION_VERBOSITY >= 1:
                     print(EXECUTION_PREFIX,"Executing pipeline {}".format(self.current_pipeline))
                 next = self.run_until_switch()
                 if next is None:
                     #done
-                    if self.run_metadata['exit_reason'] == 'unknown':
-                        self.set_exit_reason("normal exit")
+                    self.set_exit_reason("normal exit")
                     break
                 if next not in self.pipelines:
                     if EXECUTION_VERBOSITY >= 1:
@@ -544,9 +487,7 @@ class ExecutorBase:
                 print("Stopping",k)
             c.stop()
         
-        if self.behavior_log:
-            self.behavior_log.close()
-            self.behavior_log = None
+        self.logging_manager.close()
         print("Done with execution loop")
 
 
@@ -672,9 +613,8 @@ class ExecutorBase:
             else:
                 updated = components[k].update(t,state)
             #log component output if necessary
-            if updated and k in self.logged_components:
-                if len(components[k].output)!=0:
-                    self.behavior_log.log(state, components[k].output, t)
+            if updated:
+                self.logging_manager.log_component_update(k, t, state, components[k].output)
 
 
 class StandardExecutor(ExecutorBase):

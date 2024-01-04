@@ -87,17 +87,12 @@ def main():
         print(EXECUTION_PREFIX,"Logging to",logfolder)
         os.makedirs(logfolder,exist_ok=True)
 
-        #save settings.yaml
-        config.save_config(os.path.join(logfolder,'settings.yaml'),settings.settings())
         #configure logging for components
         mission_executor.set_log_folder(logfolder)
         #configure ROS logging
-        log_topics = replay_settings.get('ros_topics',[])
+        log_topics = log_settings.get('ros_topics',[])
         rosbag_options = log_settings.get('rosbag_options','')
-        if log_topics:
-            command = 'rosbag record --output-name={} {} {}'.format(os.path.join(logfolder,'vehicle.bag'),rosbag_options,' '.join(log_topics))
-            print(EXECUTION_PREFIX,"Recording ROS topics with command",command)
-            os.system(command)
+        mission_executor.log_ros_topics(log_topics, rosbag_options)
         #determine whether to log vehicle interface
         log_vehicle_interface = log_settings.get('vehicle_interface',False)
         mission_executor.log_vehicle_interface(log_vehicle_interface)

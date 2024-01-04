@@ -11,6 +11,11 @@ MAX_QUEUE_SIZE = 10
 UPDATE_TIMEOUT = 5.0   
 
 class MPComponentExecutor(ComponentExecutor):
+    """A component executor that uses a subprocess.
+
+    TODO: print stdout / stderr according to the print config and
+    logging settings.
+    """
     def __init__(self, component : Component, *args, **kwargs):
         super(MPComponentExecutor, self).__init__(component, *args, **kwargs)
         self._in_queue = Queue()
@@ -30,11 +35,12 @@ class MPComponentExecutor(ComponentExecutor):
         config = {
             'print_stdout': self.print_stdout,
             'print_stderr': self.print_stderr,
-            'stdout_log_file': self.stdout_log_file,
-            'stderr_log_file': self.stderr_log_file,
         }
+        old_manager = self.logging_manager
+        self.logging_manager = None  #can't be pickled?
         self._process = Process(target=self._run, args=(self.c, self._in_queue, self._out_queue, config))
         self._process.start()
+        self.logging_manager = old_manager
 
     def stop(self):
         if self._process and self._process.is_alive():
