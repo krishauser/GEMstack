@@ -1,7 +1,177 @@
+from __future__ import annotations
 from ..component import Component
-from ...utils import serialization,logging
-from typing import List
+from ...utils import serialization,logging,config,settings
+from typing import List,Optional,Dict,Set,Any
 import time
+import datetime
+import os
+import io
+
+class LoggingManager:
+    """A top level manager of the logging process.  This is responsible for
+    creating log folders, log metadata files, and for replaying components from log
+    files."""
+    def __init__(self):
+        self.log_folder = None        # type: Optional[str]
+        self.replayed_components = dict()  # type Dict[str,str]
+        self.logged_components = set() # type: Set[str]
+        self.component_output_loggers = dict() # type: Dict[str,list]
+        self.behavior_log = None
+        self.run_metadata = dict()    # type: dict
+        self.run_metadata['pipelines'] = []
+        self.run_metadata['events'] = []
+        self.run_metadata['exit_reason'] = 'unknown'
+
+    def logging(self) -> bool:
+        return self.log_folder is not None
+
+    def set_log_folder(self, folder : str) -> None:
+        self.log_folder = folder
+
+        #save settings.yaml
+        config.save_config(os.path.join(folder,'settings.yaml'),settings.settings())
+
+        #save meta.yaml
+        self.run_metadata['start_time'] = time.time()
+        self.run_metadata['start_time_human_readable'] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        import subprocess
+        git_commit_id = subprocess.check_output(['git','rev-parse','HEAD'])
+        self.run_metadata['git_commit_id'] = git_commit_id.decode('utf-8').strip()
+        git_branch = subprocess.check_output(['git','rev-parse','--abbrev-ref','HEAD'])
+        self.run_metadata['git_branch'] = git_branch.decode('utf-8').strip()
+        self.dump_log_metadata()
+    
+    def close(self):
+        if self.behavior_log is not None:
+            self.behavior_log.close()
+            self.behavior_log = None
+        for k,(stdout,stderr) in self.component_output_loggers.items():
+            if stdout is not None:
+                stdout.close()
+            if stderr is not None:
+                stderr.close()
+        self.component_output_loggers = dict()
+    
+    def replay_components(self, replayed_components : list, replay_folder : str):
+        """Declare that the given components should be replayed from a log folder.
+
+        Further make_component calls to this component will be replaced with
+        LogReplay objects.
+        """
+        #sanity check: was this item logged?
+        settings = config.load_config_recursive(os.path.join(replay_folder,'settings.yaml'))
+        try:
+            logged_components = settings['run']['log']['components']
+        except KeyError:
+            logged_components = []
+        for c in replayed_components:
+            if c not in logged_components:
+                raise ValueError("Replay component",c,"was not logged in",replay_folder,"(see settings.yaml)")
+            self.replayed_components[c] = replay_folder
+    
+    def component_replayer(self, component_name : str, component : Component) -> Optional[LogReplay]:
+        if component_name in self.replayed_components:
+            #replace behavior of class with the LogReplay class
+            replay_folder = self.replayed_components[component_name]
+            outputs = component.state_outputs()
+            rate = component.rate()
+            assert rate is not None and rate > 0, "Replayed component {} must have a positive rate".format(component_name)
+            return LogReplay(outputs,
+                                os.path.join(replay_folder,'behavior_log.json'),
+                                rate=rate)
+        return None
+
+    def dump_log_metadata(self):
+        if not self.log_folder:
+            return
+        from ...utils import config
+        config.save_config(os.path.join(self.log_folder,'meta.yaml'),self.run_metadata)
+
+    def load_log_metadata(self):
+        if not self.log_folder:
+            return
+        from ...utils import config
+        self.run_metadata = config.load_config_recursive(os.path.join(self.log_folder,'meta.yaml'))
+
+    def component_stdout_file(self,component_name : str) -> str:
+        return os.path.join(self.log_folder,component_name+'.stdout.log')
+
+    def component_stderr_file(self,component_name : str) -> str:
+        return os.path.join(self.log_folder,component_name+'.stderr.log')
+
+    def log_vehicle_behavior(self,vehicle_interface) -> VehicleBehaviorLogger:
+        if not self.log_folder:
+            return
+        if self.behavior_log is None:
+            self.behavior_log = logging.Logfile(os.path.join(self.log_folder,'behavior.json'),delta_format=True,mode='w')
+        return VehicleBehaviorLogger(self.behavior_log,vehicle_interface)
+    
+    def log_state(self,state_attributes : List[str], rate : Optional[float]=None) -> AllStateLogger:
+        if not self.log_folder:
+            return
+        log_fn = os.path.join(self.log_folder,'state.json')
+        return AllStateLogger(state_attributes,rate,log_fn)
+
+    def log_components(self,components : List[str]) -> None:
+        """Indicate that the state output of these components should be logged"""
+        if not self.log_folder:
+            return
+        if components:
+            if self.behavior_log is None:
+                self.behavior_log = logging.Logfile(os.path.join(self.log_folder,'behavior.json'),delta_format=True,mode='w')
+        self.logged_components = set(components)
+
+    def log_ros_topics(self, topics : List[str], rosbag_options : str = '') -> Optional[str]:
+        if topics:
+            command = 'rosbag record --output-name={} {} {}'.format(os.path.join(self.logfolder,'vehicle.bag'),rosbag_options,' '.join(topics))
+            os.system(command)
+            return command
+        return None
+
+    def event(self, vehicle_time : float, event_description : str):
+        """Logs an event to the metadata."""
+        self.run_metadata['events'].append({'time':time.time(),'vehicle_time':vehicle_time,'description':event_description})
+        self.dump_log_metadata()
+
+    def pipeline_start_event(self, vehicle_time : float, pipeline_name : str) -> None:
+        """Logs a pipeline start event to the metadata."""
+        self.run_metadata['pipelines'].append({'time':time.time(),'vehicle_time':vehicle_time,'name':pipeline_name})
+        self.dump_log_metadata()
+
+    def exit_event(self, description, force = False):
+        """Exit main loop event.  If a prior reason was given, this does nothing
+        unless force = True."""
+        if self.run_metadata['exit_reason'] == 'unknown' or force:
+            self.run_metadata['exit_reason'] = description
+            self.dump_log_metadata()
+
+    def log_component_update(self, component : str, vehicle_time : float, state : Any, outputs : List[str]) -> None:
+         """Component update"""
+         if component in self.logged_components and len(outputs)!=0:
+            self.behavior_log.log(state, outputs, vehicle_time)
+    
+    def log_component_stdout(self, component : str, vehicle_time: float, msg : List[str]) -> None:
+        if not self.log_folder:
+            return
+        if component not in self.component_output_loggers:
+            self.component_output_loggers[component] = [None,None]
+        if self.component_output_loggers[component][0] is None:
+            self.component_output_loggers[component][0] = open(self.component_stdout_file(component),'w')
+        timestr = datetime.datetime.fromtimestamp(vehicle_time).strftime("%H:%M:%S.%f")[:-3]
+        for l in msg:
+            self.component_output_loggers[component][0].write(timestr + ': ' + l + '\n')
+
+    def log_component_stderr(self, component : str, vehicle_time: float, msg : List[str]) -> None:
+        if not self.log_folder:
+            return
+        if component not in self.component_output_loggers:
+            self.component_output_loggers[component] = [None,None]
+        if self.component_output_loggers[component][1] is None:
+            self.component_output_loggers[component][1] = open(self.component_stderr_file(component),'w')
+        timestr = datetime.datetime.fromtimestamp(vehicle_time).strftime("%H:%M:%S.%f")[:-3]
+        for l in msg:
+            self.component_output_loggers[component][1].write(timestr + ': ' + l + '\n')
+
 
 class LogReplay(Component):
     """Substitutes the output of a component with replayed data from a log file.
@@ -83,10 +253,9 @@ class VehicleBehaviorLogger(Component):
 
 
 class AllStateLogger(Component):
-    def __init__(self,attributes,rate,log_fn,vehicle_interface):   
+    def __init__(self,attributes,rate,log_fn):   
         self._rate = rate     
         self.attributes = attributes
-        self.vehicle_interface = vehicle_interface
         self.state_log = logging.Logfile(log_fn,delta_format=False,mode='w')
 
     def rate(self):
