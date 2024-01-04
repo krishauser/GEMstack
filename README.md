@@ -1,10 +1,16 @@
-# GEMstack: software structure for CS588 Autonomous Vehicle System Engineering
+# GEMstack: software for CS588 Autonomous Vehicle System Engineering
+
+📖 [Online documentation](https://gemstack.readthedocs.org)
+
+🚗 [About the GEM e2 vehicle](https://publish.illinois.edu/robotics-autonomy-resources/gem/)
+
+🗎 [ROS code for launching vehicle](https://github.com/hangcui1201/POLARIS_GEM_e2_Real/tree/main)
 
 ## Dependencies
 
-Python 3.7+ and ROS Noetic.  It is possible to do some offline and simulation work without ROS, but 
+GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior.)
 
-In order to interface with the actual vehicle, you will need [PACMOD](http://wiki.ros.org/pacmod) - Autonomoustuff's low level interface to vehicle.  If you are using the course SSDs these will be provided for you.
+In order to interface with the actual vehicle, you will need [PACMOD](http://wiki.ros.org/pacmod) - Autonomoustuff's low level interface to vehicle. 
 
 You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
 
@@ -15,7 +21,6 @@ You should also have the following Python dependencies installed, which you can 
 - shapely
 - dacite
 - pyyaml
-
 
 ## In this folder
 
@@ -41,96 +46,108 @@ In addition, some tools (e.g., pip) will build temporary folders, such as `build
 
 All packages are within the `GEMstack/` folder.  
 
-`mathutils/`: Math utilities common to onboard / offboard use.
-  - `transforms`: 2d and 3d rotations and rigid transforms.
-  - `filters`: 1d signal processing.
-  - `cameras`: Contains standard camera models.
-  - `differences`: Finite differences for derivative approximation.
-  - `dynamics`: Contains standard dynamics models.
-  - `dubins`: Contains first- and second-order Dubins car dynamics models.
-  - `control`: Contains standard control techniques, e.g., PID controller.
-  - `collisions`: Provides collision detection and proximity detection.
+Legend:
+- 🟥: TODO
+- 🟧: early development (not usable)
+- 🟨: in development (usable, but many features not complete or tested)
+- 🟩: stable (most features complete and tested)
+- 🟦: mature
+
+`mathutils/`: 🧮 Math utilities common to onboard / offboard use.
+  - 🟩 `transforms`: 2d and 3d rotations and rigid transforms.
+  - 🟩 `filters`: 1d signal processing.
+  - 🟥 `cameras`: Contains standard camera models.
+  - 🟦 `differences`: Finite differences for derivative approximation.
+  - 🟦 `dynamics`: Contains standard dynamics models.
+  - 🟦 `dubins`: Contains first- and second-order Dubins car dynamics models.
+  - 🟩 `control`: Contains standard control techniques, e.g., PID controller.
+  - 🟨 `collisions`: Provides collision detection and proximity detection.
   
-`utils/`: Other utilities common to onboard / offboard use.
-  - `logging`: Provides logging and log replay functionality.
-  - `simulation`: Interfaces with the Gazebo (possibly other?) simulators.
-  - `visualization`: Tools for converting internal data on knowledge, state, etc. to visualization apps.
-  - `settings`: Tools for managing settings for onboard behaviour.  If you're tempted to write a magic parameter or global variable, it should be placed here instead.
-  - `config`: Tools for loading config files.
-  - `serialization`: Tools for serializing / deserializing objects.
+`utils/`: 🛠️ Other utilities common to onboard / offboard use.
+  - 🟩 `logging`: Provides logging and log replay functionality.
+  - 🟨 `mpl_visualization`: Tools for plotting data on knowledge, state, etc. in Matplotlib.
+  - 🟥 `gazebo_visualization`: Tools for converting data on knowledge, state, etc. to ROS messages used in Gazebo.
+  - 🟦 `settings`: Tools for managing settings for onboard behaviour.  If you're tempted to write a magic parameter or global variable, it should be [placed in settings instead](#settings).
+  - 🟦 `config`: Tools for loading config files. 
+  - 🟦 `serialization`: Tools for serializing / deserializing objects.
+  - 🟦 `loops`: Tools for writing timed loops.
 
-`state/`: Representations of state of the vehicle and its environment, including internal state that persists from step to step.
-  - `physical_object`: A generic physical object base class.
-  - `trajectory`: Stores a generic path or trajectory.
-  - `vehicle`: Ego-vehicle state.
-  - `intent`: Ego-vehicle intent that may involve special logic or signaling behavior, e.g., lane change, take exit, shutting down.
-  - `roadgraph`: A section of the roadmap around the ego-vehicle.
-  - `roadmap`: A map created for offline use.
-  - `environment`: Environmental conditions, e.g., weather, road conditions.
-  - `obstacle`: A static obstacle or debris.
-  - `sign`: A traffic sign.
-  - `agent`: Another moving object, e.g., pedestrian, bicyclist, vehicle.
-  - `scene`: All physical items that may be relevant to the current scene, i.e., vehicle, roadgraph, environment, obstacles, and agent states.
-  - `agent_intent`: Maintains an estimate of agent intent.
-  - `entity_relation`: Maintains an estimate of a relationship between entities, e.g. VISIBLE, FOLLOWING, PASSING, YIELDING.
-  - `mission`: Stores the current mission objective, e.g., IDLE, DRIVE_ROUTE, ESTOP, used by routing, logic, planning, and execution.
-  - `predicates`: Any items predicates that are estimated to be true in the current world.
-  - `route`: Stores a 2d route, coming from the router.
-  - `all`: State or the current scene, all intent and relation estimates, and the driving logic (objective, predicates, route).
+`state/`: 💾 Representations of state of the vehicle and its environment, including internal state that persists from step to step.
+  - 🟩 `physical_object`: A generic physical object base class.
+  - 🟩 `trajectory`: Stores a generic path or trajectory. 
+  - 🟩 `vehicle`: Ego-vehicle state. 
+  - 🟨 `intent`: Ego-vehicle intent that may involve special logic or signaling behavior, e.g., lane change, take exit, shutting down. 
+  - 🟨 `roadgraph`: A section of the roadmap around the ego-vehicle. 
+  - 🟨 `roadmap`: A map created for offline use. 
+  - 🟨 `environment`: Environmental conditions, e.g., weather, road conditions. 
+  - 🟨 `obstacle`: A static obstacle or debris. 
+  - 🟨 `sign`: A traffic sign. 
+  - 🟨 `agent`: Another moving object, e.g., pedestrian, bicyclist, vehicle. 
+  - 🟩 `scene`: All physical items that may be relevant to the current scene, i.e., vehicle, roadgraph, environment, obstacles, and agent states. 
+  - 🟨 `agent_intent`: Maintains an estimate of agent intent. 
+  - 🟨 `entity_relation`: Maintains an estimate of a relationship between entities, e.g. VISIBLE, FOLLOWING, PASSING, YIELDING. 
+  - 🟨 `mission`: Stores the current mission objective, e.g., IDLE, DRIVE_ROUTE, ESTOP, used by routing, logic, planning, and execution. 
+  - 🟩 `predicates`: Any items predicates that are estimated to be true in the current world. 
+  - 🟩 `route`: Stores a 2d route, coming from the router. 
+  - 🟩 `all`: State or the current scene, all intent and relation estimates, and the driving logic (objective, predicates, route). 
 
-`offboard/`: Programs for creation and management of data and knowledge.
-  - `calibration/`: Sensor calibration.
-  - `log_management/`: Provides log management, browsing, and query functionality.
-  - `detection_learning/`: Detection model learning.
-  - `prediction_learning/`: Prediction model learning.
-  - `heuristic_learning/`: Driving heuristic learning.
+`offboard/`: 💻 Programs for creation and management of data and knowledge.
+  - 🟥 `calibration/`: Sensor calibration.
+  - 🟥 `log_management/`: Provides log management, browsing, and query functionality. 
+  - 🟥 `detection_learning/`: Detection model learning. 
+  - 🟥 `prediction_learning/`: Prediction model learning. 
+  - 🟥 `heuristic_learning/`: Driving heuristic learning. 
 
-`knowledge/`: Models and parameters common to onboard / offboard use.  The file "current.py" in each directory will store the current model being used.
-  - `vehicle/`: Vehicle geometry and physics.
-  - `calibration/`: Calibrated sensor parameters.
-  - `detection/`: Stores detection models.
-  - `prediction/`: Stores prediction models.
-  - `heuristics/`: Stores heuristic models.
-  - `roadmaps/`: Stores roadmap knowledge, e.g., lanes, regions, obstacles, signs.
-  - `routes/`: Stores precomputed routes.
-  - `predicates/`: Stores named predicates that may be true in a world state.
-  - `defaults/`: Stores the default settings.
+`knowledge/`: 🧠 Models and parameters common to onboard / offboard use.  The file "current.py" in each directory will store the current model being used.
+  - 🟨 `vehicle/`: Vehicle geometry and physics. (needs testing)
+  - 🟨 `calibration/`: Calibrated sensor parameters.
+  - 🟥 `detection/`: Stores detection models.
+  - 🟥 `prediction/`: Stores prediction models.
+  - 🟥 `heuristics/`: Stores heuristic models.
+  - 🟥 `roadmaps/`: Stores roadmap knowledge, e.g., lanes, regions, obstacles, signs.
+  - 🟨 `routes/`: Stores precomputed routes. 
+  - 🟥 `predicates/`: Stores named predicates that may be true in a world state.
+  - 🟩 `defaults/`: Stores the default settings. 
 
-`launch/`: Launch scripts are listed here.  Specify which configuration you want to use as an argument to `main.py`.
+`launch/`: 🚀 Launch scripts are listed here.  Specify which configuration you want to use as an argument to `main.py`.
 
-`onboard/`: All algorithms governing onboard behavior are located here.  These algorithms may make use of items in the `knowledge/` stack.
+`onboard/`: 🚗 All algorithms governing onboard behavior are located here.  These algorithms may make use of items in the `knowledge/` stack.
   - `perception/`: Perception components.
-	  - `state_estimation`: State estimators.
-	  - `roadgraph_update`: Roadgraph updaters.
-	  - `lane_detection`: Lane detection.
-	  - `sign_detection`: Sign detection.
-	  - `obstacle_detection`: Obstacle detction.
-	  - `agent_detection`: Agent detection.
-	  - `environment_detection`: Environment condition detection.
-	  - `intent_estimation`: Agent intent estimation.
-	  - `relation_estimation`: Entity relation estimation.
-	  - `agent_prediction`: Agent motion prediction.
+    - 🟨 `state_estimation`: State estimators.
+    - 🟨 `roadgraph_update`: Roadgraph updaters. 
+    - 🟨 `perception_normalization`: Normalizes the scene before planning.  
+    - 🟥 `lane_detection`: Lane detection.
+    - 🟥 `sign_detection`: Sign detection. 
+    - 🟥 `obstacle_detection`: Obstacle detction. 
+    - 🟥 `agent_detection`: Agent detection. 
+    - 🟥 `environment_detection`: Environment condition detection. 
+    - 🟥 `intent_estimation`: Agent intent estimation. 
+    - 🟥 `relation_estimation`: Entity relation estimation. 
+    - 🟥 `agent_prediction`: Agent motion prediction. 
 
   - `planning/`: Planning components.
-	  - `route_planner`: Decides which route to drive from the roadgraph.
-	  - `driving_logic`: Performs all necessary logic to develop a planning problem specification, e.g., select obstacles, design cost functions, etc.
-	  - `heuristics`: Implements various planning heuristics.
-	  - `motion_planning`: Implements one or more motion planners.
-	  - `optimization`: Implements one or more trajectory optimizers.
-	  - `selection`: Implements best-trajectory selection.
-	  - `pure_pursuit`: Implements a pure pursuit controller.
-	  - `recovery`: Implements recovery behavior.
+    - 🟨 `route_planner`: Decides which route to drive from the roadgraph. 
+    - 🟥 `driving_logic`: Performs all necessary logic to develop a planning problem specification, e.g., select obstacles, design cost functions, etc. 
+    - 🟥 `heuristics`: Implements various planning heuristics. 
+    - 🟥 `motion_planning`: Implements one or more motion planners. 
+    - 🟥 `optimization`: Implements one or more trajectory optimizers.  
+    - 🟥 `selection`: Implements best-trajectory selection.
+    - 🟨 `pure_pursuit`: Implements a pure pursuit controller.
+    - 🟨 `recovery`: Implements recovery behavior.
 
   - `execution/`: Executes the onboard driving behavior.
-	  - `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'
-	  - `executor`: Base classes for executors.
-	  - `log_replay`: A generic component that replays from a log.
+    - 🟩 `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'.
+    - 🟩 `executor`: Base classes for executors.
+    - 🟩 `log_replay`: A generic component that replays from a log.
+    - 🟨 `multiprocess_execution`: Component executors that work in separate process.  (Stdout logging not done yet. Still hangs on exception.)
+  
+  - `visualization/`: Visualization components on-board the vehicle
+    - 🟨 `mpl_visualization`: Matplotlib visualization
 
   - `interface/`: Defines interfaces to vehicle hardware and simulators.
-	  - `gem.py`: Base class for the Polaris GEM e2 vehicle.
-	  - `gem_hardware.py`: Interface to the real GEM vehicle.
-	  - `gem_simulator.py`: Interfaces to simulated GEM vehicles.
-	  - `teleop`: Teleoperator control signals.
+    - 🟩 `gem`: Base class for the Polaris GEM e2 vehicle.
+    - 🟨 `gem_hardware`: Interface to the real GEM vehicle.
+    - 🟨 `gem_simulator`: Interfaces to simulated GEM vehicles.
 
 
 ## Launching the stack
@@ -181,15 +198,15 @@ from dataclasses import dataclass
 @dataclass
 @register(name="MyClass",version="1")
 class MyClass_Original:
-	x : float
-	y : float
+  x : float
+  y : float
 
 @dataclass
 @register(name="MyClass",version="2")
 class MyClass:
-	x : float
-	y : float
-	time : float
+  x : float
+  y : float
+  time : float
 
 ```
 
@@ -212,6 +229,33 @@ To create new settings or override a setting more permanently, you should dive i
 Note that there are settings that configure **an algorithm's behavior** that persist between runs, and there are settings that configure **a particular run**.  If you want to configure an algorithm, put it in `current.yaml`, a descendant configuration file, or elsewhere in `knowledge`.  If you want to configure a single run, you should place those options in the launch file.  The `main.py` entrypoint will consume a run launch file and a settings file, and will place all the run configurations in the `run` attribute of the global settings.  So if you wish to inspect run details or specify per-run behavior, e.g., see whether we are in a simulation run or a hardware run, your algorithm can check `settings.get('run.mode')`.  In general, you should try to minimize how dependent your algorithms are on run settings.
 
 Another way to think about this is that we are trying to **evolve the onboard software stack to generate better behavior** by changing algorithms and their settings. The evolution mechanism is implemented by commits to the repository.  On a day to day level, you will be performing different types of runs, such as simulation tests, unit tests, and full integration tests.  You may be testing a lot of different conditions but the software stack should remain constant for that suite of tests.  If you wish to do an apples-to-apples comparison against a different version of the stack, you should git check out another commit ID, and then perform those same tests.  So if you are configuring the software stack, the setting changes should go into `knowledge`.  If you are configuring how the software stack works just for a single test, the setting changes should go into the launch script or a keyword argument.
+
+
+## Launch files, pipeline state machine, and the computation graph
+
+Onboard behavior begins by launching an executor, which maintains a *pipeline state machine* that can switch between different top-level behaviors.  Pipelines are usually switched depending on the health state of the system, and are not appropriate for handling driving logic.  For example, the `recovery` pipeline is a mandatory fallback pipeline in case an essential component fails on the vehicle.  For most cases, `drive` and `recovery` are sufficient.  
+
+Each pipeline defines a *computation graph* consisting of `Component` subclasses (see `GEMstack.onboard.component`), such as state estimators, object detectors, routing, planners, etc. Each component operates in a loop on attributes of the `AllState` object (see `GEMstack.state.allstate`).  Each component defines a *rate* at which its loop should be executed, a set of *state inputs* (part or all of the `AllState`), a set of *state outputs*, and *initialize*, *update*, and *cleanup* callbacks.  The basic idea is that all components in the computation graph will be run in a loop as follows:
+
+```python
+state = [SHARED_STATE]
+component = MyComponent()
+component.initialize()
+for every 1/component.rate() seconds, and while still active:
+    inputs = [state.X for X in component.state_inputs()]
+    outputs = component.update(*inputs)
+    for Y,outY in zip(component.state_outputs(),outputs)
+        state.Y = outY
+component.cleanup()
+```
+
+The computation graph defines an execution order of components and a set of allowable inputs and outputs for each component. This structure is defined in the `run.computation_graph` setting and by default uses `GEMstack/knowledge/defaults/computation_graph.yaml`.
+
+You should think of `AllState` as a strictly typed blackboard architecture in which items can be read from and written to.  If you need to pass data between components, you should add it to the state rather than use alternative techniques, e.g., global variables.  This will allow the logging / replay to save and restore system state.  Over a long development period, it would be best to be disciplined at versioning.
+
+It is generally assumed that components will not maintain significant internal state.  If you implement a component that does update internal state, then the executor will not be able to reproduce prior behavior from logs. This causes headaches with replay tools and A/B testing.
+
+If you wish to override the executor to add more pipelines, you will need to create a new executor by subclassing from `ExecutorBase`.  This will need to implement the pipeline switching and termination logic as detailed in the `begin`, `update`, `done`, and `end` callbacks.
 
 
 ## Branches and submitting pull requests

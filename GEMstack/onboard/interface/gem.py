@@ -3,20 +3,25 @@ from ...utils import settings,serialization
 from ...state import VehicleState, ObjectPose, ObjectFrameEnum
 from ...knowledge.vehicle.geometry import front2steer,steer2front,heading_rate
 from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration, acceleration_to_pedal_positions
+from typing import List,Optional,Callable
 
 @dataclass
 @serialization.register
 class GEMVehicleReading:
+    """All items that the vehicle reports directly from its internal sensors."""
     speed : float = 0                           # in m/s
-    gear : int = 0
+    gear : int = 0                              # 0 neutral, -1 reverse, -2 park, > 0 forward
     accelerator_pedal_position : float = 0      # in range [0,1]
-    brake_pedal_position : float = 0
-    steering_wheel_angle : float = 0
+    brake_pedal_position : float = 0            # in range [0,1]
+    steering_wheel_angle : float = 0            # in radians
     left_turn_signal : bool = False
     right_turn_signal : bool = False
     headlights_on : bool = False
     horn_on : bool = False
     wiper_level : int = 0
+    battery_level : Optional[float] = None      # in range [0,1]
+    fuel_level : Optional[float] = None         # in liters
+    driving_range : Optional[float] = None      # remaining range left, in km
 
     def from_state(self, state: VehicleState):
         self.speed = state.v
@@ -37,7 +42,7 @@ class GEMVehicleReading:
             pose = ObjectPose(frame = ObjectFrameEnum.CURRENT,t=0,x=0,y=0,yaw=0)
         pitch = pose.pitch if pose.pitch is not None else 0.0
         wheel_base = settings.get('vehicle.geometry.wheelbase')
-        front_wheel_angle=front2steer(self.steering_wheel_angle)
+        front_wheel_angle=steer2front(self.steering_wheel_angle)
         turn_rate=heading_rate(front_wheel_angle,self.speed,wheel_base)
         acc = pedal_positions_to_acceleration(self.accelerator_pedal_position, self.brake_pedal_position, self.speed, pitch, self.gear)
         return VehicleState(pose,v=self.speed,acceleration=acc,gear=self.gear,steering_wheel_angle=self.steering_wheel_angle,
@@ -49,6 +54,7 @@ class GEMVehicleReading:
 @dataclass
 @serialization.register
 class GEMVehicleCommand:
+    """All items that can be directly commanded to the vehicle's actuators."""
     gear : int                             #follows convention in state.vehicle.VehicleState. -2: park, -1 reverse: 0: neutral, 1..n: forward
     accelerator_pedal_position : float
     accelerator_pedal_speed : float
@@ -87,24 +93,20 @@ class GEMInterface:
     def send_command(cmd : GEMVehicleCommand):
         """Sends a command to the vehicle"""
         raise NotImplementedError()
-           
-    def subscribe_gnss(self, callback):
+
+    def sensors(self) -> List[str]:
+        """Returns all available sensors"""
+        return ['gnss','imu','top_lidar','top_stereo','front_radar']
+
+    def subscribe_sensor(self, name : str, callback : Callable) -> None:
+        """Subscribes to a sensor with a given callback."""
         raise NotImplementedError()
 
-    def subscribe_imu(self, callback):
-        raise NotImplementedError()
-
-    def subscribe_lidar(self, callback):
-        raise NotImplementedError()
-
-    def subscribe_stereo(self, callback):
-        raise NotImplementedError()
-
-    def subscribe_radar(self, callback):
-        raise NotImplementedError()
-    
-    def hardware_faults(self) -> list:
-        """Returns a list of hardware faults (by component)"""
+    def hardware_faults(self) -> List[str]:
+        """Returns a list of hardware faults, naming the failed component.
+        
+        Can be any sensor, actuator, or other component.
+        """
         raise NotImplementedError()
 
     def simple_command(self, acceleration_mps2 : float, steering_wheel_angle : float, state : VehicleState = None) -> GEMVehicleCommand:
@@ -120,8 +122,7 @@ class GEMInterface:
         v = state.v if state is not None else 0.0
         gear = state.gear if state is not None else 1
         acc_pos,brake_pos,gear = acceleration_to_pedal_positions(acceleration_mps2, v, pitch, gear)
-        print(acc_pos,brake_pos,gear)
-
+        
         cmd = GEMVehicleCommand(gear=gear,
                                 accelerator_pedal_position=acc_pos,
                                 brake_pedal_position=brake_pos,

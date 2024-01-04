@@ -18,7 +18,5 @@ class RouteToTrajectoryPlanner(Component):
         return 10.0
 
     def update(self, state : AllState):
-        return Trajectory(frame=state.route.frame,
-                   points=state.route.points,
-                   times=list(range(len(state.route.points))))
+        return state.route.arc_length_parameterize()
     

@@ -5,7 +5,7 @@ class StandardPerceptionNormalizer(Component):
     """Updates the start pose and converts all objects to the current vehicle
     frame, in preparation for planning."""
     def rate(self):
-        return 10.0
+        return None
     def state_inputs(self):
         return ['all']
     def state_outputs(self):

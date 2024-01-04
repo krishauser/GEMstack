@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from __future__ import annotations
+from dataclasses import dataclass,replace
 from ..utils.serialization import register
-from .physical_object import ObjectFrameEnum, ObjectPose
+from .physical_object import ObjectFrameEnum, ObjectPose, PhysicalObject
 from enum import Enum
 
 
@@ -20,7 +21,7 @@ class VehicleGearEnum(Enum):
 @register
 class VehicleState:
     """Represents the state of the ego-vehicle."""
-    pose : ObjectPose                       #pose of the vehicle, including time
+    pose : ObjectPose                       #pose of the vehicle with origin at rear axle center. Includes time
     v : float                               #forward velocity in m/s
     acceleration : float                    #current acceleration / deceleration in m/s^2
     steering_wheel_angle : float            #angle of the steering wheel, in radians
@@ -37,3 +38,27 @@ class VehicleState:
     def zero():
         return VehicleState(ObjectPose(ObjectFrameEnum.START,0,0,0),0,0,0,0,0,VehicleGearEnum.PARK,False,False,False,0)
     
+    def to_object(self) -> PhysicalObject:
+        """Extracts out the geometry of the object using the vehicle's
+        current geometry in settings.  The object's origin will be in the
+        middle of the vehicle.
+        """
+        from ..utils import settings
+        xbounds,ybounds,zbounds = settings.get('vehicle.geometry.bounds')
+        height = settings.get('vehicle.geometry.height')
+        center = [0.5*(xbounds[0]+xbounds[1]),0.5*(ybounds[0]+ybounds[1]),0.0]  #z needs to be on base
+        dims = [xbounds[1]-xbounds[0],ybounds[1]-ybounds[0],zbounds[1]-zbounds[0]]
+        center_new = self.pose.apply(center)
+        c_x = center_new[0]
+        c_y = center_new[1]
+        if self.pose.z is not None:
+            c_z = center_new.z
+        else:
+            c_z = None
+        center_pose = replace(self.pose,x=c_x,y=c_y,z=c_z)
+        return PhysicalObject(pose = center_pose,
+                              dimensions = dims,
+                              outline = None)
+
+    def to_frame(self, frame : ObjectFrameEnum, current_pose = None, start_pose_abs = None) -> VehicleState:
+        return replace(self,pose=self.pose.to_frame(frame,current_pose,start_pose_abs))

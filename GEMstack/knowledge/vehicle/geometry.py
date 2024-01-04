@@ -46,11 +46,11 @@ def steer2front_degrees(s_angle : float) -> float:
     if (s_angle > 0):
         a = -0.1084
         b = 21.775
-        front_angle = -b + math.sqrt(b**2 - 4*a*(-s_angle)) / (2*a)
+        front_angle = (-b + math.sqrt(b**2 - 4*a*(-s_angle))) / (2*a)
     else:
         a = 0.1084
         b = 21.775
-        front_angle = -b - math.sqrt(b**2 - 4*a*(-s_angle)) / (2*a)
+        front_angle = (-b + math.sqrt(b**2 - 4*a*(-s_angle))) / (2*a)
     return front_angle
 
 def steer2front(s_angle : float):

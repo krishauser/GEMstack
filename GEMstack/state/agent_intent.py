@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from __future__ import annotations
+from dataclasses import dataclass, replace
 from ..utils.serialization import register
-from .physical_object import ObjectPose
+from .physical_object import ObjectFrameEnum,ObjectPose
 from enum import Enum
 from typing import List,Optional
 
@@ -25,6 +26,12 @@ class AgentIntent:
     uncertainty_side : Optional[List[float]]    # uncertainty in the predicted path in the sideways direction
     uncertainty_heading : Optional[List[float]] # uncertainty in the predicted path's heading
 
+    def to_frame(self, frame : ObjectFrameEnum, current_pose = None, start_pose_abs = None) -> AgentIntent:
+        if self.path is None:
+            return self
+        new_path = [p.to_frame(frame,current_pose,start_pose_abs) for p in self.path]
+        return replace(self, path = new_path)
+
 
 @dataclass
 @register
@@ -34,3 +41,7 @@ class AgentIntentMixture:
     """
     predictions : List[AgentIntent]
     likelihoods : List[float]
+
+    def to_frame(self, frame : ObjectFrameEnum, current_pose = None, start_pose_abs = None) -> AgentIntentMixture:
+        new_predictions = [p.to_frame(frame) for p in self.predictions]
+        return replace(self, predictions = new_predictions)

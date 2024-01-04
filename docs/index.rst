@@ -1,10 +1,11 @@
 Welcome to the GEMstack documentation!
 ======================================
 
-Documentation coming soon.
+The `Github repository is found here <https://github.com/krishauser/GEMstack>`_ and the README has helpful information to get started. 
+More substantial ReadTheDocs documentation is pending.
 
 Check out the :doc:`usage` section for further information, including
-how to :ref:`installation` the project.
+:ref:`installation` of the project.
 
 .. note::
 

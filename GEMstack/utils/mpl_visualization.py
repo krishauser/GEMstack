@@ -1,0 +1,144 @@
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import numpy as np
+from . import settings
+from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,Path,Obstacle,AgentState,Roadgraph,RoadgraphLane,RoadgraphCurve,Trajectory,Route,SceneState,AllState
+
+def plot_pose(pose : ObjectPose, axis_len=0.1, ax=None):
+    """Plots the pose in the given axes.  The coordinates
+    of the pose are plotted in the pose's indicated frame."""
+    if ax is None:
+        ax = plt.gca()
+    R = pose.rotation2d()
+    t = [pose.x,pose.y]
+    x_ax = R.dot([axis_len,0])+t
+    y_ax = R.dot([0,axis_len])+t
+    ax.plot([pose.x,x_ax[0]],[pose.y,x_ax[1]],'r-')
+    ax.plot([pose.x,y_ax[0]],[pose.y,y_ax[1]],'g-')
+    if pose.frame == ObjectFrameEnum.START:
+        ax.plot(pose.x,pose.y,'bo')
+    elif pose.frame == ObjectFrameEnum.CURRENT:
+        ax.plot(pose.x,pose.y,'ro')
+    elif pose.frame in [ObjectFrameEnum.GLOBAL,ObjectFrameEnum.ABSOLUTE_CARTESIAN]:
+        ax.plot(pose.x,pose.y,'go')
+    else:
+        raise ValueError("Unknown frame %s" % pose.frame)
+
+def plot_object(obj : PhysicalObject, axis_len=None, outline=True, bbox=True, ax=None):
+    """Shows an object in a 2D plot in the given axes.
+
+    If axis_len is given, shows the object's pose with
+    a coordinate frame of the given length.
+
+    If outline is True, shows the object's outline.
+
+    If bbox is True, shows the object's bounding box.
+    """
+    if ax is None:
+        ax = plt.gca()
+    if axis_len: 
+        plot_pose(obj.pose, axis_len, ax)
+    #plot bounding box
+    R = obj.pose.rotation2d()
+    t = [obj.pose.x,obj.pose.y]
+    if bbox or (outline and obj.outline is None): 
+        bounds = obj.bounds()
+        (xmin,xmax),(ymin,ymax),(zmin,zmax) = bounds
+        corners = [[xmin,ymin],[xmin,ymax],[xmax,ymax],[xmax,ymin]]
+        corners = [R.dot(c)+t for c in corners]
+        corners.append(corners[0])
+        xs = [c[0] for c in corners]
+        ys = [c[1] for c in corners]
+        if not bbox:
+            ax.plot(xs,ys,'r-')
+        else:
+            ax.plot(xs,ys,'b-')
+    #plot outline
+    if outline and obj.outline:
+        outline = [R.dot(p)+t for p in obj.outline]
+        outline.append(outline[0])
+        xs = [c[0] for c in outline]
+        ys = [c[1] for c in outline]
+        ax.plot(xs,ys,'r-')
+
+def plot_vehicle(vehicle : VehicleState, axis_len=0.1, ax=None):
+    """Plots the vehicle in the given axes.  The coordinates
+    of the vehicle are plotted in the vehicle's indicated frame."""
+    if ax is None:
+        ax = plt.gca()
+    plot_object(vehicle.to_object(), axis_len, ax=ax)
+
+    #plot velocity arrow
+    R = vehicle.pose.rotation2d()
+    t = np.array([vehicle.pose.x,vehicle.pose.y])
+    v = R.dot([vehicle.v,0])
+    ax.arrow(t[0],t[1],v[0],v[1],head_width=0.05,head_length=0.1,color='g')
+
+    #plot front wheel angles
+    wheelbase = settings.get('vehicle.geometry.wheelbase')
+    wheel_spacing = 0.8*settings.get('vehicle.geometry.width') / 2
+    phi = vehicle.front_wheel_angle
+    left_wheel_origin = t + R.dot([wheelbase,wheel_spacing])
+    right_wheel_origin = t + R.dot([wheelbase,-wheel_spacing])
+    wheel_width = 0.5  #meters
+    wheel_offset = R.dot(np.array([np.cos(phi),np.sin(phi)]))*wheel_width*0.5
+    ax.plot([left_wheel_origin[0]-wheel_offset[0],left_wheel_origin[0]+wheel_offset[0]],
+            [left_wheel_origin[1]-wheel_offset[1],left_wheel_origin[1]+wheel_offset[1]],'k-',linewidth=2)
+    ax.plot([right_wheel_origin[0]-wheel_offset[0],right_wheel_origin[0]+wheel_offset[0]],
+            [right_wheel_origin[1]-wheel_offset[1],right_wheel_origin[1]+wheel_offset[1]],'k-',linewidth=2)
+
+    #plot gear
+    if vehicle.gear <= 0:
+        if vehicle.gear == 0:
+            gear = 'N'
+        elif vehicle.gear == -1:
+            gear = 'R'
+        else:
+            gear = 'P'
+        ax.text(t[0],t[1],gear,ha='center',va='center',color='k')
+
+def plot_path(path : Path, color='k', linewidth=1, linestyle='-', ax=None):
+    if ax is None:
+        ax = plt.gca()
+    xs = [p[0] for p in path.points]
+    ys = [p[1] for p in path.points]
+    ax.plot(xs,ys,color=color,linewidth=linewidth,linestyle=linestyle)
+
+def plot_scene(scene : SceneState, xrange=None, yrange=None, ax=None, title = None, show=True):
+    if ax is None:
+        ax = plt.gca()
+    ax.cla()
+    ax.set_aspect('equal')
+    ax.set_xlabel('x (m)')
+    ax.set_ylabel('y (m)')
+    if xrange is not None:
+        if isinstance(xrange,(tuple,list)):
+            ax.set_xlim(xrange[0],xrange[1])
+        else:
+            ax.set_xlim(-xrange*0.2,xrange*0.8)
+    if yrange is not None:
+        if isinstance(yrange,(tuple,list)):
+            ax.set_ylim(yrange[0],yrange[1])
+        else:
+            ax.set_ylim(-yrange*0.5,yrange*0.5)
+    plot_vehicle(scene.vehicle)
+    for k,a in scene.agents.items():
+        plot_object(a)
+    for k,o in scene.obstacles.items():
+        plot_object(o)
+    if title is None:
+        if show:
+            ax.set_title("Scene at t = %.2f" % scene.t)
+    else:
+        ax.set_title(title)
+    if show:
+        plt.show(block=False)
+
+def plot(state : AllState, xrange=None, yrange=None,ax=None, title=None, show=True):
+    if ax is None:
+        ax = plt.gca()
+    plot_scene(state, xrange=xrange, yrange=yrange, ax=ax, title=title, show=show)
+    if state.route is not None:
+        plot_path(state.route,color='k',linestyle='--',ax=ax)
+    if state.trajectory is not None:
+        plot_path(state.trajectory,color='r',linestyle='--',linewidth=2,ax=ax)

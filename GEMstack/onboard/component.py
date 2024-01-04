@@ -14,6 +14,14 @@ class Component:
     def healthy(self):
         """Returns True if the element is in a stable state."""
         return True
+    def initialize(self):
+        """Initialize the component. This is called once before the first
+        update."""
+        pass
+    def cleanup(self):
+        """Cleans up resources used by the component. This is called once after
+        the last update."""
+        pass
     def update(self, *args, **kwargs):
         """Update the component."""
         raise NotImplementedError()

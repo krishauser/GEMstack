@@ -13,7 +13,9 @@ class GNSSStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
     def __init__(self, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        vehicle_interface.subscribe_gnss(self.inspva_callback)
+        if 'gnss' not in vehicle_interface.sensors():
+            raise RuntimeError("GNSS sensor not available")
+        vehicle_interface.subscribe_sensor('gnss',self.inspva_callback)
         self.gnss_pose = None
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
@@ -28,6 +30,7 @@ class GNSSStateEstimator(Component):
                                     roll=inspva_msg.roll,
                                     pitch=inspva_msg.pitch,
                                     )
+        #TODO: figure out what this status means
         print("INS status",inspva_msg.status)
     
     def rate(self):
@@ -62,7 +65,9 @@ class GNSSStateEstimator(Component):
 class FakeStateEstimator(Component):
     def __init__(self, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        vehicle_interface.subscribe_gnss(self.fake_gnss_callback)
+        if 'gnss' not in vehicle_interface.sensors():
+            raise RuntimeError("GNSS sensor not available")
+        vehicle_interface.subscribe_sensor('gnss',self.fake_gnss_callback)
         self.vehicle_state = None
 
     # Get GNSS information
@@ -70,7 +75,7 @@ class FakeStateEstimator(Component):
         self.vehicle_state = vehicle_state
     
     def rate(self):
-        return 10.0
+        return 50.0
     
     def state_outputs(self) -> List[str]:
         return ['vehicle']
