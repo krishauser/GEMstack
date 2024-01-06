@@ -6,6 +6,7 @@ from .sign import Sign
 from enum import Enum
 from collections import defaultdict
 from dataclasses import dataclass, replace, field, asdict
+import itertools
 from typing import List,Tuple,Any,Optional,Dict
 
 
@@ -67,7 +68,11 @@ class RoadgraphConnectionEnum(Enum):
 @register
 class RoadgraphCurve:
     """Any curve in the roadgraph, whether a stopline, lane boundary, crossing,
-    wall, etc."""
+    wall, etc.
+
+    A curve can consist of multiple segments which may include gaps, e.g. a curb
+    broken by driveways.  These proceed in back to forward order.
+    """
     type : RoadgraphCurveEnum
     segments : List[List[Tuple[float,float,float]]]     #Polyline representation of the curve. List of lists of 3D positions.  3rd element is height above road surface, usually 0
     crossable : bool = True                             #Whether the curve is crossable by ego vehicle
@@ -78,10 +83,20 @@ class RoadgraphCurve:
                  current_origin = None, global_origin = None) -> RoadgraphCurve:
         return replace(self,segments=[[convert_point(p,orig_frame,new_frame,current_origin,global_origin) for p in seg] for seg in self.segments])
 
+    def polyline(self) -> List[Tuple[float,float,float]]:
+        """Returns a contiguous polyline representation of the curve."""
+        return sum(self.segments,[])
+
 
 @dataclass
 @register
 class RoadgraphLane:
+    """A lane in the roadgraph.
+
+    By convention, the left and right boundaries are oriented in back to
+    forward order.  The end boundary is from right to left, and the start
+    boundary is from left to right.
+    """
     type : RoadgraphLaneEnum = RoadgraphLaneEnum.LANE               # type of lane
     surface : RoadgraphSurfaceEnum = RoadgraphSurfaceEnum.PAVEMENT  # surface of lane
     route_name : str = ''                                           # name of the route (e.g., street name) that this lane is on
@@ -99,13 +114,34 @@ class RoadgraphLane:
                         begin=self.begin.to_frame(orig_frame,new_frame,current_origin,global_origin) if self.begin is not None else None,
                         end=self.end.to_frame(orig_frame,new_frame,current_origin,global_origin) if self.end is not None else None)
 
+    def outline(self) -> List[Tuple[float,float,float]]:
+        """Produces a 2D outline of the lane, including elevation.
+
+        The first point is the beginning-right of the lane, and the points
+        proceed CCW around the lane.
+
+        If the begin and end are None, then straight lines are used to connect
+        the left and right boundaries.  Otherwise, the begin and end curves
+        are used to connect the boundaries.
+        """
+        if self.left is None or self.right is None:
+            raise RuntimeError("Cannot produce outline of lane with missing left or right boundary")
+        points = self.right.polyline()
+        if self.end is not None:
+            points += self.end.polyline()
+        points += self.left.polyline()[::-1]
+        if self.begin is not None:
+            points += self.begin.polyline()[::-1]
+        return [key for key, _group in itertools.groupby(points)]
+        
+
 
 
 @dataclass
 @register
 class RoadgraphRegion:
     type : RoadgraphRegionEnum
-    outline : List[Tuple[float,float]]
+    outline : List[Tuple[float,float]]     # a list of 2D points defining the outline of the region in CCW order
     crossable : bool = True
     
     def to_frame(self, orig_frame : ObjectFrameEnum, new_frame : ObjectFrameEnum,
