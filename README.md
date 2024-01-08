@@ -8,19 +8,60 @@
 
 ## Dependencies
 
-GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior.)
-
-In order to interface with the actual vehicle, you will need [PACMOD](http://wiki.ros.org/pacmod) - Autonomoustuff's low level interface to vehicle. 
+GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior.)  
 
 You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
 
-- opencv-python
 - numpy
 - scipy
+- matplotlib
+- opencv-python
 - torch
 - shapely
 - dacite
 - pyyaml
+
+
+In order to interface with the actual GEM e2 vehicle, you will need [PACMOD2](https://github.com/astuff/pacmod2) - Autonomoustuff's low level interface to vehicle. You will also need Autonomoustuff's [sensor message packages](https://github.com/astuff/astuff_sensor_msgs).  The onboard computer uses Ubuntu 20.04 with Python 3.8, CUDA 11.6, and NVIDIA driver 515, so to minimize compatibility issues you should ensure that these are installed on your development system.
+
+From a fresh Ubuntu 20.04 with ROS Noetic and [CUDA 11.6 installed](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5), you can install these dependencies using:
+
+```console
+sudo apt update
+sudo apt-get install git python3 python3-pip wget zstd
+source /opt/ros/noetic/setup.bash
+
+#install Zed SDK
+wget https://download.stereolabs.com/zedsdk/4.0/cu121/ubuntu20 -O ZED_SDK_Ubuntu20_cuda11.8_v4.0.8.zstd.run
+chmod +x ZED_SDK_Ubuntu20_cuda11.8_v4.0.8.zstd.run
+./ZED_SDK_Ubuntu20_cuda11.8_v4.0.8.zstd.run -- silent
+
+#create ROS Catkin workspace
+mkdir catkin_ws
+mkdir catkin_ws/src
+
+#install ROS dependencies and packages
+cd catkin_ws/src
+git clone https://github.com/hangcui1201/POLARIS_GEM_e2_Real.git
+git clone https://github.com/astuff/pacmod2.git
+git clone https://github.com/astuff/astuff_sensor_msgs.git
+git clone https://github.com/ros-perception/radar_msgs.git
+cd radar_msgs; git checkout noetic; cd ..
+
+cd ..
+rosdep install --from-paths src --ignore-src -r -y
+catkin_make -DCMAKE_BUILD_TYPE=Release
+source devel/setup.bash
+
+#install GEMstack Python dependencies
+cd ..
+git clone https://github.com/krishauser/GEMstack.git
+cd GEMstack
+python3 -m pip install -r requirements.txt
+```
+
+To build a Docker container with all these prerequisites, you can use the provided Dockerfile by running `docker build -t gem_stack .`. 
+
 
 ## In this folder
 
@@ -224,7 +265,7 @@ settings.get('key1.key2.attribute')
 
 To override a setting temporarily (just for a few run), you can run your script with an optional `--key=value` command-line argument.  For example, to set the simulation scene, you can use `--simulator.scene=PATH/TO/SCENE/FILE`.  
 
-To create new settings or override a setting more permanently, you should dive into `GEMstack/knowledge/defaults/current.yaml`.  This [YAML](https://yaml.org/) formatted configuration file specifies the entire configuration that can be accessed through the `utils.settings` module.  One of these files may `!include` other configuration files, so if you are adding a large number of related settings, e.g., for some component module, it would make sense to create that module's own YAML file.  For example, you may create a YAML file `mymodule_default_config.yaml` add it to `current.yaml` under the `mymodule` key, e.g.,`mymodule: !include mymodule_default_config.yaml`.  (Of course, replace `mymodule` with a descriptive name of your module, duh.)
+To create new settings or override a setting more permanently, you should dive into `GEMstack/knowledge/defaults/current.yaml`.  This [YAML](https://yaml.org/) formatted configuration file specifies the entire configuration that can be accessed through the `utils.settings` module.  One of these files may `!include` other configuration files, so if you are adding a large number of related settings, e.g., for some component module, it would make sense to create that module's own YAML file.  For example, you may create a YAML file `mymodule_default_config.yaml` add it to `current.yaml` under the `mymodule` key, e.g., `mymodule: !include mymodule_default_config.yaml`.  (Of course, replace `mymodule` with a descriptive name of your module, duh.)
 
 Note that there are settings that configure **an algorithm's behavior** that persist between runs, and there are settings that configure **a particular run**.  If you want to configure an algorithm, put it in `current.yaml`, a descendant configuration file, or elsewhere in `knowledge`.  If you want to configure a single run, you should place those options in the launch file.  The `main.py` entrypoint will consume a run launch file and a settings file, and will place all the run configurations in the `run` attribute of the global settings.  So if you wish to inspect run details or specify per-run behavior, e.g., see whether we are in a simulation run or a hardware run, your algorithm can check `settings.get('run.mode')`.  In general, you should try to minimize how dependent your algorithms are on run settings.
 
