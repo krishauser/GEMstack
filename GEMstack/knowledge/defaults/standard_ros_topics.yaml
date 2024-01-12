@@ -1,0 +1,12 @@
+#indicates which ROS topics to log in the bag file
+- /game_control/joy
+- /front_radar/front_radar/objects
+- /front_radar/front_radar/radar_tracks
+- /lidar1/velodyne_points
+- /novatel/inspva
+- /zed2/zed_node/depth/camera_info
+- /zed2/zed_node/depth/depth_registered
+- /zed2/zed_node/left/camera_info
+- /zed2/zed_node/left/image_rect_color
+- /zed2/zed_node/right/camera_info
+- /zed2/zed_node/right/image_rect_color
