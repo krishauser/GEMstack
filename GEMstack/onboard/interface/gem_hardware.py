@@ -38,13 +38,10 @@ class GEMHardwareInterface(GEMInterface):
         self.stereo_sub = None
 
         # -------------------- PACMod setup --------------------
-
-        self.pacmod_enable = False
-
         # GEM vehicle enable
-        self.enable_sub = rospy.Subscriber('/pacmod/as_rx/enable', Bool, self.pacmod_enable_callback)
-        # self.enable_cmd = Bool()
-        # self.enable_cmd.data = False
+        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
+        self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
+        self.pacmod_enable = False
 
         # GEM vehicle gear control, neutral, forward and reverse, publish once
         self.gear_pub = rospy.Publisher('/pacmod/as_rx/shift_cmd', PacmodCmd, queue_size=1)
@@ -79,12 +76,17 @@ class GEMHardwareInterface(GEMInterface):
         """TODO: other commands
         /pacmod/as_rx/headlight_cmd
         /pacmod/as_rx/horn_cmd
-        /pacmod/as_rx/shift_cmd
         /pacmod/as_rx/turn_cmd
         /pacmod/as_rx/wiper_cmd
         """
 
         #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
+
+    def start(self):
+        print("ENABLING PACMOD")
+        enable_cmd = Bool()
+        enable_cmd.data = True
+        self.enable_pub.publish(enable_cmd)
 
     def speed_callback(self,msg : VehicleSpeedRpt):
         self.last_reading.speed = msg.vehicle_speed   # forward velocity in m/s
@@ -106,6 +108,10 @@ class GEMHardwareInterface(GEMInterface):
 
     # PACMod enable callback function
     def pacmod_enable_callback(self, msg):
+        if self.pacmod_enable == False and msg.data == True:
+            print("PACMod enabled")
+        elif self.pacmod_enable == True and msg.data == False:
+            print("PACMod disabled")
         self.pacmod_enable = msg.data
 
     def send_first_command(self):
