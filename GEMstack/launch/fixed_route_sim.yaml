@@ -1,3 +1,4 @@
+description: "Drive the GEM vehicle along a fixed route (currently xyhead_highbay_backlot_p.csv) in simulation."
 mode: simulation
 vehicle_interface:
     type: gem_simulator.GEMDoubleIntegratorSimulationInterface
