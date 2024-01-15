@@ -6,7 +6,7 @@ import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
 from sensor_msgs.msg import PointCloud2
 from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
-from radar_msgs import RadarTracks
+from radar_msgs.msg import RadarTracks
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # GEM PACMod Headers
