@@ -41,6 +41,19 @@ class MPComponentExecutor(ComponentExecutor):
         self._process = Process(target=self._run, args=(self.c, self._in_queue, self._out_queue, config))
         self._process.start()
         self.logging_manager = old_manager
+        res = self._out_queue.get()
+        if isinstance(res,tuple) and isinstance(res[0],Exception):
+            print("Traceback:")
+            for line in res[1]:
+                print(line)
+            print("Exception:",res[0])
+            
+            self._process.join()
+            self._process.close()
+            self._process = None
+            raise RuntimeError("Error initializng "+self.c.__class__.__name__)
+        if res !='initialized':
+            raise RuntimeError("Uh... didn't hear back from subprocess? "+self.c.__class__.__name__)
 
     def stop(self):
         if self._process and self._process.is_alive():
@@ -61,6 +74,7 @@ class MPComponentExecutor(ComponentExecutor):
             print("Error initializing",component.__class__.__name__)
             outqueue.put((e,traceback.format_tb(e.__traceback__)))
             return
+        outqueue.put('initialized')
         while True:
             #update
             try:
