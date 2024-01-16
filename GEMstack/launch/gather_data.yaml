@@ -1,4 +1,4 @@
-description: "Drive the GEM vehicle along a fixed route (currently xyhead_highbay_backlot_p.csv)"
+description: "Gather data from the GEM vehicle as the operator is driving it manually"
 mode: hardware
 vehicle_interface: gem_hardware.GEMHardwareInterface
 mission_execution: StandardExecutor
@@ -14,9 +14,8 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../knowledge/routes/xyhead_highbay_backlot_p.csv']
+            args: [!relative_path '../knowledge/routes/xyhead_demo_pp.csv']
         motion_planning: RouteToTrajectoryPlanner
-        trajectory_tracking: pure_pursuit.PurePursuitTrajectoryTracker
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 
@@ -31,7 +30,7 @@ log:
     # If True, then record all readings / commands of the vehicle interface. Default False
     vehicle_interface : True
     # Specify which components to record to behavior.json. Default records nothing
-    components : ['state_estimation','trajectory_tracking']
+    components : ['state_estimation']
     # Specify which components of state to record to state.json. Default records nothing 
     #state: ['all']
     # Specify the rate in Hz at which to record state to state.json. Default records at the pipeline's rate
@@ -39,7 +38,6 @@ log:
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
     log: 
-    # For replaying sensor data, try !include "../knowledge/defaults/standard_sensor_ros_topics.yaml"
     ros_topics : []
     components : []
 

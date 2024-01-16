@@ -2,7 +2,33 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 from . import settings
-from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,Path,Obstacle,AgentState,Roadgraph,RoadgraphLane,RoadgraphCurve,Trajectory,Route,SceneState,AllState
+from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,Path,Obstacle,AgentState,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
+
+CURVE_TO_STYLE = {
+    RoadgraphCurveEnum.LANE_BOUNDARY : {'color':'k','linewidth':1,'linestyle':'-'},
+    RoadgraphCurveEnum.CURB : {'color':'k','linewidth':2,'linestyle':'-'},
+    RoadgraphCurveEnum.CLIFF : {'color':'r','linewidth':2,'linestyle':'-'},
+    RoadgraphCurveEnum.CROSSING_BOUNDARY : {'color':'k','linewidth':1,'linestyle':'--'},
+    RoadgraphCurveEnum.PARKING_SPOT_BOUNDARY : {'color':'k','linewidth':1,'linestyle':'-'},
+    RoadgraphCurveEnum.STOP_LINE : {'color':'k','linewidth':1,'linestyle':':'},
+    RoadgraphCurveEnum.WALL : {'color':'b','linewidth':2,'linestyle':'-'},
+    None : {'color':'k','linewidth':1,'linestyle':'-'},
+}
+
+SURFACE_TO_STYLE = {
+    RoadgraphSurfaceEnum.PAVEMENT : {'color':(0.5,0.5,0.5,0.2)},
+    RoadgraphSurfaceEnum.DIRT : {'color':(160/255.0,82/255.0,45/255.0,0.2)},
+    RoadgraphSurfaceEnum.GRASS : {'color':(50/255.0,255/255.0,50/255.0,0.2)},
+    RoadgraphSurfaceEnum.GRAVEL : {'color':(0.7,0.7,0.7,0.2),'hatch':'oo'},
+    None: {'color':(1,0,0,0.2)},
+}
+
+REGION_TO_STYLE = {
+    RoadgraphRegionEnum.INTERSECTION : {'color':'g','linewidth':1,'linestyle':':'},
+    RoadgraphRegionEnum.PARKING_LOT : {'color':'b','linewidth':1,'linestyle':':'},
+    RoadgraphRegionEnum.CLOSED_COURSE : {'color':'r','linewidth':1,'linestyle':':'},
+    RoadgraphRegionEnum.VIRTUAL : {'color':'k','linewidth':1,'linestyle':':'},
+}
 
 def plot_pose(pose : ObjectPose, axis_len=0.1, ax=None):
     """Plots the pose in the given axes.  The coordinates
@@ -104,6 +130,68 @@ def plot_path(path : Path, color='k', linewidth=1, linestyle='-', ax=None):
     ys = [p[1] for p in path.points]
     ax.plot(xs,ys,color=color,linewidth=linewidth,linestyle=linestyle)
 
+def plot_curve(curve : RoadgraphCurve, color=None, linewidth=None, linestyle=None, ax=None):
+    if ax is None:
+        ax = plt.gca()
+    style = CURVE_TO_STYLE.get(curve.type,CURVE_TO_STYLE[None])
+    if curve.crossable and curve.type == RoadgraphCurveEnum.LANE_BOUNDARY:
+        style['linestyle'] = '--'
+    if color is not None:
+        style['color'] = color
+    if linewidth is not None:
+        style['linewidth'] = linewidth
+    if linestyle is not None:
+        style['linestyle'] = linestyle
+    for seg in curve.segments:
+        xs = [p[0] for p in seg]
+        ys = [p[1] for p in seg]
+        ax.plot(xs,ys,**style)
+
+def plot_lane(lane : RoadgraphLane, on_route=False, ax=None):
+    if lane.surface != RoadgraphSurfaceEnum.PAVEMENT:
+        style = SURFACE_TO_STYLE.get(lane.surface,SURFACE_TO_STYLE[None])
+        outline = lane.outline()
+        x = [p[0] for p in outline]
+        y = [p[1] for p in outline]
+        ax.fill(x,y,**style)
+    if lane.left is not None:
+        plot_curve(lane.left,ax=ax)
+    if lane.right is not None:
+        plot_curve(lane.right,ax=ax)
+
+def plot_region(region : RoadgraphRegion, color=None, linewidth=None, linestyle=None, ax=None):
+    if ax is None:
+        ax = plt.gca()
+    style = REGION_TO_STYLE.get(region.type,REGION_TO_STYLE[None])
+    points = region.outline()
+    xs = [p[0] for p in points] + [points[0][0]]
+    ys = [p[1] for p in points] + [points[0][1]]
+    if color is not None:
+        style['color'] = color
+    if linewidth is not None:
+        style['linewidth'] = linewidth
+    if linestyle is not None:
+        style['linestyle'] = linestyle
+    ax.plot(xs,ys,**style)
+
+def plot_roadgraph(roadgraph : Roadgraph, route : Route = None, ax=None):
+    if ax is None:
+        ax = plt.gca()
+    #plot lanes
+    for k,l in roadgraph.lanes.items():
+        if route is not None and k in route.lanes:
+            plot_lane(l,on_route=True,ax=ax)
+        else:
+            plot_lane(l,ax=ax)
+    for c in roadgraph.curves.values():
+        plot_curve(c,color='k',ax=ax)
+    #plot intersections
+    for r in roadgraph.regions.values():
+        plot_region(r,ax=ax)
+    #plot 
+    for k,o in roadgraph.static_obstacles.items():
+        plot_object(o,ax=ax)
+
 def plot_scene(scene : SceneState, xrange=None, yrange=None, ax=None, title = None, show=True):
     if ax is None:
         ax = plt.gca()
@@ -111,6 +199,7 @@ def plot_scene(scene : SceneState, xrange=None, yrange=None, ax=None, title = No
     ax.set_aspect('equal')
     ax.set_xlabel('x (m)')
     ax.set_ylabel('y (m)')
+    #set plot range
     if xrange is not None:
         if isinstance(xrange,(tuple,list)):
             ax.set_xlim(xrange[0],xrange[1])
@@ -121,11 +210,14 @@ def plot_scene(scene : SceneState, xrange=None, yrange=None, ax=None, title = No
             ax.set_ylim(yrange[0],yrange[1])
         else:
             ax.set_ylim(-yrange*0.5,yrange*0.5)
-    plot_vehicle(scene.vehicle)
+    #plot roadgraph
+    plot_roadgraph(scene.roadgraph,scene.route,ax=ax)
+    #plot vehicle and objects
+    plot_vehicle(scene.vehicle,ax=ax)
     for k,a in scene.agents.items():
-        plot_object(a)
+        plot_object(a,ax=ax)
     for k,o in scene.obstacles.items():
-        plot_object(o)
+        plot_object(o,ax=ax)
     if title is None:
         if show:
             ax.set_title("Scene at t = %.2f" % scene.t)

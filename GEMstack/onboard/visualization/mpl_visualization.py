@@ -1,5 +1,6 @@
 from ...utils import mpl_visualization
 from ..component import Component
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
@@ -24,6 +25,7 @@ class MPLVisualization(Component):
         return ['all']
 
     def initialize(self):
+        matplotlib.use('TkAgg')
         if self.save_as is not None:
             print("Saving Matplotlib visualization to",self.save_as)
             if self.save_as.endswith('.gif'):
@@ -55,8 +57,16 @@ class MPLVisualization(Component):
         self.fig.canvas.draw_idle()
         self.fig.canvas.flush_events()
 
-        if self.save_as is not None:
-            self.writer.grab_frame()
+        if self.save_as is not None and self.writer is not None:
+            try:
+                self.writer.grab_frame()
+            except IOError as e:
+                if e.errno == 32: #broken pipe
+                    self.writer = None
+                    print("Movie write process terminated, saved Matplotlib visualization to",self.save_as)
+                    return
+                print(e)
+                pass
 
     def cleanup(self):
         if self.writer:

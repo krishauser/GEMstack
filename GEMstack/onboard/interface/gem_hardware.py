@@ -3,19 +3,18 @@ import math
 
 # ROS Headers
 import rospy
-from ackermann_msgs.msg import AckermannDrive
 from std_msgs.msg import String, Bool, Float32, Float64
-from sensor_msgs import PointCloud2
+from sensor_msgs.msg import PointCloud2
 from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
-from radar_msgs import RadarTracks
+from radar_msgs.msg import RadarTracks
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # GEM PACMod Headers
-from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt
+from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt, GlobalRpt
 
 
 class GEMHardwareInterface(GEMInterface):
-    """Interface for interfacing with the physical GEM vehicle."""
+    """Interface for connnecting to the physical GEM e2 vehicle."""
     def __init__(self):
         GEMInterface.__init__(self)
         self.last_reading = GEMVehicleReading()
@@ -32,20 +31,19 @@ class GEMHardwareInterface(GEMInterface):
         
         self.speed_sub  = rospy.Subscriber("/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
         self.steer_sub = rospy.Subscriber("/pacmod/parsed_tx/steer_rpt", SystemRptFloat, self.steer_callback)
+        self.global_sub = rospy.Subscriber("/pacmod/parsed_tx/global_rpt", GlobalRpt, self.global_callback)
         self.gnss_sub = None
         self.imu_sub = None
         self.front_radar_sub = None
         self.lidar_sub = None
         self.stereo_sub = None
+        self.faults = []
 
         # -------------------- PACMod setup --------------------
-
-        self.pacmod_enable = False
-
         # GEM vehicle enable
-        self.enable_sub = rospy.Subscriber('/pacmod/as_rx/enable', Bool, self.pacmod_enable_callback)
-        # self.enable_cmd = Bool()
-        # self.enable_cmd.data = False
+        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
+        self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
+        self.pacmod_enable = False
 
         # GEM vehicle gear control, neutral, forward and reverse, publish once
         self.gear_pub = rospy.Publisher('/pacmod/as_rx/shift_cmd', PacmodCmd, queue_size=1)
@@ -80,18 +78,42 @@ class GEMHardwareInterface(GEMInterface):
         """TODO: other commands
         /pacmod/as_rx/headlight_cmd
         /pacmod/as_rx/horn_cmd
-        /pacmod/as_rx/shift_cmd
         /pacmod/as_rx/turn_cmd
         /pacmod/as_rx/wiper_cmd
         """
 
         #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
 
+    def start(self):
+        print("ENABLING PACMOD")
+        enable_cmd = Bool()
+        enable_cmd.data = True
+        self.enable_pub.publish(enable_cmd)
+
     def speed_callback(self,msg : VehicleSpeedRpt):
         self.last_reading.speed = msg.vehicle_speed   # forward velocity in m/s
 
     def steer_callback(self, msg):
         self.last_reading.steering_wheel_angle = msg.output
+    
+    def global_callback(self, msg):
+        self.faults = []
+        if msg.override_active:
+            self.faults.append("override_active")
+        if msg.config_fault_active:
+            self.faults.append("config_fault_active")
+        if msg.user_can_timeout:
+            self.faults.append("user_can_timeout")
+        if msg.user_can_read_errors:
+            self.faults.append("user_can_read_errors")
+        if msg.brake_can_timeout:
+            self.faults.append("brake_can_timeout")
+        if msg.steering_can_timeout:
+            self.faults.append("steering_can_timeout")
+        if msg.vehicle_can_timeout:
+            self.faults.append("vehicle_can_timeout")
+        if msg.subsystem_can_timeout:
+            self.faults.append("subsystem_can_timeout")
 
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading
@@ -104,10 +126,18 @@ class GEMHardwareInterface(GEMInterface):
         elif name == 'front_radar':
             self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
     
-
     # PACMod enable callback function
     def pacmod_enable_callback(self, msg):
+        if self.pacmod_enable == False and msg.data == True:
+            print("PACMod enabled")
+        elif self.pacmod_enable == True and msg.data == False:
+            print("PACMod disabled")
         self.pacmod_enable = msg.data
+
+    def hardware_faults(self) -> List[str]:
+        if self.pacmod_enable == False:
+            return self.faults + ["disengaged"]
+        return self.faults
 
     def send_first_command(self):
         # ---------- Enable PACMod ----------
