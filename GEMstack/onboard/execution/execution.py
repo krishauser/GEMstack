@@ -503,6 +503,11 @@ class ExecutorBase:
         next_print_time = t0 + 1.0
         while looper and not sensors_working:
             self.last_loop_time = time.time()
+
+            for f in self.vehicle_interface.hardware_faults():
+                if EXECUTION_VERBOSITY >= 1:
+                    print(EXECUTION_PREFIX,"Hardware fault",f)
+
             self.update_components(perception_components,self.state)
             sensors_working = all([c.healthy() for c in perception_components.values()])
 
@@ -533,6 +538,12 @@ class ExecutorBase:
         while looper and not self.done():
             self.state.t = self.vehicle_interface.time()
             self.last_loop_time = time.time()
+
+            #check for vehicle faults
+            for f in self.vehicle_interface.hardware_faults():
+                if EXECUTION_VERBOSITY >= 1:
+                    print(EXECUTION_PREFIX,"Hardware fault",f)
+                    
             self.update_components(perception_components,self.state)
             #check for faults
             for name,c in perception_components.items():
@@ -621,7 +632,7 @@ class StandardExecutor(ExecutorBase):
     def begin(self):
         try:
             import rospy
-            rospy.init_node('GEM executor')
+            rospy.init_node('GEM_executor')
         except (ImportError,ModuleNotFoundError):
             if settings.get('run.mode','hardware') == 'simulation':
                 print(EXECUTION_PREFIX,"Warning, ROS not found, but simulation mode requested")
@@ -635,5 +646,9 @@ class StandardExecutor(ExecutorBase):
                 abs(self.vehicle_interface.last_reading.speed) < 1e-3:
                 if EXECUTION_VERBOSITY >= 1:
                     print(EXECUTION_PREFIX,"Vehicle has stopped, exiting execution loop.")
+                return True
+            if 'disengaged' in self.vehicle_interface.hardware_faults():
+                if EXECUTION_VERBOSITY >= 1:
+                    print(EXECUTION_PREFIX,"Vehicle has disengaged, exiting execution loop.")
                 return True
         return False
