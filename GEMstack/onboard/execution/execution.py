@@ -196,7 +196,7 @@ class ComponentExecutor:
                 self.next_update_time += self.dt
             if self.next_update_time < t and self.dt > 0:
                 if EXECUTION_VERBOSITY >= 1:
-                    print(EXECUTION_PREFIX,"Component {} is running behind, overran dt by {} seconds".format(self.c,self.dt,t-self.next_update_time))
+                    print(EXECUTION_PREFIX,"Component {} is running behind, overran dt {} by {} seconds".format(self.c,self.dt,t-self.next_update_time))
                 self.num_overruns += 1
                 self.overrun_amount += t - self.next_update_time
                 self.next_update_time = t + self.dt
@@ -502,6 +502,7 @@ class ExecutorBase:
         t0 = time.time()
         next_print_time = t0 + 1.0
         while looper and not sensors_working:
+            self.state.t = self.vehicle_interface.time()
             self.last_loop_time = time.time()
 
             for f in self.vehicle_interface.hardware_faults():
