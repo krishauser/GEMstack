@@ -23,7 +23,7 @@ log:
     #prefix : 'fixed_route_'  
     # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
     #suffix : 'test3'  
-    # Specify which ros topics to record to vehicle.bag. Default records nothing
+    # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
     ros_topics : !include "../knowledge/defaults/standard_ros_topics.yaml"
     # Specify options to pass to rosbag record. Default is no options.
     #rosbag_options : '--split --size=1024' 
