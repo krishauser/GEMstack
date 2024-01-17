@@ -23,6 +23,7 @@ class GNSSStateEstimator(Component):
     # Get GNSS information
     def inspva_callback(self, inspva_msg):
         self.gnss_pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t=self.vehicle_interface.time(),
                                     x=inspva_msg.longitude,
                                     y=inspva_msg.latitude,
                                     z=inspva_msg.height,

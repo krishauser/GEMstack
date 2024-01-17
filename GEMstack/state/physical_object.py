@@ -74,6 +74,7 @@ class ObjectPose:
 
     def apply(self,point):
         """Applies this pose to a local (x,y) or (x,y,z) coordinate."""
+        assert len(point) in [2,3],"Must provide a 2D or 3D point"
         oz = self.z if self.z is not None else 0.0
         if self.frame == ObjectFrameEnum.GLOBAL:
             east_m,north_m = point[:2]
@@ -82,7 +83,7 @@ class ObjectPose:
             if len(point) == 2:
                 return (lon,lat)
             else:
-                return (lon,lat) + tuple(point[2:] + oz)
+                return (lon,lat, point[2] + oz)
         if len(point) == 2:
             return tuple(self.rotation2d().dot(point) + self.translation()[:2])
         else:
@@ -91,12 +92,16 @@ class ObjectPose:
     def apply_inv(self,point):
         """Applies the inverse of this pose to an (x,y) or (x,y,z) coordinate
         specified in the same frame as this."""
+        assert len(point) in [2,3],"Must provide a 2D or 3D point"
         oz = self.z if self.z is not None else 0.0
         if self.frame == ObjectFrameEnum.GLOBAL:
             lon,lat = point[:2]
             olon,olat = self.x,self.y
             east_m, north_m = transforms.lat_lon_to_xy(lat,lon,olat,olon)
-            return (east_m,north_m) + tuple(point[2:] + oz)
+            if len(point) == 2:
+                return (east_m, north_m)
+            else:
+                return (east_m, north_m, point[2] - oz)
         if len(point) == 2:
             return tuple(self.rotation2d().T.dot(np.array(point)-self.translation()[:2]))
         else:
