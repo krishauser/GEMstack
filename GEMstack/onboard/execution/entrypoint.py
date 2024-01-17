@@ -43,7 +43,7 @@ def main():
     if isinstance(visualization_settings,dict):
         #one visualizer
         visualizers.append(mission_executor.make_component(visualization_settings,'visualization','GEMstack.onboard.visualization',{'vehicle_interface':vehicle_interface}))
-    else:
+    elif isinstance(visualization_settings,list):
         #multiple visualizers
         for v in visualization_settings:
             visualizers.append(mission_executor.make_component(v,'visualization','GEMstack.onboard.visualization',{'vehicle_interface':vehicle_interface}))

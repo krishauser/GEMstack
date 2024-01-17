@@ -506,6 +506,8 @@ class ExecutorBase:
             self.last_loop_time = time.time()
 
             for f in self.vehicle_interface.hardware_faults():
+                if f == 'disengaged' and not settings.get('run.require_engaged',False):
+                    continue
                 if EXECUTION_VERBOSITY >= 1:
                     print(EXECUTION_PREFIX,"Hardware fault",f)
 
@@ -542,6 +544,8 @@ class ExecutorBase:
 
             #check for vehicle faults
             for f in self.vehicle_interface.hardware_faults():
+                if f == 'disengaged' and not settings.get('run.require_engaged',False):
+                    continue
                 if EXECUTION_VERBOSITY >= 1:
                     print(EXECUTION_PREFIX,"Hardware fault",f)
                     
@@ -630,7 +634,8 @@ class ExecutorBase:
 
 
 class StandardExecutor(ExecutorBase):
-    def begin(self):
+    def __init__(self, vehicle_interface):
+        ExecutorBase.__init__(self,vehicle_interface)
         try:
             import rospy
             rospy.init_node('GEM_executor')
