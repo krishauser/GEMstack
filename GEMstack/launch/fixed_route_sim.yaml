@@ -25,13 +25,13 @@ drive:
         motion_planning: RouteToTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
-            print: True
+            print: False
 
 #visualization methods
 visualization:
     type: mpl_visualization.MPLVisualization
     args:
-        rate: 10
+        rate: 8
         #Don't include save_as if you don't want to save the video
         #save_as:
         save_as: "fixed_route_sim.mp4"
@@ -60,6 +60,7 @@ log:
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
     log: 
+    # For replaying sensor data, try !include "../knowledge/defaults/standard_sensor_ros_topics.yaml"
     ros_topics : []
     components : []
 

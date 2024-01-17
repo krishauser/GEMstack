@@ -25,43 +25,10 @@ You should also have the following Python dependencies installed, which you can 
 
 In order to interface with the actual GEM e2 vehicle, you will need [PACMOD2](https://github.com/astuff/pacmod2) - Autonomoustuff's low level interface to vehicle. You will also need Autonomoustuff's [sensor message packages](https://github.com/astuff/astuff_sensor_msgs).  The onboard computer uses Ubuntu 20.04 with Python 3.8, CUDA 11.6, and NVIDIA driver 515, so to minimize compatibility issues you should ensure that these are installed on your development system.
 
-From a fresh Ubuntu 20.04 with ROS Noetic and [CUDA 11.6 installed](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5), you can install these dependencies using:
+From a fresh Ubuntu 20.04 with ROS Noetic and [CUDA 11.6 installed](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5), you can install these dependencies by running `setup/setup_this_machine.sh` from the top-level GEMstack folder.
 
-```console
-sudo apt update
-sudo apt-get install git python3 python3-pip wget zstd
-source /opt/ros/noetic/setup.bash
+To build a Docker container with all these prerequisites, you can use the provided Dockerfile by running `docker build -t gem_stack setup/`.  For GPU support you will need the NVidia Container Runtime (run `setup/get_nvidia_container.sh` from this directory to install, or see [this tutorial](https://collabnix.com/introducing-new-docker-cli-api-support-for-nvidia-gpus-under-docker-engine-19-03-0-beta-release/) to install) and run `docker run -it --gpus all gem_stack /bin/bash`.
 
-#install Zed SDK
-wget https://download.stereolabs.com/zedsdk/4.0/cu121/ubuntu20 -O ZED_SDK_Ubuntu20_cuda11.8_v4.0.8.zstd.run
-chmod +x ZED_SDK_Ubuntu20_cuda11.8_v4.0.8.zstd.run
-./ZED_SDK_Ubuntu20_cuda11.8_v4.0.8.zstd.run -- silent
-
-#create ROS Catkin workspace
-mkdir catkin_ws
-mkdir catkin_ws/src
-
-#install ROS dependencies and packages
-cd catkin_ws/src
-git clone https://github.com/hangcui1201/POLARIS_GEM_e2_Real.git
-git clone https://github.com/astuff/pacmod2.git
-git clone https://github.com/astuff/astuff_sensor_msgs.git
-git clone https://github.com/ros-perception/radar_msgs.git
-cd radar_msgs; git checkout noetic; cd ..
-
-cd ..
-rosdep install --from-paths src --ignore-src -r -y
-catkin_make -DCMAKE_BUILD_TYPE=Release
-source devel/setup.bash
-
-#install GEMstack Python dependencies
-cd ..
-git clone https://github.com/krishauser/GEMstack.git
-cd GEMstack
-python3 -m pip install -r requirements.txt
-```
-
-To build a Docker container with all these prerequisites, you can use the provided Dockerfile by running `docker build -t gem_stack .`. 
 
 
 ## In this folder
@@ -83,6 +50,13 @@ Your work will be typically confined to the `GEMstack/` folder, and you may use 
 - `requirements.txt`: A list of Python dependencies for the software stack, used via `pip install -r requirements.txt`.
 
 In addition, some tools (e.g., pip) will build temporary folders, such as `build` and `GEMstack.egg-info`. You can ignore these.
+
+## TODO list
+
+- Linux Matplotlib visualizer doesn't play nicely with Ctrl+C
+- Test ROS logging and replay
+- Test behavior replay
+- More sophisticated simulator with sensor messages
 
 ## Package structure 
 
@@ -199,10 +173,15 @@ You will launch a simulation using:
 - `python main.py GEMstack/launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred simulation launch file.  Inspect the simulator classes in `GEMstack/onboard/interface/gem_simulator/` for more information about configuring the simulator.
 
 To launch onboard behavior you will open four terminal windows, and in each of them run:
-- `roscore`
-- `roslaunch basic_launch sensor_init.launch`
-- `roslaunch basic_launch visualization.launch`
-- `python main.py GEMstack/launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred launch file. 
+
+- `source /opt/ros/noetic/setup.bash`
+- `source GEMstack/catkin_ws/devel/setup.bash` to get all of the appropriate ROS environment variables.
+
+Then run:
+- (window 1) `roscore`
+- (window 2) `roslaunch basic_launch sensor_init.launch`
+- (window 3) `roslaunch basic_launch visualization.launch`
+- (window 4) `python main.py GEMstack/launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred launch file. 
 
 
 Note that if you try to use `import GEMstack` in a script or Jupyter notebook anywhere outside of this directory, Python will not know where the `GEMstack` module is.  If you wish to import `GEMstack` from a script located in a separate directory, you can put
