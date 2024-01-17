@@ -23,13 +23,13 @@ def main():
     parser = argparse.ArgumentParser(description="Extract images from a ROS bag.")
     parser.add_argument("bag_file", help="Input ROS bag.")
     parser.add_argument("output_dir", help="Output directory.")
-    parser.add_argument("image_topics", help="Image topic.", default="/zed2/zed_node/depth/depth_registered,/zed2/zed_node/rgb/image_rect_color")
-    parser.add_argument("output_prefix", help="Output prefix(es).", default="")
+    parser.add_argument('-t',"--topics", help="Image topic.", default="/zed2/zed_node/depth/depth_registered,/zed2/zed_node/rgb/image_rect_color")
+    parser.add_argument('-o','--output_prefix', help="Output prefix(es).", default="")
 
     args = parser.parse_args()
-    topics = args.image_topics.split(',')
+    topics = args.topics.split(',')
     output_prefixes = args.output_prefix.split(',')
-    if len(output_prefixes) == 0:
+    if args.output_prefix=='':
         output_prefixes = [topic.split('/')[-1] for topic in topics]
         if len(set(output_prefixes)) != len(output_prefixes):
             print("Got multiple topics with the same name, but no output prefixes specified.") 
