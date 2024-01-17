@@ -14,7 +14,7 @@ mkdir catkin_ws/src
 
 #install ROS dependencies and packages
 cd catkin_ws/src
-git clone https://github.com/hangcui1201/POLARIS_GEM_e2_Real.git
+git clone https://github.com/krishauser/POLARIS_GEM_e2.git
 git clone https://github.com/astuff/pacmod2.git
 git clone https://github.com/astuff/astuff_sensor_msgs.git
 git clone https://github.com/ros-perception/radar_msgs.git

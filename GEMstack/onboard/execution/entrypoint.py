@@ -1,12 +1,16 @@
 from ...utils import settings,config
 from ..component import Component
 from .execution import EXECUTION_PREFIX,ExecutorBase,ComponentExecutor,load_computation_graph,make_class
+import multiprocessing
 from typing import Dict,List,Optional
 import os
 
 
 def main():
     """The main entrypoint for the execution stack."""
+
+    multiprocessing.set_start_method('spawn')
+    
     runconfig = settings.get('run')
     mode = settings.get('run.mode')
     vehicle_interface_settings = settings.get('run.vehicle_interface')
