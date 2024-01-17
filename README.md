@@ -8,7 +8,7 @@
 
 ## Dependencies
 
-GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior.)  
+GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior or training for rosbag files.)  
 
 You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
 
@@ -17,6 +17,7 @@ You should also have the following Python dependencies installed, which you can 
 - matplotlib
 - opencv-python
 - torch
+- klampt
 - shapely
 - dacite
 - pyyaml
