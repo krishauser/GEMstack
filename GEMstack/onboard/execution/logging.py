@@ -5,6 +5,7 @@ from typing import List,Optional,Dict,Set,Any
 import time
 import datetime
 import os
+import subprocess
 import io
 
 class LoggingManager:
@@ -17,6 +18,7 @@ class LoggingManager:
         self.logged_components = set() # type: Set[str]
         self.component_output_loggers = dict() # type: Dict[str,list]
         self.behavior_log = None
+        self.rosbag_process = None
         self.run_metadata = dict()    # type: dict
         self.run_metadata['pipelines'] = []
         self.run_metadata['events'] = []
@@ -123,9 +125,11 @@ class LoggingManager:
 
     def log_ros_topics(self, topics : List[str], rosbag_options : str = '') -> Optional[str]:
         if topics:
-            command = 'rosbag record --output-name={} {} {}'.format(os.path.join(self.logfolder,'vehicle.bag'),rosbag_options,' '.join(topics))
-            os.system(command)
-            return command
+            command = ['rosbag','record','--output-name={}'.format(os.path.join(self.log_folder,'vehicle.bag'))]
+            command += rosbag_options.split()
+            command += topics
+            self.rosbag_process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            return ' '.join(command)
         return None
 
     def event(self, vehicle_time : float, event_description : str):
@@ -172,6 +176,22 @@ class LoggingManager:
         for l in msg:
             self.component_output_loggers[component][1].write(timestr + ': ' + l + '\n')
 
+    def close(self):
+        if self.rosbag_process is not None:
+            out,err = self.rosbag_process.communicate()  # Will block 
+            print('-------------------------------------------')
+            print("rosbag output:")
+            print(out)
+            print()
+            loginfo = os.stat(os.path.join(self.log_folder,'vehicle.bag'))
+            print("Logged to",os.path.join(self.log_folder,'vehicle.bag'))
+            print('Log file size in MegaBytes is {}'.format(loginfo.st_size / (1024 * 1024)))
+            print('-------------------------------------------')
+            self.rosbag_process = None
+    
+    def __del__(self):
+        self.close()
+            
 
 class LogReplay(Component):
     """Substitutes the output of a component with replayed data from a log file.

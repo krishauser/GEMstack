@@ -89,6 +89,10 @@ class GEMHardwareInterface(GEMInterface):
         enable_cmd = Bool()
         enable_cmd.data = True
         self.enable_pub.publish(enable_cmd)
+    
+    def time(self):
+        seconds = rospy.get_time()
+        return seconds
 
     def speed_callback(self,msg : VehicleSpeedRpt):
         self.last_reading.speed = msg.vehicle_speed   # forward velocity in m/s
