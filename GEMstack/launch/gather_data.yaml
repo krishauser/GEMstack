@@ -2,11 +2,12 @@ description: "Gather data from the GEM vehicle as the operator is driving it man
 mode: hardware
 vehicle_interface: gem_hardware.GEMHardwareInterface
 mission_execution: StandardExecutor
+require_engaged: False
 # Recovery behavior after a component failure
 recovery: 
     planning: 
         trajectory_tracking : recovery.StopTrajectoryTracker
-# Driving behavior for the GEM vehicle following a fixed route
+# Driving behavior for the GEM vehicle.  Runs perception and planner but doesn't execute anything (no controller).
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
@@ -14,7 +15,7 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../knowledge/routes/xyhead_demo_pp.csv']
+            args: [!relative_path '../knowledge/routes/xyhead_highbay_backlot_p.csv']
         motion_planning: RouteToTrajectoryPlanner
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
