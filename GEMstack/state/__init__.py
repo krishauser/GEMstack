@@ -21,7 +21,7 @@ __all__ = ['PhysicalObject','ObjectPose','ObjectFrameEnum',
            'AllState']
 from .physical_object import PhysicalObject, ObjectPose, ObjectFrameEnum
 from .trajectory import Path,Trajectory
-from .vehicle import VehicleState
+from .vehicle import VehicleState,VehicleGearEnum
 from .roadgraph import Roadgraph, RoadgraphLane, RoadgraphCurve, RoadgraphRegion, RoadgraphCurveEnum, RoadgraphLaneEnum, RoadgraphRegionEnum, RoadgraphSurfaceEnum, RoadgraphConnectionEnum
 from .obstacle import Obstacle, ObstacleMaterialEnum
 from .sign import Sign, SignEnum, SignalLightEnum, SignState

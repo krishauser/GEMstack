@@ -17,6 +17,7 @@ drive:
             type: StaticRoutePlanner
             args: [!relative_path '../knowledge/routes/xyhead_highbay_backlot_p.csv']
         motion_planning: RouteToTrajectoryPlanner
+        #note no trajectory_tracking item here
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 

@@ -494,6 +494,8 @@ class ExecutorBase:
     def validate_sensors(self,numsteps=None):
         """Verifies sensors are working"""
         (perception_components,planning_components,other_components) = self.pipelines[self.current_pipeline]
+        if len(perception_components) == 0:
+            return True
         components = list(perception_components.values()) + list(self.always_run_components.values())
         dt_min = min([c.dt for c in components if c.dt != 0.0])
         looper = TimedLooper(dt_min,name="main executor")
