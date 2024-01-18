@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 from . import settings
-from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,Path,Obstacle,AgentState,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
+from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
 
 CURVE_TO_STYLE = {
     RoadgraphCurveEnum.LANE_BOUNDARY : {'color':'k','linewidth':1,'linestyle':'-'},
@@ -114,14 +114,31 @@ def plot_vehicle(vehicle : VehicleState, axis_len=0.1, ax=None):
             [right_wheel_origin[1]-wheel_offset[1],right_wheel_origin[1]+wheel_offset[1]],'k-',linewidth=2)
 
     #plot gear
-    if vehicle.gear <= 0:
-        if vehicle.gear == 0:
+    if vehicle.gear in [VehicleGearEnum.NEUTRAL,VehicleGearEnum.REVERSE,VehicleGearEnum.PARK]:
+        if vehicle.gear == VehicleGearEnum.NEUTRAL:
             gear = 'N'
-        elif vehicle.gear == -1:
+        elif vehicle.gear == VehicleGearEnum.REVERSE:
             gear = 'R'
         else:
             gear = 'P'
         ax.text(t[0],t[1],gear,ha='center',va='center',color='k')
+    
+    #plot lights
+    light_size = 0.15
+    light_color = 'y'
+    xbounds,ybounds,zbounds = settings.get('vehicle.geometry.bounds')
+    if vehicle.left_turn_indicator:
+        lp = vehicle.pose.apply([xbounds[0]+light_size,ybounds[0]+light_size])
+        ax.add_patch(patches.Circle(lp,radius=light_size,fc=light_color,ec=light_color,fill=True,zorder=10))
+    if vehicle.right_turn_indicator:
+        lp = vehicle.pose.apply([xbounds[0]+light_size,ybounds[1]-light_size])
+        ax.add_patch(patches.Circle(lp,radius=light_size,fc=light_color,ec=light_color,fill=True,zorder=10))
+    if vehicle.headlights_on:
+        lp = vehicle.pose.apply([xbounds[1],ybounds[0]+light_size*2])
+        ax.add_patch(patches.Circle(lp,radius=light_size,fc=light_color,ec=light_color,fill=True,zorder=10))
+        lp = vehicle.pose.apply([xbounds[1],ybounds[1]-light_size*2])
+        ax.add_patch(patches.Circle(lp,radius=light_size,fc=light_color,ec=light_color,fill=True,zorder=10))
+    
 
 def plot_path(path : Path, color='k', linewidth=1, linestyle='-', ax=None):
     if ax is None:
