@@ -15,7 +15,7 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../knowledge/routes/xyhead_highbay_backlot_p.csv']
+            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
         motion_planning: RouteToTrajectoryPlanner
         #note no trajectory_tracking item here
 log:
@@ -26,7 +26,7 @@ log:
     # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
     #suffix : 'test3'  
     # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
-    ros_topics : !include "../knowledge/defaults/standard_ros_topics.yaml"
+    ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"
     # Specify options to pass to rosbag record. Default is no options.
     #rosbag_options : '--split --size=1024' 
     # If True, then record all readings / commands of the vehicle interface. Default False
@@ -44,4 +44,4 @@ replay:  # Add items here to set certain topics / inputs to be replayed from log
     components : []
 
 #usually can keep this constant
-computation_graph: !include "../knowledge/defaults/computation_graph.yaml"
+computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
