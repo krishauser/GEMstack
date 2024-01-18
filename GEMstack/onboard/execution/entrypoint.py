@@ -9,8 +9,7 @@ import os
 def main():
     """The main entrypoint for the execution stack."""
 
-    multiprocessing.set_start_method('spawn')
-    
+    multiprocessing.set_start_method('spawn')    
     runconfig = settings.get('run')
     mode = settings.get('run.mode')
     vehicle_interface_settings = settings.get('run.vehicle_interface')
@@ -18,6 +17,19 @@ def main():
     log_settings = settings.get('run.log',{})
     replay_settings = settings.get('run.replay',{})
     load_computation_graph()
+
+    #initialize ros node
+    has_ros = False
+    try:
+        import rospy
+        rospy.init_node('GEM_executor',disable_signals=True)
+        has_ros = True
+    except (ImportError,ModuleNotFoundError):
+        if mode == 'simulation':
+            print(EXECUTION_PREFIX,"Warning, ROS not found, but simulation mode requested")
+        else:
+            print(EXECUTION_PREFIX,"Error, ROS not found on system.")
+            raise
 
     #create top-level components
     vehicle_interface = make_class(vehicle_interface_settings,'default','GEMstack.onboard.interface')
@@ -116,4 +128,8 @@ def main():
         raise
     finally:
         vehicle_interface.stop()
+
+    if has_ros:
+        #need manual ros node shutdown due to disable_signals=True
+        rospy.signal_shutdown('GEM_executor finished')
 
