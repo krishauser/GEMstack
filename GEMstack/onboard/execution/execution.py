@@ -636,15 +636,6 @@ class ExecutorBase:
 class StandardExecutor(ExecutorBase):
     def __init__(self, vehicle_interface):
         ExecutorBase.__init__(self,vehicle_interface)
-        try:
-            import rospy
-            rospy.init_node('GEM_executor')
-        except (ImportError,ModuleNotFoundError):
-            if settings.get('run.mode','hardware') == 'simulation':
-                print(EXECUTION_PREFIX,"Warning, ROS not found, but simulation mode requested")
-            else:
-                print(EXECUTION_PREFIX,"Error, ROS not found on system.")
-                raise
     
     def done(self):
         if self.current_pipeline == 'recovery':
