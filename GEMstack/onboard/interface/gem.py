@@ -139,3 +139,25 @@ class GEMInterface:
             cmd.wiper_level = state.wiper_level
 
         return cmd
+
+    def command_from_reading(self, reading: GEMVehicleReading = None) -> GEMVehicleCommand:
+        """Returns a command that maintains all the current elements in the
+        provided vehicle reading. If reading=None, then the last reading
+        is used.
+        """
+        if reading is None:
+            reading = self.last_reading
+            if reading is None:
+                raise RuntimeError("Can't get command from reading, no reading available")
+        return GEMVehicleCommand(gear=reading.gear,
+                                accelerator_pedal_position=reading.accelerator_pedal_position,
+                                brake_pedal_position=reading.brake_pedal_position,
+                                steering_wheel_angle=reading.steering_wheel_angle,
+                                accelerator_pedal_speed=settings.get('vehicle.control_defaults.accelerator_pedal_speed'),
+                                brake_pedal_speed = settings.get('vehicle.control_defaults.brake_pedal_speed'),
+                                steering_wheel_speed = settings.get('vehicle.control_defaults.steering_wheel_speed'),
+                                left_turn_signal = reading.left_turn_signal,
+                                right_turn_signal = reading.right_turn_signal,
+                                headlights_on = reading.headlights_on,
+                                horn_on = reading.horn_on,
+                                wiper_level = reading.wiper_level)

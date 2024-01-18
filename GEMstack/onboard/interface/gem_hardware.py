@@ -169,12 +169,14 @@ class GEMHardwareInterface(GEMInterface):
 
     # Start PACMod interface
     def send_command(self, command : GEMVehicleCommand):
-        if command.left_turn_signal:
-            self.turn_cmd.ui16_cmd = 2 # left turn signal
+        if command.left_turn_signal and command.right_turn_signal:
+            self.turn_cmd.ui16_cmd = PacmodCmd.TURN_HAZARDS
+        elif command.left_turn_signal:
+            self.turn_cmd.ui16_cmd = PacmodCmd.TURN_LEFT 
         elif command.right_turn_signal:
-            self.turn_cmd.ui16_cmd = 0 # right turn signal
+            self.turn_cmd.ui16_cmd = PacmodCmd.TURN_RIGHT
         else:
-            self.turn_cmd.ui16_cmd = 1
+            self.turn_cmd.ui16_cmd = PacmodCmd.TURN_NONE
 
         self.accel_cmd.f64_cmd = command.accelerator_pedal_position
         if command.brake_pedal_position > 0.0:

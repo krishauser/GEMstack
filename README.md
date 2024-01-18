@@ -36,15 +36,16 @@ To build a Docker container with all these prerequisites, you can use the provid
 Your work will be typically confined to the `GEMstack/` folder, and you may use the `testing/`, `logs/`, `data/`, and `scenes/` folders.
 
 - `GEMstack/`: the software package (see [below](#package-structure)).
-- `main.py`: the standard entry point to running onboard behavior (see [below](#launching-the-stack)).
-- `logs/`: logs will be placed here.  These will not be committed to the Github repo.
-- `data/`: standard location to place datasets for training, i.e., downloaded or curated from other sources.  These will not be committed to the Github repo.
-- `scenes/`: standard location to place scenes for simulation.
-- `testing/`: test scripts to check whether GEMstack components are functioning.
+- `main.py` ⏯️: the standard entry point to running onboard behavior (see [below](#launching-the-stack)).
+- `launch/` 🚀 Launch configuration files are listed here.  Specify these as an argument to `main.py`. 
+- `logs/` 🪵: logs will be placed here.  These will not be committed to the Github repo.
+- `data/` 💽: standard location to place datasets for training, i.e., downloaded or curated from other sources.  These will not be committed to the Github repo.
+- `scenes/` 🌎: standard location to place scenes for simulation.
+- `testing/` 🧪: test scripts to check whether GEMstack components are functioning.
+- `docs/` 📖: ReadTheDocs documentation source files are placed here. Used by automated tools to build the [online documentation](https://gemstack.readthedocs.org).
 - `README.md`: this file.
 - `LICENSE`: MIT license.
 - `.gitignore`: Git ignore file. All files that match these patterns will not be added to Git.
-- `docs/`: ReadTheDocs documentation source files are placed here. Used by automated tools to build the [online documentation](https://gemstack.readthedocs.org).
 - `.readthedocs.yaml`: ReadTheDocs configuration file.  
 - `pyproject.toml`: Describes the GEMstack Python package for pip install. 
 - `requirements.txt`: A list of Python dependencies for the software stack, used via `pip install -r requirements.txt`.
@@ -53,8 +54,7 @@ In addition, some tools (e.g., pip) will build temporary folders, such as `build
 
 ## TODO list
 
-- Linux Matplotlib visualizer doesn't play nicely with Ctrl+C
-- Test ROS logging and replay
+- Test ROS replay
 - Test behavior replay
 - More sophisticated simulator with sensor messages
 
@@ -125,8 +125,6 @@ Legend:
   - 🟥 `predicates/`: Stores named predicates that may be true in a world state.
   - 🟩 `defaults/`: Stores the default settings. 
 
-`launch/`: 🚀 Launch scripts are listed here.  Specify which configuration you want to use as an argument to `main.py`.
-
 `onboard/`: 🚗 All algorithms governing onboard behavior are located here.  These algorithms may make use of items in the `knowledge/` stack.
   - `perception/`: Perception components.
     - 🟨 `state_estimation`: State estimators.
@@ -170,19 +168,17 @@ Legend:
 
 You will launch a simulation using:
 
-- `python main.py GEMstack/launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred simulation launch file.  Inspect the simulator classes in `GEMstack/onboard/interface/gem_simulator/` for more information about configuring the simulator.
+- `python3 main.py launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred simulation launch file.  Inspect the simulator classes in `GEMstack/onboard/interface/gem_simulator.py` for more information about configuring the simulator.
 
-To launch onboard behavior you will open four terminal windows, and in each of them run:
+To launch onboard behavior you will open Terminator / tmux and split it into three terminal windows. In each of them run:
 
-- `source /opt/ros/noetic/setup.bash`
-- `source GEMstack/catkin_ws/devel/setup.bash` to get all of the appropriate ROS environment variables.
+- `cd GEMstack`
+- `source catkin_ws/devel/setup.bash` to get all of the appropriate ROS environment variables.
 
 Then run:
-- (window 1) `roscore`
-- (window 2) `roslaunch basic_launch sensor_init.launch`
-- (window 3) `roslaunch basic_launch visualization.launch`
-- (window 4) `python main.py GEMstack/launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred launch file. 
-
+- (window 1) `roslaunch basic_launch sensor_init.launch`
+- (window 2) `roslaunch basic_launch dbw_joystick.launch` (TODO: switch this to `dbw_no_joystick.launch`)
+- (window 3) `python3 main.py launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred launch file. 
 
 Note that if you try to use `import GEMstack` in a script or Jupyter notebook anywhere outside of this directory, Python will not know where the `GEMstack` module is.  If you wish to import `GEMstack` from a script located in a separate directory, you can put
 
@@ -194,7 +190,7 @@ sys.path.append(os.getcwd())   #or enter the absolute path of this directory
 import GEMstack
 ```
 
-at the top of your script.  Then, you can run the script from this directory via `python PATH/TO/SCRIPT/myscript.py`.  See the scripts in `testing` for an example of how this is done.
+at the top of your script.  Then, you can run the script from this directory via `python3 PATH/TO/SCRIPT/myscript.py`.  See the scripts in `testing` for an example of how this is done.
 
 You can also install `GEMstack` into the system Python by calling `pip install .`, but this is not recommended because has a couple of drawbacks:
 - You might make changes in this directory, e.g., via `git pull`, and then forget to reinstall, so the changes won't be reflected when you run your code.
