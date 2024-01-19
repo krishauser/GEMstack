@@ -278,6 +278,7 @@ class ExecutorBase:
         self.state = None             # type: Optional[AllState]
         self.logging_manager = LoggingManager()
         self.last_loop_time = time.time()
+        self.last_hardware_faults = set()
 
     def begin(self):
         """Override me to do any initialization.  The vehicle will have
@@ -490,6 +491,36 @@ class ExecutorBase:
         self.logging_manager.close()
         print("Done with execution loop")
 
+    def check_for_hardware_faults(self):
+        """Handles vehicle fault checking / logging"""
+        faults = self.vehicle_interface.hardware_faults()
+        new_faults = []
+        printed_faults = []
+        for f in faults:
+            if f == 'disengaged':
+                if not settings.get('run.require_engaged',False):
+                    continue
+                if not f in self.last_hardware_faults:
+                    self.event("Vehicle disengaged")
+                    new_faults.append(f)
+                printed_faults.append(f)
+            else:
+                if not f in self.last_hardware_faults:
+                    self.event("Hardware fault {}".format(f))
+                    new_faults.append(f)
+                printed_faults.append(f)
+        if printed_faults:
+            if EXECUTION_VERBOSITY >= 1:
+                print(EXECUTION_PREFIX,"Hardware faults:")
+                for f in printed_faults:
+                    if f in new_faults:
+                        print("   ",f,"(new)")
+                    else:
+                        print("   ",f)
+            elif new_faults:
+                print(EXECUTION_PREFIX,"Hardware fault:",", ".join(new_faults))
+
+        self.last_hardware_faults = set(faults)
 
     def validate_sensors(self,numsteps=None):
         """Verifies sensors are working"""
@@ -507,11 +538,8 @@ class ExecutorBase:
             self.state.t = self.vehicle_interface.time()
             self.last_loop_time = time.time()
 
-            for f in self.vehicle_interface.hardware_faults():
-                if f == 'disengaged' and not settings.get('run.require_engaged',False):
-                    continue
-                if EXECUTION_VERBOSITY >= 1:
-                    print(EXECUTION_PREFIX,"Hardware fault",f)
+            #check for vehicle faults
+            self.check_for_hardware_faults()
 
             self.update_components(perception_components,self.state)
             sensors_working = all([c.healthy() for c in perception_components.values()])
@@ -545,11 +573,7 @@ class ExecutorBase:
             self.last_loop_time = time.time()
 
             #check for vehicle faults
-            for f in self.vehicle_interface.hardware_faults():
-                if f == 'disengaged' and not settings.get('run.require_engaged',False):
-                    continue
-                if EXECUTION_VERBOSITY >= 1:
-                    print(EXECUTION_PREFIX,"Hardware fault",f)
+            self.check_for_hardware_faults()
                     
             self.update_components(perception_components,self.state)
             #check for faults
