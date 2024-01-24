@@ -16,13 +16,17 @@ def vector_add(v1, v2):
     """Adds v1 + v2 between two vectors"""
     return vo.add(v1,v2)
 
-def vector_madd(v1, v2, s:float):
-    """Returns v1 + v2*s"""
-    return vo.madd(v1,v2,s)
-
 def vector_sub(v1, v2):
     """Subtracts v1 - v2 between two vectors"""
     return vo.sub(v1,v2)
+
+def vector_mul(v, s:float):
+    """Returns v*s"""
+    return vo.mul(v,s)
+
+def vector_madd(v1, v2, s:float):
+    """Returns v1 + v2*s"""
+    return vo.madd(v1,v2,s)
 
 def vector_norm(v) -> float:
     """Norm of a vector"""
