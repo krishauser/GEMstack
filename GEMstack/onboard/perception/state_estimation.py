@@ -6,6 +6,7 @@ from ...mathutils import transforms
 from ...state.vehicle import VehicleState,VehicleGearEnum
 from ...state.physical_object import ObjectFrameEnum,ObjectPose,convert_xyhead
 from ...knowledge.vehicle.geometry import front2steer,steer2front
+from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
 
@@ -19,6 +20,7 @@ class GNSSStateEstimator(Component):
         self.gnss_pose = None
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
+        self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
 
     # Get GNSS information
     def inspva_callback(self, inspva_msg):
@@ -59,8 +61,13 @@ class GNSSStateEstimator(Component):
                                       yaw=center_xyhead[2])
 
         readings = self.vehicle_interface.get_reading()
-        return readings.to_state(vehicle_pose_global)
+        raw = readings.to_state(vehicle_pose_global)
 
+        #filtering speed
+        filt_vel     = self.speed_filter(raw.v)
+        raw.v = filt_vel
+        return raw
+        
 
 
 class FakeStateEstimator(Component):
