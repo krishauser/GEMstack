@@ -4,7 +4,7 @@ import math
 # ROS Headers
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
-from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import Image,PointCloud2
 from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
 from radar_msgs.msg import RadarTracks
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -12,6 +12,9 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 # GEM PACMod Headers
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt, GlobalRpt
 
+# OpenCV and cv2 bridge
+import cv2
+from cv_bridge import CvBridge
 
 class GEMHardwareInterface(GEMInterface):
     """Interface for connnecting to the physical GEM e2 vehicle."""
@@ -35,6 +38,7 @@ class GEMHardwareInterface(GEMInterface):
         self.gnss_sub = None
         self.imu_sub = None
         self.front_radar_sub = None
+        self.front_camera_sub = None
         self.lidar_sub = None
         self.stereo_sub = None
         self.faults = []
@@ -122,14 +126,31 @@ class GEMHardwareInterface(GEMInterface):
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading
 
-    def subscribe_sensor(self, name, callback):
+    def subscribe_sensor(self, name, callback, type = None):
         if name == 'gnss':
+            if type is not None and type is not Inspva:
+                raise ValueError("GEMHardwareInterface only supports Inspva for GNSS")
             self.gnss_sub = rospy.Subscriber("/novatel/inspva", Inspva, callback)
         elif name == 'lidar':
+            if type is not None and type is not PointCloud2:
+                raise ValueError("GEMHardwareInterface only supports PointCloud2 for lidar")
             self.lidar_sub = rospy.Subscriber("/lidar1/velodyne_points", PointCloud2, callback)
         elif name == 'front_radar':
+            if type is not None and type is not RadarTracks:
+                raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
             self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
-    
+        elif name == 'front_camera':
+            if type is not None and (type is not Image and type is not cv2.Mat):
+                raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front camera")
+            if type is None or type is Image:
+                self.front_camera_sub = rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image, callback)
+            else:
+                self.bridge = CvBridge()
+                def callback_with_cv2(msg : Image):
+                    cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+                    callback(cv_image)
+                self.front_camera_sub = rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image, callback_with_cv2)
+
     # PACMod enable callback function
     def pacmod_enable_callback(self, msg):
         if self.pacmod_enable == False and msg.data == True:

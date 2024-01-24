@@ -98,8 +98,12 @@ class GEMInterface:
         """Returns all available sensors"""
         return ['gnss','imu','top_lidar','top_stereo','front_radar']
 
-    def subscribe_sensor(self, name : str, callback : Callable) -> None:
-        """Subscribes to a sensor with a given callback."""
+    def subscribe_sensor(self, name : str, callback : Callable, type = None) -> None:
+        """Subscribes to a sensor with a given callback.
+        
+        If type is not None, it should be the expected type of the message produced
+        by the sensor callback.
+        """
         raise NotImplementedError()
 
     def hardware_faults(self) -> List[str]:
