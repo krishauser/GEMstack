@@ -18,16 +18,25 @@ class Path:
         new_points = [convert_point(p,self.frame,frame,current_pose,start_pose_abs) for p in self.points]
         return replace(self,frame=frame,points=new_points)
 
+    def parameter_to_index(self, t : float) -> Tuple[int,float]:
+        """Converts a path parameter to an (edge index, edge parameter) tuple."""
+        if len(self.points) < 2:
+            return 0,0.0
+        ind = int(t)
+        if ind < 0: ind = 0
+        if ind >= len(self.points)-1: ind = len(self.points)-2
+        u = t - ind
+        if u > 1: u = 1
+        if u < 0: u = 0
+        return ind,u
+
     def eval(self, u : float) -> List[float]:
         """Evaluates the path at a given parameter.  The integer part of u
         indicates the segment, and the fractional part indicates the progress
         along the segment"""
-        ind = int(u)
-        if ind < 0: ind = 0
-        if ind >= len(self.points)-1: ind = len(self.points)-2
-        u = u - ind
-        if u > 1: u = 1
-        if u < 0: u = 0
+        if len(self.points) < 2:
+            return self.points[0]
+        ind,u = self.parameter_to_index(u)
         p1 = self.points[ind]
         p2 = self.points[ind+1]
         return transforms.vector_madd(p1,transforms.vector_sub(p2,p1),u)
@@ -49,10 +58,14 @@ class Path:
     def arc_length_parameterize(self, speed = 1.0) -> Trajectory:
         """Returns a new path that is parameterized by arc length."""
         times = [0]
+        points = [self.points[0]]
         for i in range(len(self.points)-1):
             p1 = self.points[i]
             p2 = self.points[i+1]
-            times.append(times[-1] + transforms.vector_dist(p1,p2)/speed)
+            d = transforms.vector_dist(p1,p2)
+            if d > 0:
+                points.append(p2)
+                times.append(times[-1] + d/speed)
         return Trajectory(frame=self.frame,points=self.points,times=times)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
@@ -130,6 +143,15 @@ class Path:
                 raise ValueError("Invalid length of values to append")
             for p,v in zip(self.points,value):
                 p.append(v)
+    
+    def trim(self, start : float, end : float) -> Path:
+        """Returns a copy of this path but trimmed to the given parameter range."""
+        sind,su = self.parameter_to_index(start)
+        eind,eu = self.parameter_to_index(end)
+        s = self.eval(start)
+        e = self.eval(end)
+        return replace(self,points=[s]+self.points[sind+1:eind]+[e])
+
 
 @dataclass
 @register
@@ -138,7 +160,9 @@ class Trajectory(Path):
     times : List[float]
 
     def time_to_index(self, t : float) -> Tuple[int,float]:
-        """Converts a time to an (edge index, parameter) tuple."""
+        """Converts a time to an (edge index, edge parameter) tuple."""
+        if len(self.points) < 2:
+            return 0,0.0
         ind = 0
         while ind < len(self.times) and self.times[ind] < t:
             ind += 1
@@ -154,6 +178,8 @@ class Trajectory(Path):
     
     def parameter_to_time(self, u : float) -> float:
         """Converts a parameter to a time"""
+        if len(self.points) < 2:
+            return self.times[0]
         ind = int(math.floor(u))
         if ind < 0: ind = 0
         if ind >= len(self.times)-1: ind = len(self.times)-2
@@ -164,13 +190,17 @@ class Trajectory(Path):
 
     def eval(self, t : float) -> List[float]:
         """Evaluates the trajectory at a given time."""
+        if len(self.points) < 2:
+            return self.points[0]
         ind,u = self.time_to_index(t)
         return transforms.vector_madd(self.points[ind],transforms.vector_sub(self.points[ind+1],self.points[ind]),u)
 
     def eval_derivative(self, t : float) -> List[float]:
         """Evaluates the derivative at a given time."""
+        if len(self.points) < 2:
+            return transforms.vector_mul(self.points[0],0.0)
         ind,u = self.time_to_index(t)
-        return transforms.vector_sub(self.points[ind+1],self.points[ind])
+        return transforms.vector_mul(transforms.vector_sub(self.points[ind+1],self.points[ind]),1.0/(self.times[ind+1]-self.times[ind]))
         
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
         """Returns the closest point on the path to the given point.  If
@@ -197,6 +227,15 @@ class Trajectory(Path):
         distance, closest_index = Path.closest_point_local(self,x,param_range,edges)
         closest_time = self.parameter_to_time(closest_index)
         return distance, closest_time
+    
+    def trim(self, start : float, end : float) -> Trajectory:
+        """Returns a copy of this trajectory but trimmed to the given time range."""
+        sind,su = self.time_to_index(start)
+        eind,eu = self.time_to_index(end)
+        s = self.eval(start)
+        e = self.eval(end)
+        return replace(self,points=[s]+self.points[sind+1:eind]+[e],times=[start]+self.times[sind+1:eind]+[end])
+
 
 
 
