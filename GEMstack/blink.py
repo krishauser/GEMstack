@@ -8,6 +8,19 @@ from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptInt, SystemRp
 class BlinkDistress:
     """Your control loop code should go here.  You will use ROS and Pacmod messages
     to communicate with drive-by-wire system to control the vehicle's turn signals.
+    
+    ui16_cmd map:
+        uint16 TURN_RIGHT = 0
+        uint16 TURN_NONE = 1
+        uint16 TURN_LEFT = 2
+        uint16 TURN_HAZARDS = 3
+
+        uint16 SHIFT_PARK = 0
+        uint16 SHIFT_REVERSE = 1
+        uint16 SHIFT_NEUTRAL = 2
+        uint16 SHIFT_FORWARD = 3
+        uint16 SHIFT_HIGH = 3 # For Polaris Ranger
+        uint16 SHIFT_LOW = 4
     """
     def __init__(self):
         # TODO: Initialize your publishers and subscribers here
@@ -17,7 +30,20 @@ class BlinkDistress:
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
         
-        pass
+        self.speed_sub = rospy.Subscriber(
+            "/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
+        
+        # GEM vehicle turn signal control
+        self.turn_pub = rospy.Publisher(
+            '/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=1)
+        self.turn_cmd = PacmodCmd()
+        self.turn_status_list = [PacmodCmd.TURN_LEFT, PacmodCmd.TURN_RIGHT, PacmodCmd.TURN_NONE]
+        self.turn_idx = 0
+
+    def speed_callback(self, msg: VehicleSpeedRpt):
+        print ("vehicle_speed:", msg.vehicle_speed)
+        print ("vehicle_speed_valid:", msg.vehicle_speed_valid)
+
 
     def rate(self):
         """Requested update frequency, in Hz"""
@@ -36,7 +62,12 @@ class BlinkDistress:
         # TODO: Implement your control loop here
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
-        pass
+        
+        self.turn_idx = (self.turn_idx + 1) % len(self.turn_status_list)
+        self.turn_cmd.ui16_cmd = self.turn_status_list[self.turn_idx]
+        self.turn_pub.publish(self.turn_cmd)
+        print("turn cmd:", self.turn_status_list[self.turn_idx])
+        
        
     def healthy(self):
         """Returns True if the element is in a stable state."""
