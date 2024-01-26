@@ -19,38 +19,35 @@ class BlinkDistress:
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
         
-        # baoyu: parsed_tx/accel_rpt
-        def accel_callback(self, data):
-            rospy.loginfo("Accel info from " + rospy.get_caller_id())
-            rospy.loginfo("Enabled %d ", data.enabled)
-            rospy.loginfo("Override active: %d ", data.override_active)
-            rospy.loginfo("Command output fault: %d ", data.command_output_fault)
-            rospy.loginfo("Command input fault: %d ", data.command_input_fault)
-            rospy.loginfo("Output reported fault: %d ", data.output_reported_fault)
-            rospy.loginfo("Pacmod fault: %d ", data.pacmod_fault)
-            rospy.loginfo("Vehicle fault: %d ", data.vehicle_fault)
-
-            rospy.loginfo("Manual input: %f ", data.manual_input)
-            rospy.loginfo("Command: %f ", data.command)
-            rospy.loginfo("Output: %f ", data.output)
-
-        def speed_callback(self, data):
-            rospy.loginfo("Speed info from " + rospy.get_caller_id())
-            rospy.loginfo("Vehicle speed: %f", data.vehicle_speed)
-            rospy.loginfo("Vehicle speed valid: %d", data.vehicle_speed_valid)
-            rospy.loginfo("Raw bytes: %u %u", data.vehicle_speed_raw[0], data.vehicle_speed_raw[1])
-
-        rospy.init_node("accel", anonymous=True)
-        rospy.Subscriber("parsed_tx/accel_rpt", SystemRptFloat, accel_callback)
-
-        rospy.init_node("speed", anonymous=True)
-        rospy.Subscriber("parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, speed_callback)
+        # Step 2
+        accelSub = rospy.Subscriber("parsed_tx/accel_rpt", SystemRptFloat, self.accel_callback)
+        speedSub = rospy.Subscriber("parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
         
         # Step 3
-        turnPub = rospy.Publisher("/pacmod/as_rx/turn_cmd", PacmodCmd, queue_size=10)
-        rospy.init_node("turnPubNode", anonymous=True)
-        rate = rospy.Rate(0.5)
+        self.turn_cmd_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=10)
+        self.turn_cmd = PacmodCmd()
+        self.turn_cmd.ui16_cmd = 1 # default: off
+        self.count = 0
 
+    def accel_callback(self, data):
+        rospy.loginfo("Accel info from " + rospy.get_caller_id())
+        rospy.loginfo("Enabled %d ", data.enabled)
+        rospy.loginfo("Override active: %d ", data.override_active)
+        rospy.loginfo("Command output fault: %d ", data.command_output_fault)
+        rospy.loginfo("Command input fault: %d ", data.command_input_fault)
+        rospy.loginfo("Output reported fault: %d ", data.output_reported_fault)
+        rospy.loginfo("Pacmod fault: %d ", data.pacmod_fault)
+        rospy.loginfo("Vehicle fault: %d ", data.vehicle_fault)
+
+        rospy.loginfo("Manual input: %f ", data.manual_input)
+        rospy.loginfo("Command: %f ", data.command)
+        rospy.loginfo("Output: %f ", data.output)
+
+    def speed_callback(self, data):
+        rospy.loginfo("Speed info from " + rospy.get_caller_id())
+        rospy.loginfo("Vehicle speed: %f", data.vehicle_speed)
+        rospy.loginfo("Vehicle speed valid: %d", data.vehicle_speed_valid)
+        rospy.loginfo("Raw bytes: %u %u", data.vehicle_speed_raw[0], data.vehicle_speed_raw[1])
 
     def rate(self):
         """Requested update frequency, in Hz"""
@@ -69,21 +66,20 @@ class BlinkDistress:
         # TODO: Implement your control loop here
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
-        msgLeft, msgRight, msgNone = PacmodCmd()
-        msgLeft.ui16_cmd = PacmodCmd.TURN_LEFT
-        msgRight.ui16_cmd = PacmodCmd.TURN_RIGHT
-        msgNone.ui16_cmd = PacmodCmd.TURN_NONE
 
-        while not rospy.is_shutdown():
-            rospy.loginfo(msgLeft)
-            self.turnPub.publish(msgLeft)
-            self.rate.sleep()
-            rospy.loginfo(msgRight)
-            self.turnPub.publish(msgRight)
-            self.rate.sleep()
-            rospy.loginfo(msgNone)
-            self.turnPub.publish(msgNone)
-            self.rate.sleep()
+        # turn_cmd.util6: 0: right; 1: turn off; 2: left
+        # [left (2), right (0), off (1)]
+
+        if self.count == 0:
+            self.turn_cmd.ui16_cmd = 2 # left
+        elif self.count == 1:
+            self.turn_cmd.ui16_cmd = 0 # right
+        else:
+            self.turn_cmd.ui16_cmd = 1 # off
+        self.count += 1
+        self.count = self.count % 3
+        self.turn_cmd_pub.publish(self.turn_cmd)
+        
        
     def healthy(self):
         """Returns True if the element is in a stable state."""
