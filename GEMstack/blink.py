@@ -1,7 +1,7 @@
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptInt, SystemRptFloat, VehicleSpeedRpt
-from pacmod.msgs.msg import SystemCmdInt
+from pacmod_msgs.msg import SystemCmdInt
 # from pacmod_msgs.msg import AccelRpt
 
 # For message format, see
