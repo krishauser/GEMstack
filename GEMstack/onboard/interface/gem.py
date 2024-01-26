@@ -90,7 +90,7 @@ class GEMInterface:
         """Returns current read state of the vehicle"""
         raise NotImplementedError()
 
-    def send_command(cmd : GEMVehicleCommand):
+    def send_command(self, cmd : GEMVehicleCommand):
         """Sends a command to the vehicle"""
         raise NotImplementedError()
 
