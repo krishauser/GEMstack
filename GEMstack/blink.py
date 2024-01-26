@@ -24,7 +24,7 @@ class BlinkDistress:
         # Step 3
         self.turn_cmd_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=10)
         self.turn_cmd = PacmodCmd()
-        self.turn_cmd.ui16_cmd = 1
+        self.turn_cmd.ui16_cmd = 1 # default: off
         self.count = 0
 
     def accel_callback(self, data):
@@ -65,14 +65,15 @@ class BlinkDistress:
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
 
-        # [left, left, right, right, off, off]
+        # turn_cmd.util6: 0: right; 1: turn off; 2: left
+        # [left (2), right (0), off (1)]
 
         if self.count == 0:
-            self.turn_cmd.ui16_cmd = 1
+            self.turn_cmd.ui16_cmd = 2 # left
         elif self.count == 1:
-            self.turn_cmd.ui16_cmd = 2
+            self.turn_cmd.ui16_cmd = 0 # right
         else:
-            self.turn_cmd.ui16_cmd = 0
+            self.turn_cmd.ui16_cmd = 1 # off
         self.count += 1
         self.count = self.count % 3
         self.turn_cmd_pub.publish(self.turn_cmd)
