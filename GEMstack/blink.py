@@ -33,6 +33,9 @@ class BlinkDistress:
         self.speed_sub = rospy.Subscriber(
             "/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
         
+        self.brake_sub =  rospy.Subscriber(
+            "/pacmod/parsed_tx/brake_rpt", SystemRptFloat, self.brake_callback)
+        
         # GEM vehicle turn signal control
         self.turn_pub = rospy.Publisher(
             '/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=1)
@@ -43,7 +46,10 @@ class BlinkDistress:
     def speed_callback(self, msg: VehicleSpeedRpt):
         print ("vehicle_speed:", msg.vehicle_speed)
         print ("vehicle_speed_valid:", msg.vehicle_speed_valid)
-
+        
+    def brake_callback(self, msg: SystemRptFloat):
+        print("brake_enabled:", msg.enabled)
+        print("brake_output:", msg.output)
 
     def rate(self):
         """Requested update frequency, in Hz"""
