@@ -40,10 +40,10 @@ class BlinkDistress:
 
     
     def steer_callback(self, floatRpt):
-        self.current_steer = floatRpt.steer
+        self.current_steer = floatRpt.output
         
     def brake_callback(self, floatRpt):
-        self.current_brake = floatRpt.brake
+        self.current_brake = floatRpt.output
 
 
 
