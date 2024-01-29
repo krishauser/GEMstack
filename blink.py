@@ -75,6 +75,7 @@ class BlinkDistress:
         self.turn_cmd.ui16_cmd = signal
         self.turn_pub.publish(self.turn_cmd)
         self.index += 1
+        self.index %= len(self.sos)
 
     def healthy(self):
         """Returns True if the element is in a stable state."""

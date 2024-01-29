@@ -51,6 +51,7 @@ class BlinkDistress(Component):
         print(f"Current signal {signal}")
         self.vehicle_interface.send_command(command)
         self.index += 1
+        self.index %= len(self.sos)
 
         # Print sensor readings:
         print(
