@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptInt, SystemRptFloat, VehicleSpeedRpt
@@ -16,14 +18,28 @@ class BlinkDistress:
         # You will want this callback to be a BlinkDistress method, such as print_X(self, msg).  msg will have a
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
-        
-        self.steer_rpt_subscriber = rospy.Subscriber("/pacmod/parsed_tx/steer_rpt", SystemRptFloat, self.steer_callback)
-        self.brake_rpt_subscriber = rospy.Subscriber("/pacmod/parsed_tx/brake_rpt", SystemRptFloat, self.brake_callback)
-        
-        self.current_steer = 0.0
-        self.current_brake = 0.0
+        self.rate = rospy.Rate(1)
+		
+        self.turn_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size = 1)
+        self.turn_cmd = PacmodCmd()
+        self.turn_cmd.ui16_cmd = 1
 
-        pass
+
+    def brake_callback(self):
+        self.sub_brake_rpt
+        #rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+	# def run(self):
+
+	# 	sos = [2, 2, 1, 0, 0, 1, 2, 2, 1, 1, 1]
+
+	# 	while not rospy.is_shutdown():
+
+	# 		# self.steer_pub.publish(self.steer_cmd)
+	# 		for signal in sos:
+	# 			self.turn_cmd.ui16_cmd = signal
+	# 			self.turn_pub.publish(self.turn_cmd)
+	# 			self.rate.sleep()
+
 
     def rate(self):
         """Requested update frequency, in Hz"""
@@ -37,25 +53,20 @@ class BlinkDistress:
         """Run last"""
         pass
     
-
-    
-    def steer_callback(self, floatRpt):
-        self.current_steer = floatRpt.output
-        
-    def brake_callback(self, floatRpt):
-        self.current_brake = floatRpt.output
-
-
-
     def update(self):
         """Run in a loop"""
         # TODO: Implement your control loop here
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
-        #pass
+        sos = [2, 2, 1, 0, 0, 1, 2, 2, 1, 1, 1]
 
-        print(f"Current Steer: {self.current_steer}")
-        print(f"Current Brake: {self.current_brake}")
+        while not rospy.is_shutdown():
+
+			# self.steer_pub.publish(self.steer_cmd)
+            for signal in sos:
+                self.turn_cmd.ui16_cmd = signal
+                self.turn_pub.publish(self.turn_cmd)
+                self.rate.sleep()
        
     def healthy(self):
         """Returns True if the element is in a stable state."""
@@ -98,3 +109,8 @@ def run_ros_loop(node):
 
 if __name__ == '__main__':
     run_ros_loop(BlinkDistress())
+
+# if __name__ == '_main_':
+# 	rospy.init_node('sos_node', anonymous=True)
+# 	node = Node()
+# 	node.run() 
