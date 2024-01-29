@@ -20,16 +20,16 @@ class BlinkDistress:
         
         self.current_steer = 0.0
         self.current_brake = 0.0
-
-        self.rate = rospy.Rate(1)
 		
         self.turn_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size = 1)
         self.turn_cmd = PacmodCmd()
         self.turn_cmd.ui16_cmd = 1
-        
+        self.sos = [2, 2, 0, 0, 1, 1]
+        self.index = 0
+
     def rate(self):
         """Requested update frequency, in Hz"""
-        return 0.5
+        return 1.0
     def initialize(self):
         """Run first"""
         pass
@@ -58,15 +58,10 @@ class BlinkDistress:
         print(f"Current Steer: {self.current_steer}")
         print(f"Current Brake: {self.current_brake}")
 
-        sos = [2, 2, 1, 0, 0, 1, 2, 2, 1, 1, 1]
-
-        while not rospy.is_shutdown():
-
-			# self.steer_pub.publish(self.steer_cmd)
-            for signal in sos:
-                self.turn_cmd.ui16_cmd = signal
-                self.turn_pub.publish(self.turn_cmd)
-                self.rate.sleep()
+        signal = self.sos[self.index]
+        self.turn_cmd.ui16_cmd = signal
+        self.turn_pub.publish(self.turn_cmd)
+        self.index += 1
        
     def healthy(self):
         """Returns True if the element is in a stable state."""

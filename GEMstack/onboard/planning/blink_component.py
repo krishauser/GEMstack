@@ -10,9 +10,12 @@ class BlinkDistress(Component):
         self.vehicle_interface = vehicle_interface
         self.command = None
 
+        self.sos = [2, 2, 0, 0, 1, 1]
+        self.index = 0
+
     def rate(self):
         """Requested update frequency, in Hz"""
-        return 0.5
+        return 1.0
 
     def initialize(self):
         """Run first"""
@@ -32,6 +35,20 @@ class BlinkDistress(Component):
         # TODO: alter command to execute turn signals, then uncomment line below to send
         # the command to vehicle
         # self.vehicle_interface.send_command(command)
+        signal = self.sos[self.index]
+        if signal == 2:
+            # Left
+            command.left_turn_signal = True
+            command.right_turn_signal = False
+        elif signal == 0:
+            # Right
+            command.left_turn_signal = False
+            command.right_turn_signal = True
+        else:
+            command.left_turn_signal = False
+            command.right_turn_signal = False
+        print(f"Current signal {signal}")
+        self.vehicle_interface.send_command(command)
        
     def healthy(self):
         """Returns True if the element is in a stable state."""
