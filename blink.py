@@ -17,6 +17,12 @@ class BlinkDistress:
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
         
+        self.steer_rpt_subscriber = rospy.Subscriber("/pacmod/parsed_tx/steer_rpt", SystemRptFloat, self.steer_callback)
+        self.brake_rpt_subscriber = rospy.Subscriber("/pacmod/parsed_tx/brake_rpt", SystemRptFloat, self.brake_callback)
+        
+        self.current_steer = 0.0
+        self.current_brake = 0.0
+
         pass
 
     def rate(self):
@@ -31,12 +37,25 @@ class BlinkDistress:
         """Run last"""
         pass
     
+
+    
+    def steer_callback(self, floatRpt):
+        self.current_steer = floatRpt.steer
+        
+    def brake_callback(self, floatRpt):
+        self.current_brake = floatRpt.brake
+
+
+
     def update(self):
         """Run in a loop"""
         # TODO: Implement your control loop here
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
-        pass
+        #pass
+
+        print(f"Current Steer: {self.current_steer}")
+        print(f"Current Brake: {self.current_brake}")
        
     def healthy(self):
         """Returns True if the element is in a stable state."""
