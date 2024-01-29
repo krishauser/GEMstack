@@ -50,6 +50,7 @@ class BlinkDistress(Component):
             command.right_turn_signal = False
         print(f"Current signal {signal}")
         self.vehicle_interface.send_command(command)
+        self.index += 1
 
         # Print sensor readings:
         print(
