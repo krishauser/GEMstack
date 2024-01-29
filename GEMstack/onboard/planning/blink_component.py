@@ -1,12 +1,13 @@
 from ..component import Component
-from ..interface.gem import GEMInterface,GEMVehicleCommand,GEMVehicleReading
+from ..interface.gem import GEMInterface, GEMVehicleCommand, GEMVehicleReading
 
 
 class BlinkDistress(Component):
     """Your control loop code should go here.  You will use GEMVehicleCommand
     to communicate with drive-by-wire system to control the vehicle's turn signals.
     """
-    def __init__(self, vehicle_interface : GEMInterface):
+
+    def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.command = None
 
@@ -24,7 +25,7 @@ class BlinkDistress(Component):
     def cleanup(self):
         """Run last"""
         pass
-    
+
     def update(self):
         """Run in a loop"""
         # we need to set up a GEMVehicleCommand which encapsulates all commands that will be
@@ -49,8 +50,12 @@ class BlinkDistress(Component):
             command.right_turn_signal = False
         print(f"Current signal {signal}")
         self.vehicle_interface.send_command(command)
-       
+
+        # Print sensor readings:
+        print(
+            f"Vechicle Steer: {self.vehicle_interface.last_reading.steering_wheel_angle}"
+        )
+
     def healthy(self):
         """Returns True if the element is in a stable state."""
         return True
-       
