@@ -11,6 +11,7 @@ class GEMRealSensorsWithSimMotionInterface(GEMInterface):
     def __init__(self, scene:str = None):
         self.sim = GEMDoubleIntegratorSimulationInterface(scene)
         self.real = GEMHardwareInterface()
+        GEMInterface.__init__(self)
 
     def start(self):
         self.sim.start()
@@ -24,9 +25,11 @@ class GEMRealSensorsWithSimMotionInterface(GEMInterface):
         return self.sim.time()
 
     def get_reading(self) -> GEMVehicleReading:
-        return self.sim.get_reading()
+        self.last_reading = self.sim.get_reading()
+        return self.last_reading
 
     def send_command(self, cmd : GEMVehicleCommand):
+        self.last_command = cmd
         self.sim.send_command(cmd)
 
     def sensors(self):
