@@ -16,13 +16,15 @@ class BlinkDistress:
         # You will want this callback to be a BlinkDistress method, such as print_X(self, msg).  msg will have a
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
-        self.sub_accel_rpt = self.create_subscription(SystemRptFloat, '/pacmod/parsed_tx/accel_rpt', self.callback_accel_rpt, 10)
-        self.sub_vehicle_speed_rpt = self.create_subscription(VehicleSpeedRpt, '/pacmod/parsed_tx/vehicle_speed_rpt', self.callback_vehicle_speed_rpt, 10)
-        self.pub_turn_cmd = self.create_publisher(PacmodCmd, '/pacmod/as_rx/turn_cmd', 10)
+        self.sub_accel_rpt = rospy.Subscriber('/pacmod/parsed_tx/accel_rpt', SystemRptFloat, self.callback_accel_rpt)
+        self.sub_vehicle_speed_rpt = rospy.Subscriber('/pacmod/parsed_tx/vehicle_speed_rpt', VehicleSpeedRpt, self.callback_vehicle_speed_rpt)
+        
+        self.pub_turn_cmd = rospy.Publisher('/pacmod/as_rx/turn_cmd',PacmodCmd, queue_size=10)
         # self.sub_brake_rpt = self.create_subscription(SystemRptFloat, '/pacmod/parsed_tx/brake_rpt', self.callback_brake_rpt, 10)
         # self.sub_steer_rpt = self.create_subscription(SystemRptFloat, '/pacmod/parsed_tx/steer_rpt', self.callback_steer_rpt, 10)
         # self.sub_shift_rpt = self.create_subscription(SystemRptFloat, '/pacmod/parsed_tx/shift_rpt', self.callback_shift_rpt, 10)
         # self.sub_turn_rpt = self.create_subscription(SystemRptFloat, '/pacmod/parsed_tx/turn_rpt', self.callback_turn_rpt, 10)
+        self.time_in_state = 0
         pass
 
     def callback_accel_rpt(self, msg):
@@ -55,35 +57,23 @@ class BlinkDistress:
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
         turn_cmd = PacmodCmd()
-        dt = 0.1
-        state = 'left'
-        time_in_state = 0.0
-        turn_cmd.ui16_cmd = 2
+        self.time_in_state +=  1
         self.pub_turn_cmd.publish(turn_cmd)
-        while True:
-            if state == 'left':
-                if time_in_state >= 2.0:
-                    state = 'right'
-                    time_in_state = 0.0
-                    # turn_cmd.clear = True
-                    turn_cmd.ui16_cmd = 0
-                    self.pub_turn_cmd.publish(turn_cmd)
-            elif state == 'right':
-                if time_in_state >= 2.0:
-                    state = 'off'
-                    time_in_state = 0.0
-                    # turn_cmd.clear = True
-                    turn_cmd.ui16_cmd = 1
-                    self.pub_turn_cmd.publish(turn_cmd)
-            elif state == 'off':
-                if time_in_state >= 2.0:
-                    state = 'left'
-                    time_in_state = 0.0
-                    # turn_cmd.clear = True
-                    turn_cmd.ui16_cmd = 2
-                    self.pub_turn_cmd.publish(turn_cmd)
-            time.sleep(dt)
-            time_in_state = time_in_state + dt
+
+        if self.time_in_state % 3 == 1:
+            # turn_cmd.clear = True
+            turn_cmd.ui16_cmd = 2
+            self.pub_turn_cmd.publish(turn_cmd)
+
+        if self.time_in_state % 3 == 2:
+            # turn_cmd.clear = True
+            turn_cmd.ui16_cmd = 0
+            self.pub_turn_cmd.publish(turn_cmd)
+
+        if self.time_in_state % 3 == 0:
+            # turn_cmd.clear = True
+            turn_cmd.ui16_cmd = 1
+            self.pub_turn_cmd.publish(turn_cmd)
         pass
        
     def healthy(self):

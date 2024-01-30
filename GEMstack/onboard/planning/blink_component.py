@@ -9,6 +9,7 @@ class BlinkDistress(Component):
     def __init__(self, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.command = None
+        self.time_in_state = 0
 
     def rate(self):
         """Requested update frequency, in Hz"""
@@ -31,36 +32,24 @@ class BlinkDistress(Component):
         command = self.vehicle_interface.command_from_reading()
         # TODO: alter command to execute turn signals, then uncomment line below to send
         # the command to vehicle
-        dt = 0.1
-        time_in_state = 0.0
-        self.turn_signal_state = 'left'
-        command.left_turn_signal = True
-        command.right_turn_signal = False
-        self.vehicle_interface.send_command(command)
-        while True:
-            if self.turn_signal_state == 'left':
-                if time_in_state >= 2.0:
-                    time_in_state = 0.0
-                    self.turn_signal_state == 'right'
-                    command.left_turn_signal = False
-                    command.right_turn_signal = True
-                    self.vehicle_interface.send_command(command)
-            elif self.turn_signal_state == 'right':
-                if time_in_state >= 2.0:
-                    time_in_state = 0.0
-                    self.turn_signal_state == 'off'
-                    command.left_turn_signal = False
-                    command.right_turn_signal = False
-                    self.vehicle_interface.send_command(command)
-            elif self.turn_signal_state == 'off':
-                if time_in_state >= 2.0:
-                    time_in_state = 0.0
-                    self.turn_signal_state == 'left'
-                    command.left_turn_signal = True
-                    command.right_turn_signal = False
-                    self.vehicle_interface.send_command(command)
-            time.sleep(dt)
-            time_in_state = time_in_state + dt
+
+        self.time_in_state += 1
+
+        if self.time_in_state % 3 == 0:
+            command.left_turn_signal = False
+            command.right_turn_signal = True
+            self.vehicle_interface.send_command(command)
+
+        if self.time_in_state % 3 == 1:
+            command.left_turn_signal = False
+            command.right_turn_signal = False
+            self.vehicle_interface.send_command(command)
+
+        if self.time_in_state % 3 == 2:
+            command.left_turn_signal = True
+            command.right_turn_signal = False
+            self.vehicle_interface.send_command(command)
+
        
     def healthy(self):
         """Returns True if the element is in a stable state."""
