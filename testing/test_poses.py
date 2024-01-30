@@ -13,6 +13,16 @@ def test_poses():
     print(math.degrees(transforms.heading_to_yaw(90.0)),'== 0')
     print(transforms.yaw_to_heading(math.pi,degrees=True),'== 270')
 
+    start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL,t=time.time(),x=40.09286250064475,y=-88.23565755734872,yaw=90.0)
+    current_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL,t=time.time()+55.0,x=40.09287891579668, y=-88.23588822731645,yaw=90.0)
+    current_pose_start = current_pose_global.to_frame(ObjectFrameEnum.START,start_pose_abs=start_pose_global)
+    print(current_pose_start.x,current_pose_start.y,current_pose_start.yaw,"(should be <0, ~=0, ~=0)")
+
+    start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL,t=time.time(),x=40.09286250064475,y=-88.23565755734872,yaw=270.0)
+    current_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL,t=time.time()+55.0,x=40.09287891579668, y=-88.23588822731645,yaw=270.0)
+    current_pose_start = current_pose_global.to_frame(ObjectFrameEnum.START,start_pose_abs=start_pose_global)
+    print(current_pose_start.x,current_pose_start.y,current_pose_start.yaw,"(should be >0, ~=0, ~=0)")
+
     start_pose_abs = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=time.time(),x=30.0,y=20.0,yaw=0.5)
     current_pose_abs = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=time.time()+55.0,x=60.0,y=25.0,yaw=1.5)
     current_pose_start = ObjectPose(frame=ObjectFrameEnum.START,t=55.0,x=60.0,y=25.0,yaw=1.0)
