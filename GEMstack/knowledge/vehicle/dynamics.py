@@ -18,10 +18,10 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
     Returns tuple (accelerator_pedal_position, brake_pedal_position, desired_gear)
     """
     model = settings.get('vehicle.dynamics.acceleration_model','v1_hang')
-    if model == 'v1_hang':
+    if model == 'hang_v1':
         if gear != 1:
             print("WARNING can't handle gears other than 1 yet")
-        max_accel     = settings.get('vehicle.dynamics.max_accelerator_acceleration') # m/s^2
+        max_accel     = settings.get('vehicle.dynamics.max_accelerator_acceleration')[1] # m/s^2
         max_brake     = settings.get('vehicle.dynamics.max_brake_deceleration') # m/s^2
         dry_decel     = settings.get('vehicle.dynamics.internal_dry_deceleration') # m/s^2
         accel_active_range = settings.get('vehicle.dynamics.accelerator_active_range') # pedal position fraction
@@ -38,7 +38,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
             throttle_percent = 0
         return (max(throttle_percent,0.0),max(brake_percent,0.0),1)
     
-    elif model == 'v1_kris':
+    elif model == 'kris_v1':
         brake_max = settings.get('vehicle.dynamics.max_brake_deceleration')
         reverse_accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration_reverse')
         accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration')
