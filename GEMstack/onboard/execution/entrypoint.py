@@ -111,7 +111,8 @@ def main():
         mission_executor.log_ros_topics(log_topics, rosbag_options)
         #determine whether to log vehicle interface
         log_vehicle_interface = log_settings.get('vehicle_interface',False)
-        mission_executor.log_vehicle_interface(log_vehicle_interface)
+        if log_vehicle_interface:
+            mission_executor.log_vehicle_interface(log_vehicle_interface)
         #determine whether to log components
         log_components = log_settings.get('components',[])
         mission_executor.log_components(log_components)
