@@ -18,6 +18,10 @@ class Path:
         new_points = [convert_point(p,self.frame,frame,current_pose,start_pose_abs) for p in self.points]
         return replace(self,frame=frame,points=new_points)
 
+    def domain(self) -> Tuple[float,float]:
+        """Returns the parameter domain"""
+        return (0.0,len(self.points)-1)
+
     def parameter_to_index(self, t : float) -> Tuple[int,float]:
         """Converts a path parameter to an (edge index, edge parameter) tuple."""
         if len(self.points) < 2:
@@ -159,6 +163,10 @@ class Trajectory(Path):
     """A timed, piecewise linear path."""
     times : List[float]
 
+    def domain(self) -> Tuple[float,float]:
+        """Returns the time parameter domain"""
+        return (self.times[0],self.times[-1])
+
     def time_to_index(self, t : float) -> Tuple[int,float]:
         """Converts a time to an (edge index, edge parameter) tuple."""
         if len(self.points) < 2:
@@ -196,12 +204,35 @@ class Trajectory(Path):
         return transforms.vector_madd(self.points[ind],transforms.vector_sub(self.points[ind+1],self.points[ind]),u)
 
     def eval_derivative(self, t : float) -> List[float]:
-        """Evaluates the derivative at a given time."""
+        """Evaluates the derivative (velocity) at a given time."""
         if len(self.points) < 2:
             return transforms.vector_mul(self.points[0],0.0)
         ind,u = self.time_to_index(t)
         return transforms.vector_mul(transforms.vector_sub(self.points[ind+1],self.points[ind]),1.0/(self.times[ind+1]-self.times[ind]))
-        
+
+    def eval_tangent(self, t : float) -> List[float]:
+        """Evaluates the tangent of the curve at a given time. This is related
+        to the velocity but normalized; at cusp points the previous tangent (or
+        next tangent, if the point is at the start) is returned. """
+        if len(self.points) < 2:
+            raise ValueError("Trajectory has no tangent: only 1 point")
+        ind,u = self.time_to_index(t)
+        d = transforms.vector_sub(self.points[ind+1],self.points[ind])
+        l = transforms.vector_norm(d)
+        pos = (ind == 0)
+        while l == 0:
+            if ind == 0:
+                if not pos:
+                    raise ValueError("Trajectory has no tangent: all points are coincident")
+                ind+=1
+            else:
+                if pos:
+                    raise ValueError("Trajectory has no tangent: all points are coincident")
+                ind-=1
+            d = transforms.vector_sub(self.points[ind+1],self.points[ind])
+            l = transforms.vector_norm(d)
+        return transforms.vector_mul(d,1.0/l)
+
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
         """Returns the closest point on the path to the given point.  If
         edges=False, only computes the distances to the vertices, not the
