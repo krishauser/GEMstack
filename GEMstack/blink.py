@@ -26,9 +26,9 @@ class BlinkDistress:
 
     def __init__(self):
         # TODO: Initialize your publishers and subscribers here
-        self.accel_sub = rospy.Subscriber("accel_sub", SystemRptFloat, accel_callback)
-        self.brake_sub = rospy.Subscriber("brake_sub", SystemRptFloat, brake_callback)
-        self.turn_pub = rospy.Publisher("turn_pub", PacmodCmd, queue_size=12)
+        self.accel_sub = rospy.Subscriber("/pacmod/parsed_tx/accel_rpt", SystemRptFloat, accel_callback)
+        self.brake_sub = rospy.Subscriber("/pacmod/parsed_tx/brake_rpt", SystemRptFloat, brake_callback)
+        self.turn_pub = rospy.Publisher("/pacmod/as_rx/turn_cmd", PacmodCmd, queue_size=12)
         # When you create a subscriber to a /pacmod/parsed_tx/X topic, you will need to provide a callback function.
         # You will want this callback to be a BlinkDistress method, such as print_X(self, msg).  msg will have a
         # ROS message type, and you can find out what this is by either reading the documentation or running
@@ -46,7 +46,10 @@ class BlinkDistress:
 
     def cleanup(self):
         """Run last"""
-        pass
+        turn_cmd = PacmodCmd()
+        turn_cmd.enable=True
+        turn_cmd.ui16_cmd = PacmodCmd.TURN_NONE
+        self.turn_pub.publish(turn_cmd)
 
     def update(self):
         """Run in a loop"""
