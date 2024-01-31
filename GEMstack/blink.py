@@ -60,17 +60,20 @@ class BlinkDistress:
             turn_cmd = PacmodCmd()
             turn_cmd.enable=True
             turn_cmd.ui16_cmd = PacmodCmd.TURN_LEFT
+            print("left")
             self.turn_pub.publish(turn_cmd)
             rate.sleep()
             turn_cmd.ui16_cmd = PacmodCmd.TURN_RIGHT
+            print("right")
             self.turn_pub.publish(turn_cmd)
             rate.sleep()
             turn_cmd.ui16_cmd = PacmodCmd.TURN_NONE
+            print("none")
             self.turn_pub.publish(turn_cmd)
             rate.sleep()
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
-        pass
+        
 
     def healthy(self):
         """Returns True if the element is in a stable state."""
