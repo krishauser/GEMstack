@@ -12,8 +12,8 @@ class BlinkDistress:
     def __init__(self):
         # TODO: Initialize your publishers and subscribers here
         
-        self.sub_accel = rospy.Subscriber('parsed_tx/accel_rpt', SystemRptFloat, self.callback_accel)
-        self.sub_brake = rospy.Subscriber('parsed_tx/brake_rpt', SystemRptFloat, self.callback_brake)
+        self.sub_accel = rospy.Subscriber('/pacmod/parsed_tx/accel_rpt', SystemRptFloat, self.callback_accel)
+        self.sub_brake = rospy.Subscriber('/pacmod/parsed_tx/brake_rpt', SystemRptFloat, self.callback_brake)
         self.pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=10)
 
         self.signal = PacmodCmd()
@@ -54,10 +54,10 @@ class BlinkDistress:
     
     # callbacks 
     def callback_accel(self, data):
-        rospy.loginfo(data.data)
+        print(data)
 
     def callback_brake(self, data):
-        rospy.loginfo(data.data)
+        print(data)
        
     def healthy(self):
         """Returns True if the element is in a stable state."""
