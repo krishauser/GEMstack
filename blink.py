@@ -36,11 +36,9 @@ class BlinkDistress:
 
     def print_brake_rpt(self, msg):
         rospy.loginfo('Subscribed: ' + str(msg.command))
-        # print('Subscribed: ' + str(msg.command))
 
     def print_accel_rpt(self, msg):
         rospy.loginfo('Subscribed: ' + str(msg.command))
-        # print('Subscribed: ' + str(msg.command))
 
     def rate(self):
         """Requested update frequency, in Hz"""
@@ -48,20 +46,23 @@ class BlinkDistress:
 
     def initialize(self):
         """Run first"""
+        rospy.sleep(1)
 
+        float_cmd = SystemRptFloat()
+        float_cmd.command = 0.0
+        self.pub_brake.publish(float_cmd)
+
+        rospy.sleep(1)
 
         float_cmd1 = SystemRptFloat()
         float_cmd1.command = 1.5
         self.pub_accel.publish(float_cmd1)
+
+        rospy.sleep(1)
         
 
     def cleanup(self):
         """Run last"""
-        # float_cmd = SystemRptFloat()
-        # float_cmd.command = 0.0
-        # self.pub_brake.publish(float_cmd)
-
-
         self.cmd.ui16_cmd = 1
         self.state = 1
         self.pub.publish(self.cmd)
