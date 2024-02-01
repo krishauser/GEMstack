@@ -48,7 +48,7 @@ class BlinkDistress(Component):
             command.left_turn_signal = False
             command.right_turn_signal = False
         self.vehicle_interface.send_command(command)
-       
+
     def healthy(self):
         """Returns True if the element is in a stable state."""
         return True

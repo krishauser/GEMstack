@@ -36,9 +36,11 @@ class BlinkDistress:
 
     def print_brake_rpt(self, msg):
         rospy.loginfo('Subscribed: ' + str(msg.command))
+        # print('Subscribed: ' + str(msg.command))
 
     def print_accel_rpt(self, msg):
         rospy.loginfo('Subscribed: ' + str(msg.command))
+        # print('Subscribed: ' + str(msg.command))
 
     def rate(self):
         """Requested update frequency, in Hz"""
@@ -56,45 +58,38 @@ class BlinkDistress:
 
         float_cmd1 = SystemRptFloat()
         float_cmd1.command = 1.5
+
         self.pub_accel.publish(float_cmd1)
 
         rospy.sleep(1)
-        
 
     def cleanup(self):
         """Run last"""
         self.cmd.ui16_cmd = 1
         self.state = 1
         self.pub.publish(self.cmd)
-        
     
     def update(self):
         """Run in a loop"""
         # TODO: Implement your control loop here
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
-        
 
-        if  self.state is None or self.state == 1:
+        if self.state is None or self.state == 1:
             self.cmd.ui16_cmd = 2
             self.state = 2
             self.pub.publish(self.cmd)
-         
 
         elif self.state == 2:
             self.cmd.ui16_cmd = 0
             self.state = 0
             self.pub.publish(self.cmd)  
-            
 
         elif self.state == 0:
             self.state = 1
             self.cmd.ui16_cmd = 1
             self.pub.publish(self.cmd)  
-            
 
-
-       
     def healthy(self):
         """Returns True if the element is in a stable state."""
         return True
