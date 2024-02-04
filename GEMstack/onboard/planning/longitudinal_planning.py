@@ -100,6 +100,49 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
 
+    def distance(p1, p2):
+        return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)  
+    
+    path_length = sum(distance(path.points[i], path.points[i+1]) for i in range(len(path.points) - 1))
+  
+    if current_speed <= 0:
+        return Trajectory(path, [points[0]] * len(points),times)
+
+    #calculate stopping time
+    stopping_time = current_speed / deceleration
+    #calculate stopping distance
+    stopping_distance = 0.5 * deceleration * stopping_time ** 2
+
+    time_adjustment = 0
+    current_velocity = current_speed
+   
+    for i in range(len(points) - 1):
+        # If the stopping distance is within the path length, adjust times
+        if stopping_distance < path_length:
+            segment_length = distance(points[i], points[i + 1])
+
+            if segment_length <= stopping_distance:
+                if current_velocity == 0:
+                    points[i] = points[i - 1]
+                # Adjust time based on deceleration
+                current_velocity = max(current_velocity - deceleration * times[i],0)
+                time_adjustment = (current_velocity - (deceleration * times[i])) / deceleration
+                times[i] -= time_adjustment       
+            else:
+                # Vehicle has stopped
+                times[i] = times[i - 1]
+                points[i] = points[i - 1]
+        else:
+            # Vehicle is still decelerating at the end of the path
+            if current_velocity == 0:
+                points[i] = points[i - 1]
+            current_velocity = max(current_velocity - deceleration * times[i],0)
+            times[i] -= (current_velocity - (deceleration * times[i])) / deceleration
+
+    for i in range(1, len(times)):
+        times[i] = max(times[i], times[i-1])
+    points[-1] = points[-2]
+                     
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
