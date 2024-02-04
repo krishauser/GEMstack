@@ -191,11 +191,17 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         #TODO: simulate other sensors?
         return ['gnss','imu']
 
-    def subscribe_sensor(self, name, callback):
+    def subscribe_sensor(self, name, callback, type = None):
         if name == 'gnss':
+            if type is not None and type is not VehicleState:
+                raise ValueError("GEMDoubleIntegratorSimulationInterface only supports VehicleState for GNSS")
             self.gnss_callback = callback
         elif name == 'imu':
+            if type is not None and type is not VehicleState:
+                raise ValueError("GEMDoubleIntegratorSimulationInterface only supports VehicleState for IMU")
             self.imu_callback = callback
+        else:
+            print("Warning, GEM simulator doesn't provide sensor",name)
         
     def send_command(self, command : GEMVehicleCommand):
         self.last_command = command

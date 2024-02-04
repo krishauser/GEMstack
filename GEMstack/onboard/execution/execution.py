@@ -11,6 +11,7 @@ import time
 import importlib
 import io
 import contextlib
+import sys
 from typing import Dict,Tuple,Set,List,Optional
 
 EXECUTION_PREFIX = "Execution:"
@@ -172,13 +173,14 @@ class ComponentExecutor:
         self.last_update_time = None
         self.next_update_time = None
         rate = c.rate()
+        self.had_exception = False
         self.dt = 1.0/rate if rate is not None else 0.0
         self.num_overruns = 0
         self.overrun_amount = 0.0
         self.do_update = None
     
     def healthy(self):
-        return self.c.healthy()
+        return self.c.healthy() and not self.had_exception
 
     def start(self):
         self.c.initialize()
@@ -196,13 +198,13 @@ class ComponentExecutor:
                 self.next_update_time += self.dt
             if self.next_update_time < t and self.dt > 0:
                 if EXECUTION_VERBOSITY >= 1:
-                    print(EXECUTION_PREFIX,"Component {} is running behind, overran dt {} by {} seconds".format(self.c,self.dt,t-self.next_update_time))
+                    print(EXECUTION_PREFIX,"Component {} is running behind, overran dt {} by {} seconds".format(self.c.__class__.__name__,self.dt,t-self.next_update_time))
                 self.num_overruns += 1
                 self.overrun_amount += t - self.next_update_time
                 self.next_update_time = t + self.dt
             return True
         if EXECUTION_VERBOSITY >= 3:
-            print(EXECUTION_PREFIX,"Component",self.c,"not updating at time",t,", next update time is",self.next_update_time)
+            print(EXECUTION_PREFIX,"Component",self.c.__class__.__name__,"not updating at time",t,", next update time is",self.next_update_time)
         return False
 
     def _do_update(self, t:float, *args):
@@ -210,10 +212,18 @@ class ComponentExecutor:
         g = io.StringIO()
         with contextlib.redirect_stdout(f):
             with contextlib.redirect_stderr(g):
-                if self.do_update is not None:
-                    res = self.do_update(*args)
-                else:
-                    res = self.c.update(*args)
+                try:
+                    if self.do_update is not None:
+                        res = self.do_update(*args)
+                    else:
+                        res = self.c.update(*args)
+                except Exception as e:
+                    print(EXECUTION_PREFIX,"Exception in component",self.c.__class__.__name__,":",e)
+                    import traceback
+                    print(traceback.format_exc(),file=sys.stderr)
+                    print(traceback.format_exc(),file=sys.stdout)
+                    self.had_exception = True
+                    res = None
         self.log_output(t, f.getvalue(),g.getvalue())
         return res
 
@@ -231,7 +241,7 @@ class ComponentExecutor:
         #write result to state
         if res is not None:
             if len(self.output) > 1:
-                assert len(res) == len(self.output), "Component {} output {} does not match expected length {}".format(self.c,self.output,len(self.output))
+                assert len(res) == len(self.output), "Component {} output {} does not match expected length {}".format(self.c.__class__.__name__,self.output,len(self.output))
                 for (k,v) in zip(self.output,res):
                     setattr(state,k, v)
                     setattr(state,k+'_update_time', t)

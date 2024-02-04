@@ -1,5 +1,4 @@
 from ...mathutils.control import PID
-from ...mathutils.signal import OnlineLowPassFilter
 from ...utils import settings
 from ...mathutils import transforms
 from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
@@ -21,10 +20,11 @@ class PurePursuit(object):
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         
         self.desired_speed = settings.get('control.pure_pursuit.desired_speed',2.5)  #approximately 5 mph
+        self.path_is_timed = False
+        self.desired_speed_from_path = True    #turn this to True to use the input trajectory to determine the desired speed
         self.max_accel     = settings.get('vehicle.limits.max_acceleration') # m/s^2
         self.max_decel     = settings.get('vehicle.limits.max_deceleration') # m/s^2
-        self.pid_speed     = PID(0.5, 0.0, 0.1, windup_limit=20)
-        self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
+        self.pid_speed     = PID(settings.get('control.longitudinal_control.pid_p',0.5), settings.get('control.longitudinal_control.pid_d',0.0), settings.get('control.longitudinal_control.pid_i',0.1), windup_limit=20)
 
         self.path = None
         self.current_path_parameter = 0.0
@@ -38,6 +38,12 @@ class PurePursuit(object):
             self.path = self.path.get_dims([0,1])
         if not isinstance(self.path,Trajectory):
             self.path = self.path.arc_length_parameterize()
+            self.path_is_timed = False
+            self.desired_speed_from_path = False
+            if self.desired_speed_from_path:
+                raise ValueError("Can't provide an untimed path to PurePursuit and expect it to use the path velocity")
+        else:
+            self.path_is_timed = True
         self.current_path_parameter = 0.0
 
     def compute(self, state : VehicleState):
@@ -53,8 +59,6 @@ class PurePursuit(object):
         curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
         speed = state.v
 
-        filt_vel     = self.speed_filter(speed)
-
         if self.path is None:
             #just stop
             accel = self.pid_speed.advance(0.0, t)
@@ -67,7 +71,7 @@ class PurePursuit(object):
         closest_dist,closest_parameter = self.path.closest_point_local((curr_x,curr_y),[self.current_path_parameter-5.0,self.current_path_parameter+5.0])
         #TODO: calculate parameter that is look_ahead distance away from the closest point
         #(rather than just advancing the parameter)
-        des_parameter = closest_parameter + self.look_ahead + self.look_ahead_scale * filt_vel
+        des_parameter = closest_parameter + self.look_ahead + self.look_ahead_scale * speed
         self.current_path_parameter = closest_parameter
         print("Closest parameter: " + str(closest_parameter),"distance to path",closest_dist)
         print("Closest point",self.path.eval(closest_parameter),"vs",(curr_x,curr_y))
@@ -79,12 +83,14 @@ class PurePursuit(object):
         L = transforms.vector2_dist((desired_x,desired_y),(curr_x,curr_y))
 
         # find the curvature and the angle 
-        alpha = desired_yaw - curr_yaw
+        alpha = transforms.normalize_angle(desired_yaw - curr_yaw)
+        if alpha > np.pi:
+            alpha -= np.pi*2
 
         # ----------------- tuning this part as needed -----------------
         k       = self.crosstrack_gain
         angle_i = np.arctan((k * 2 * self.wheelbase * np.sin(alpha)) / L) 
-        angle   = angle_i*2
+        angle   = angle_i*2.0
         # ----------------- tuning this part as needed -----------------
 
         f_delta = np.clip(angle, self.wheel_angle_range[0], self.wheel_angle_range[1])
@@ -97,7 +103,20 @@ class PurePursuit(object):
         steering_angle = np.clip(front2steer(f_delta), self.steering_angle_range[0], self.steering_angle_range[1])
         print("Steering wheel angle: " + str(round(np.degrees(steering_angle),2)) + " degrees" )
         
-        output_accel = self.pid_speed.advance(e = self.desired_speed - filt_vel, t = t)
+        desired_speed = self.desired_speed
+        feedforward_accel = 0.0
+        if self.desired_speed_from_path:
+            #determine desired speed from trajectory
+            deriv = self.path.eval_derivative(self.current_path_parameter)
+            desired_speed = np.linalg.norm(deriv)
+            feedforward_accel = (desired_speed - speed)/dt 
+            feedforward_accel= np.clip(feedforward_accel, -self.max_decel, self.max_accel)
+            print("Desired speed",desired_speed,"m/s")
+            print("Feedforward accel: " + str(feedforward_accel) + " m/s^2")
+        else:
+            #decay speed when crosstrack error is high
+            desired_speed *= np.exp(-ct_error*0.1)
+        output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
         print("Output acceleration",output_accel)
 
         if output_accel > self.max_accel:
@@ -127,7 +146,9 @@ class PurePursuitTrajectoryTracker(Component):
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
         self.pure_pursuit.set_path(trajectory)
         accel,wheel_angle = self.pure_pursuit.compute(vehicle)
+        #print("Desired wheel angle",wheel_angle)
         steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
+        #print("Desired steering angle",steering_angle)
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
     
     def healthy(self):

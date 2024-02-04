@@ -6,6 +6,8 @@ vehicle:
     version: e2
     max_gear : 1
     num_wiper_settings : 1
+    enable_through_joystick : true   #turn this to false to have GEMstack enable control
+    max_command_rate : 10.0          #for hardware, max rate of commands to send to vehicle over Pacmod
     #using !include directives helps maintain reuse of common settings
     geometry: !include ../vehicle/gem_e2_geometry.yaml
     dynamics: !include ../vehicle/gem_e2_dynamics.yaml
@@ -22,10 +24,14 @@ control:
         brake_amount : 0.5
         brake_speed : 2.0
     pure_pursuit:
-        lookahead: 4.0
+        lookahead: 2.0
         lookahead_scale: 3.0
-        crosstrack_gain: 0.41
+        crosstrack_gain: 2.0
         desired_speed: 2.0   #m/s
+    longitudinal_control:
+        pid_p: 3.0
+        pid_i: 0.1
+        pid_d: 0.0
 
 #configure the simulator, if using
 simulator:
