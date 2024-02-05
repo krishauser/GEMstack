@@ -31,7 +31,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     times.append(0.0)
 
     # Resolution for Euler integration
-    resolution = 0.06
+    resolution = 0.05
 
     def euler_integration(t, resolution, current_speed, acceleration, current_point):
         int_speed = current_speed
@@ -84,9 +84,10 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         if triangle_case:
             print("triangle")
 
-            if decel_distance > distance:
+            # If we cannot brake in time, then brake as much as possible before
+            # hitting the end of the segment
+            if acceleration == 0 and decel_distance > distance:
                 print("doomed")
-                # doomed
                 accel_time = 0 # Do not accelerate
 
                 # If we're at the end of the path, keep decelerating until we stop
