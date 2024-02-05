@@ -83,7 +83,9 @@ class PurePursuit(object):
         L = transforms.vector2_dist((desired_x,desired_y),(curr_x,curr_y))
 
         # find the curvature and the angle 
-        alpha = desired_yaw - curr_yaw
+        alpha = transforms.normalize_angle(desired_yaw - curr_yaw)
+        if alpha > np.pi:
+            alpha -= np.pi*2
 
         # ----------------- tuning this part as needed -----------------
         k       = self.crosstrack_gain
@@ -144,7 +146,9 @@ class PurePursuitTrajectoryTracker(Component):
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
         self.pure_pursuit.set_path(trajectory)
         accel,wheel_angle = self.pure_pursuit.compute(vehicle)
+        #print("Desired wheel angle",wheel_angle)
         steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
+        #print("Desired steering angle",steering_angle)
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
     
     def healthy(self):
