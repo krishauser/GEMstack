@@ -84,12 +84,14 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
             else:
                 segment_time = (current_speed - math.sqrt(current_speed**2 - 2 * deceleration * segment_length)) / deceleration
                 current_speed = max(current_speed - deceleration * segment_time, 0)
-            
-            total_t += segment_time
+           
             times[i] = total_t
+            total_t += segment_time 
             total_cover_d += segment_length
-
+            # print("current_speed",current_speed)
+            # print("times", times[i])
         trajectory = Trajectory(path.frame,points,times)
+    # print(current_speed)
     return trajectory
 
 
@@ -108,42 +110,54 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     if current_speed <= 0:
         return Trajectory(path, [points[0]] * len(points),times)
 
-    #calculate stopping time
-    stopping_time = current_speed / deceleration
-    #calculate stopping distance
-    stopping_distance = 0.5 * deceleration * stopping_time ** 2
+    #calculate time to stop
+    t_s = current_speed / -deceleration
+    #calculate distance for deceleration
+    d_s = (current_speed ** 2) / (2 * -deceleration)
 
-    time_adjustment = 0
-    current_velocity = current_speed
-   
+    #check if braking distance is longer than the path length:
+    if d_s > path_length:
+        deceleration = -(current_speed ** 2) / (2 * path_length)
+        t_s = current_speed / -deceleration
+
+    current_position = 0
+    current_time = 0    
+
+    #interpolate points and construct time list:
     for i in range(len(points) - 1):
-        # If the stopping distance is within the path length, adjust times
-        if stopping_distance < path_length:
-            segment_length = distance(points[i], points[i + 1])
+        segment_start = points[i]
+        segment_end = points[i + 1]
+        segment_length = distance(segment_start, segment_end)
 
-            if segment_length <= stopping_distance:
-                if current_velocity == 0:
-                    points[i] = points[i - 1]
-                # Adjust time based on deceleration
-                current_velocity = max(current_velocity - deceleration * times[i],0)
-                time_adjustment = (current_velocity - (deceleration * times[i])) / deceleration
-                times[i] -= time_adjustment       
-            else:
-                # Vehicle has stopped
-                times[i] = times[i - 1]
-                points[i] = points[i - 1]
+        if current_speed == 0:
+            times[i] += current_time
+            points[i] = points[i - 1]
+            continue
+
+        #calculate time:
+        if current_position + segment_length > d_s:
+            d_remain = d_s - current_position + segment_length
+            t_remain = math.sqrt(abs(2 * d_remain / -deceleration))
+            segment_time = t_remain
+            current_speed = max(current_speed - deceleration * times[i],0)
         else:
-            # Vehicle is still decelerating at the end of the path
-            if current_velocity == 0:
-                points[i] = points[i - 1]
-            current_velocity = max(current_velocity - deceleration * times[i],0)
-            times[i] -= (current_velocity - (deceleration * times[i])) / deceleration
+            segment_time = 2 * segment_length / (current_speed + current_speed + deceleration * current_time)
+            current_speed = max(current_speed - deceleration * times[i],0)
+    
+            current_position += segment_length
+            current_time += segment_time
+
+            times[i] = current_time
+        print("current_speed",current_speed)
+
 
     for i in range(1, len(times)):
+        
         times[i] = max(times[i], times[i-1])
     points[-1] = points[-2]
                      
     trajectory = Trajectory(path.frame,points,times)
+    
     return trajectory
 
 
@@ -193,7 +207,7 @@ class YieldTrajectoryPlanner(Component):
         #parse the relations indicated
         should_brake = False
         for r in state.relations:
-            if r.type == EntityRelationEnum.YIELD and r.obj1 == '':
+            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
                 #yielding to something, brake
                 should_brake = True
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
@@ -207,3 +221,4 @@ class YieldTrajectoryPlanner(Component):
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
 
         return traj 
+
