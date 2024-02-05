@@ -4,7 +4,6 @@ from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum,
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd, vector_sub, vector_dist
 
-from scipy.optimize import fsolve
 from numpy import arange
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
@@ -31,156 +30,97 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     points.append(path_normalized.points[0])
     times.append(0.0)
 
+    # Resolution for Euler integration
+    resolution = 0.06
+
+    def euler_integration(t, resolution, current_speed, acceleration, current_point):
+        int_speed = current_speed
+        int_point = current_point
+        for _ in arange(0, t, resolution):
+            # Get the time of the intermediate point
+            times.append(times[-1] + resolution)
+
+            # Get the distance of the intermediate point
+            distance_traveled = int_speed * resolution + 0.5 * acceleration * resolution**2
+
+            # Get the distance to the next point
+            int_distance = vector_dist(int_point, next_point)
+
+            # Add an intermediate point
+            next_int_point = vector_madd(int_point, vector_sub(next_point, int_point), distance_traveled / int_distance)
+            points.append(next_int_point)
+
+            # Update the current point
+            int_point = next_int_point
+            int_speed = int_speed + acceleration * resolution
+
+        return int_point, int_speed
+
     # For each segment, calculate a trapezoidal velocity profile
     cur_point = path_normalized.points[0]
     for next_point in path_normalized.points[1:]:
-        print("cur_point")
-        print(cur_point)
-
-        print("next_point")
-        print(next_point)
-
+        # Set the maximum achievable speed
+        if acceleration == 0:
+            max_speed = current_speed
+            
         # Calculate the distance to the next point
         distance = vector_dist(cur_point, next_point)
 
         # Calculate the time to accelerate to max speed
-        accel_time = (max_speed - current_speed) / acceleration
-        print("accel_time")
-        print(accel_time)
+        accel_time = (max_speed - current_speed) / acceleration if acceleration != 0 else 0.0
 
         # Calculate the distance traveled during acceleration
         accel_distance = current_speed * accel_time + 0.5 * acceleration * accel_time**2
-        print("accel_distance")
-        print(accel_distance)
 
         # Calculate the time to decelerate to 0 from max speed
-        decel_time = max_speed / deceleration
-        print("decel_time")
-        print(decel_time)
+        decel_time = max_speed / deceleration if deceleration != 0 else 0.0
 
         # Calculate the distance traveled during deceleration
         decel_distance = max_speed * decel_time - 0.5 * deceleration * decel_time**2
-        print("decel_distance")
-        print(decel_distance)
 
-        # If the distance to the next point is less than the distance traveled during acceleration and deceleration, then we can't brake in time    
-        if distance < accel_distance + decel_distance:
-            ndec = - 1.0 * deceleration
-            resolution = 0.06
+        # If the distance to the next point is less than the distance traveled during acceleration 
+        # and deceleration, then we can't brake in time
+        triangle_case = distance < accel_distance + decel_distance
+        if triangle_case:
             print("triangle")
-            a = 0.5 * (acceleration + acceleration**2 / deceleration)
-            b = current_speed + acceleration * current_speed / deceleration
-            c = -1 * distance + current_speed**2 / (2 * deceleration)
 
-            t = (-1 * b + (b**2 - 4 * a * c)**0.5) / (2 * a)
-            td = (current_speed + acceleration * t) / deceleration
+            if decel_distance > distance:
+                print("doomed")
+                # doomed
+                accel_time = 0 # Do not accelerate
 
-            def f(t):
-                return -1.0 * distance + current_speed * t + 0.5 * acceleration * t**2 + (0 - acceleration * t + current_speed) * (acceleration * t + current_speed) / (deceleration) + 0.5 * deceleration * ((0 - acceleration * t + current_speed) / deceleration)**2
+                # If we're at the end of the path, keep decelerating until we stop
+                if next_point == path_normalized.points[-1]:
+                    # Calculate the time to decelerate to 0
+                    decel_time = current_speed / deceleration
 
-            tstop = fsolve(f, 0.0)
+                else:
+                    # Calculate the time to decelerate as much as possible
+                    a = 0.5 * (-1 * deceleration)
+                    b = current_speed
+                    c = distance
+                    decel_time = (-1 * b + (b**2 - 4 * a * c)**0.5) / (2 * a) 
 
-            print("tstop")
-            print(tstop)
+            else:
+                # use quadratic fmla to calculate accel and decel time. 
+                a = 0.5 * (acceleration + acceleration**2 / deceleration)
+                b = current_speed + acceleration * current_speed / deceleration
+                c = -1 * distance + current_speed**2 / (2 * deceleration)
 
-            print("t")
-            print(t)
-
-            td = (current_speed + acceleration * t) / deceleration
-            # Euler integration to find points and times at the resolution
-            int_point = cur_point
-            int_speed = current_speed
-            for _ in arange(0, t, resolution):
-                # Get the time of the intermediate point
-                times.append(times[-1] + resolution)
-
-                # Get the distance of the intermediate point
-                distance_traveled = int_speed * resolution + 0.5 * acceleration * resolution**2
-
-                int_distance = vector_dist(int_point, next_point)
-
-                # Add an intermediate point
-                next_int_point = vector_madd(int_point, vector_sub(next_point, int_point), distance_traveled / int_distance)
-                points.append(next_int_point)
-
-                # Update the current point
-                int_point = next_int_point
-                int_speed = int_speed + acceleration * resolution
-
-
-            for _ in arange(0, td, resolution):
-                # Get the time of the intermediate point
-                times.append(times[-1] + resolution)
-
-                # Get the distance of the intermediate point
-                distance_traveled = int_speed * resolution + 0.5 * ndec * resolution**2
-
-                int_distance = vector_dist(int_point, next_point)
-
-                # Add an intermediate point
-                next_int_point = vector_madd(int_point, vector_sub(next_point, int_point), distance_traveled / int_distance)
-                points.append(next_int_point)
-
-                # Update the current point
-                int_point = next_int_point
-                int_speed = int_speed + ndec * resolution
-
-            print("int_point")
-            print(int_point)
-            print(int_speed)
-
-            # Get the time of the intermediate point
-            # times.append(times[-1] + t)
-
-            # Get the distance of the intermediate point
-            # distance_traveled = current_speed * t + 0.5 * acceleration * t**2
-            
-            # Add an intermediate point
-            # points.append(vector_madd(cur_point, vector_sub(next_point, cur_point), distance_traveled / distance))
-
-            # Add the next point
-            # points.append(next_point)
-
-            # Add the time to decelerate to 0
-            # td = (current_speed + acceleration * t) / deceleration
-            # times.append(times[-1] + td)
-
-            # Update the current point
-            cur_point = int_point
-            current_speed = 0.0
-
-            print("times[-1] {}".format(times[-1]))
-
+                accel_time = (-1 * b + (b**2 - 4 * a * c)**0.5) / (2 * a) # time accelerating
+                decel_time = (current_speed + acceleration * accel_time) / deceleration # time decellerating
         else:
-            # Calculate the time to travel at max speed
-            travel_time = (distance - accel_distance - decel_distance) / max_speed
-            print("travel_time")
-            print(travel_time)
+            print("not triangle")
+        
+        # Euler integration to find points and times for accelerating
+        cur_point, current_speed = euler_integration(accel_time, resolution, current_speed, acceleration, cur_point)
+        
+        # Calculate the time to travel at max speed and add the points and times
+        straight_time = 0 if triangle_case else (distance - accel_distance - decel_distance) / max_speed
+        cur_point, current_speed = euler_integration(straight_time, resolution, current_speed, 0, cur_point)
 
-            # Add the time to accelerate to max speed
-            times.append(times[-1] + accel_time)
-            
-            # Add an intermediate point at max speed
-            points.append(vector_madd(cur_point, vector_sub(next_point, cur_point), accel_distance / distance))
-
-            # Add the time to travel at max speed
-            times.append(times[-1] + travel_time)
-            
-            # Add an intermediate point at max speed
-            points.append(vector_madd(cur_point, vector_sub(next_point, cur_point), (accel_distance + distance - decel_distance) / distance))
-
-            # Add the time to decelerate to 0 from max speed
-            times.append(times[-1] + decel_time)
-            
-            # Add the next point
-            points.append(next_point)
-            
-            # Update the current point
-            cur_point = next_point
-            current_speed = 0.0
-
-    print(points)
-    print(times)
+        # Euler integration to find points and times for decelerating
+        cur_point, current_speed = euler_integration(decel_time, resolution, current_speed, -1 * deceleration, cur_point)
 
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
