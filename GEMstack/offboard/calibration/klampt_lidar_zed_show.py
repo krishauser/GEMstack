@@ -97,4 +97,13 @@ if __name__ == '__main__':
     folder = 'data'
     if len(sys.argv) >= 2:
         folder = sys.argv[1]
+    if len(sys.argv) >= 3:
+        calib = sys.argv[2]
+        import yaml
+        with open(calib,'r') as f:
+            config = yaml.load(f,yaml.SafeLoader)
+            zed_K = np.array(config['K']).reshape((3,3))
+            zed_intrinsics = [zed_K[0,0],zed_K[1,1],zed_K[0,2],zed_K[1,2]]
+            zed_w = config['width']
+            zed_height = config['height']
     main(folder)
