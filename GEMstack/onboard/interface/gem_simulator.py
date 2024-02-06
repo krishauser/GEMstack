@@ -200,6 +200,8 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
             if type is not None and type is not VehicleState:
                 raise ValueError("GEMDoubleIntegratorSimulationInterface only supports VehicleState for IMU")
             self.imu_callback = callback
+        else:
+            print("Warning, GEM simulator doesn't provide sensor",name)
         
     def send_command(self, command : GEMVehicleCommand):
         self.last_command = command
