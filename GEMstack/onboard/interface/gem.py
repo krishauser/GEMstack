@@ -109,7 +109,7 @@ class GEMInterface:
 
     def sensors(self) -> List[str]:
         """Returns all available sensors"""
-        return ['gnss','imu','top_lidar','top_stereo','front_radar']
+        return ['gnss','imu','top_lidar','front_camera','front_depth','front_radar']
 
     def subscribe_sensor(self, name : str, callback : Callable, type = None) -> None:
         """Subscribes to a sensor with a given callback.
