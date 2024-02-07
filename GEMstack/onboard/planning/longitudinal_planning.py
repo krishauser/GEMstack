@@ -2,163 +2,131 @@ from typing import List
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
-from ...mathutils.transforms import vector_madd
+from ...mathutils.transforms import vector_madd, vector_dist
 import math
 
-def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
+# Three helper functions to get plaaning time (Should be moved to mathutils?)
+def solve_quadratic(a, b, c):
+    # Calculate the discriminant
+    discriminant = b**2 - 4*a*c
+
+    # Check if the discriminant is positive, negative, or zero
+    if discriminant >= 0:
+        # Two real and distinct roots
+        root1 = (-b + math.sqrt(discriminant)) / (2*a)
+        root2 = (-b - math.sqrt(discriminant)) / (2*a)
+        return root1, root2
+    else:
+        raise ValueError('Discriminant should not be negative')
+
+
+def get_time_by_formula(acceleration, speed, dist):
+    # formula: 1/2at^2 + vt - dist = 0
+    time, _ = solve_quadratic(0.5*acceleration, speed, -dist)
+    return time
+
+
+def distance(p1, p2):
+    return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
+
+
+def longitudinal_plan(path: Path, acceleration: float, deceleration: float, max_speed: float, current_speed: float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
-    trapezoidal velocity profile. 
-    
+    trapezoidal velocity profile.
+
     1. accelerates from current speed toward max speed
     2. travel along max speed
     3. if at any point you can't brake before hitting the end of the path,
        decelerate with accel = -deceleration until velocity goes to 0.
     """
     path_normalized = path.arc_length_parameterize()
-    #TODO: actually do something to points and times
+    # TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
-    
-    # Function to calculate distance between two points
-    def distance(p1, p2):
-        return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
-    
-    path_length = sum(distance(points[i], points[i+1]) for i in range(len(points)-1))
-    total_cover_d = 0
-    total_t = 0
-    
-    if acceleration == 0.0:
-        # Calculate the time to traverse each segment and accumulate
-        current_time = 0
-        v_c = max_speed
-        total_time = path_length / v_c
-        times = [i * total_time / (len(points) - 1) for i in range(len(points))]
-   
-        # Create the trajectory object with the calculated points and times
-        trajectory = Trajectory(frame=path.frame, points=points, times=times)
-    
+
+    print('(longitudinal_plan) input current_speed:', current_speed)
+    print("(longitudinal_plan) before_points:", points)
+    print("(longitudinal_plan) before_times:", times)
+
+    # Condition 1: Hitting the end of the path,
+    #              decelerate with accel = -deceleration until velocity goes to 0.
+    if len(points) < 3: # less than 3 waypoints, begin to decelerate (design by ourselves)
+        traj = longitudinal_brake(path, deceleration, current_speed)
+
+    # Condition 2: travel along the current speed
+    elif acceleration == 0.0:
+        current_speed = min(current_speed, max_speed)
+        traj = path.arc_length_parameterize(speed=current_speed)
+        
+    # Condition 3: accelerates from current speed toward max speed. Then travel along max speed
     else:
-        #calculate the time for acceleration
-        t_a = (max_speed - current_speed) / acceleration
-        #calculate the distance for acceleration
-        d_a = current_speed * t_a + 0.5 * acceleration * (t_a ** 2)
-        #calculate the distance for deceleration
-        d_d = (max_speed ** 2)/(2 * -deceleration)
+        time_reach_max_speed = (max_speed - current_speed) / acceleration
+        dist_reach_max_speed = (
+            max_speed + current_speed) / 2 * time_reach_max_speed
+        update_times = times.copy()
 
-        d_total = d_a + d_d #total distance
-        # path_length = path_normalized.calculate_path_length()
+        # bug in GemStack code? (sometimes len(points) != len(times))
+        N = min(len(points), len(times))
 
+        print('dist_reach_max_speed:', dist_reach_max_speed)
+        print('time_reach_max_speed:', time_reach_max_speed)
+        for i in range(1, N):
+            dist = distance(points[0], points[i])
 
-        #determine if there is enough distance to reach max_speed and then decelerate to 0:
-        if d_total > path_length:
-            d_max = path_length / 2
-            peak_speed = math.sqrt(current_speed ** 2 + 2 * acceleration * d_max)
-            t_a = (peak_speed - current_speed) / acceleration
-            d_a = (current_speed + peak_speed) / 2 * t_a
-        else:
-            peak_speed = max_speed
-
-        #calculate the distance at the max_speed
-        d_at_max = path_length - d_total
-        #calculate the time at the max_speed
-        t_at_max = d_at_max / peak_speed
-
-        #calculate the time to decelerate to 0
-        t_d = peak_speed / -deceleration
-
-        #interpolate points and construct time list:
-        for i in range(len(points) - 1):
-            segment_start = points[i]
-            segment_end = points[i + 1]
-            segment_length = distance(segment_start, segment_end)
-            segment_time = 0
-
-            #Determine the state (accelerating, cruising, decelerating) and calculate segment time:
-            if total_cover_d < d_a:
-                #Accelerating
-                segment_time = (math.sqrt(current_speed**2 + 2 * acceleration * segment_length) - current_speed) / acceleration
-                current_speed += acceleration * segment_time
-            elif total_cover_d < d_a + d_at_max:
-                #Cruising
-                segment_time = segment_length / peak_speed
+            # reach max speed, then travel along max speed
+            if dist > dist_reach_max_speed:
+                time = time_reach_max_speed + \
+                    (dist - dist_reach_max_speed) / max_speed
             else:
-                segment_time = (current_speed - math.sqrt(current_speed**2 - 2 * deceleration * segment_length)) / deceleration
-                current_speed = max(current_speed - deceleration * segment_time, 0)
-           
-            times[i] = total_t
-            total_t += segment_time 
-            total_cover_d += segment_length
-            # print("current_speed",current_speed)
-            # print("times", times[i])
-        trajectory = Trajectory(path.frame,points,times)
-    # print(current_speed)
-    return trajectory
+                time = get_time_by_formula(acceleration, current_speed, dist)
+
+            update_times[i] = time  # update planning time
+        traj = Trajectory(path.frame, points, update_times)
+
+    print("(longitudinal_plan) update_points:", traj.points)
+    print("(longitudinal_plan) update_times:", traj.times)
+
+    return traj
 
 
-def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
+def longitudinal_brake(path: Path, deceleration: float, current_speed: float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
     path_normalized = path.arc_length_parameterize()
-    #TODO: actually do something to points and times
+    # TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
 
-    def distance(p1, p2):
-        return math.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)  
-    
-    path_length = sum(distance(path.points[i], path.points[i+1]) for i in range(len(path.points) - 1))
-  
+    # bug in GemStack code? (len(points) != len(times))
+    N = min(len(points), len(times))
+
     if current_speed <= 0:
-        return Trajectory(path, [points[0]] * len(points),times)
+        return Trajectory(path, [points[0]] * N, times)
 
-    #calculate time to stop
-    t_s = current_speed / -deceleration
-    #calculate distance for deceleration
-    d_s = (current_speed ** 2) / (2 * -deceleration)
+    time_to_stop = (current_speed) / deceleration
+    dist_to_stop = (current_speed) / 2 * time_to_stop
+    update_times = times.copy()
+    update_points = points.copy()
 
-    #check if braking distance is longer than the path length:
-    if d_s > path_length:
-        deceleration = -(current_speed ** 2) / (2 * path_length)
-        t_s = current_speed / -deceleration
+    print('(longitudinal_brake) input current_speed:', current_speed)
+    print("(longitudinal_brake) before_points:", points)
+    print("(longitudinal_brake) before_times:", times)
 
-    current_position = 0
-    current_time = 0    
+    for i in range(1, N):
+        dist = distance(points[0], points[i])
 
-    #interpolate points and construct time list:
-    for i in range(len(points) - 1):
-        segment_start = points[i]
-        segment_end = points[i + 1]
-        segment_length = distance(segment_start, segment_end)
-
-        if current_speed == 0:
-            times[i] += current_time
-            points[i] = points[i - 1]
-            continue
-
-        #calculate time:
-        if current_position + segment_length > d_s:
-            d_remain = d_s - current_position + segment_length
-            t_remain = math.sqrt(abs(2 * d_remain / -deceleration))
-            segment_time = t_remain
-            current_speed = max(current_speed - deceleration * times[i],0)
+        # the farest distance vehicle can reach is points[0][0] + dist_to_stop
+        if dist > dist_to_stop:
+            update_points[i] = (points[0][0] + dist_to_stop, 0)
         else:
-            segment_time = 2 * segment_length / (current_speed + current_speed + deceleration * current_time)
-            current_speed = max(current_speed - deceleration * times[i],0)
+            time = get_time_by_formula(-deceleration, current_speed, dist)
+            update_times[i] = time  # update planning time
+
+    print("(longitudinal_brake) update_points:", update_points)
+    print("(longitudinal_brake) update_times:", update_times)
+    print('(longitudinal_brake) deceleration:', deceleration)
+    print('(longitudinal_brake) current_speed:', current_speed)
     
-            current_position += segment_length
-            current_time += segment_time
-
-            times[i] = current_time
-        print("current_speed",current_speed)
-
-
-    for i in range(1, len(times)):
-        
-        times[i] = max(times[i], times[i-1])
-    points[-1] = points[-2]
-                     
-    trajectory = Trajectory(path.frame,points,times)
-    
-    return trajectory
+    return Trajectory(path.frame, update_points, update_times)
 
 
 class YieldTrajectoryPlanner(Component):
@@ -166,6 +134,7 @@ class YieldTrajectoryPlanner(Component):
     you are at the end of the route, otherwise accelerates to
     the desired speed.
     """
+
     def __init__(self):
         self.route_progress = None
         self.t_last = None
@@ -182,43 +151,48 @@ class YieldTrajectoryPlanner(Component):
     def rate(self):
         return 10.0
 
-    def update(self, state : AllState):
-        vehicle = state.vehicle # type: VehicleState
+    def update(self, state: AllState):
+        vehicle = state.vehicle  # type: VehicleState
         route = state.route   # type: Route
         t = state.t
 
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
-  
+
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
         curr_v = vehicle.v
 
-        #figure out where we are on the route
+        # figure out where we are on the route
         if self.route_progress is None:
             self.route_progress = 0.0
-        closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
+        closest_dist, closest_parameter = state.route.closest_point_local(
+            (curr_x, curr_y), [self.route_progress-5.0, self.route_progress+5.0])
         self.route_progress = closest_parameter
 
-        #extract out a 10m segment of the route
-        route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
+        # extract out a 10m segment of the route
+        route_with_lookahead = route.trim(
+            closest_parameter, closest_parameter+10.0)
 
-        #parse the relations indicated
+        # parse the relations indicated
         should_brake = False
         for r in state.relations:
             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
-                #yielding to something, brake
+                # yielding to something, brake
                 should_brake = True
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
 
-        #choose whether to accelerate, brake, or keep at current velocity
+        # choose whether to accelerate, brake, or keep at current velocity
         if should_accelerate:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
+            traj = longitudinal_plan(
+                route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         elif should_brake:
-            traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+            curr_v = min(curr_v, self.desired_speed)
+            traj = longitudinal_brake(
+                route_with_lookahead, self.deceleration, curr_v)
         else:
-            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
+            traj = longitudinal_plan(
+                route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
 
-        return traj 
-
+        return traj
