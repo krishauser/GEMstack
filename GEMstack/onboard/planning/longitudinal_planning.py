@@ -15,9 +15,12 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     3. if at any point you can't brake before hitting the end of the path,
        decelerate with accel = -deceleration until velocity goes to 0.
     """
+    # If the path follows the trapezoidal velocity profile, then they are all going to be in a line. 
+    # So we can just take the first and last. 
+    path.points = [path.points[0], path.points[-1]]
+
     print("path {}".format(path.points))
     path_normalized = path.arc_length_parameterize()
-    #TODO: actually do something to points and times
     points = []
     times = []
 
@@ -33,10 +36,18 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     # Resolution for Euler integration
     resolution = 0.05
 
-    def euler_integration(t, resolution, current_speed, acceleration, current_point):
+    # Doom. 
+    doomed = False
+
+    def euler_integration(t, resolution, current_speed, acceleration, current_point, doomed):
         int_speed = current_speed
         int_point = current_point
         for _ in arange(0, t, resolution):
+            # If we are doomed, different behavior. 
+            if doomed is True:
+                print("DOOMED.")
+                break
+            
             # Get the time of the intermediate point
             times.append(times[-1] + resolution)
 
@@ -54,8 +65,14 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
             int_point = next_int_point
             int_speed = int_speed + acceleration * resolution
 
-        return int_point, int_speed
+            doomed = "doomsday" if doomed == "doomsday" else # DOOM CONDITIONS
 
+        return int_point, int_speed, doomed
+    def quad_fmla(a, b, c):
+        return (-1 * b + (b**2 - 4 * a * c)**0.5) / (2 * a) 
+    def length_to_end(cur_point):
+        return vector_dist(cur_point, path_normalized.points[-1])
+    
     # For each segment, calculate a trapezoidal velocity profile
     cur_point = path_normalized.points[0]
     for next_point in path_normalized.points[1:]:
@@ -66,41 +83,40 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         # Calculate the distance to the next point
         distance = vector_dist(cur_point, next_point)
 
-        # Calculate the time to accelerate to max speed
+        # Calculate the time and dist to accelerate to max speed
         accel_time = (max_speed - current_speed) / acceleration if acceleration != 0 else 0.0
-
-        # Calculate the distance traveled during acceleration
         accel_distance = current_speed * accel_time + 0.5 * acceleration * accel_time**2
 
-        # Calculate the time to decelerate to 0 from max speed
+        # Calculate the time and dist to decelerate to 0 from max speed
         decel_time = max_speed / deceleration if deceleration != 0 else 0.0
-
-        # Calculate the distance traveled during deceleration
         decel_distance = max_speed * decel_time - 0.5 * deceleration * decel_time**2
 
         # If the distance to the next point is less than the distance traveled during acceleration 
         # and deceleration, then we can't brake in time
         triangle_case = distance < accel_distance + decel_distance
+
         if triangle_case:
             print("triangle")
 
-            # If we cannot brake in time, then brake as much as possible before
-            # hitting the end of the segment
-            if acceleration == 0 and decel_distance > distance:
-                print("doomed")
-                accel_time = 0 # Do not accelerate
+            if False:
+                pass
+            # # If we cannot brake in time, then brake as much as possible before
+            # # hitting the end of the segment
+            # if acceleration == 0 and decel_distance > distance:
+            #     print("doomed")
+            #     accel_time = 0 # Do not accelerate
 
-                # If we're at the end of the path, keep decelerating until we stop
-                if next_point == path_normalized.points[-1]:
-                    # Calculate the time to decelerate to 0
-                    decel_time = current_speed / deceleration
+            #     # If we're at the end of the path, keep decelerating until we stop
+            #     if next_point == path_normalized.points[-1]:
+            #         # Calculate the time to decelerate to 0
+            #         decel_time = current_speed / deceleration
 
-                else:
-                    # Calculate the time to decelerate as much as possible
-                    a = 0.5 * (-1 * deceleration)
-                    b = current_speed
-                    c = distance
-                    decel_time = (-1 * b + (b**2 - 4 * a * c)**0.5) / (2 * a) 
+            #     else:
+            #         # Calculate the time to decelerate as much as possible
+            #         a = 0.5 * (-1 * deceleration)
+            #         b = current_speed
+            #         c = distance
+            #         decel_time = quad_fmla(a, b, c)
 
             else:
                 # use quadratic fmla to calculate accel and decel time. 
@@ -108,21 +124,32 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
                 b = current_speed + acceleration * current_speed / deceleration
                 c = -1 * distance + current_speed**2 / (2 * deceleration)
 
-                accel_time = (-1 * b + (b**2 - 4 * a * c)**0.5) / (2 * a) # time accelerating
+                accel_time = quad_fmla(a, b, c) # time accelerating
                 decel_time = (current_speed + acceleration * accel_time) / deceleration # time decellerating
         else:
             print("not triangle")
         
         # Euler integration to find points and times for accelerating
-        cur_point, current_speed = euler_integration(accel_time, resolution, current_speed, acceleration, cur_point)
+        cur_point, current_speed, doomed = euler_integration(accel_time, resolution, current_speed, acceleration, cur_point, doomed)
+        print("finished accel", cur_point, current_speed, doomed)
         
         # Calculate the time to travel at max speed and add the points and times
         straight_time = 0 if triangle_case else (distance - accel_distance - decel_distance) / max_speed
-        cur_point, current_speed = euler_integration(straight_time, resolution, current_speed, 0, cur_point)
+        cur_point, current_speed, doomed = euler_integration(straight_time, resolution, current_speed, 0, cur_point, doomed)
+        print("straights", cur_point, current_speed, doomed)
 
         # Euler integration to find points and times for decelerating
-        cur_point, current_speed = euler_integration(decel_time, resolution, current_speed, -1 * deceleration, cur_point)
+        cur_point, current_speed, doomed = euler_integration(decel_time, resolution, current_speed, -1 * deceleration, cur_point, doomed)
+        print("finished decel", cur_point, current_speed, doomed)
 
+        # If we're doomed, the euler integration didn't execute anyway after recognition of doom.
+        if doomed:            
+            doom_time = current_speed / deceleration
+            print("doom time", doom_time)
+            cur_point, current_speed, _ = euler_integration(doom_time, resolution, current_speed, -1 * deceleration, cur_point, "doomsday")
+            print("end of doom, current speed should be 0", current_speed)
+
+    print("----------")
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
