@@ -3,6 +3,7 @@ import yaml
 import os
 from typing import Any, IO
 import collections
+import warnings
 
 def save_config(fn : str, config : dict) -> None:
     """Saves a configuration file."""
@@ -89,7 +90,7 @@ def _load_recursive(obj, folder : str):
 
 
 
-def update_recursive(d : dict, u : dict) -> dict:
+def update_recursive(d : dict, u : dict, caution_callback=None) -> dict:
     """Updates a dictionary d with another dictionary u recursively.
 
     The update happens in-place and d is returned.
@@ -97,10 +98,16 @@ def update_recursive(d : dict, u : dict) -> dict:
     if not isinstance(d, collections.abc.Mapping):
         raise ValueError("Trying to update a non-dict with a dict")
     for k, v in u.items():
+        sub_callback = None
+        if caution_callback:
+            if k not in d:
+                caution_callback(k)
+            else:
+                sub_callback = lambda k2:caution_callback(k + '.' + k2)
         if isinstance(v, collections.abc.Mapping):
             if not isinstance(d.get(k, {}), collections.abc.Mapping):
                 d[k] = {}
-            d[k] = update_recursive(d.get(k, {}), v)
+            d[k] = update_recursive(d.get(k, {}), v, sub_callback)
         else:
             d[k] = v
     return d
