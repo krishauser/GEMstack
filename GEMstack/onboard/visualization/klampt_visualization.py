@@ -2,6 +2,7 @@ from ..component import Component
 from klampt import vis
 from klampt.math import se3
 from klampt import *
+from ...state import AllState,ObjectFrameEnum
 from ...mathutils.signal import OnlineLowPassFilter
 from ...utils import klampt_visualization
 import time
@@ -57,7 +58,7 @@ class KlamptVisualization(Component):
         vp = vis.getViewport()
         vp.camera.rot[1] = -0.15
         vp.camera.rot[2] = -math.pi/2
-        vp.camera.dist = 20.0
+        vp.camera.dist = 30.0
         vp.w = 1280
         vp.h = 720
         vp.clippingplanes = (0.1,1000)
@@ -91,7 +92,8 @@ class KlamptVisualization(Component):
             self.debug("vehicle","accelerator",state.vehicle.accelerator_pedal_position)
             self.debug("vehicle","brake",state.vehicle.brake_pedal_position)
             time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(state.t))
-            klampt_visualization.plot(state,title="Scene %d at %s"%(self.num_updates,time_str),vehicle_model=self.vehicle,show=False)
+            state_start = state.to_frame(ObjectFrameEnum.START)
+            klampt_visualization.plot(state_start,title="Scene %d at %s"%(self.num_updates,time_str),vehicle_model=self.vehicle,show=False)
 
             #update pose of the vehicle
             if self.last_yaw is not None:

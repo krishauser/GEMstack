@@ -1,34 +1,46 @@
 from klampt import vis
 from klampt.math import vectorops,so3,se3
 from klampt.model.trajectory import Trajectory
+from klampt import Geometry3D, GeometricPrimitive, TriangleMesh
 import numpy as np
 from . import settings
-from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
+from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,AgentEnum,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
+
+OBJECT_COLORS = {
+    AgentEnum.CAR : (1,1,0,1),
+    AgentEnum.PEDESTRIAN : (0,1,0,1),
+    AgentEnum.BICYCLIST : (0,0,1,1),
+    AgentEnum.MEDIUM_TRUCK : (1,0,1,1),
+    AgentEnum.LARGE_TRUCK : (0,1,1,1),
+    None: (0.7,0.7,0.7,1),
+}
+
+AUX_BBOX_COLOR = (0,0,1,1)
 
 CURVE_TO_STYLE = {
-    RoadgraphCurveEnum.LANE_BOUNDARY : {'color':(1,1,1,1),'width':2},
-    RoadgraphCurveEnum.CURB : {'color':(0.5,0.5,0.5,1),'width':2},
-    RoadgraphCurveEnum.CLIFF : {'color':(1,0,0,1),'width':2},
-    RoadgraphCurveEnum.CROSSING_BOUNDARY : {'color':(1,1,1,1),'width':1},
-    RoadgraphCurveEnum.PARKING_SPOT_BOUNDARY : {'color':(1,1,1,1),'width':1},
-    RoadgraphCurveEnum.STOP_LINE : {'color':(1,1,1,1),'width':2},
-    RoadgraphCurveEnum.WALL : {'color':(0,0,1,1),'width':2},
-    None : {'color':(1,1,1,1),'width':1},
+    RoadgraphCurveEnum.LANE_BOUNDARY : {'color':(1,1,1,1),'width':2,'pointSize':0},
+    RoadgraphCurveEnum.CURB : {'color':(0.5,0.5,0.5,1),'width':2,'pointSize':0},
+    RoadgraphCurveEnum.CLIFF : {'color':(1,0,0,1),'width':2,'pointSize':0},
+    RoadgraphCurveEnum.CROSSING_BOUNDARY : {'color':(1,1,1,1),'width':1,'pointSize':0},
+    RoadgraphCurveEnum.PARKING_SPOT_BOUNDARY : {'color':(1,1,1,1),'width':1,'pointSize':0},
+    RoadgraphCurveEnum.STOP_LINE : {'color':(1,1,1,1),'width':2,'pointSize':0},
+    RoadgraphCurveEnum.WALL : {'color':(0,0,1,1),'width':2,'pointSize':0},
+    None : {'color':(1,1,1,1),'width':1,'pointSize':0},
 }
 
 SURFACE_TO_STYLE = {
-    RoadgraphSurfaceEnum.PAVEMENT : {'color':(0.5,0.5,0.5,0.2)},
-    RoadgraphSurfaceEnum.DIRT : {'color':(160/255.0,82/255.0,45/255.0,0.2)},
-    RoadgraphSurfaceEnum.GRASS : {'color':(50/255.0,255/255.0,50/255.0,0.2)},
-    RoadgraphSurfaceEnum.GRAVEL : {'color':(0.7,0.7,0.7,0.2)},
-    None: {'color':(1,0,0,0.2)},
+    RoadgraphSurfaceEnum.PAVEMENT : {'color':(0.5,0.5,0.5,0.2),'pointSize':0},
+    RoadgraphSurfaceEnum.DIRT : {'color':(160/255.0,82/255.0,45/255.0,0.2),'pointSize':0},
+    RoadgraphSurfaceEnum.GRASS : {'color':(50/255.0,255/255.0,50/255.0,0.2),'pointSize':0},
+    RoadgraphSurfaceEnum.GRAVEL : {'color':(0.7,0.7,0.7,0.2),'pointSize':0},
+    None: {'color':(1,0,0,0.2),'pointSize':0},
 }
 
 REGION_TO_STYLE = {
-    RoadgraphRegionEnum.INTERSECTION : {'color':(0,1,0,0.5),'width':1},
-    RoadgraphRegionEnum.PARKING_LOT : {'color':(0,0,1,0.5),'width':1},
-    RoadgraphRegionEnum.CLOSED_COURSE : {'color':(1,0,0,0.5),'width':1},
-    RoadgraphRegionEnum.VIRTUAL : {'color':(0,0,0,0.5),'width':1},
+    RoadgraphRegionEnum.INTERSECTION : {'color':(0,1,0,0.5),'width':1,'pointSize':0},
+    RoadgraphRegionEnum.PARKING_LOT : {'color':(0,0,1,0.5),'width':1,'pointSize':0},
+    RoadgraphRegionEnum.CLOSED_COURSE : {'color':(1,0,0,0.5),'width':1,'pointSize':0},
+    RoadgraphRegionEnum.VIRTUAL : {'color':(0,0,0,0.5),'width':1,'pointSize':0},
 }
 
 def plot_pose(name : str, pose : ObjectPose, axis_len=0.1, label=True):
@@ -47,7 +59,7 @@ def plot_pose(name : str, pose : ObjectPose, axis_len=0.1, label=True):
     else:
         raise ValueError("Unknown frame %s" % pose.frame)
 
-def plot_object(name : str, obj : PhysicalObject, axis_len=None, outline=True, bbox=True, label=True):
+def plot_object(name : str, obj : PhysicalObject, type=None, axis_len=None, outline=True, solid=True, bbox=True, label=True):
     """Shows an object in the given axes.
 
     If axis_len is given, shows the object's pose with
@@ -58,6 +70,8 @@ def plot_object(name : str, obj : PhysicalObject, axis_len=None, outline=True, b
     If bbox is True, shows the object's bounding box.
     """
     height = obj.dimensions[2]
+    core_color = OBJECT_COLORS[type]
+    bbox_color = AUX_BBOX_COLOR
     if label:
         #add a point at the object's origin
         vis.add(name,obj.pose.translation(),size=5,color=(0,0,0,1))
@@ -69,37 +83,44 @@ def plot_object(name : str, obj : PhysicalObject, axis_len=None, outline=True, b
     if bbox or (outline and obj.outline is None): 
         bounds = obj.bounds()
         (xmin,xmax),(ymin,ymax),(zmin,zmax) = bounds
-        corners = [[xmin,ymin,0],[xmin,ymax,0],[xmax,ymax,0],[xmax,ymin,0]]
-        corners = [list(R.dot(c)+t) for c in corners]
-        corners.append(corners[0])
-        if not bbox:
-            vis.add(name+"_bbox1",corners,width=1,color=(1,0,0,1),hide_label=True)
-        else:
-            vis.add(name+"_bbox1",corners,width=1,color=(0,0,1,1),hide_label=True)
-        if height > 0:
-            corners = [[xmin,ymin,height],[xmin,ymax,height],[xmax,ymax,height],[xmax,ymin,height]]
+        if not solid:
+            corners = [[xmin,ymin,0.01],[xmin,ymax,0.01],[xmax,ymax,0.01],[xmax,ymin,0.01]]
             corners = [list(R.dot(c)+t) for c in corners]
             corners.append(corners[0])
             if not bbox:
-                vis.add(name+"_bbox2",corners,width=1,color=(1,0,0,1),hide_label=True)
+                vis.add(name+"_bbox1",corners,width=1,color=core_color,pointSize=0,hide_label=True)
             else:
-                vis.add(name+"_bbox2",corners,width=1,color=(0,0,1,1),hide_label=True)
+                vis.add(name+"_bbox1",corners,width=1,color=AUX_BBOX_COLOR,pointSize=0,hide_label=True)
+            if height > 0:
+                corners = [[xmin,ymin,height],[xmin,ymax,height],[xmax,ymax,height],[xmax,ymin,height]]
+                corners = [list(R.dot(c)+t) for c in corners]
+                corners.append(corners[0])
+                if not bbox:
+                    vis.add(name+"_bbox2",corners,width=1,color=core_color,pointSize=0,hide_label=True)
+                else:
+                    vis.add(name+"_bbox2",corners,width=1,color=AUX_BBOX_COLOR,pointSize=0,hide_label=True)
+        else:
+            prim = GeometricPrimitive()
+            prim.setAABB([xmin,ymin,0],[xmax,ymax,height])
+            g = Geometry3D(prim)
+            g.setCurrentTransform(so3.from_matrix(R),t)
+            vis.add(name+"_bbox",g,color=core_color[:3]+(0.5,),hide_label=True)
 
     #plot outline
     if outline and obj.outline:
         outline = [R.dot((p[0],p[1],0))+t for p in obj.outline]
         outline.append(outline[0])
-        vis.add(name+"_outline1",outline,width=1,color=(1,0,0,1),hide_label=True)
+        vis.add(name+"_outline1",outline,width=1,color=core_color,hide_label=True)
         if height > 0:
             outline = [R.dot((p[0],p[1],height))+t for p in obj.outline]
             outline.append(outline[0])
-            vis.add(name+"_outline2",outline,width=1,color=(1,0,0,1),hide_label=True)
+            vis.add(name+"_outline2",outline,width=1,color=core_color,hide_label=True)
 
 
 def plot_vehicle(vehicle : VehicleState, vehicle_model=None, axis_len=1.0):
     """Plots the vehicle in the given axes.  The coordinates
     of the vehicle are plotted in the vehicle's indicated frame."""
-    plot_object("vehicle",vehicle.to_object(), axis_len=0, label=False)
+    plot_object("vehicle",vehicle.to_object(), type=None, axis_len=0, solid=False, label=False)
     R = vehicle.pose.rotation()
     t = vehicle.pose.translation()
     T = (so3.from_matrix(R),t)
@@ -227,7 +248,7 @@ def plot_roadgraph(roadgraph : Roadgraph, route : Route = None):
     for k,o in roadgraph.static_obstacles.items():
         plot_object(k,o)
 
-def plot_scene(scene : SceneState, vehicle_model = None, xrange=None, yrange=None, title = None, show=True):
+def plot_scene(scene : SceneState, vehicle_model = None, title = None, show=True):
     for i in list(vis.scene().items.keys()):
         if not i.startswith("vehicle"):
             if not isinstance(vis.scene().items[i],vis.VisPlot):
@@ -240,36 +261,24 @@ def plot_scene(scene : SceneState, vehicle_model = None, xrange=None, yrange=Non
         vehicle_model.link(0).setParentTransform(*se3.from_ndarray(xform))
         vehicle_model.setConfig(vehicle_model.getConfig())
     
-    """
-    if xrange is not None:
-        if isinstance(xrange,(tuple,list)):
-            ax.set_xlim(xrange[0],xrange[1])
-        else:
-            ax.set_xlim(-xrange*0.2,xrange*0.8)
-    if yrange is not None:
-        if isinstance(yrange,(tuple,list)):
-            ax.set_ylim(yrange[0],yrange[1])
-        else:
-            ax.set_ylim(-yrange*0.5,yrange*0.5)
-    """
     #plot roadgraph
     plot_roadgraph(scene.roadgraph,scene.route)
     #plot vehicle and objects
     plot_vehicle(scene.vehicle, vehicle_model)
     for k,a in scene.agents.items():
-        plot_object(k,a)
+        plot_object(k,a,type=a.type)
     for k,o in scene.obstacles.items():
         plot_object(k,o)
     if title is None:
         if show:
             vis.add("title","Scene at t = %.2f" % scene.t, position=(10,10))
     else:
-        vis.add("title",title, position=(10,10))
+        vis.add("title",title)
     if show:
         vis.show()
 
-def plot(state : AllState, vehicle_model=None, xrange=None, yrange=None, title=None, show=True):
-    plot_scene(state, vehicle_model=vehicle_model, xrange=xrange, yrange=yrange, title=title, show=show)
+def plot(state : AllState, vehicle_model=None, title=None, show=True):
+    plot_scene(state, vehicle_model=vehicle_model, title=title, show=show)
     if state.route is not None:
         plot_path("route",state.route,color=(1,0.5,0,1))
     if state.trajectory is not None:
