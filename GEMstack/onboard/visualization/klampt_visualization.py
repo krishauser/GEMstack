@@ -2,6 +2,7 @@ from ..component import Component
 from klampt import vis
 from klampt.math import se3
 from klampt import *
+from ...mathutils.signal import OnlineLowPassFilter
 from ...utils import klampt_visualization
 import time
 import os
@@ -21,6 +22,7 @@ class KlamptVisualization(Component):
         self.last_yaw = None
         self.plot_values = {}
         self.plot_events = {}
+        self.vfilter = OnlineLowPassFilter(1.2, 30, 4)
 
         self.world = WorldModel()
         fn = os.path.abspath(os.path.join(__file__,"../../../knowledge/vehicle/model/gem_e2.urdf"))
@@ -56,8 +58,8 @@ class KlamptVisualization(Component):
         vp.camera.rot[1] = -0.15
         vp.camera.rot[2] = -math.pi/2
         vp.camera.dist = 20.0
-        vp.w = 1024
-        vp.h = 768
+        vp.w = 1280
+        vp.h = 720
         vp.clippingplanes = (0.1,1000)
         vis.setViewport(vp)
         vis.add("vehicle_plane",self.world.terrain(0),hide_label=True)
@@ -94,7 +96,8 @@ class KlamptVisualization(Component):
             #update pose of the vehicle
             if self.last_yaw is not None:
                 vp = vis.getViewport()
-                lookahead = 5.0*state.vehicle.v
+                v = self.vfilter(state.vehicle.v)
+                lookahead = 5.0*v
                 dx,dy = math.cos(state.vehicle.pose.yaw)*lookahead,math.sin(state.vehicle.pose.yaw)*lookahead
                 vp.camera.tgt = [state.vehicle.pose.x+dx,state.vehicle.pose.y+dy,1.5]
                 vp.camera.rot[2] += state.vehicle.pose.yaw - self.last_yaw
