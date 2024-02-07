@@ -70,7 +70,7 @@ class GNSSStateEstimator(Component):
         
 
 
-class FakeStateEstimator(Component):
+class OmniscientStateEstimator(Component):
     def __init__(self, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
         if 'gnss' not in vehicle_interface.sensors():
