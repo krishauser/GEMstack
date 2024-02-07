@@ -48,6 +48,8 @@ def longitudinal_plan(path: Path, acceleration: float, deceleration: float, max_
     print("(longitudinal_plan) before_points:", points)
     print("(longitudinal_plan) before_times:", times)
 
+    current_speed = min(current_speed, max_speed)
+    
     # Condition 1: Hitting the end of the path,
     #              decelerate with accel = -deceleration until velocity goes to 0.
     if len(points) < 3: # less than 3 waypoints, begin to decelerate (design by ourselves)
@@ -55,7 +57,6 @@ def longitudinal_plan(path: Path, acceleration: float, deceleration: float, max_
 
     # Condition 2: travel along the current speed
     elif acceleration == 0.0:
-        current_speed = min(current_speed, max_speed)
         traj = path.arc_length_parameterize(speed=current_speed)
         
     # Condition 3: accelerates from current speed toward max speed. Then travel along max speed
@@ -188,7 +189,6 @@ class YieldTrajectoryPlanner(Component):
             traj = longitudinal_plan(
                 route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         elif should_brake:
-            curr_v = min(curr_v, self.desired_speed)
             traj = longitudinal_brake(
                 route_with_lookahead, self.deceleration, curr_v)
         else:
