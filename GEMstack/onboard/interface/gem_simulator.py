@@ -99,9 +99,9 @@ class GEMDoubleIntegratorSimulation:
         reading.steering_wheel_angle = front2steer(phi)
         if acceleration > 0:
             reading.brake_pedal_position = 0.0
-            reading.accelerator_pedal_position = acceleration
+            reading.accelerator_pedal_position = accelerator_pedal_position
         else:
-            reading.brake_pedal_position = -acceleration
+            reading.brake_pedal_position = brake_pedal_position
             reading.accelerator_pedal_position = 0
         reading.speed = v
         if v > 0:
