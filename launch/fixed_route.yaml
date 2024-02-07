@@ -45,3 +45,23 @@ replay:  # Add items here to set certain topics / inputs to be replayed from log
 
 #usually can keep this constant
 computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
+
+#on load, variants will overload the settings structure
+variants:
+    #sim variant doesn't execute on the real vehicle or log ros topics
+    sim:
+        run:
+            mode: simulation
+            vehicle_interface:
+                type: gem_simulator.GEMDoubleIntegratorSimulationInterface
+                args:
+                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+
+            drive: 
+                perception:
+                    state_estimation : FakeStateEstimator
+            visualization: !include "klampt_visualization.yaml"
+
+            log:
+                ros_topics : []
+        
