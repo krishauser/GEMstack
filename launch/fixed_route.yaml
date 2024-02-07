@@ -16,7 +16,9 @@ drive:
             type: StaticRoutePlanner
             args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
         motion_planning: RouteToTrajectoryPlanner
-        trajectory_tracking: pure_pursuit.PurePursuitTrajectoryTracker
+        trajectory_tracking:
+            type: pure_pursuit.PurePursuitTrajectoryTracker
+            print: False
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 

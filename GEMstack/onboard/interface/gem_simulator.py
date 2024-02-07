@@ -2,6 +2,7 @@ from typing import List
 from .gem import *
 from ...mathutils.dubins import SecondOrderDubinsCar
 from ...mathutils.dynamics import simulate
+from ...mathutils import transforms
 from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,Sign,AllState
 from ...knowledge.vehicle.geometry import front2steer,steer2front,heading_rate
 from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration, acceleration_to_pedal_positions
@@ -74,13 +75,15 @@ class AgentSimulation:
                 self.seek_target(self.target,dt)
             elif self.target_path is not None:
                 raise NotImplementedError("Path following not implemented yet")
-        elif self.behavior == 'looping':
+        elif self.behavior == 'loop':
             if self.target is not None:
                 self.seek_target(self.target,dt)
                 if np.linalg.norm((self.position[0]-self.target[0],self.position[1]-self.target[1])) < self.target_radius:
                     self.target,self.start = self.start,self.target
             elif self.target_path is not None:
                 raise NotImplementedError("Path following not implemented yet")
+        else:
+            raise ValueError("Unknown behavior "+self.behavior)
         
     def seek_target(self,target,dt):
         dx = target[0] - self.position[0]
@@ -97,6 +100,7 @@ class AgentSimulation:
         if 0.5*v**2/AGENT_NOMINAL_ACCELERATION[self.type] > dleft:
             v -= AGENT_NOMINAL_ACCELERATION[self.type]*dt
         self.velocity = [v*direction[0],v*direction[1]]
+        self.position = transforms.vector_madd(self.position,self.velocity,dt)
 
 
 class GEMDoubleIntegratorSimulation:
