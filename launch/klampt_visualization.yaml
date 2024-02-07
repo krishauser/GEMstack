@@ -1,0 +1,7 @@
+type: klampt_visualization.KlamptVisualization
+args:
+    rate: 20
+    #Don't include save_as if you don't want to save the video
+    save_as:
+    #save_as: "fixed_route_sim.mp4"
+
