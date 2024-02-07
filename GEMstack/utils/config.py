@@ -2,6 +2,7 @@ import json
 import yaml
 import os
 from typing import Any, IO
+import collections
 
 def save_config(fn : str, config : dict) -> None:
     """Saves a configuration file."""
@@ -85,3 +86,21 @@ def _load_recursive(obj, folder : str):
         elif obj.startswith('!!include'):
             return obj[1:]
     return obj
+
+
+
+def update_recursive(d : dict, u : dict) -> dict:
+    """Updates a dictionary d with another dictionary u recursively.
+
+    The update happens in-place and d is returned.
+    """
+    if not isinstance(d, collections.abc.Mapping):
+        raise ValueError("Trying to update a non-dict with a dict")
+    for k, v in u.items():
+        if isinstance(v, collections.abc.Mapping):
+            if not isinstance(d.get(k, {}), collections.abc.Mapping):
+                d[k] = {}
+            d[k] = update_recursive(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
