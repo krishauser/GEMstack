@@ -64,7 +64,7 @@ def test_longitudinal_planning():
 
     test_traj = longitudinal_brake(test_path_3, 2.0, 10.0)
     plt.plot(test_traj.times,[p[0] for p in test_traj.points])
-    plt.title("Too little time to stop, braking at 10 m/s")
+    plt.title("has time to stop, braking at 10 m/s")
     plt.xlabel('time')
     plt.ylabel('position')
     plt.show()
