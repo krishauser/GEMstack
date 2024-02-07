@@ -23,7 +23,9 @@ class VehicleState:
     """Represents the state of the ego-vehicle."""
     pose : ObjectPose                       #pose of the vehicle with origin at rear axle center. Includes time
     v : float                               #forward velocity in m/s
-    acceleration : float                    #current acceleration / deceleration in m/s^2
+    accelerator_pedal_position : float      #current accelerator pedal position, in [0,1]
+    brake_pedal_position : float            #current brake pedal position, in [0,1]
+    acceleration : float                    #current estimated acceleration / deceleration in m/s^2
     steering_wheel_angle : float            #angle of the steering wheel, in radians
     front_wheel_angle : float               #angle of the front wheels, in radians.   Related to steering_wheel_angle by a fixed transform
     heading_rate : float                    #the rate at which the vehicle is turning, in radians/s.  Related to v and front_wheel_angle by a fixed transform
@@ -36,12 +38,12 @@ class VehicleState:
 
     @staticmethod
     def zero():
-        return VehicleState(ObjectPose(ObjectFrameEnum.START,0,0,0),0,0,0,0,0,VehicleGearEnum.PARK,False,False,False,0)
+        return VehicleState(ObjectPose(ObjectFrameEnum.START,0,0,0),0,0,0,0,0,0,0,VehicleGearEnum.PARK,False,False,False,0)
     
     def to_object(self) -> PhysicalObject:
         """Extracts out the geometry of the object using the vehicle's
-        current geometry in settings.  The object's origin will be in the
-        middle of the vehicle.
+        current geometry in settings.  Note that the object's origin will be in the
+        middle of the vehicle, NOT the true vehicle reference point (rear axle center).
         """
         from ..utils import settings
         xbounds,ybounds,zbounds = settings.get('vehicle.geometry.bounds')

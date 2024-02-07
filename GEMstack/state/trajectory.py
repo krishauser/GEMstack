@@ -254,7 +254,7 @@ class Trajectory(Path):
         Returns (distance, closest_time)
         """
         param_range = [self.time_to_parameter(time_range[0]),self.time_to_parameter(time_range[1])]
-        print("Searching within range",param_range)
+        #print("Searching within time range",time_range,"= param range",param_range)
         distance, closest_index = Path.closest_point_local(self,x,param_range,edges)
         closest_time = self.parameter_to_time(closest_index)
         return distance, closest_time
