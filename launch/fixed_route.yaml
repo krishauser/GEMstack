@@ -59,8 +59,10 @@ variants:
 
             drive: 
                 perception:
-                    state_estimation : FakeStateEstimator
+                    state_estimation : OmniscientStateEstimator
+                    agent_detection : OmniscientAgentDetector
             visualization: !include "klampt_visualization.yaml"
+            #visualization: !include "mpl_visualization.yaml"
 
             log:
                 ros_topics : []
