@@ -11,6 +11,8 @@ def main():
     if settings.get('variant',None) is not None:
         variant = settings.get('variant')
         variants = variant.split(',')
+        def caution_callback(k,variant):
+            print(EXECUTION_PREFIX,"variant {} defines key {} which is not found in normal settings".format(variant,k))
         for v in variants:
             if v not in settings.get('variants',{}):
                 if v not in settings.get('run.variants',{}):
@@ -19,12 +21,12 @@ def main():
                     raise ValueError("Variant "+v+" not found")
                 else:
                     overrides = settings.get('run.variants.'+v)
-                    print("APPYING VARIANT",overrides)
-                    config.update_recursive(settings.settings(),overrides)
+                    print(EXECUTION_PREFIX,"APPYING VARIANT",overrides)
+                    config.update_recursive(settings.settings(),overrides,lambda k:caution_callback(k,v))
             else:
                 overrides = settings.get('variants.'+v)
-                print("APPYING VARIANT",overrides)
-                config.update_recursive(settings.settings(),overrides)
+                print(EXECUTION_PREFIX,"APPYING VARIANT",overrides)
+                config.update_recursive(settings.settings(),overrides,lambda k:caution_callback(k,v))
         #don't need this to be saved in the log
         if 'variants' in settings.settings():
             del settings.settings()['variants']
