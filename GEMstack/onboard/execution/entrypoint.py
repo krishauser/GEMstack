@@ -5,9 +5,33 @@ import multiprocessing
 from typing import Dict,List,Optional
 import os
 
-
 def main():
     """The main entrypoint for the execution stack."""
+    #first, process settings variants
+    if settings.get('variant',None) is not None:
+        variant = settings.get('variant')
+        variants = variant.split(',')
+        def caution_callback(k,variant):
+            print(EXECUTION_PREFIX,"variant {} defines key {} which is not found in normal settings".format(variant,k))
+        for v in variants:
+            if v not in settings.get('variants',{}):
+                if v not in settings.get('run.variants',{}):
+                    print(EXECUTION_PREFIX,"Error, variant",v,"not found in settings")
+                    print(EXECUTION_PREFIX,"Available variants are",list(settings.get('variants',{}).keys())+list(settings.get('run.variants',{}).keys()))
+                    raise ValueError("Variant "+v+" not found")
+                else:
+                    overrides = settings.get('run.variants.'+v)
+                    print(EXECUTION_PREFIX,"APPYING VARIANT",overrides)
+                    config.update_recursive(settings.settings(),overrides,lambda k:caution_callback(k,v))
+            else:
+                overrides = settings.get('variants.'+v)
+                print(EXECUTION_PREFIX,"APPYING VARIANT",overrides)
+                config.update_recursive(settings.settings(),overrides,lambda k:caution_callback(k,v))
+        #don't need this to be saved in the log
+        if 'variants' in settings.settings():
+            del settings.settings()['variants']
+        if 'svariant' in settings.get('run'):
+            del settings.get('run')['variants']
 
     multiprocessing.set_start_method('spawn')    
     runconfig = settings.get('run')
