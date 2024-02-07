@@ -125,8 +125,64 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     """Generates a longitudinal trajectory for braking along a path."""
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
-    points = [p for p in path_normalized.points]
-    times = [t for t in path_normalized.times]
+    points = []
+    times = []
+
+    # Add the first point and time
+    points.append(path_normalized.points[0])
+    times.append(0.0)
+
+    if current_speed == 0:
+        return Trajectory(path.frame, points, times)
+
+    cur_point = path_normalized.points[0]
+    next_point = path_normalized.points[-1]
+    disp = normalize_vector(vector_sub(next_point, cur_point))
+
+    # Resolution for Euler integration
+    resolution = 0.05
+
+    def euler_integration(t, resolution, current_speed, acceleration, current_point):
+        int_speed = current_speed
+        int_point = current_point
+        for _ in arange(0, t, resolution):
+            
+            # Get the time of the intermediate point
+            times.append(times[-1] + resolution)
+
+            # Get the distance of the intermediate point
+            distance_traveled = int_speed * resolution + 0.5 * acceleration * resolution**2
+
+            # Add an intermediate point
+            next_int_point = vector_madd(int_point, disp, distance_traveled)
+            points.append(next_int_point)
+
+            # Update the current point
+            int_point = next_int_point
+            int_speed = int_speed + acceleration * resolution
+
+        return int_point, int_speed
+
+    # Calculate the distance to the next point
+    distance = vector_dist(cur_point, next_point)
+
+    # Calculate the time and dist to decelerate to 0 from current speed
+    decel_time = current_speed / deceleration
+
+    # Calculate the distance we travel while decelerating
+    decel_distance = current_speed * decel_time - 0.5 * deceleration * decel_time**2
+
+    # Calculate the distance we can travel at the current speed
+    straight_distance = distance - decel_distance
+    if straight_distance < 0:
+        straight_distance = 0
+
+    # Euler integration to find points and times for straight travel
+    int_point, int_speed = euler_integration(straight_distance / current_speed, resolution, current_speed, 0, cur_point)
+
+    # Euler integration to find points and times for decelerating
+    cur_point, current_speed = euler_integration(decel_time, resolution, int_speed, -1 * deceleration, int_point)
+
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
