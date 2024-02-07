@@ -1,0 +1,7 @@
+type: mpl_visualization.MPLVisualization
+args:
+    rate: 8
+    #Don't include save_as if you don't want to save the video
+    save_as:
+    #save_as: "fixed_route_sim.mp4"
+multiprocess: True
