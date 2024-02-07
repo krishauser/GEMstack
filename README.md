@@ -168,7 +168,7 @@ Legend:
 
 You will launch a simulation using:
 
-- `python3 main.py launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred simulation launch file.  Inspect the simulator classes in `GEMstack/onboard/interface/gem_simulator.py` for more information about configuring the simulator.
+- `python3 main.py --variant=sim launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred launch file.  Try `python3 main.py --variant=sim launch/fixed_route.yaml`.  Inspect the simulator classes in `GEMstack/onboard/interface/gem_simulator.py` for more information about configuring the simulator.
 
 To launch onboard behavior you will open Terminator / tmux and split it into three terminal windows. In each of them run:
 
