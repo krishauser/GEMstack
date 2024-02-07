@@ -17,6 +17,10 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
+    
+
+
+
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
@@ -26,8 +30,40 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
-    times = [t for t in path_normalized.times]
-    trajectory = Trajectory(path.frame,points,times)
+    # times = [t for t in path_normalized.times]
+    times = [0]
+
+    print("points", points)
+    print('times', times)
+    last_pos = points[-1][0]
+   
+    init_speed = current_speed
+    t_stop = init_speed / deceleration
+    p_stop = points[0][0] + init_speed**2 / (2*deceleration)
+    print("t_stop", t_stop) 
+    print("p_stop", p_stop)
+    last_reach_point_idx = 0
+    for i in range(1,len(points)):
+        position = points[i][0]
+        if position <= p_stop:
+            # current_speed = init_speed - times[i] * deceleration
+            # points[i] = (points[0][0] + times[i]*init_speed - 1/2 * times[i]**2 * deceleration, points[i][1])
+            displacement = points[i][0] - points[0][0]
+            time_position = -init_speed / deceleration + (init_speed**2 + 2*deceleration*displacement)**0.5 / deceleration
+            times.append(time_position)
+            last_reach_point_idx = i
+        else:
+            break
+    points = points[:last_reach_point_idx+1]
+    times = times[:last_reach_point_idx+1]
+    if p_stop < last_pos:
+        times.append(t_stop)
+        points.append((p_stop, points[last_reach_point_idx][1]))
+    
+    print("points", points)
+    print('times', times)
+    
+    trajectory = Trajectory(path.frame, points, times)
     return trajectory
 
 
