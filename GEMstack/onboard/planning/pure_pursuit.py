@@ -15,35 +15,38 @@ class PurePursuit(object):
         self.look_ahead = lookahead if lookahead is not None else settings.get('control.pure_pursuit.lookahead',4.0)
         self.look_ahead_scale = lookahead_scale if lookahead_scale is not None else settings.get('control.pure_pursuit.lookahead_scale',3.0)
         self.crosstrack_gain = crosstrack_gain if crosstrack_gain is not None else settings.get('control.pure_pursuit.crosstrack_gain',0.41)
+        self.front_wheel_angle_scale = 3.0
         self.wheelbase  = wheelbase if wheelbase is not None else settings.get('vehicle.geometry.wheelbase')
         self.wheel_angle_range = [settings.get('vehicle.geometry.min_wheel_angle'),settings.get('vehicle.geometry.max_wheel_angle')]
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         
         self.desired_speed = settings.get('control.pure_pursuit.desired_speed',2.5)  #approximately 5 mph
-        self.path_is_timed = False
-        self.desired_speed_from_path = True    #turn this to True to use the input trajectory to determine the desired speed
+        self.desired_speed_from_path = False    #turn this to True to use the input trajectory to determine the desired speed
         self.max_accel     = settings.get('vehicle.limits.max_acceleration') # m/s^2
         self.max_decel     = settings.get('vehicle.limits.max_deceleration') # m/s^2
         self.pid_speed     = PID(settings.get('control.longitudinal_control.pid_p',0.5), settings.get('control.longitudinal_control.pid_d',0.0), settings.get('control.longitudinal_control.pid_i',0.1), windup_limit=20)
 
-        self.path = None
+        self.path = None         # type: Path
+        #if trajectory = None, then only an untimed path was provided and we can't use the path velocity as the reference
+        self.trajectory = None   # type: Trajectory
+
         self.current_path_parameter = 0.0
         self.t_last = None
 
     def set_path(self, path : Path):
-        if path == self.path:
+        if path == self.path or path == self.trajectory:
             return
-        self.path = path
-        if len(self.path.points[0]) > 2:
-            self.path = self.path.get_dims([0,1])
-        if not isinstance(self.path,Trajectory):
-            self.path = self.path.arc_length_parameterize()
-            self.path_is_timed = False
+        if len(path.points[0]) > 2:
+            path = path.get_dims([0,1])
+        if not isinstance(path,Trajectory):
+            self.path = path.arc_length_parameterize()
+            self.trajectory = None
             self.desired_speed_from_path = False
             if self.desired_speed_from_path:
                 raise ValueError("Can't provide an untimed path to PurePursuit and expect it to use the path velocity")
         else:
-            self.path_is_timed = True
+            self.path = path.arc_length_parameterize()
+            self.trajectory = path
         self.current_path_parameter = 0.0
 
     def compute(self, state : VehicleState):
@@ -63,20 +66,32 @@ class PurePursuit(object):
             #just stop
             accel = self.pid_speed.advance(0.0, t)
             # TODO
+            raise RuntimeError("Behavior without path not implemented")
 
         if self.path.frame != state.pose.frame:
             print("Transforming path from",self.path.frame.name,"to",state.pose.frame.name)
             self.path = self.path.to_frame(state.pose.frame)
+        if self.trajectory is not None:
+            if self.trajectory.frame != state.pose.frame:
+                print("Transforming trajectory from",self.trajectory.frame.name,"to",state.pose.frame.name)
+                self.trajectory = self.trajectory.to_frame(state.pose.frame)
 
         closest_dist,closest_parameter = self.path.closest_point_local((curr_x,curr_y),[self.current_path_parameter-5.0,self.current_path_parameter+5.0])
-        #TODO: calculate parameter that is look_ahead distance away from the closest point
+        #TODO: calculate parameter that is look_ahead distance away from the closest point?
         #(rather than just advancing the parameter)
         des_parameter = closest_parameter + self.look_ahead + self.look_ahead_scale * speed
         self.current_path_parameter = closest_parameter
         print("Closest parameter: " + str(closest_parameter),"distance to path",closest_dist)
         print("Closest point",self.path.eval(closest_parameter),"vs",(curr_x,curr_y))
-        desired_x,desired_y = self.path.eval(des_parameter)
+        if des_parameter >= self.path.domain()[1]:
+            #we're at the end of the path, calculate desired point by extrapolating from the end of the path
+            end_pt = self.path.points[-1]
+            end_dir = self.path.eval_tangent(self.path.domain()[1])
+            desired_x,desired_y = transforms.vector_madd(end_pt,end_dir,(des_parameter-self.path.domain()[1]))
+        else:
+            desired_x,desired_y = self.path.eval(des_parameter)
         desired_yaw = np.arctan2(desired_y-curr_y,desired_x-curr_x)
+        print("Desired point",(desired_x,desired_y)," with lookahead distance",self.look_ahead + self.look_ahead_scale * speed)
         print("Current yaw",curr_yaw,"desired yaw",desired_yaw)
 
         # distance between the desired point and the vehicle
@@ -90,7 +105,7 @@ class PurePursuit(object):
         # ----------------- tuning this part as needed -----------------
         k       = self.crosstrack_gain
         angle_i = np.arctan((k * 2 * self.wheelbase * np.sin(alpha)) / L) 
-        angle   = angle_i*2.0
+        angle   = angle_i*self.front_wheel_angle_scale
         # ----------------- tuning this part as needed -----------------
 
         f_delta = np.clip(angle, self.wheel_angle_range[0], self.wheel_angle_range[1])
@@ -107,11 +122,11 @@ class PurePursuit(object):
         feedforward_accel = 0.0
         if self.desired_speed_from_path:
             #determine desired speed from trajectory
-            deriv = self.path.eval_derivative(self.current_path_parameter)
+            deriv = self.trajectory.eval_derivative(self.current_path_parameter)
             desired_speed = np.linalg.norm(deriv)
             feedforward_accel = (desired_speed - speed)/dt 
             feedforward_accel= np.clip(feedforward_accel, -self.max_decel, self.max_accel)
-            print("Desired speed",desired_speed,"m/s")
+            print("Desired speed",desired_speed,"m/s","vs current speed",speed,"m/s")
             print("Feedforward accel: " + str(feedforward_accel) + " m/s^2")
         else:
             #decay speed when crosstrack error is high
