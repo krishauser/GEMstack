@@ -53,7 +53,9 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     last_pos = points[-1][0]
    
     init_speed = current_speed
+    # t_stop  -v(0) / a_min
     t_stop = init_speed / deceleration
+    # p_stop = p(0) - ((v(0) ** 2) / (2 * a_min))
     p_stop = points[0][0] + init_speed**2 / (2*deceleration)
     print("t_stop", t_stop) 
     print("p_stop", p_stop)
@@ -63,7 +65,8 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
         if position <= p_stop:
             displacement = position - points[0][0]
             #print(displacement)
-            time_position = (-init_speed + (init_speed**2 - 2*-deceleration*-displacement)**0.5) / -deceleration
+            # t = (v(0) +- sqrt((v(0) ** 2) + (2 * a_min * displacement))) / -a_min
+            time_position = (-init_speed + (init_speed**2 + 2*-deceleration*displacement)**0.5) / -deceleration
             times.append(time_position)
             last_reach_point_idx = i
         else:
