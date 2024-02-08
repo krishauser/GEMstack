@@ -76,21 +76,40 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
 
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
+    deltaT = 0.05
     """Generates a longitudinal trajectory for braking along a path."""
     #TODO: actually do something to points and times
     points = [p for p in path.points]
     # times = [t for t in path_normalized.times]
-    times = [0]
+    times = []
+    pointsr = []
+
 
     print("points before", [p[0] for p in points])
     print('times before', times)
+    print("points ret before", pointsr)
     last_pos = points[-1][0]
-   
-    init_speed = current_speed
-    t_stop = init_speed / deceleration
-    p_stop = points[0][0] + init_speed**2 / (2*deceleration)
-    print("t_stop", t_stop) 
-    print("p_stop", p_stop)
+    init_pos = points[0][0]
+    current_pos = points[0][0]
+    init_vel = current_speed
+    t_stop = init_vel / deceleration
+    p_stop = points[0][0] + init_vel**2 / (2*deceleration)
+    #print("t_stop", t_stop) 
+    #print("p_stop", p_stop)
+    time = 0
+    times.append(time)
+    pointsr.append(points[0])
+    while (time < t_stop and current_pos <= last_pos):
+        time += deltaT
+        current_pos = init_pos + time * init_vel - 0.5 * time**2 * deceleration
+        pointsr.append((current_pos,0))
+        times.append(time)
+
+    if p_stop < last_pos:
+        time += deltaT
+        times.append(time)
+        pointsr.append((current_pos,0))
+    """
     last_reach_point_idx = 0
     for i in range(1,len(points)):
         position = points[i][0]
@@ -107,11 +126,13 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     if p_stop < last_pos:
         times.append(t_stop)
         points.append((p_stop, points[last_reach_point_idx][1]))
-    
+    """
     print("points after", [p[0] for p in points])
     print('times after', times)
+    print("points ret after", pointsr)
     
-    trajectory = Trajectory(path.frame, points, times)
+
+    trajectory = Trajectory(path.frame, pointsr, times)
     return trajectory
 
 
