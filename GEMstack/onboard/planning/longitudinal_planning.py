@@ -40,6 +40,14 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     2. travel along max speed
     3. if at any point you can't brake before hitting the end of the path,
        decelerate with accel = -deceleration until velocity goes to 0.
+
+    The approach here involves solving for the equations in lecture. Basically there are two cases. 
+    1. -> we can't reach the max speed while stopping in time -> in this case we will have two phases. the 
+    acceleration phase and the deceleration phase. We have to solve for the position x_s, time t_s, speed v_s where we switch from acceleration to deceleration.
+    2. -> we can reach the max speed while stopping in time -> in this case we will have three phases. the acceleration phase, the max speed phase and the deceleration phase. 
+    We have to solve for the position x_s, time t_s, time T, speed v_s where we switch from acceleration to max speed and then from max speed to deceleration.
+    We used sympy to solve for the equations in the first case and in the second case we did it manually.
+    afterwards we just create the paths for each phase(acceleration, deceleration) using the variables we solved for and concatenate the paths together.
     """
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
@@ -57,9 +65,6 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     a1 = acceleration
     a2 = -deceleration
     vL = max_speed
-    # we will have 5 equations and 5 unknowns if we can reach max speed(ts1, ts2, xs1, xs2, T, Vs, xs)
-    # Define the equations based on the image provided
-    # we want the position when we reach maximum velocity
     delta_v = vL - v1
     ts1 = delta_v / a1 if a1 != 0 else 0
     xs1 = x1 + ts1*v1 + 0.5*(ts1**2)*a1
@@ -80,18 +85,31 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         times = acc_times + max_speed_times + dec_times 
         # use first equation to create path since we can't reach the max velocity without stopping
     else:
+        from sympy import symbols, Eq, solve
+        # Define the symbols
+        x_s, t_s, T, v_s = symbols('x_s t_s T v_s')
+        # Given equations based on the image provided
+        eq1 = Eq(v_s, v1 + a1 * t_s)
+        eq2 = Eq(x_s, x1 + v1 * t_s + 0.5 * a1 * t_s**2)
+        eq3 = Eq(v2, v_s + (T - t_s) * a2)
+        eq4 = Eq(x2, x_s + (T - t_s) * v_s + 0.5 * (T - t_s)**2 * a2)
+        # We'll solve for x_s, t_s, T, and v_s assuming that v1, x1, a1, a2 are constants.
+        # Since we want to take the positive root for the quadratic, we'll need to check the solutions.
+
+        # Solve the system of equations
+        solutions = solve((eq1, eq2, eq3, eq4), (x_s, t_s, T, v_s), dict=True)
+        valid_solutions = [sol for sol in solutions if sol[T] >= 0 and sol[t_s] >= 0]
+        # if no valid solutions just brake because we can't stop in time
+        if len(valid_solutions) == 0:
+            return longitudinal_brake(path, deceleration, current_speed)
         
-        print("Can't reach max speed without stopping")
+        T, ts, vs, xs = valid_solutions[0].values()
 
-
-    # brake down into 3 phases 
-    # accelerate until max speed 
-
-    # travel max speed
-
-    # decelerate until stopping
-    # how do we figure out when to do the deceleration phase?
-
+        acc_points, acc_times = create_path(init_pos=x1, init_time=0, init_vel=v1,acceleration=a1, stop_time=ts)
+        dec_points, dec_times = create_path(init_pos=xs, init_time=ts, init_vel=vs, acceleration=a2, stop_time=T)
+        points = acc_points + dec_points
+        points = [(p, y_coordinate) for p in points]
+        times = acc_times + dec_times
 
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
@@ -105,18 +123,13 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     times = []
     pointsr = []
 
-
-    print("points before", [p[0] for p in points])
-    print('times before', times)
-    print("points ret before", pointsr)
     last_pos = points[-1][0]
     init_pos = points[0][0]
     current_pos = points[0][0]
     init_vel = current_speed
     t_stop = init_vel / deceleration
     p_stop = points[0][0] + init_vel**2 / (2*deceleration)
-    #print("t_stop", t_stop) 
-    #print("p_stop", p_stop)
+
     time = 0
     times.append(time)
     pointsr.append(points[0])
@@ -130,28 +143,6 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
         time += DELTA_T
         times.append(time)
         pointsr.append((current_pos,0))
-    """
-    last_reach_point_idx = 0
-    for i in range(1,len(points)):
-        position = points[i][0]
-        if position <= p_stop:
-            displacement = position - points[0][0]
-            #print(displacement)
-            time_position = (-init_speed + (init_speed**2 - 2*-deceleration*-displacement)**0.5) / -deceleration
-            times.append(time_position)
-            last_reach_point_idx = i
-        else:
-            break
-    points = points[:last_reach_point_idx+1]
-    times = times[:last_reach_point_idx+1]
-    if p_stop < last_pos:
-        times.append(t_stop)
-        points.append((p_stop, points[last_reach_point_idx][1]))
-    """
-    print("points after", [p[0] for p in points])
-    print('times after', times)
-    print("points ret after", pointsr)
-    
 
     trajectory = Trajectory(path.frame, pointsr, times)
     return trajectory
