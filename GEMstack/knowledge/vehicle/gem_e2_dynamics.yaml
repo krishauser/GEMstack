@@ -2,15 +2,20 @@ mass: 200.0  #kg
 gravity: 9.81 #m/s^2
 longitudinal_friction : 1.0  # unitless
 lateral_friction : 1.0       # unitless
-max_brake_deceleration: 2.0  #m/s^2.  Deceleration at max brake pedal
+max_brake_deceleration: 8.0  #m/s^2.  Deceleration at max brake pedal
 max_accelerator_acceleration: #m/s^2. Acceleration at max accelerator pedal, by gear
   - 0.0
-  - 2.5
+  - 5.0
 max_accelerator_acceleration_reverse: 2.5 #m/s^2. Acceleration (backwards) in reverse gear
 max_accelerator_power:  #Watts.  Power at max accelerator pedal, by gear
   - 0.0
   - 10000.0
 max_accelerator_power_reverse: 10000.0 #Watts.  Power (backwards) in reverse gear
-internal_dry_deceleration: 0.01      #m/s^2: deceleration due to internal dry friction (non-speed dependent)
+
+acceleration_model : hang_v1
+accelerator_active_range : [0.32, 1.0]   #range of accelerator pedal where output acceleration is not flat
+brake_active_range : [0,1]             #range of brake pedal where output deceleration is not flat
+
+internal_dry_deceleration: 0.2      #m/s^2: deceleration due to internal dry friction (non-speed dependent)
 internal_viscous_deceleration: 0.05  #1/s: scales the current velocity to get deceleration due to internal viscous friction (speed dependent)
 aerodynamic_drag_coefficient: 0.01  #units in s, scaled by velocity^2 to get deceleration due to aerodynamic drag
