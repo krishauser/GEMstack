@@ -1,0 +1,11 @@
+17:15:26.830: Traceback (most recent call last):
+17:15:26.830:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:15:26.830:     res = self.c.update(*args)
+17:15:26.830:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/planning/pure_pursuit.py", line 163, in update
+17:15:26.830:     accel,wheel_angle = self.pure_pursuit.compute(vehicle)
+17:15:26.830:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/planning/pure_pursuit.py", line 89, in compute
+17:15:26.830:     end_dir = self.path.eval_tangent(self.path.domain()[1])
+17:15:26.830:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/trajectory.py", line 230, in eval_tangent
+17:15:26.830:     raise ValueError("Trajectory has no tangent: all points are coincident")
+17:15:26.830: ValueError: Trajectory has no tangent: all points are coincident
+17:15:26.830: 

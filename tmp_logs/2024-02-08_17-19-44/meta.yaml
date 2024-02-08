@@ -1,0 +1,19 @@
+events:
+- description: Ctrl+C pressed, switching to recovery mode
+  time: 1707434389.7141345
+  vehicle_time: 1707434389.6617763
+- description: Mission execution ended
+  time: 1707434389.9081864
+  vehicle_time: 1707434389.9007063
+exit_reason: Ctrl+C interrupt during recovery
+git_branch: s2024
+git_commit_id: 52e7dec707c9fb4f49f80f51e1906181fa05197a
+pipelines:
+- name: drive
+  time: 1707434384.9608295
+  vehicle_time: 1707434384.8607044
+- name: recovery
+  time: 1707434389.7153473
+  vehicle_time: 1707434389.6617763
+start_time: 1707434384.8366234
+start_time_human_readable: '2024-02-08 17:19:44'

@@ -1,0 +1,1190 @@
+17:13:28.555: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:28.555: Traceback (most recent call last):
+17:13:28.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:28.555:     res = self.c.update(*args)
+17:13:28.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:28.555:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:28.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:28.555:     newxy = self.apply(xyhead[:2])
+17:13:28.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:28.555:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:28.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:28.555:     import alvinxy.alvinxy as axy
+17:13:28.555: ModuleNotFoundError: No module named 'alvinxy'
+17:13:28.555: 
+17:13:28.655: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:28.655: Traceback (most recent call last):
+17:13:28.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:28.655:     res = self.c.update(*args)
+17:13:28.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:28.655:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:28.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:28.655:     newxy = self.apply(xyhead[:2])
+17:13:28.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:28.655:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:28.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:28.655:     import alvinxy.alvinxy as axy
+17:13:28.655: ModuleNotFoundError: No module named 'alvinxy'
+17:13:28.655: 
+17:13:28.755: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:28.755: Traceback (most recent call last):
+17:13:28.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:28.755:     res = self.c.update(*args)
+17:13:28.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:28.755:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:28.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:28.755:     newxy = self.apply(xyhead[:2])
+17:13:28.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:28.755:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:28.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:28.755:     import alvinxy.alvinxy as axy
+17:13:28.755: ModuleNotFoundError: No module named 'alvinxy'
+17:13:28.755: 
+17:13:28.855: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:28.855: Traceback (most recent call last):
+17:13:28.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:28.855:     res = self.c.update(*args)
+17:13:28.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:28.855:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:28.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:28.855:     newxy = self.apply(xyhead[:2])
+17:13:28.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:28.855:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:28.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:28.855:     import alvinxy.alvinxy as axy
+17:13:28.855: ModuleNotFoundError: No module named 'alvinxy'
+17:13:28.855: 
+17:13:28.955: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:28.955: Traceback (most recent call last):
+17:13:28.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:28.955:     res = self.c.update(*args)
+17:13:28.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:28.955:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:28.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:28.955:     newxy = self.apply(xyhead[:2])
+17:13:28.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:28.955:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:28.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:28.955:     import alvinxy.alvinxy as axy
+17:13:28.955: ModuleNotFoundError: No module named 'alvinxy'
+17:13:28.955: 
+17:13:29.055: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.055: Traceback (most recent call last):
+17:13:29.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.055:     res = self.c.update(*args)
+17:13:29.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.055:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.055:     newxy = self.apply(xyhead[:2])
+17:13:29.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.055:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.055:     import alvinxy.alvinxy as axy
+17:13:29.055: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.055: 
+17:13:29.155: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.155: Traceback (most recent call last):
+17:13:29.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.155:     res = self.c.update(*args)
+17:13:29.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.155:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.155:     newxy = self.apply(xyhead[:2])
+17:13:29.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.155:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.155:     import alvinxy.alvinxy as axy
+17:13:29.155: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.155: 
+17:13:29.255: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.255: Traceback (most recent call last):
+17:13:29.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.255:     res = self.c.update(*args)
+17:13:29.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.255:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.255:     newxy = self.apply(xyhead[:2])
+17:13:29.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.255:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.255:     import alvinxy.alvinxy as axy
+17:13:29.255: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.255: 
+17:13:29.355: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.355: Traceback (most recent call last):
+17:13:29.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.355:     res = self.c.update(*args)
+17:13:29.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.355:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.355:     newxy = self.apply(xyhead[:2])
+17:13:29.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.355:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.355:     import alvinxy.alvinxy as axy
+17:13:29.355: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.355: 
+17:13:29.455: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.455: Traceback (most recent call last):
+17:13:29.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.455:     res = self.c.update(*args)
+17:13:29.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.455:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.455:     newxy = self.apply(xyhead[:2])
+17:13:29.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.455:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.455:     import alvinxy.alvinxy as axy
+17:13:29.455: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.455: 
+17:13:29.555: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.555: Traceback (most recent call last):
+17:13:29.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.555:     res = self.c.update(*args)
+17:13:29.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.555:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.555:     newxy = self.apply(xyhead[:2])
+17:13:29.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.555:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.555:     import alvinxy.alvinxy as axy
+17:13:29.555: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.555: 
+17:13:29.655: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.655: Traceback (most recent call last):
+17:13:29.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.655:     res = self.c.update(*args)
+17:13:29.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.655:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.655:     newxy = self.apply(xyhead[:2])
+17:13:29.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.655:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.655:     import alvinxy.alvinxy as axy
+17:13:29.655: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.655: 
+17:13:29.755: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.755: Traceback (most recent call last):
+17:13:29.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.755:     res = self.c.update(*args)
+17:13:29.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.755:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.755:     newxy = self.apply(xyhead[:2])
+17:13:29.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.755:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.755:     import alvinxy.alvinxy as axy
+17:13:29.755: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.755: 
+17:13:29.855: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.855: Traceback (most recent call last):
+17:13:29.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.855:     res = self.c.update(*args)
+17:13:29.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.855:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.855:     newxy = self.apply(xyhead[:2])
+17:13:29.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.855:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.855:     import alvinxy.alvinxy as axy
+17:13:29.855: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.855: 
+17:13:29.955: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:29.955: Traceback (most recent call last):
+17:13:29.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:29.955:     res = self.c.update(*args)
+17:13:29.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:29.955:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:29.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:29.955:     newxy = self.apply(xyhead[:2])
+17:13:29.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:29.955:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:29.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:29.955:     import alvinxy.alvinxy as axy
+17:13:29.955: ModuleNotFoundError: No module named 'alvinxy'
+17:13:29.955: 
+17:13:30.055: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.055: Traceback (most recent call last):
+17:13:30.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.055:     res = self.c.update(*args)
+17:13:30.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.055:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.055:     newxy = self.apply(xyhead[:2])
+17:13:30.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.055:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.055:     import alvinxy.alvinxy as axy
+17:13:30.055: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.055: 
+17:13:30.155: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.155: Traceback (most recent call last):
+17:13:30.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.155:     res = self.c.update(*args)
+17:13:30.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.155:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.155:     newxy = self.apply(xyhead[:2])
+17:13:30.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.155:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.155:     import alvinxy.alvinxy as axy
+17:13:30.155: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.155: 
+17:13:30.255: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.255: Traceback (most recent call last):
+17:13:30.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.255:     res = self.c.update(*args)
+17:13:30.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.255:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.255:     newxy = self.apply(xyhead[:2])
+17:13:30.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.255:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.255:     import alvinxy.alvinxy as axy
+17:13:30.255: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.255: 
+17:13:30.355: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.355: Traceback (most recent call last):
+17:13:30.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.355:     res = self.c.update(*args)
+17:13:30.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.355:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.355:     newxy = self.apply(xyhead[:2])
+17:13:30.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.355:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.355:     import alvinxy.alvinxy as axy
+17:13:30.355: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.355: 
+17:13:30.455: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.455: Traceback (most recent call last):
+17:13:30.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.455:     res = self.c.update(*args)
+17:13:30.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.455:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.455:     newxy = self.apply(xyhead[:2])
+17:13:30.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.455:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.455:     import alvinxy.alvinxy as axy
+17:13:30.455: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.455: 
+17:13:30.555: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.555: Traceback (most recent call last):
+17:13:30.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.555:     res = self.c.update(*args)
+17:13:30.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.555:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.555:     newxy = self.apply(xyhead[:2])
+17:13:30.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.555:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.555:     import alvinxy.alvinxy as axy
+17:13:30.555: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.555: 
+17:13:30.655: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.655: Traceback (most recent call last):
+17:13:30.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.655:     res = self.c.update(*args)
+17:13:30.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.655:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.655:     newxy = self.apply(xyhead[:2])
+17:13:30.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.655:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.655:     import alvinxy.alvinxy as axy
+17:13:30.655: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.655: 
+17:13:30.755: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.755: Traceback (most recent call last):
+17:13:30.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.755:     res = self.c.update(*args)
+17:13:30.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.755:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.755:     newxy = self.apply(xyhead[:2])
+17:13:30.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.755:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.755:     import alvinxy.alvinxy as axy
+17:13:30.755: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.755: 
+17:13:30.855: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.855: Traceback (most recent call last):
+17:13:30.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.855:     res = self.c.update(*args)
+17:13:30.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.855:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.855:     newxy = self.apply(xyhead[:2])
+17:13:30.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.855:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.855:     import alvinxy.alvinxy as axy
+17:13:30.855: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.855: 
+17:13:30.955: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:30.955: Traceback (most recent call last):
+17:13:30.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:30.955:     res = self.c.update(*args)
+17:13:30.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:30.955:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:30.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:30.955:     newxy = self.apply(xyhead[:2])
+17:13:30.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:30.955:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:30.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:30.955:     import alvinxy.alvinxy as axy
+17:13:30.955: ModuleNotFoundError: No module named 'alvinxy'
+17:13:30.955: 
+17:13:31.055: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.055: Traceback (most recent call last):
+17:13:31.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.055:     res = self.c.update(*args)
+17:13:31.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.055:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.055:     newxy = self.apply(xyhead[:2])
+17:13:31.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.055:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.055:     import alvinxy.alvinxy as axy
+17:13:31.055: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.055: 
+17:13:31.155: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.155: Traceback (most recent call last):
+17:13:31.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.155:     res = self.c.update(*args)
+17:13:31.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.155:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.155:     newxy = self.apply(xyhead[:2])
+17:13:31.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.155:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.155:     import alvinxy.alvinxy as axy
+17:13:31.155: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.155: 
+17:13:31.255: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.255: Traceback (most recent call last):
+17:13:31.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.255:     res = self.c.update(*args)
+17:13:31.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.255:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.255:     newxy = self.apply(xyhead[:2])
+17:13:31.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.255:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.255:     import alvinxy.alvinxy as axy
+17:13:31.255: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.255: 
+17:13:31.355: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.355: Traceback (most recent call last):
+17:13:31.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.355:     res = self.c.update(*args)
+17:13:31.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.355:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.355:     newxy = self.apply(xyhead[:2])
+17:13:31.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.355:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.355:     import alvinxy.alvinxy as axy
+17:13:31.355: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.355: 
+17:13:31.455: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.455: Traceback (most recent call last):
+17:13:31.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.455:     res = self.c.update(*args)
+17:13:31.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.455:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.455:     newxy = self.apply(xyhead[:2])
+17:13:31.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.455:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.455:     import alvinxy.alvinxy as axy
+17:13:31.455: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.455: 
+17:13:31.555: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.555: Traceback (most recent call last):
+17:13:31.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.555:     res = self.c.update(*args)
+17:13:31.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.555:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.555:     newxy = self.apply(xyhead[:2])
+17:13:31.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.555:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.555:     import alvinxy.alvinxy as axy
+17:13:31.555: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.555: 
+17:13:31.655: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.655: Traceback (most recent call last):
+17:13:31.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.655:     res = self.c.update(*args)
+17:13:31.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.655:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.655:     newxy = self.apply(xyhead[:2])
+17:13:31.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.655:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.655:     import alvinxy.alvinxy as axy
+17:13:31.655: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.655: 
+17:13:31.755: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.755: Traceback (most recent call last):
+17:13:31.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.755:     res = self.c.update(*args)
+17:13:31.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.755:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.755:     newxy = self.apply(xyhead[:2])
+17:13:31.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.755:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.755:     import alvinxy.alvinxy as axy
+17:13:31.755: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.755: 
+17:13:31.855: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.855: Traceback (most recent call last):
+17:13:31.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.855:     res = self.c.update(*args)
+17:13:31.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.855:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.855:     newxy = self.apply(xyhead[:2])
+17:13:31.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.855:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.855:     import alvinxy.alvinxy as axy
+17:13:31.855: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.855: 
+17:13:31.955: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:31.955: Traceback (most recent call last):
+17:13:31.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:31.955:     res = self.c.update(*args)
+17:13:31.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:31.955:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:31.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:31.955:     newxy = self.apply(xyhead[:2])
+17:13:31.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:31.955:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:31.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:31.955:     import alvinxy.alvinxy as axy
+17:13:31.955: ModuleNotFoundError: No module named 'alvinxy'
+17:13:31.955: 
+17:13:32.055: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.055: Traceback (most recent call last):
+17:13:32.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.055:     res = self.c.update(*args)
+17:13:32.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.055:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.055:     newxy = self.apply(xyhead[:2])
+17:13:32.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.055:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.055:     import alvinxy.alvinxy as axy
+17:13:32.055: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.055: 
+17:13:32.155: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.155: Traceback (most recent call last):
+17:13:32.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.155:     res = self.c.update(*args)
+17:13:32.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.155:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.155:     newxy = self.apply(xyhead[:2])
+17:13:32.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.155:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.155:     import alvinxy.alvinxy as axy
+17:13:32.155: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.155: 
+17:13:32.255: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.255: Traceback (most recent call last):
+17:13:32.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.255:     res = self.c.update(*args)
+17:13:32.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.255:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.255:     newxy = self.apply(xyhead[:2])
+17:13:32.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.255:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.255:     import alvinxy.alvinxy as axy
+17:13:32.255: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.255: 
+17:13:32.355: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.355: Traceback (most recent call last):
+17:13:32.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.355:     res = self.c.update(*args)
+17:13:32.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.355:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.355:     newxy = self.apply(xyhead[:2])
+17:13:32.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.355:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.355:     import alvinxy.alvinxy as axy
+17:13:32.355: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.355: 
+17:13:32.455: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.455: Traceback (most recent call last):
+17:13:32.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.455:     res = self.c.update(*args)
+17:13:32.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.455:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.455:     newxy = self.apply(xyhead[:2])
+17:13:32.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.455:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.455:     import alvinxy.alvinxy as axy
+17:13:32.455: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.455: 
+17:13:32.555: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.555: Traceback (most recent call last):
+17:13:32.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.555:     res = self.c.update(*args)
+17:13:32.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.555:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.555:     newxy = self.apply(xyhead[:2])
+17:13:32.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.555:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.555:     import alvinxy.alvinxy as axy
+17:13:32.555: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.555: 
+17:13:32.655: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.655: Traceback (most recent call last):
+17:13:32.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.655:     res = self.c.update(*args)
+17:13:32.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.655:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.655:     newxy = self.apply(xyhead[:2])
+17:13:32.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.655:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.655:     import alvinxy.alvinxy as axy
+17:13:32.655: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.655: 
+17:13:32.755: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.755: Traceback (most recent call last):
+17:13:32.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.755:     res = self.c.update(*args)
+17:13:32.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.755:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.755:     newxy = self.apply(xyhead[:2])
+17:13:32.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.755:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.755:     import alvinxy.alvinxy as axy
+17:13:32.755: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.755: 
+17:13:32.855: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.855: Traceback (most recent call last):
+17:13:32.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.855:     res = self.c.update(*args)
+17:13:32.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.855:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.855:     newxy = self.apply(xyhead[:2])
+17:13:32.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.855:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.855:     import alvinxy.alvinxy as axy
+17:13:32.855: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.855: 
+17:13:32.955: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:32.955: Traceback (most recent call last):
+17:13:32.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:32.955:     res = self.c.update(*args)
+17:13:32.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:32.955:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:32.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:32.955:     newxy = self.apply(xyhead[:2])
+17:13:32.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:32.955:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:32.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:32.955:     import alvinxy.alvinxy as axy
+17:13:32.955: ModuleNotFoundError: No module named 'alvinxy'
+17:13:32.955: 
+17:13:33.055: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.055: Traceback (most recent call last):
+17:13:33.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.055:     res = self.c.update(*args)
+17:13:33.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.055:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.055:     newxy = self.apply(xyhead[:2])
+17:13:33.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.055:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.055:     import alvinxy.alvinxy as axy
+17:13:33.055: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.055: 
+17:13:33.155: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.155: Traceback (most recent call last):
+17:13:33.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.155:     res = self.c.update(*args)
+17:13:33.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.155:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.155:     newxy = self.apply(xyhead[:2])
+17:13:33.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.155:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.155:     import alvinxy.alvinxy as axy
+17:13:33.155: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.155: 
+17:13:33.255: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.255: Traceback (most recent call last):
+17:13:33.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.255:     res = self.c.update(*args)
+17:13:33.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.255:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.255:     newxy = self.apply(xyhead[:2])
+17:13:33.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.255:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.255:     import alvinxy.alvinxy as axy
+17:13:33.255: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.255: 
+17:13:33.355: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.355: Traceback (most recent call last):
+17:13:33.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.355:     res = self.c.update(*args)
+17:13:33.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.355:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.355:     newxy = self.apply(xyhead[:2])
+17:13:33.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.355:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.355:     import alvinxy.alvinxy as axy
+17:13:33.355: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.355: 
+17:13:33.455: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.455: Traceback (most recent call last):
+17:13:33.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.455:     res = self.c.update(*args)
+17:13:33.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.455:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.455:     newxy = self.apply(xyhead[:2])
+17:13:33.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.455:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.455:     import alvinxy.alvinxy as axy
+17:13:33.455: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.455: 
+17:13:33.555: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.555: Traceback (most recent call last):
+17:13:33.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.555:     res = self.c.update(*args)
+17:13:33.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.555:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.555:     newxy = self.apply(xyhead[:2])
+17:13:33.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.555:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.555:     import alvinxy.alvinxy as axy
+17:13:33.555: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.555: 
+17:13:33.655: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.655: Traceback (most recent call last):
+17:13:33.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.655:     res = self.c.update(*args)
+17:13:33.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.655:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.655:     newxy = self.apply(xyhead[:2])
+17:13:33.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.655:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.655:     import alvinxy.alvinxy as axy
+17:13:33.655: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.655: 
+17:13:33.755: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.755: Traceback (most recent call last):
+17:13:33.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.755:     res = self.c.update(*args)
+17:13:33.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.755:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.755:     newxy = self.apply(xyhead[:2])
+17:13:33.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.755:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.755:     import alvinxy.alvinxy as axy
+17:13:33.755: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.755: 
+17:13:33.855: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.855: Traceback (most recent call last):
+17:13:33.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.855:     res = self.c.update(*args)
+17:13:33.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.855:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.855:     newxy = self.apply(xyhead[:2])
+17:13:33.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.855:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.855:     import alvinxy.alvinxy as axy
+17:13:33.855: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.855: 
+17:13:33.955: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:33.955: Traceback (most recent call last):
+17:13:33.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:33.955:     res = self.c.update(*args)
+17:13:33.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:33.955:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:33.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:33.955:     newxy = self.apply(xyhead[:2])
+17:13:33.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:33.955:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:33.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:33.955:     import alvinxy.alvinxy as axy
+17:13:33.955: ModuleNotFoundError: No module named 'alvinxy'
+17:13:33.955: 
+17:13:34.055: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.055: Traceback (most recent call last):
+17:13:34.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.055:     res = self.c.update(*args)
+17:13:34.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.055:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.055:     newxy = self.apply(xyhead[:2])
+17:13:34.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.055:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.055:     import alvinxy.alvinxy as axy
+17:13:34.055: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.055: 
+17:13:34.155: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.155: Traceback (most recent call last):
+17:13:34.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.155:     res = self.c.update(*args)
+17:13:34.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.155:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.155:     newxy = self.apply(xyhead[:2])
+17:13:34.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.155:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.155:     import alvinxy.alvinxy as axy
+17:13:34.155: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.155: 
+17:13:34.255: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.255: Traceback (most recent call last):
+17:13:34.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.255:     res = self.c.update(*args)
+17:13:34.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.255:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.255:     newxy = self.apply(xyhead[:2])
+17:13:34.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.255:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.255:     import alvinxy.alvinxy as axy
+17:13:34.255: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.255: 
+17:13:34.355: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.355: Traceback (most recent call last):
+17:13:34.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.355:     res = self.c.update(*args)
+17:13:34.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.355:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.355:     newxy = self.apply(xyhead[:2])
+17:13:34.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.355:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.355:     import alvinxy.alvinxy as axy
+17:13:34.355: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.355: 
+17:13:34.455: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.455: Traceback (most recent call last):
+17:13:34.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.455:     res = self.c.update(*args)
+17:13:34.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.455:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.455:     newxy = self.apply(xyhead[:2])
+17:13:34.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.455:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.455:     import alvinxy.alvinxy as axy
+17:13:34.455: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.455: 
+17:13:34.555: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.555: Traceback (most recent call last):
+17:13:34.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.555:     res = self.c.update(*args)
+17:13:34.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.555:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.555:     newxy = self.apply(xyhead[:2])
+17:13:34.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.555:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.555:     import alvinxy.alvinxy as axy
+17:13:34.555: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.555: 
+17:13:34.655: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.655: Traceback (most recent call last):
+17:13:34.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.655:     res = self.c.update(*args)
+17:13:34.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.655:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.655:     newxy = self.apply(xyhead[:2])
+17:13:34.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.655:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.655:     import alvinxy.alvinxy as axy
+17:13:34.655: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.655: 
+17:13:34.755: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.755: Traceback (most recent call last):
+17:13:34.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.755:     res = self.c.update(*args)
+17:13:34.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.755:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.755:     newxy = self.apply(xyhead[:2])
+17:13:34.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.755:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.755:     import alvinxy.alvinxy as axy
+17:13:34.755: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.755: 
+17:13:34.855: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.855: Traceback (most recent call last):
+17:13:34.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.855:     res = self.c.update(*args)
+17:13:34.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.855:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.855:     newxy = self.apply(xyhead[:2])
+17:13:34.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.855:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.855:     import alvinxy.alvinxy as axy
+17:13:34.855: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.855: 
+17:13:34.955: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:34.955: Traceback (most recent call last):
+17:13:34.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:34.955:     res = self.c.update(*args)
+17:13:34.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:34.955:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:34.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:34.955:     newxy = self.apply(xyhead[:2])
+17:13:34.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:34.955:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:34.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:34.955:     import alvinxy.alvinxy as axy
+17:13:34.955: ModuleNotFoundError: No module named 'alvinxy'
+17:13:34.955: 
+17:13:35.055: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.055: Traceback (most recent call last):
+17:13:35.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.055:     res = self.c.update(*args)
+17:13:35.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.055:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.055:     newxy = self.apply(xyhead[:2])
+17:13:35.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.055:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.055:     import alvinxy.alvinxy as axy
+17:13:35.055: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.055: 
+17:13:35.155: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.155: Traceback (most recent call last):
+17:13:35.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.155:     res = self.c.update(*args)
+17:13:35.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.155:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.155:     newxy = self.apply(xyhead[:2])
+17:13:35.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.155:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.155:     import alvinxy.alvinxy as axy
+17:13:35.155: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.155: 
+17:13:35.255: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.255: Traceback (most recent call last):
+17:13:35.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.255:     res = self.c.update(*args)
+17:13:35.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.255:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.255:     newxy = self.apply(xyhead[:2])
+17:13:35.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.255:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.255:     import alvinxy.alvinxy as axy
+17:13:35.255: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.255: 
+17:13:35.355: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.355: Traceback (most recent call last):
+17:13:35.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.355:     res = self.c.update(*args)
+17:13:35.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.355:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.355:     newxy = self.apply(xyhead[:2])
+17:13:35.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.355:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.355:     import alvinxy.alvinxy as axy
+17:13:35.355: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.355: 
+17:13:35.455: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.455: Traceback (most recent call last):
+17:13:35.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.455:     res = self.c.update(*args)
+17:13:35.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.455:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.455:     newxy = self.apply(xyhead[:2])
+17:13:35.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.455:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.455:     import alvinxy.alvinxy as axy
+17:13:35.455: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.455: 
+17:13:35.555: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.555: Traceback (most recent call last):
+17:13:35.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.555:     res = self.c.update(*args)
+17:13:35.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.555:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.555:     newxy = self.apply(xyhead[:2])
+17:13:35.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.555:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.555:     import alvinxy.alvinxy as axy
+17:13:35.555: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.555: 
+17:13:35.655: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.655: Traceback (most recent call last):
+17:13:35.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.655:     res = self.c.update(*args)
+17:13:35.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.655:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.655:     newxy = self.apply(xyhead[:2])
+17:13:35.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.655:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.655:     import alvinxy.alvinxy as axy
+17:13:35.655: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.655: 
+17:13:35.755: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.755: Traceback (most recent call last):
+17:13:35.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.755:     res = self.c.update(*args)
+17:13:35.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.755:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.755:     newxy = self.apply(xyhead[:2])
+17:13:35.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.755:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.755:     import alvinxy.alvinxy as axy
+17:13:35.755: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.755: 
+17:13:35.855: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.855: Traceback (most recent call last):
+17:13:35.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.855:     res = self.c.update(*args)
+17:13:35.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.855:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.855:     newxy = self.apply(xyhead[:2])
+17:13:35.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.855:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.855:     import alvinxy.alvinxy as axy
+17:13:35.855: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.855: 
+17:13:35.955: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:35.955: Traceback (most recent call last):
+17:13:35.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:35.955:     res = self.c.update(*args)
+17:13:35.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:35.955:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:35.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:35.955:     newxy = self.apply(xyhead[:2])
+17:13:35.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:35.955:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:35.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:35.955:     import alvinxy.alvinxy as axy
+17:13:35.955: ModuleNotFoundError: No module named 'alvinxy'
+17:13:35.955: 
+17:13:36.055: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.055: Traceback (most recent call last):
+17:13:36.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.055:     res = self.c.update(*args)
+17:13:36.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.055:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.055:     newxy = self.apply(xyhead[:2])
+17:13:36.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.055:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.055:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.055:     import alvinxy.alvinxy as axy
+17:13:36.055: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.055: 
+17:13:36.155: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.155: Traceback (most recent call last):
+17:13:36.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.155:     res = self.c.update(*args)
+17:13:36.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.155:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.155:     newxy = self.apply(xyhead[:2])
+17:13:36.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.155:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.155:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.155:     import alvinxy.alvinxy as axy
+17:13:36.155: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.155: 
+17:13:36.255: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.255: Traceback (most recent call last):
+17:13:36.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.255:     res = self.c.update(*args)
+17:13:36.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.255:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.255:     newxy = self.apply(xyhead[:2])
+17:13:36.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.255:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.255:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.255:     import alvinxy.alvinxy as axy
+17:13:36.255: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.255: 
+17:13:36.355: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.355: Traceback (most recent call last):
+17:13:36.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.355:     res = self.c.update(*args)
+17:13:36.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.355:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.355:     newxy = self.apply(xyhead[:2])
+17:13:36.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.355:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.355:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.355:     import alvinxy.alvinxy as axy
+17:13:36.355: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.355: 
+17:13:36.455: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.455: Traceback (most recent call last):
+17:13:36.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.455:     res = self.c.update(*args)
+17:13:36.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.455:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.455:     newxy = self.apply(xyhead[:2])
+17:13:36.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.455:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.455:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.455:     import alvinxy.alvinxy as axy
+17:13:36.455: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.455: 
+17:13:36.555: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.555: Traceback (most recent call last):
+17:13:36.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.555:     res = self.c.update(*args)
+17:13:36.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.555:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.555:     newxy = self.apply(xyhead[:2])
+17:13:36.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.555:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.555:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.555:     import alvinxy.alvinxy as axy
+17:13:36.555: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.555: 
+17:13:36.655: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.655: Traceback (most recent call last):
+17:13:36.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.655:     res = self.c.update(*args)
+17:13:36.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.655:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.655:     newxy = self.apply(xyhead[:2])
+17:13:36.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.655:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.655:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.655:     import alvinxy.alvinxy as axy
+17:13:36.655: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.655: 
+17:13:36.755: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.755: Traceback (most recent call last):
+17:13:36.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.755:     res = self.c.update(*args)
+17:13:36.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.755:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.755:     newxy = self.apply(xyhead[:2])
+17:13:36.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.755:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.755:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.755:     import alvinxy.alvinxy as axy
+17:13:36.755: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.755: 
+17:13:36.855: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.855: Traceback (most recent call last):
+17:13:36.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.855:     res = self.c.update(*args)
+17:13:36.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.855:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.855:     newxy = self.apply(xyhead[:2])
+17:13:36.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.855:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.855:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.855:     import alvinxy.alvinxy as axy
+17:13:36.855: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.855: 
+17:13:36.955: Execution: Exception in component GNSSStateEstimator : No module named 'alvinxy'
+17:13:36.955: Traceback (most recent call last):
+17:13:36.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/execution/execution.py", line 219, in _do_update
+17:13:36.955:     res = self.c.update(*args)
+17:13:36.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/onboard/perception/state_estimation.py", line 56, in update
+17:13:36.955:     center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+17:13:36.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 161, in apply_xyhead
+17:13:36.955:     newxy = self.apply(xyhead[:2])
+17:13:36.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/state/physical_object.py", line 85, in apply
+17:13:36.955:     lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
+17:13:36.955:   File "/home/gem/cs588_group5/GEMstack/GEMstack/mathutils/transforms.py", line 121, in xy_to_lat_lon
+17:13:36.955:     import alvinxy.alvinxy as axy
+17:13:36.955: ModuleNotFoundError: No module named 'alvinxy'
+17:13:36.955: 

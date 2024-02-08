@@ -1,0 +1,1984 @@
+17:18:34.887: Searching within range [0.0, 50.00000000000002]
+17:18:34.887: Closest parameter: 0.0 distance to path 5.6557221790996634e-05
+17:18:34.887: Closest point [0.0, 0.0] vs (-3.249226413702703e-06, -5.646381021883381e-05)
+17:18:34.887: Current yaw 2.2570278834344037e-05 desired yaw 5.162154181623882e-05
+17:18:34.887: Closest point distance: 1.093803250683788
+17:18:34.887: Forward velocity: 0.01
+17:18:34.887: Crosstrack Error: 0.0
+17:18:34.887: Front steering angle: 0.02 degrees
+17:18:34.887: Steering wheel angle: 0.46 degrees
+17:18:34.887: Desired speed 0.06000000000000001 m/s
+17:18:34.887: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:34.887: Output acceleration 0.5500000000000002
+17:18:34.887: Current gear 1
+17:18:34.887: **************************
+17:18:34.887: Steer cmd angular position 0.008095914985759529 velocity limit 2.0
+17:18:34.887: Accel pedal position 0.5750000000000001 brake position 0
+17:18:34.887: **************************
+17:18:34.987: Searching within range [0.0, 50.00000000000002]
+17:18:34.987: Closest parameter: 0.0 distance to path 0.00011871382291974741
+17:18:34.987: Closest point [0.0, 0.0] vs (-6.664935758426873e-06, -0.00011852658091566293)
+17:18:34.987: Current yaw 5.003853073048958e-05 desired yaw 0.00010836154528158992
+17:18:34.987: Closest point distance: 1.09380667135762
+17:18:34.987: Forward velocity: 0.01
+17:18:34.987: Crosstrack Error: 0.0
+17:18:34.987: Front steering angle: 0.04 degrees
+17:18:34.987: Steering wheel angle: 0.93 degrees
+17:18:34.987: Desired speed 0.06000000000000001 m/s
+17:18:34.987: Feedforward accel: 0.4999158524055963 m/s^2
+17:18:34.987: Output acceleration 0.5499158524055963
+17:18:34.987: Current gear 1
+17:18:34.987: **************************
+17:18:34.987: Steer cmd angular position 0.016251486579833045 velocity limit 2.0
+17:18:34.987: Accel pedal position 0.5749915852405596 brake position 0
+17:18:34.987: **************************
+17:18:35.087: Searching within range [0.0, 50.00000000000002]
+17:18:35.087: Closest parameter: 0.0 distance to path 0.000620373301875546
+17:18:35.087: Closest point [0.0, 0.0] vs (-9.998596935283879e-06, 0.0006202927226231927)
+17:18:35.087: Current yaw 6.282534572236948 desired yaw -0.0005935758036825574
+17:18:35.087: Closest point distance: 1.0450101826923162
+17:18:35.087: Forward velocity: 0.0
+17:18:35.087: Crosstrack Error: 0.0
+17:18:35.087: Front steering angle: 0.04 degrees
+17:18:35.087: Steering wheel angle: 0.96 degrees
+17:18:35.087: Desired speed 0.05000000000000001 m/s
+17:18:35.087: Feedforward accel: 0.4999051274105505 m/s^2
+17:18:35.087: Output acceleration 0.5499051274105505
+17:18:35.087: Current gear 1
+17:18:35.087: **************************
+17:18:35.087: Steer cmd angular position 0.016670800941520698 velocity limit 2.0
+17:18:35.087: Accel pedal position 0.5749905127410551 brake position 0
+17:18:35.087: **************************
+17:18:35.187: Searching within range [0.0, 50.00000000000002]
+17:18:35.187: Closest parameter: 0.0 distance to path 0.0005910682428679757
+17:18:35.187: Closest point [0.0, 0.0] vs (-1.3672998342144787e-05, 0.0005909100750904252)
+17:18:35.187: Current yaw 6.2825320509334555 desired yaw -0.000565456727868007
+17:18:35.187: Closest point distance: 1.0450138400653852
+17:18:35.187: Forward velocity: 0.0
+17:18:35.187: Crosstrack Error: 0.0
+17:18:35.187: Front steering angle: 0.07 degrees
+17:18:35.187: Steering wheel angle: 1.47 degrees
+17:18:35.187: Desired speed 0.05000000000000001 m/s
+17:18:35.187: Feedforward accel: 0.49990631905394173 m/s^2
+17:18:35.187: Output acceleration 0.5499063190539417
+17:18:35.187: Current gear 1
+17:18:35.287: Searching within range [0.0, 50.00000000000002]
+17:18:35.287: Closest parameter: 0.0 distance to path 0.0005579137159847479
+17:18:35.287: Closest point [0.0, 0.0] vs (-1.7472037347839775e-05, 0.0005576400652704445)
+17:18:35.287: Current yaw 6.28253296294208 desired yaw -0.0005336178841625542
+17:18:35.287: Closest point distance: 1.045017620820707
+17:18:35.287: Forward velocity: 0.0
+17:18:35.287: Crosstrack Error: 0.0
+17:18:35.287: Front steering angle: 0.09 degrees
+17:18:35.287: Steering wheel angle: 1.98 degrees
+17:18:35.287: Desired speed 0.05000000000000001 m/s
+17:18:35.287: Feedforward accel: 0.49995875698806824 m/s^2
+17:18:35.287: Output acceleration 0.5499587569880683
+17:18:35.287: Current gear 1
+17:18:35.287: **************************
+17:18:35.287: Steer cmd angular position 0.034618842955888664 velocity limit 2.0
+17:18:35.287: Accel pedal position 0.5749958756988068 brake position 0
+17:18:35.287: **************************
+17:18:35.387: Searching within range [0.0, 50.00000000000002]
+17:18:35.387: Closest parameter: 0.0 distance to path 0.0005190817531952512
+17:18:35.387: Closest point [0.0, 0.0] vs (-2.0623755998447585e-05, 0.0005186718877949452)
+17:18:35.387: Current yaw 6.282544859120577 desired yaw -0.0004963268986412884
+17:18:35.387: Closest point distance: 1.0450207524714057
+17:18:35.387: Forward velocity: 0.0
+17:18:35.387: Crosstrack Error: 0.0
+17:18:35.387: Front steering angle: 0.11 degrees
+17:18:35.387: Steering wheel angle: 2.41 degrees
+17:18:35.387: Desired speed 0.05000000000000001 m/s
+17:18:35.387: Feedforward accel: 0.499783609620316 m/s^2
+17:18:35.387: Output acceleration 0.549783609620316
+17:18:35.387: Current gear 1
+17:18:35.387: **************************
+17:18:35.387: Steer cmd angular position 0.042019382033675015 velocity limit 2.0
+17:18:35.387: Accel pedal position 0.5749783609620316 brake position 0
+17:18:35.387: **************************
+17:18:35.487: Searching within range [0.0, 50.00000000000002]
+17:18:35.487: Closest parameter: 0.0 distance to path 0.0005088356899163337
+17:18:35.487: Closest point [0.0, 0.0] vs (-2.5501061191275847e-05, 0.0005081962762661195)
+17:18:35.487: Current yaw 6.282519005943421 desired yaw -0.0004863003206039349
+17:18:35.487: Closest point distance: 1.0450256246291996
+17:18:35.487: Forward velocity: 0.0
+17:18:35.487: Crosstrack Error: 0.0
+17:18:35.487: Front steering angle: 0.14 degrees
+17:18:35.487: Steering wheel angle: 3.01 degrees
+17:18:35.487: Desired speed 0.05000000000000001 m/s
+17:18:35.487: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:35.487: Output acceleration 0.5500000000000002
+17:18:35.487: Current gear 1
+17:18:35.487: **************************
+17:18:35.487: Steer cmd angular position 0.05247288533680673 velocity limit 2.0
+17:18:35.487: Accel pedal position 0.5750000000000001 brake position 0
+17:18:35.487: **************************
+17:18:35.587: Searching within range [0.0, 50.00000000000002]
+17:18:35.587: Closest parameter: 0.0 distance to path 0.0004911486513221185
+17:18:35.587: Closest point [0.0, 0.0] vs (-2.97414210692028e-05, 0.000490247331016009)
+17:18:35.587: Current yaw 6.282505747616086 desired yaw -0.0004691228159549092
+17:18:35.587: Closest point distance: 1.0450298564141753
+17:18:35.587: Forward velocity: 0.0
+17:18:35.587: Crosstrack Error: 0.0
+17:18:35.587: Front steering angle: 0.16 degrees
+17:18:35.587: Steering wheel angle: 3.51 degrees
+17:18:35.587: Desired speed 0.05000000000000001 m/s
+17:18:35.587: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:35.587: Output acceleration 0.5500000000000002
+17:18:35.587: Current gear 1
+17:18:35.687: Searching within range [0.0, 50.00000000000002]
+17:18:35.687: Closest parameter: 0.0 distance to path 0.0004409397701698822
+17:18:35.687: Closest point [0.0, 0.0] vs (-3.415833180874658e-05, 0.0004396147054927895)
+17:18:35.687: Current yaw 6.282522103746016 desired yaw -0.00042067015327292896
+17:18:35.687: Closest point distance: 1.0450342507982024
+17:18:35.687: Forward velocity: 0.0
+17:18:35.687: Crosstrack Error: 0.0
+17:18:35.687: Front steering angle: 0.19 degrees
+17:18:35.687: Steering wheel angle: 4.05 degrees
+17:18:35.687: Desired speed 0.05000000000000001 m/s
+17:18:35.687: Feedforward accel: 0.49976336239869035 m/s^2
+17:18:35.687: Output acceleration 0.5497633623986904
+17:18:35.687: Current gear 1
+17:18:35.687: **************************
+17:18:35.687: Steer cmd angular position 0.07068446259480753 velocity limit 2.0
+17:18:35.687: Accel pedal position 0.574976336239869 brake position 0
+17:18:35.687: **************************
+17:18:35.787: Searching within range [0.0, 50.00000000000002]
+17:18:35.787: Closest parameter: 0.0 distance to path 0.0003866646913419238
+17:18:35.787: Closest point [0.0, 0.0] vs (-3.874168932883356e-05, 0.00038471894291611556)
+17:18:35.787: Current yaw 6.282542251765236 desired yaw -0.00036813843371434645
+17:18:35.787: Closest point distance: 1.0450388125042438
+17:18:35.787: Forward velocity: 0.0
+17:18:35.787: Crosstrack Error: 0.0
+17:18:35.787: Front steering angle: 0.21 degrees
+17:18:35.787: Steering wheel angle: 4.59 degrees
+17:18:35.787: Desired speed 0.05000000000000001 m/s
+17:18:35.787: Feedforward accel: 0.4995966829375205 m/s^2
+17:18:35.787: Output acceleration 0.5495966829375205
+17:18:35.787: Current gear 1
+17:18:35.887: Searching within range [0.0, 50.00000000000002]
+17:18:35.887: Closest parameter: 0.0 distance to path 0.0003600888965524322
+17:18:35.887: Closest point [0.0, 0.0] vs (-4.3486860608995394e-05, 0.00035745336251701704)
+17:18:35.887: Current yaw 6.2825371940101045 desired yaw -0.0003420463866538817
+17:18:35.887: Closest point distance: 1.0450435479934248
+17:18:35.887: Forward velocity: 0.0
+17:18:35.887: Crosstrack Error: 0.0
+17:18:35.887: Front steering angle: 0.23 degrees
+17:18:35.887: Steering wheel angle: 5.11 degrees
+17:18:35.887: Desired speed 0.05000000000000001 m/s
+17:18:35.887: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:35.887: Output acceleration 0.5500000000000002
+17:18:35.887: Current gear 1
+17:18:35.887: **************************
+17:18:35.887: Steer cmd angular position 0.08917829945540867 velocity limit 2.0
+17:18:35.887: Accel pedal position 0.5750000000000001 brake position 0
+17:18:35.887: **************************
+17:18:35.987: Searching within range [0.0, 50.00000000000002]
+17:18:35.987: Closest parameter: 0.0 distance to path 0.0003151340003793825
+17:18:35.987: Closest point [0.0, 0.0] vs (-4.841581686723879e-05, 0.00031139259283449673)
+17:18:35.987: Current yaw 6.282549125569839 desired yaw -0.00029796952840251356
+17:18:35.987: Closest point distance: 1.0450484622096192
+17:18:35.987: Forward velocity: 0.0
+17:18:35.987: Crosstrack Error: 0.0
+17:18:35.987: Front steering angle: 0.26 degrees
+17:18:35.987: Steering wheel angle: 5.65 degrees
+17:18:35.987: Desired speed 0.05000000000000001 m/s
+17:18:35.987: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:35.987: Output acceleration 0.5500000000000002
+17:18:35.987: Current gear 1
+17:18:35.987: **************************
+17:18:35.987: Steer cmd angular position 0.09853182333837829 velocity limit 2.0
+17:18:35.987: Accel pedal position 0.5750000000000001 brake position 0
+17:18:35.987: **************************
+17:18:36.087: Searching within range [0.0, 50.00000000000002]
+17:18:36.087: Closest parameter: 0.0 distance to path 0.0011346215376851908
+17:18:36.087: Closest point [0.0, 0.0] vs (-5.2614696909086126e-05, 0.00113340095617053)
+17:18:36.087: Current yaw 6.281771810023601 desired yaw -0.0010845391857336646
+17:18:36.087: Closest point distance: 1.045053229305844
+17:18:36.087: Forward velocity: 0.0
+17:18:36.087: Crosstrack Error: 0.0
+17:18:36.087: Front steering angle: 0.25 degrees
+17:18:36.087: Steering wheel angle: 5.49 degrees
+17:18:36.087: Desired speed 0.05000000000000001 m/s
+17:18:36.087: Feedforward accel: 0.4999957085024105 m/s^2
+17:18:36.087: Output acceleration 0.5499957085024105
+17:18:36.087: Current gear 1
+17:18:36.187: Searching within range [0.0, 50.00000000000002]
+17:18:36.187: Closest parameter: 0.0 distance to path 0.0010870780639943868
+17:18:36.187: Closest point [0.0, 0.0] vs (-5.781745472480556e-05, 0.0010855394323316537)
+17:18:36.187: Current yaw 6.281785246909207 desired yaw -0.0010387358706652246
+17:18:36.187: Closest point distance: 1.0450583812491487
+17:18:36.187: Forward velocity: 0.0
+17:18:36.187: Crosstrack Error: 0.0
+17:18:36.187: Front steering angle: 0.28 degrees
+17:18:36.187: Steering wheel angle: 6.03 degrees
+17:18:36.187: Desired speed 0.05000000000000001 m/s
+17:18:36.187: Feedforward accel: 0.4993314158364922 m/s^2
+17:18:36.187: Output acceleration 0.5493314158364923
+17:18:36.187: Current gear 1
+17:18:36.187: **************************
+17:18:36.187: Steer cmd angular position 0.10525483733581281 velocity limit 2.0
+17:18:36.187: Accel pedal position 0.5749331415836493 brake position 0
+17:18:36.187: **************************
+17:18:36.287: Searching within range [0.0, 50.00000000000002]
+17:18:36.287: Closest parameter: 0.0 distance to path 0.0010878697989647906
+17:18:36.287: Closest point [0.0, 0.0] vs (-6.305091541643374e-05, 0.0010860411049149307)
+17:18:36.287: Current yaw 6.281754686672107 desired yaw -0.0010392107088693589
+17:18:36.287: Closest point distance: 1.0450636152282402
+17:18:36.287: Forward velocity: 0.0
+17:18:36.287: Crosstrack Error: 0.0
+17:18:36.287: Front steering angle: 0.3 degrees
+17:18:36.287: Steering wheel angle: 6.53 degrees
+17:18:36.287: Desired speed 0.05000000000000001 m/s
+17:18:36.287: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:36.287: Output acceleration 0.5500000000000002
+17:18:36.287: Current gear 1
+17:18:36.387: Searching within range [0.0, 50.00000000000002]
+17:18:36.387: Closest parameter: 0.0 distance to path 0.0010467750130532224
+17:18:36.387: Closest point [0.0, 0.0] vs (-6.844277064161678e-05, 0.0010445350712635132)
+17:18:36.387: Current yaw 6.281762284099691 desired yaw -0.0009994892972477927
+17:18:36.387: Closest point distance: 1.045068964771497
+17:18:36.387: Forward velocity: 0.0
+17:18:36.387: Crosstrack Error: 0.0
+17:18:36.387: Front steering angle: 0.33 degrees
+17:18:36.387: Steering wheel angle: 7.07 degrees
+17:18:36.387: Desired speed 0.05000000000000001 m/s
+17:18:36.387: Feedforward accel: 0.49977765438483196 m/s^2
+17:18:36.387: Output acceleration 0.549777654384832
+17:18:36.387: Current gear 1
+17:18:36.387: **************************
+17:18:36.387: Steer cmd angular position 0.12334590390381354 velocity limit 2.0
+17:18:36.387: Accel pedal position 0.5749777654384832 brake position 0
+17:18:36.387: **************************
+17:18:36.487: Searching within range [0.0, 50.00000000000002]
+17:18:36.487: Closest parameter: 0.0 distance to path 0.0010239831994883846
+17:18:36.487: Closest point [0.0, 0.0] vs (-7.392887282325832e-05, 0.0010213109783986224)
+17:18:36.487: Current yaw 6.281753215397557 desired yaw -0.0009772616319776552
+17:18:36.487: Closest point distance: 1.0450744279168795
+17:18:36.487: Forward velocity: 0.0
+17:18:36.487: Crosstrack Error: 0.0
+17:18:36.487: Front steering angle: 0.35 degrees
+17:18:36.487: Steering wheel angle: 7.59 degrees
+17:18:36.487: Desired speed 0.05000000000000001 m/s
+17:18:36.487: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:36.487: Output acceleration 0.5500000000000002
+17:18:36.487: Current gear 1
+17:18:36.587: Searching within range [0.0, 50.00000000000002]
+17:18:36.587: Closest parameter: 0.0 distance to path 0.0009193539246697732
+17:18:36.587: Closest point [0.0, 0.0] vs (-7.965896187344597e-05, 0.0009158963307050422)
+17:18:36.587: Current yaw 6.281818819765906 desired yaw -0.0008763887885138593
+17:18:36.587: Closest point distance: 1.0450800603025368
+17:18:36.587: Forward velocity: 0.0
+17:18:36.587: Crosstrack Error: 0.001
+17:18:36.587: Front steering angle: 0.38 degrees
+17:18:36.587: Steering wheel angle: 8.18 degrees
+17:18:36.587: Desired speed 0.05000000000000001 m/s
+17:18:36.587: Feedforward accel: 0.49984912657874864 m/s^2
+17:18:36.587: Output acceleration 0.5498491265787486
+17:18:36.587: Current gear 1
+17:18:36.587: **************************
+17:18:36.587: Steer cmd angular position 0.14269360339256418 velocity limit 2.0
+17:18:36.587: Accel pedal position 0.5749849126578749 brake position 0
+17:18:36.587: **************************
+17:18:36.687: Searching within range [0.0, 50.00000000000002]
+17:18:36.687: Closest parameter: 0.0 distance to path 0.0009174342527001113
+17:18:36.687: Closest point [0.0, 0.0] vs (-8.537108369066252e-05, 0.0009134535489541292)
+17:18:36.687: Current yaw 6.281790756372182 desired yaw -0.0008740466009907914
+17:18:36.687: Closest point distance: 1.0450857702842005
+17:18:36.687: Forward velocity: 0.0
+17:18:36.687: Crosstrack Error: 0.001
+17:18:36.687: Front steering angle: 0.4 degrees
+17:18:36.687: Steering wheel angle: 8.68 degrees
+17:18:36.687: Desired speed 0.05000000000000001 m/s
+17:18:36.687: Feedforward accel: 0.49987891269319157 m/s^2
+17:18:36.687: Output acceleration 0.5498789126931916
+17:18:36.687: Current gear 1
+17:18:36.687: **************************
+17:18:36.687: Steer cmd angular position 0.1515277386393996 velocity limit 2.0
+17:18:36.687: Accel pedal position 0.5749878912693192 brake position 0
+17:18:36.687: **************************
+17:18:36.787: Searching within range [0.0, 50.00000000000002]
+17:18:36.787: Closest parameter: 0.0 distance to path 0.0008918199042146778
+17:18:36.787: Closest point [0.0, 0.0] vs (-9.125521832799684e-05, 0.0008871387865950777)
+17:18:36.787: Current yaw 6.281784328237669 desired yaw -0.0008488623066018244
+17:18:36.787: Closest point distance: 1.0450916317476888
+17:18:36.787: Forward velocity: 0.0
+17:18:36.787: Crosstrack Error: 0.001
+17:18:36.787: Front steering angle: 0.42 degrees
+17:18:36.787: Steering wheel angle: 9.21 degrees
+17:18:36.787: Desired speed 0.05000000000000001 m/s
+17:18:36.787: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:36.787: Output acceleration 0.5500000000000002
+17:18:36.787: Current gear 1
+17:18:36.787: **************************
+17:18:36.787: Steer cmd angular position 0.16071022633301404 velocity limit 2.0
+17:18:36.787: Accel pedal position 0.5750000000000001 brake position 0
+17:18:36.787: **************************
+17:18:36.887: Searching within range [0.0, 50.00000000000002]
+17:18:36.887: Closest parameter: 0.0 distance to path 0.0008186347168963013
+17:18:36.887: Closest point [0.0, 0.0] vs (-9.735625704382025e-05, 0.0008128250481636899)
+17:18:36.887: Current yaw 6.281821484973122 desired yaw -0.0007777503975163764
+17:18:36.887: Closest point distance: 1.0450976723445617
+17:18:36.887: Forward velocity: 0.0
+17:18:36.887: Crosstrack Error: 0.001
+17:18:36.887: Front steering angle: 0.45 degrees
+17:18:36.887: Steering wheel angle: 9.77 degrees
+17:18:36.887: Desired speed 0.05000000000000001 m/s
+17:18:36.887: Feedforward accel: 0.4999635246184986 m/s^2
+17:18:36.887: Output acceleration 0.5499635246184986
+17:18:36.887: Current gear 1
+17:18:36.987: Searching within range [0.0, 50.00000000000002]
+17:18:36.987: Closest parameter: 0.0 distance to path 0.0007716494333813343
+17:18:36.987: Closest point [0.0, 0.0] vs (-0.00010356551241392993, 0.0007646679231379949)
+17:18:36.987: Current yaw 6.281834814074352 desired yaw -0.0007316669963818371
+17:18:36.987: Closest point distance: 1.0451038452535675
+17:18:36.987: Forward velocity: 0.0
+17:18:36.987: Crosstrack Error: 0.001
+17:18:36.987: Front steering angle: 0.47 degrees
+17:18:36.987: Steering wheel angle: 10.32 degrees
+17:18:36.987: Desired speed 0.05000000000000001 m/s
+17:18:36.987: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:36.987: Output acceleration 0.5500000000000002
+17:18:36.987: Current gear 1
+17:18:36.987: **************************
+17:18:36.987: Steer cmd angular position 0.18007971231840664 velocity limit 2.0
+17:18:36.987: Accel pedal position 0.5750000000000001 brake position 0
+17:18:36.987: **************************
+17:18:37.087: Searching within range [0.0, 50.00000000000002]
+17:18:37.087: Closest parameter: 0.0 distance to path 0.0013780906326157844
+17:18:37.087: Closest point [0.0, 0.0] vs (-0.00010882265239990372, 0.0013737872550100407)
+17:18:37.087: Current yaw 6.28125056588211 desired yaw -0.001314491308449102
+17:18:37.087: Closest point distance: 1.045109725568233
+17:18:37.087: Forward velocity: 0.0
+17:18:37.087: Crosstrack Error: 0.001
+17:18:37.087: Front steering angle: 0.48 degrees
+17:18:37.087: Steering wheel angle: 10.34 degrees
+17:18:37.087: Desired speed 0.05000000000000001 m/s
+17:18:37.087: Feedforward accel: 0.4996431039001264 m/s^2
+17:18:37.087: Output acceleration 0.5496431039001264
+17:18:37.087: Current gear 1
+17:18:37.187: Searching within range [0.0, 50.00000000000002]
+17:18:37.187: Closest parameter: 0.0 distance to path 0.0013599251843105795
+17:18:37.187: Closest point [0.0, 0.0] vs (-0.00011519675622211856, 0.0013550373479273793)
+17:18:37.187: Current yaw 6.2812370954554035 desired yaw -0.0012965428048983484
+17:18:37.187: Closest point distance: 1.0451160751883066
+17:18:37.187: Forward velocity: 0.0
+17:18:37.187: Crosstrack Error: 0.001
+17:18:37.187: Front steering angle: 0.5 degrees
+17:18:37.187: Steering wheel angle: 10.86 degrees
+17:18:37.187: Desired speed 0.05000000000000001 m/s
+17:18:37.187: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:37.187: Output acceleration 0.5500000000000002
+17:18:37.187: Current gear 1
+17:18:37.187: **************************
+17:18:37.187: Steer cmd angular position 0.18961085384980506 velocity limit 2.0
+17:18:37.187: Accel pedal position 0.5750000000000001 brake position 0
+17:18:37.187: **************************
+17:18:37.287: Searching within range [0.0, 50.00000000000002]
+17:18:37.287: Closest parameter: 0.0 distance to path 0.0013252518386738363
+17:18:37.287: Closest point [0.0, 0.0] vs (-0.0001217015723051723, 0.0013196519098636703)
+17:18:37.287: Current yaw 6.281238737477682 desired yaw -0.0012626770705725335
+17:18:37.287: Closest point distance: 1.0451225347195194
+17:18:37.287: Forward velocity: 0.0
+17:18:37.287: Crosstrack Error: 0.001
+17:18:37.287: Front steering angle: 0.52 degrees
+17:18:37.287: Steering wheel angle: 11.4 degrees
+17:18:37.287: Desired speed 0.05000000000000001 m/s
+17:18:37.287: Feedforward accel: 0.49914482719225806 m/s^2
+17:18:37.287: Output acceleration 0.5491448271922581
+17:18:37.287: Current gear 1
+17:18:37.287: **************************
+17:18:37.287: Steer cmd angular position 0.19896081158047765 velocity limit 2.0
+17:18:37.287: Accel pedal position 0.5749144827192259 brake position 0
+17:18:37.287: **************************
+17:18:37.387: Searching within range [0.0, 50.00000000000002]
+17:18:37.387: Closest parameter: 0.0 distance to path 0.0012674206066314992
+17:18:37.387: Closest point [0.0, 0.0] vs (-0.00012834042483472234, 0.0012609059161838366)
+17:18:37.387: Current yaw 6.28126161549271 desired yaw -0.0012064597768946888
+17:18:37.387: Closest point distance: 1.045129101041062
+17:18:37.387: Forward velocity: 0.0
+17:18:37.387: Crosstrack Error: 0.001
+17:18:37.387: Front steering angle: 0.55 degrees
+17:18:37.387: Steering wheel angle: 11.95 degrees
+17:18:37.387: Desired speed 0.05000000000000001 m/s
+17:18:37.387: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:37.387: Output acceleration 0.5500000000000002
+17:18:37.387: Current gear 1
+17:18:37.487: Searching within range [0.0, 50.00000000000002]
+17:18:37.487: Closest parameter: 0.0 distance to path 0.0012223463550118906
+17:18:37.487: Closest point [0.0, 0.0] vs (-0.0001350660532068348, 0.0012148612154818275)
+17:18:37.487: Current yaw 6.281272948677817 desired yaw -0.001162395854643507
+17:18:37.487: Closest point distance: 1.0451357721281065
+17:18:37.487: Forward velocity: 0.0
+17:18:37.487: Crosstrack Error: 0.001
+17:18:37.487: Front steering angle: 0.58 degrees
+17:18:37.487: Steering wheel angle: 12.5 degrees
+17:18:37.487: Desired speed 0.05000000000000001 m/s
+17:18:37.487: Feedforward accel: 0.4999790200453931 m/s^2
+17:18:37.487: Output acceleration 0.5499790200453931
+17:18:37.487: Current gear 1
+17:18:37.487: **************************
+17:18:37.487: Steer cmd angular position 0.21812387971494493 velocity limit 2.0
+17:18:37.487: Accel pedal position 0.5749979020045393 brake position 0
+17:18:37.487: **************************
+17:18:37.587: Searching within range [0.0, 50.00000000000002]
+17:18:37.587: Closest parameter: 0.0 distance to path 0.0012057332068512187
+17:18:37.587: Closest point [0.0, 0.0] vs (-0.000141860086028047, 0.0011973588777370965)
+17:18:37.587: Current yaw 6.281258342592822 desired yaw -0.0011456419454826865
+17:18:37.587: Closest point distance: 1.0451425459583799
+17:18:37.587: Forward velocity: 0.0
+17:18:37.587: Crosstrack Error: 0.001
+17:18:37.587: Front steering angle: 0.6 degrees
+17:18:37.587: Steering wheel angle: 13.02 degrees
+17:18:37.587: Desired speed 0.05000000000000001 m/s
+17:18:37.587: Feedforward accel: 0.49984078710280205 m/s^2
+17:18:37.587: Output acceleration 0.549840787102802
+17:18:37.587: Current gear 1
+17:18:37.687: Searching within range [0.0, 50.00000000000002]
+17:18:37.687: Closest parameter: 0.0 distance to path 0.0011493362991242954
+17:18:37.687: Closest point [0.0, 0.0] vs (-0.00014883979002783179, 0.001139658126540237)
+17:18:37.687: Current yaw 6.281280291124471 desired yaw -0.0010904261971658785
+17:18:37.687: Closest point distance: 1.0451494611466277
+17:18:37.687: Forward velocity: 0.0
+17:18:37.687: Crosstrack Error: 0.001
+17:18:37.687: Front steering angle: 0.63 degrees
+17:18:37.687: Steering wheel angle: 13.57 degrees
+17:18:37.687: Desired speed 0.05000000000000001 m/s
+17:18:37.687: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:37.687: Output acceleration 0.5500000000000002
+17:18:37.687: Current gear 1
+17:18:37.687: **************************
+17:18:37.687: Steer cmd angular position 0.23685834379006296 velocity limit 2.0
+17:18:37.687: Accel pedal position 0.5750000000000001 brake position 0
+17:18:37.687: **************************
+17:18:37.787: Searching within range [0.0, 50.00000000000002]
+17:18:37.787: Closest parameter: 0.0 distance to path 0.0011458253797865105
+17:18:37.787: Closest point [0.0, 0.0] vs (-0.0001558356507156094, 0.0011351788629678336)
+17:18:37.787: Current yaw 6.281253855269164 desired yaw -0.0010861331658512403
+17:18:37.787: Closest point distance: 1.0451564521284822
+17:18:37.787: Forward velocity: 0.0
+17:18:37.787: Crosstrack Error: 0.001
+17:18:37.787: Front steering angle: 0.65 degrees
+17:18:37.787: Steering wheel angle: 14.08 degrees
+17:18:37.787: Desired speed 0.05000000000000001 m/s
+17:18:37.787: Feedforward accel: 0.49978241856186545 m/s^2
+17:18:37.787: Output acceleration 0.5497824185618655
+17:18:37.787: Current gear 1
+17:18:37.787: **************************
+17:18:37.787: Steer cmd angular position 0.24576260920176896 velocity limit 2.0
+17:18:37.787: Accel pedal position 0.5749782418561865 brake position 0
+17:18:37.787: **************************
+17:18:37.887: Searching within range [0.0, 50.00000000000002]
+17:18:37.887: Closest parameter: 0.0 distance to path 0.001123722400470938
+17:18:37.887: Closest point [0.0, 0.0] vs (-0.00016299827094136125, 0.001111837936477387)
+17:18:37.887: Current yaw 6.281244548294725 desired yaw -0.0010637934168264012
+17:18:37.887: Closest point distance: 1.0451635896539357
+17:18:37.887: Forward velocity: 0.0
+17:18:37.887: Crosstrack Error: 0.001
+17:18:37.887: Front steering angle: 0.67 degrees
+17:18:37.887: Steering wheel angle: 14.61 degrees
+17:18:37.887: Desired speed 0.05000000000000001 m/s
+17:18:37.887: Feedforward accel: 0.4999432628171204 m/s^2
+17:18:37.887: Output acceleration 0.5499432628171205
+17:18:37.887: Current gear 1
+17:18:37.987: Searching within range [0.0, 50.00000000000002]
+17:18:37.987: Closest parameter: 0.0 distance to path 0.0011508964406924803
+17:18:37.987: Closest point [0.0, 0.0] vs (-0.00017017521000112373, 0.0011382455864617676)
+17:18:37.987: Current yaw 6.281190006604847 desired yaw -0.0010890524466345788
+17:18:37.987: Closest point distance: 1.0451707950146325
+17:18:37.987: Forward velocity: 0.0
+17:18:37.987: Crosstrack Error: 0.001
+17:18:37.987: Front steering angle: 0.7 degrees
+17:18:37.987: Steering wheel angle: 15.09 degrees
+17:18:37.987: Desired speed 0.05000000000000001 m/s
+17:18:37.987: Feedforward accel: 0.49995041385360656 m/s^2
+17:18:37.987: Output acceleration 0.5499504138536065
+17:18:37.987: Current gear 1
+17:18:37.987: **************************
+17:18:37.987: Steer cmd angular position 0.26341127264854286 velocity limit 2.0
+17:18:37.987: Accel pedal position 0.5749950413853606 brake position 0
+17:18:37.987: **************************
+17:18:38.087: Searching within range [0.0, 50.00000000000002]
+17:18:38.087: Closest parameter: 0.0 distance to path 0.0016337683963377951
+17:18:38.087: Closest point [0.0, 0.0] vs (-0.00017640618446828542, 0.001624216743834859)
+17:18:38.087: Current yaw 6.2807176796587365 desired yaw -0.00155401081267882
+17:18:38.087: Closest point distance: 1.0451776682099128
+17:18:38.087: Forward velocity: 0.0
+17:18:38.087: Crosstrack Error: 0.001
+17:18:38.087: Front steering angle: 0.7 degrees
+17:18:38.087: Steering wheel angle: 15.21 degrees
+17:18:38.087: Desired speed 0.05000000000000001 m/s
+17:18:38.087: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:38.087: Output acceleration 0.5500000000000002
+17:18:38.087: Current gear 1
+17:18:38.187: Searching within range [0.0, 50.00000000000002]
+17:18:38.187: Closest parameter: 0.0 distance to path 0.0016113101194175016
+17:18:38.187: Closest point [0.0, 0.0] vs (-0.00018384929164889862, 0.0016007872247420772)
+17:18:38.187: Current yaw 6.280708452925434 desired yaw -0.0015315831507980136
+17:18:38.187: Closest point distance: 1.0451850751612588
+17:18:38.187: Forward velocity: 0.0
+17:18:38.187: Crosstrack Error: 0.001
+17:18:38.187: Front steering angle: 0.73 degrees
+17:18:38.187: Steering wheel angle: 15.74 degrees
+17:18:38.187: Desired speed 0.05000000000000001 m/s
+17:18:38.187: Feedforward accel: 0.4998836788009383 m/s^2
+17:18:38.187: Output acceleration 0.5498836788009384
+17:18:38.187: Current gear 1
+17:18:38.187: **************************
+17:18:38.187: Steer cmd angular position 0.27470859787957197 velocity limit 2.0
+17:18:38.187: Accel pedal position 0.5749883678800939 brake position 0
+17:18:38.187: **************************
+17:18:38.287: Searching within range [0.0, 50.00000000000002]
+17:18:38.287: Closest parameter: 0.0 distance to path 0.0015946055464917696
+17:18:38.287: Closest point [0.0, 0.0] vs (-0.00018835949499812314, 0.0015834416786059304)
+17:18:38.287: Current yaw 6.2807059154510005 desired yaw -0.001514980962809055
+17:18:38.287: Closest point distance: 1.0451895589372266
+17:18:38.287: Forward velocity: 0.0
+17:18:38.287: Crosstrack Error: 0.001
+17:18:38.287: Front steering angle: 0.74 degrees
+17:18:38.287: Steering wheel angle: 16.06 degrees
+17:18:38.287: Desired speed 0.05000000000000001 m/s
+17:18:38.287: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:38.287: Output acceleration 0.5500000000000002
+17:18:38.287: Current gear 1
+17:18:38.287: **************************
+17:18:38.287: Steer cmd angular position 0.2802489225378806 velocity limit 2.0
+17:18:38.287: Accel pedal position 0.5750000000000001 brake position 0
+17:18:38.287: **************************
+17:18:38.387: Searching within range [0.0, 50.00000000000002]
+17:18:38.387: Closest parameter: 0.0 distance to path 0.001539550757132997
+17:18:38.387: Closest point [0.0, 0.0] vs (-0.00019902030447246845, 0.0015266327168629887)
+17:18:38.387: Current yaw 6.280714888663368 desired yaw -0.0014606133392500876
+17:18:38.387: Closest point distance: 1.0452001352147255
+17:18:38.387: Forward velocity: 0.0
+17:18:38.387: Crosstrack Error: 0.001
+17:18:38.387: Front steering angle: 0.77 degrees
+17:18:38.387: Steering wheel angle: 16.81 degrees
+17:18:38.387: Desired speed 0.05000000000000001 m/s
+17:18:38.387: Feedforward accel: 0.49984078710280205 m/s^2
+17:18:38.387: Output acceleration 0.549840787102802
+17:18:38.387: Current gear 1
+17:18:38.387: **************************
+17:18:38.387: Steer cmd angular position 0.2933856895404965 velocity limit 2.0
+17:18:38.387: Accel pedal position 0.5749840787102802 brake position 0
+17:18:38.387: **************************
+17:18:38.487: Searching within range [0.0, 50.00000000000002]
+17:18:38.487: Closest parameter: 0.0 distance to path 0.0014724851643410568
+17:18:38.487: Closest point [0.0, 0.0] vs (-0.00020681413547871358, 0.00145788904672842)
+17:18:38.487: Current yaw 6.2807469524638595 desired yaw -0.0013948321820552829
+17:18:38.487: Closest point distance: 1.0452078308909234
+17:18:38.487: Forward velocity: 0.0
+17:18:38.487: Crosstrack Error: 0.001
+17:18:38.487: Front steering angle: 0.8 degrees
+17:18:38.487: Steering wheel angle: 17.37 degrees
+17:18:38.487: Desired speed 0.05000000000000001 m/s
+17:18:38.487: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:38.487: Output acceleration 0.5500000000000002
+17:18:38.487: Current gear 1
+17:18:38.587: Searching within range [0.0, 50.00000000000002]
+17:18:38.587: Closest parameter: 0.0 distance to path 0.0014542305935974814
+17:18:38.587: Closest point [0.0, 0.0] vs (-0.0002146234486023688, 0.0014383057375484914)
+17:18:38.587: Current yaw 6.2807343732165 desired yaw -0.001376085635827238
+17:18:38.587: Closest point distance: 1.045215613064691
+17:18:38.587: Forward velocity: 0.0
+17:18:38.587: Crosstrack Error: 0.001
+17:18:38.587: Front steering angle: 0.82 degrees
+17:18:38.587: Steering wheel angle: 17.89 degrees
+17:18:38.587: Desired speed 0.05000000000000001 m/s
+17:18:38.587: Feedforward accel: 0.4999635246184986 m/s^2
+17:18:38.587: Output acceleration 0.5499635246184986
+17:18:38.587: Current gear 1
+17:18:38.587: **************************
+17:18:38.587: Steer cmd angular position 0.31219998377007624 velocity limit 2.0
+17:18:38.587: Accel pedal position 0.5749963524618499 brake position 0
+17:18:38.587: **************************
+17:18:38.687: Searching within range [0.0, 50.00000000000002]
+17:18:38.687: Closest parameter: 0.0 distance to path 0.0015018043323220627
+17:18:38.687: Closest point [0.0, 0.0] vs (-0.00022240760334030002, 0.0014852444615475729)
+17:18:38.687: Current yaw 6.28066135062804 desired yaw -0.0014209831812617552
+17:18:38.687: Closest point distance: 1.0452234628572177
+17:18:38.687: Forward velocity: 0.0
+17:18:38.687: Crosstrack Error: 0.001
+17:18:38.687: Front steering angle: 0.85 degrees
+17:18:38.687: Steering wheel angle: 18.35 degrees
+17:18:38.687: Desired speed 0.05000000000000001 m/s
+17:18:38.687: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:38.687: Output acceleration 0.5500000000000002
+17:18:38.687: Current gear 1
+17:18:38.687: **************************
+17:18:38.687: Steer cmd angular position 0.3203319156375085 velocity limit 2.0
+17:18:38.687: Accel pedal position 0.5750000000000001 brake position 0
+17:18:38.687: **************************
+17:18:38.787: Searching within range [0.0, 50.00000000000002]
+17:18:38.787: Closest parameter: 0.0 distance to path 0.001428125861215879
+17:18:38.787: Closest point [0.0, 0.0] vs (-0.00023058206311697658, 0.0014093883026484626)
+17:18:38.787: Current yaw 6.280699977572669 desired yaw -0.001348398595162761
+17:18:38.787: Closest point distance: 1.0452315322718644
+17:18:38.787: Forward velocity: 0.0
+17:18:38.787: Crosstrack Error: 0.001
+17:18:38.787: Front steering angle: 0.87 degrees
+17:18:38.787: Steering wheel angle: 18.92 degrees
+17:18:38.787: Desired speed 0.05000000000000001 m/s
+17:18:38.787: Feedforward accel: 0.4999957085024105 m/s^2
+17:18:38.787: Output acceleration 0.5499957085024105
+17:18:38.787: Current gear 1
+17:18:38.887: Searching within range [0.0, 50.00000000000002]
+17:18:38.887: Closest parameter: 0.0 distance to path 0.00138623563263099
+17:18:38.887: Closest point [0.0, 0.0] vs (-0.00023873251584796316, 0.0013655240807297186)
+17:18:38.887: Current yaw 6.28070953715872 desired yaw -0.0013064224099103518
+17:18:38.887: Closest point distance: 1.0452396244916047
+17:18:38.887: Forward velocity: 0.0
+17:18:38.887: Crosstrack Error: 0.001
+17:18:38.887: Front steering angle: 0.9 degrees
+17:18:38.887: Steering wheel angle: 19.45 degrees
+17:18:38.887: Desired speed 0.05000000000000001 m/s
+17:18:38.887: Feedforward accel: 0.49974907122993234 m/s^2
+17:18:38.887: Output acceleration 0.5497490712299323
+17:18:38.887: Current gear 1
+17:18:38.887: **************************
+17:18:38.887: Steer cmd angular position 0.33951623030703737 velocity limit 2.0
+17:18:38.887: Accel pedal position 0.5749749071229933 brake position 0
+17:18:38.887: **************************
+17:18:38.987: Searching within range [0.0, 50.00000000000002]
+17:18:38.987: Closest parameter: 0.0 distance to path 0.0013269826121021476
+17:18:38.987: Closest point [0.0, 0.0] vs (-0.00024700299639636203, 0.0013037915372453748)
+17:18:38.987: Current yaw 6.280735387778807 desired yaw -0.0012473519247830603
+17:18:38.987: Closest point distance: 1.0452478161399432
+17:18:38.987: Forward velocity: 0.0
+17:18:38.987: Crosstrack Error: 0.001
+17:18:38.987: Front steering angle: 0.92 degrees
+17:18:38.987: Steering wheel angle: 20.0 degrees
+17:18:38.987: Desired speed 0.05000000000000001 m/s
+17:18:38.987: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:38.987: Output acceleration 0.5500000000000002
+17:18:38.987: Current gear 1
+17:18:39.087: Searching within range [0.0, 50.00000000000002]
+17:18:39.087: Closest parameter: 0.0 distance to path 0.0019099340705258754
+17:18:39.087: Closest point [0.0, 0.0] vs (-0.0002535930071791769, 0.0018930237030912638)
+17:18:39.087: Current yaw 6.280169499131162 desired yaw -0.0018110644594556493
+17:18:39.087: Closest point distance: 1.0452553072016222
+17:18:39.087: Forward velocity: 0.0
+17:18:39.087: Crosstrack Error: 0.001
+17:18:39.087: Front steering angle: 0.92 degrees
+17:18:39.087: Steering wheel angle: 20.04 degrees
+17:18:39.087: Desired speed 0.05000000000000001 m/s
+17:18:39.087: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:39.087: Output acceleration 0.5500000000000002
+17:18:39.087: Current gear 1
+17:18:39.087: **************************
+17:18:39.087: Steer cmd angular position 0.34974015844623213 velocity limit 2.0
+17:18:39.087: Accel pedal position 0.5750000000000001 brake position 0
+17:18:39.087: **************************
+17:18:39.187: Searching within range [0.0, 50.00000000000002]
+17:18:39.187: Closest parameter: 0.0 distance to path 0.0018699768487161715
+17:18:39.187: Closest point [0.0, 0.0] vs (-0.0002619375306220595, 0.0018515404788408169)
+17:18:39.187: Current yaw 6.280177039600194 desired yaw -0.0017713632112839968
+17:18:39.187: Closest point distance: 1.0452635774063948
+17:18:39.187: Forward velocity: 0.0
+17:18:39.187: Crosstrack Error: 0.001
+17:18:39.187: Front steering angle: 0.95 degrees
+17:18:39.187: Steering wheel angle: 20.57 degrees
+17:18:39.187: Desired speed 0.05000000000000001 m/s
+17:18:39.187: Feedforward accel: 0.4999706762346379 m/s^2
+17:18:39.187: Output acceleration 0.5499706762346379
+17:18:39.187: Current gear 1
+17:18:39.287: Searching within range [0.0, 50.00000000000002]
+17:18:39.287: Closest parameter: 0.0 distance to path 0.0018234778184840973
+17:18:39.287: Closest point [0.0, 0.0] vs (-0.00026537310483209196, 0.001804064430594234)
+17:18:39.287: Current yaw 6.280208141373516 desired yaw -0.0017259374371919741
+17:18:39.287: Closest point distance: 1.0452669299563884
+17:18:39.287: Forward velocity: 0.0
+17:18:39.287: Crosstrack Error: 0.001
+17:18:39.287: Front steering angle: 0.96 degrees
+17:18:39.287: Steering wheel angle: 20.81 degrees
+17:18:39.287: Desired speed 0.05000000000000001 m/s
+17:18:39.287: Feedforward accel: 0.4999396873755904 m/s^2
+17:18:39.287: Output acceleration 0.5499396873755904
+17:18:39.287: Current gear 1
+17:18:39.287: **************************
+17:18:39.287: Steer cmd angular position 0.36316536464976734 velocity limit 2.0
+17:18:39.287: Accel pedal position 0.574993968737559 brake position 0
+17:18:39.287: **************************
+17:18:39.387: Searching within range [0.0, 50.00000000000002]
+17:18:39.387: Closest parameter: 0.0 distance to path 0.0017886255265364566
+17:18:39.387: Closest point [0.0, 0.0] vs (-0.0002787631763841048, 0.0017667689055646358)
+17:18:39.387: Current yaw 6.280193890921529 desired yaw -0.0016902354523150112
+17:18:39.387: Closest point distance: 1.0452802563044594
+17:18:39.387: Forward velocity: 0.0
+17:18:39.387: Crosstrack Error: 0.001
+17:18:39.387: Front steering angle: 1.0 degrees
+17:18:39.387: Steering wheel angle: 21.63 degrees
+17:18:39.387: Desired speed 0.05000000000000001 m/s
+17:18:39.387: Feedforward accel: 0.49874953030094044 m/s^2
+17:18:39.387: Output acceleration 0.5487495303009404
+17:18:39.387: Current gear 1
+17:18:39.387: **************************
+17:18:39.387: Steer cmd angular position 0.3775859844778005 velocity limit 2.0
+17:18:39.387: Accel pedal position 0.5748749530300941 brake position 0
+17:18:39.387: **************************
+17:18:39.487: Searching within range [0.0, 50.00000000000002]
+17:18:39.487: Closest parameter: 0.0 distance to path 0.0017836983036088935
+17:18:39.487: Closest point [0.0, 0.0] vs (-0.0002871682054113246, 0.0017604300781621756)
+17:18:39.487: Current yaw 6.2801696362249 desired yaw -0.0016841576815334353
+17:18:39.487: Closest point distance: 1.045288650626681
+17:18:39.487: Forward velocity: 0.0
+17:18:39.487: Crosstrack Error: 0.001
+17:18:39.487: Front steering angle: 1.02 degrees
+17:18:39.487: Steering wheel angle: 22.14 degrees
+17:18:39.487: Desired speed 0.05000000000000001 m/s
+17:18:39.487: Feedforward accel: 0.5000000000000001 m/s^2
+17:18:39.487: Output acceleration 0.5500000000000002
+17:18:39.487: Current gear 1
+17:18:39.587: Searching within range [0.0, 50.00000000000002]
+17:18:39.587: Closest parameter: 0.0 distance to path 0.0017677704430922603
+17:18:39.587: Closest point [0.0, 0.0] vs (-0.0002956567581867004, 0.001742871028162766)
+17:18:39.587: Current yaw 6.2801556219124475 desired yaw -0.0016673458861224282
+17:18:39.587: Closest point distance: 1.0452971097429424
+17:18:39.587: Forward velocity: 0.0
+17:18:39.587: Crosstrack Error: 0.001
+17:18:39.587: Front steering angle: 1.05 degrees
+17:18:39.587: Steering wheel angle: 22.65 degrees
+17:18:39.587: Desired speed 0.05000000000000001 m/s
+17:18:39.587: Feedforward accel: 0.4997967116379609 m/s^2
+17:18:39.587: Output acceleration 0.549796711637961
+17:18:39.587: Current gear 1
+17:18:39.587: **************************
+17:18:39.587: Steer cmd angular position 0.3952332873675489 velocity limit 2.0
+17:18:39.587: Accel pedal position 0.5749796711637961 brake position 0
+17:18:39.587: **************************
+17:18:39.687: Searching within range [0.0, 50.00000000000002]
+17:18:39.687: Closest parameter: 0.0 distance to path 0.001732469111843231
+17:18:39.687: Closest point [0.0, 0.0] vs (-0.0003042914340627729, 0.001705536849982109)
+17:18:39.687: Current yaw 6.280159627427728 desired yaw -0.0016316161241096473
+17:18:39.687: Closest point distance: 1.0453056828250833
+17:18:39.687: Forward velocity: 0.0
+17:18:39.687: Crosstrack Error: 0.001
+17:18:39.687: Front steering angle: 1.07 degrees
+17:18:39.687: Steering wheel angle: 23.17 degrees
+17:18:39.687: Desired speed 0.05000000000000001 m/s
+17:18:39.687: Feedforward accel: 0.4992957511749386 m/s^2
+17:18:39.687: Output acceleration 0.5492957511749386
+17:18:39.687: Current gear 1
+17:18:39.787: Searching within range [0.0, 50.00000000000002]
+17:18:39.787: Closest parameter: 0.0 distance to path 0.0017291361159578384
+17:18:39.787: Closest point [0.0, 0.0] vs (-0.0003129178884204607, 0.0017005863996328557)
+17:18:39.787: Current yaw 6.280134242124795 desired yaw -1.3888259582645492
+17:18:39.787: Closest point distance: 0.0017291361159578384
+17:18:39.787: Forward velocity: 0.0
+17:18:39.787: Crosstrack Error: -0.002
+17:18:39.787: Front steering angle: -35.0 degrees
+17:18:39.787: Steering wheel angle: -629.28 degrees
+17:18:39.787: Desired speed 0.0 m/s
+17:18:39.787: Feedforward accel: 0.0 m/s^2
+17:18:39.787: Output acceleration -0.05008758123416218
+17:18:39.787: Current gear 1
+17:18:39.787: **************************
+17:18:39.787: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:39.787: Accel pedal position 0.0 brake position 0
+17:18:39.787: **************************
+17:18:39.887: Searching within range [0.0, 50.00000000000002]
+17:18:39.887: Closest parameter: 0.0 distance to path 0.0016928909104800879
+17:18:39.887: Closest point [0.0, 0.0] vs (-0.00032171006305294704, 0.001662041596987443)
+17:18:39.887: Current yaw 6.28013944721172 desired yaw -1.3795976048576206
+17:18:39.887: Closest point distance: 0.0016928909104800879
+17:18:39.887: Forward velocity: 0.0
+17:18:39.887: Crosstrack Error: -0.002
+17:18:39.887: Front steering angle: -35.0 degrees
+17:18:39.887: Steering wheel angle: -629.28 degrees
+17:18:39.887: Desired speed 0.0 m/s
+17:18:39.887: Feedforward accel: 0.0 m/s^2
+17:18:39.887: Output acceleration 0.0
+17:18:39.887: Current gear 1
+17:18:39.887: **************************
+17:18:39.887: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:39.887: Accel pedal position 0.0 brake position 0
+17:18:39.887: **************************
+17:18:39.987: Searching within range [0.0, 50.00000000000002]
+17:18:39.987: Closest parameter: 0.0 distance to path 0.0016532940677881059
+17:18:39.987: Closest point [0.0, 0.0] vs (-0.0003305917635172153, 0.0016199044294272177)
+17:18:39.987: Current yaw 6.28014798648367 desired yaw -1.3694797975350794
+17:18:39.987: Closest point distance: 0.0016532940677881059
+17:18:39.987: Forward velocity: 0.0
+17:18:39.987: Crosstrack Error: -0.002
+17:18:39.987: Front steering angle: -35.0 degrees
+17:18:39.987: Steering wheel angle: -629.28 degrees
+17:18:39.987: Desired speed 0.0 m/s
+17:18:39.987: Feedforward accel: 0.0 m/s^2
+17:18:39.987: Output acceleration 0.0
+17:18:39.987: Current gear 1
+17:18:40.087: Searching within range [0.0, 50.00000000000002]
+17:18:40.087: Closest parameter: 0.0 distance to path 0.002124669194487077
+17:18:40.087: Closest point [0.0, 0.0] vs (-0.0003378358128608034, 0.0020976382313332882)
+17:18:40.087: Current yaw 6.2796840053782015 desired yaw -1.4111122486319703
+17:18:40.087: Closest point distance: 0.002124669194487077
+17:18:40.087: Forward velocity: 0.0
+17:18:40.087: Crosstrack Error: -0.002
+17:18:40.087: Front steering angle: -35.0 degrees
+17:18:40.087: Steering wheel angle: -629.28 degrees
+17:18:40.087: Desired speed 0.0 m/s
+17:18:40.087: Feedforward accel: 0.0 m/s^2
+17:18:40.087: Output acceleration 0.0
+17:18:40.087: Current gear 1
+17:18:40.087: **************************
+17:18:40.087: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:40.087: Accel pedal position 0.0 brake position 0
+17:18:40.087: **************************
+17:18:40.187: Searching within range [0.0, 50.00000000000002]
+17:18:40.187: Closest parameter: 0.0 distance to path 0.002115513301261414
+17:18:40.187: Closest point [0.0, 0.0] vs (-0.0003449339487728227, 0.0020872031762140344)
+17:18:40.187: Current yaw 6.2796698207379285 desired yaw -1.4070153260464784
+17:18:40.187: Closest point distance: 0.002115513301261414
+17:18:40.187: Forward velocity: 0.0
+17:18:40.187: Crosstrack Error: -0.002
+17:18:40.187: Front steering angle: -35.0 degrees
+17:18:40.187: Steering wheel angle: -629.28 degrees
+17:18:40.187: Desired speed 0.0 m/s
+17:18:40.187: Feedforward accel: 0.0 m/s^2
+17:18:40.187: Output acceleration 0.0
+17:18:40.187: Current gear 1
+17:18:40.187: **************************
+17:18:40.187: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:40.187: Accel pedal position 0.0 brake position 0
+17:18:40.187: **************************
+17:18:40.287: Searching within range [0.0, 50.00000000000002]
+17:18:40.287: Closest parameter: 0.0 distance to path 0.002032003255390149
+17:18:40.287: Closest point [0.0, 0.0] vs (-0.00035585577443427563, 0.0020006008841640414)
+17:18:40.287: Current yaw 6.279713178922996 desired yaw -1.3947629960331476
+17:18:40.287: Closest point distance: 0.002032003255390149
+17:18:40.287: Forward velocity: 0.0
+17:18:40.287: Crosstrack Error: -0.002
+17:18:40.287: Front steering angle: -35.0 degrees
+17:18:40.287: Steering wheel angle: -629.28 degrees
+17:18:40.287: Desired speed 0.0 m/s
+17:18:40.287: Feedforward accel: 0.0 m/s^2
+17:18:40.287: Output acceleration 0.0
+17:18:40.287: Current gear 1
+17:18:40.287: **************************
+17:18:40.287: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:40.287: Accel pedal position 0.0 brake position 0
+17:18:40.287: **************************
+17:18:40.387: Searching within range [0.0, 50.00000000000002]
+17:18:40.387: Closest parameter: 0.0 distance to path 0.0020189198336950623
+17:18:40.387: Closest point [0.0, 0.0] vs (-0.00036479811248792067, 0.0019856887047099174)
+17:18:40.387: Current yaw 6.2796973964713745 desired yaw -1.389108631269689
+17:18:40.387: Closest point distance: 0.0020189198336950623
+17:18:40.387: Forward velocity: 0.0
+17:18:40.387: Crosstrack Error: -0.002
+17:18:40.387: Front steering angle: -35.0 degrees
+17:18:40.387: Steering wheel angle: -629.28 degrees
+17:18:40.387: Desired speed 0.0 m/s
+17:18:40.387: Feedforward accel: 0.0 m/s^2
+17:18:40.387: Output acceleration 0.0
+17:18:40.387: Current gear 1
+17:18:40.387: **************************
+17:18:40.387: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:40.387: Accel pedal position 0.0 brake position 0
+17:18:40.387: **************************
+17:18:40.487: Searching within range [0.0, 50.00000000000002]
+17:18:40.487: Closest parameter: 0.0 distance to path 0.0019616517640112913
+17:18:40.487: Closest point [0.0, 0.0] vs (-0.000373917549049343, 0.001925685153331547)
+17:18:40.487: Current yaw 6.2797227342276605 desired yaw -1.3790091347198778
+17:18:40.487: Closest point distance: 0.0019616517640112913
+17:18:40.487: Forward velocity: 0.0
+17:18:40.487: Crosstrack Error: -0.002
+17:18:40.487: Front steering angle: -35.0 degrees
+17:18:40.487: Steering wheel angle: -629.28 degrees
+17:18:40.487: Desired speed 0.0 m/s
+17:18:40.487: Feedforward accel: 0.0 m/s^2
+17:18:40.487: Output acceleration 0.0
+17:18:40.487: Current gear 1
+17:18:40.587: Searching within range [0.0, 50.00000000000002]
+17:18:40.587: Closest parameter: 0.0 distance to path 0.0019611864940387953
+17:18:40.587: Closest point [0.0, 0.0] vs (-0.0003828489270144857, 0.0019234550068779977)
+17:18:40.587: Current yaw 6.279695707124576 desired yaw -1.3743217924479763
+17:18:40.587: Closest point distance: 0.0019611864940387953
+17:18:40.587: Forward velocity: 0.0
+17:18:40.587: Crosstrack Error: -0.002
+17:18:40.587: Front steering angle: -35.0 degrees
+17:18:40.587: Steering wheel angle: -629.28 degrees
+17:18:40.587: Desired speed 0.0 m/s
+17:18:40.587: Feedforward accel: 0.0 m/s^2
+17:18:40.587: Output acceleration 0.0
+17:18:40.587: Current gear 1
+17:18:40.587: **************************
+17:18:40.587: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:40.587: Accel pedal position 0.0 brake position 0
+17:18:40.587: **************************
+17:18:40.687: Searching within range [0.0, 50.00000000000002]
+17:18:40.687: Closest parameter: 0.0 distance to path 0.0019406738100946777
+17:18:40.687: Closest point [0.0, 0.0] vs (-0.00039187056824912907, 0.0019006978441949939)
+17:18:40.687: Current yaw 6.279687524130242 desired yaw -1.3674733109094785
+17:18:40.687: Closest point distance: 0.0019406738100946777
+17:18:40.687: Forward velocity: 0.0
+17:18:40.687: Crosstrack Error: -0.002
+17:18:40.687: Front steering angle: -35.0 degrees
+17:18:40.687: Steering wheel angle: -629.28 degrees
+17:18:40.687: Desired speed 0.0 m/s
+17:18:40.687: Feedforward accel: 0.0 m/s^2
+17:18:40.687: Output acceleration 0.0
+17:18:40.687: Current gear 1
+17:18:40.787: Searching within range [0.0, 50.00000000000002]
+17:18:40.787: Closest parameter: 0.0 distance to path 0.0018933223644058913
+17:18:40.787: Closest point [0.0, 0.0] vs (-0.0004010126452472906, 0.0018503671078765114)
+17:18:40.787: Current yaw 6.279704569821782 desired yaw -1.3573761829215087
+17:18:40.787: Closest point distance: 0.0018933223644058913
+17:18:40.787: Forward velocity: 0.0
+17:18:40.787: Crosstrack Error: -0.002
+17:18:40.787: Front steering angle: -35.0 degrees
+17:18:40.787: Steering wheel angle: -629.28 degrees
+17:18:40.787: Desired speed 0.0 m/s
+17:18:40.787: Feedforward accel: 0.0 m/s^2
+17:18:40.787: Output acceleration 0.0
+17:18:40.787: Current gear 1
+17:18:40.787: **************************
+17:18:40.787: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:40.787: Accel pedal position 0.0 brake position 0
+17:18:40.787: **************************
+17:18:40.887: Searching within range [0.0, 50.00000000000002]
+17:18:40.887: Closest parameter: 0.0 distance to path 0.0018394022009362747
+17:18:40.887: Closest point [0.0, 0.0] vs (-0.000410179936241276, 0.0017930847377394953)
+17:18:40.887: Current yaw 6.279728089793775 desired yaw -1.3459092048513859
+17:18:40.887: Closest point distance: 0.0018394022009362747
+17:18:40.887: Forward velocity: 0.0
+17:18:40.887: Crosstrack Error: -0.002
+17:18:40.887: Front steering angle: -35.0 degrees
+17:18:40.887: Steering wheel angle: -629.28 degrees
+17:18:40.887: Desired speed 0.0 m/s
+17:18:40.887: Feedforward accel: 0.0 m/s^2
+17:18:40.887: Output acceleration 0.0
+17:18:40.887: Current gear 1
+17:18:40.887: **************************
+17:18:40.887: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:40.887: Accel pedal position 0.0 brake position 0
+17:18:40.887: **************************
+17:18:40.987: Searching within range [0.0, 50.00000000000002]
+17:18:40.987: Closest parameter: 0.0 distance to path 0.0017994857591501262
+17:18:40.987: Closest point [0.0, 0.0] vs (-0.0004193071596706982, 0.0017499515716821988)
+17:18:40.987: Current yaw 6.2797389304234414 desired yaw -1.3356194552911227
+17:18:40.987: Closest point distance: 0.0017994857591501262
+17:18:40.987: Forward velocity: 0.0
+17:18:40.987: Crosstrack Error: -0.002
+17:18:40.987: Front steering angle: -35.0 degrees
+17:18:40.987: Steering wheel angle: -629.28 degrees
+17:18:40.987: Desired speed 0.0 m/s
+17:18:40.987: Feedforward accel: 0.0 m/s^2
+17:18:40.987: Output acceleration 0.0
+17:18:40.987: Current gear 1
+17:18:41.087: Searching within range [0.0, 50.00000000000002]
+17:18:41.087: Closest parameter: 0.0 distance to path 0.002203992234635213
+17:18:41.087: Closest point [0.0, 0.0] vs (-0.0004267742659194721, 0.0021622778490011903)
+17:18:41.087: Current yaw 6.279335896896489 desired yaw -1.3759284449662772
+17:18:41.087: Closest point distance: 0.002203992234635213
+17:18:41.087: Forward velocity: 0.0
+17:18:41.087: Crosstrack Error: -0.002
+17:18:41.087: Front steering angle: -35.0 degrees
+17:18:41.087: Steering wheel angle: -629.28 degrees
+17:18:41.087: Desired speed 0.0 m/s
+17:18:41.087: Feedforward accel: 0.0 m/s^2
+17:18:41.087: Output acceleration 0.0
+17:18:41.087: Current gear 1
+17:18:41.087: **************************
+17:18:41.087: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:41.087: Accel pedal position 0.0 brake position 0
+17:18:41.087: **************************
+17:18:41.187: Searching within range [0.0, 50.00000000000002]
+17:18:41.187: Closest parameter: 0.0 distance to path 0.0021937404334478657
+17:18:41.187: Closest point [0.0, 0.0] vs (-0.00043579947960230444, 0.0021500176517699546)
+17:18:41.187: Current yaw 6.279319006546628 desired yaw -1.3708100310032085
+17:18:41.187: Closest point distance: 0.0021937404334478657
+17:18:41.187: Forward velocity: 0.0
+17:18:41.187: Crosstrack Error: -0.002
+17:18:41.187: Front steering angle: -35.0 degrees
+17:18:41.187: Steering wheel angle: -629.28 degrees
+17:18:41.187: Desired speed 0.0 m/s
+17:18:41.187: Feedforward accel: 0.0 m/s^2
+17:18:41.187: Output acceleration 0.0
+17:18:41.187: Current gear 1
+17:18:41.287: Searching within range [0.0, 50.00000000000002]
+17:18:41.287: Closest parameter: 0.0 distance to path 0.002145535578503911
+17:18:41.287: Closest point [0.0, 0.0] vs (-0.0004449904526885183, 0.0020988821824109564)
+17:18:41.287: Current yaw 6.279337617343998 desired yaw -1.3618768730799629
+17:18:41.287: Closest point distance: 0.002145535578503911
+17:18:41.287: Forward velocity: 0.0
+17:18:41.287: Crosstrack Error: -0.002
+17:18:41.287: Front steering angle: -35.0 degrees
+17:18:41.287: Steering wheel angle: -629.28 degrees
+17:18:41.287: Desired speed 0.0 m/s
+17:18:41.287: Feedforward accel: 0.0 m/s^2
+17:18:41.287: Output acceleration 0.0
+17:18:41.287: Current gear 1
+17:18:41.287: **************************
+17:18:41.287: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:41.287: Accel pedal position 0.0 brake position 0
+17:18:41.287: **************************
+17:18:41.387: Searching within range [0.0, 50.00000000000002]
+17:18:41.387: Closest parameter: 0.0 distance to path 0.002125187141662152
+17:18:41.387: Closest point [0.0, 0.0] vs (-0.0004540794445822692, 0.0020761098827118967)
+17:18:41.387: Current yaw 6.279330598200761 desired yaw -1.3554706170709447
+17:18:41.387: Closest point distance: 0.002125187141662152
+17:18:41.387: Forward velocity: 0.0
+17:18:41.387: Crosstrack Error: -0.002
+17:18:41.387: Front steering angle: -35.0 degrees
+17:18:41.387: Steering wheel angle: -629.28 degrees
+17:18:41.387: Desired speed 0.0 m/s
+17:18:41.387: Feedforward accel: 0.0 m/s^2
+17:18:41.387: Output acceleration 0.0
+17:18:41.387: Current gear 1
+17:18:41.487: Searching within range [0.0, 50.00000000000002]
+17:18:41.487: Closest parameter: 0.0 distance to path 0.002103330597591984
+17:18:41.487: Closest point [0.0, 0.0] vs (-0.0004595637281412766, 0.002052510848337602)
+17:18:41.487: Current yaw 6.279335494635615 desired yaw -1.3505260881061263
+17:18:41.487: Closest point distance: 0.002103330597591984
+17:18:41.487: Forward velocity: 0.0
+17:18:41.487: Crosstrack Error: -0.002
+17:18:41.487: Front steering angle: -35.0 degrees
+17:18:41.487: Steering wheel angle: -629.28 degrees
+17:18:41.487: Desired speed 0.0 m/s
+17:18:41.487: Feedforward accel: 0.0 m/s^2
+17:18:41.487: Output acceleration 0.0
+17:18:41.487: Current gear 1
+17:18:41.487: **************************
+17:18:41.487: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:41.487: Accel pedal position 0.0 brake position 0
+17:18:41.487: **************************
+17:18:41.587: Searching within range [0.0, 50.00000000000002]
+17:18:41.587: Closest parameter: 0.0 distance to path 0.002022537764477399
+17:18:41.587: Closest point [0.0, 0.0] vs (-0.0004724354080539665, 0.0019665868386506903)
+17:18:41.587: Current yaw 6.279375204190811 desired yaw -1.3350328013457629
+17:18:41.587: Closest point distance: 0.002022537764477399
+17:18:41.587: Forward velocity: 0.0
+17:18:41.587: Crosstrack Error: -0.002
+17:18:41.587: Front steering angle: -35.0 degrees
+17:18:41.587: Steering wheel angle: -629.28 degrees
+17:18:41.587: Desired speed 0.0 m/s
+17:18:41.587: Feedforward accel: 0.0 m/s^2
+17:18:41.587: Output acceleration 0.0
+17:18:41.587: Current gear 1
+17:18:41.587: **************************
+17:18:41.587: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:41.587: Accel pedal position 0.0 brake position 0
+17:18:41.587: **************************
+17:18:41.687: Searching within range [0.0, 50.00000000000002]
+17:18:41.687: Closest parameter: 0.0 distance to path 0.0020005590045591905
+17:18:41.687: Closest point [0.0, 0.0] vs (-0.00048147813876916426, 0.0019417556830379668)
+17:18:41.687: Current yaw 6.2793705495617385 desired yaw -1.327738389473421
+17:18:41.687: Closest point distance: 0.0020005590045591905
+17:18:41.687: Forward velocity: 0.0
+17:18:41.687: Crosstrack Error: -0.002
+17:18:41.687: Front steering angle: -35.0 degrees
+17:18:41.687: Steering wheel angle: -629.28 degrees
+17:18:41.687: Desired speed 0.0 m/s
+17:18:41.687: Feedforward accel: 0.0 m/s^2
+17:18:41.687: Output acceleration 0.0
+17:18:41.687: Current gear 1
+17:18:41.787: Searching within range [0.0, 50.00000000000002]
+17:18:41.787: Closest parameter: 0.0 distance to path 0.0019423923597970394
+17:18:41.787: Closest point [0.0, 0.0] vs (-0.0004906616294887605, 0.001879398639125118)
+17:18:41.787: Current yaw 6.279400174372826 desired yaw -1.3154227813784798
+17:18:41.787: Closest point distance: 0.0019423923597970394
+17:18:41.787: Forward velocity: 0.0
+17:18:41.787: Crosstrack Error: -0.002
+17:18:41.787: Front steering angle: -35.0 degrees
+17:18:41.787: Steering wheel angle: -629.28 degrees
+17:18:41.787: Desired speed 0.0 m/s
+17:18:41.787: Feedforward accel: 0.0 m/s^2
+17:18:41.787: Output acceleration 0.0
+17:18:41.787: Current gear 1
+17:18:41.787: **************************
+17:18:41.787: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:41.787: Accel pedal position 0.0 brake position 0
+17:18:41.787: **************************
+17:18:41.887: Searching within range [0.0, 50.00000000000002]
+17:18:41.887: Closest parameter: 0.0 distance to path 0.0019426988770817595
+17:18:41.887: Closest point [0.0, 0.0] vs (-0.0004995941073768496, 0.0018773610880406194)
+17:18:41.887: Current yaw 6.279375138143842 desired yaw -1.3107089669410745
+17:18:41.887: Closest point distance: 0.0019426988770817595
+17:18:41.887: Forward velocity: 0.0
+17:18:41.887: Crosstrack Error: -0.002
+17:18:41.887: Front steering angle: -35.0 degrees
+17:18:41.887: Steering wheel angle: -629.28 degrees
+17:18:41.887: Desired speed 0.0 m/s
+17:18:41.887: Feedforward accel: 0.0 m/s^2
+17:18:41.887: Output acceleration 0.0
+17:18:41.887: Current gear 1
+17:18:41.987: Searching within range [0.0, 50.00000000000002]
+17:18:41.987: Closest parameter: 0.0 distance to path 0.0019219080008678465
+17:18:41.987: Closest point [0.0, 0.0] vs (-0.0005085877192312007, 0.001853393885726142)
+17:18:41.987: Current yaw 6.279370217734713 desired yaw -1.3029797690711706
+17:18:41.987: Closest point distance: 0.0019219080008678465
+17:18:41.987: Forward velocity: 0.0
+17:18:41.987: Crosstrack Error: -0.002
+17:18:41.987: Front steering angle: -35.0 degrees
+17:18:41.987: Steering wheel angle: -629.28 degrees
+17:18:41.987: Desired speed 0.0 m/s
+17:18:41.987: Feedforward accel: 0.0 m/s^2
+17:18:41.987: Output acceleration 0.0
+17:18:41.987: Current gear 1
+17:18:41.987: **************************
+17:18:41.987: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:41.987: Accel pedal position 0.0 brake position 0
+17:18:41.987: **************************
+17:18:42.087: Searching within range [0.0, 50.00000000000002]
+17:18:42.087: Closest parameter: 0.0 distance to path 0.002473653638111196
+17:18:42.087: Closest point [0.0, 0.0] vs (-0.0005151741388092273, 0.002419412723791236)
+17:18:42.087: Current yaw 6.278829126468412 desired yaw -1.360996152616006
+17:18:42.087: Closest point distance: 0.002473653638111196
+17:18:42.087: Forward velocity: 0.0
+17:18:42.087: Crosstrack Error: -0.002
+17:18:42.087: Front steering angle: -35.0 degrees
+17:18:42.087: Steering wheel angle: -629.28 degrees
+17:18:42.087: Desired speed 0.0 m/s
+17:18:42.087: Feedforward accel: 0.0 m/s^2
+17:18:42.087: Output acceleration 0.0
+17:18:42.087: Current gear 1
+17:18:42.187: Searching within range [0.0, 50.00000000000002]
+17:18:42.187: Closest parameter: 0.0 distance to path 0.0024250017420789304
+17:18:42.187: Closest point [0.0, 0.0] vs (-0.0005224840487794551, 0.0023680464243457885)
+17:18:42.187: Current yaw 6.278854698845342 desired yaw -1.3536363401613933
+17:18:42.187: Closest point distance: 0.0024250017420789304
+17:18:42.187: Forward velocity: 0.0
+17:18:42.187: Crosstrack Error: -0.002
+17:18:42.187: Front steering angle: -35.0 degrees
+17:18:42.187: Steering wheel angle: -629.28 degrees
+17:18:42.187: Desired speed 0.0 m/s
+17:18:42.187: Feedforward accel: 0.0 m/s^2
+17:18:42.187: Output acceleration 0.0
+17:18:42.187: Current gear 1
+17:18:42.187: **************************
+17:18:42.187: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:42.187: Accel pedal position 0.0 brake position 0
+17:18:42.187: **************************
+17:18:42.287: Searching within range [0.0, 50.00000000000002]
+17:18:42.287: Closest parameter: 0.0 distance to path 0.0024122605860549943
+17:18:42.287: Closest point [0.0, 0.0] vs (-0.0005331181672676478, 0.0023526126231837594)
+17:18:42.287: Current yaw 6.278837184984809 desired yaw -1.347952976081782
+17:18:42.287: Closest point distance: 0.0024122605860549943
+17:18:42.287: Forward velocity: 0.0
+17:18:42.287: Crosstrack Error: -0.002
+17:18:42.287: Front steering angle: -35.0 degrees
+17:18:42.287: Steering wheel angle: -629.28 degrees
+17:18:42.287: Desired speed 0.0 m/s
+17:18:42.287: Feedforward accel: 0.0 m/s^2
+17:18:42.287: Output acceleration 0.0
+17:18:42.287: Current gear 1
+17:18:42.387: Searching within range [0.0, 50.00000000000002]
+17:18:42.387: Closest parameter: 0.0 distance to path 0.0023989978981734895
+17:18:42.387: Closest point [0.0, 0.0] vs (-0.0005420017747299913, 0.002336969189277077)
+17:18:42.387: Current yaw 6.27882527039104 desired yaw -1.3429003461396225
+17:18:42.387: Closest point distance: 0.0023989978981734895
+17:18:42.387: Forward velocity: 0.0
+17:18:42.387: Crosstrack Error: -0.002
+17:18:42.387: Front steering angle: -35.0 degrees
+17:18:42.387: Steering wheel angle: -629.28 degrees
+17:18:42.387: Desired speed 0.0 m/s
+17:18:42.387: Feedforward accel: 0.0 m/s^2
+17:18:42.387: Output acceleration 0.0
+17:18:42.387: Current gear 1
+17:18:42.387: **************************
+17:18:42.387: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:42.387: Accel pedal position 0.0 brake position 0
+17:18:42.387: **************************
+17:18:42.487: Searching within range [0.0, 50.00000000000002]
+17:18:42.487: Closest parameter: 0.0 distance to path 0.0023290178243167985
+17:18:42.487: Closest point [0.0, 0.0] vs (-0.0005512146451116812, 0.0022628491865344796)
+17:18:42.487: Current yaw 6.2788666568146905 desired yaw -1.3318566356483228
+17:18:42.487: Closest point distance: 0.0023290178243167985
+17:18:42.487: Forward velocity: 0.0
+17:18:42.487: Crosstrack Error: -0.002
+17:18:42.487: Front steering angle: -35.0 degrees
+17:18:42.487: Steering wheel angle: -629.28 degrees
+17:18:42.487: Desired speed 0.0 m/s
+17:18:42.487: Feedforward accel: 0.0 m/s^2
+17:18:42.487: Output acceleration 0.0
+17:18:42.487: Current gear 1
+17:18:42.587: Searching within range [0.0, 50.00000000000002]
+17:18:42.587: Closest parameter: 0.0 distance to path 0.0023882233448404844
+17:18:42.587: Closest point [0.0, 0.0] vs (-0.0005598917417250972, 0.002321665777494493)
+17:18:42.587: Current yaw 6.278787295069848 desired yaw -1.3341552913385355
+17:18:42.587: Closest point distance: 0.0023882233448404844
+17:18:42.587: Forward velocity: 0.0
+17:18:42.587: Crosstrack Error: -0.002
+17:18:42.587: Front steering angle: -35.0 degrees
+17:18:42.587: Steering wheel angle: -629.28 degrees
+17:18:42.587: Desired speed 0.0 m/s
+17:18:42.587: Feedforward accel: 0.0 m/s^2
+17:18:42.587: Output acceleration 0.0
+17:18:42.587: Current gear 1
+17:18:42.587: **************************
+17:18:42.587: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:42.587: Accel pedal position 0.0 brake position 0
+17:18:42.587: **************************
+17:18:42.687: Searching within range [0.0, 50.00000000000002]
+17:18:42.687: Closest parameter: 0.0 distance to path 0.002337951768458746
+17:18:42.687: Closest point [0.0, 0.0] vs (-0.0005690024105400325, 0.0022676540142709182)
+17:18:42.687: Current yaw 6.278810649284894 desired yaw -1.3249508632002933
+17:18:42.687: Closest point distance: 0.002337951768458746
+17:18:42.687: Forward velocity: 0.0
+17:18:42.687: Crosstrack Error: -0.002
+17:18:42.687: Front steering angle: -35.0 degrees
+17:18:42.687: Steering wheel angle: -629.28 degrees
+17:18:42.687: Desired speed 0.0 m/s
+17:18:42.687: Feedforward accel: 0.0 m/s^2
+17:18:42.687: Output acceleration 0.0
+17:18:42.687: Current gear 1
+17:18:42.787: Searching within range [0.0, 50.00000000000002]
+17:18:42.787: Closest parameter: 0.0 distance to path 0.0023194079834945305
+17:18:42.787: Closest point [0.0, 0.0] vs (-0.0005779109375965249, 0.002246257407801802)
+17:18:42.787: Current yaw 6.278804505411039 desired yaw -1.3189802977780287
+17:18:42.787: Closest point distance: 0.0023194079834945305
+17:18:42.787: Forward velocity: 0.0
+17:18:42.787: Crosstrack Error: -0.002
+17:18:42.787: Front steering angle: -35.0 degrees
+17:18:42.787: Steering wheel angle: -629.28 degrees
+17:18:42.787: Desired speed 0.0 m/s
+17:18:42.787: Feedforward accel: 0.0 m/s^2
+17:18:42.787: Output acceleration 0.0
+17:18:42.787: Current gear 1
+17:18:42.787: **************************
+17:18:42.787: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:42.787: Accel pedal position 0.0 brake position 0
+17:18:42.787: **************************
+17:18:42.887: Searching within range [0.0, 50.00000000000002]
+17:18:42.887: Closest parameter: 0.0 distance to path 0.0022894154032653932
+17:18:42.887: Closest point [0.0, 0.0] vs (-0.0005868676493417434, 0.0022129187176362667)
+17:18:42.887: Current yaw 6.278809327902297 desired yaw -1.3115630511633414
+17:18:42.887: Closest point distance: 0.0022894154032653932
+17:18:42.887: Forward velocity: 0.0
+17:18:42.887: Crosstrack Error: -0.002
+17:18:42.887: Front steering angle: -35.0 degrees
+17:18:42.887: Steering wheel angle: -629.28 degrees
+17:18:42.887: Desired speed 0.0 m/s
+17:18:42.887: Feedforward accel: 0.0 m/s^2
+17:18:42.887: Output acceleration 0.0
+17:18:42.887: Current gear 1
+17:18:42.987: Searching within range [0.0, 50.00000000000002]
+17:18:42.987: Closest parameter: 0.0 distance to path 0.002264642398419056
+17:18:42.987: Closest point [0.0, 0.0] vs (-0.0005957725392454418, 0.002184870768306046)
+17:18:42.987: Current yaw 6.278809432901054 desired yaw -1.3045874354497502
+17:18:42.987: Closest point distance: 0.002264642398419056
+17:18:42.987: Forward velocity: 0.0
+17:18:42.987: Crosstrack Error: -0.002
+17:18:42.987: Front steering angle: -35.0 degrees
+17:18:42.987: Steering wheel angle: -629.28 degrees
+17:18:42.987: Desired speed 0.0 m/s
+17:18:42.987: Feedforward accel: 0.0 m/s^2
+17:18:42.987: Output acceleration 0.0
+17:18:42.987: Current gear 1
+17:18:42.987: **************************
+17:18:42.987: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:42.987: Accel pedal position 0.0 brake position 0
+17:18:42.987: **************************
+17:18:43.087: Searching within range [0.0, 50.00000000000002]
+17:18:43.087: Closest parameter: 0.0 distance to path 0.002217689227412315
+17:18:43.087: Closest point [0.0, 0.0] vs (-0.0006047057861835764, 0.0021336533039687426)
+17:18:43.087: Current yaw 6.278830695268049 desired yaw -1.2946252577753208
+17:18:43.087: Closest point distance: 0.002217689227412315
+17:18:43.087: Forward velocity: 0.0
+17:18:43.087: Crosstrack Error: -0.002
+17:18:43.087: Front steering angle: -35.0 degrees
+17:18:43.087: Steering wheel angle: -629.28 degrees
+17:18:43.087: Desired speed 0.0 m/s
+17:18:43.087: Feedforward accel: 0.0 m/s^2
+17:18:43.087: Output acceleration 0.0
+17:18:43.087: Current gear 1
+17:18:43.187: Searching within range [0.0, 50.00000000000002]
+17:18:43.187: Closest parameter: 0.0 distance to path 0.002174589657174974
+17:18:43.187: Closest point [0.0, 0.0] vs (-0.0006135716939064628, 0.002086233436969393)
+17:18:43.187: Current yaw 6.278848556566391 desired yaw -1.2847565213066574
+17:18:43.187: Closest point distance: 0.002174589657174974
+17:18:43.187: Forward velocity: 0.0
+17:18:43.187: Crosstrack Error: -0.002
+17:18:43.187: Front steering angle: -35.0 degrees
+17:18:43.187: Steering wheel angle: -629.28 degrees
+17:18:43.187: Desired speed 0.0 m/s
+17:18:43.187: Feedforward accel: 0.0 m/s^2
+17:18:43.187: Output acceleration 0.0
+17:18:43.187: Current gear 1
+17:18:43.187: **************************
+17:18:43.187: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:43.187: Accel pedal position 0.0 brake position 0
+17:18:43.187: **************************
+17:18:43.287: Searching within range [0.0, 50.00000000000002]
+17:18:43.287: Closest parameter: 0.0 distance to path 0.0022062519254199293
+17:18:43.287: Closest point [0.0, 0.0] vs (-0.0006202969902344579, 0.0021172574719020873)
+17:18:43.287: Current yaw 6.2788001789710775 desired yaw -1.285799717046486
+17:18:43.287: Closest point distance: 0.0022062519254199293
+17:18:43.287: Forward velocity: 0.0
+17:18:43.287: Crosstrack Error: -0.002
+17:18:43.287: Front steering angle: -35.0 degrees
+17:18:43.287: Steering wheel angle: -629.28 degrees
+17:18:43.287: Desired speed 0.0 m/s
+17:18:43.287: Feedforward accel: 0.0 m/s^2
+17:18:43.287: Output acceleration 0.0
+17:18:43.287: Current gear 1
+17:18:43.287: **************************
+17:18:43.287: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:43.287: Accel pedal position 0.0 brake position 0
+17:18:43.287: **************************
+17:18:43.387: Searching within range [0.0, 50.00000000000002]
+17:18:43.387: Closest parameter: 0.0 distance to path 0.002191417223631518
+17:18:43.387: Closest point [0.0, 0.0] vs (-0.0006288741615033839, 0.002099244325232841)
+17:18:43.387: Current yaw 6.278791390729511 desired yaw -1.279732527394067
+17:18:43.387: Closest point distance: 0.002191417223631518
+17:18:43.387: Forward velocity: 0.0
+17:18:43.387: Crosstrack Error: -0.002
+17:18:43.387: Front steering angle: -35.0 degrees
+17:18:43.387: Steering wheel angle: -629.28 degrees
+17:18:43.387: Desired speed 0.0 m/s
+17:18:43.387: Feedforward accel: 0.0 m/s^2
+17:18:43.387: Output acceleration 0.0
+17:18:43.387: Current gear 1
+17:18:43.487: Searching within range [0.0, 50.00000000000002]
+17:18:43.487: Closest parameter: 0.0 distance to path 0.002193905668556453
+17:18:43.487: Closest point [0.0, 0.0] vs (-0.0006389765050039347, 0.002098792774091119)
+17:18:43.487: Current yaw 6.278761715264375 desired yaw -1.2752623966568928
+17:18:43.487: Closest point distance: 0.002193905668556453
+17:18:43.487: Forward velocity: 0.0
+17:18:43.487: Crosstrack Error: -0.002
+17:18:43.487: Front steering angle: -35.0 degrees
+17:18:43.487: Steering wheel angle: -629.28 degrees
+17:18:43.487: Desired speed 0.0 m/s
+17:18:43.487: Feedforward accel: 0.0 m/s^2
+17:18:43.487: Output acceleration 0.0
+17:18:43.487: Current gear 1
+17:18:43.487: **************************
+17:18:43.487: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:43.487: Accel pedal position 0.0 brake position 0
+17:18:43.487: **************************
+17:18:43.587: Searching within range [0.0, 50.00000000000002]
+17:18:43.587: Closest parameter: 0.0 distance to path 0.0021411375444941798
+17:18:43.587: Closest point [0.0, 0.0] vs (-0.000647542782300832, 0.002040871953242697)
+17:18:43.587: Current yaw 6.27878936715988 desired yaw -1.2635560248839273
+17:18:43.587: Closest point distance: 0.0021411375444941798
+17:18:43.587: Forward velocity: 0.0
+17:18:43.587: Crosstrack Error: -0.002
+17:18:43.587: Front steering angle: -35.0 degrees
+17:18:43.587: Steering wheel angle: -629.28 degrees
+17:18:43.587: Desired speed 0.0 m/s
+17:18:43.587: Feedforward accel: 0.0 m/s^2
+17:18:43.587: Output acceleration 0.0
+17:18:43.587: Current gear 1
+17:18:43.687: Searching within range [0.0, 50.00000000000002]
+17:18:43.687: Closest parameter: 0.0 distance to path 0.0021745702214540346
+17:18:43.687: Closest point [0.0, 0.0] vs (-0.0006555874598085225, 0.0020733935300797234)
+17:18:43.687: Current yaw 6.27873484079451 desired yaw -1.2645527823260747
+17:18:43.687: Closest point distance: 0.0021745702214540346
+17:18:43.687: Forward velocity: 0.0
+17:18:43.687: Crosstrack Error: -0.002
+17:18:43.687: Front steering angle: -35.0 degrees
+17:18:43.687: Steering wheel angle: -629.28 degrees
+17:18:43.687: Desired speed 0.0 m/s
+17:18:43.687: Feedforward accel: 0.0 m/s^2
+17:18:43.687: Output acceleration 0.0
+17:18:43.687: Current gear 1
+17:18:43.687: **************************
+17:18:43.687: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:43.687: Accel pedal position 0.0 brake position 0
+17:18:43.687: **************************
+17:18:43.787: Searching within range [0.0, 50.00000000000002]
+17:18:43.787: Closest parameter: 0.0 distance to path 0.0021144286897357063
+17:18:43.787: Closest point [0.0, 0.0] vs (-0.0006639917880785891, 0.0020074669584682217)
+17:18:43.787: Current yaw 6.278769856423544 desired yaw -1.2513626519613976
+17:18:43.787: Closest point distance: 0.0021144286897357063
+17:18:43.787: Forward velocity: 0.0
+17:18:43.787: Crosstrack Error: -0.002
+17:18:43.787: Front steering angle: -35.0 degrees
+17:18:43.787: Steering wheel angle: -629.28 degrees
+17:18:43.787: Desired speed 0.0 m/s
+17:18:43.787: Feedforward accel: 0.0 m/s^2
+17:18:43.787: Output acceleration 0.0
+17:18:43.787: Current gear 1
+17:18:43.787: **************************
+17:18:43.787: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:43.787: Accel pedal position 0.0 brake position 0
+17:18:43.787: **************************
+17:18:43.887: Searching within range [0.0, 50.00000000000002]
+17:18:43.887: Closest parameter: 0.0 distance to path 0.002119162463715653
+17:18:43.887: Closest point [0.0, 0.0] vs (-0.0006720286795753039, 0.002009782824448868)
+17:18:43.887: Current yaw 6.278742883422147 desired yaw -1.2481051877580542
+17:18:43.887: Closest point distance: 0.002119162463715653
+17:18:43.887: Forward velocity: 0.0
+17:18:43.887: Crosstrack Error: -0.002
+17:18:43.887: Front steering angle: -35.0 degrees
+17:18:43.887: Steering wheel angle: -629.28 degrees
+17:18:43.887: Desired speed 0.0 m/s
+17:18:43.887: Feedforward accel: 0.0 m/s^2
+17:18:43.887: Output acceleration 0.0
+17:18:43.887: Current gear 1
+17:18:43.987: Searching within range [0.0, 50.00000000000002]
+17:18:43.987: Closest parameter: 0.0 distance to path 0.0020825607054024667
+17:18:43.987: Closest point [0.0, 0.0] vs (-0.0006801691687761063, 0.001968356927371873)
+17:18:43.987: Current yaw 6.278755719161357 desired yaw -1.238089802282086
+17:18:43.987: Closest point distance: 0.0020825607054024667
+17:18:43.987: Forward velocity: 0.0
+17:18:43.987: Crosstrack Error: -0.002
+17:18:43.987: Front steering angle: -35.0 degrees
+17:18:43.987: Steering wheel angle: -629.28 degrees
+17:18:43.987: Desired speed 0.0 m/s
+17:18:43.987: Feedforward accel: 0.0 m/s^2
+17:18:43.987: Output acceleration 0.0
+17:18:43.987: Current gear 1
+17:18:43.987: **************************
+17:18:43.987: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:43.987: Accel pedal position 0.0 brake position 0
+17:18:43.987: **************************
+17:18:44.087: Searching within range [0.0, 50.00000000000002]
+17:18:44.087: Closest parameter: 0.0 distance to path 0.0020102701851359697
+17:18:44.087: Closest point [0.0, 0.0] vs (-0.000688420090397205, 0.0018887202006607833)
+17:18:44.087: Current yaw 6.278803333493527 desired yaw -1.2212713713194192
+17:18:44.087: Closest point distance: 0.0020102701851359697
+17:18:44.087: Forward velocity: 0.0
+17:18:44.087: Crosstrack Error: -0.002
+17:18:44.087: Front steering angle: -35.0 degrees
+17:18:44.087: Steering wheel angle: -629.28 degrees
+17:18:44.087: Desired speed 0.0 m/s
+17:18:44.087: Feedforward accel: 0.0 m/s^2
+17:18:44.087: Output acceleration 0.0
+17:18:44.087: Current gear 1
+17:18:44.087: **************************
+17:18:44.087: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:44.087: Accel pedal position 0.0 brake position 0
+17:18:44.087: **************************
+17:18:44.187: Searching within range [0.0, 50.00000000000002]
+17:18:44.187: Closest parameter: 0.0 distance to path 0.0019842143028345706
+17:18:44.187: Closest point [0.0, 0.0] vs (-0.0006963982124390788, 0.0018579924459709023)
+17:18:44.187: Current yaw 6.2788065031378695 desired yaw -1.212190324504951
+17:18:44.187: Closest point distance: 0.0019842143028345706
+17:18:44.187: Forward velocity: 0.0
+17:18:44.187: Crosstrack Error: -0.002
+17:18:44.187: Front steering angle: -35.0 degrees
+17:18:44.187: Steering wheel angle: -629.28 degrees
+17:18:44.187: Desired speed 0.0 m/s
+17:18:44.187: Feedforward accel: 0.0 m/s^2
+17:18:44.187: Output acceleration 0.0
+17:18:44.187: Current gear 1
+17:18:44.187: **************************
+17:18:44.187: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:44.187: Accel pedal position 0.0 brake position 0
+17:18:44.187: **************************
+17:18:44.287: Searching within range [0.0, 50.00000000000002]
+17:18:44.287: Closest parameter: 0.0 distance to path 0.001950757654460172
+17:18:44.287: Closest point [0.0, 0.0] vs (-0.0007043167279849874, 0.0018191738160812105)
+17:18:44.287: Current yaw 6.27881703641986 desired yaw -1.2014051056065673
+17:18:44.287: Closest point distance: 0.001950757654460172
+17:18:44.287: Forward velocity: 0.0
+17:18:44.287: Crosstrack Error: -0.002
+17:18:44.287: Front steering angle: -35.0 degrees
+17:18:44.287: Steering wheel angle: -629.28 degrees
+17:18:44.287: Desired speed 0.0 m/s
+17:18:44.287: Feedforward accel: 0.0 m/s^2
+17:18:44.287: Output acceleration 0.0
+17:18:44.287: Current gear 1
+17:18:44.287: **************************
+17:18:44.287: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:44.287: Accel pedal position 0.0 brake position 0
+17:18:44.287: **************************
+17:18:44.387: Searching within range [0.0, 50.00000000000002]
+17:18:44.387: Closest parameter: 0.0 distance to path 0.0019275737171520842
+17:18:44.387: Closest point [0.0, 0.0] vs (-0.000712093567420332, 0.00179121835248919)
+17:18:44.387: Current yaw 6.278817699049044 desired yaw -1.1924063509173584
+17:18:44.387: Closest point distance: 0.0019275737171520842
+17:18:44.387: Forward velocity: 0.0
+17:18:44.387: Crosstrack Error: -0.002
+17:18:44.387: Front steering angle: -35.0 degrees
+17:18:44.387: Steering wheel angle: -629.28 degrees
+17:18:44.387: Desired speed 0.0 m/s
+17:18:44.387: Feedforward accel: 0.0 m/s^2
+17:18:44.387: Output acceleration 0.0
+17:18:44.387: Current gear 1
+17:18:44.487: Searching within range [0.0, 50.00000000000002]
+17:18:44.487: Closest parameter: 0.0 distance to path 0.0018955222605213436
+17:18:44.487: Closest point [0.0, 0.0] vs (-0.000719797329573071, 0.0017535382643305564)
+17:18:44.487: Current yaw 6.278827197727459 desired yaw -1.1812858289478385
+17:18:44.487: Closest point distance: 0.0018955222605213436
+17:18:44.487: Forward velocity: 0.0
+17:18:44.487: Crosstrack Error: -0.002
+17:18:44.487: Front steering angle: -35.0 degrees
+17:18:44.487: Steering wheel angle: -629.28 degrees
+17:18:44.487: Desired speed 0.0 m/s
+17:18:44.487: Feedforward accel: 0.0 m/s^2
+17:18:44.487: Output acceleration 0.0
+17:18:44.487: Current gear 1
+17:18:44.487: **************************
+17:18:44.487: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:44.487: Accel pedal position 0.0 brake position 0
+17:18:44.487: **************************
+17:18:44.587: Searching within range [0.0, 50.00000000000002]
+17:18:44.587: Closest parameter: 0.0 distance to path 0.001897125181752824
+17:18:44.587: Closest point [0.0, 0.0] vs (-0.0007272148199109398, 0.0017522107638473703)
+17:18:44.587: Current yaw 6.278803609367544 desired yaw -1.1774031113421926
+17:18:44.587: Closest point distance: 0.001897125181752824
+17:18:44.587: Forward velocity: 0.0
+17:18:44.587: Crosstrack Error: -0.002
+17:18:44.587: Front steering angle: -35.0 degrees
+17:18:44.587: Steering wheel angle: -629.28 degrees
+17:18:44.587: Desired speed 0.0 m/s
+17:18:44.587: Feedforward accel: 0.0 m/s^2
+17:18:44.587: Output acceleration 0.0
+17:18:44.587: Current gear 1
+17:18:44.587: **************************
+17:18:44.587: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:44.587: Accel pedal position 0.0 brake position 0
+17:18:44.587: **************************
+17:18:44.687: Searching within range [0.0, 50.00000000000002]
+17:18:44.687: Closest parameter: 0.0 distance to path 0.001836679240553157
+17:18:44.687: Closest point [0.0, 0.0] vs (-0.0007347994817467764, 0.0016832885534879603)
+17:18:44.687: Current yaw 6.278841413870425 desired yaw -1.1592035677723012
+17:18:44.687: Closest point distance: 0.001836679240553157
+17:18:44.687: Forward velocity: 0.0
+17:18:44.687: Crosstrack Error: -0.002
+17:18:44.687: Front steering angle: -35.0 degrees
+17:18:44.687: Steering wheel angle: -629.28 degrees
+17:18:44.687: Desired speed 0.0 m/s
+17:18:44.687: Feedforward accel: 0.0 m/s^2
+17:18:44.687: Output acceleration 0.0
+17:18:44.687: Current gear 1
+17:18:44.787: Searching within range [0.0, 50.00000000000002]
+17:18:44.787: Closest parameter: 0.0 distance to path 0.0018032923852144434
+17:18:44.787: Closest point [0.0, 0.0] vs (-0.0007420980752105257, 0.0016435187474869977)
+17:18:44.787: Current yaw 6.278852670232042 desired yaw -1.146670752273685
+17:18:44.787: Closest point distance: 0.0018032923852144434
+17:18:44.787: Forward velocity: 0.0
+17:18:44.787: Crosstrack Error: -0.002
+17:18:44.787: Front steering angle: -35.0 degrees
+17:18:44.787: Steering wheel angle: -629.28 degrees
+17:18:44.787: Desired speed 0.0 m/s
+17:18:44.787: Feedforward accel: 0.0 m/s^2
+17:18:44.787: Output acceleration 0.0
+17:18:44.787: Current gear 1
+17:18:44.787: **************************
+17:18:44.787: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:44.787: Accel pedal position 0.0 brake position 0
+17:18:44.787: **************************
+17:18:44.887: Searching within range [0.0, 50.00000000000002]
+17:18:44.887: Closest parameter: 0.0 distance to path 0.0017757494215371744
+17:18:44.887: Closest point [0.0, 0.0] vs (-0.0007492045284092061, 0.0016099622923226335)
+17:18:44.887: Current yaw 6.278858236576995 desired yaw -1.1352465382865609
+17:18:44.887: Closest point distance: 0.0017757494215371744
+17:18:44.887: Forward velocity: 0.0
+17:18:44.887: Crosstrack Error: -0.002
+17:18:44.887: Front steering angle: -35.0 degrees
+17:18:44.887: Steering wheel angle: -629.28 degrees
+17:18:44.887: Desired speed 0.0 m/s
+17:18:44.887: Feedforward accel: 0.0 m/s^2
+17:18:44.887: Output acceleration 0.0
+17:18:44.887: Current gear 1
+17:18:44.987: Searching within range [0.0, 50.00000000000002]
+17:18:44.987: Closest parameter: 0.0 distance to path 0.001748808842879649
+17:18:44.987: Closest point [0.0, 0.0] vs (-0.0007561457931020909, 0.001576888045648158)
+17:18:44.987: Current yaw 6.27886330366895 desired yaw -1.12366837858005
+17:18:44.987: Closest point distance: 0.001748808842879649
+17:18:44.987: Forward velocity: 0.0
+17:18:44.987: Crosstrack Error: -0.002
+17:18:44.987: Front steering angle: -35.0 degrees
+17:18:44.987: Steering wheel angle: -629.28 degrees
+17:18:44.987: Desired speed 0.0 m/s
+17:18:44.987: Feedforward accel: 0.0 m/s^2
+17:18:44.987: Output acceleration 0.0
+17:18:44.987: Current gear 1
+17:18:44.987: **************************
+17:18:44.987: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:44.987: Accel pedal position 0.0 brake position 0
+17:18:44.987: **************************
+17:18:45.087: Searching within range [0.0, 50.00000000000002]
+17:18:45.087: Closest parameter: 0.0 distance to path 0.0015924458005933315
+17:18:45.087: Closest point [0.0, 0.0] vs (-0.0007635717885015857, 0.0013974411442460918)
+17:18:45.087: Current yaw 6.279001393336213 desired yaw -1.0707157506819325
+17:18:45.087: Closest point distance: 0.0015924458005933315
+17:18:45.087: Forward velocity: 0.0
+17:18:45.087: Crosstrack Error: -0.001
+17:18:45.087: Front steering angle: -35.0 degrees
+17:18:45.087: Steering wheel angle: -629.28 degrees
+17:18:45.087: Desired speed 0.0 m/s
+17:18:45.087: Feedforward accel: 0.0 m/s^2
+17:18:45.087: Output acceleration 0.0
+17:18:45.087: Current gear 1
+17:18:45.087: **************************
+17:18:45.087: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:45.087: Accel pedal position 0.0 brake position 0
+17:18:45.087: **************************
+17:18:45.187: Searching within range [0.0, 50.00000000000002]
+17:18:45.187: Closest parameter: 0.0 distance to path 0.0015543671243369564
+17:18:45.187: Closest point [0.0, 0.0] vs (-0.0007703204926576555, 0.001350060552646142)
+17:18:45.187: Current yaw 6.279019395482004 desired yaw -1.0522884944389161
+17:18:45.187: Closest point distance: 0.0015543671243369564
+17:18:45.187: Forward velocity: 0.0
+17:18:45.187: Crosstrack Error: -0.001
+17:18:45.187: Front steering angle: -35.0 degrees
+17:18:45.187: Steering wheel angle: -629.28 degrees
+17:18:45.187: Desired speed 0.0 m/s
+17:18:45.187: Feedforward accel: 0.0 m/s^2
+17:18:45.187: Output acceleration 0.0
+17:18:45.187: Current gear 1
+17:18:45.287: Searching within range [0.0, 50.00000000000002]
+17:18:45.287: Closest parameter: 0.0 distance to path 0.0015567982395385642
+17:18:45.287: Closest point [0.0, 0.0] vs (-0.0007767610439442439, 0.0013491712416298465)
+17:18:45.287: Current yaw 6.278995103030335 desired yaw -1.0484121109937135
+17:18:45.287: Closest point distance: 0.0015567982395385642
+17:18:45.287: Forward velocity: 0.0
+17:18:45.287: Crosstrack Error: -0.001
+17:18:45.287: Front steering angle: -35.0 degrees
+17:18:45.287: Steering wheel angle: -629.28 degrees
+17:18:45.287: Desired speed 0.0 m/s
+17:18:45.287: Feedforward accel: 0.0 m/s^2
+17:18:45.287: Output acceleration 0.0
+17:18:45.287: Current gear 1
+17:18:45.287: **************************
+17:18:45.287: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:45.287: Accel pedal position 0.0 brake position 0
+17:18:45.287: **************************
+17:18:45.387: Searching within range [0.0, 50.00000000000002]
+17:18:45.387: Closest parameter: 0.0 distance to path 0.0015180695808586294
+17:18:45.387: Closest point [0.0, 0.0] vs (-0.0007833231885927736, 0.0013003615014837778)
+17:18:45.387: Current yaw 6.2790143294219645 desired yaw -1.0286222158460911
+17:18:45.387: Closest point distance: 0.0015180695808586294
+17:18:45.387: Forward velocity: 0.0
+17:18:45.387: Crosstrack Error: -0.001
+17:18:45.387: Front steering angle: -35.0 degrees
+17:18:45.387: Steering wheel angle: -629.28 degrees
+17:18:45.387: Desired speed 0.0 m/s
+17:18:45.387: Feedforward accel: 0.0 m/s^2
+17:18:45.387: Output acceleration 0.0
+17:18:45.387: Current gear 1
+17:18:45.487: Searching within range [0.0, 50.00000000000002]
+17:18:45.487: Closest parameter: 0.0 distance to path 0.0015102287382038138
+17:18:45.487: Closest point [0.0, 0.0] vs (-0.0007896709652272687, 0.001287326923657591)
+17:18:45.487: Current yaw 6.279000988088307 desired yaw -1.020568202568081
+17:18:45.487: Closest point distance: 0.0015102287382038138
+17:18:45.487: Forward velocity: 0.0
+17:18:45.487: Crosstrack Error: -0.001
+17:18:45.487: Front steering angle: -35.0 degrees
+17:18:45.487: Steering wheel angle: -629.28 degrees
+17:18:45.487: Desired speed 0.0 m/s
+17:18:45.487: Feedforward accel: 0.0 m/s^2
+17:18:45.487: Output acceleration 0.0
+17:18:45.487: Current gear 1
+17:18:45.487: **************************
+17:18:45.487: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:45.487: Accel pedal position 0.0 brake position 0
+17:18:45.487: **************************
+17:18:45.587: Searching within range [0.0, 50.00000000000002]
+17:18:45.587: Closest parameter: 0.0 distance to path 0.0014693427726004077
+17:18:45.587: Closest point [0.0, 0.0] vs (-0.0007961290025626464, 0.001234968337517873)
+17:18:45.587: Current yaw 6.2790233600512195 desired yaw -0.9981874774944638
+17:18:45.587: Closest point distance: 0.0014693427726004077
+17:18:45.587: Forward velocity: 0.0
+17:18:45.587: Crosstrack Error: -0.001
+17:18:45.587: Front steering angle: -35.0 degrees
+17:18:45.587: Steering wheel angle: -629.28 degrees
+17:18:45.587: Desired speed 0.0 m/s
+17:18:45.587: Feedforward accel: 0.0 m/s^2
+17:18:45.587: Output acceleration 0.0
+17:18:45.587: Current gear 1
+17:18:45.687: Searching within range [0.0, 50.00000000000002]
+17:18:45.687: Closest parameter: 0.0 distance to path 0.0014324476773660735
+17:18:45.687: Closest point [0.0, 0.0] vs (-0.0008025078189203627, 0.001186544372943187)
+17:18:45.687: Current yaw 6.279042120255047 desired yaw -0.9761264352561041
+17:18:45.687: Closest point distance: 0.0014324476773660735
+17:18:45.687: Forward velocity: 0.0
+17:18:45.687: Crosstrack Error: -0.001
+17:18:45.687: Front steering angle: -35.0 degrees
+17:18:45.687: Steering wheel angle: -629.28 degrees
+17:18:45.687: Desired speed 0.0 m/s
+17:18:45.687: Feedforward accel: 0.0 m/s^2
+17:18:45.687: Output acceleration 0.0
+17:18:45.687: Current gear 1
+17:18:45.687: **************************
+17:18:45.687: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:45.687: Accel pedal position 0.0 brake position 0
+17:18:45.687: **************************
+17:18:45.787: Searching within range [0.0, 50.00000000000002]
+17:18:45.787: Closest parameter: 0.0 distance to path 0.0014016478480778506
+17:18:45.787: Closest point [0.0, 0.0] vs (-0.0008088234671180866, 0.001144736340412213)
+17:18:45.787: Current yaw 6.279054850643611 desired yaw -0.9556820728456906
+17:18:45.787: Closest point distance: 0.0014016478480778506
+17:18:45.787: Forward velocity: 0.0
+17:18:45.787: Crosstrack Error: -0.001
+17:18:45.787: Front steering angle: -35.0 degrees
+17:18:45.787: Steering wheel angle: -629.28 degrees
+17:18:45.787: Desired speed 0.0 m/s
+17:18:45.787: Feedforward accel: 0.0 m/s^2
+17:18:45.787: Output acceleration 0.0
+17:18:45.787: Current gear 1
+17:18:45.787: **************************
+17:18:45.787: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:45.787: Accel pedal position 0.0 brake position 0
+17:18:45.787: **************************
+17:18:45.887: Searching within range [0.0, 50.00000000000002]
+17:18:45.887: Closest parameter: 0.0 distance to path 0.0013798287602318825
+17:18:45.887: Closest point [0.0, 0.0] vs (-0.0008150654901034327, 0.001113371301231312)
+17:18:45.887: Current yaw 6.279058084385948 desired yaw -0.9388696580392798
+17:18:45.887: Closest point distance: 0.0013798287602318825
+17:18:45.887: Forward velocity: 0.0
+17:18:45.887: Crosstrack Error: -0.001
+17:18:45.887: Front steering angle: -35.0 degrees
+17:18:45.887: Steering wheel angle: -629.28 degrees
+17:18:45.887: Desired speed 0.0 m/s
+17:18:45.887: Feedforward accel: 0.0 m/s^2
+17:18:45.887: Output acceleration 0.0
+17:18:45.887: Current gear 1
+17:18:45.987: Searching within range [0.0, 50.00000000000002]
+17:18:45.987: Closest parameter: 0.0 distance to path 0.0013745412498013321
+17:18:45.987: Closest point [0.0, 0.0] vs (-0.0008211753136268618, 0.00110228614782879)
+17:18:45.987: Current yaw 6.279042874339481 desired yaw -0.9305191630618497
+17:18:45.987: Closest point distance: 0.0013745412498013321
+17:18:45.987: Forward velocity: 0.0
+17:18:45.987: Crosstrack Error: -0.001
+17:18:45.987: Front steering angle: -35.0 degrees
+17:18:45.987: Steering wheel angle: -629.28 degrees
+17:18:45.987: Desired speed 0.0 m/s
+17:18:45.987: Feedforward accel: 0.0 m/s^2
+17:18:45.987: Output acceleration 0.0
+17:18:45.987: Current gear 1
+17:18:45.987: **************************
+17:18:45.987: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:45.987: Accel pedal position 0.0 brake position 0
+17:18:45.987: **************************
+17:18:46.087: Searching within range [0.0, 50.00000000000002]
+17:18:46.087: Closest parameter: 0.0 distance to path 0.0013483682436058104
+17:18:46.087: Closest point [0.0, 0.0] vs (-0.000827370934383259, 0.0010646850507555702)
+17:18:46.087: Current yaw 6.279051779980677 desired yaw -0.9101731556949915
+17:18:46.087: Closest point distance: 0.0013483682436058104
+17:18:46.087: Forward velocity: 0.0
+17:18:46.087: Crosstrack Error: -0.001
+17:18:46.087: Front steering angle: -35.0 degrees
+17:18:46.087: Steering wheel angle: -629.28 degrees
+17:18:46.087: Desired speed 0.0 m/s
+17:18:46.087: Feedforward accel: 0.0 m/s^2
+17:18:46.087: Output acceleration 0.0
+17:18:46.087: Current gear 1
+17:18:46.087: **************************
+17:18:46.087: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:46.087: Accel pedal position 0.0 brake position 0
+17:18:46.087: **************************
+17:18:46.187: Searching within range [0.0, 50.00000000000002]
+17:18:46.187: Closest parameter: 0.0 distance to path 0.0013222076659182517
+17:18:46.187: Closest point [0.0, 0.0] vs (-0.0008335531032945631, 0.0010263636469599819)
+17:18:46.187: Current yaw 6.279061339542925 desired yaw -0.8886954060752916
+17:18:46.187: Closest point distance: 0.0013222076659182517
+17:18:46.187: Forward velocity: 0.0
+17:18:46.187: Crosstrack Error: -0.001
+17:18:46.187: Front steering angle: -35.0 degrees
+17:18:46.187: Steering wheel angle: -629.28 degrees
+17:18:46.187: Desired speed 0.0 m/s
+17:18:46.187: Feedforward accel: 0.0 m/s^2
+17:18:46.187: Output acceleration 0.0
+17:18:46.187: Current gear 1
+17:18:46.287: Searching within range [0.0, 50.00000000000002]
+17:18:46.287: Closest parameter: 0.0 distance to path 0.001327754647394119
+17:18:46.287: Closest point [0.0, 0.0] vs (-0.0008371342931853911, 0.001030601076483853)
+17:18:46.287: Current yaw 6.279042312441071 desired yaw -0.888613677176966
+17:18:46.287: Closest point distance: 0.001327754647394119
+17:18:46.287: Forward velocity: 0.0
+17:18:46.287: Crosstrack Error: -0.001
+17:18:46.287: Front steering angle: -35.0 degrees
+17:18:46.287: Steering wheel angle: -629.28 degrees
+17:18:46.287: Desired speed 0.0 m/s
+17:18:46.287: Feedforward accel: 0.0 m/s^2
+17:18:46.287: Output acceleration 0.0
+17:18:46.287: Current gear 1
+17:18:46.287: **************************
+17:18:46.287: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:46.287: Accel pedal position 0.0 brake position 0
+17:18:46.287: **************************
+17:18:46.387: Searching within range [0.0, 50.00000000000002]
+17:18:46.387: Closest parameter: 0.0 distance to path 0.001271554380541671
+17:18:46.387: Closest point [0.0, 0.0] vs (-0.0008458232617633269, 0.0009494385459495306)
+17:18:46.387: Current yaw 6.279080691515431 desired yaw -0.8430501788457179
+17:18:46.387: Closest point distance: 0.001271554380541671
+17:18:46.387: Forward velocity: 0.0
+17:18:46.387: Crosstrack Error: -0.001
+17:18:46.387: Front steering angle: -35.0 degrees
+17:18:46.387: Steering wheel angle: -629.28 degrees
+17:18:46.387: Desired speed 0.0 m/s
+17:18:46.387: Feedforward accel: 0.0 m/s^2
+17:18:46.387: Output acceleration 0.0
+17:18:46.387: Current gear 1
+17:18:46.487: Searching within range [0.0, 50.00000000000002]
+17:18:46.487: Closest parameter: 0.0 distance to path 0.0012856692027808014
+17:18:46.487: Closest point [0.0, 0.0] vs (-0.0008517129594006036, 0.0009630837625918563)
+17:18:46.487: Current yaw 6.279043065049517 desired yaw -0.8466894955711155
+17:18:46.487: Closest point distance: 0.0012856692027808014
+17:18:46.487: Forward velocity: 0.0
+17:18:46.487: Crosstrack Error: -0.001
+17:18:46.487: Front steering angle: -35.0 degrees
+17:18:46.487: Steering wheel angle: -629.28 degrees
+17:18:46.487: Desired speed 0.0 m/s
+17:18:46.487: Feedforward accel: 0.0 m/s^2
+17:18:46.487: Output acceleration 0.0
+17:18:46.487: Current gear 1
+17:18:46.487: **************************
+17:18:46.487: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:46.487: Accel pedal position 0.0 brake position 0
+17:18:46.487: **************************
+17:18:46.587: Searching within range [0.0, 50.00000000000002]
+17:18:46.587: Closest parameter: 0.0 distance to path 0.0012726937454623428
+17:18:46.587: Closest point [0.0, 0.0] vs (-0.0008577814014931904, 0.0009401917022561646)
+17:18:46.587: Current yaw 6.279038686339853 desired yaw -0.8312012193266739
+17:18:46.587: Closest point distance: 0.0012726937454623428
+17:18:46.587: Forward velocity: 0.0
+17:18:46.587: Crosstrack Error: -0.001
+17:18:46.587: Front steering angle: -35.0 degrees
+17:18:46.587: Steering wheel angle: -629.28 degrees
+17:18:46.587: Desired speed 0.0 m/s
+17:18:46.587: Feedforward accel: 0.0 m/s^2
+17:18:46.587: Output acceleration 0.0
+17:18:46.587: Current gear 1
+17:18:46.687: Searching within range [0.0, 50.00000000000002]
+17:18:46.687: Closest parameter: 0.0 distance to path 0.0012552915950844177
+17:18:46.687: Closest point [0.0, 0.0] vs (-0.0008638967518289477, 0.0009107356317115167)
+17:18:46.687: Current yaw 6.27904031141898 desired yaw -0.8117856048495488
+17:18:46.687: Closest point distance: 0.0012552915950844177
+17:18:46.687: Forward velocity: 0.0
+17:18:46.687: Crosstrack Error: -0.001
+17:18:46.687: Front steering angle: -35.0 degrees
+17:18:46.687: Steering wheel angle: -629.28 degrees
+17:18:46.687: Desired speed 0.0 m/s
+17:18:46.687: Feedforward accel: 0.0 m/s^2
+17:18:46.687: Output acceleration 0.0
+17:18:46.687: Current gear 1
+17:18:46.687: **************************
+17:18:46.687: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:46.687: Accel pedal position 0.0 brake position 0
+17:18:46.687: **************************
+17:18:46.787: Searching within range [0.0, 50.00000000000002]
+17:18:46.787: Closest parameter: 0.0 distance to path 0.001236189534613015
+17:18:46.787: Closest point [0.0, 0.0] vs (-0.0008700222700070749, 0.0008781946339954938)
+17:18:46.787: Current yaw 6.2790448049147605 desired yaw -0.7900728147185333
+17:18:46.787: Closest point distance: 0.001236189534613015
+17:18:46.787: Forward velocity: 0.0
+17:18:46.787: Crosstrack Error: -0.001
+17:18:46.787: Front steering angle: -35.0 degrees
+17:18:46.787: Steering wheel angle: -629.28 degrees
+17:18:46.787: Desired speed 0.0 m/s
+17:18:46.787: Feedforward accel: 0.0 m/s^2
+17:18:46.787: Output acceleration 0.0
+17:18:46.787: Current gear 1
+17:18:46.787: **************************
+17:18:46.787: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:46.787: Accel pedal position 0.0 brake position 0
+17:18:46.787: **************************
+17:18:46.887: Searching within range [0.0, 50.00000000000002]
+17:18:46.887: Closest parameter: 0.0 distance to path 0.0011856351025117222
+17:18:46.887: Closest point [0.0, 0.0] vs (-0.0008763182038914236, 0.0007986219392406467)
+17:18:46.887: Current yaw 6.279092147700717 desired yaw -0.7390439053692753
+17:18:46.887: Closest point distance: 0.0011856351025117222
+17:18:46.887: Forward velocity: 0.0
+17:18:46.887: Crosstrack Error: -0.001
+17:18:46.887: Front steering angle: -35.0 degrees
+17:18:46.887: Steering wheel angle: -629.28 degrees
+17:18:46.887: Desired speed 0.0 m/s
+17:18:46.887: Feedforward accel: 0.0 m/s^2
+17:18:46.887: Output acceleration 0.0
+17:18:46.887: Current gear 1
+17:18:46.987: Searching within range [0.0, 50.00000000000002]
+17:18:46.987: Closest parameter: 0.0 distance to path 0.00118141704311728
+17:18:46.987: Closest point [0.0, 0.0] vs (-0.0008824788276954453, 0.0007854790566509394)
+17:18:46.987: Current yaw 6.279079232943295 desired yaw -0.39529473885298844
+17:18:46.987: Closest point distance: 0.0020397803521847316
+17:18:46.987: Forward velocity: 0.01
+17:18:46.987: Crosstrack Error: -0.001
+17:18:46.987: Front steering angle: -35.0 degrees
+17:18:46.987: Steering wheel angle: -629.28 degrees
+17:18:46.987: Desired speed 0.01 m/s
+17:18:46.987: Feedforward accel: 0.0 m/s^2
+17:18:46.987: Output acceleration 0.0
+17:18:46.987: Current gear 1
+17:18:46.987: **************************
+17:18:46.987: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:46.987: Accel pedal position 0.0 brake position 0
+17:18:46.987: **************************
+17:18:47.087: Searching within range [0.0, 50.00000000000002]
+17:18:47.087: Closest parameter: 0.0 distance to path 0.0016684116148067293
+17:18:47.087: Closest point [0.0, 0.0] vs (-0.0008860602898786219, 0.0014136811801542138)
+17:18:47.087: Current yaw 6.278483302102294 desired yaw -1.0109214888900444
+17:18:47.087: Closest point distance: 0.0016684116148067293
+17:18:47.087: Forward velocity: 0.0
+17:18:47.087: Crosstrack Error: -0.001
+17:18:47.087: Front steering angle: -35.0 degrees
+17:18:47.087: Steering wheel angle: -629.28 degrees
+17:18:47.087: Desired speed 0.0 m/s
+17:18:47.087: Feedforward accel: 0.0 m/s^2
+17:18:47.087: Output acceleration 0.0
+17:18:47.087: Current gear 1
+17:18:47.187: Searching within range [0.0, 50.00000000000002]
+17:18:47.187: Closest parameter: 0.0 distance to path 0.0015895928006137042
+17:18:47.187: Closest point [0.0, 0.0] vs (-0.0008929865438531295, 0.0013150590497236854)
+17:18:47.187: Current yaw 6.278548159946998 desired yaw -0.9742718126798561
+17:18:47.187: Closest point distance: 0.0015895928006137042
+17:18:47.187: Forward velocity: 0.0
+17:18:47.187: Crosstrack Error: -0.001
+17:18:47.187: Front steering angle: -35.0 degrees
+17:18:47.187: Steering wheel angle: -629.28 degrees
+17:18:47.187: Desired speed 0.0 m/s
+17:18:47.187: Feedforward accel: 0.0 m/s^2
+17:18:47.187: Output acceleration 0.0
+17:18:47.187: Current gear 1
+17:18:47.187: **************************
+17:18:47.187: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:47.187: Accel pedal position 0.0 brake position 0
+17:18:47.187: **************************
+17:18:47.287: Searching within range [0.0, 50.00000000000002]
+17:18:47.287: Closest parameter: 0.0 distance to path 0.0015594577468339681
+17:18:47.287: Closest point [0.0, 0.0] vs (-0.000894457866751695, 0.0012774402486091018)
+17:18:47.287: Current yaw 6.278577417834833 desired yaw -0.9599391910085093
+17:18:47.287: Closest point distance: 0.0015594577468339681
+17:18:47.287: Forward velocity: 0.0
+17:18:47.287: Crosstrack Error: -0.001
+17:18:47.287: Front steering angle: -35.0 degrees
+17:18:47.287: Steering wheel angle: -629.28 degrees
+17:18:47.287: Desired speed 0.0 m/s
+17:18:47.287: Feedforward accel: 0.0 m/s^2
+17:18:47.287: Output acceleration 0.0
+17:18:47.287: Current gear 1
+17:18:47.387: Searching within range [0.0, 50.00000000000002]
+17:18:47.387: Closest parameter: 0.0 distance to path 0.0015705326387321142
+17:18:47.387: Closest point [0.0, 0.0] vs (-0.0009061121933838849, 0.0012827834822462842)
+17:18:47.387: Current yaw 6.278528381393321 desired yaw -0.9558119156844925
+17:18:47.387: Closest point distance: 0.0015705326387321142
+17:18:47.387: Forward velocity: 0.0
+17:18:47.387: Crosstrack Error: -0.001
+17:18:47.387: Front steering angle: -35.0 degrees
+17:18:47.387: Steering wheel angle: -629.28 degrees
+17:18:47.387: Desired speed 0.0 m/s
+17:18:47.387: Feedforward accel: 0.0 m/s^2
+17:18:47.387: Output acceleration 0.0
+17:18:47.387: Current gear 1
+17:18:47.387: **************************
+17:18:47.387: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:47.387: Accel pedal position 0.0 brake position 0
+17:18:47.387: **************************
+17:18:47.487: Searching within range [0.0, 50.00000000000002]
+17:18:47.487: Closest parameter: 0.0 distance to path 0.00154230716600854
+17:18:47.487: Closest point [0.0, 0.0] vs (-0.0009127620793820022, 0.001243212283064939)
+17:18:47.487: Current yaw 6.278539942993799 desired yaw -0.9374864294273513
+17:18:47.487: Closest point distance: 0.00154230716600854
+17:18:47.487: Forward velocity: 0.0
+17:18:47.487: Crosstrack Error: -0.001
+17:18:47.487: Front steering angle: -35.0 degrees
+17:18:47.487: Steering wheel angle: -629.28 degrees
+17:18:47.487: Desired speed 0.0 m/s
+17:18:47.487: Feedforward accel: 0.0 m/s^2
+17:18:47.487: Output acceleration 0.0
+17:18:47.487: Current gear 1
+17:18:47.487: **************************
+17:18:47.487: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:47.487: Accel pedal position 0.0 brake position 0
+17:18:47.487: **************************
+17:18:47.587: Searching within range [0.0, 50.00000000000002]
+17:18:47.587: Closest parameter: 0.0 distance to path 0.001570689379839111
+17:18:47.587: Closest point [0.0, 0.0] vs (-0.000919082373548762, 0.0012737161059558544)
+17:18:47.587: Current yaw 6.278487974055479 desired yaw -0.9457364240276704
+17:18:47.587: Closest point distance: 0.001570689379839111
+17:18:47.587: Forward velocity: 0.0
+17:18:47.587: Crosstrack Error: -0.001
+17:18:47.587: Front steering angle: -35.0 degrees
+17:18:47.587: Steering wheel angle: -629.28 degrees
+17:18:47.587: Desired speed 0.0 m/s
+17:18:47.587: Feedforward accel: 0.0 m/s^2
+17:18:47.587: Output acceleration 0.0
+17:18:47.587: Current gear 1
+17:18:47.587: **************************
+17:18:47.587: Steer cmd angular position -10.9830422872897 velocity limit 2.0
+17:18:47.587: Accel pedal position 0.0 brake position 0
+17:18:47.587: **************************
