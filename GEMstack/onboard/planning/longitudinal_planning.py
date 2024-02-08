@@ -3,6 +3,7 @@ from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd
+from scipy.optimize import fsolve
 import math
 
 # get's the position that we will stop given deceleration and speed
@@ -28,6 +29,39 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
+    path_end = points[-1][0]
+    p0 = points[0][0]
+
+    # we can use the formula for min time PP curve to solve this equation
+    x1 = p0
+    v1 = current_speed
+    x2 = path_end
+    v2 = 0 # since once we reach end position, we want to be at a complete stop
+    a1 = acceleration
+    a2 = -deceleration
+    vl = max_speed
+    # we will have 5 equations and 5 unknowns if we can reach max speed(ts1, ts2, xs1, xs2, T, Vs, xs)
+    # Define the equations based on the image provided
+    # we want the position when we reach maximum velocity
+    delta_v = vl - v1
+    ts1 = delta_v / a1
+    xs1 = x1 + ts1*v1 + 0.5*(ts1**2)*a1
+    # first we have to figure out if we can reach the max velocity (i.e) we can stop before xs at xs1 with speed vl
+    p_stop = get_p_stop(xs1, deceleration, vl)
+    if p_stop > x2:
+        # use first equation to create path since we can't reach the max velocity without stopping
+
+    else:
+        z = (v2 - vl) / a2
+        ts2 = ((x2 - xs1 - 0.5*z**2*a2) / vl) + ts1 - z
+        T = ts2 + z
+        points = []
+        times = []
+        t_step = 0.05
+        cur_time = 0
+        
+    
+    
     # brake down into 3 phases 
     # accelerate until max speed 
 
