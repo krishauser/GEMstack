@@ -6,6 +6,8 @@ from ...mathutils.transforms import vector_madd
 from scipy.optimize import fsolve
 import math
 
+DELTA_T = 0.05
+
 # get's the position that we will stop given deceleration and speed
 def get_p_stop(init_pos: float, deceleration : float, current_speed : float):
     if current_speed == 0:
@@ -14,6 +16,20 @@ def get_p_stop(init_pos: float, deceleration : float, current_speed : float):
         return math.inf 
     p_stop = init_pos + current_speed**2 / (2*deceleration)
     return p_stop
+
+def create_path(init_pos, init_time, init_vel, acceleration, stop_time):
+    points = []
+    times = []
+    cur_time = init_time
+    while (cur_time < stop_time):
+        cur_time += DELTA_T
+        time_diff = cur_time - init_time
+        current_pos = init_pos + time_diff * init_vel + 0.5 * time_diff**2 * acceleration
+        points.append(current_pos)
+        times.append(cur_time)
+    return points, times
+
+
 
     
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
@@ -31,6 +47,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     times = [t for t in path_normalized.times]
     path_end = points[-1][0]
     p0 = points[0][0]
+    y_coordinate = points[0][1]
 
     # we can use the formula for min time PP curve to solve this equation
     x1 = p0
@@ -39,29 +56,34 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     v2 = 0 # since once we reach end position, we want to be at a complete stop
     a1 = acceleration
     a2 = -deceleration
-    vl = max_speed
+    vL = max_speed
     # we will have 5 equations and 5 unknowns if we can reach max speed(ts1, ts2, xs1, xs2, T, Vs, xs)
     # Define the equations based on the image provided
     # we want the position when we reach maximum velocity
-    delta_v = vl - v1
-    ts1 = delta_v / a1
+    delta_v = vL - v1
+    ts1 = delta_v / a1 if a1 != 0 else 0
     xs1 = x1 + ts1*v1 + 0.5*(ts1**2)*a1
     # first we have to figure out if we can reach the max velocity (i.e) we can stop before xs at xs1 with speed vl
-    p_stop = get_p_stop(xs1, deceleration, vl)
-    if p_stop > x2:
-        # use first equation to create path since we can't reach the max velocity without stopping
-
-    else:
-        z = (v2 - vl) / a2
-        ts2 = ((x2 - xs1 - 0.5*z**2*a2) / vl) + ts1 - z
+    p_stop = get_p_stop(xs1, deceleration, vL)
+    if ts1==0 or p_stop <= x2:
+        if ts1 == 0:
+            vL = v1
+        z = (v2 - vL) / a2
+        ts2 = ((x2 - xs1 - 0.5*z**2*a2) / vL) + ts1 - z
         T = ts2 + z
-        points = []
-        times = []
-        t_step = 0.05
-        cur_time = 0
+        xs2 = xs1 + (ts2-ts1)*vL
+        acc_points, acc_times = create_path(init_pos=x1, init_time=0, init_vel=v1,acceleration=a1, stop_time=ts1)
+        max_speed_points, max_speed_times = create_path(init_pos=xs1,init_time=ts1, init_vel=vL, acceleration=0, stop_time=ts2)
+        dec_points, dec_times = create_path(init_pos=xs2, init_time=ts2, init_vel=vL, acceleration=a2, stop_time=T)
+        points = acc_points + max_speed_points + dec_points
+        points = [(p, y_coordinate) for p in points]
+        times = acc_times + max_speed_times + dec_times 
+        # use first equation to create path since we can't reach the max velocity without stopping
+    else:
         
-    
-    
+        print("Can't reach max speed without stopping")
+
+
     # brake down into 3 phases 
     # accelerate until max speed 
 
@@ -76,7 +98,6 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
 
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
-    deltaT = 0.05
     """Generates a longitudinal trajectory for braking along a path."""
     #TODO: actually do something to points and times
     points = [p for p in path.points]
@@ -100,13 +121,13 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     times.append(time)
     pointsr.append(points[0])
     while (time < t_stop and current_pos <= last_pos):
-        time += deltaT
+        time += DELTA_T
         current_pos = init_pos + time * init_vel - 0.5 * time**2 * deceleration
         pointsr.append((current_pos,0))
         times.append(time)
 
     if p_stop < last_pos:
-        time += deltaT
+        time += DELTA_T
         times.append(time)
         pointsr.append((current_pos,0))
     """
