@@ -28,89 +28,76 @@ def create_path(init_pos, init_time, init_vel, acceleration, stop_time):
         points.append(current_pos)
         times.append(cur_time)
     return points, times
-
-
-
     
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
-    trapezoidal velocity profile. 
-    
+    trapezoidal velocity profile.
     1. accelerates from current speed toward max speed
     2. travel along max speed
     3. if at any point you can't brake before hitting the end of the path,
        decelerate with accel = -deceleration until velocity goes to 0.
-
-    The approach here involves solving for the equations in lecture. Basically there are two cases. 
-    1. -> we can't reach the max speed while stopping in time -> in this case we will have two phases. the 
-    acceleration phase and the deceleration phase. We have to solve for the position x_s, time t_s, speed v_s where we switch from acceleration to deceleration.
-    2. -> we can reach the max speed while stopping in time -> in this case we will have three phases. the acceleration phase, the max speed phase and the deceleration phase. 
-    We have to solve for the position x_s, time t_s, time T, speed v_s where we switch from acceleration to max speed and then from max speed to deceleration.
-    We used sympy to solve for the equations in the first case and in the second case we did it manually.
-    afterwards we just create the paths for each phase(acceleration, deceleration) using the variables we solved for and concatenate the paths together.
     """
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
-    path_end = points[-1][0]
-    p0 = points[0][0]
-    y_coordinate = points[0][1]
-
-    # we can use the formula for min time PP curve to solve this equation
-    x1 = p0
-    v1 = current_speed
-    x2 = path_end
-    v2 = 0 # since once we reach end position, we want to be at a complete stop
-    a1 = acceleration
-    a2 = -deceleration
-    vL = max_speed
-    delta_v = vL - v1
-    ts1 = delta_v / a1 if a1 != 0 else 0
-    xs1 = x1 + ts1*v1 + 0.5*(ts1**2)*a1
-    # first we have to figure out if we can reach the max velocity (i.e) we can stop before xs at xs1 with speed vl
-    p_stop = get_p_stop(xs1, deceleration, vL)
-    if ts1==0 or p_stop <= x2: # we can reach maximum velocity or there's no acceleration phase (use second equation)
-        if ts1 == 0:
-            vL = v1
-        z = (v2 - vL) / a2
-        ts2 = ((x2 - xs1 - 0.5*z**2*a2) / vL) + ts1 - z
-        T = ts2 + z
-        xs2 = xs1 + (ts2-ts1)*vL
-        acc_points, acc_times = create_path(init_pos=x1, init_time=0, init_vel=v1,acceleration=a1, stop_time=ts1)
-        max_speed_points, max_speed_times = create_path(init_pos=xs1,init_time=ts1, init_vel=vL, acceleration=0, stop_time=ts2)
-        dec_points, dec_times = create_path(init_pos=xs2, init_time=ts2, init_vel=vL, acceleration=a2, stop_time=T)
-        points = acc_points + max_speed_points + dec_points
-        points = [(p, y_coordinate) for p in points]
-        times = acc_times + max_speed_times + dec_times 
-    else: # use first equation to create path since we can't reach the max velocity without stopping
-        from sympy import symbols, Eq, solve
-        # Define the symbols
-        x_s, t_s, T, v_s = symbols('x_s t_s T v_s')
-        # Given equations from min time pp curve 
-        eq1 = Eq(v_s, v1 + a1 * t_s)
-        eq2 = Eq(x_s, x1 + v1 * t_s + 0.5 * a1 * t_s**2)
-        eq3 = Eq(v2, v_s + (T - t_s) * a2)
-        eq4 = Eq(x2, x_s + (T - t_s) * v_s + 0.5 * (T - t_s)**2 * a2)
-        # We'll solve for x_s, t_s, T, and v_s assuming that v1, x1, a1, a2 are constants.
-        # Solve the system of equations
-        solutions = solve((eq1, eq2, eq3, eq4), (x_s, t_s, T, v_s), dict=True)
-        valid_solutions = [sol for sol in solutions if sol[T] >= 0 and sol[t_s] >= 0]
-        # if no valid solutions just brake because we can't stop in time
-        if len(valid_solutions) == 0:
-            return longitudinal_brake(path, deceleration, current_speed)
-        
-        T, ts, vs, xs = valid_solutions[0].values()
-
-        acc_points, acc_times = create_path(init_pos=x1, init_time=0, init_vel=v1,acceleration=a1, stop_time=ts)
-        dec_points, dec_times = create_path(init_pos=xs, init_time=ts, init_vel=vs, acceleration=a2, stop_time=T)
-        points = acc_points + dec_points
-        points = [(p, y_coordinate) for p in points]
-        times = acc_times + dec_times
-
-    trajectory = Trajectory(path.frame, points, times)
+    # brake down into 3 phases
+    # accelerate until max speed
+    # travel max speed
+    # decelerate until stopping
+    # how do we figure out when to do the deceleration phase?
+    import numpy as np
+    dt = 0.05
+    if acceleration <= 0:
+        max_speed = current_speed
+        acceleration = -1
+    p_end = points[-1][0] - points[0][0]
+    t_dec = current_speed / deceleration
+    p_start = points[0][0]
+    if p_end < 0.5 * deceleration * t_dec ** 2:
+        # t_end = (current_speed - np.sqrt(current_speed ** 2 - 2 * deceleration * p_end)) / deceleration
+        t_end = t_dec
+        t_path = np.linspace(0, t_end, int(t_end / dt))
+        p_path = p_start + current_speed * t_path - 0.5 * deceleration * t_path ** 2
+        p_path = p_path.tolist()
+    else:
+        t_dec_from_max = max_speed / deceleration
+        t_acc_to_max = (max_speed - current_speed) / acceleration
+        if p_end < 0.5 * (acceleration * t_acc_to_max ** 2 + deceleration * t_dec_from_max ** 2):
+            if acceleration != -1:
+                t_acc = (-(1 + acceleration / deceleration) * current_speed + np.sqrt(((1 + acceleration / deceleration) * current_speed) ** 2 - (acceleration + acceleration ** 2 / deceleration) * (current_speed ** 2 / deceleration - 2 * p_end))) / (acceleration + acceleration ** 2 / deceleration)
+                t_acc_ = np.linspace(0, t_acc, int(t_acc / dt))
+                p_acc = p_start + current_speed * t_acc_ + 0.5 * acceleration * t_acc_ ** 2
+            t_dec = (t_acc * acceleration + current_speed) / deceleration
+            t_end = t_dec + t_acc if acceleration != -1 else 0
+            t_dec_ = np.linspace(0, t_dec, int(t_dec / dt))
+            p_last = p_acc[-1] if acceleration >= 0 else p_start
+            p_dec = p_last - 0.5 * deceleration * t_dec_ ** 2 + (t_acc * acceleration + current_speed) * t_dec_
+            p_path = p_dec.tolist()
+            t_path = (t_dec_+ (t_acc if acceleration != -1 else 0)).tolist()
+            if acceleration != -1:
+                p_path = p_acc.tolist() + p_path
+                t_path = t_acc_.tolist() + t_path
+        else:
+            if acceleration != -1:
+                t_acc = t_acc_to_max
+                t_acc_ = np.linspace(0, t_acc, int(t_acc / dt))
+                p_acc = p_start + current_speed * t_acc_ + 0.5 * acceleration * t_acc_ ** 2
+            t_uni = (p_end - 0.5 * acceleration * t_acc_to_max ** 2 - 0.5 * deceleration * t_dec_from_max ** 2 - current_speed * t_acc_to_max) / max_speed
+            t_uni_ = np.linspace(0, t_uni, int(t_uni / dt))
+            p_last = p_acc[-1] if acceleration >= 0 else p_start
+            p_uni = t_uni_ * max_speed + p_last
+            t_dec_ = np.linspace(0, t_dec_from_max, int(t_dec_from_max / dt))
+            p_dec = p_uni[-1] - 0.5 * deceleration * t_dec_ ** 2 + max_speed * t_dec_
+            p_path = p_uni.tolist() + p_dec.tolist()
+            t_path = (t_uni_ + (t_acc if acceleration != -1 else 0)).tolist() + (t_dec_+ (t_acc if acceleration != -1 else 0) + t_uni).tolist()
+            if acceleration != -1:
+                p_path = p_acc.tolist() + p_path
+                t_path = t_acc_.tolist() + t_path
+    points = [(p, 0) for p in p_path]
+    times = [t for t in t_path]
+    trajectory = Trajectory(path.frame,points,times)
     return trajectory
-
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
