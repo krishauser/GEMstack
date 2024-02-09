@@ -28,7 +28,7 @@ class PedestrianDetector2D(Component):
         self.last_person_boxes = []
 
     def rate(self):
-        return 4.0
+        return 17.0
     
     def state_inputs(self):
         return ['vehicle']
@@ -50,10 +50,10 @@ class PedestrianDetector2D(Component):
                 people_bboxes.append(boxes.xywh[i].tolist())
         self.last_person_boxes = people_bboxes
         #uncomment if you want to debug the detector...
-        #for bb in self.last_person_boxes:
-        #    x,y,w,h = bb
-        #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
-        #cv2.imwrite("pedestrian_detections.png",image)
+        for bb in self.last_person_boxes:
+           x,y,w,h = bb
+           cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
+        cv2.imwrite("pedestrian_detections.png",image)
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         res = {}
