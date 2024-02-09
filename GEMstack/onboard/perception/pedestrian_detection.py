@@ -35,8 +35,7 @@ class PedestrianDetector2D(Component):
     
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
-        
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat) 
     
     def image_callback(self, image : cv2.Mat):
         if image and (type(image) == cv2.Mat):
