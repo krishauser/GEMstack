@@ -154,76 +154,29 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float) ->
 
     # bug in GemStack code? (len(points) != len(times))
     N = min(len(points), len(times))
-
-    # if current_speed <= 0:
-    #     return Trajectory(path, [points[0]] * N, times)
-
-    # time_to_stop = (current_speed) / deceleration
-    # dist_to_stop = (current_speed) / 2 * time_to_stop
-    # update_times = times.copy()
-    # update_points = points.copy()
-
-    # print('(longitudinal_brake) input current_speed:', current_speed)
-    # print("(longitudinal_brake) before_points:", points)
-    # print("(longitudinal_brake) before_times:", times)
-
-    # for i in range(1, N):
-    #     dist = distance(points[0], points[i])
-
-    #     # the farest distance vehicle can reach is points[0][0] + dist_to_stop
-    #     if dist > dist_to_stop:
-    #         update_points[i] = (points[0][0] + dist_to_stop, 0)
-    #     else:
-    #         time = get_time_by_formula(-deceleration, current_speed, dist)
-    #         update_times[i] = time  # update planning time
-
-    # print("(longitudinal_brake) update_points:", update_points)
-    # print("(longitudinal_brake) update_times:", update_times)
-    # print('(longitudinal_brake) deceleration:', deceleration)
-    # print('(longitudinal_brake) current_speed:', current_speed)
-    dt = 0.1
+    print('(longitudinal_break) input current_speed:', current_speed)
+    dt = 0.01
     end_time = times[-1]
     current_point = points[0][0]
     current_time = times[0]
     end_point = points[-1][0]
-    print(end_point)
-    print(deceleration)
 
     update_points = [points[0]]
     update_times = [current_time]
     while current_point <= end_point and current_time < end_time:
         current_time += dt
-
-        # # move to deceleration
-        # distance_left = end_point - current_point
-        # safety_dist = (current_speed**2)/(2*deceleration)
-        
-        # if distance_left <= safety_dist:
-            #update
-            # current_point += get_dist_by_time(deceleration, current_speed, dt)
-            # current_speed += dt * acceleration
-        if current_speed > 0:
-
-            current_point += dt * current_speed
+        if current_speed >= 0.02:
             current_speed -= deceleration * dt
-            current_speed = max(current_speed, 0)
-    
-        # else:
-        #     #check max speed
-        #     if current_speed < max_speed - 0.05:
-        #         current_speed += dt * acceleration
-        #         current_point += dt * current_speed
-            
-        #     elif current_speed > max_speed + 0.05:
-        #         current_point += dt * current_speed
-        #         current_speed -= deceleration * dt
-            
-        #     else:
-        #         current_point += dt * current_speed
-
+            current_speed = current_speed
+        elif current_speed < 0.02:
+            current_speed = 0
+               
+        current_time += dt
+        current_point += dt * current_speed
+        current_speed = max(current_speed, 0)
         update_points.append((current_point,0))
         update_times.append(current_time)
-    
+
     while current_speed > 0:
         current_time += dt
         current_point += dt * current_speed
@@ -231,6 +184,7 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float) ->
         current_speed = max(current_speed, 0)
         update_points.append((current_point,0))
         update_times.append(current_time)
+
     
     
     return Trajectory(path.frame, update_points, update_times)
