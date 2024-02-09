@@ -108,7 +108,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         points = [(p, y_coordinate) for p in points]
         times = acc_times + dec_times
 
-    trajectory = Trajectory(path.frame,points,times)
+    trajectory = Trajectory(path.frame, points, times)
     return trajectory
 
 
@@ -130,7 +130,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     time = 0
     times.append(time)
     pointsr.append(points[0])
-    while (time < t_stop and current_pos <= last_pos):
+    while time < t_stop:
         time += DELTA_T
         current_pos = init_pos + time * init_vel - 0.5 * time**2 * deceleration
         pointsr.append((current_pos,0))

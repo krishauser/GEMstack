@@ -11,9 +11,7 @@ def test_longitudinal_planning():
     test_path = Path(ObjectFrameEnum.START,[(0,0),(1,0),(2,0),(3,0),(4,0),(5,0),(6,0)])
     test_path2 = Path(ObjectFrameEnum.START,[(5,0),(6,1),(7,2),(9,4)])
 
-    test_path_3 = Path(ObjectFrameEnum.START,[(i,0) for i in range(26)])
-
-    test_traj = longitudinal_brake(test_path, 2.0, 0.0) #deceleration, current_speed
+    test_traj = longitudinal_brake(test_path, 2.0, 0.0) # deceleration, current_speed
     assert (t1 < t2 for (t1,t2) in zip(test_traj.times[:-1],test_traj.times[1:]) )
     plt.plot(test_traj.times,[p[0] for p in test_traj.points])
     plt.title("Braking from 0 m/s (should just stay still)")
@@ -29,7 +27,7 @@ def test_longitudinal_planning():
     plt.ylabel('position')
     plt.show()
 
-    test_traj = longitudinal_plan(test_path, 1.0, 2.0, 3.0, 0.0)
+    test_traj = longitudinal_plan(test_path, 1.0, 2.0, 3.0, 0.0) # path, acceleration, deceleration, max_speed, current_speed
     assert (t1 < t2 for (t1,t2) in zip(test_traj.times[:-1],test_traj.times[1:]) )
     plt.plot(test_traj.times,[p[0] for p in test_traj.points])
     plt.title("Accelerating from 0 m/s")
@@ -62,7 +60,7 @@ def test_longitudinal_planning():
     plt.ylabel('position')
     plt.show()
 
-    test_traj = longitudinal_brake(test_path_3, 2.0, 10.0)
+    test_traj = longitudinal_brake(test_path, 2.0, 10.0)
     plt.plot(test_traj.times,[p[0] for p in test_traj.points])
     plt.title("has time to stop, braking at 10 m/s")
     plt.xlabel('time')
