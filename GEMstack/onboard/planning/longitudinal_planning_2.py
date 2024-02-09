@@ -17,11 +17,77 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
+    # print("points", points)
+    # print("times", times)
+
+    dt = 0.05
     
+    ### Debug: 02/06/2024
+    init_point = points[0]
+    point = init_point
+    end_point = points[-1]  
+    
+    init_speed = current_speed
+    time = 0
+    out_times = [0]
+    out_points = [init_point]
 
+    # accelerate to max speed
+    while current_speed < max_speed:
+        current_speed = init_speed + acceleration * time
+        point_x = init_point[0] + time * init_speed + 0.5 * acceleration * time**2
+        point_y = 0 # not used for now
+        point = (point_x, point_y)
 
+        # if point[0] >= end_point[0]:
+        #     # decelerate to stop
+        #     dec_init_speed = current_speed
+        #     dec_init_pos = point
+        #     dec_time = 0
+        #     t_stop = dec_init_speed / deceleration
+        #     p_step = dec_init_pos + dec_init_speed**2 / (2*deceleration)
+        #     while current_speed > 0:
+        #         current_speed = dec_init_speed - deceleration * dec_time
+        #         point_x = dec_init_pos[0] + dec_time*dec_init_speed + 1/2 * dec_time**2 * deceleration
+        #         point_y = 0
+        #         point = (point_x, point_y)
+        #         dec_time += dt
+        #         time += dt
+        #         out_times.append(time)
+        #         out_points.append(point)
+        #     break
+        # else:
+        time += dt
+        out_times.append(time)
+        out_points.append(point)
 
-    trajectory = Trajectory(path.frame,points,times)
+    # determine which point to brake
+    stop_point = end_point[0] - max_speed**2 / (2*deceleration)
+    # travel along max speed
+    point_x = point[0]
+    while point[0] < stop_point:
+        point_x += max_speed * dt
+        point_y = 0
+        point = (point_x, point_y)
+        time += dt
+        out_times.append(time)
+        out_points.append(point)
+    
+    # decelerate to stop
+    dec_init_speed = max_speed
+    dec_init_pos = point
+    dec_time = 0
+    while current_speed > 0:
+        current_speed = dec_init_speed - deceleration * dec_time
+        point_x = dec_init_pos[0] + dec_time*dec_init_speed + 1/2 * dec_time**2 * deceleration
+        point_y = 0
+        point = (point_x, point_y)
+        dec_time += dt
+        time += dt
+        out_times.append(time)
+        out_points.append(point)
+    
+    trajectory = Trajectory(path.frame, out_points, out_times)
     return trajectory
 
 
@@ -30,38 +96,29 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
-    # times = [t for t in path_normalized.times]
-    times = [0]
-
-    print("points", points)
-    print('times', times)
-    last_pos = points[-1][0]
+    times = [t for t in path_normalized.times]
+    dt = 0.05 # manully set
    
     init_speed = current_speed
+    init_point = points[0]
     t_stop = init_speed / deceleration
     p_stop = points[0][0] + init_speed**2 / (2*deceleration)
     print("t_stop", t_stop) 
     print("p_stop", p_stop)
-    last_reach_point_idx = 0
-    for i in range(1,len(points)):
-        position = points[i][0]
-        if position <= p_stop:
-            # current_speed = init_speed - times[i] * deceleration
-            # points[i] = (points[0][0] + times[i]*init_speed - 1/2 * times[i]**2 * deceleration, points[i][1])
-            displacement = points[i][0] - points[0][0]
-            time_position = -init_speed / deceleration + (init_speed**2 + 2*deceleration*displacement)**0.5 / deceleration
-            times.append(time_position)
-            last_reach_point_idx = i
-        else:
-            break
-    points = points[:last_reach_point_idx+1]
-    times = times[:last_reach_point_idx+1]
-    if p_stop < last_pos:
-        times.append(t_stop)
-        points.append((p_stop, points[last_reach_point_idx][1]))
+
+    # create new time list
+    times = [i*dt for i in range(int(t_stop/dt))]
+    points = []
+    for t in times:
+        current_speed = init_speed - t * deceleration
+        # point = (init_point[0] + t*init_speed - 1/2 * t**2 * deceleration, init_point[1])
+        point_x = init_point[0] + t*init_speed - 1/2 * t**2 * deceleration
+        point_y = 0 # not used for now
+        point = (point_x, point_y)
+        points.append(point)
     
-    print("points", points)
-    print('times', times)
+    # print("points", points)
+    # print('times', times)
     
     trajectory = Trajectory(path.frame, points, times)
     return trajectory
