@@ -70,7 +70,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     xs1 = x1 + ts1*v1 + 0.5*(ts1**2)*a1
     # first we have to figure out if we can reach the max velocity (i.e) we can stop before xs at xs1 with speed vl
     p_stop = get_p_stop(xs1, deceleration, vL)
-    if ts1==0 or p_stop <= x2:
+    if ts1==0 or p_stop <= x2: # we can reach maximum velocity or there's no acceleration phase (use second equation)
         if ts1 == 0:
             vL = v1
         z = (v2 - vL) / a2
@@ -83,19 +83,16 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         points = acc_points + max_speed_points + dec_points
         points = [(p, y_coordinate) for p in points]
         times = acc_times + max_speed_times + dec_times 
-        # use first equation to create path since we can't reach the max velocity without stopping
-    else:
+    else: # use first equation to create path since we can't reach the max velocity without stopping
         from sympy import symbols, Eq, solve
         # Define the symbols
         x_s, t_s, T, v_s = symbols('x_s t_s T v_s')
-        # Given equations based on the image provided
+        # Given equations from min time pp curve 
         eq1 = Eq(v_s, v1 + a1 * t_s)
         eq2 = Eq(x_s, x1 + v1 * t_s + 0.5 * a1 * t_s**2)
         eq3 = Eq(v2, v_s + (T - t_s) * a2)
         eq4 = Eq(x2, x_s + (T - t_s) * v_s + 0.5 * (T - t_s)**2 * a2)
         # We'll solve for x_s, t_s, T, and v_s assuming that v1, x1, a1, a2 are constants.
-        # Since we want to take the positive root for the quadratic, we'll need to check the solutions.
-
         # Solve the system of equations
         solutions = solve((eq1, eq2, eq3, eq4), (x_s, t_s, T, v_s), dict=True)
         valid_solutions = [sol for sol in solutions if sol[T] >= 0 and sol[t_s] >= 0]
