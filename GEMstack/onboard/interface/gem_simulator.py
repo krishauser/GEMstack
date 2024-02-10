@@ -185,6 +185,11 @@ class GEMDoubleIntegratorSimulation:
         #print("Accel %.2f, steering angle current %.2f, desired %.2f, rate %.2f" % (acceleration,phi,phides,steering_angle_rate))
         next = simulate(self.dubins, self.cur_vehicle_state, (lambda x,t: u), T, self.dt)
         next_state = next['x'][-1]
+        #braking deadband
+        if v > 0 and next_state[3] < 0:
+            next_state[3] = 0
+        if v < 0 and next_state[3] > 0:
+            next_state[3] = 0
         x,y,theta,v,phi = next_state
         v = np.clip(v,*self.dubins.velocityRange)
         next_state = np.array([x,y,theta,v,phi])
