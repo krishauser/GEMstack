@@ -173,21 +173,22 @@ def plot_vehicle(vehicle : VehicleState, vehicle_model=None, axis_len=1.0):
         vis.addText("gear",gear,position=(t[0],t[1],1.5),color=(0,0,0,1))
     
     #plot lights
-    light_size = 4
+    light_point_size = 4
+    light_size = 0.15
     light_color = (1,1,0,1)
     turn_indicator_height = 0.7
     headlight_height = 0.6
     if vehicle.left_turn_indicator:
-        lp = vehicle.pose.apply([xbounds[0]+light_size,ybounds[0]+light_size,turn_indicator_height])
-        vis.add("left_turn_indicator",list(lp),size=light_size,color=light_color)
+        lp = vehicle.pose.apply([xbounds[0],ybounds[0]+light_size,turn_indicator_height])
+        vis.add("left_turn_indicator",list(lp),size=light_point_size,color=light_color)
     if vehicle.right_turn_indicator:
-        lp = vehicle.pose.apply([xbounds[0]+light_size,ybounds[1]-light_size,turn_indicator_height])
-        vis.add("right_turn_indicator",list(lp),size=light_size,color=light_color)
+        lp = vehicle.pose.apply([xbounds[0],ybounds[1]-light_size,turn_indicator_height])
+        vis.add("right_turn_indicator",list(lp),size=light_point_size,color=light_color)
     if vehicle.headlights_on:
         lp = vehicle.pose.apply([xbounds[1],ybounds[0]+light_size*2,headlight_height])
-        vis.add("left_headlight",list(lp),size=light_size,color=light_color)
+        vis.add("left_headlight",list(lp),size=light_point_size,color=light_color)
         lp = vehicle.pose.apply([xbounds[1],ybounds[1]-light_size*2,headlight_height])
-        vis.add("right_headlight",list(lp),size=light_size,color=light_color)
+        vis.add("right_headlight",list(lp),size=light_point_size,color=light_color)
     if vehicle_model is not None:
         if vehicle.brake_pedal_position > 0.1:
             vehicle_model.link('rear_right_stop_light_link').appearance().setColor(1,0,0,1)

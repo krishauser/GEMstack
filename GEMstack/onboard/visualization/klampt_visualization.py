@@ -64,7 +64,19 @@ class KlamptVisualization(Component):
         vp.clippingplanes = (0.1,1000)
         vis.setViewport(vp)
         vis.add("vehicle_plane",self.world.terrain(0),hide_label=True)
+        #note: show() takes over the interrupt handler and sets it to default, so we restore it
+        import signal
+        oldsig = signal.getsignal(signal.SIGINT)
         vis.show()
+        signal.signal(signal.SIGINT,oldsig)
+    
+    def cleanup(self):
+        print("klampt_visualization Cleanup")
+        vis.show(False)
+        vis.clear()
+        vis.kill()
+        self.vehicle = None
+        self.world = None
     
     def debug(self, source, item, value):
         if source not in self.plot_values:
@@ -92,7 +104,7 @@ class KlamptVisualization(Component):
             self.debug("vehicle","accelerator",state.vehicle.accelerator_pedal_position)
             self.debug("vehicle","brake",state.vehicle.brake_pedal_position)
             time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(state.t))
-            state_start = state.to_frame(ObjectFrameEnum.START)
+            state_start = state.to_frame(ObjectFrameEnum.START) if state.start_vehicle_pose is not None else state.to_frame(state.vehicle.pose.frame)
             klampt_visualization.plot(state_start,title="Scene %d at %s"%(self.num_updates,time_str),vehicle_model=self.vehicle,show=False)
 
             #update pose of the vehicle
