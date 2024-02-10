@@ -5,6 +5,7 @@ from ultralytics import YOLO
 import cv2
 from typing import Dict
 import numpy as np
+from ...utils import settings
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -21,7 +22,7 @@ class PedestrianDetector2D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        self.detector = YOLO(settings.get('perception.pedestrian_detection.model'))
         self.last_person_boxes = []
 
     def rate(self):
@@ -38,16 +39,17 @@ class PedestrianDetector2D(Component):
         self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat) 
     
     def image_callback(self, image : cv2.Mat):
-        if image and (type(image) == cv2.Mat):
-            detection_result = self.detector(image)
-            person_indices = np.where(detection_result[-1].boxes.cls.cpu().numpy() == 0)
-            xywhboxes = detection_result[-1].boxes.xywh.cpu().numpy()[person_indices]
-            self.last_person_boxes = xywhboxes
-            #uncomment if you want to debug the detector...
-            #for bb in self.last_person_boxes:
-            #    x,y,w,h = bb
-            #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
-            #cv2.imwrite("pedestrian_detections.png",image)
+        # if image and (type(image) == cv2.Mat):
+
+        detection_result = self.detector(image)
+        person_indices = np.where(detection_result[-1].boxes.cls.cpu().numpy() == 0)
+        xywhboxes = detection_result[-1].boxes.xywh.cpu().numpy()[person_indices]
+        self.last_person_boxes = xywhboxes
+        #uncomment if you want to debug the detector...
+        #for bb in self.last_person_boxes:
+        #    x,y,w,h = bb
+        #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
+        #cv2.imwrite("pedestrian_detections.png",image)
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         res = {}
