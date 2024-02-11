@@ -165,7 +165,7 @@ def polygon_polygon_distance_2d(poly1 : List[Tuple[float,float]], poly2 : List[T
     Faster to create a CollisionDetector2D object if you will be doing
     multiple queries.
     """
-    return shapely.Polygon(poly1).distance(shapely.Polygon(poly1))
+    return shapely.Polygon(poly1).distance(shapely.Polygon(poly2))
 
 
 class CollisionDetector2D:
