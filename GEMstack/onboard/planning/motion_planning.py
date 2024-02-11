@@ -18,5 +18,7 @@ class RouteToTrajectoryPlanner(Component):
         return 10.0
 
     def update(self, state : AllState):
+        if self.reference_speed is None:
+            return state.route
         return state.route.arc_length_parameterize(self.reference_speed)
     
