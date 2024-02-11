@@ -5,8 +5,8 @@ from ...utils import serialization
 
 class RouteToTrajectoryPlanner(Component):
     """Copies the route directly into the trajectory."""
-    def __init__(self):
-        pass
+    def __init__(self, reference_speed = 1.0):
+        self.reference_speed = reference_speed
 
     def state_inputs(self):
         return ['all']
@@ -18,5 +18,5 @@ class RouteToTrajectoryPlanner(Component):
         return 10.0
 
     def update(self, state : AllState):
-        return state.route.arc_length_parameterize()
+        return state.route.arc_length_parameterize(self.reference_speed)
     

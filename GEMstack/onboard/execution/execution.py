@@ -320,7 +320,12 @@ class ExecutorBase:
         if identifier in self.all_components:
             return self.all_components[identifier]
         else:
-            component = make_class(config_info,component_name,parent_module,extra_args)
+            try:
+                component = make_class(config_info,component_name,parent_module,extra_args)
+            except Exception as e:
+                print("Exception raised while tryign to make component {} from config info:".format(component_name))
+                print("  ",config_info)
+                raise
             if not isinstance(component,Component):
                 raise RuntimeError("Component {} is not a subclass of Component".format(component_name))
             replacement = self.logging_manager.component_replayer(component_name, component)
