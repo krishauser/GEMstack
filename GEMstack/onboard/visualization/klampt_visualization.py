@@ -24,6 +24,7 @@ class KlamptVisualization(Component):
         self.plot_values = {}
         self.plot_events = {}
         self.vfilter = OnlineLowPassFilter(1.2, 30, 4)
+        self.last_v = 0.0
 
         self.world = WorldModel()
         fn = os.path.abspath(os.path.join(__file__,"../../../knowledge/vehicle/model/gem_e2.urdf"))
@@ -111,10 +112,13 @@ class KlamptVisualization(Component):
             if self.last_yaw is not None:
                 vp = vis.getViewport()
                 v = self.vfilter(state.vehicle.v)
-                lookahead = 5.0*v
-                dx,dy = math.cos(state.vehicle.pose.yaw)*lookahead,math.sin(state.vehicle.pose.yaw)*lookahead
+                center_offset = 1.0
+                lookahead = 4.0*v
+                dx,dy = math.cos(state.vehicle.pose.yaw)*(lookahead+center_offset),math.sin(state.vehicle.pose.yaw)*(lookahead+center_offset)
                 vp.camera.tgt = [state.vehicle.pose.x+dx,state.vehicle.pose.y+dy,1.5]
                 vp.camera.rot[2] += state.vehicle.pose.yaw - self.last_yaw
+                vp.camera.dist += 5.0*(v - self.last_v)
+                self.last_v = v
                 vis.setViewport(vp)
             
             self.last_yaw = state.vehicle.pose.yaw
