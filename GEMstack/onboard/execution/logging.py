@@ -6,7 +6,8 @@ import time
 import datetime
 import os
 import subprocess
-import io
+import numpy as np
+import cv2
 
 class LoggingManager:
     """A top level manager of the logging process.  This is responsible for
@@ -23,6 +24,9 @@ class LoggingManager:
         self.run_metadata['pipelines'] = []
         self.run_metadata['events'] = []
         self.run_metadata['exit_reason'] = 'unknown'
+        self.vehicle_time = None
+        self.start_vehicle_time = None
+        self.debug_messages = {}
 
     def logging(self) -> bool:
         return self.log_folder is not None
@@ -132,14 +136,96 @@ class LoggingManager:
             return ' '.join(command)
         return None
 
-    def event(self, vehicle_time : float, event_description : str):
+    def set_vehicle_time(self, vehicle_time : float) -> None:
+        self.vehicle_time = vehicle_time
+        if self.start_vehicle_time is None:
+            self.start_vehicle_time = vehicle_time
+
+    def event(self, event_description : str):
         """Logs an event to the metadata."""
-        self.run_metadata['events'].append({'time':time.time(),'vehicle_time':vehicle_time,'description':event_description})
+        self.run_metadata['events'].append({'time':time.time(),'vehicle_time':self.vehicle_time,'description':event_description})
         self.dump_log_metadata()
 
-    def pipeline_start_event(self, vehicle_time : float, pipeline_name : str) -> None:
+    def debug(self, component : str, item : str, value : Any) -> None:
+        """Logs a debug message to the metadata to be saved as CSV."""
+        if not self.log_folder:
+            return
+        if component not in self.debug_messages:
+            self.debug_messages[component] = {}
+        if isinstance(value,(list,tuple)):
+            for i,v in enumerate(value):
+                self.debug(component,item+'['+str(i)+']',v)
+        elif isinstance(value,dict):
+            for k,v in value.items():
+                self.debug(component,item+'.'+str(k),v)
+        elif isinstance(value,np.ndarray):
+            #if really large, save as npz
+            folder = os.path.join(self.log_folder,'debug_{}'.format(component))
+            if item not in self.debug_messages[component]:
+                self.debug_messages[component][item] = []
+                os.mkdir(folder)
+            filename = os.path.join(folder,item+'_%03d.npz'%len(self.debug_messages[component][item]))
+            np.savez(filename,value)
+        elif isinstance(value,cv2.Mat):
+            #if really large, save as png
+            folder = os.path.join(self.log_folder,'debug_{}'.format(component))
+            if item not in self.debug_messages[component]:
+                self.debug_messages[component][item] = []
+                os.mkdir(folder)
+            filename = os.path.join(folder,item+'_%03d.png'%len(self.debug_messages[component][item]))
+            cv2.imwrite(filename,value)
+        else:
+            if item not in self.debug_messages[component]:
+                self.debug_messages[component][item] = []
+            self.debug_messages[component][item].append((time.time(),self.vehicle_time-self.start_vehicle_time,value))
+    
+    def debug_event(self, component : str, label : str) -> None:
+        """Logs a debug event to the metadata."""
+        if not self.log_folder:
+            return
+        if component not in self.debug_messages:
+            self.debug_messages[component] = []
+        if label not in self.debug_messages[component]:
+            self.debug_messages[component][label] = []
+        self.debug_messages[component][label].append((time.time(),self.vehicle_time-self.start_vehicle_time,None))
+    
+    def dump_debug(self):
+        if not self.log_folder:
+            return
+        for k,v in self.debug_messages.items():
+            with open(os.path.join(self.log_folder,k+'_debug.csv'),'w') as f:
+                columns = []
+                isevent = {}
+                for col,vals in v.items(): 
+                    if ',' in col:
+                        col = '"'+col+'"'
+                    columns.append(col+' time')
+                    columns.append(col+' vehicle time')
+                    if not all(x[2] is None for x in vals):
+                        isevent[col] = False
+                        columns.append(col)
+                    else:
+                        isevent[col] = True
+                f.write(','.join(columns)+'\n')
+                nrows = max(len(v[col]) for col in v)
+                for i in range(nrows):
+                    row = []
+                    for col,vals in v.items():
+                        if i < len(vals):
+                            row.append(str(vals[i][0]))
+                            row.append(str(vals[i][1]))
+                            if not isevent[col]:
+                                row.append(str(vals[i][2]))
+                        else:
+                            row.append('')
+                            row.append('')
+                            if not isevent[col]:
+                                row.append('')
+                    f.write(','.join(row)+'\n')
+
+    def pipeline_start_event(self, pipeline_name : str) -> None:
         """Logs a pipeline start event to the metadata."""
-        self.run_metadata['pipelines'].append({'time':time.time(),'vehicle_time':vehicle_time,'name':pipeline_name})
+        self.run_metadata['pipelines'].append({'time':time.time(),'vehicle_time':self.vehicle_time,'name':pipeline_name})
         self.dump_log_metadata()
 
     def exit_event(self, description, force = False):
@@ -149,34 +235,36 @@ class LoggingManager:
             self.run_metadata['exit_reason'] = description
             self.dump_log_metadata()
 
-    def log_component_update(self, component : str, vehicle_time : float, state : Any, outputs : List[str]) -> None:
+    def log_component_update(self, component : str, state : Any, outputs : List[str]) -> None:
          """Component update"""
          if component in self.logged_components and len(outputs)!=0:
-            self.behavior_log.log(state, outputs, vehicle_time)
+            self.behavior_log.log(state, outputs, self.vehicle_time)
     
-    def log_component_stdout(self, component : str, vehicle_time: float, msg : List[str]) -> None:
+    def log_component_stdout(self, component : str, msg : List[str]) -> None:
         if not self.log_folder:
             return
         if component not in self.component_output_loggers:
             self.component_output_loggers[component] = [None,None]
         if self.component_output_loggers[component][0] is None:
             self.component_output_loggers[component][0] = open(self.component_stdout_file(component),'w')
-        timestr = datetime.datetime.fromtimestamp(vehicle_time).strftime("%H:%M:%S.%f")[:-3]
+        timestr = datetime.datetime.fromtimestamp(self.vehicle_time).strftime("%H:%M:%S.%f")[:-3]
         for l in msg:
             self.component_output_loggers[component][0].write(timestr + ': ' + l + '\n')
 
-    def log_component_stderr(self, component : str, vehicle_time: float, msg : List[str]) -> None:
+    def log_component_stderr(self, component : str, msg : List[str]) -> None:
         if not self.log_folder:
             return
         if component not in self.component_output_loggers:
             self.component_output_loggers[component] = [None,None]
         if self.component_output_loggers[component][1] is None:
             self.component_output_loggers[component][1] = open(self.component_stderr_file(component),'w')
-        timestr = datetime.datetime.fromtimestamp(vehicle_time).strftime("%H:%M:%S.%f")[:-3]
+        timestr = datetime.datetime.fromtimestamp(self.vehicle_time).strftime("%H:%M:%S.%f")[:-3]
         for l in msg:
             self.component_output_loggers[component][1].write(timestr + ': ' + l + '\n')
 
     def close(self):
+        self.dump_debug()
+        self.debug_messages = {}
         if self.rosbag_process is not None:
             out,err = self.rosbag_process.communicate()  # Will block 
             print('-------------------------------------------')

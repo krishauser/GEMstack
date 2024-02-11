@@ -36,8 +36,6 @@ class MPComponentExecutor(ComponentExecutor):
             'print_stdout': self.print_stdout,
             'print_stderr': self.print_stderr,
         }
-        old_manager = self.logging_manager
-        self.logging_manager = None  #can't be pickled?
         self._process = Process(target=self._run, args=(self.c, self._in_queue, self._out_queue, config))
         try:
             self._process.start()
@@ -47,7 +45,6 @@ class MPComponentExecutor(ComponentExecutor):
             
             self._process = None
             raise RuntimeError("Error starting "+self.c.__class__.__name__+" process, usually a pickling error")
-        self.logging_manager = old_manager
         res = self._out_queue.get()
         if isinstance(res,tuple) and isinstance(res[0],Exception):
             print("Traceback:")
