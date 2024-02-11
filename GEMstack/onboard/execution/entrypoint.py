@@ -157,4 +157,8 @@ def main():
     if has_ros:
         #need manual ros node shutdown due to disable_signals=True
         rospy.signal_shutdown('GEM_executor finished')
-
+    
+    print(EXECUTION_PREFIX,"---------------- DONE ----------------")
+    if log_settings and settings.get('run.after.show_log_folder',True):
+        import webbrowser
+        webbrowser.open(logfolder)
