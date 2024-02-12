@@ -4,6 +4,7 @@ from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum,
 from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd
 import math
+import numpy as np
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
@@ -73,16 +74,33 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
 
+    points = [p for p in path_normalized.points]
+    times = [t/(path_normalized.times[-1]) for t in path_normalized.times]
+    print(times)
+
     if path_normalized.times[-1] == 0:
         return Trajectory(path.frame,path_normalized.points,path_normalized.times)
     
     points = [p for p in path_normalized.points]
     times = [t/(path_normalized.times[-1]) for t in path_normalized.times]
-
+    times = []
     # Compute the time needed to decelerate to stop
-    decel_time = current_speed / deceleration
+    decel_time = max(current_speed / deceleration, 1)
+    if current_speed == 0:
+        points = [(0, i) for i in np.arange(0.0, decel_time, 0.2)]
+        times = np.arange(0, decel_time, 0.2).tolist()
+    else:
+        # change 0.2 to polling rate
+        t = np.arange(0.0, decel_time + 0.2, 0.2)
+        s = current_speed*t - 0.5*deceleration*t**2
+        zeros = np.zeros(len(s))
+        points = zip(s, zeros)
+        times = t.tolist()
 
-    times = [t * decel_time for t in times] 
+    
+
+
+    # times = [t * decel_time for t in times] 
     return Trajectory(path.frame,points,times)
 
 
