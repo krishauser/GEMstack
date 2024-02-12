@@ -24,6 +24,7 @@ class KlamptVisualization(Component):
         self.plot_values = {}
         self.plot_events = {}
         self.vfilter = OnlineLowPassFilter(1.2, 30, 4)
+        self.last_v = 0.0
 
         self.world = WorldModel()
         fn = os.path.abspath(os.path.join(__file__,"../../../knowledge/vehicle/model/gem_e2.urdf"))
@@ -64,7 +65,19 @@ class KlamptVisualization(Component):
         vp.clippingplanes = (0.1,1000)
         vis.setViewport(vp)
         vis.add("vehicle_plane",self.world.terrain(0),hide_label=True)
+        #note: show() takes over the interrupt handler and sets it to default, so we restore it
+        import signal
+        oldsig = signal.getsignal(signal.SIGINT)
         vis.show()
+        signal.signal(signal.SIGINT,oldsig)
+    
+    def cleanup(self):
+        print("klampt_visualization Cleanup")
+        vis.show(False)
+        vis.clear()
+        vis.kill()
+        self.vehicle = None
+        self.world = None
     
     def debug(self, source, item, value):
         if source not in self.plot_values:
@@ -92,17 +105,20 @@ class KlamptVisualization(Component):
             self.debug("vehicle","accelerator",state.vehicle.accelerator_pedal_position)
             self.debug("vehicle","brake",state.vehicle.brake_pedal_position)
             time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(state.t))
-            state_start = state.to_frame(ObjectFrameEnum.START)
+            state_start = state.to_frame(ObjectFrameEnum.START) if state.start_vehicle_pose is not None else state.to_frame(state.vehicle.pose.frame)
             klampt_visualization.plot(state_start,title="Scene %d at %s"%(self.num_updates,time_str),vehicle_model=self.vehicle,show=False)
 
             #update pose of the vehicle
             if self.last_yaw is not None:
                 vp = vis.getViewport()
                 v = self.vfilter(state.vehicle.v)
-                lookahead = 5.0*v
-                dx,dy = math.cos(state.vehicle.pose.yaw)*lookahead,math.sin(state.vehicle.pose.yaw)*lookahead
+                center_offset = 1.0
+                lookahead = 4.0*v
+                dx,dy = math.cos(state.vehicle.pose.yaw)*(lookahead+center_offset),math.sin(state.vehicle.pose.yaw)*(lookahead+center_offset)
                 vp.camera.tgt = [state.vehicle.pose.x+dx,state.vehicle.pose.y+dy,1.5]
                 vp.camera.rot[2] += state.vehicle.pose.yaw - self.last_yaw
+                vp.camera.dist += 5.0*(v - self.last_v)
+                self.last_v = v
                 vis.setViewport(vp)
             
             self.last_yaw = state.vehicle.pose.yaw

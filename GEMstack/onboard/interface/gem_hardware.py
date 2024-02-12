@@ -15,7 +15,9 @@ from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, Vehicl
 
 # OpenCV and cv2 bridge
 import cv2
-from cv_bridge import CvBridge
+import numpy as np
+from ...utils import conversions
+
 
 class GEMHardwareInterface(GEMInterface):
     """Interface for connnecting to the physical GEM e2 vehicle."""
@@ -140,9 +142,16 @@ class GEMHardwareInterface(GEMInterface):
                 raise ValueError("GEMHardwareInterface only supports Inspva for GNSS")
             self.gnss_sub = rospy.Subscriber("/novatel/inspva", Inspva, callback)
         elif name == 'top_lidar':
-            if type is not None and type is not PointCloud2:
-                raise ValueError("GEMHardwareInterface only supports PointCloud2 for top lidar")
-            self.top_lidar_sub = rospy.Subscriber("/lidar1/velodyne_points", PointCloud2, callback)
+            if type is not None and (type is not PointCloud2 and type is not np.ndarray):
+                raise ValueError("GEMHardwareInterface only supports PointCloud2 or numpy array for top lidar")
+            if type is None or type is PointCloud2:
+                self.top_lidar_sub = rospy.Subscriber("/lidar1/velodyne_points", PointCloud2, callback)
+            else:
+                def callback_with_numpy(msg : Image):
+                    #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
+                    points = conversions.ros_PointCloud2_to_numpy(msg, want_rgb=False)
+                    callback(points)
+                self.top_lidar_sub = rospy.Subscriber("/lidar1/velodyne_points", PointCloud2, callback_with_numpy)
         elif name == 'front_radar':
             if type is not None and type is not RadarTracks:
                 raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
@@ -153,10 +162,9 @@ class GEMHardwareInterface(GEMInterface):
             if type is None or type is Image:
                 self.front_camera_sub = rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image, callback)
             else:
-                self.bridge = CvBridge()
                 def callback_with_cv2(msg : Image):
                     #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
-                    cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
                     callback(cv_image)
                 self.front_camera_sub = rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image, callback_with_cv2)
         elif name == 'front_depth':
@@ -168,7 +176,7 @@ class GEMHardwareInterface(GEMInterface):
                 self.bridge = CvBridge()
                 def callback_with_cv2(msg : Image):
                     #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
-                    cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="passthrough")
                     callback(cv_image)
                 self.front_depth_sub = rospy.Subscriber("/zed2/zed_node/depth/depth_registered", Image, callback_with_cv2)
 

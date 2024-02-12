@@ -60,7 +60,7 @@ In addition, some tools (e.g., pip) will build temporary folders, such as `build
 
 ## Package structure 
 
-All packages are within the `GEMstack/` folder.  
+All algorithms and routines in the package, i.e., those that would be run onboard, are within the `GEMstack/` folder.  
 
 Legend:
 - 🟥: TODO
@@ -70,22 +70,27 @@ Legend:
 - 🟦: mature
 
 `mathutils/`: 🧮 Math utilities common to onboard / offboard use.
-  - 🟩 `transforms`: 2d and 3d rotations and rigid transforms.
-  - 🟩 `filters`: 1d signal processing.
   - 🟥 `cameras`: Contains standard camera models.
-  - 🟦 `differences`: Finite differences for derivative approximation.
-  - 🟦 `dynamics`: Contains standard dynamics models.
-  - 🟦 `dubins`: Contains first- and second-order Dubins car dynamics models.
-  - 🟩 `control`: Contains standard control techniques, e.g., PID controller.
   - 🟨 `collisions`: Provides collision detection and proximity detection.
+  - 🟩 `control`: Contains standard control techniques, e.g., PID controller.
+  - 🟦 `differences`: Finite differences for derivative approximation.
+  - 🟦 `dubins`: Contains first- and second-order Dubins car dynamics models.
+  - 🟦 `dynamics`: Contains standard dynamics models.
+  - 🟨 `intelligent_driver_model`: the IDM model used for adaptive cruise control behavior.
+  - 🟩 `signal`: 1d signal processing.
+  - 🟩 `transforms`: 2d and 3d rotations and rigid transforms.
+  - 🟨 `units`: constants to help with unit conversion.
   
 `utils/`: 🛠️ Other utilities common to onboard / offboard use.
   - 🟩 `logging`: Provides logging and log replay functionality.
   - 🟨 `mpl_visualization`: Tools for plotting data on knowledge, state, etc. in Matplotlib.
+  - 🟨 `klampt_visualization`: Tools for plotting data on knowledge, state, etc. in Klampt.
   - 🟥 `gazebo_visualization`: Tools for converting data on knowledge, state, etc. to ROS messages used in Gazebo.
   - 🟦 `settings`: Tools for managing settings for onboard behaviour.  If you're tempted to write a magic parameter or global variable, it should be [placed in settings instead](#settings).
   - 🟦 `config`: Tools for loading config files. 
+  - 🟩 `conversions`: Tools for converting objects to and from standard Python objects, ROS messages, etc.
   - 🟦 `serialization`: Tools for serializing / deserializing objects.
+  - 🟩 `logging`: Tools for logging data streams of serializable objects.
   - 🟦 `loops`: Tools for writing timed loops.
 
 `state/`: 💾 Representations of state of the vehicle and its environment, including internal state that persists from step to step.
@@ -115,7 +120,7 @@ Legend:
   - 🟥 `heuristic_learning/`: Driving heuristic learning. 
 
 `knowledge/`: 🧠 Models and parameters common to onboard / offboard use.  The file "current.py" in each directory will store the current model being used.
-  - 🟨 `vehicle/`: Vehicle geometry and physics. (needs testing)
+  - 🟨 `vehicle/`: Vehicle geometry and physics. (needs calibration and testing)
   - 🟨 `calibration/`: Calibrated sensor parameters.
   - 🟥 `detection/`: Stores detection models.
   - 🟥 `prediction/`: Stores prediction models.
@@ -140,28 +145,30 @@ Legend:
     - 🟥 `agent_prediction`: Agent motion prediction. 
 
   - `planning/`: Planning components.
-    - 🟨 `route_planner`: Decides which route to drive from the roadgraph. 
+    - 🟩 `route_planning`: Decides which route to drive from the roadgraph. 
     - 🟥 `driving_logic`: Performs all necessary logic to develop a planning problem specification, e.g., select obstacles, design cost functions, etc. 
     - 🟥 `heuristics`: Implements various planning heuristics. 
     - 🟥 `motion_planning`: Implements one or more motion planners. 
     - 🟥 `optimization`: Implements one or more trajectory optimizers.  
     - 🟥 `selection`: Implements best-trajectory selection.
-    - 🟨 `pure_pursuit`: Implements a pure pursuit controller.
-    - 🟨 `recovery`: Implements recovery behavior.
+    - 🟨 `pure_pursuit`: Implements a pure pursuit controller.  Needs some tuning.
+    - 🟩 `recovery`: Implements standard recovery behavior.
 
   - `execution/`: Executes the onboard driving behavior.
     - 🟩 `entrypoint`: The entrypoint that launches all onboard behavior.  Configured by settings in 'run'.
     - 🟩 `executor`: Base classes for executors.
-    - 🟩 `log_replay`: A generic component that replays from a log.
+    - 🟩 `logging`: A manager to log components / replay messages from a log.
     - 🟨 `multiprocess_execution`: Component executors that work in separate process.  (Stdout logging not done yet. Still hangs on exception.)
   
   - `visualization/`: Visualization components on-board the vehicle
     - 🟨 `mpl_visualization`: Matplotlib visualization
+    - 🟩 `klampt_visualization`: Klampt visualization
 
   - `interface/`: Defines interfaces to vehicle hardware and simulators.
     - 🟩 `gem`: Base class for the Polaris GEM e2 vehicle.
-    - 🟨 `gem_hardware`: Interface to the real GEM vehicle.
-    - 🟨 `gem_simulator`: Interfaces to simulated GEM vehicles.
+    - 🟩 `gem_hardware`: Interface to the real GEM vehicle.
+    - 🟩 `gem_simulator`: Interfaces to simulated GEM vehicles.
+    - 🟩 `gem_mixed`: Interfaces to the real GEM e2 vehicle's sensors but simulated motion.
 
 
 ## Launching the stack
@@ -266,11 +273,54 @@ for every 1/component.rate() seconds, and while still active:
 component.cleanup()
 ```
 
+### Creating the computation graph and customizing your component in a launch file
+
 The computation graph defines an execution order of components and a set of allowable inputs and outputs for each component. This structure is defined in the `run.computation_graph` setting and by default uses `GEMstack/knowledge/defaults/computation_graph.yaml`.
 
-You should think of `AllState` as a strictly typed blackboard architecture in which items can be read from and written to.  If you need to pass data between components, you should add it to the state rather than use alternative techniques, e.g., global variables.  This will allow the logging / replay to save and restore system state.  Over a long development period, it would be best to be disciplined at versioning.
+In a launch file, you can specify a component by name, i.e.,
+
+```yaml
+drive:
+  planning:
+    motion_planner: MyMotionPlanner
+```
+
+which will look for the `MyMotionPlanner` class in the `GEMstack/onboard/planning/motion_planner.py` file.  You can also specify `module.Class`, i.e.,
+
+```yaml
+drive:
+  planning:
+    motion_planner: my_motion_planner.MyMotionPlanner
+```
+
+which will look in the `GEMstack/onboard/planning/my_motion_planner.py` file.
+
+You can modify how the component is constructed and run by specifying a dictionary.  The valid values of this dictionary are as follows:
+
+```yaml
+drive:
+  planning:
+    motion_planner: 
+      type: my_motion_planner.MyMotionPlanner
+      args: #specify a dict, or you can just specify a list of arguments, i.e., [3.0]
+        some_argument: 3.0  
+      rate: 10.0   #overrides MyMotionPlanner.rate() to run at 10Hz 
+      print: True  #whether to include print output (default True)
+      debug: True  #whether to save debug output (default True)
+      multiprocess: False  #whether to use multiprocessing (default False).  Multiprocessing makes the stack run faster, but logging is not yet mature.
+```
+
+### Variants
+
+A launch file can contain a `variants` key that may specify certain changes to the launch stack that may be named via `--variant=X` on the command line.  As an example, see `launch/fixed_route.yaml`.  This specifies two variants, `sim` and `log_ros` which would run a simulation or log ROS topics.  You can specify multiple variants on the command line using the format `--variant=X,Y`.
+
+### Managing and modifying state
+
+When implementing your computation graph, you should think of `AllState` as a strictly typed blackboard architecture in which items can be read from and written to.  If you need to pass data between components, you should add it to the state rather than use alternative techniques, e.g., global variables.  This will allow the logging / replay to save and restore system state.  Over a long development period, it would be best to be disciplined at versioning.
 
 It is generally assumed that components will not maintain significant internal state.  If you implement a component that does update internal state, then the executor will not be able to reproduce prior behavior from logs. This causes headaches with replay tools and A/B testing.
+
+### New pipelines
 
 If you wish to override the executor to add more pipelines, you will need to create a new executor by subclassing from `ExecutorBase`.  This will need to implement the pipeline switching and termination logic as detailed in the `begin`, `update`, `done`, and `end` callbacks.
 

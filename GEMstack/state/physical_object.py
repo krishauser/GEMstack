@@ -239,6 +239,22 @@ class PhysicalObject:
         """Returns the bounding box of the object in its local frame."""
         l,w,h = self.dimensions
         return [[-l/2,l/2],[-w/2,w/2],[0,h]]
+    
+    def polygon(self) -> List[Tuple[float,float]]:
+        """Returns the object's outline polygon in its local frame.  If `outline` is
+        not specified, this creates an outline from the bounding box."""
+        if self.outline is not None:
+            return self.outline
+        l,w,h = self.dimensions
+        return [(-l/2,-w/2),(l/2,-w/2),(l/2,w/2),(-l/2,w/2)]
+
+    def polygon_parent(self) -> List[Tuple[float,float]]:
+        """Returns the object's outline polygon in its parent frame, i.e., the frame
+        referred to in self.pose.frame."""
+        p = self.polygon()
+        R = self.pose.rotation2d()
+        t = self.pose.translation()[:2]
+        return [(R.dot(pt) + t).tolist() for pt in p]
 
     def to_frame(self, frame : ObjectFrameEnum, current_pose = None, start_pose_abs = None):
         newpose = self.pose.to_frame(frame,current_pose,start_pose_abs)
