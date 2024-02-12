@@ -55,7 +55,7 @@ def longitudinal_plan(
                         positions[-1] + current_speed * dt + 0.5 * acceleration * dt**2
                     )
                     current_speed += acceleration * dt
-                if current_speed > max_speed:
+                else:
                     current_speed = max_speed
                     times.append(times[-1] + dt)
                     positions.append(positions[-1] + current_speed * dt)
