@@ -1,0 +1,10 @@
+events:
+- description: Ctrl+C interrupt during sensor validation
+  time: 1707433900.5138087
+  vehicle_time: 1707433900.430495
+exit_reason: Sensor validation failed
+git_branch: s2024_group5
+git_commit_id: 5e1cd3981be6ae35977681d5a300547f9cc13841
+pipelines: []
+start_time: 1707433898.5046737
+start_time_human_readable: '2024-02-08 17:11:38'

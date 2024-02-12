@@ -1,0 +1,19 @@
+events:
+- description: Ctrl+C pressed, switching to recovery mode
+  time: 1707434057.5655885
+  vehicle_time: 1707434057.5566342
+- description: Mission execution ended
+  time: 1707434057.5726836
+  vehicle_time: 1707434057.5566342
+exit_reason: normal exit
+git_branch: s2024_group5
+git_commit_id: 5e1cd3981be6ae35977681d5a300547f9cc13841
+pipelines:
+- name: drive
+  time: 1707434052.8153043
+  vehicle_time: 1707434052.7151952
+- name: recovery
+  time: 1707434057.5666323
+  vehicle_time: 1707434057.5566342
+start_time: 1707434052.6950476
+start_time_human_readable: '2024-02-08 17:14:12'
