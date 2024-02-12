@@ -63,7 +63,7 @@ def longitudinal_plan(path: Path, acceleration: float, deceleration: float, max_
     # time to deceleration
     time_to_stop = (current_speed) / deceleration
     
-    dt = 0.1
+    dt = 0.05
     time_left = times[-1]
     current_point = points[0][0]
     current_time = times[0]
