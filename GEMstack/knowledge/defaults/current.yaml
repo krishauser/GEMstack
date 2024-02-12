@@ -32,6 +32,14 @@ control:
         pid_p: 3.0
         pid_i: 0.1
         pid_d: 0.0
+    longitudinal_planning_yielding:
+        acceleration: 0.5
+        deceleration: 2.0
+        desired_speed: 1.0
+
+perception:
+    pedestrian_detection:
+        model: !relative_path "../detection/yolov8n.pt"
 
 #configure the simulator, if using
 simulator:
