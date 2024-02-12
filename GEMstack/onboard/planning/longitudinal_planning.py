@@ -37,7 +37,7 @@ def longitudinal_plan(
 
     dt = 0.05
     positions = []
-    positions.append(path.points[0][0])
+    positions.append((path.points[0][0], 0))
     times = [0.0]
     target_position = path.points[-1][0]
     flag = 0
@@ -52,7 +52,12 @@ def longitudinal_plan(
                 if current_speed < max_speed:
                     times.append(times[-1] + dt)
                     positions.append(
-                        (positions[-1] + current_speed * dt + 0.5 * acceleration * dt**2, 0)
+                        (
+                            positions[-1]
+                            + current_speed * dt
+                            + 0.5 * acceleration * dt**2,
+                            0,
+                        )
                     )
                     current_speed += acceleration * dt
                 else:
@@ -68,7 +73,7 @@ def longitudinal_plan(
                 current_speed -= deceleration * dt
             else:
                 break
-    
+
     trajectory = Trajectory(path.frame, positions, list(times))
 
     return trajectory
