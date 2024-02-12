@@ -13,7 +13,7 @@ class Path:
     frame : ObjectFrameEnum
     points : List[List[float]]
 
-    def to_frame(self, frame : ObjectFrameEnum, current_pose : None, start_pose_abs : None) -> Path:
+    def to_frame(self, frame : ObjectFrameEnum, current_pose = None, start_pose_abs =  None) -> Path:
         """Converts the route to a different frame."""
         new_points = [convert_point(p,self.frame,frame,current_pose,start_pose_abs) for p in self.points]
         return replace(self,frame=frame,points=new_points)
@@ -26,7 +26,7 @@ class Path:
         """Converts a path parameter to an (edge index, edge parameter) tuple."""
         if len(self.points) < 2:
             return 0,0.0
-        ind = int(t)
+        ind = int(math.floor(t))  #truncate toward zero
         if ind < 0: ind = 0
         if ind >= len(self.points)-1: ind = len(self.points)-2
         u = t - ind
@@ -59,9 +59,16 @@ class Path:
         p2 = self.points[ind+1]
         return transforms.vector_sub(p2,p1)
 
+    def length(self):
+        """Returns the length of the path."""
+        l = 0.0
+        for i in range(len(self.points)-1):
+            l += transforms.vector_dist(self.points[i],self.points[i+1])
+        return l
+
     def arc_length_parameterize(self, speed = 1.0) -> Trajectory:
         """Returns a new path that is parameterized by arc length."""
-        times = [0]
+        times = [0.0]
         points = [self.points[0]]
         for i in range(len(self.points)-1):
             p1 = self.points[i]
@@ -70,7 +77,7 @@ class Path:
             if d > 0:
                 points.append(p2)
                 times.append(times[-1] + d/speed)
-        return Trajectory(frame=self.frame,points=self.points,times=times)
+        return Trajectory(frame=self.frame,points=points,times=times)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
         """Returns the closest point on the path to the given point.  If
