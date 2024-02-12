@@ -17,7 +17,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
 
     Returns tuple (accelerator_pedal_position, brake_pedal_position, desired_gear)
     """
-    model = settings.get('vehicle.dynamics.acceleration_model','v1_hang')
+    model = settings.get('vehicle.dynamics.acceleration_model','hang_v1')
     if model == 'hang_v1':
         if gear != 1:
             print("WARNING can't handle gears other than 1 yet")
