@@ -30,8 +30,8 @@ class GNSSStateEstimator(Component):
                                     y=inspva_msg.latitude,
                                     z=inspva_msg.height,
                                     yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
-                                    roll=math.radians(inspva_msg.inspva_msg.roll),
-                                    pitch=math.radians(inspva_msg.inspva_msg.pitch),
+                                    roll=math.radians(inspva_msg.roll),
+                                    pitch=math.radians(inspva_msg.pitch),
                                     )
         #TODO: figure out what this status means
         print("INS status",inspva_msg.status)
