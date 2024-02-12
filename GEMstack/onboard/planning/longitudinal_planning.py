@@ -169,19 +169,8 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     # Calculate the time and dist to decelerate to 0 from current speed
     decel_time = current_speed / deceleration
 
-    # Calculate the distance we travel while decelerating
-    decel_distance = current_speed * decel_time - 0.5 * deceleration * decel_time**2
-
-    # Calculate the distance we can travel at the current speed
-    straight_distance = distance - decel_distance
-    if straight_distance < 0:
-        straight_distance = 0
-
-    # Euler integration to find points and times for straight travel
-    int_point, int_speed = euler_integration(straight_distance / current_speed, resolution, current_speed, 0, cur_point)
-
     # Euler integration to find points and times for decelerating
-    cur_point, current_speed = euler_integration(decel_time, resolution, int_speed, -1 * deceleration, int_point)
+    cur_point, current_speed = euler_integration(decel_time, resolution, current_speed, -1 * deceleration, cur_point)
 
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
