@@ -16,7 +16,7 @@ recovery:
 # Driving behavior for the GEM vehicle.  Runs faked pedestrian perception, yield planner, and tracking controller.
 drive: 
     perception:
-        state_estimation : FakeStateEstimator
+        state_estimation : OmniscientStateEstimator
         agent_detection : pedestrian_detection.FakePedestrianDetector2D
         perception_normalization : StandardPerceptionNormalizer
     planning:
