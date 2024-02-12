@@ -44,7 +44,7 @@ def longitudinal_plan(
     while True:
         if flag == 0:
             brake_distance = current_speed**2 / (2 * deceleration)
-            if target_position - positions[-1] < brake_distance + 0.5:
+            if target_position - positions[-1][0] < brake_distance + 0.5:
                 # Start to brake
                 flag = 1
             else:
