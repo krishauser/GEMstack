@@ -21,6 +21,7 @@ class GNSSStateEstimator(Component):
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
         self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
+        self.status = None
 
     # Get GNSS information
     def inspva_callback(self, inspva_msg):
@@ -33,8 +34,7 @@ class GNSSStateEstimator(Component):
                                     roll=math.radians(inspva_msg.roll),
                                     pitch=math.radians(inspva_msg.pitch),
                                     )
-        #TODO: figure out what this status means
-        print("INS status",inspva_msg.status)
+        self.status = inspva_msg.status
     
     def rate(self):
         return 10.0
@@ -48,6 +48,9 @@ class GNSSStateEstimator(Component):
     def update(self) -> VehicleState:
         if self.gnss_pose is None:
             return
+        #TODO: figure out what this status means
+        #print("INS status",self.status)
+
         # vehicle gnss heading (yaw) in radians
         # vehicle x, y position in fixed local frame, in meters
         # reference point is located at the center of GNSS antennas
