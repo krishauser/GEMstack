@@ -251,14 +251,19 @@ class ComponentExecutor:
 
     def update(self, t : float, state : AllState):
         if self.next_update_time is None or t >= self.next_update_time:
+            t0 = time.time()
             self.update_now(t,state)
+            t1 = time.time()
             self.last_update_time = t
             if self.next_update_time is None:
                 self.next_update_time = t + self.dt
             else:
                 self.next_update_time += self.dt
             if self.next_update_time < t and self.dt > 0:
-                executor_debug_print(1,"Component {} is running behind, overran dt {} by {} seconds",self.c.__class__.__name__,self.dt,t-self.next_update_time)
+                if t1 - t0 > self.dt:
+                    executor_debug_print(1,"Component {} is running behind, time {} overran dt {} by {} s",self.c.__class__.__name__,t1-t0,self.dt,t-self.next_update_time)
+                else:
+                    executor_debug_print(1,"Component {} is running behind (pushed back) overran dt {} by {} s",self.c.__class__.__name__,t1-t0,self.dt,t-self.next_update_time)
                 self.num_overruns += 1
                 self.overrun_amount += t - self.next_update_time
                 self.next_update_time = t + self.dt
