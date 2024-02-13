@@ -2,8 +2,9 @@ from typing import List
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization, settings
-from ...mathutils.transforms import vector_madd
+from ...mathutils.transforms import vector_madd, vector_add
 import math
+import numpy as np
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
@@ -18,54 +19,121 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     #TODO: actually do something to points and times
 
     points = [p for p in path_normalized.points]
-    times = [t/(path_normalized.times[-1]) for t in path_normalized.times]
+    points = [points[0]]
+    times = [0.0]
 
     total_distance = path_normalized.times[-1]
+    decel_dist_curr_speed = current_speed**2/(2*deceleration)
+    
+    dt = 0.05
 
-    # # If acceleration is zero, use triangular profile with non-jerk for smooth transition 
-    if acceleration == 0:
-        jerk = -10 #m/s^3
-        # Calculate transition time
-        transition_time = math.sqrt(2 * abs(current_speed) / abs(jerk))
-        const_speed_time = abs(current_speed) / abs(jerk)
-        total_time = transition_time + const_speed_time
-        times = [total_time * t for t in times]
+    if acceleration == 0 and current_speed != 0:
+        while total_distance-decel_dist_curr_speed > 0:
+            dist_covered = current_speed*dt
+            points.append(vector_madd(points[-1], [current_speed, 0], dt))
+            times.append(times[-1]+dt)
+            total_distance -= dist_covered
+        
+        decel_time = max(current_speed / deceleration, 1)
+        t = np.arange(0, decel_time + dt, dt)
+        s = current_speed*t - 0.5*deceleration*t**2
+        last_point = points[-1]
+        for i in range(len(t)):
+            points.append(vector_add(last_point, [s[i], 0.0]))
+        t = t.tolist()
+        t = [x + times[-1] for x in t]
+        times = times + t
         return Trajectory(path.frame, points, times)
 
     if current_speed > max_speed:
-        #decelerate
-        total_time = current_speed/deceleration
-        times = [total_time * t for t in times]
+        #decelerate to max speed
+        decel_time1 = (max_speed-current_speed)/deceleration
+        t = np.arange(0, decel_time1 + dt, dt)
+        s = current_speed*t - 0.5*deceleration*t**2
+        for i in range(len(t)):
+            points.append(vector_add(points[0], [s[i], 0.0]))
+        t = t.tolist()
+        t = [x + times[-1] for x in t]
+        times = times + t
+
+        decel_dist1 = (max_speed**2-current_speed**2)/(2*deceleration)
+        while total_distance-decel_dist1-decel_dist_max_speed > 0:
+            dist_covered = max_speed*dt
+            points.append(vector_madd(points[-1], [max_speed, 0], dt))
+            times.append(times[-1]+dt)
+            total_distance -= dist_covered
+        
+        # decelerate to 0
+        decel_time2 = max(max_speed / deceleration, 1)
+        t = np.arange(0, decel_time2 + dt, dt)
+        s = max_speed*t - 0.5*deceleration*t**2
+        last_point = points[-1]
+        for i in range(len(t)):
+            points.append(vector_add(last_point, [s[i], 0.0]))
+        t = t.tolist()
+        t = [x + times[-1] for x in t]
+        times = times + t
         return Trajectory(path.frame, points, times)
     
-    decel_dist_curr_speed = current_speed**2/(2*deceleration)
+
     decel_dist_max_speed = max_speed**2/(2*deceleration)
     accel_dist_curr_to_max = (max_speed**2 - current_speed**2) / (2 * acceleration)
 
-
     #if we'll reach max speed and decelerate
-    if total_distance-decel_dist_max_speed >= accel_dist_curr_to_max:
-        accel_time = (max_speed-current_speed)/acceleration
-        decel_time = math.sqrt(2*decel_dist_max_speed/deceleration)
-        const_velocity_time = (total_distance-decel_dist_max_speed-accel_dist_curr_to_max)/max_speed
-        total_time = accel_time+decel_time+const_velocity_time
-        times = [total_time * t for t in times]
+    if total_distance-decel_dist_max_speed > accel_dist_curr_to_max:
+        # accelerate to max speed
+        accel_time = (max_speed-current_speed) / acceleration
+        t = np.arange(0, accel_time + dt, dt)
+        s = current_speed*t + 0.5*acceleration*t**2
+        last_point = points[-1]
+        for i in range(len(t)):
+            points.append(vector_add(last_point, [s[i], 0.0]))
+        t = t.tolist()
+        t = [x + times[-1] for x in t]
+        times = times + t
+
+        # stay at max speed
+        while total_distance-decel_dist_max_speed - accel_dist_curr_to_max > 0:
+            dist_covered = max_speed*dt
+            points.append(vector_madd(points[-1], [max_speed, 0], dt))
+            times.append(times[-1]+dt)
+            total_distance -= dist_covered
+
+        # decelerate to 0
+        decel_time2 = max(max_speed / deceleration, 1)
+        t = np.arange(0, decel_time2 + dt, dt)
+        s = max_speed*t - 0.5*deceleration*t**2
+        last_point = points[-1]
+        for i in range(len(t)):
+            points.append(vector_add(last_point, [s[i], 0.0]))
+        t = t.tolist()
+        t = [x + times[-1] for x in t]
+        times = times + t
         return Trajectory(path.frame, points, times)
     
 
-    #still have dist to accelerate, accel
-    dt = 0.005 #seconds
-    total_time = 0.0
+    #Accelerate then decelerate without reaching max speed
     while total_distance-decel_dist_curr_speed > 0:
         #accelerate
         current_speed = current_speed + acceleration*dt
-        total_time += dt
+        times.append(times[-1]+dt)
+        s = current_speed*dt + 0.5*acceleration*dt**2
+        points.append(vector_add(points[-1], [s, 0.0]))
+        total_distance -= s
         decel_dist_curr_speed = current_speed**2/(2*deceleration)
-    total_time += math.sqrt(2*decel_dist_curr_speed/deceleration)
-    times = [total_time * t for t in times]
+    
+        decel_time = max(current_speed / deceleration, 1)
+        t = np.arange(0, decel_time + dt, dt)
+        s = current_speed*t - 0.5*deceleration*t**2
+        last_point = points[-1]
+        for i in range(len(t)):
+            points.append(vector_add(last_point, [s[i], 0.0]))
+        t = t.tolist()
+        t = [x + times[-1] for x in t]
+        times = times + t
     return Trajectory(path.frame, points, times)
 
-    return Trajectory(path.frame, points, times)
+
 
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
@@ -76,13 +144,20 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     if path_normalized.times[-1] == 0:
         return Trajectory(path.frame,path_normalized.points,path_normalized.times)
     
-    points = [p for p in path_normalized.points]
-    times = [t/(path_normalized.times[-1]) for t in path_normalized.times]
-
     # Compute the time needed to decelerate to stop
-    decel_time = current_speed / deceleration
-
-    times = [t * decel_time for t in times] 
+    decel_time = max(current_speed / deceleration, 1)
+    
+    if current_speed == 0:
+        points = [(0, i) for i in np.arange(0.0, decel_time, 0.2)]
+        times = np.arange(0, decel_time, 0.2).tolist()
+    else:
+        # change 0.2 to polling rate
+        t = np.arange(0.0, decel_time + 0.2, 0.2)
+        s = current_speed*t - 0.5*deceleration*t**2
+        points = []
+        for i in range(len(t)):
+            points.append([s[i], 0.0])
+        times = t.tolist()
     return Trajectory(path.frame,points,times)
 
 
