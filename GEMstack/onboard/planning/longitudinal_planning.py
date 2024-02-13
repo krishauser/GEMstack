@@ -111,7 +111,6 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         times = times + t
         return Trajectory(path.frame, points, times)
     
-
     #Accelerate then decelerate without reaching max speed
     while total_distance-decel_dist_curr_speed > 0:
         #accelerate
@@ -122,15 +121,15 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         total_distance -= s
         decel_dist_curr_speed = current_speed**2/(2*deceleration)
     
-        decel_time = max(current_speed / deceleration, 1)
-        t = np.arange(0, decel_time + dt, dt)
-        s = current_speed*t - 0.5*deceleration*t**2
-        last_point = points[-1]
-        for i in range(len(t)):
-            points.append(vector_add(last_point, [s[i], 0.0]))
-        t = t.tolist()
-        t = [x + times[-1] for x in t]
-        times = times + t
+    decel_time = max(current_speed / deceleration, 1)
+    t = np.arange(0, decel_time + dt, dt)
+    s = current_speed*t - 0.5*deceleration*t**2
+    last_point = points[-1]
+    for i in range(len(t)):
+        points.append(vector_add(last_point, [s[i], 0.0]))
+    t = t.tolist()
+    t = [x + times[-1] for x in t]
+    times = times + t
     return Trajectory(path.frame, points, times)
 
 
