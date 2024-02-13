@@ -16,57 +16,78 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
        decelerate with accel = -deceleration until velocity goes to 0.
     """
     path_normalized = path.arc_length_parameterize()
-    #TODO: actually do something to points and times
+    # TODO: actually do something to points and times
 
-    points = [p for p in path_normalized.points]
-    times = [t/(path_normalized.times[-1]) for t in path_normalized.times]
+    points = [x for (x,_) in path_normalized.points]
+    input_speed = current_speed
+    current_pos = 0
+    current_time = 0
+    positions = []
+    times = []
+    velocities = []
+    if current_speed < max_speed and acceleration != 0:
+        time_to_max_speed = (max_speed - current_speed) / acceleration
+        times_to_max = np.arange(0, time_to_max_speed + 0.2, 0.2)
+        positions_until_max_speed = current_speed * times_to_max + (1/2)*acceleration*(times_to_max **2)
+        velocities_until_max = current_speed + acceleration*(times_to_max)
+        positions.append(positions_until_max_speed)
+        times.append(times_to_max)
+        velocities.append(velocities_until_max)
+        current_pos = positions_until_max_speed[-1]
+        current_time = times_to_max[-1]
+        print("Curr Pos:", current_pos)
+        print("Curr Time:", current_time)
 
-    total_distance = path_normalized.times[-1]
+    current_speed = max_speed
+    print('Curr V:', current_speed)
+    if current_pos < points[-1]:
+        s = points[-1] - current_pos
+        print("Dist to End:", s)
+        time_to_path_end = s / current_speed
+        print(time_to_path_end)
+        times_to_end = np.arange(0, time_to_path_end + 0.2, 0.2)
+        print("Times to End:", times_to_end)
+        positions_until_end = (current_speed * times_to_end) + current_pos
+        times_to_end += current_time
+        velocities_to_end = np.ones(len(positions_until_end)) * current_speed
+        positions.append(positions_until_end)
+        times.append(times_to_end)
+        velocities.append(velocities_to_end)
 
-    # # If acceleration is zero, use triangular profile with non-jerk for smooth transition 
-    if acceleration == 0:
-        jerk = -10 #m/s^3
-        # Calculate transition time
-        transition_time = math.sqrt(2 * abs(current_speed) / abs(jerk))
-        const_speed_time = abs(current_speed) / abs(jerk)
-        total_time = transition_time + const_speed_time
-        times = [total_time * t for t in times]
-        return Trajectory(path.frame, points, times)
+    positions = np.concatenate(positions)
+    available_distance = points[-1] - positions
 
-    if current_speed > max_speed:
-        #decelerate
-        total_time = current_speed/deceleration
-        times = [total_time * t for t in times]
-        return Trajectory(path.frame, points, times)
-    
-    decel_dist_curr_speed = current_speed**2/(2*deceleration)
-    decel_dist_max_speed = max_speed**2/(2*deceleration)
-    accel_dist_curr_to_max = (max_speed**2 - current_speed**2) / (2 * acceleration)
+    velocities = np.concatenate(velocities)
+    braking_distance = (velocities**2)/(2*deceleration)
 
+    times = np.concatenate(times)
 
-    #if we'll reach max speed and decelerate
-    if total_distance-decel_dist_max_speed >= accel_dist_curr_to_max:
-        accel_time = (max_speed-current_speed)/acceleration
-        decel_time = math.sqrt(2*decel_dist_max_speed/deceleration)
-        const_velocity_time = (total_distance-decel_dist_max_speed-accel_dist_curr_to_max)/max_speed
-        total_time = accel_time+decel_time+const_velocity_time
-        times = [total_time * t for t in times]
-        return Trajectory(path.frame, points, times)
-    
+    can_brake = available_distance > braking_distance
+    velocities = velocities[can_brake]
+    positions = positions[can_brake]
+    times = times[can_brake]
 
-    #still have dist to accelerate, accel
-    dt = 0.005 #seconds
-    total_time = 0.0
-    while total_distance-decel_dist_curr_speed > 0:
-        #accelerate
-        current_speed = current_speed + acceleration*dt
-        total_time += dt
-        decel_dist_curr_speed = current_speed**2/(2*deceleration)
-    total_time += math.sqrt(2*decel_dist_curr_speed/deceleration)
-    times = [total_time * t for t in times]
-    return Trajectory(path.frame, points, times)
+    if len(velocities) != 0:
+        current_speed = velocities[-1]
+        current_time = times[-1]
+        current_pos = positions[-1]
+    else:
+        current_speed = input_speed
+        current_time = 0
+        current_pos = 0
 
-    return Trajectory(path.frame, points, times)
+    time_to_stop = current_speed / deceleration
+    times_to_stop = np.arange(0, time_to_stop + 0.2, 0.2)
+    positions_to_stop = (current_speed * times_to_stop - (1/2)*deceleration*(times_to_stop**2)) + current_pos
+    times_to_stop += current_time
+
+    positions = np.concatenate([positions, positions_to_stop])
+    times = np.concatenate([times, times_to_stop])
+
+    positions = positions.tolist()
+    positions = zip(positions, np.zeros(len(positions)))
+
+    return Trajectory(path.frame, positions, times.tolist())
 
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
@@ -76,7 +97,6 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 
     points = [p for p in path_normalized.points]
     times = [t/(path_normalized.times[-1]) for t in path_normalized.times]
-    print(times)
 
     if path_normalized.times[-1] == 0:
         return Trajectory(path.frame,path_normalized.points,path_normalized.times)
