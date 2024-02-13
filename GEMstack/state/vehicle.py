@@ -54,7 +54,7 @@ class VehicleState:
         c_x = center_new[0]
         c_y = center_new[1]
         if self.pose.z is not None:
-            c_z = center_new.z
+            c_z = center_new[2]
         else:
             c_z = None
         center_pose = replace(self.pose,x=c_x,y=c_y,z=c_z)

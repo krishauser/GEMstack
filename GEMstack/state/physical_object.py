@@ -277,7 +277,7 @@ def _get_frame_chain(source_frame : ObjectFrameEnum, target_frame : ObjectFrameE
     if start_pose_abs is not None and start_pose_abs.frame not in [ObjectFrameEnum.GLOBAL,ObjectFrameEnum.ABSOLUTE_CARTESIAN]:
         raise ValueError("start_pose_abs must be in GLOBAL or ABSOLUTE_CARTESIAN frame")
     if current_pose is not None and current_pose.frame in [ObjectFrameEnum.GLOBAL,ObjectFrameEnum.ABSOLUTE_CARTESIAN]:
-        if current_pose.frame != start_pose_abs.frame:
+        if start_pose_abs is not None and current_pose.frame != start_pose_abs.frame:
             raise ValueError("Cannot mix GLOBAL and ABSOLUTE_CARTESIAN frames")
     if frame_chain[-1][0] == ObjectFrameEnum.CURRENT:
         if current_pose is None:
