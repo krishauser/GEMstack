@@ -25,3 +25,11 @@ class Component:
     def update(self, *args, **kwargs):
         """Update the component."""
         raise NotImplementedError()
+    def debug(self, item, value):
+        """Debugs a streaming value within this component"""
+        if hasattr(self, 'debugger'):
+            self.debugger.debug(item, value)
+    def debug_event(self, label):
+        """Debugs an event within this component"""
+        if hasattr(self, 'debugger'):
+            self.debugger.debug_event(label)
