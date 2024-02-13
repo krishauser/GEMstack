@@ -30,8 +30,8 @@ class GNSSStateEstimator(Component):
                                     y=inspva_msg.latitude,
                                     z=inspva_msg.height,
                                     yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
-                                    roll=math.radians(inspva_msg.inspva_msg.roll),
-                                    pitch=math.radians(inspva_msg.inspva_msg.pitch),
+                                    roll=math.radians(inspva_msg.roll),
+                                    pitch=math.radians(inspva_msg.pitch),
                                     )
         #TODO: figure out what this status means
         print("INS status",inspva_msg.status)
@@ -71,6 +71,7 @@ class GNSSStateEstimator(Component):
 
 
 class OmniscientStateEstimator(Component):
+    """A state estimator used for the simulator which provides perfect state information"""
     def __init__(self, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
         if 'gnss' not in vehicle_interface.sensors():
@@ -93,3 +94,7 @@ class OmniscientStateEstimator(Component):
 
     def update(self) -> VehicleState:
         return self.vehicle_state
+    
+
+#alias, will be deprecated by end of February
+FakeStateEstimator = OmniscientStateEstimator

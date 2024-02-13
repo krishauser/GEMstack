@@ -36,6 +36,8 @@ class MPComponentExecutor(ComponentExecutor):
             'print_stdout': self.print_stdout,
             'print_stderr': self.print_stderr,
         }
+        if hasattr(self.c,'debugger'):
+            delattr(self.c,'debugger') #can't be serialized via Pickle 
         self._process = Process(target=self._run, args=(self.c, self._in_queue, self._out_queue, config))
         try:
             self._process.start()
