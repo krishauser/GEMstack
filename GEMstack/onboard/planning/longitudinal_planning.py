@@ -26,7 +26,9 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
             s = sum(segment_lengths[:i+1])
             t = (current_speed - (current_speed**2 - 2 * deceleration * s)**0.5) / deceleration
             times.append(t)
-        return times
+    	trajectory = Trajectory(path.frame,points,times)
+    	return trajectory
+
 
     if acceleration == 0:
         s1 = t1 = 0
