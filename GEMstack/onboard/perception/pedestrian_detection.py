@@ -39,8 +39,8 @@ class PedestrianDetector2D(Component):
     def image_callback(self, image : cv2.Mat):
         detection_result = self.detector(image)
         self.last_person_boxes = []
-        results = detection_result(image)
-        boxes = results[0].boxes
+        # results = detection_result(image)
+        boxes = detection_result[0].boxes
         for i in range(len(boxes)):
             if(boxes.cls[i] == 0):
                 self.last_person_boxes.append(boxes.xywh[i].tolist())
