@@ -1,0 +1,604 @@
+gem@gem-nuvo:~/cs588_group5/GEMstackrostopic echo /pacmod/as_rx/accel_cmd
+header: 
+  seq: 104
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 105
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 106
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 107
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 108
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 109
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 110
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 111
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 112
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 113
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 114
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 115
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 116
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 117
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 118
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 119
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 120
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 121
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 122
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 123
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 124
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 125
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 126
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 127
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 128
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.20999999344348907
+ui16_cmd: 0
+enable: False
+clear: False
+ignore: False
+---
+header: 
+  seq: 1
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 2
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 3
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 4
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 5
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 6
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 7
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 8
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 9
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 10
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 11
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 12
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 13
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 14
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 15
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 16
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 17
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 18
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 19
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 20
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 21
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 22
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 23
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 24
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 25
+  stamp: 
+    secs: 0
+    nsecs:         0
+  frame_id: ''
+f64_cmd: 0.0
+ui16_cmd: 0
+enable: True
+clear: False
+ignore: False
+---
+header: 
+  seq: 26
+
