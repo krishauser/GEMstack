@@ -4,6 +4,31 @@ from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum,
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd, vector_dist
 
+def add_points(points, n):
+    points2 = [points[0]]
+    for i in range(1, len(points)):
+        for j in range(1, n+2):
+            diff = tuple(map(lambda t1, t2: t1 - t2, points[i], points[i-1]))
+            points2.append(tuple(map(lambda t1, t2: t1 + j * t2 / (n+1), points[i-1], diff)))
+    return points2
+
+
+def plan_too_fast(path, points, L, current_speed, deceleration):
+    s_rem = current_speed**2 / (2 * deceleration) - L
+    diff = tuple(map(lambda t1, t2: t1 - t2, points[-1], points[-2]))
+    endpoint = tuple(map(lambda t1, t2: t1 + s_rem * t2 / vector_dist(points[-1], points[-2]), points[-1], diff))
+    n = int(vector_dist(endpoint, points[-1]) / vector_dist(points[-1], points[-2]))
+    points.extend(add_points([points[-1], endpoint], n-1)[1:])
+
+    times = [0]
+    for i in range(len(points) - 1):
+        ds = vector_dist(points[i+1], points[0])
+        dt = (current_speed - (current_speed**2 - 2 * deceleration * ds)**0.5) / deceleration
+        times.append(dt)
+
+    return Trajectory(path.frame, points, times)
+
+
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a trapezoidal velocity profile. 
     
@@ -17,18 +42,13 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     points = [p for p in path_normalized.points]
     #times = [t for t in path_normalized.times]
 
+    points = add_points(path, 100)
+
     segment_lengths = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)]
     L = sum(segment_lengths)
-    
-    if current_speed**2 / (2 * deceleration) > L: # not enough time to stop
-        times = [0]
-        for i in range(len(points) - 1):
-            s = sum(segment_lengths[:i+1])
-            t = (current_speed - (current_speed**2 - 2 * deceleration * s)**0.5) / deceleration
-            times.append(t)
-    	trajectory = Trajectory(path.frame,points,times)
-    	return trajectory
 
+    if current_speed**2 / (2 * deceleration) > L: # not enough time to stop
+        return plan_too_fast(path, points, L, current_speed, deceleration)
 
     if acceleration == 0:
         s1 = t1 = 0
@@ -86,8 +106,9 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
             dt2 = (du2 - (du2**2 - 2 *  deceleration * ds2)**0.5) / deceleration
             times.append(times[-1] + dt1 + dt2)
 
-    trajectory = Trajectory(path.frame,points,times)
-    return trajectory
+    times[-1] = t1 + t2 + t3
+
+    return Trajectory(path.frame, points, times)
 
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
@@ -95,9 +116,26 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
-    times = [t for t in path_normalized.times]
-    trajectory = Trajectory(path.frame,points,times)
-    return trajectory
+    #times = [t for t in path_normalized.times]
+
+    points = add_points(path, 100)
+
+    segment_lengths = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)]
+    L = sum(segment_lengths)
+
+    if current_speed == 0: # stay still
+        return Trajectory(path.frame, [points[0]] * 5, [i * 0.01 for i in range(0, 5)])
+
+    if current_speed**2 / (2 * deceleration) > L: # not enough time to stop
+        return plan_too_fast(path, points, L, current_speed, deceleration)
+
+    times = [0]
+    for i in range(len(points) - 1):
+        if vector_dist(points[i+1], points[0]) <= current_speed**2 / (2 * deceleration):
+            s = vector_dist(points[i+1], points[0])
+            t = (current_speed - (current_speed**2 - 2 * deceleration * s)**0.5) / deceleration
+            times.append(t)
+    return Trajectory(path.frame, points[:len(times)], times)
 
 
 class YieldTrajectoryPlanner(Component):
