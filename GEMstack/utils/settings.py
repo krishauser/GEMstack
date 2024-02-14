@@ -23,7 +23,10 @@ def load_settings():
             k,v = arg.split('=',1)
             k = k[2:]
             v = v.strip('"')
-            v = json.loads(v)
+            try:
+                v = json.loads(v)
+            except json.decoder.JSONDecodeError:
+                pass
             if v.startswith('{'):
                 set(k,v,leaf_only=False)
             else:

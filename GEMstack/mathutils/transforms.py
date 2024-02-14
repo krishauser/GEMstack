@@ -16,13 +16,17 @@ def vector_add(v1, v2):
     """Adds v1 + v2 between two vectors"""
     return vo.add(v1,v2)
 
-def vector_madd(v1, v2, s:float):
-    """Returns v1 + v2*s"""
-    return vo.madd(v1,v2,s)
-
 def vector_sub(v1, v2):
     """Subtracts v1 - v2 between two vectors"""
     return vo.sub(v1,v2)
+
+def vector_mul(v, s:float):
+    """Returns v*s"""
+    return vo.mul(v,s)
+
+def vector_madd(v1, v2, s:float):
+    """Returns v1 + v2*s"""
+    return vo.madd(v1,v2,s)
 
 def vector_norm(v) -> float:
     """Norm of a vector"""
@@ -63,7 +67,8 @@ def point_segment_distance(x,a,b) -> Tuple[float,float]:
     elif udotv > vnorm:
         return vector_norm(vector_sub(x,b)),1
     else:
-        return vector_norm(vector_sub(u,vector_madd(v,u,udotv/vnorm))),udotv/vnorm
+        param = udotv/vnorm
+        return vector_norm(vector_sub(u,vector_mul(v,param/vnorm))),param
 
 def rotate2d(point, angle : float, origin=None):
     """Rotates a point about the origin by an angle"""
