@@ -40,6 +40,7 @@ class PedestrianDetector2D(Component):
         self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
 
     def image_callback(self, image: cv2.Mat):
+        self.last_person_boxes = []
         detection_result = self.detector(image, classes=0)
         people = detection_result[0]
 
