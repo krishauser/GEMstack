@@ -58,6 +58,7 @@ class BlinkDistress(Component):
             command.left_turn_signal = False
             command.right_turn_signal = False
             self.state = 0
+        # print(self.state, command)
 
         self.vehicle_interface.send_command(command)
        
