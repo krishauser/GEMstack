@@ -1,41 +1,29 @@
-description: "Drive the GEM vehicle along a fixed route (currently xyhead_highbay_backlot_p.csv) in simulation."
-mode: simulation
-vehicle_interface:
-    type: gem_simulator.GEMDoubleIntegratorSimulationInterface
-    args:
-        scene: !relative_path '../scenes/xyhead_demo.yaml'
+description: "Run the yielding trajectory planner on the real vehicle with faked perception"
+mode: hardware
+vehicle_interface: gem_hardware.GEMHardwareInterface
 mission_execution: StandardExecutor
 
-# "recovery" pipeline: Recovery behavior after a component failure
+# Recovery behavior after a component failure
 recovery: 
     planning: 
         trajectory_tracking :
             type: recovery.StopTrajectoryTracker
-            print: False
-
-# "drive" pipeline: Driving behavior for the GEM vehicle following a fixed route
+        
+# Driving behavior for the GEM vehicle.  Runs faked pedestrian perception, yield planner, and tracking controller.
 drive: 
     perception:
-        state_estimation : FakeStateEstimator
+        state_estimation : GNSSStateEstimator
+        agent_detection : pedestrian_detection.FakePedestrianDetector2D
         perception_normalization : StandardPerceptionNormalizer
     planning:
+        relations_estimation: pedestrian_yield_logic.PedestrianYielder
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
-        motion_planning: RouteToTrajectoryPlanner
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
+        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
-            print: False
-
-#visualization methods
-visualization:
-    type: mpl_visualization.MPLVisualization
-    args:
-        rate: 8
-        #Don't include save_as if you don't want to save the video
-        #save_as:
-        save_as: "fixed_route_sim.mp4"
-    multiprocess: True
+            print: True
 
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
@@ -44,26 +32,23 @@ log:
     #prefix : 'fixed_route_'  
     # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
     #suffix : 'test3'  
-    # Specify which ros topics to record to vehicle.bag. Default records nothing
-    ros_topics : []
+    # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
+    ros_topics : 
     # Specify options to pass to rosbag record. Default is no options.
     #rosbag_options : '--split --size=1024' 
     # If True, then record all readings / commands of the vehicle interface. Default False
     vehicle_interface : True
-    # Specify which component's output to record to behavior.json. Default records nothing
-    components : ['state_estimation','trajectory_tracking']
+    # Specify which components to record to behavior.json. Default records nothing
+    components : ['state_estimation','agent_detection','motion_planning']
     # Specify which components of state to record to state.json. Default records nothing 
     #state: ['all']
     # Specify the rate in Hz at which to record state to state.json. Default records at the pipeline's rate
     #state_rate: 10
-
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
     log: 
-    # For replaying sensor data, try !include "../knowledge/defaults/standard_sensor_ros_topics.yaml"
     ros_topics : []
     components : []
 
 #usually can keep this constant
 computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
-

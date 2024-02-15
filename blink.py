@@ -16,26 +16,31 @@ class BlinkDistress:
         # You will want this callback to be a BlinkDistress method, such as print_X(self, msg).  msg will have a
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
+        self.cmd = PacmodCmd()
 
-        rospy.init_node('brake_rpt_sub', anonymous=False)
-        rospy.Subscriber('parsed_tx/brake_rpt', SystemRptFloat, self.print_brake_rpt)
-        rospy.spin()
+        # rospy.init_node('BlinkDistress', anonymous=False)
 
-        rospy.init_node('turn_rpt_sub', anonymous=False)
-        rospy.Subscriber('parsed_tx/turn_rpt', SystemRptInt, self.print_turn_rpt)
-        rospy.spin()
+        self.sub_brake = rospy.Subscriber('/parsed_tx/brake_rpt', SystemRptFloat, self.print_brake_rpt)
 
-        pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=10)
-        rospy.init_node('turn_cmd_pub', anonymous=True)
-        self.pub = pub
+        self.sub_accel = rospy.Subscriber('/parsed_tx/accel_rpt', SystemRptFloat, self.print_accel_rpt)
+
+        self.pub_brake = rospy.Publisher('/parsed_tx/brake_rpt',SystemRptFloat, queue_size=1)
+
+        self.pub_accel = rospy.Publisher('/parsed_tx/accel_rpt',SystemRptFloat, queue_size=1)
+
+        self.pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=10)
 
         self.state = None
 
-    def print_brake_rpt(self, msg):
-        rospy.loginfo('Subscribed: ' + msg.data)
+        self.cmd.ui16_cmd = 2
 
-    def print_turn_rpt(self, msg):
-        rospy.loginfo('Subscribed: ' + msg.data)
+    def print_brake_rpt(self, msg):
+        rospy.loginfo('Subscribed: ' + str(msg.command))
+        # print('Subscribed: ' + str(msg.command))
+
+    def print_accel_rpt(self, msg):
+        rospy.loginfo('Subscribed: ' + str(msg.command))
+        # print('Subscribed: ' + str(msg.command))
 
     def rate(self):
         """Requested update frequency, in Hz"""
@@ -43,36 +48,48 @@ class BlinkDistress:
 
     def initialize(self):
         """Run first"""
-        pass
+        rospy.sleep(1)
+
+        float_cmd = SystemRptFloat()
+        float_cmd.command = 0.0
+        self.pub_brake.publish(float_cmd)
+
+        rospy.sleep(1)
+
+        float_cmd1 = SystemRptFloat()
+        float_cmd1.command = 1.5
+
+        self.pub_accel.publish(float_cmd1)
+
+        rospy.sleep(1)
 
     def cleanup(self):
         """Run last"""
-        pass
+        self.cmd.ui16_cmd = 1
+        self.state = 1
+        self.pub.publish(self.cmd)
     
     def update(self):
         """Run in a loop"""
         # TODO: Implement your control loop here
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
-        cmd = PacmodCmd()
 
-        if not self.state or self.state == 1:
-            cmd.ui16_cmd = 2
-            self.state == 2
-            self.pub.publilsh(cmd)
+        if self.state is None or self.state == 1:
+            self.cmd.ui16_cmd = 2
+            self.state = 2
+            self.pub.publish(self.cmd)
 
         elif self.state == 2:
-            cmd.ui16_cmd = 0
+            self.cmd.ui16_cmd = 0
             self.state = 0
-            self.pub.publilsh(cmd)
+            self.pub.publish(self.cmd)  
 
-        else:
-            self.state == 1
-            cmd.ui16_cmd = 1
-            self.pub.publilsh(cmd)
+        elif self.state == 0:
+            self.state = 1
+            self.cmd.ui16_cmd = 1
+            self.pub.publish(self.cmd)  
 
-
-       
     def healthy(self):
         """Returns True if the element is in a stable state."""
         return True
@@ -91,7 +108,6 @@ def run_ros_loop(node):
     #intializes the node. We use disable_signals so that the end() function can be called when Ctrl+C is issued.
     #See http://wiki.ros.org/rospy/Overview/Initialization%20and%20Shutdown
     rospy.init_node(node.__class__.__name__, disable_signals=True)
-
     node.initialize()
     rate = rospy.Rate(node.rate())
     termination_reason = "undetermined"

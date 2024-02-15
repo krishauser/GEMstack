@@ -73,11 +73,14 @@ class ObjectPose:
         return se3.ndarray((so3.from_ndarray(self.rotation()),self.translation()))
 
     def apply(self,point):
-        """Applies this pose to a local (x,y) or (x,y,z) coordinate."""
+        """Applies this pose to a local (x,y) or (x,y,z) coordinate.
+        
+        If point is 2D, then the pitch and roll are ignored.
+        """
         assert len(point) in [2,3],"Must provide a 2D or 3D point"
         oz = self.z if self.z is not None else 0.0
         if self.frame == ObjectFrameEnum.GLOBAL:
-            east_m,north_m = point[:2]
+            east_m,north_m = self.rotation2d().dot(point[:2])
             olon,olat = self.x,self.y
             lat,lon = transforms.xy_to_lat_lon(east_m,north_m,olat,olon)
             if len(point) == 2:
@@ -91,25 +94,70 @@ class ObjectPose:
 
     def apply_inv(self,point):
         """Applies the inverse of this pose to an (x,y) or (x,y,z) coordinate
-        specified in the same frame as this."""
+        specified in the same frame as this.
+        
+        If point is 2D, then the pitch and roll are ignored.  Otherwise, they
+        are taken into account.
+        """
         assert len(point) in [2,3],"Must provide a 2D or 3D point"
         oz = self.z if self.z is not None else 0.0
         if self.frame == ObjectFrameEnum.GLOBAL:
             lon,lat = point[:2]
             olon,olat = self.x,self.y
             east_m, north_m = transforms.lat_lon_to_xy(lat,lon,olat,olon)
+            px,py = self.rotation2d().T.dot((east_m,north_m))
             if len(point) == 2:
-                return (east_m, north_m)
+                return (px,py)
             else:
-                return (east_m, north_m, point[2] - oz)
+                return (px,py, point[2] - oz)
         if len(point) == 2:
             return tuple(self.rotation2d().T.dot(np.array(point)-self.translation()[:2]))
         else:
             return tuple(self.rotation().T.dot(np.array(point)-self.translation()))
 
+    def apply_dir(self,vec):
+        """Applies this pose to a local (x,y) or (x,y,z) directional quantity.
+        
+        If direction is 2D, then the pitch and roll are ignored.
+        """
+        assert len(vec) in [2,3],"Must provide a 2D or 3D direction"
+        oz = self.z if self.z is not None else 0.0
+        if self.frame == ObjectFrameEnum.GLOBAL:
+            east_m,north_m = self.rotation2d().dot(vec[:2])
+            if len(vec) == 2:
+                return (east_m,north_m)
+            else:
+                return (east_m,north_m, vec[2] + oz)
+        if len(vec) == 2:
+            return tuple(self.rotation2d().dot(vec))
+        else:
+            return tuple(self.rotation().dot(vec))
+
+    def apply_dir_inv(self,vec):
+        """Applies the inverse of this pose to an (x,y) or (x,y,z) directional
+        quantity specified in the same frame as this.
+        
+        If direction is 2D, then the pitch and roll are ignored.  Otherwise, they
+        are taken into account.
+        """
+        assert len(vec) in [2,3],"Must provide a 2D or 3D direction"
+        oz = self.z if self.z is not None else 0.0
+        if self.frame == ObjectFrameEnum.GLOBAL:
+            east_m, north_m = vec[:2]
+            px,py = self.rotation2d().T.dot((east_m,north_m))
+            if len(vec) == 2:
+                return (px,py)
+            else:
+                return (px,py, vec[2] - oz)
+        if len(vec) == 2:
+            return tuple(self.rotation2d().T.dot(vec))
+        else:
+            return tuple(self.rotation().T.dot(vec))
+
     def apply_xyhead(self,xyhead):
         """Applies this pose to a local (x,y,yaw) coordinate.  yaw is always
-        specified in CCW radians."""
+        specified in CCW radians.  Pitch and roll are ignored.
+        """
         newxy = self.apply(xyhead[:2])
         yaw = self.yaw if self.yaw is not None else 0.0
         if self.frame == ObjectFrameEnum.GLOBAL:
@@ -120,7 +168,7 @@ class ObjectPose:
     def apply_inv_xyhead(self,xyhead):
         """Applies this pose to a (x,y,yaw) coordinate expressed in `frame`.
         yaw is specified in CCW radians except for GLOBAL, in which case
-        yaw is CW heading."""
+        yaw is CW heading.  Pitch and roll are ignored."""
         newxy = self.apply_inv(xyhead[:2])
         yaw = self.yaw if self.yaw is not None else 0.0
         if self.frame == ObjectFrameEnum.GLOBAL:
@@ -131,7 +179,10 @@ class ObjectPose:
     def to_frame(self, new_frame : ObjectFrameEnum, 
                  current_pose : ObjectPose = None, start_pose_abs : ObjectPose = None) -> ObjectPose:
         """Returns a new ObjectPose representing the same pose, but with
-        coordinates expressed in a different frame."""
+        coordinates expressed in a different frame. 
+        
+        Note that pitch and roll will be preserved!
+        """
         if self.frame == new_frame:
             return replace(self)
         frame_chain = _get_frame_chain(self.frame,new_frame,current_pose,start_pose_abs)
@@ -188,6 +239,22 @@ class PhysicalObject:
         """Returns the bounding box of the object in its local frame."""
         l,w,h = self.dimensions
         return [[-l/2,l/2],[-w/2,w/2],[0,h]]
+    
+    def polygon(self) -> List[Tuple[float,float]]:
+        """Returns the object's outline polygon in its local frame.  If `outline` is
+        not specified, this creates an outline from the bounding box."""
+        if self.outline is not None:
+            return self.outline
+        l,w,h = self.dimensions
+        return [(-l/2,-w/2),(l/2,-w/2),(l/2,w/2),(-l/2,w/2)]
+
+    def polygon_parent(self) -> List[Tuple[float,float]]:
+        """Returns the object's outline polygon in its parent frame, i.e., the frame
+        referred to in self.pose.frame."""
+        p = self.polygon()
+        R = self.pose.rotation2d()
+        t = self.pose.translation()[:2]
+        return [(R.dot(pt) + t).tolist() for pt in p]
 
     def to_frame(self, frame : ObjectFrameEnum, current_pose = None, start_pose_abs = None):
         newpose = self.pose.to_frame(frame,current_pose,start_pose_abs)
@@ -210,7 +277,7 @@ def _get_frame_chain(source_frame : ObjectFrameEnum, target_frame : ObjectFrameE
     if start_pose_abs is not None and start_pose_abs.frame not in [ObjectFrameEnum.GLOBAL,ObjectFrameEnum.ABSOLUTE_CARTESIAN]:
         raise ValueError("start_pose_abs must be in GLOBAL or ABSOLUTE_CARTESIAN frame")
     if current_pose is not None and current_pose.frame in [ObjectFrameEnum.GLOBAL,ObjectFrameEnum.ABSOLUTE_CARTESIAN]:
-        if current_pose.frame != start_pose_abs.frame:
+        if start_pose_abs is not None and current_pose.frame != start_pose_abs.frame:
             raise ValueError("Cannot mix GLOBAL and ABSOLUTE_CARTESIAN frames")
     if frame_chain[-1][0] == ObjectFrameEnum.CURRENT:
         if current_pose is None:
