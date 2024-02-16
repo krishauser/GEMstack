@@ -21,7 +21,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
 
-    timestep = 10
+    timestep = 50
 
     x_start = points[0][0]
     y_start = points[0][1]
@@ -51,19 +51,36 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         print("const speed mode")
         t_cons_v = dis / current_speed
 
-        t_constv_array = np.linspace(0, t_cons_v, timestep, dtype=float)
+        t_dec = 0.5 * (2*(dis_x)/vx_start - (0 - vx_start)/(dec_x))
+        T = t_dec + (0 - vx_start) / (dec_x)
+
+        
+        x_dec = x_start + t_dec * vx_start
+        y_dec = y_start + t_dec * vy_start
+
+        t_constv_array = np.linspace(0, t_dec, timestep, dtype=float)
         x_constv_array = x_start + vx_start * t_constv_array
         y_constv_array = y_start + vy_start * t_constv_array
+
+        t_dec_array = np.linspace(0, T - t_dec, timestep, dtype=float)
+        x_dec_array = x_dec + t_dec_array * vx_max + 0.5 * (t_dec_array**2) * dec_x
+        y_dec_array = y_dec + t_dec_array * vy_max + 0.5 * (t_dec_array**2) * dec_y
+
+
 
         traj_points = []
         traj_times = []
 
-        for i in range(len(t_constv_array)):
+        for i in range(len(t_constv_array - 1)):
             traj_points.append((x_constv_array[i],y_constv_array[i]))
             traj_times.append(t_constv_array[i])
 
-        traj_points = [(x_start,y_start), (x_end,y_end)]
-        traj_times = [times[0], t_cons_v]
+        for i in range(len(t_dec_array)):
+            traj_points.append((x_dec_array[i], y_dec_array[i]))
+            traj_times.append(t_dec_array[i] + t_dec)
+
+        # traj_points = [(x_start,y_start), (x_end,y_end)]
+        # traj_times = [times[0], t_cons_v]
         print("traj_points = ", traj_points)
     else: 
         print("trapezoidal mode")
@@ -207,7 +224,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
-    timestep = 10
+    timestep = 50
 
     x_start = points[0][0]
     y_start = points[0][1]
@@ -216,32 +233,45 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     print("x_start, y_start = ",[x_start, y_start])
     print("x_end, y_end = ",[x_end, y_end])
 
-    v_start = current_speed
-    vx_start = ((x_end - x_start) / (math.sqrt((x_end - x_start)**2 + (y_end - y_start)**2))) * current_speed
-    vy_start = ((y_end - y_start) / (math.sqrt((x_end - x_start)**2 + (y_end - y_start)**2))) * current_speed
-    dec_x = ((x_end - x_start) / (math.sqrt((x_end - x_start)**2 + (y_end - y_start)**2))) * (-deceleration)
-    dec_y = ((y_end - y_start) / (math.sqrt((x_end - x_start)**2 + (y_end - y_start)**2))) * (-deceleration)
-    print("vx_start, vy_start = ",[vx_start, vy_start])
-    print("dec_x, dec_y = ",[dec_x, dec_y])
+    if current_speed == 0: 
+        print("still mode")
 
-    t_dec = (0 - current_speed) / (-deceleration)
-    x_dec = x_start + t_dec * vx_start + 0.5 * (t_dec**2) * dec_x
-    y_dec = y_start + t_dec * vy_start + 0.5 * (t_dec**2) * dec_y
+        traj_points = []
+        traj_times = []
 
-    t_dec_array = np.linspace(0, t_dec, timestep, dtype=float)
-    x_dec_array = x_start + t_dec_array * vx_start + 0.5 * (t_dec_array**2) * dec_x
-    y_dec_array = y_start + t_dec_array * vy_start + 0.5 * (t_dec_array**2) * dec_y
+        t_still_array = np.linspace(0, times[-1], timestep, dtype=float)
 
-    traj_points = []
-    traj_times = []
+        for i in range(len(t_still_array)):
+            traj_points.append((0, 0))
+            traj_times.append(t_still_array[i])
 
-    for i in range(len(t_dec_array)):
-        traj_points.append((x_dec_array[i], y_dec_array[i]))
-        traj_times.append(t_dec_array[i])
+    else:
+        v_start = current_speed
+        vx_start = ((x_end - x_start) / (math.sqrt((x_end - x_start)**2 + (y_end - y_start)**2))) * current_speed
+        vy_start = ((y_end - y_start) / (math.sqrt((x_end - x_start)**2 + (y_end - y_start)**2))) * current_speed
+        dec_x = ((x_end - x_start) / (math.sqrt((x_end - x_start)**2 + (y_end - y_start)**2))) * (-deceleration)
+        dec_y = ((y_end - y_start) / (math.sqrt((x_end - x_start)**2 + (y_end - y_start)**2))) * (-deceleration)
+        print("vx_start, vy_start = ",[vx_start, vy_start])
+        print("dec_x, dec_y = ",[dec_x, dec_y])
 
-    
-    # traj_points = [(x_start,y_start), (x_dec,y_dec)]
-    # traj_times = [times[0], t_dec]
+        t_dec = (0 - current_speed) / (-deceleration)
+        x_dec = x_start + t_dec * vx_start + 0.5 * (t_dec**2) * dec_x
+        y_dec = y_start + t_dec * vy_start + 0.5 * (t_dec**2) * dec_y
+
+        t_dec_array = np.linspace(0, t_dec, timestep, dtype=float)
+        x_dec_array = x_start + t_dec_array * vx_start + 0.5 * (t_dec_array**2) * dec_x
+        y_dec_array = y_start + t_dec_array * vy_start + 0.5 * (t_dec_array**2) * dec_y
+
+        traj_points = []
+        traj_times = []
+
+        for i in range(len(t_dec_array)):
+            traj_points.append((x_dec_array[i], y_dec_array[i]))
+            traj_times.append(t_dec_array[i])
+
+        
+        # traj_points = [(x_start,y_start), (x_dec,y_dec)]
+        # traj_times = [times[0], t_dec]
 
     trajectory = Trajectory(path.frame,traj_points,traj_times)
     return trajectory
