@@ -15,8 +15,44 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     """
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
-    points = [p for p in path_normalized.points]
-    times = [t for t in path_normalized.times]
+    times = [0]
+    points = [path_normalized.points[0]]
+    currrent_position = points[0][0]
+    remaining_distance = path_normalized.points[-1][0] - path_normalized.points[0][0]
+    braking_distance = (current_speed ** 2) / (2 * deceleration)
+
+    while times[-1] <= 10 and braking_distance < remaining_distance and current_speed < max_speed:
+        current_speed += acceleration * 0.05
+        current_speed = min(max_speed, current_speed)
+
+        displacement = current_speed * 0.05
+        currrent_position += displacement
+        remaining_distance -= displacement
+        braking_distance = (current_speed ** 2) / (2 * deceleration)
+
+        times.append(times[-1] + 0.05)
+        points.append((currrent_position,0))
+
+    while times[-1] <= 10 and braking_distance < remaining_distance:
+
+        displacement = current_speed * 0.05
+        currrent_position += displacement
+        remaining_distance -= displacement
+        braking_distance = (current_speed ** 2) / (2 * deceleration)
+        
+        times.append(times[-1] + 0.05)
+        points.append((currrent_position,0))
+    
+    while times[-1] <= 10 and current_speed > 0:
+        current_speed -= deceleration * 0.05
+        current_speed = max(0, current_speed)
+
+        displacement = current_speed * 0.05
+        currrent_position += displacement
+
+        times.append(times[-1] + 0.05)
+        points.append((currrent_position,0))
+        
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
@@ -25,8 +61,38 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     """Generates a longitudinal trajectory for braking along a path."""
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
-    points = [p for p in path_normalized.points]
-    times = [t for t in path_normalized.times]
+    times = [0]
+    end_time = path_normalized.times[-1]
+    points = [path_normalized.points[0]]
+    currrent_position = points[0][0]
+    remaining_distance = path_normalized.points[-1][0] - path_normalized.points[0][0]
+    braking_distance = (current_speed ** 2) / (2 * deceleration)
+
+    if current_speed == 0:
+        while times[-1] <= end_time:
+            times.append(times[-1] + 0.05)
+            points.append((currrent_position,0)) 
+
+    # while times[-1] <= 10 and braking_distance < remaining_distance:
+
+    #     displacement = current_speed * 0.05
+    #     currrent_position += displacement
+    #     remaining_distance -= displacement
+    #     braking_distance = (current_speed ** 2) / (2 * deceleration)
+        
+    #     times.append(times[-1] + 0.05)
+    #     points.append((currrent_position,0))
+    
+    while times[-1] <= 10 and current_speed > 0:
+        current_speed -= deceleration * 0.05
+        current_speed = max(0, current_speed)
+
+        displacement = current_speed * 0.05
+        currrent_position += displacement
+
+        times.append(times[-1] + 0.05)
+        points.append((currrent_position,0))
+    
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
