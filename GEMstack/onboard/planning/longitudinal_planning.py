@@ -2,7 +2,7 @@ from typing import List
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
-from ...mathutils.transforms import vector_madd
+from ...mathutils.transforms import vector_madd, normalize_vector, vector_sub
 from scipy.optimize import fsolve
 import math
 
@@ -41,61 +41,94 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
-    # brake down into 3 phases
-    # accelerate until max speed
-    # travel max speed
-    # decelerate until stopping
-    # how do we figure out when to do the deceleration phase?
-    import numpy as np
+
+    #################### Method 1 #####################
+    #### Solve the equations and compute the path as what we did before ###
+
+    # t_dec = current_speed / deceleration # time to stop from current speed
+    # p_dec = 0.5 * current_speed * t_dec # distance to stop from current speed
+    # p_path = times[-1] * 1 # total path length
+
+    # # The path may contains three parts: Acceleration, Uniform speed, Deceleration
+
+    # # Case 1: No Acceleration
+    # # Acceleration is zero or we are already at speed faster than max_speed or too little time to stop
+    # # No need to accelerate, only Uniform speed part and Deceleration part
+    # # Time for deceleration part is just t_dec, compute time for uniform speed part
+    # if acceleration == 0 or current_speed > max_speed or p_path < p_dec:
+    #     p_acc = 0 # no acceleration part
+    #     t_acc = 0 # no acceleration part
+    #     p_uni = max(p_path - p_dec, 0) # If too little time to stop, deceleration only, so p_uni = 0
+    #     t_uni = p_uni / current_speed
+    # else: # Cases when we have acceleration part
+    #     # Test if we can reach max_speed
+    #     t_acc = (max_speed - current_speed) / acceleration # time to accelerate to max speed
+    #     t_dec = max_speed / deceleration # time to stop from max speed
+    #     p_acc = 0.5 * (max_speed + current_speed) * t_acc # distance to accelerate to max speed
+    #     p_dec = 0.5 * max_speed * t_dec # distance to stop from max speed
+    #     if p_acc + p_dec > p_path: # Case 2: can not reach max speed, PP Curve
+    #         # Solution to the quadratic equation
+    #         t_acc = (-(1 + acceleration / deceleration) * current_speed + math.sqrt(((1 + acceleration / deceleration) * current_speed) ** 2 - (acceleration + acceleration ** 2 / deceleration) * (current_speed ** 2 / deceleration - 2 * p_path))) / (acceleration + acceleration ** 2 / deceleration)
+    #         max_reached_speed = (current_speed + t_acc * acceleration)
+    #         t_dec = max_reached_speed / deceleration
+    #         p_acc = 0.5 * (max_reached_speed + current_speed) * t_acc
+    #         p_dec = 0.5 * max_reached_speed * t_dec
+    #         p_uni = 0
+    #         t_uni = 0
+    #     else: # Case 3: can reach max speed, PLP Curve
+    #         # t_acc and t_dec is what we just compute, no need to change
+    #         p_uni = p_path - p_acc - p_dec # Distance to travel with uniform (max) speed
+    #         t_uni = p_uni / max_speed
+
+    # # We have computed t_acc, t_uni, t_dec. Compute the path.
+    # # current position, time and velocity
+    # points_acc, times_acc = create_path(0, 0, current_speed, acceleration, t_acc)
+    # # Uniform speed part
+    # points_uni, times_uni = create_path(p_acc, t_acc, current_speed + acceleration * t_acc, 0, t_acc + t_uni)
+    # # Deceleration part
+    # points_dec, times_dec = create_path(p_acc + p_uni, t_acc + t_uni, current_speed + acceleration * t_acc, -deceleration, t_acc + t_uni + t_dec)
+
+    # points_ = points_acc + points_uni + points_dec + [p_acc + p_uni + p_dec] # distance here, need to change to 2D points
+    # direction = normalize_vector(vector_sub(points[-1], points[0])) # heading of the vehicle
+    # points = [vector_madd(points[0], direction, p) for p in points_]
+    # times = times_acc + times_uni + times_dec + [t_acc + t_uni + t_dec]
+    #################### Method 1 #####################
+    
+
+    #################### Method 2 #####################
+    ### Simply travel along the path ### 
+
+    direction = normalize_vector(vector_sub(points[-1], points[0])) # heading of the vehicle
+    p_path = times[-1] * 1 # total path length
+    point_start = points[0]
+    p = 0
+    t = 0
+    v = current_speed
+
+    points = []
+    times = []
+
     dt = 0.05
-    if acceleration <= 0:
-        max_speed = current_speed
-        acceleration = -1
-    p_end = points[-1][0] - points[0][0]
-    t_dec = current_speed / deceleration
-    p_start = points[0][0]
-    if p_end < 0.5 * deceleration * t_dec ** 2:
-        # t_end = (current_speed - np.sqrt(current_speed ** 2 - 2 * deceleration * p_end)) / deceleration
-        t_end = t_dec
-        t_path = np.linspace(0, t_end, int(t_end / dt))
-        p_path = p_start + current_speed * t_path - 0.5 * deceleration * t_path ** 2
-        p_path = p_path.tolist()
-    else:
-        t_dec_from_max = max_speed / deceleration
-        t_acc_to_max = (max_speed - current_speed) / acceleration
-        if p_end < 0.5 * (acceleration * t_acc_to_max ** 2 + deceleration * t_dec_from_max ** 2):
-            if acceleration != -1:
-                t_acc = (-(1 + acceleration / deceleration) * current_speed + np.sqrt(((1 + acceleration / deceleration) * current_speed) ** 2 - (acceleration + acceleration ** 2 / deceleration) * (current_speed ** 2 / deceleration - 2 * p_end))) / (acceleration + acceleration ** 2 / deceleration)
-                t_acc_ = np.linspace(0, t_acc, int(t_acc / dt))
-                p_acc = p_start + current_speed * t_acc_ + 0.5 * acceleration * t_acc_ ** 2
-            t_dec = (t_acc * acceleration + current_speed) / deceleration
-            t_end = t_dec + t_acc if acceleration != -1 else 0
-            t_dec_ = np.linspace(0, t_dec, int(t_dec / dt))
-            p_last = p_acc[-1] if acceleration >= 0 else p_start
-            p_dec = p_last - 0.5 * deceleration * t_dec_ ** 2 + (t_acc * acceleration + current_speed) * t_dec_
-            p_path = p_dec.tolist()
-            t_path = (t_dec_+ (t_acc if acceleration != -1 else 0)).tolist()
-            if acceleration != -1:
-                p_path = p_acc.tolist() + p_path
-                t_path = t_acc_.tolist() + t_path
+    while p <= p_path or v > 0:
+        points.append(p)
+        times.append(t)
+
+        # What should the acceleration be, accelerate or decelerate
+        if 0.5 * v**2 / deceleration + p > p_path:
+            a = -deceleration
         else:
-            if acceleration != -1:
-                t_acc = t_acc_to_max
-                t_acc_ = np.linspace(0, t_acc, int(t_acc / dt))
-                p_acc = p_start + current_speed * t_acc_ + 0.5 * acceleration * t_acc_ ** 2
-            t_uni = (p_end - 0.5 * acceleration * t_acc_to_max ** 2 - 0.5 * deceleration * t_dec_from_max ** 2 - current_speed * t_acc_to_max) / max_speed
-            t_uni_ = np.linspace(0, t_uni, int(t_uni / dt))
-            p_last = p_acc[-1] if acceleration >= 0 else p_start
-            p_uni = t_uni_ * max_speed + p_last
-            t_dec_ = np.linspace(0, t_dec_from_max, int(t_dec_from_max / dt))
-            p_dec = p_uni[-1] - 0.5 * deceleration * t_dec_ ** 2 + max_speed * t_dec_
-            p_path = p_uni.tolist() + p_dec.tolist()
-            t_path = (t_uni_ + (t_acc if acceleration != -1 else 0)).tolist() + (t_dec_+ (t_acc if acceleration != -1 else 0) + t_uni).tolist()
-            if acceleration != -1:
-                p_path = p_acc.tolist() + p_path
-                t_path = t_acc_.tolist() + t_path
-    points = [(p, 0) for p in p_path]
-    times = [t for t in t_path]
+            a = acceleration
+
+        # update position, velocity, time
+        p = p + v * dt + 0.5 * a * dt**2
+        v = min(v + a * dt, max_speed)
+        if v < 0:
+            break
+        t = t + dt
+
+    points = [vector_madd(point_start, direction, p) for p in points] # distance here, need to change to 2D points
+    #################### Method 2 #####################
+
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
@@ -178,7 +211,7 @@ class YieldTrajectoryPlanner(Component):
         #parse the relations indicated
         should_brake = False
         for r in state.relations:
-            if r.type == EntityRelationEnum.YIELD and r.obj1 == '':
+            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
                 #yielding to something, brake
                 should_brake = True
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
