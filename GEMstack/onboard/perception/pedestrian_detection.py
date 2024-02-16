@@ -4,6 +4,9 @@ from ..component import Component
 from ultralytics import YOLO
 import cv2
 from typing import Dict
+from ...utils import settings
+
+MODEL = settings.get('pedestrian_detection.model')
 
 
 def box_to_fake_agent(box):
@@ -23,7 +26,7 @@ class PedestrianDetector2D(Component):
 
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        self.detector = YOLO(MODEL)
         self.last_person_boxes = []
 
     def rate(self):
