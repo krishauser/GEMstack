@@ -26,10 +26,10 @@ control:
     pure_pursuit:
         lookahead: 2.0
         lookahead_scale: 3.0
-        crosstrack_gain: 2.0
+        crosstrack_gain: 1.0
         desired_speed: 2.0   #m/s
     longitudinal_control:
-        pid_p: 3.0
+        pid_p: 1.0
         pid_i: 0.1
         pid_d: 0.0
     longitudinal_planning_yielding:
