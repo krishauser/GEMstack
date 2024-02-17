@@ -48,6 +48,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     print("dec_x, dec_y = ",[dec_x, dec_y])
 
     if acceleration == 0: 
+        # assert False
         print("const speed mode")
         t_cons_v = dis / current_speed
 
@@ -72,11 +73,11 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         traj_times = []
 
         for i in range(len(t_constv_array - 1)):
-            traj_points.append((x_constv_array[i],y_constv_array[i]))
+            traj_points.append([x_constv_array[i],y_constv_array[i]])
             traj_times.append(t_constv_array[i])
 
         for i in range(len(t_dec_array)):
-            traj_points.append((x_dec_array[i], y_dec_array[i]))
+            traj_points.append([x_dec_array[i], y_dec_array[i]])
             traj_times.append(t_dec_array[i] + t_dec)
 
         # traj_points = [(x_start,y_start), (x_end,y_end)]
@@ -108,15 +109,15 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         traj_times = []
 
         for i in range(len(t_acc_array)-1):
-            traj_points.append((x_acc_array[i],y_acc_array[i]))
+            traj_points.append([x_acc_array[i],y_acc_array[i]])
             traj_times.append(t_acc_array[i])
 
         for i in range(len(t_constv_array)-1):
-            traj_points.append((x_constv_array[i],y_constv_array[i]))
+            traj_points.append([x_constv_array[i],y_constv_array[i]])
             traj_times.append(t_constv_array[i] + t_acc)
 
         for i in range(len(t_dec_array)):
-            traj_points.append((x_dec_array[i],y_dec_array[i]))
+            traj_points.append([x_dec_array[i],y_dec_array[i]])
             traj_times.append(t_dec_array[i] + t_dec)
 
 
@@ -180,11 +181,11 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
             traj_times = []
 
             for i in range(len(t_acc_array)-1):
-                traj_points.append((x_acc_array[i], y_acc_array[i]))
+                traj_points.append([x_acc_array[i], y_acc_array[i]])
                 traj_times.append(t_acc_array[i])
 
             for i in range(len(t_dec_array)):
-                traj_points.append((x_dec_array[i], y_dec_array[i]))
+                traj_points.append([x_dec_array[i], y_dec_array[i]])
                 traj_times.append(t_dec_array[i] + t_dec_value)
 
             # traj_points = [(x_start,y_start), (x_dec,y_dec), (x_end,y_end)]
@@ -206,13 +207,13 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
                 traj_times = []
 
                 for i in range(len(t_dec_array)):
-                    traj_points.append((x_dec_array[i], y_dec_array[i]))
+                    traj_points.append([x_dec_array[i], y_dec_array[i]])
                     traj_times.append(t_dec_array[i])
 
             
                 # traj_points = [(x_start,y_start), (x_end,y_end)]
                 # traj_times = [times[0], T_value]
-                print("traj_points = ", traj_points)
+                # print("traj_points = ", traj_points)
        
     trajectory = Trajectory(path.frame,traj_points,traj_times)
     return trajectory
@@ -232,7 +233,19 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     y_end = points[-1][1]
     print("x_start, y_start = ",[x_start, y_start])
     print("x_end, y_end = ",[x_end, y_end])
+    dt = 0.05
+    t_list = [times[0]]
+    point_list = points[0]
+    cur_pos = points[0][0]
+    while current_speed > 0:
+        current_speed = current_speed - deceleration *dt
+        cur_pos += current_speed*dt
+        point_list.append((cur_pos, 0))
+        t_list.append(t_list[-1]+dt)
 
+    trajectory = Trajectory(path.frame,point_list,t_list)
+    return trajectory
+    
     if current_speed == 0: 
         print("still mode")
 
@@ -242,7 +255,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
         t_still_array = np.linspace(0, times[-1], timestep, dtype=float)
 
         for i in range(len(t_still_array)):
-            traj_points.append((0, 0))
+            traj_points.append([0, 0])
             traj_times.append(t_still_array[i])
 
     else:
@@ -266,13 +279,12 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
         traj_times = []
 
         for i in range(len(t_dec_array)):
-            traj_points.append((x_dec_array[i], y_dec_array[i]))
+            traj_points.append([x_dec_array[i], y_dec_array[i]])
             traj_times.append(t_dec_array[i])
 
         
         # traj_points = [(x_start,y_start), (x_dec,y_dec)]
         # traj_times = [times[0], t_dec]
-
     trajectory = Trajectory(path.frame,traj_points,traj_times)
     return trajectory
 
@@ -319,11 +331,11 @@ class YieldTrajectoryPlanner(Component):
 
         #extract out a 10m segment of the route
         route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
-
+        print(route_with_lookahead.points)
         #parse the relations indicated
         should_brake = False
         for r in state.relations:
-            if r.type == EntityRelationEnum.YIELD and r.obj1 == '':
+            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
                 #yielding to something, brake
                 should_brake = True
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
@@ -335,5 +347,6 @@ class YieldTrajectoryPlanner(Component):
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
         else:
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
-
+        # print("traj_points = ", traj.points)
+        
         return traj 
