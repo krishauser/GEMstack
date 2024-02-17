@@ -120,8 +120,8 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
             a = acceleration
 
         # update position, velocity, time
-        p = p + v * dt + 0.5 * a * dt**2
         v = min(v + a * dt, max_speed)
+        p = p + v * dt #+ 0.5 * a * dt**2
         if v < 0:
             break
         t = t + dt

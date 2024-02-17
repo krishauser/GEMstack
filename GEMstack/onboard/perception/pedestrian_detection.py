@@ -6,6 +6,7 @@ from ..component import Component
 from typing import Dict
 from ultralytics import YOLO
 import cv2
+import os 
 
 PERSON_INDEX = 0
 
@@ -24,7 +25,9 @@ class PedestrianDetector2D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        # print(f"current_ dir:{os.getcwd()}")
+        self.detector = YOLO('./GEMstack/knowledge/detection/yolov8n.pt')
+        
         self.last_person_boxes = []
 
     def rate(self):
