@@ -1,6 +1,7 @@
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
+from ...utils import settings
 #from ultralytics import YOLO
 #import cv2
 from typing import Dict
@@ -26,12 +27,15 @@ class PedestrianDetector2D(Component):
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
         # print(f"current_ dir:{os.getcwd()}")
-        self.detector = YOLO('./GEMstack/knowledge/detection/yolov8n.pt')
+        yolo_path = settings.get('pedestrian_detection.model')
+        self.detector = YOLO(yolo_path)
+        
+        self._rate = settings.get('pedestrian_detection.rate')
         
         self.last_person_boxes = []
 
     def rate(self):
-        return 17.0
+        return self._rate
     
     def state_inputs(self):
         return ['vehicle']
