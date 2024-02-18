@@ -11,20 +11,21 @@ import numpy as np
 
 class PurePursuit(object):   
     """Implements a pure pursuit controller on a second-order Dubins vehicle."""
-    def __init__(self, lookahead = None, lookahead_scale = None, wheelbase = None, crosstrack_gain = None):
+    def __init__(self, lookahead = None, lookahead_scale = None, crosstrack_gain = None, desired_speed = None):
         self.look_ahead = lookahead if lookahead is not None else settings.get('control.pure_pursuit.lookahead',4.0)
         self.look_ahead_scale = lookahead_scale if lookahead_scale is not None else settings.get('control.pure_pursuit.lookahead_scale',3.0)
         self.crosstrack_gain = crosstrack_gain if crosstrack_gain is not None else settings.get('control.pure_pursuit.crosstrack_gain',0.41)
         self.front_wheel_angle_scale = 3.0
-        self.wheelbase  = wheelbase if wheelbase is not None else settings.get('vehicle.geometry.wheelbase')
+        self.wheelbase  = settings.get('vehicle.geometry.wheelbase')
         self.wheel_angle_range = [settings.get('vehicle.geometry.min_wheel_angle'),settings.get('vehicle.geometry.max_wheel_angle')]
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         
-        self.desired_speed = settings.get('control.pure_pursuit.desired_speed',2.5)  #approximately 5 mph
-        self.desired_speed_from_path = True    #turn this to True to use the input trajectory to determine the desired speed
+        if desired_speed is not None:
+            self.desired_speed_source = desired_speed
+        else:
+            self.desired_speed_source = settings.get('control.pure_pursuit.desired_speed',"path") 
+        self.desired_speed = self.desired_speed_source if isinstance(self.desired_speed_source,(int,float)) else None
         self.speed_limit = settings.get('vehicle.limits.max_speed')
-        if self.desired_speed > self.speed_limit:
-            self.desired_speed = self.speed_limit
         self.max_accel     = settings.get('vehicle.limits.max_acceleration') # m/s^2
         self.max_decel     = settings.get('vehicle.limits.max_deceleration') # m/s^2
         self.pid_speed     = PID(settings.get('control.longitudinal_control.pid_p',0.5), settings.get('control.longitudinal_control.pid_d',0.0), settings.get('control.longitudinal_control.pid_i',0.1), windup_limit=20)
@@ -35,6 +36,7 @@ class PurePursuit(object):
         self.trajectory = None   # type: Trajectory
 
         self.current_path_parameter = 0.0
+        self.current_traj_parameter = 0.0
         self.t_last = None
 
     def set_path(self, path : Path):
@@ -46,12 +48,13 @@ class PurePursuit(object):
         if not isinstance(path,Trajectory):
             self.path = path.arc_length_parameterize()
             self.trajectory = None
-            self.desired_speed_from_path = False
-            if self.desired_speed_from_path:
-                raise ValueError("Can't provide an untimed path to PurePursuit and expect it to use the path velocity")
+            self.current_traj_parameter = 0.0
+            if self.desired_speed_source in ['path','trajectory']:
+                raise ValueError("Can't provide an untimed path to PurePursuit and expect it to use the path velocity. Set control.pure_pursuit.desired_speed to a constant.")
         else:
             self.path = path.arc_length_parameterize()
             self.trajectory = path
+            self.current_traj_parameter = self.trajectory.domain()[0]
         self.current_path_parameter = 0.0
 
     def compute(self, state : VehicleState, component : Component = None):
@@ -83,6 +86,7 @@ class PurePursuit(object):
 
         closest_dist,closest_parameter = self.path.closest_point_local((curr_x,curr_y),[self.current_path_parameter-5.0,self.current_path_parameter+5.0])
         self.current_path_parameter = closest_parameter
+        self.current_traj_parameter += dt
         #TODO: calculate parameter that is look_ahead distance away from the closest point?
         #(rather than just advancing the parameter)
         des_parameter = closest_parameter + self.look_ahead + self.look_ahead_scale * speed
@@ -130,7 +134,7 @@ class PurePursuit(object):
         
         desired_speed = self.desired_speed
         feedforward_accel = 0.0
-        if self.desired_speed_from_path:
+        if self.desired_speed_source in ['path','trajectory']:
             #determine desired speed from trajectory
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
                 if component is not None:
@@ -139,7 +143,10 @@ class PurePursuit(object):
                 desired_speed = 0.0
                 feedforward_accel = -2.0
             else:
-                current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
+                if self.desired_speed_source=='path':
+                    current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
+                else:
+                    current_trajectory_time = self.current_traj_parameter
                 deriv = self.trajectory.eval_derivative(current_trajectory_time)
                 desired_speed = min(np.linalg.norm(deriv),self.speed_limit)
                 difference_dt = 0.1
@@ -157,7 +164,9 @@ class PurePursuit(object):
                 print("Feedforward accel: " + str(feedforward_accel) + " m/s^2")
         else:
             #decay speed when crosstrack error is high
-            desired_speed *= np.exp(-ct_error*0.4)
+            desired_speed *= np.exp(-abs(ct_error)*0.4)
+        if desired_speed > self.speed_limit:
+            desired_speed = self.speed_limit 
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
         if component is not None:
             component.debug('curr pt',(curr_x,curr_y))
@@ -182,8 +191,8 @@ class PurePursuit(object):
 
 
 class PurePursuitTrajectoryTracker(Component):
-    def __init__(self,vehicle_interface):
-        self.pure_pursuit = PurePursuit()
+    def __init__(self,vehicle_interface=None, **args):
+        self.pure_pursuit = PurePursuit(**args)
         self.vehicle_interface = vehicle_interface
 
     def rate(self):

@@ -22,6 +22,7 @@ drive:
             args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
+            args: {desired_speed: 2.5}  #approximately 5mph
             print: False
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
