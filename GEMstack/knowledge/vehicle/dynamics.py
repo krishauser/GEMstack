@@ -55,6 +55,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
         aerodynamic_drag_coefficient = settings.get('vehicle.dynamics.aerodynamic_drag_coefficient')
         accel_active_range = settings.get('vehicle.dynamics.accelerator_active_range') # pedal position fraction
         brake_active_range = settings.get('vehicle.dynamics.brake_active_range') # pedal position fraction
+        acceleration_deadband = settings.get('vehicle.dynamics.acceleration_deadband',0.0)
 
         drag = -(aerodynamic_drag_coefficient * velocity**2) * vsign - internal_dry_deceleration * vsign - internal_viscous_deceleration * velocity
         sin_pitch = math.sin(pitch)
@@ -62,7 +63,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
         #this is the net acceleration that should be achieved by accelerator / brake pedal
 
         #TODO: power curves to select optimal gear
-        if abs(acceleration) < 0.5:
+        if abs(acceleration) < acceleration_deadband:
             #deadband?
             return (0,0,gear)
         if velocity * acceleration < 0:
