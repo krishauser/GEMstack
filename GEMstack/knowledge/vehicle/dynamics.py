@@ -110,6 +110,13 @@ def pedal_positions_to_acceleration(accelerator_pedal_position : float, brake_pe
     brake_max = settings.get('vehicle.dynamics.max_brake_deceleration')
     reverse_accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration_reverse')
     accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration')
+    accel_active_range = settings.get('vehicle.dynamics.accelerator_active_range') # pedal position fraction
+    brake_active_range = settings.get('vehicle.dynamics.brake_active_range') # pedal position fraction
+    #normalize to 0-1 depending on pedal range
+    accelerator_pedal_position = (accelerator_pedal_position - accel_active_range[0]) / (accel_active_range[1]-accel_active_range[0])
+    accelerator_pedal_position = min(1.0,max(accelerator_pedal_position,0.0))
+    brake_pedal_position = (brake_pedal_position - brake_active_range[0]) / (brake_active_range[1]-brake_active_range[0])
+    brake_pedal_position = min(1.0,max(brake_pedal_position,0.0))
     assert isinstance(brake_max,(int,float))
     assert isinstance(reverse_accel_max,(int,float))
     assert isinstance(accel_max,list)
