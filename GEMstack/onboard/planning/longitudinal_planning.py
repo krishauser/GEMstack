@@ -1,10 +1,21 @@
 from typing import List
 from ..component import Component
-from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum
+from ...state import (
+    AllState,
+    VehicleState,
+    EntityRelation,
+    EntityRelationEnum,
+    Path,
+    Trajectory,
+    Route,
+    ObjectFrameEnum,
+)
 from ...utils import serialization, settings
-from ...mathutils.transforms import vector_madd, vector_add
+from ...mathutils.transforms import vector_madd, vector_sub, normalize_vector
 import math
 import numpy as np
+
+DELTA_T = 0.05
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
@@ -16,148 +27,95 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
        decelerate with accel = -deceleration until velocity goes to 0.
     """
     path_normalized = path.arc_length_parameterize()
-    #TODO: actually do something to points and times
+    # TODO: actually do something to points and times
 
     points = [p for p in path_normalized.points]
-    points = [points[0]]
-    times = [0.0]
+    path_length = [t for t in path_normalized.times][-1]
+    direction = normalize_vector(vector_sub(points[-1], points[0]))
 
-    total_distance = path_normalized.times[-1]
-    decel_dist_curr_speed = current_speed**2/(2*deceleration)
-    
-    dt = 0.05
+    input_speed = current_speed
+    current_pos = 0
+    current_time = 0
+    positions = []
+    times = []
+    velocities = []
+    if current_speed < max_speed and acceleration != 0:
+        time_to_max_speed = (max_speed - current_speed) / acceleration
+        times_to_max = np.arange(0, time_to_max_speed + DELTA_T, DELTA_T)
+        positions_until_max_speed = current_speed * times_to_max + (1/2)*acceleration*(times_to_max **2)
+        velocities_until_max = current_speed + acceleration*(times_to_max)
+        positions.append(positions_until_max_speed)
+        times.append(times_to_max)
+        velocities.append(velocities_until_max)
+        current_pos = positions_until_max_speed[-1]
+        current_time = times_to_max[-1]
 
-    if acceleration == 0 and current_speed != 0:
-        while total_distance-decel_dist_curr_speed > 0:
-            dist_covered = current_speed*dt
-            points.append(vector_madd(points[-1], [current_speed, 0], dt))
-            times.append(times[-1]+dt)
-            total_distance -= dist_covered
-        
-        decel_time = max(current_speed / deceleration, 1)
-        t = np.arange(0, decel_time + dt, dt)
-        s = current_speed*t - 0.5*deceleration*t**2
-        last_point = points[-1]
-        for i in range(len(t)):
-            points.append(vector_add(last_point, [s[i], 0.0]))
-        t = t.tolist()
-        t = [x + times[-1] for x in t]
-        times = times + t
-        return Trajectory(path.frame, points, times)
+    current_speed = max_speed
+    if current_pos < path_length:
+        s = path_length - current_pos
+        time_to_path_end = s / current_speed
+        times_to_end = np.arange(0, time_to_path_end + DELTA_T, DELTA_T)
+        positions_until_end = (current_speed * times_to_end) + current_pos
+        times_to_end += current_time
+        velocities_to_end = np.ones(len(positions_until_end)) * current_speed
+        positions.append(positions_until_end)
+        times.append(times_to_end)
+        velocities.append(velocities_to_end)
 
-    if current_speed > max_speed:
-        #decelerate to max speed
-        decel_time1 = (max_speed-current_speed)/deceleration
-        t = np.arange(0, decel_time1 + dt, dt)
-        s = current_speed*t - 0.5*deceleration*t**2
-        for i in range(len(t)):
-            points.append(vector_add(points[0], [s[i], 0.0]))
-        t = t.tolist()
-        t = [x + times[-1] for x in t]
-        times = times + t
+    positions = np.concatenate(positions)
+    available_distance = path_length - positions
 
-        decel_dist1 = (max_speed**2-current_speed**2)/(2*deceleration)
-        while total_distance-decel_dist1-decel_dist_max_speed > 0:
-            dist_covered = max_speed*dt
-            points.append(vector_madd(points[-1], [max_speed, 0], dt))
-            times.append(times[-1]+dt)
-            total_distance -= dist_covered
-        
-        # decelerate to 0
-        decel_time2 = max(max_speed / deceleration, 1)
-        t = np.arange(0, decel_time2 + dt, dt)
-        s = max_speed*t - 0.5*deceleration*t**2
-        last_point = points[-1]
-        for i in range(len(t)):
-            points.append(vector_add(last_point, [s[i], 0.0]))
-        t = t.tolist()
-        t = [x + times[-1] for x in t]
-        times = times + t
-        return Trajectory(path.frame, points, times)
-    
+    velocities = np.concatenate(velocities)
+    braking_distance = (velocities**2)/(2*deceleration)
 
-    decel_dist_max_speed = max_speed**2/(2*deceleration)
-    accel_dist_curr_to_max = (max_speed**2 - current_speed**2) / (2 * acceleration)
+    times = np.concatenate(times)
 
-    #if we'll reach max speed and decelerate
-    if total_distance-decel_dist_max_speed > accel_dist_curr_to_max:
-        # accelerate to max speed
-        accel_time = (max_speed-current_speed) / acceleration
-        t = np.arange(0, accel_time + dt, dt)
-        s = current_speed*t + 0.5*acceleration*t**2
-        last_point = points[-1]
-        for i in range(len(t)):
-            points.append(vector_add(last_point, [s[i], 0.0]))
-        t = t.tolist()
-        t = [x + times[-1] for x in t]
-        times = times + t
+    can_brake = available_distance > braking_distance
+    velocities = velocities[can_brake]
+    positions = positions[can_brake]
+    times = times[can_brake]
 
-        # stay at max speed
-        while total_distance-decel_dist_max_speed - accel_dist_curr_to_max > 0:
-            dist_covered = max_speed*dt
-            points.append(vector_madd(points[-1], [max_speed, 0], dt))
-            times.append(times[-1]+dt)
-            total_distance -= dist_covered
+    if len(velocities) != 0:
+        current_speed = velocities[-1]
+        current_time = times[-1]
+        current_pos = positions[-1]
+    else:
+        current_speed = input_speed
+        current_time = 0
+        current_pos = 0
 
-        # decelerate to 0
-        decel_time2 = max(max_speed / deceleration, 1)
-        t = np.arange(0, decel_time2 + dt, dt)
-        s = max_speed*t - 0.5*deceleration*t**2
-        last_point = points[-1]
-        for i in range(len(t)):
-            points.append(vector_add(last_point, [s[i], 0.0]))
-        t = t.tolist()
-        t = [x + times[-1] for x in t]
-        times = times + t
-        return Trajectory(path.frame, points, times)
-    
-    #Accelerate then decelerate without reaching max speed
-    while total_distance-decel_dist_curr_speed > 0:
-        #accelerate
-        current_speed = current_speed + acceleration*dt
-        times.append(times[-1]+dt)
-        s = current_speed*dt + 0.5*acceleration*dt**2
-        points.append(vector_add(points[-1], [s, 0.0]))
-        total_distance -= s
-        decel_dist_curr_speed = current_speed**2/(2*deceleration)
-    
-    decel_time = max(current_speed / deceleration, 1)
-    t = np.arange(0, decel_time + dt, dt)
-    s = current_speed*t - 0.5*deceleration*t**2
-    last_point = points[-1]
-    for i in range(len(t)):
-        points.append(vector_add(last_point, [s[i], 0.0]))
-    t = t.tolist()
-    t = [x + times[-1] for x in t]
-    times = times + t
-    return Trajectory(path.frame, points, times)
+    time_to_stop = current_speed / deceleration
+    times_to_stop = np.arange(0, time_to_stop + DELTA_T, DELTA_T)
+    positions_to_stop = (current_speed * times_to_stop - (1/2)*deceleration*(times_to_stop**2)) + current_pos
+    velocities_to_stop = current_speed + (-deceleration * times_to_stop)
+    times_to_stop += current_time
 
+    positions = np.concatenate([positions, positions_to_stop])
+    times = np.concatenate([times, times_to_stop])
 
+    positions = positions.tolist()
+    positions = [vector_madd(points[0], direction, position) for position in positions]
 
+    return Trajectory(path.frame, positions, times.tolist())
 
-def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
+def longitudinal_brake(
+    path: Path, deceleration: float, current_speed: float
+) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
     path_normalized = path.arc_length_parameterize()
-    #TODO: actually do something to points and times
+    # TODO: actually do something to points and times
 
-    if path_normalized.times[-1] == 0:
-        return Trajectory(path.frame,path_normalized.points,path_normalized.times)
-    
+    points = [p for p in path_normalized.points]
+    times = []
     # Compute the time needed to decelerate to stop
-    decel_time = max(current_speed / deceleration, 1)
-    
-    if current_speed == 0:
-        points = [(0, i) for i in np.arange(0.0, decel_time, 0.2)]
-        times = np.arange(0, decel_time, 0.2).tolist()
-    else:
-        # change 0.2 to polling rate
-        t = np.arange(0.0, decel_time + 0.2, 0.2)
-        s = current_speed*t - 0.5*deceleration*t**2
-        points = []
-        for i in range(len(t)):
-            points.append([s[i], 0.0])
-        times = t.tolist()
-    return Trajectory(path.frame,points,times)
+    decel_time = max(current_speed / deceleration, DELTA_T)
+    times = np.arange(0.0, decel_time + DELTA_T, DELTA_T)
+    s = current_speed * times - 0.5 * deceleration * times**2
+    s[s < 0] = 0
+    zeros = np.zeros(len(s))
+    points = zip(s, zeros)
+
+    return Trajectory(path.frame, points, times)
 
 
 class YieldTrajectoryPlanner(Component):
@@ -165,58 +123,75 @@ class YieldTrajectoryPlanner(Component):
     you are at the end of the route, otherwise accelerates to
     the desired speed.
     """
+
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = settings.get('control.longitudinal_planning_yielding.acceleration')
-        self.desired_speed = settings.get('control.longitudinal_planning_yielding.desired_speed')
-        self.deceleration = settings.get('control.longitudinal_planning_yielding.deceleration')
+        self.acceleration = settings.get(
+            "control.longitudinal_planning_yielding.acceleration"
+        )
+        self.desired_speed = settings.get(
+            "control.longitudinal_planning_yielding.desired_speed"
+        )
+        self.deceleration = settings.get(
+            "control.longitudinal_planning_yielding.deceleration"
+        )
 
     def state_inputs(self):
-        return ['all']
+        return ["all"]
 
     def state_outputs(self) -> List[str]:
-        return ['trajectory']
+        return ["trajectory"]
 
     def rate(self):
         return 10.0
 
-    def update(self, state : AllState):
-        vehicle = state.vehicle # type: VehicleState
-        route = state.route   # type: Route
+    def update(self, state: AllState):
+        vehicle = state.vehicle  # type: VehicleState
+        route = state.route  # type: Route
         t = state.t
 
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
-  
+
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
         curr_v = vehicle.v
 
-        #figure out where we are on the route
+        # figure out where we are on the route
         if self.route_progress is None:
             self.route_progress = 0.0
-        closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
+        closest_dist, closest_parameter = state.route.closest_point_local(
+            (curr_x, curr_y), [self.route_progress - 5.0, self.route_progress + 5.0]
+        )
         self.route_progress = closest_parameter
 
-        #extract out a 10m segment of the route
-        route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
+        # extract out a 10m segment of the route
+        route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
 
-        #parse the relations indicated
+        # parse the relations indicated
         should_brake = False
         for r in state.relations:
-            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
-                #yielding to something, brake
+            if r.type == EntityRelationEnum.YIELDING and r.obj1 == "":
+                # yielding to something, brake
                 should_brake = True
-        should_accelerate = (not should_brake and curr_v < self.desired_speed)
+        should_accelerate = not should_brake and curr_v < self.desired_speed
 
-        #choose whether to accelerate, brake, or keep at current velocity
+        # choose whether to accelerate, brake, or keep at current velocity
         if should_accelerate:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
+            traj = longitudinal_plan(
+                route_with_lookahead,
+                self.acceleration,
+                self.deceleration,
+                self.desired_speed,
+                curr_v,
+            )
         elif should_brake:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
         else:
-            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
+            traj = longitudinal_plan(
+                route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v
+            )
 
-        return traj 
+        return traj
