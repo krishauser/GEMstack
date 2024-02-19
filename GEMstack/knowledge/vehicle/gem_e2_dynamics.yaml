@@ -19,3 +19,4 @@ brake_active_range : [0,1]             #range of brake pedal where output decele
 internal_dry_deceleration: 0.2      #m/s^2: deceleration due to internal dry friction (non-speed dependent)
 internal_viscous_deceleration: 0.05  #1/s: scales the current velocity to get deceleration due to internal viscous friction (speed dependent)
 aerodynamic_drag_coefficient: 0.01  #units in s, scaled by velocity^2 to get deceleration due to aerodynamic drag
+acceleration_deadband: 0.1          #m/s^2: minimum acceleration to be considered non-zero
