@@ -2,7 +2,7 @@ from typing import List
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
-from ...mathutils.transforms import vector_madd, vector_dist
+from ...mathutils.transforms import vector_madd, vector_dist, normalize_vector, vector_sub
 
 def add_points(points, n):
     points2 = [points[0]]
@@ -42,7 +42,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     points = [p for p in path_normalized.points]
     #times = [t for t in path_normalized.times]
 
-    points = add_points(path, 100)
+    points = add_points(points, 100)
 
     segment_lengths = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)]
     L = sum(segment_lengths)
@@ -118,7 +118,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     points = [p for p in path_normalized.points]
     #times = [t for t in path_normalized.times]
 
-    points = add_points(path, 100)
+    points = add_points(points, 100)
 
     segment_lengths = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)]
     L = sum(segment_lengths)
@@ -135,8 +135,80 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
             s = vector_dist(points[i+1], points[0])
             t = (current_speed - (current_speed**2 - 2 * deceleration * s)**0.5) / deceleration
             times.append(t)
+            
     return Trajectory(path.frame, points[:len(times)], times)
 
+'''
+# Discretizing time
+
+dt = 0.01
+
+def get_unit_vector(points, s):
+    l = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)]
+    cumulative_l = [sum(l[0:x:1]) for x in range(0, len(l) + 1)]
+    i = next(x for x, val in enumerate(cumulative_l) if val > s) if s < sum(l) else len(points) - 1 
+    return normalize_vector(vector_sub(points[i], points[i - 1]))
+
+
+def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
+    """Generates a longitudinal trajectory for a path with a trapezoidal velocity profile. 
+    
+    1. accelerates from current speed toward max speed
+    2. travel along max speed
+    3. if at any point you can't brake before hitting the end of the path,
+       decelerate with accel = -deceleration until velocity goes to 0.
+    """
+    path_normalized = path.arc_length_parameterize()
+    #TODO: actually do something to points and times
+    points = [p for p in path_normalized.points]
+    #times = [t for t in path_normalized.times]
+
+    l = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)] # segment lengths
+
+    points2 = [points[0]]
+    times = [0]
+
+    s = 0
+    v = current_speed
+
+    while v >= 0:
+        points2.append(vector_madd(points2[-1], get_unit_vector(points, s), v * dt))
+        times.append(times[-1] + dt)
+        
+        a = acceleration if v**2 / (2 * deceleration) <= sum(l) - s else -deceleration
+        v = min(v + a * dt, max_speed)
+        if v < 0: break
+        s += v * dt
+        
+    return Trajectory(path.frame, points2, times)
+
+
+def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
+    """Generates a longitudinal trajectory for braking along a path."""
+    path_normalized = path.arc_length_parameterize()
+    #TODO: actually do something to points and times
+    points = [p for p in path_normalized.points]
+    #times = [t for t in path_normalized.times]
+
+    if current_speed == 0: # stay still
+        return Trajectory(path.frame, [points[0]] * 5, [i * 0.01 for i in range(0, 5)])
+
+    points2 = [points[0]]
+    times = [0]
+
+    s = 0
+    v = current_speed
+
+    while v >= 0:
+        points2.append(vector_madd(points2[-1], get_unit_vector(points, s), v * dt))
+        times.append(times[-1] + dt)
+
+        v -= deceleration * dt
+        if v < 0: break
+        s += v * dt
+
+    return Trajectory(path.frame, points2, times)
+'''
 
 class YieldTrajectoryPlanner(Component):
     """Follows the given route.  Brakes if you have to yield or
