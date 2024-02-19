@@ -4,6 +4,15 @@ from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum,
 from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd, vector_dist, normalize_vector, vector_sub
 
+'''
+# Approach 1:
+# 1. Add N equidistant points between each pair of points in the path
+# 2. Compute time spent and distance travelled:
+#    - under acceleration (t1, s1)
+#    - at constant speed (t2, s2)
+#    - under braking (t3, s3)
+# 3. Compute time taken to reach each point
+
 def add_points(points, n):
     points2 = [points[0]]
     for i in range(1, len(points)):
@@ -137,9 +146,9 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
             times.append(t)
             
     return Trajectory(path.frame, points[:len(times)], times)
-
 '''
-# Discretizing time
+
+# Approach 2: Discretizing time
 
 dt = settings.get('planning.longitudinal_plan.dt')
 
@@ -177,7 +186,6 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         
         a = acceleration if v**2 / (2 * deceleration) <= sum(l) - s else -deceleration
         v = min(v + a * dt, max_speed)
-        if v < 0: break
         s += v * dt
         
     return Trajectory(path.frame, points2, times)
@@ -204,11 +212,10 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
         times.append(times[-1] + dt)
 
         v -= deceleration * dt
-        if v < 0: break
         s += v * dt
 
     return Trajectory(path.frame, points2, times)
-'''
+
 
 class YieldTrajectoryPlanner(Component):
     """Follows the given route.  Brakes if you have to yield or
