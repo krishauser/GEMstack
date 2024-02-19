@@ -6,7 +6,6 @@ from ...mathutils.transforms import vector_madd
 import math
 import sympy
 import numpy as np
-   
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
@@ -24,36 +23,39 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
 
     dt = 0.05
     
-    p_list = [points[0]]
-    t_list = [times[0]]
     cur_pos = points[0][0]
     target_pos = points[-1][0]
+    current_time = times[0]
+    end_time = times[-1]
     
+    p_list = [points[0]]
+    t_list = [times[0]]
 
-    while current_speed >= 0:
-        safe_dis = current_speed**2 / (2 * deceleration)
-
-        if target_pos - cur_pos >= safe_dis + 0.1:
+    while cur_pos <= target_pos and current_time < end_time:
+        safe_dis = (current_speed**2) / (2 * deceleration)
+        
+        if target_pos - cur_pos >= safe_dis:
             print("----------accelerating----------")
+            print("current_time, end_time = ", [current_time, end_time])
+
+            current_time += dt
             current_speed = min(current_speed + acceleration * dt, max_speed)
+            current_speed = max(current_speed + acceleration * dt, 0)
             cur_pos += current_speed * dt
-            p_list.append((cur_pos, 0))
-            t_list.append(t_list[-1] + dt)
-            print("current_speed, safe_dis = ", [current_speed, safe_dis])
-            print("cur_pos, target_pos = ", [cur_pos, target_pos])
 
         else:
-            print("----------decelerating----------")
+            print("----------decelerating in plan----------")
+            print("current_time, end_time = ", [current_time, end_time])
+
+            current_time += dt
             current_speed = max(current_speed - deceleration * dt, 0)
+            current_speed = min(current_speed - deceleration * dt, max_speed)
             cur_pos += current_speed * dt
-            p_list.append((cur_pos, 0))
-            t_list.append(t_list[-1] + dt)
-            print("current_speed, safe_dis = ", [current_speed, safe_dis])
-            print("cur_pos, target_pos = ", [cur_pos, target_pos])
-            if current_speed == 0:
-                print("stop")
-                break
-            
+
+        p_list.append((cur_pos, 0))
+        t_list.append(current_time)
+        print("current_speed, safe_dis = ", [current_speed, safe_dis])
+        print("cur_pos, target_pos = ", [cur_pos, target_pos])
 
     trajectory = Trajectory(path.frame, p_list, t_list)
     return trajectory
@@ -68,26 +70,28 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     
     dt = 0.05
     
+    cur_pos = points[0][0]
+    target_pos = points[-1][0]
+    current_time = times[0]
+    end_time = times[-1]
+
     p_list = [points[0]]
     t_list = [times[0]]
-    cur_pos = points[0][0]
 
-    while current_speed >= 0:
+    while cur_pos <= target_pos and current_time < end_time:
+        print("----------decelerating in brake----------")
+        print("current_time, end_time = ", [current_time, end_time])
+
+        current_time += dt
         current_speed = max(current_speed - deceleration * dt, 0)
         cur_pos += current_speed * dt
-        p_list.append((cur_pos, 0))
-        t_list.append(t_list[-1] + dt)
-        print("current_speed, cur_pos = ", [current_speed, cur_pos])
 
-        if current_speed == 0:
-            print("stop")
-            break
+        p_list.append((cur_pos, 0))
+        t_list.append(current_time)
+        print("current_speed, cur_pos = ", [current_speed, cur_pos])
 
     trajectory = Trajectory(path.frame, p_list, t_list)
     return trajectory
-
-
-
 
 
 class YieldTrajectoryPlanner(Component):
