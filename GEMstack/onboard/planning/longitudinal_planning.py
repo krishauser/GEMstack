@@ -161,6 +161,8 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float, t0
     '''
     path_normalized = path.arc_length_parameterize()
     points = [p for p in path_normalized.points]
+    theta = np.arctan2(points[-1][1] - points[0][1], points[-1][0] - points[0][0])
+    deceleration, current_speed = deceleration * np.cos(theta), current_speed * np.cos(theta)
     sp = points[0][0]
     points, times = decelerate(sp, deceleration, current_speed)
     trajectory = Trajectory(path.frame, points, times)
