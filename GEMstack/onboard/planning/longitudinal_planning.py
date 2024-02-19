@@ -4,8 +4,11 @@ from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum,
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd, vector_dist
 import math
+from ...utils import settings
 
-DELTA_TIME = 0.05
+#time step
+DELTA_TIME = settings.get('longitudinal_planning.delta_time')
+
 
 def get_updated_status(current_point, current_speed, acceleration, max_speed=math.inf):
     current_speed += acceleration * DELTA_TIME            
@@ -131,9 +134,10 @@ class YieldTrajectoryPlanner(Component):
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 0.5
-        self.desired_speed = 1.0
-        self.deceleration = 2.0
+        self.acceleration = settings.get('longitudinal_planning.vehicle_control.acceleration')
+        self.desired_speed = settings.get('longitudinal_planning.vehicle_control.desired_speed')
+        self.deceleration = settings.get('longitudinal_planning.vehicle_control.deceleration')
+
 
     def state_inputs(self):
         return ['all']
@@ -142,7 +146,8 @@ class YieldTrajectoryPlanner(Component):
         return ['trajectory']
 
     def rate(self):
-        return 10.0
+        return settings.get('longitudinal_planning.update_rate')
+
 
     def update(self, state: AllState):
         vehicle = state.vehicle  # type: VehicleState
@@ -188,4 +193,3 @@ class YieldTrajectoryPlanner(Component):
                 route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
 
         return traj
-
