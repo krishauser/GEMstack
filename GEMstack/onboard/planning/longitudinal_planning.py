@@ -20,16 +20,16 @@ def longitudinal_plan(path: Path, acceleration: float, deceleration: float, max_
     points = [p for p in path_normalized.points]
 
     points = path_planning_2(sp=points[0][0], ep=points[-1][0], acc=acceleration, dec=deceleration, max_vel=max_speed,
-                             t=0.1, cur_vel=0)
+                             t=0.1, cur_vel=current_speed)
     points = [(p, 0) for p in points]
-    frag = (path_normalized.times[-1] - path_normalized.times[0]) / len(points)
     times = []
-    xt = 0
-    while (xt < path_normalized.times[-1]):
+    frag = (path_normalized.times[-1] - path_normalized.times[0]) / (len(points) - 1)
+    xt = 0  #
+    while (abs(xt - path_normalized.times[-1]) > 0.01):
         times.append(xt)
         xt += frag
+    times.append(path_normalized.times[-1])
     print(points, times)
-
     trajectory = Trajectory(path.frame, points, times)
 
     return trajectory
@@ -44,19 +44,22 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float) ->
     time = current_speed / deceleration
     px = path_planning_2(sp=points[0][0], ep=ep, acc=-deceleration, dec=deceleration, cur_vel=current_speed,
                          max_vel=current_speed)
+    times = []  
     if (len(px) > 0):
         points = [(p, 0) for p in px]
-        frag = (time - path_normalized.times[0]) / len(points)
+        points.insert(0, (0,0))
+        frag = (time - path_normalized.times[0]) / (len(points) - 1)
+        xt = 0  #
+        while (abs(xt - time) > 0.01):
+            times.append(xt)
+            xt += frag
+        times.append(time)
     else:
         points = [(0, 0) for p in points]
-        frag = (path_normalized.times[-1] - path_normalized.times[0]) / (len(points) - 1)  # time between each point
+        times = [t for t in path_normalized.times]
 
-    times = []  # number of time instances
-    xt = 0  #
-    while (xt < path_normalized.times[-1]):
-        times.append(xt)
-        xt += frag
-    times.append(path_normalized.times[-1])
+    # number of time instances
+
     print(points, times)
     trajectory = Trajectory(path.frame, points, times)
     return trajectory
@@ -114,23 +117,16 @@ def path_planning_2(sp: float, ep: float, max_vel: float, t: float = 0.1, cur_ve
         distance_covered_end += t * du
         pe.insert(0, ep - distance_covered_end)
 
-    # (pe, distance_covered_end) = braking(dec = dec, ep = ep, cur_vel = max_vel, t = 0.1)
-
-    # remaining_distance = ep - distance_covered_start - distance_covered_end - sp
-    # while(remaining_distance > 0):
-    #     instant += 1
-    #     pm.insert(0, remaining_distance + ps[-1])
-    #     remaining_distance = remaining_distance - max_vel * t
     ctr = -1
     for i in range(len(pe)):
         if (ps[-1] >= pe[i]):
             ctr = i
         else:
             break
-
+    rmpe = [] if ctr + 1 == len(pe) else pe[ctr + 1:]
     print("ps:", ps, "pm:", pm, "pe:", pe)
     print(instant)
-    return ps + pe
+    return ps + rmpe
 
 
 def braking(dec: float, ep: float, cur_vel: float, t: float):
