@@ -19,7 +19,7 @@ def main():
                 if v not in settings.get('run.variants',{}):
                     print(EXECUTION_PREFIX,"Error, variant",v,"not found in settings")
                     print(EXECUTION_PREFIX,"Available variants are",list(settings.get('variants',{}).keys())+list(settings.get('run.variants',{}).keys()))
-                    raise ValueError("Variant "+v+" not found")
+                    return 1
                 else:
                     overrides = settings.get('run.variants.'+v)
                     print(EXECUTION_PREFIX,"APPYING VARIANT",overrides)
@@ -169,3 +169,4 @@ def main():
         else:
             import webbrowser
             webbrowser.open(logfolder)
+    return 0
