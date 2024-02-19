@@ -1,7 +1,7 @@
 from typing import List
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum
-from ...utils import serialization
+from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd, vector_dist, normalize_vector, vector_sub
 
 def add_points(points, n):
@@ -42,7 +42,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     points = [p for p in path_normalized.points]
     #times = [t for t in path_normalized.times]
 
-    points = add_points(points, 100)
+    points = add_points(points, settings.get('planning.longitudinal_plan.n_points'))
 
     segment_lengths = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)]
     L = sum(segment_lengths)
@@ -118,7 +118,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     points = [p for p in path_normalized.points]
     #times = [t for t in path_normalized.times]
 
-    points = add_points(points, 100)
+    points = add_points(points, settings.get('planning.longitudinal_plan.n_points'))
 
     segment_lengths = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)]
     L = sum(segment_lengths)
@@ -141,7 +141,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 '''
 # Discretizing time
 
-dt = 0.01
+dt = settings.get('planning.longitudinal_plan.dt')
 
 def get_unit_vector(points, s):
     l = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)]

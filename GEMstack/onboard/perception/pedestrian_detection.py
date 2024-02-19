@@ -1,3 +1,4 @@
+from ...utils import settings
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
@@ -20,11 +21,12 @@ class PedestrianDetector2D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        # self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        self.detector = YOLO(settings.get('perception.pedestrian_detection.model'))
         self.last_person_boxes = []
 
     def rate(self):
-        return 4.0
+        return settings.get('perception.pedestrian_detection.rate')
     
     def state_inputs(self):
         return ['vehicle']

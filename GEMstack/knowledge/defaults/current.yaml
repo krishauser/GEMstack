@@ -33,6 +33,16 @@ control:
         pid_i: 0.1
         pid_d: 0.0
 
+perception:
+    pedestrian_detection:
+        model: !relative_path "../detection/yolov8n.pt"
+        rate: 4.0
+
+planning:
+    longitudinal_plan:
+        n_points: 100   # number of points added between 2 points in the path
+        dt: 0.01    # for discretizing time
+
 #configure the simulator, if using
 simulator:
     dt: 0.01
