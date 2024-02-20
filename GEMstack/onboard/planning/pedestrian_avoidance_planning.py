@@ -1,7 +1,7 @@
 from typing import List
 from ..component import Component
 #these could be helpful in your implementation
-#from .longitudinal_planning import longitudinal_brake, longitudinal_plan
+from .longitudinal_planning import longitudinal_brake, longitudinal_plan
 from ...state import AllState, VehicleState, PhysicalObject, AgentEnum, AgentState, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd
@@ -20,8 +20,8 @@ class PedestrianAvoidanceMotionPlanner(Component):
         self.route_progress = None
         self.t_last = None
         self.acceleration = 1.0
-        self.desired_speed = 2.0
-        self.deceleration = 1.0
+        self.desired_speed = 2.0 
+        self.deceleration = 2.0 #1.0(in our longitudinal break func, the default decel is 2.0)
 
     def state_inputs(self):
         return ['all']
@@ -31,7 +31,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
 
     def rate(self):
         return 10.0
-
+    
     def update(self, state : AllState):
         vehicle = copy.deepcopy(state.vehicle) # type: VehicleState
         route = state.route   # type: Route
@@ -44,7 +44,9 @@ class PedestrianAvoidanceMotionPlanner(Component):
   
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
-        curr_v = vehicle.v    
+        curr_v = vehicle.v  
+        curr_d = 0 #longitudinal distance to pedestrain
+        curr_h = 0 #lateral distance to pedestrain
 
         #put the route and the agents in the vehicle's frame
         if state.route.frame != vehicle.pose.frame:
@@ -66,9 +68,10 @@ class PedestrianAvoidanceMotionPlanner(Component):
         #extract out a 10m segment of the route
         route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
         route_with_lookahead = route_with_lookahead.arc_length_parameterize()
-        
+
         #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
         #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
+
         all_pedestrians = []
         for k,a in agents.items():
             if a.type == AgentEnum.PEDESTRIAN:
@@ -77,6 +80,21 @@ class PedestrianAvoidanceMotionPlanner(Component):
         progress_start, progress_end = route_with_lookahead.domain()
         progress = progress_start
         max_progress = None
+
+        # Adjusting margins around the vehicle
+        vehicle_margin_lateral = 1.0 
+        vehicle_margin_longitudinal = 3.0 
+        safe_margin = 1.5
+        
+        # Calculate lookahead distance
+        lookahead_distance = (self.desired_speed ** 2) / (2 * abs(self.deceleration))
+
+        # print("vehicle position x:", curr_x)
+        if len(all_pedestrians) > 0:
+            # print("pedestrain position y", a.pose.y)
+            curr_d = abs(a.pose.x - curr_x) #longitudinal distance to pedestrain
+            curr_h = abs(a.pose.y - curr_y) #lateral distance to pedestrain
+
         while progress < progress_end:
             xy = route_with_lookahead.eval(progress)
             vehicle.pose.x = xy[0]
@@ -88,18 +106,26 @@ class PedestrianAvoidanceMotionPlanner(Component):
                 #path has only one point?
                 vehicle.pose.yaw = 0
             #this is a CCW polygon specifying the vehicle's position at the given progress, in the START frame
-            vehicle_poly_world = vehicle.to_object().polygon_parent() 
+            vehicle_poly_world = vehicle.to_object().polygon_parent()
+
             if len(all_pedestrians) > 0:
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
-                if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
-                    print("Predicted collision with pedestrian at",progress)
-                    print("Vehicle position",xy[0],xy[1])
-                    print("Pedestrian position",a.pose.x,a.pose.y)
-                    #print("Vehicle poly",vehicle_poly_world)
-                    #print("Pedestrian poly",a.polygon_parent())
-                    #prevent
+                # Calculate distance between vehicle and pedestrain:
+                if abs(curr_y - a.pose.y) <= vehicle_margin_lateral and abs(curr_x - a.pose.x) <= vehicle_margin_longitudinal:
+                    print("Collision Warning!!!")  
                     max_progress = max(progress - collision_check_resolution,0.0)
-                    break
+                    break       
+                        
+                # if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
+                #     print("Predicted collision with pedestrian at",progress)
+                #     print("Vehicle position",xy[0],xy[1])
+                #     print("Pedestrian position",a.pose.x,a.pose.y)
+                #     #print("Vehicle poly",vehicle_poly_world)
+                #     #print("Pedestrian poly",a.polygon_parent())
+                #     #prevent
+                #     max_progress = max(progress - collision_check_resolution,0.0)
+                #     break
+
             progress += collision_check_resolution
         if max_progress is not None:           
             #allow enough room to brake from the current velocity
@@ -111,9 +137,15 @@ class PedestrianAvoidanceMotionPlanner(Component):
         print("Progress",route_with_lookahead.domain()[1])
 
         #choose whether to accelerate, brake, or keep at current velocity
-        if max_progress > 0:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
-        else:
+        # if max_progress > 0:
+        #     traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
+        # else:
+        #     traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+        print("longitudinal distance to pedestrain: ", curr_d)
+        print("safe distance: ", lookahead_distance)
+        if (curr_d <= lookahead_distance + vehicle_margin_longitudinal + safe_margin and curr_h <= vehicle_margin_lateral + safe_margin)or max_progress <= 0:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+        else:
+            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         print("Stopped distance",traj.length())
         return traj 
