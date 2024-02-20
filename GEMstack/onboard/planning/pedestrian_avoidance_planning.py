@@ -21,8 +21,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
         self.t_last = None
         self.acceleration = 1.0
         self.desired_speed = 2.0 
-        self.deceleration = 2.0 #1.0(in our longitudinal break func, the default decel is 2.0)
-
+        self.deceleration = 1.0 
     def state_inputs(self):
         return ['all']
 
@@ -84,7 +83,8 @@ class PedestrianAvoidanceMotionPlanner(Component):
         # Adjusting margins around the vehicle
         vehicle_margin_lateral = 1.0 
         vehicle_margin_longitudinal = 3.0 
-        safe_margin = 1.5
+        safe_margin_d = 3.0
+        safe_margin_h = 1.5
         
         # Calculate lookahead distance
         lookahead_distance = (self.desired_speed ** 2) / (2 * abs(self.deceleration))
@@ -143,7 +143,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
         #     traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
         print("longitudinal distance to pedestrain: ", curr_d)
         print("safe distance: ", lookahead_distance)
-        if (curr_d <= lookahead_distance + vehicle_margin_longitudinal + safe_margin and curr_h <= vehicle_margin_lateral + safe_margin)or max_progress <= 0:
+        if (curr_d <= lookahead_distance + vehicle_margin_longitudinal + safe_margin_d and curr_h <= vehicle_margin_lateral + safe_margin_h)or max_progress <= 0:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
         else:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
