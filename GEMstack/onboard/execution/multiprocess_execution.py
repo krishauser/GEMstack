@@ -36,11 +36,17 @@ class MPComponentExecutor(ComponentExecutor):
             'print_stdout': self.print_stdout,
             'print_stderr': self.print_stderr,
         }
-        old_manager = self.logging_manager
-        self.logging_manager = None  #can't be pickled?
+        if hasattr(self.c,'debugger'):
+            delattr(self.c,'debugger') #can't be serialized via Pickle 
         self._process = Process(target=self._run, args=(self.c, self._in_queue, self._out_queue, config))
-        self._process.start()
-        self.logging_manager = old_manager
+        try:
+            self._process.start()
+        except Exception as e:
+            print("Unable to start process",self.c.__class__.__name__)
+            print("Exception:",e)
+            
+            self._process = None
+            raise RuntimeError("Error starting "+self.c.__class__.__name__+" process, usually a pickling error")
         res = self._out_queue.get()
         if isinstance(res,tuple) and isinstance(res[0],Exception):
             print("Traceback:")
@@ -51,7 +57,7 @@ class MPComponentExecutor(ComponentExecutor):
             self._process.join()
             self._process.close()
             self._process = None
-            raise RuntimeError("Error initializng "+self.c.__class__.__name__)
+            raise RuntimeError("Error initializing "+self.c.__class__.__name__)
         if res !='initialized':
             raise RuntimeError("Uh... didn't hear back from subprocess? "+self.c.__class__.__name__)
 

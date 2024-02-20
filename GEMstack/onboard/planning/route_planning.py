@@ -7,7 +7,7 @@ import numpy as np
 
 class StaticRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
-    def __init__(self, routefn : str):
+    def __init__(self, routefn : str, frame : str = 'start'):
         self.routefn = routefn
         base, ext = os.path.splitext(routefn)
         if ext in ['.json','.yml','.yaml']:
@@ -17,7 +17,14 @@ class StaticRoutePlanner(Component):
             waypoints = np.loadtxt(routefn,delimiter=',',dtype=float)
             if waypoints.shape[1] == 3:
                 waypoints = waypoints[:,:2]
-            self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
+            if frame == 'start':
+                self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
+            elif frame == 'global':
+                self.route = Route(frame=ObjectFrameEnum.GLOBAL,points=waypoints.tolist())
+            elif frame == 'cartesian':
+                self.route = Route(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,points=waypoints.tolist())
+            else:
+                raise ValueError("Unknown route frame {} must be start, global, or cartesian".format(frame))
         else:
             raise ValueError("Unknown route file extension",ext)
 
