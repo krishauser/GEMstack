@@ -150,7 +150,7 @@ class YieldTrajectoryPlanner(Component):
         # parse the relations indicated
         should_brake = False
         for r in state.relations:
-            if r.type == EntityRelationEnum.YIELD and r.obj1 == "":
+            if r.type == EntityRelationEnum.YIELDING and r.obj1 == "":
                 # yielding to something, brake
                 should_brake = True
         should_accelerate = not should_brake and curr_v < self.desired_speed
