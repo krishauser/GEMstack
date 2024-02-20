@@ -41,7 +41,7 @@ perception:
 planning:
     longitudinal_plan:
         n_points: 100   # number of points added between 2 points in the path
-        dt: 0.05    # for discretizing time
+        dt: 0.02    # for discretizing time
 
 #configure the simulator, if using
 simulator:
