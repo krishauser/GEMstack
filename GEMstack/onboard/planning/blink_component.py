@@ -43,16 +43,16 @@ class BlinkDistress(Component):
         # print("Speed: ", self.vehicle_interface.last_reading.speed)
         # print("Gear: ", self.vehicle_interface.last_reading.gear)
         # print("Driving_range: ", self.vehicle_interface.last_reading.driving_range)
-        self.num_blinks += 1
+        self.num_blinks += 2
         value = self.signal_type[self.num_blinks%len(self.signal_type)]
         if value == 0:
             # right
             command.right_turn_signal = True
             command.left_turn_signal = False
-        elif value == 1:
+        elif value == 2:
             #left
             command.right_turn_signal = False
-            command.left_turn_signal = False
+            command.left_turn_signal = True
         else:
             command.right_turn_signal = False
             command.left_turn_signal = False
