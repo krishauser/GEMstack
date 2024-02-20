@@ -26,7 +26,7 @@ def load_config_recursive(fn : str) -> dict:
     elif fn.endswith('json'):
         with open(fn,'r') as f:
             res = json.load(f)
-        base,f = os.path.split(fn)
+        base,_ = os.path.split(fn)
         return _load_recursive(res,base)
     else:
         raise IOError("Config file not specified as .yaml, .yml, or .json extension")
