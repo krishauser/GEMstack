@@ -35,7 +35,7 @@ def longitudinal_plan(
     path_normalized = path.arc_length_parameterize()
     # TODO: actually do something to points and times
 
-    dt = 0.05
+    dt = 0.01
     positions = []
     positions.append((path.points[0][0], 0))
     times = [0.0]
@@ -91,11 +91,15 @@ def longitudinal_brake(
     init_pos = path.points[0][0]
     init_vel = current_speed
     t_stop = init_vel / deceleration
-    dt = 0.05
+    dt = 0.01
 
     times = np.arange(0, t_stop + dt, dt)
 
     positions = init_pos + init_vel * times - 0.5 * deceleration * times**2
+
+    if(current_speed <=0.01):
+        return Trajectory(path.frame, [(init_pos, 0) for pos in positions], list(times))
+
     braking_points = [(pos, 0) for pos in positions]
     trajectory = Trajectory(path.frame, braking_points, list(times))
     return trajectory
