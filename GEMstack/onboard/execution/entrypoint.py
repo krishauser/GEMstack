@@ -3,6 +3,7 @@ from ..component import Component
 from .execution import EXECUTION_PREFIX,ExecutorBase,ComponentExecutor,load_computation_graph,make_class
 import multiprocessing
 from typing import Dict,List,Optional
+import sys
 import os
 
 def main():
@@ -18,7 +19,7 @@ def main():
                 if v not in settings.get('run.variants',{}):
                     print(EXECUTION_PREFIX,"Error, variant",v,"not found in settings")
                     print(EXECUTION_PREFIX,"Available variants are",list(settings.get('variants',{}).keys())+list(settings.get('run.variants',{}).keys()))
-                    raise ValueError("Variant "+v+" not found")
+                    return 1
                 else:
                     overrides = settings.get('run.variants.'+v)
                     print(EXECUTION_PREFIX,"APPYING VARIANT",overrides)
@@ -106,12 +107,15 @@ def main():
 
         perception_components = {}   #type: Dict[str,ComponentExecutor]
         for (k,v) in perception_settings.items():
+            if v is None: continue
             perception_components[k] = mission_executor.make_component(v,k,'GEMstack.onboard.perception', {'vehicle_interface':vehicle_interface})
         planning_components = {}   #type: Dict[str,ComponentExecutor]
         for (k,v) in planning_settings.items():
+            if v is None: continue
             planning_components[k] = mission_executor.make_component(v,k,'GEMstack.onboard.planning', {'vehicle_interface':vehicle_interface})
         other_components = {}   #type: Dict[str,ComponentExecutor]
         for (k,v) in other_settings.items():
+            if v is None: continue
             other_components[k] = mission_executor.make_component(v,k,'GEMstack.onboard.other', {'vehicle_interface':vehicle_interface})
         
         mission_executor.add_pipeline(name,perception_components,planning_components,other_components)
@@ -159,6 +163,10 @@ def main():
         rospy.signal_shutdown('GEM_executor finished')
     
     print(EXECUTION_PREFIX,"---------------- DONE ----------------")
-    if log_settings and settings.get('run.after.show_log_folder',True):
-        import webbrowser
-        webbrowser.open(logfolder)
+    if log_settings and settings.get('run.after.show_log_folder',False):
+        if sys.platform.startswith('linux'):
+            os.system('nautilus '+logfolder)
+        else:
+            import webbrowser
+            webbrowser.open(logfolder)
+    return 0
