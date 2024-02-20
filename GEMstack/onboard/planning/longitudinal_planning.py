@@ -49,8 +49,8 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     # print(path_normalized.points)
     # print(path_normalized.times)
     # return Trajectory(path.frame,path_normalized.points,path_normalized.times)
-    print(f"times : {times[:10]}")
-    print(f"positions :{positions[:10]}")
+    # print(f"times : {times[:10]}")
+    # print(f"positions :{positions[:10]}")
     return Trajectory(path.frame,positions,times)
 
 
@@ -79,9 +79,9 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 
     times.append(t)  # Record the final time and position
     points.append(path_normalized.eval(position))
-    print(f"points{points}")
-    print(f"times{times}")
-    print("--------------")
+    # print(f"points{points}")
+    # print(f"times{times}")
+    # print("--------------")
     return Trajectory(path.frame, points, times)
 
     # path_normalized = path.arc_length_parameterize()
