@@ -3,6 +3,7 @@ from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd, vector_sub, vector_dist, normalize_vector
+from ...utils import settings
 
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
@@ -14,7 +15,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     3. if at any point you can't brake before hitting the end of the path,
        decelerate with accel = -deceleration until velocity goes to 0.
     """
-    dt = 0.01
+    dt = settings.get("longitudinal_planning.time_resolution")
 
     points = []
     times = []
@@ -71,8 +72,8 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
-    dt = 0.01
-
+    dt = settings.get("longitudinal_planning.time_resolution")
+    
     points = []
     times = []
 

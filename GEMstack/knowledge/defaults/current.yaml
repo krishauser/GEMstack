@@ -44,3 +44,7 @@ simulator:
         #velocity_noise:
         #    constant: 0.04  #4cm/s noise
         #    linear: 0.02    #2% noise
+
+# longitudinal trajectory planner settings
+longitudinal_planning:
+    time_resolution: 0.01
