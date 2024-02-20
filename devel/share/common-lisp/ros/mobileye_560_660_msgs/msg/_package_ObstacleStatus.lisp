@@ -1,0 +1,24 @@
+(cl:in-package mobileye_560_660_msgs-msg)
+(cl:export '(HEADER-VAL
+          HEADER
+          NUM_OBSTACLES-VAL
+          NUM_OBSTACLES
+          TIMESTAMP-VAL
+          TIMESTAMP
+          APPLICATION_VERSION-VAL
+          APPLICATION_VERSION
+          ACTIVE_VERSION_NUMBER_SECTION-VAL
+          ACTIVE_VERSION_NUMBER_SECTION
+          LEFT_CLOSE_RANGE_CUT_IN-VAL
+          LEFT_CLOSE_RANGE_CUT_IN
+          RIGHT_CLOSE_RANGE_CUT_IN-VAL
+          RIGHT_CLOSE_RANGE_CUT_IN
+          STOP_GO-VAL
+          STOP_GO
+          PROTOCOL_VERSION-VAL
+          PROTOCOL_VERSION
+          CLOSE_CAR-VAL
+          CLOSE_CAR
+          FAILSAFE-VAL
+          FAILSAFE
+))

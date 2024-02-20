@@ -1,0 +1,14 @@
+(cl:in-package delphi_mrr_msgs-msg)
+(cl:export '(HEADER-VAL
+          HEADER
+          CAN_AUTO_ALIGN_HANGLE_QF-VAL
+          CAN_AUTO_ALIGN_HANGLE_QF
+          CAN_ALIGNMENT_STATUS-VAL
+          CAN_ALIGNMENT_STATUS
+          CAN_ALIGNMENT_STATE-VAL
+          CAN_ALIGNMENT_STATE
+          CAN_AUTO_ALIGN_HANGLE_REF-VAL
+          CAN_AUTO_ALIGN_HANGLE_REF
+          CAN_AUTO_ALIGN_HANGLE-VAL
+          CAN_AUTO_ALIGN_HANGLE
+))

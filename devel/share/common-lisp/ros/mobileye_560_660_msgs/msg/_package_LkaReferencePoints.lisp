@@ -1,0 +1,16 @@
+(cl:in-package mobileye_560_660_msgs-msg)
+(cl:export '(HEADER-VAL
+          HEADER
+          REF_POINT_1_POSITION-VAL
+          REF_POINT_1_POSITION
+          REF_POINT_1_DISTANCE-VAL
+          REF_POINT_1_DISTANCE
+          REF_POINT_1_VALIDITY-VAL
+          REF_POINT_1_VALIDITY
+          REF_POINT_2_POSITION-VAL
+          REF_POINT_2_POSITION
+          REF_POINT_2_DISTANCE-VAL
+          REF_POINT_2_DISTANCE
+          REF_POINT_2_VALIDITY-VAL
+          REF_POINT_2_VALIDITY
+))

@@ -1,0 +1,18 @@
+(cl:in-package delphi_mrr_msgs-msg)
+(cl:export '(HEADER-VAL
+          HEADER
+          FSM_YAW_RATE_VALID-VAL
+          FSM_YAW_RATE_VALID
+          FSM_YAW_RATE-VAL
+          FSM_YAW_RATE
+          CAN_VEHICLE_INDEX_4FA-VAL
+          CAN_VEHICLE_INDEX_4FA
+          FSM_VEHICLE_VELOCITY-VAL
+          FSM_VEHICLE_VELOCITY
+          CAN_STEERING_WHL_ANGLE_QF-VAL
+          CAN_STEERING_WHL_ANGLE_QF
+          FSM_VEHICLE_VELOCITY_VALID-VAL
+          FSM_VEHICLE_VELOCITY_VALID
+          CAN_STEERING_WHL_ANGLE-VAL
+          CAN_STEERING_WHL_ANGLE
+))

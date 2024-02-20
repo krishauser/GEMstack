@@ -1,0 +1,16 @@
+(cl:in-package mobileye_560_660_msgs-msg)
+(cl:export '(HEADER-VAL
+          HEADER
+          VISION_ONLY_SIGN_TYPE-VAL
+          VISION_ONLY_SIGN_TYPE
+          VISION_ONLY_SUPPLEMENTARY_SIGN_TYPE-VAL
+          VISION_ONLY_SUPPLEMENTARY_SIGN_TYPE
+          SIGN_POSITION_X-VAL
+          SIGN_POSITION_X
+          SIGN_POSITION_Y-VAL
+          SIGN_POSITION_Y
+          SIGN_POSITION_Z-VAL
+          SIGN_POSITION_Z
+          FILTER_TYPE-VAL
+          FILTER_TYPE
+))

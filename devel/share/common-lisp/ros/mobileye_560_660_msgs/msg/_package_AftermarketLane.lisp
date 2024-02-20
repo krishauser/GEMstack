@@ -1,0 +1,20 @@
+(cl:in-package mobileye_560_660_msgs-msg)
+(cl:export '(HEADER-VAL
+          HEADER
+          LANE_CONFIDENCE_LEFT-VAL
+          LANE_CONFIDENCE_LEFT
+          LDW_AVAILABLE_LEFT-VAL
+          LDW_AVAILABLE_LEFT
+          LANE_TYPE_LEFT-VAL
+          LANE_TYPE_LEFT
+          DISTANCE_TO_LEFT_LANE-VAL
+          DISTANCE_TO_LEFT_LANE
+          LANE_CONFIDENCE_RIGHT-VAL
+          LANE_CONFIDENCE_RIGHT
+          LDW_AVAILABLE_RIGHT-VAL
+          LDW_AVAILABLE_RIGHT
+          LANE_TYPE_RIGHT-VAL
+          LANE_TYPE_RIGHT
+          DISTANCE_TO_RIGHT_LANE-VAL
+          DISTANCE_TO_RIGHT_LANE
+))

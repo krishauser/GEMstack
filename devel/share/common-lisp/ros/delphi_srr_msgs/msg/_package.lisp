@@ -1,0 +1,27 @@
+(cl:defpackage delphi_srr_msgs-msg
+  (:use )
+  (:export
+   "<SRRDEBUG3>"
+   "SRRDEBUG3"
+   "<SRRDEBUG4>"
+   "SRRDEBUG4"
+   "<SRRDEBUG5>"
+   "SRRDEBUG5"
+   "<SRRFEATUREALERT>"
+   "SRRFEATUREALERT"
+   "<SRRFEATURESWVERSION>"
+   "SRRFEATURESWVERSION"
+   "<SRRSTATUS1>"
+   "SRRSTATUS1"
+   "<SRRSTATUS2>"
+   "SRRSTATUS2"
+   "<SRRSTATUS3>"
+   "SRRSTATUS3"
+   "<SRRSTATUS4>"
+   "SRRSTATUS4"
+   "<SRRSTATUS5>"
+   "SRRSTATUS5"
+   "<SRRTRACK>"
+   "SRRTRACK"
+  ))
+
