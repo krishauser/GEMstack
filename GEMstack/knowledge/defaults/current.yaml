@@ -48,3 +48,8 @@ simulator:
 # longitudinal trajectory planner settings
 longitudinal_planning:
     time_resolution: 0.01
+
+# pedestrian detector settings
+pedestrian_detection:
+    model: !relative_path "../detection/yolov8n.pt"   #the !relative_path directive finds a file in a relative location to this file
+    rate: 4.0
