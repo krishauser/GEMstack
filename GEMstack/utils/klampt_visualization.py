@@ -173,21 +173,22 @@ def plot_vehicle(vehicle : VehicleState, vehicle_model=None, axis_len=1.0):
         vis.addText("gear",gear,position=(t[0],t[1],1.5),color=(0,0,0,1))
     
     #plot lights
-    light_size = 4
+    light_point_size = 4
+    light_size = 0.15
     light_color = (1,1,0,1)
     turn_indicator_height = 0.7
     headlight_height = 0.6
     if vehicle.left_turn_indicator:
-        lp = vehicle.pose.apply([xbounds[0]+light_size,ybounds[0]+light_size,turn_indicator_height])
-        vis.add("left_turn_indicator",list(lp),size=light_size,color=light_color)
+        lp = vehicle.pose.apply([xbounds[0],ybounds[0]+light_size,turn_indicator_height])
+        vis.add("left_turn_indicator",list(lp),size=light_point_size,color=light_color)
     if vehicle.right_turn_indicator:
-        lp = vehicle.pose.apply([xbounds[0]+light_size,ybounds[1]-light_size,turn_indicator_height])
-        vis.add("right_turn_indicator",list(lp),size=light_size,color=light_color)
+        lp = vehicle.pose.apply([xbounds[0],ybounds[1]-light_size,turn_indicator_height])
+        vis.add("right_turn_indicator",list(lp),size=light_point_size,color=light_color)
     if vehicle.headlights_on:
         lp = vehicle.pose.apply([xbounds[1],ybounds[0]+light_size*2,headlight_height])
-        vis.add("left_headlight",list(lp),size=light_size,color=light_color)
+        vis.add("left_headlight",list(lp),size=light_point_size,color=light_color)
         lp = vehicle.pose.apply([xbounds[1],ybounds[1]-light_size*2,headlight_height])
-        vis.add("right_headlight",list(lp),size=light_size,color=light_color)
+        vis.add("right_headlight",list(lp),size=light_point_size,color=light_color)
     if vehicle_model is not None:
         if vehicle.brake_pedal_position > 0.1:
             vehicle_model.link('rear_right_stop_light_link').appearance().setColor(1,0,0,1)
@@ -248,7 +249,7 @@ def plot_roadgraph(roadgraph : Roadgraph, route : Route = None):
     for k,o in roadgraph.static_obstacles.items():
         plot_object(k,o)
 
-def plot_scene(scene : SceneState, vehicle_model = None, title = None, show=True):
+def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = None, title = None, show=True):
     for i in list(vis.scene().items.keys()):
         if not i.startswith("vehicle"):
             if not isinstance(vis.scene().items[i],vis.VisPlot):
@@ -257,7 +258,10 @@ def plot_scene(scene : SceneState, vehicle_model = None, title = None, show=True
     #TODO
     if vehicle_model is not None:
         vis.add("vehicle_model",vehicle_model)
-        xform = scene.vehicle.to_object().pose.transform()
+        if ground_truth_vehicle is not None:
+            xform = ground_truth_vehicle.to_object().pose.transform()
+        else:
+            xform = scene.vehicle.to_object().pose.transform()
         vehicle_model.link(0).setParentTransform(*se3.from_ndarray(xform))
         vehicle_model.setConfig(vehicle_model.getConfig())
     
@@ -277,8 +281,8 @@ def plot_scene(scene : SceneState, vehicle_model = None, title = None, show=True
     if show:
         vis.show()
 
-def plot(state : AllState, vehicle_model=None, title=None, show=True):
-    plot_scene(state, vehicle_model=vehicle_model, title=title, show=show)
+def plot(state : AllState, ground_truth_vehicle = None, vehicle_model=None, title=None, show=True):
+    plot_scene(state, ground_truth_vehicle=ground_truth_vehicle, vehicle_model=vehicle_model, title=title, show=show)
     if state.route is not None:
         plot_path("route",state.route,color=(1,0.5,0,1))
     if state.trajectory is not None:

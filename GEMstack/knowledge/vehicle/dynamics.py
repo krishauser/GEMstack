@@ -17,7 +17,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
 
     Returns tuple (accelerator_pedal_position, brake_pedal_position, desired_gear)
     """
-    model = settings.get('vehicle.dynamics.acceleration_model','v1_hang')
+    model = settings.get('vehicle.dynamics.acceleration_model','hang_v1')
     if model == 'hang_v1':
         if gear != 1:
             print("WARNING can't handle gears other than 1 yet")
@@ -55,6 +55,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
         aerodynamic_drag_coefficient = settings.get('vehicle.dynamics.aerodynamic_drag_coefficient')
         accel_active_range = settings.get('vehicle.dynamics.accelerator_active_range') # pedal position fraction
         brake_active_range = settings.get('vehicle.dynamics.brake_active_range') # pedal position fraction
+        acceleration_deadband = settings.get('vehicle.dynamics.acceleration_deadband',0.0)
 
         drag = -(aerodynamic_drag_coefficient * velocity**2) * vsign - internal_dry_deceleration * vsign - internal_viscous_deceleration * velocity
         sin_pitch = math.sin(pitch)
@@ -62,7 +63,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
         #this is the net acceleration that should be achieved by accelerator / brake pedal
 
         #TODO: power curves to select optimal gear
-        if abs(acceleration) < 0.5:
+        if abs(acceleration) < acceleration_deadband:
             #deadband?
             return (0,0,gear)
         if velocity * acceleration < 0:
@@ -109,6 +110,13 @@ def pedal_positions_to_acceleration(accelerator_pedal_position : float, brake_pe
     brake_max = settings.get('vehicle.dynamics.max_brake_deceleration')
     reverse_accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration_reverse')
     accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration')
+    accel_active_range = settings.get('vehicle.dynamics.accelerator_active_range') # pedal position fraction
+    brake_active_range = settings.get('vehicle.dynamics.brake_active_range') # pedal position fraction
+    #normalize to 0-1 depending on pedal range
+    accelerator_pedal_position = (accelerator_pedal_position - accel_active_range[0]) / (accel_active_range[1]-accel_active_range[0])
+    accelerator_pedal_position = min(1.0,max(accelerator_pedal_position,0.0))
+    brake_pedal_position = (brake_pedal_position - brake_active_range[0]) / (brake_active_range[1]-brake_active_range[0])
+    brake_pedal_position = min(1.0,max(brake_pedal_position,0.0))
     assert isinstance(brake_max,(int,float))
     assert isinstance(reverse_accel_max,(int,float))
     assert isinstance(accel_max,list)

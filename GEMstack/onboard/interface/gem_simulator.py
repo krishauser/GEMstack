@@ -176,15 +176,23 @@ class GEMDoubleIntegratorSimulation:
         acceleration = np.clip(acceleration,*self.dubins.accelRange)
         phides = steer2front(self.last_command.steering_wheel_angle)
         phides = np.clip(phides,*self.dubins.wheelAngleRange)
-        phi_deadband = 0.01
-        steering_angle_rate = self.last_command.steering_wheel_speed if phides > phi + phi_deadband else \
-            (-self.last_command.steering_wheel_speed if phides < phi - phi_deadband else 0.0)
+        h = 0.01  #just for finite differencing
+        front_wheel_angle_rate = (steer2front(self.last_command.steering_wheel_angle + h*self.last_command.steering_wheel_speed) - steer2front(self.last_command.steering_wheel_angle)) / h
+        front_wheel_angle_rate_max = 2.0  #TODO: get from vehicle model
+        phi_deadband = 2*self.dt*front_wheel_angle_rate_max
+        steering_angle_rate = front_wheel_angle_rate if phides > phi + phi_deadband else \
+            (-front_wheel_angle_rate if phides < phi - phi_deadband else 0.0)
         
         #simulate dynamics
         u = np.array([acceleration,steering_angle_rate])  #acceleration, steering angle rate
         #print("Accel %.2f, steering angle current %.2f, desired %.2f, rate %.2f" % (acceleration,phi,phides,steering_angle_rate))
         next = simulate(self.dubins, self.cur_vehicle_state, (lambda x,t: u), T, self.dt)
         next_state = next['x'][-1]
+        #braking deadband
+        if v > 0 and next_state[3] < 0:
+            next_state[3] = 0
+        if v < 0 and next_state[3] > 0:
+            next_state[3] = 0
         x,y,theta,v,phi = next_state
         v = np.clip(v,*self.dubins.velocityRange)
         next_state = np.array([x,y,theta,v,phi])
@@ -254,8 +262,17 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         GEMInterface.__init__(self)
         self.simulator = GEMDoubleIntegratorSimulation(scene)
         self.real_time_multiplier = settings.get('simulator.real_time_multiplier',1.0)
+        self.gnss_emulator_settings = settings.get('simulator.gnss_emulator',{})
+        self.imu_emulator_settings = settings.get('simulator.imu_emulator',{})
+        self.agent_emulator_settings = settings.get('simulator.agent_emulator',{})
+        self.gnss_dt = self.gnss_emulator_settings.get('dt',0.1)
+        self.imu_dt = self.imu_emulator_settings.get('dt',0.05)
+        self.agent_dt = self.agent_emulator_settings.get('dt',0.1)
         self.last_reading = self.simulator.last_reading
         self.last_command = self.simulator.last_command
+        self.last_gnss_time = 0
+        self.last_imu_time = 0
+        self.last_agent_time = 0
         self.gnss_callback = None
         self.imu_callback = None
         self.agent_detector_callback = None
@@ -317,13 +334,35 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
                 self.simulator.simulate(self.simulator.dt, self.last_command)
                 self.last_reading = self.simulator.last_reading
 
-                if self.gnss_callback is not None:
+                if self.gnss_callback is not None and self.simulator.simulation_time - self.last_gnss_time > self.gnss_dt:
                     vehicle_state = self.simulator.state()
-                    self.gnss_callback(vehicle_state)
-                if self.imu_callback is not None:
+                    self.gnss_callback(self.gnss_emulator(vehicle_state))
+                    self.last_gnss_time = self.simulator.simulation_time
+                if self.imu_callback is not None and self.simulator.simulation_time - self.last_imu_time > self.imu_dt:
                     pose = ObjectPose(frame=ObjectFrameEnum.CURRENT,t=self.simulation_time,x=0,y=0,yaw=0)
                     vehicle_state = self.last_reading.to_state(pose)
                     self.imu_callback(vehicle_state)
-                if self.agent_detector_callback is not None:
+                    self.last_imu_time = self.simulator.simulation_time
+                if self.agent_detector_callback is not None and self.simulator.simulation_time - self.last_agent_time > self.agent_dt:
                     for k,a in self.simulator.agents.items():
                         self.agent_detector_callback(k,a.to_agent_state())
+                    self.last_agent_time = self.simulator.simulation_time
+
+    def gnss_emulator(self, vehicle_state: VehicleState):
+        position_noise = self.gnss_emulator_settings.get('position_noise',0.0)
+        orientation_noise = self.gnss_emulator_settings.get('orientation_noise',0.0)
+        velocity_noise_const = self.gnss_emulator_settings.get('velocity_noise.constant',0.0)
+        velocity_noise_linear = self.gnss_emulator_settings.get('velocity_noise.linear',0.0)
+        if position_noise > 0 or orientation_noise > 0 or velocity_noise_const > 0 or velocity_noise_linear > 0:
+            # Add noise to the vehicle state
+            position = vehicle_state.pose.x,vehicle_state.pose.y
+            yaw = vehicle_state.pose.yaw
+            v = vehicle_state.v
+            position = (np.random.normal(position[0],position_noise), np.random.normal(position[1],position_noise))
+            yaw = np.random.normal(vehicle_state.pose.yaw,orientation_noise)
+            v = np.random.normal(v,velocity_noise_const + abs(v)*velocity_noise_linear)
+            pose = replace(vehicle_state.pose, x=position[0], y=position[1], yaw=yaw)
+            return replace(vehicle_state, pose=pose, v=v)
+        return vehicle_state
+    
+    #TODO: agent emulator, imu emulator
