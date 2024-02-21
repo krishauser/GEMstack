@@ -4,7 +4,7 @@ from ..component import Component
 from ultralytics import YOLO
 import cv2
 from typing import Dict
-
+import numpy as np
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
     
@@ -20,9 +20,9 @@ class PedestrianDetector2D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        self.detector = YOLO('GEMstack/GEMstack/knowledge/detection/yolov8n.pt')
         self.last_person_boxes = []
-
+# /home/gem/cs588_group10/GEMstack/GEMstack/knowledge/detection/yolov8n.pt
     def rate(self):
         return 4.0
     
@@ -38,12 +38,16 @@ class PedestrianDetector2D(Component):
         pass
     
     def image_callback(self, image : cv2.Mat):
-       detection_result = self.detector(image)
-       self.last_person_boxes = []
-       for r in detection_result:
-        for b in r.boxes:
-            if b.cls.tolist()[0] == 0:
-                self.last_person_boxes.append(b.xywh.tolist()[0])
+        result = self.detector(image)
+        boxes_obj = result[0].boxes
+        obj_cls = boxes_obj.cls
+        selected_index = [i for i in range(len(obj_cls)) if (obj_cls[i] == 0 and boxes_obj.conf[i] > 0.8)]
+
+        self.last_person_boxes = []
+            
+        for idx in selected_index:
+            x, y, w, h = boxes_obj[idx].xywh[0].cpu().detach().numpy().tolist() # box.xywh[0].cpu().detach().numpy().tolist()
+            self.last_person_boxes.append((x,y,w,h))
        #uncomment if you want to debug the detector...
        #for bb in self.last_person_boxes:
        #    x,y,w,h = bb
