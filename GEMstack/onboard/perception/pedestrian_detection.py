@@ -39,17 +39,31 @@ class PedestrianDetector2D(Component):
         self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat) 
     
     def image_callback(self, image : cv2.Mat):
-        # if image and (type(image) == cv2.Mat):
+        # detection_result = self.detector(image)
+        # person_indices = np.where(detection_result[-1].boxes.cls.cpu().numpy() == 0 and 
+        #                           detection_result[-1].boxes.conf.cpu().numpy() > 0.8)
+        # xywhboxes = detection_result[-1].boxes.xywh.cpu().numpy()[person_indices]
+        # self.last_person_boxes = xywhboxes
 
         detection_result = self.detector(image)
-        person_indices = np.where(detection_result[-1].boxes.cls.cpu().numpy() == 0)
-        xywhboxes = detection_result[-1].boxes.xywh.cpu().numpy()[person_indices]
-        self.last_person_boxes = xywhboxes
+        latest_boxes = detection_result[-1].boxes
+        person_indices = []
+        for i in range(len(latest_boxes.cls)):
+            if latest_boxes.cls[i] == 0 and latest_boxes.conf[i] > 0.8:
+                person_indices.append(i)
+        self.last_person_boxes = []
+
+        for idx in person_indices:
+            x,y,w,h = latest_boxes[idx].xywh[0].cpu().detach.numpy().tolist()
+            self.last_person_boxes.append((x, y, w, h))
+
         #uncomment if you want to debug the detector...
         #for bb in self.last_person_boxes:
         #    x,y,w,h = bb
         #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
         #cv2.imwrite("pedestrian_detections.png",image)
+
+        res = self.detector
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         res = {}
