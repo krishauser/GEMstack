@@ -4,6 +4,7 @@ from ..component import Component
 from ultralytics import YOLO
 import cv2
 from typing import Dict
+import numpy as np
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -21,6 +22,7 @@ class PedestrianDetector2D(Component):
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        # self.detector = YOLO('GEMstack/GEMstack/knowledge/detection/yolov8n.pt')
         self.last_person_boxes = []
 
     def rate(self):
@@ -38,17 +40,26 @@ class PedestrianDetector2D(Component):
         pass
     
     def image_callback(self, image : cv2.Mat):
-       detection_result = self.detector(image)
-       self.last_person_boxes = []
-       for r in detection_result:
-        for b in r.boxes:
-            if b.cls.tolist()[0] == 0:
-                self.last_person_boxes.append(b.xywh.tolist()[0])
-       #uncomment if you want to debug the detector...
-       #for bb in self.last_person_boxes:
-       #    x,y,w,h = bb
-       #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
-       #cv2.imwrite("pedestrian_detections.png",image)
+        results = self.detector(image)
+        boxes = results[0].boxes
+        self.last_person_boxes = []
+        for i in range(len(boxes.cls)):
+            if (boxes.cls[i] == 0) and (boxes.conf[i] >= 0.8):
+                x, y, w, h = boxes[i].xywh[0].cpu().detach().numpy().tolist()
+                self.last_person_boxes.append((x,y,w,h))
+        
+        # detection_result = self.detector(image)
+        # self.last_person_boxes = []
+        # for r in results:
+        #     for b in r.boxes:
+        #         if b.cls.tolist()[0] == 0:
+        #             self.last_person_boxes.append(b.xywh.tolist()[0])
+        
+        ## uncomment if you want to debug the detector...
+        # for bb in self.last_person_boxes:
+        #     x,y,w,h = bb
+        #     cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
+        # cv2.imwrite("pedestrian_detections.png",image)
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         res = {}
