@@ -5,6 +5,7 @@ from ultralytics import YOLO
 import cv2
 from typing import Dict
 import numpy as np
+from ..utils import settings
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -21,12 +22,12 @@ class PedestrianDetector2D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        self.detector = YOLO(settings.get('pedestrian_detection.model'))
         # self.detector = YOLO('GEMstack/GEMstack/knowledge/detection/yolov8n.pt')
         self.last_person_boxes = []
 
     def rate(self):
-        return 4.0
+        return settings.get('pedestrian_detection.rate')
     
     def state_inputs(self):
         return ['vehicle']
@@ -44,7 +45,7 @@ class PedestrianDetector2D(Component):
         boxes = results[0].boxes
         self.last_person_boxes = []
         for i in range(len(boxes.cls)):
-            if (boxes.cls[i] == 0) and (boxes.conf[i] >= 0.8):
+            if (boxes.cls[i] == settings.get('pedestrian_detection.pedestrian_class')) and (boxes.conf[i] >= settings.get('prediction_confidence')):
                 x, y, w, h = boxes[i].xywh[0].cpu().detach().numpy().tolist()
                 self.last_person_boxes.append((x,y,w,h))
         
