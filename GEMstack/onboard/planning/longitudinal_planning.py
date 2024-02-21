@@ -6,6 +6,7 @@ from ...mathutils.transforms import vector_madd
 import math
 import sympy
 import numpy as np
+from ...utils import settings
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
@@ -21,7 +22,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
 
-    dt = 0.05
+    dt = settings.get('longitudinal_planning.delta_time')
     
     cur_pos = points[0][0]
     target_pos = points[-1][0]
@@ -102,9 +103,9 @@ class YieldTrajectoryPlanner(Component):
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 0.5
-        self.desired_speed = 1.0
-        self.deceleration = 2.0
+        self.acceleration = settings.get('longitudinal_planning.vehicle_control.acceleration')
+        self.desired_speed = settings.get('longitudinal_planning.vehicle_control.desired_speed')
+        self.deceleration = settings.get('longitudinal_planning.vehicle_control.deceleration')
 
     def state_inputs(self):
         return ['all']
@@ -113,7 +114,7 @@ class YieldTrajectoryPlanner(Component):
         return ['trajectory']
 
     def rate(self):
-        return 10.0
+        return settings.get('longitudinal_planning.rate')
 
     def update(self, state : AllState):
         vehicle = state.vehicle # type: VehicleState
