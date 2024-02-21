@@ -36,8 +36,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     while dist_traveled == 0 or current_speed > 0:
         
         # Calculate the distance to decelerate to 0 from current speed
-        decel_time = current_speed / deceleration
-        decel_distance = current_speed * decel_time - 0.5 * deceleration * decel_time**2
+        decel_distance = current_speed **2 / (2 * deceleration)
 
         # If the distance to the end of the path is less than the distance traveled during deceleration,
         # then we can't brake in time, so just decelerate to 0
@@ -53,7 +52,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
             current_acceleration = 0
 
         # Update the distance traveled and check if we've reached the next milestone
-        dist_traveled += current_speed * dt + 0.5 * current_acceleration * dt**2
+        dist_traveled += current_speed * dt
         if dist_traveled >= milestone_distances[next_milestone] and next_milestone < len(milestone_distances) - 1:
             next_milestone += 1
 
