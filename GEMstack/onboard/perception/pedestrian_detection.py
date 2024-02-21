@@ -1,6 +1,7 @@
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
+from ...utils import settings
 from ultralytics import YOLO
 import cv2
 from typing import Dict
@@ -20,11 +21,12 @@ class PedestrianDetector2D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        self.detector = settings.get('pedestrian_detection.model')
         self.last_person_boxes = []
+        self.rate_value = settings.get('pedestrian_detection.rate')
 
     def rate(self):
-        return 4.0
+        return self.rate_value
     
     def state_inputs(self):
         return ['vehicle']
@@ -39,8 +41,8 @@ class PedestrianDetector2D(Component):
     def image_callback(self, image : cv2.Mat):
         detection_result = self.detector(image)
         self.last_person_boxes = []
-        results = detection_result(image)
-        boxes = results[0].boxes
+        # results = detection_result(image)
+        boxes = detection_result[0].boxes
         for i in range(len(boxes)):
             if(boxes.cls[i] == 0):
                 self.last_person_boxes.append(boxes.xywh[i].tolist())

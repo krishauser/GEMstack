@@ -3,8 +3,8 @@ from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd, vector_sub, vector_dist, normalize_vector
+from ...utils import settings
 
-from numpy import arange
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
@@ -15,173 +15,98 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     3. if at any point you can't brake before hitting the end of the path,
        decelerate with accel = -deceleration until velocity goes to 0.
     """
-    # If the path follows the trapezoidal velocity profile, then they are all going to be in a line. 
-    # So we can just take the first and last. 
-    # path.points = [path.points[0], path.points[-1]]
+    dt = settings.get("longitudinal_planning.time_resolution")
 
-    print("path {}".format(path.points))
-    path_normalized = path.arc_length_parameterize()
     points = []
     times = []
 
-    print("acceleration {}, deceleration {}, max_speed {}, current_speed {}".format(acceleration, deceleration, max_speed, current_speed))
-
-    print("path_normalized")
-    print(path_normalized.points)
-
-    cur_point = path_normalized.points[0]
-    next_point = path_normalized.points[-1]
-    disp = normalize_vector(vector_sub(next_point, cur_point))
-
     # Add the first point and time
-    points.append(path_normalized.points[0])
+    points.append(path.points[0])
     times.append(0.0)
 
-    # Resolution for Euler integration
-    resolution = 0.05
+    # Calculate the full path length and distance to each intermediate point
+    path_length = 0
+    milestone_distances = [0]
+    for i in range(len(path.points) - 1):
+        path_length += vector_dist(path.points[i], path.points[i+1])
+        milestone_distances.append(path_length)
 
-    def euler_integration(t, resolution, current_speed, acceleration, current_point):
-        int_speed = current_speed
-        int_point = current_point
-        for _ in arange(0, t, resolution):
-            
-            # Get the time of the intermediate point
-            times.append(times[-1] + resolution)
+    dist_traveled = 0
+    next_milestone = 1
+    while dist_traveled == 0 or current_speed > 0:
+        
+        # Calculate the distance to decelerate to 0 from current speed
+        decel_distance = current_speed **2 / (2 * deceleration)
 
-            # Get the distance of the intermediate point
-            distance_traveled = int_speed * resolution + 0.5 * acceleration * resolution**2
-
-            # Add an intermediate point
-            next_int_point = vector_madd(int_point, disp, distance_traveled)
-            points.append(next_int_point)
-
-            # Update the current point
-            int_point = next_int_point
-            int_speed = int_speed + acceleration * resolution
-
-        return int_point, int_speed
-    
-    def quad_fmla(a, b, c):
-        return (-1 * b + (b**2 - 4 * a * c)**0.5) / (2 * a) 
-
-    # Set the maximum achievable speed
-    if acceleration == 0:
-        max_speed = current_speed
-            
-    # Calculate the distance to the next point
-    distance = vector_dist(cur_point, next_point)
-
-    # Calculate the time and dist to accelerate to max speed
-    accel_time = (max_speed - current_speed) / acceleration if acceleration != 0 else 0.0
-    accel_distance = current_speed * accel_time + 0.5 * acceleration * accel_time**2
-
-    # Calculate the time and dist to decelerate to 0 from max speed
-    decel_time = max_speed / deceleration if deceleration != 0 else 0.0
-    decel_distance = max_speed * decel_time - 0.5 * deceleration * decel_time**2
-
-    # If the distance to the next point is less than the distance traveled during acceleration 
-    # and deceleration, then we can't brake in time
-    triangle_case = distance < accel_distance + decel_distance
-
-    if triangle_case:
-        print("triangle")
-
-        # Check if we can brake in time from the current speed
-        if current_speed**2 / (2 * deceleration) > distance:
-            print("doomed")
-            accel_time = 0 # Do not accelerate
-            decel_time = current_speed / deceleration # time to decelerate to 0
-
+        # If the distance to the end of the path is less than the distance traveled during deceleration,
+        # then we can't brake in time, so just decelerate to 0
+        if (path_length - dist_traveled) <= decel_distance:
+            current_acceleration = -1 * deceleration
         else:
-            # use quadratic fmla to calculate accel and decel time. 
-            a = 0.5 * (acceleration + acceleration**2 / deceleration)
-            b = current_speed + acceleration * current_speed / deceleration
-            c = -1 * distance + current_speed**2 / (2 * deceleration)
+            current_acceleration = acceleration
 
-            accel_time = quad_fmla(a, b, c) # time accelerating
-            decel_time = (current_speed + acceleration * accel_time) / deceleration # time decellerating
-    else:
-        print("not triangle")
-    
-    # Euler integration to find points and times for accelerating
-    cur_point, current_speed = euler_integration(accel_time, resolution, current_speed, acceleration, cur_point)
-    print("finished accel", cur_point, current_speed)
-    
-    # Calculate the time to travel at max speed and add the points and times
-    straight_time = 0 if triangle_case else (distance - accel_distance - decel_distance) / max_speed
-    cur_point, current_speed = euler_integration(straight_time, resolution, current_speed, 0, cur_point)
-    print("straights", cur_point, current_speed)
+        # Update the current speed
+        current_speed = current_speed + current_acceleration * dt
+        if current_speed >= max_speed:
+            current_speed = max_speed
+            current_acceleration = 0
 
-    # Euler integration to find points and times for decelerating
-    cur_point, current_speed = euler_integration(decel_time, resolution, current_speed, -1 * deceleration, cur_point)
-    print("finished decel", cur_point, current_speed)
+        # Update the distance traveled and check if we've reached the next milestone
+        dist_traveled += current_speed * dt
+        if dist_traveled >= milestone_distances[next_milestone] and next_milestone < len(milestone_distances) - 1:
+            next_milestone += 1
 
-    print("----------")
+        # Calculate the next point
+        displacement = vector_sub(path.points[next_milestone], path.points[next_milestone - 1])
+        distance_travelled_in_segment = dist_traveled - milestone_distances[next_milestone - 1]
+        next_point = vector_madd(path.points[next_milestone - 1], normalize_vector(displacement), distance_travelled_in_segment)
+
+        # Add the next point and time
+        points.append(next_point)
+        times.append(times[-1] + dt)
+
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
-    path_normalized = path.arc_length_parameterize()
-    #TODO: actually do something to points and times
+    dt = settings.get("longitudinal_planning.time_resolution")
+    
     points = []
     times = []
 
     # Add the first point and time
-    points.append(path_normalized.points[0])
+    points.append(path.points[0])
     times.append(0.0)
 
-    if current_speed == 0:
-        return Trajectory(path.frame, points, times)
+    # Calculate the full path length and distance to each intermediate point
+    path_length = 0
+    milestone_distances = [0]
+    for i in range(len(path.points) - 1):
+        path_length += vector_dist(path.points[i], path.points[i+1])
+        milestone_distances.append(path_length)
 
-    cur_point = path_normalized.points[0]
-    next_point = path_normalized.points[-1]
-    disp = normalize_vector(vector_sub(next_point, cur_point))
+    dist_traveled = 0
+    next_milestone = 1
+    while current_speed > 0:
 
-    # Resolution for Euler integration
-    resolution = 0.05
+        # Update the current speed
+        current_speed = current_speed - deceleration * dt
 
-    def euler_integration(t, resolution, current_speed, acceleration, current_point):
-        int_speed = current_speed
-        int_point = current_point
-        for _ in arange(0, t, resolution):
-            
-            # Get the time of the intermediate point
-            times.append(times[-1] + resolution)
+        # Update the distance traveled and check if we've reached the next milestone
+        dist_traveled += current_speed * dt + 0.5 * (-1 * deceleration) * dt**2
+        if dist_traveled >= milestone_distances[next_milestone] and next_milestone < len(milestone_distances) - 1:
+            next_milestone += 1
 
-            # Get the distance of the intermediate point
-            distance_traveled = int_speed * resolution + 0.5 * acceleration * resolution**2
+        # Calculate the next point
+        displacement = vector_sub(path.points[next_milestone], path.points[next_milestone - 1])
+        distance_travelled_in_segment = dist_traveled - milestone_distances[next_milestone - 1]
+        next_point = vector_madd(path.points[next_milestone - 1], normalize_vector(displacement), distance_travelled_in_segment)
 
-            # Add an intermediate point
-            next_int_point = vector_madd(int_point, disp, distance_traveled)
-            points.append(next_int_point)
-
-            # Update the current point
-            int_point = next_int_point
-            int_speed = int_speed + acceleration * resolution
-
-        return int_point, int_speed
-
-    # Calculate the distance to the next point
-    distance = vector_dist(cur_point, next_point)
-
-    # Calculate the time and dist to decelerate to 0 from current speed
-    decel_time = current_speed / deceleration
-
-    # Calculate the distance we travel while decelerating
-    decel_distance = current_speed * decel_time - 0.5 * deceleration * decel_time**2
-
-    # Calculate the distance we can travel at the current speed
-    straight_distance = distance - decel_distance
-    if straight_distance < 0:
-        straight_distance = 0
-
-    # Euler integration to find points and times for straight travel
-    int_point, int_speed = euler_integration(straight_distance / current_speed, resolution, current_speed, 0, cur_point)
-
-    # Euler integration to find points and times for decelerating
-    cur_point, current_speed = euler_integration(decel_time, resolution, int_speed, -1 * deceleration, int_point)
+        # Add the next point and time
+        points.append(next_point)
+        times.append(times[-1] + dt)
 
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
@@ -233,7 +158,7 @@ class YieldTrajectoryPlanner(Component):
         #parse the relations indicated
         should_brake = False
         for r in state.relations:
-            if r.type == EntityRelationEnum.YIELD and r.obj1 == '':
+            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
                 #yielding to something, brake
                 should_brake = True
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
