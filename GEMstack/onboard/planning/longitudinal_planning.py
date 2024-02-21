@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, \
     ObjectFrameEnum
@@ -72,8 +72,8 @@ def longitudinal_plan(path: Path, acceleration: float, deceleration: float, max_
         points_acc, times_acc = accelerate(sp, acceleration, current_speed, v_max)
         s_dec = v_max ** 2 / (2 * deceleration)
         points_dec, times_dec = decelerate(ep - s_dec, deceleration, v_max, time_acc)
-
-        trajectory = Trajectory(path.frame, points_acc + points_dec, times_acc + times_dec)
+        points, times = sample(points_acc + points_dec, times_acc + times_dec)
+        trajectory = Trajectory(path.frame, points, times)
         return trajectory
 
     s_acc = (max_speed ** 2 - current_speed ** 2) / (2 * acceleration)
@@ -84,7 +84,8 @@ def longitudinal_plan(path: Path, acceleration: float, deceleration: float, max_
     points_acc, times_acc = accelerate(sp, acceleration, current_speed, max_speed)
     points_const, times_const = const_speed(sp + s_acc, ep - s_dec, max_speed, t_acc)
     points_dec, times_dec = decelerate(ep - s_dec, deceleration, max_speed, t_acc + t_const)
-    trajectory = Trajectory(path.frame, points_acc + points_const + points_dec, times_acc + times_const + times_dec)
+    points, times = sample(points_acc + points_const + points_dec, times_acc + times_const + times_dec)
+    trajectory = Trajectory(path.frame, points, times)
     return trajectory
     # raise NotImplementedError("Not implemented yet")
 
@@ -102,16 +103,19 @@ def longitudinal_plan(path: Path, acceleration: float, deceleration: float, max_
     # points, times = accelerate(ep - s_dacc, accceleration, current_speed, max_speed)
     # only need to accelerate
 
+def sample(points: List, times: List):
+    jump = len(points) // 50
+    return ([points[i] for i in range(0, len(points), jump)], [times[i] for i in range(0, len(times), jump)])
 
-def const_speed(sp, ep, speed, t0=0.0) -> (List, List):
+def const_speed(sp, ep, speed, t0=0.0) -> Tuple[List, List]:
     n_points = 100
     time_stop = (ep - sp) / speed
     times = list(np.linspace(t0, time_stop + t0, n_points))
     points = [(sp + speed * (t - t0), 0) for t in times]
-    return points, times
+    return points[1:], times[1:]
 
 
-def accelerate(sp, acceleration: float, current_speed: float, max_speed, t0=0) -> (List, List):
+def accelerate(sp, acceleration: float, current_speed: float, max_speed, t0=0) -> Tuple[List, List]:
     n_points = 100
     time_acc = (max_speed - current_speed) / acceleration
     times = list(np.linspace(t0, t0 + time_acc, n_points))  # [i * time_stop / n_points for i in range(n_points)]
@@ -128,7 +132,7 @@ def accelerate(sp, acceleration: float, current_speed: float, max_speed, t0=0) -
     return points, times
 
 
-def decelerate(sp, deceleration: float, current_speed: float, t0=0.0) -> (List, List):
+def decelerate(sp, deceleration: float, current_speed: float, t0=0.0) -> Tuple[List, List]:
     if current_speed == 0:
         return [(sp, t0), (sp, t0)], [0, 0.1]
 
