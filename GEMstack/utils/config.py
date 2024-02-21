@@ -71,7 +71,8 @@ def _load_config_or_text_recursive(fn : str) -> dict:
         base,_ = os.path.split(fn)
         return _load_recursive(res,base)
     else:
-        return ''.join(f.readlines())
+        with open(fn,'r') as f:
+            return ''.join(f.readlines())
 
 def _load_recursive(obj, folder : str):
     if isinstance(obj,dict):
