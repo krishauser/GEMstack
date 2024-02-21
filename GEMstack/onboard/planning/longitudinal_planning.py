@@ -170,7 +170,6 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
-    #times = [t for t in path_normalized.times]
 
     l = [vector_dist(points[i], points[i+1]) for i in range(len(points) - 1)] # segment lengths
 
@@ -196,7 +195,6 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     path_normalized = path.arc_length_parameterize()
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
-    #times = [t for t in path_normalized.times]
 
     if current_speed == 0: # stay still
         return Trajectory(path.frame, [points[0]] * 5, [i * 0.01 for i in range(0, 5)])

@@ -21,7 +21,6 @@ class PedestrianDetector2D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        # self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
         self.detector = YOLO(settings.get('perception.pedestrian_detection.model'))
         self.last_person_boxes = []
 
