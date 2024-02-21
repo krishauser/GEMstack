@@ -115,7 +115,15 @@ def accelerate(sp, acceleration: float, current_speed: float, max_speed, t0=0) -
     n_points = 100
     time_acc = (max_speed - current_speed) / acceleration
     times = list(np.linspace(t0, t0 + time_acc, n_points))  # [i * time_stop / n_points for i in range(n_points)]
-    points = [(sp + current_speed * (t - t0) + 0.5 * acceleration * (t - t0) ** 2, 0) for t in times]
+    points = []
+    tl = t0
+    d = 0
+    for t in times:
+        current_speed = current_speed + acceleration * (t - tl)
+        d += (t - tl) * current_speed
+        points.append((sp + d, 0))
+        tl = t
+    #points = [(sp + current_speed * (t - t0) + 0.5 * acceleration * (t - t0) ** 2, 0) for t in times]
 
     return points, times
 
@@ -129,7 +137,16 @@ def decelerate(sp, deceleration: float, current_speed: float, t0=0.0) -> (List, 
     # times = [i * time_stop / n_points + t0 for i in range(n_points)]
     # divide the time into n_points, end point included using numpy
     times = list(np.linspace(t0, time_stop + t0, n_points))
-    points = [(sp + current_speed * (t - t0) - 0.5 * deceleration * (t - t0) ** 2, 0) for t in times]
+
+    points = []
+    tl = t0
+    d = 0
+    for t in times:
+        current_speed = current_speed - deceleration * (t - tl)
+        d += (t - tl) * current_speed
+        points.append((sp + d, 0))
+        tl = t
+    #points = [(sp + current_speed * (t - t0) - 0.5 * deceleration * (t - t0) ** 2, 0) for t in times]
 
     return points, times
 
@@ -306,7 +323,7 @@ class YieldTrajectoryPlanner(Component):
         # parse the relations indicated
         should_brake = False
         for r in state.relations:
-            if r.type == EntityRelationEnum.YIELD and r.obj1 == '':
+            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
                 # yielding to something, brake
                 should_brake = True
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
