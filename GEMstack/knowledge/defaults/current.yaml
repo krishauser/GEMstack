@@ -44,3 +44,19 @@ simulator:
         #velocity_noise:
         #    constant: 0.04  #4cm/s noise
         #    linear: 0.02    #2% noise
+
+#magic constants in pedestrian_detection.py
+pedestrian_detection:
+    model: !relative_path "../../knowledge/detection/yolov8n.pt" 
+    rate: 4.0
+    pedestrian_class: 0
+    prediction_confidence: 0.8
+
+#magic constants in longitudinal_planning.py
+longitudinal_planning:
+    delta_time: 0.05
+    vehicle_control:
+        acceleration: 0.5
+        desired_speed: 1.0
+        deceleration: 2.0
+    rate: 10.0
