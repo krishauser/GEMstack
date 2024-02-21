@@ -68,7 +68,7 @@ def _load_config_or_text_recursive(fn : str) -> dict:
     elif fn.endswith('json'):
         with open(fn,'r') as f:
             res = json.load(f)
-        base,f = os.path.split(fn)
+        base,_ = os.path.split(fn)
         return _load_recursive(res,base)
     else:
         return ''.join(f.readlines())
