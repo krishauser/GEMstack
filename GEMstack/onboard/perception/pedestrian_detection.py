@@ -54,7 +54,7 @@ class PedestrianDetector2D(Component):
         self.last_person_boxes = []
 
         for idx in person_indices:
-            x,y,w,h = latest_boxes[idx].xywh[0].cpu().detach.numpy().tolist()
+            x,y,w,h = latest_boxes[idx].xywh[0].cpu().detach().numpy().tolist()
             self.last_person_boxes.append((x, y, w, h))
 
         #uncomment if you want to debug the detector...
