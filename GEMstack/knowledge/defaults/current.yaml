@@ -51,3 +51,10 @@ longitudinal_planning:
         acc: 0.5
         dec: 2.0
         max_vel: 1.0
+longitudinal_planning:
+    no_of_samples: 50
+    rate: 10
+    vehicle_prop:
+        acc: 0.5
+        dec: 2.0
+        max_vel: 1.0
