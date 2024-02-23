@@ -3,11 +3,36 @@ from ..component import Component
 from .execution import EXECUTION_PREFIX,ExecutorBase,ComponentExecutor,load_computation_graph,make_class
 import multiprocessing
 from typing import Dict,List,Optional
+import sys
 import os
-
 
 def main():
     """The main entrypoint for the execution stack."""
+    #first, process settings variants
+    if settings.get('variant',None) is not None:
+        variant = settings.get('variant')
+        variants = variant.split(',')
+        def caution_callback(k,variant):
+            print(EXECUTION_PREFIX,"variant {} defines key {} which is not found in normal settings".format(variant,k))
+        for v in variants:
+            if v not in settings.get('variants',{}):
+                if v not in settings.get('run.variants',{}):
+                    print(EXECUTION_PREFIX,"Error, variant",v,"not found in settings")
+                    print(EXECUTION_PREFIX,"Available variants are",list(settings.get('variants',{}).keys())+list(settings.get('run.variants',{}).keys()))
+                    return 1
+                else:
+                    overrides = settings.get('run.variants.'+v)
+                    print(EXECUTION_PREFIX,"APPYING VARIANT",overrides)
+                    config.update_recursive(settings.settings(),overrides,lambda k:caution_callback(k,v))
+            else:
+                overrides = settings.get('variants.'+v)
+                print(EXECUTION_PREFIX,"APPYING VARIANT",overrides)
+                config.update_recursive(settings.settings(),overrides,lambda k:caution_callback(k,v))
+        #don't need this to be saved in the log
+        if 'variants' in settings.settings():
+            del settings.settings()['variants']
+        if 'svariant' in settings.get('run'):
+            del settings.get('run')['variants']
 
     multiprocessing.set_start_method('spawn')    
     runconfig = settings.get('run')
@@ -82,12 +107,15 @@ def main():
 
         perception_components = {}   #type: Dict[str,ComponentExecutor]
         for (k,v) in perception_settings.items():
+            if v is None: continue
             perception_components[k] = mission_executor.make_component(v,k,'GEMstack.onboard.perception', {'vehicle_interface':vehicle_interface})
         planning_components = {}   #type: Dict[str,ComponentExecutor]
         for (k,v) in planning_settings.items():
+            if v is None: continue
             planning_components[k] = mission_executor.make_component(v,k,'GEMstack.onboard.planning', {'vehicle_interface':vehicle_interface})
         other_components = {}   #type: Dict[str,ComponentExecutor]
         for (k,v) in other_settings.items():
+            if v is None: continue
             other_components[k] = mission_executor.make_component(v,k,'GEMstack.onboard.other', {'vehicle_interface':vehicle_interface})
         
         mission_executor.add_pipeline(name,perception_components,planning_components,other_components)
@@ -133,4 +161,12 @@ def main():
     if has_ros:
         #need manual ros node shutdown due to disable_signals=True
         rospy.signal_shutdown('GEM_executor finished')
-
+    
+    print(EXECUTION_PREFIX,"---------------- DONE ----------------")
+    if log_settings and settings.get('run.after.show_log_folder',False):
+        if sys.platform.startswith('linux'):
+            os.system('nautilus '+logfolder)
+        else:
+            import webbrowser
+            webbrowser.open(logfolder)
+    return 0

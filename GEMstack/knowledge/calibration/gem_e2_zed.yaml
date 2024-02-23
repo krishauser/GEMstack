@@ -1,0 +1,4 @@
+reference: rear_axle_center  # rear axle center
+rotation: [[0,0,1],[-1,0,0],[0,-1,0]] # rotation matrix mapping z to forward, x to left, y to down, guesstimated
+center_position: [-0.02,0,1.5] # meters, center of Zed camera, guesstimated
+rgb_position: [-0.02,0.06,1.5] # meters, center of color (left) camera, guesstimated

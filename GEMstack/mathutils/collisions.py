@@ -141,15 +141,31 @@ def line_intersects_line_2d(vertices1 : List[Tuple[float,float]], vertices2 : Li
     Faster to create a CollisionDetector2D object if you will be doing
     multiple queries.
     """
-    return shapely.LineString(vertices1).distance(shapely.LineString(vertices2))
+    return shapely.LineString(vertices1).intersects(shapely.LineString(vertices2))
 
-def line_polygon_distance_2d(vertices : List[Tuple[float,float]], polygon : List[Tuple[float,float]]) -> bool:
+def line_polygon_distance_2d(vertices : List[Tuple[float,float]], polygon : List[Tuple[float,float]]) -> float:
     """Returns distance from a line to a polygon.
 
     Faster to create a CollisionDetector2D object if you will be doing
     multiple queries.
     """
-    return shapely.Polygon(polygon).intersects(shapely.LineString(vertices))
+    return shapely.Polygon(polygon).distance(shapely.LineString(vertices))
+
+def polygon_intersects_polygon_2d(poly1 : List[Tuple[float,float]], poly2 : List[Tuple[float,float]]) -> bool:
+    """Returns whether two polygons intersect.
+
+    Faster to create a CollisionDetector2D object if you will be doing
+    multiple queries.
+    """
+    return shapely.Polygon(poly1).intersects(shapely.Polygon(poly2))
+
+def polygon_polygon_distance_2d(poly1 : List[Tuple[float,float]], poly2 : List[Tuple[float,float]]) -> float:
+    """Returns the distance between two polygons.
+
+    Faster to create a CollisionDetector2D object if you will be doing
+    multiple queries.
+    """
+    return shapely.Polygon(poly1).distance(shapely.Polygon(poly2))
 
 
 class CollisionDetector2D:
@@ -162,6 +178,15 @@ class CollisionDetector2D:
     def __init__(self):
         self.objects = dict()
         self.collision_pairs = set()
+
+    def remove(self, name : str) -> None:
+        """Removes an object from the collision detector."""
+        del self.objects[name]
+        for name2 in self.objects.keys():
+            if name < name2:
+                 self.collision_pairs.discard((name,name2))
+            else:
+                 self.collision_pairs.discard((name2,name))
     
     def add_polygon(self, name : str, polygon : List[Tuple[float,float]]) -> None:
         """Adds an object to the collision detector."""
