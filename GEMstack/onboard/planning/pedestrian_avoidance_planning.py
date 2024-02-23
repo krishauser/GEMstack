@@ -12,7 +12,7 @@ import numpy as np
 from typing import Dict
 
 # Assume average human reaction time is 1.0 s.
-REACTION_TIME = 1.0
+# REACTION_TIME = 1.0
 # Buffers given in the prompt (in m)
 LATERAL_DISTANCE_BUFFER = 1.0
 LONGITUDINAL_DISTANCE_BUFFER = 3.0
@@ -63,12 +63,24 @@ class PedestrianAvoidanceMotionPlanner(Component):
             self.route_progress = 0.0
         # closest parameter along with the distance to that parameter (take 10 m segment from 5.0 meters ahead and behind)
         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
+        # index corresponding to the point closest to the car
         self.route_progress = closest_parameter
 
         all_pedestrians = []
         for k,a in agents.items():
             if a.type == AgentEnum.PEDESTRIAN:
                 all_pedestrians.append(a)
+
+        margins = [LATERAL_DISTANCE_BUFFER,LONGITUDINAL_DISTANCE_BUFFER]
+        # add margins to our pedestrian polygons
+        pedestrians_with_margins = []
+        # change the bounds of the pedestrian polygons(l and w) to include the margins buffer function doesn't exist
+        for pedestrian in all_pedestrians:
+            # add the margins to the pedestrian polygons
+            l,w,h = pedestrian.dimensions
+            new_l, new_w = l + 2*LATERAL_DISTANCE_BUFFER, w + 2*LONGITUDINAL_DISTANCE_BUFFER
+            pedestrian.dimensions = (new_l, new_w, h)
+            pedestrians_with_margins.append(pedestrian)
 
         #extract out a 10m segment of the route
         route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
@@ -78,13 +90,14 @@ class PedestrianAvoidanceMotionPlanner(Component):
         #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
 
         # Distance travelled during time in which driver reacts to seeing pedestrian
-        reaction_distance = curr_v * REACTION_TIME
+        # reaction_distance = curr_v * REACTION_TIME
 
         all_pedestrians = []
         for k,a in agents.items():
             if a.type == AgentEnum.PEDESTRIAN:
                 all_pedestrians.append(a)
         collision_check_resolution = 0.1  #m
+        # start point index, end point index (number of points in the path)
         progress_start, progress_end = route_with_lookahead.domain()
         progress = progress_start
         # If we can keep going without braking, then this should remain None
@@ -103,14 +116,18 @@ class PedestrianAvoidanceMotionPlanner(Component):
             vehicle_poly_world = vehicle.to_object().polygon_parent() 
             if len(all_pedestrians) > 0:
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
-                if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
+                if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in pedestrians_with_margins]):
                     print("Predicted collision with pedestrian at",progress)
                     print("Vehicle position",xy[0],xy[1])
                     print("Pedestrian position",a.pose.x,a.pose.y)
                     #print("Vehicle poly",vehicle_poly_world)
                     #print("Pedestrian poly",a.polygon_parent())
                     #prevent
-                    max_progress = max(progress - collision_check_resolution,0.0)
+
+                    max_progress = max(progress - collision_check_resolution,0.0) # probably need to replace
+                    # Figure out the progress along the path at which we potentially collide with any of
+                    # the pedestrians. Take the distance to the closest pedestrian since we want to brake
+                    # before we hit the first one.
                     break
             progress += collision_check_resolution
         if max_progress is not None:           
