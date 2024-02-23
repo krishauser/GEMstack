@@ -4,6 +4,7 @@ from ..component import Component
 from ultralytics import YOLO
 import cv2
 from typing import Dict
+from ...utils import settings
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -21,12 +22,12 @@ class PedestrianDetector2D(Component):
 
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        self.detector = YOLO(settings.get('pedestrian_detection.model'))
         self.last_person_boxes = []
-        self.pedestrian_class = 0
+        self.pedestrian_class = settings.get('pedestrian_detection.pedestrian_class')
 
     def rate(self):
-        return 4.0
+        return settings.get('pedestrian_detection.rate')
     
     def state_inputs(self):
         return ['vehicle']
@@ -69,7 +70,8 @@ class FakePedestrianDetector2D(Component):
     """Triggers a pedestrian detection at some random time ranges"""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.times = [(5.0,20.0),(30.0,35.0)]
+        trigger_times = settings.get('fake_pedestrian_detection.trigger_times')
+        self.times = [(time['start'], time['end']) for time in trigger_times]
         self.t_start = None
 
     def rate(self):
