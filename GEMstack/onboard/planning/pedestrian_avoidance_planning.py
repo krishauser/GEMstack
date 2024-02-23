@@ -1,7 +1,7 @@
 from typing import List
 from ..component import Component
 #these could be helpful in your implementation
-#from .longitudinal_planning import longitudinal_brake, longitudinal_plan
+from .longitudinal_planning import longitudinal_brake, longitudinal_plan
 from ...state import AllState, VehicleState, PhysicalObject, AgentEnum, AgentState, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd
@@ -10,6 +10,12 @@ import copy
 import math
 import numpy as np
 from typing import Dict
+
+# Assume average human reaction time is 1.0 s.
+REACTION_TIME = 1.0
+# Buffers given in the prompt (in m)
+LATERAL_DISTANCE_BUFFER = 1.0
+LONGITUDINAL_DISTANCE_BUFFER = 3.0
 
 
 class PedestrianAvoidanceMotionPlanner(Component):
@@ -55,6 +61,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
         #figure out where we are on the route
         if self.route_progress is None:
             self.route_progress = 0.0
+        # closest parameter along with the distance to that parameter (take 10 m segment from 5.0 meters ahead and behind)
         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
         self.route_progress = closest_parameter
 
@@ -69,6 +76,10 @@ class PedestrianAvoidanceMotionPlanner(Component):
         
         #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
         #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
+
+        # Distance travelled during time in which driver reacts to seeing pedestrian
+        reaction_distance = curr_v * REACTION_TIME
+
         all_pedestrians = []
         for k,a in agents.items():
             if a.type == AgentEnum.PEDESTRIAN:
@@ -76,6 +87,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
         collision_check_resolution = 0.1  #m
         progress_start, progress_end = route_with_lookahead.domain()
         progress = progress_start
+        # If we can keep going without braking, then this should remain None
         max_progress = None
         while progress < progress_end:
             xy = route_with_lookahead.eval(progress)
@@ -103,6 +115,8 @@ class PedestrianAvoidanceMotionPlanner(Component):
             progress += collision_check_resolution
         if max_progress is not None:           
             #allow enough room to brake from the current velocity
+
+            # calculate distance needed to brake (distance between start braking and stopped moving)
             braking_distance = 0.5*(curr_v)**2/self.deceleration * 0.96 
             max_progress = max(max_progress,braking_distance)
             route_with_lookahead = route_with_lookahead.trim(progress_start,max_progress)
