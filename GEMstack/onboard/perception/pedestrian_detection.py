@@ -141,8 +141,12 @@ class PedestrianDetector(Component):
         estimate of the pedestrian's pose and dimensions.
         """
         x,y,w,h = box
-        pose = ObjectPose(t=0,x=x,y=y,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-        dims = [w,h,1.7]
+        # find the point_cloud that is closest to the center of our bounding box
+        center_point_cloud_idx =  np.argmin(np.linalg.norm(point_cloud_image - [x+w/2,y+h/2],axis=1))
+        _,_,z = point_cloud_image_world[center_point_cloud_idx]
+        pose = ObjectPose(t=0,x=x,y=y,z=z,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
+        depth = max(point_cloud_image_world[:,2]) - min(point_cloud_image_world[:,2])
+        dims = [w,h,depth]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
