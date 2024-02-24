@@ -2,7 +2,9 @@ import cv2
 import numpy as np
 import pandas as pd
 # load image file
-image = cv2.imread('hw3_data/color1.png')
+
+data_idx = 4
+image = cv2.imread(f'hw3_data/color{data_idx}.png')
 
 # # color filter
 # hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -43,7 +45,7 @@ for point in points:
 
 # Save points as csv
 df_points = pd.DataFrame(points, columns=['X', 'Y'])
-csv_file_path = 'save/image1_stopsign.csv'
+csv_file_path = f'save/image{data_idx}_stopsign.csv'
 df_points.to_csv(csv_file_path, index=False)
 
 print(f"All recorded points have been saved to {csv_file_path}.")

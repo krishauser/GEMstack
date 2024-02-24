@@ -3,7 +3,8 @@ import numpy as np
 import pandas as pd
 
 # load file
-lidar_data = np.load('hw3_data/lidar1.npz')
+data_idx = 4
+lidar_data = np.load(f'hw3_data/lidar{data_idx}.npz')
 point_cloud_np = lidar_data['arr_0']
 
 # turn numpy to pointcloud
@@ -24,7 +25,7 @@ for index in picked_points:
 # Save points as csv
 picked_coords = np.asarray([pcd.points[i] for i in picked_points])
 picked_df = pd.DataFrame(picked_coords, columns=['x', 'y', 'z'])
-csv_file_path = 'save/pointcld1_stopsign.csv'
+csv_file_path = f'save/pointcld{data_idx}_stopsign.csv'
 picked_df.to_csv(csv_file_path, index=False)
 print(f"All recorded points have been saved to {csv_file_path}.")
 
