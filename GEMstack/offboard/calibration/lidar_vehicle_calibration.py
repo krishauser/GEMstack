@@ -57,8 +57,8 @@ x = 32.25 in
 y = 0 in
 z = 77.5 in - 9.5 in
 """
-translation_vector_feet = np.array([32.25, 0, 77.5 - 9.5])
-translation_vector_meters = translation_vector_feet * 0.3048
+translation_vector_in = np.array([32.25, 0, (77.5 - 9.5)])
+translation_vector_meters = translation_vector_in * 0.0254
 
 # find transformation matrix
 transform_matrix = np.eye(4)  
