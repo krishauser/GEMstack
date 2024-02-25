@@ -24,3 +24,6 @@ Note: You can select points by `shift + click` in Open3D: <br>
 #### HW3 Step 2 (Lidar -> Vehicle Calibration)
 1. Use `lidar_vehicle_calibration.py` to select four corner points of the planar object manually, then press `esc` two times to get the transformation matrix. <br>
 <img width="500" alt="image" src="https://github.com/krishauser/GEMstack/assets/22386566/bcdbfbac-ec13-4a44-966d-0931d26f2021">
+
+#### HW3 Step 3
+1. Use `check_target_lidar_range.py` to determine the lidar range we desire for agents to be detected.
