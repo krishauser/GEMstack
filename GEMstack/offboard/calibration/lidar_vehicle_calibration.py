@@ -3,7 +3,7 @@ import numpy as np
 
 # load file
 # load file
-lidar_data = np.load('hw3_step2_data/lidar6.npz')
+lidar_data = np.load('../../../data/hw3/step2/lidar6.npz')
 point_cloud_np = lidar_data['arr_0']
 # turn numpy to pointcloud
 pcd = o3d.geometry.PointCloud()
@@ -51,11 +51,14 @@ rotation_matrix = np.array([[np.cos(angle), -np.sin(angle), 0],
 print("Rotation Matrix:")
 print(rotation_matrix)
 
-# find trasition vector
+# find translation vector
 """
-x = 32.25 in
-y = 0 in
-z = 77.5 in - 9.5 in
+xyz tranlastion is measured manually using a ruler. We suppose y of lidar aligns well with 
+y of vehicle (y translation = 0)
+
+x = 32.25 inch
+y = 0 inch 
+z = 77.5 inch - 9.5 inch
 """
 translation_vector_in = np.array([32.25, 0, (77.5 - 9.5)])
 translation_vector_meters = translation_vector_in * 0.0254
