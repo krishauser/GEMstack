@@ -11,5 +11,5 @@ if __name__ == '__main__':
 		'height': message.height,
 		'width': message.width,
 	}
-	with open("../../knowledge/calibration/zed_intrinsic.json", 'w') as f:
+	with open("GEMstack/knowledge/calibration/zed_intrinsic.json", 'w') as f:
 		json.dump(camera_info, f)

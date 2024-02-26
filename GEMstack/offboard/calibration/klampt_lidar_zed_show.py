@@ -11,8 +11,8 @@ import math
 import time
 
 #uncalibrated values -- TODO: load these from a calibration file
-zed_K = np.array([[527.1734008789062, 0.0, 616.2451782226562],
-                [0.0, 527.1734008789062, 359.2149353027344],
+zed_K = np.array([[527.5779418945312, 0.0, 616.2459716796875],
+                [0.0, 527.5779418945312, 359.2155456542969],
                 [0.0, 0.0, 1.0]])
 zed_intrinsics = [zed_K[0,0],zed_K[1,1],zed_K[0,2],zed_K[1,2]]
 zed_w = 1280
