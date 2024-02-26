@@ -1,4 +1,4 @@
-"""To obtain the intrinsics of the zed2 stereo camera
+"""To obtain the intrinsic parameters of the zed2 stereo camera
 
 References:
 - ROS client API methods: https://docs.ros.org/en/diamondback/api/rospy/html/rospy.client-module.html
