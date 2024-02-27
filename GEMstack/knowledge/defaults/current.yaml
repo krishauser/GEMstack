@@ -53,3 +53,11 @@ longitudinal_planning:
 pedestrian_detection:
     model: !relative_path "../detection/yolov8n.pt"   #the !relative_path directive finds a file in a relative location to this file
     rate: 4.0
+
+# pedestrian avoidance planning settings
+pedestrian_avoidance_planning:
+    rate: 10.0
+    collision_detection_resolution: 0.1
+    min_lookahead_distance: 1.0
+    longitudinal_margin: 3.0
+    lateral_margin: 1.0

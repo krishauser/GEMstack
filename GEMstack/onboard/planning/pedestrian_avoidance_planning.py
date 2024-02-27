@@ -2,7 +2,7 @@ from typing import List
 from ..component import Component
 from .longitudinal_planning import longitudinal_brake, longitudinal_plan
 from ...state import AllState, VehicleState, PhysicalObject, AgentEnum, AgentState, Path, Trajectory, Route, ObjectFrameEnum
-from ...utils import serialization
+from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd
 from ...mathutils import collisions
 import copy
@@ -21,6 +21,11 @@ class PedestrianAvoidanceMotionPlanner(Component):
         self.acceleration = 1.0
         self.desired_speed = 2.0
         self.deceleration = 1.0
+        self.rate_value = settings.get("pedestrian_avoidance_planning.rate")
+        self.collision_detection_resolution = settings.get("pedestrian_avoidance_planning.collision_detection_resolution")
+        self.longitudinal_margin = settings.get("pedestrian_avoidance_planning.longitudinal_margin")
+        self.lateral_margin = settings.get("pedestrian_avoidance_planning.lateral_margin")
+        self.min_lookahead_distance = settings.get("pedestrian_avoidance_planning.min_lookahead_distance")
 
     def state_inputs(self):
         return ['all']
@@ -29,7 +34,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
         return ['trajectory']
 
     def rate(self):
-        return 10.0
+        return self.rate_value
 
     def update(self, state : AllState):
         vehicle = copy.deepcopy(state.vehicle) # type: VehicleState
@@ -64,7 +69,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
 
         # Calculate the lookahead distance as the distance to stop from the current speed
         lookahead_distance = curr_v**2 / (2 * self.deceleration)
-        lookahead_distance = max(lookahead_distance,1.0)
+        lookahead_distance = max(lookahead_distance,self.min_lookahead_distance)
         route_with_lookahead = route.trim(closest_parameter,closest_parameter+lookahead_distance)
         route_with_lookahead = route_with_lookahead.arc_length_parameterize()
         
@@ -75,11 +80,11 @@ class PedestrianAvoidanceMotionPlanner(Component):
         vehicle_poly_local = vehicle.to_object().polygon()
         x_max = max([p[0] for p in vehicle_poly_local])
         y_max = max([p[1] for p in vehicle_poly_local])
-        x_multiplier = (x_max + 3) / x_max
-        y_multiplier = (y_max + 1) / y_max
+        x_multiplier = (x_max + self.longitudinal_margin) / x_max
+        y_multiplier = (y_max + self.lateral_margin) / y_max
         vehicle_poly_local = [[p[0] * x_multiplier, p[1] * y_multiplier] for p in vehicle_poly_local]
 
-        collision_check_resolution = 0.1  #m
+        collision_check_resolution = self.collision_detection_resolution  #m
         progress_start, progress_end = route_with_lookahead.domain()
         progress = progress_start
         max_progress = None
