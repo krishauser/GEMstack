@@ -5,6 +5,7 @@ from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
 import cv2
+from sklearn.cluster import DBSCAN
 try:
     from sensor_msgs.msg import CameraInfo
     from image_geometry import PinholeCameraModel
@@ -155,6 +156,12 @@ class PedestrianDetector(Component):
         distances = np.linalg.norm(point_cloud_image - [center_x, center_y], axis=1)
         closest_point_cloud_idx = np.argmin(distances)
         closest_point_cloud = point_cloud_image_world[closest_point_cloud_idx]
+
+        # Filter out noise
+        dbscan = DBSCAN(eps=0.5, min_samples=10)
+        clusters = dbscan.fit_predict(closest_point_cloud)
+        largest_cluster_idx = np.argmax(np.bincount(clusters[clusters >= 0]))
+        closest_point_cloud = closest_point_cloud[clusters == largest_cluster_idx]
 
         #########################################################################################################
         # Definition of ObjectPose and dimensions:
