@@ -195,13 +195,53 @@ class PedestrianDetector(Component):
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
         self.last_person_boxes = []
+        
         #TODO: create boxes from detection result
+        for detection in detection_result:
+            if detection['class_id'] == 0:  
+                x, y, w, h = detection['bbox']
+                self.last_person_boxes.append([x, y, w, h])  
+                
         #TODO: create point clouds in image frame and world frame
+        """
+        Tansfer point cloud to camera frame
+        """
+        extrinsic = [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
+             [-0.04834961 , -0.02051524, -0.99861977, -0.02062586],
+             [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
+             [ 0.         ,  0.        ,  0.        ,  1.        ]]
+        extrinsic = np.asarray(extrinsic)
+        intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0]
+        intrinsic = np.array(intrinsic).reshape((3, 3))
+        intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
+
+        pointcloud_pixel = (intrinsic @ extrinsic @ (np.hstack((self.point_cloud, np.ones((self.point_cloud.shape[0], 1))))).T).T
+
+        pointcloud_pixel[:, 0] /= pointcloud_pixel[:, 2]
+        pointcloud_pixel[:, 1] /= pointcloud_pixel[:, 2]
+        point_cloud_image =  pointcloud_pixel[:,:2]
+
+        """
+        Tansfer point cloud to vehicle frame
+        """
+        T_lidar2_Gem = [[ 0.9988692,  -0.04754282, 0.,       0.81915   ],
+             [0.04754282,  0.9988692,    0.,          0.        ],
+             [ 0.,          0.,          1.,          1.7272    ],
+             [ 0.,          0.,          0.,          1.        ]]
+        T_lidar2_Gem = np.asarray(T_lidar2_Gem)
+
+        ones = np.ones((self.point_cloud.shape[0], 1))
+        pcd_homogeneous = np.hstack((self.point_cloud, ones))
+        pointcloud_trans = np.dot(T_lidar2_Gem, pcd_homogeneous.T).T
+        point_cloud_image_world = pointcloud_trans[:, :3]
+
+        """
+        Find agents
+        """
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
-            #agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            #detected_agents.append(agent)
-            pass
+            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
+            detected_agents.append(agent)
         return detected_agents
     
     def track_agents(self, vehicle : VehicleState, detected_agents : List[AgentState]):
