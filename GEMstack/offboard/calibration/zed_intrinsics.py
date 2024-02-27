@@ -6,6 +6,8 @@ References:
 - Message format: http://docs.ros.org/en/noetic/api/sensor_msgs/html/msg/CameraInfo.html
 """
 
+from ...utils import settings
+
 import rospy
 from sensor_msgs.msg import CameraInfo
 
@@ -27,4 +29,5 @@ def write_intrinsics(message, file):
 
 if __name__ == '__main__':
 	message = get_intrinsics()
-	write_intrinsics(message, '../../knowledge/calibration/zed_intrinsics.yaml')
+	file = settings.get('calibration.zed_intrinsics')
+	write_intrinsics(message, file)

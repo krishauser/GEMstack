@@ -33,6 +33,7 @@ control:
         pid_i: 0.1
         pid_d: 0.0
 
+# HW2
 perception:
     pedestrian_detection:
         model: !relative_path "../detection/yolov8n.pt"
@@ -42,6 +43,10 @@ planning:
     longitudinal_plan:
         n_points: 100   # number of points added between 2 points in the path
         dt: 0.02    # for discretizing time
+
+# HW3
+calibration:
+    zed_intrinsics: !relative_path "../calibration/gem_e2_zed_intrinsics.yaml"
 
 #configure the simulator, if using
 simulator:
