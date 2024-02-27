@@ -11,8 +11,6 @@ import math
 import numpy as np
 from typing import Dict
 
-# Assume average human reaction time is 1.0 s.
-# REACTION_TIME = 1.0
 # Buffers given in the prompt (in m)
 LATERAL_DISTANCE_BUFFER = 1.0
 LONGITUDINAL_DISTANCE_BUFFER = 3.0
@@ -71,17 +69,6 @@ class PedestrianAvoidanceMotionPlanner(Component):
             if a.type == AgentEnum.PEDESTRIAN:
                 all_pedestrians.append(a)
 
-        margins = [LATERAL_DISTANCE_BUFFER,LONGITUDINAL_DISTANCE_BUFFER]
-        # add margins to our pedestrian polygons
-        pedestrians_with_margins = []
-        # change the bounds of the pedestrian polygons(l and w) to include the margins buffer function doesn't exist
-        for pedestrian in all_pedestrians:
-            # add the margins to the pedestrian polygons
-            l,w,h = pedestrian.dimensions
-            new_l, new_w = l + 2*LATERAL_DISTANCE_BUFFER, w + 2*LONGITUDINAL_DISTANCE_BUFFER
-            pedestrian.dimensions = (new_l, new_w, h)
-            pedestrians_with_margins.append(pedestrian)
-
         #extract out a 10m segment of the route
         route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
         route_with_lookahead = route_with_lookahead.arc_length_parameterize()
@@ -89,13 +76,6 @@ class PedestrianAvoidanceMotionPlanner(Component):
         #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
         #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
 
-        # Distance travelled during time in which driver reacts to seeing pedestrian
-        # reaction_distance = curr_v * REACTION_TIME
-
-        all_pedestrians = []
-        for k,a in agents.items():
-            if a.type == AgentEnum.PEDESTRIAN:
-                all_pedestrians.append(a)
         collision_check_resolution = 0.1  #m
         # start point index, end point index (number of points in the path)
         progress_start, progress_end = route_with_lookahead.domain()
@@ -106,6 +86,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
             xy = route_with_lookahead.eval(progress)
             vehicle.pose.x = xy[0]
             vehicle.pose.y = xy[1]
+            # add the margins to the pedestrian polygons
             try:
                 v = route_with_lookahead.eval_derivative(t)
                 vehicle.pose.yaw = math.atan2(v[1],v[0])
@@ -113,10 +94,16 @@ class PedestrianAvoidanceMotionPlanner(Component):
                 #path has only one point?
                 vehicle.pose.yaw = 0
             #this is a CCW polygon specifying the vehicle's position at the given progress, in the START frame
-            vehicle_poly_world = vehicle.to_object().polygon_parent() 
+            vehicle_object = vehicle.to_object()
+            l,w,h = vehicle_object.dimensions
+            new_l, new_w = l + 2*LATERAL_DISTANCE_BUFFER, w + 2*LONGITUDINAL_DISTANCE_BUFFER
+            vehicle_object.dimensions = (new_l, new_w, h)
+            vehicle_poly_world = vehicle_object.polygon_parent()
+            # add the buffer to the vehicle here
+
             if len(all_pedestrians) > 0:
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
-                if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in pedestrians_with_margins]):
+                if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
                     print("Predicted collision with pedestrian at",progress)
                     print("Vehicle position",xy[0],xy[1])
                     print("Pedestrian position",a.pose.x,a.pose.y)
@@ -124,14 +111,10 @@ class PedestrianAvoidanceMotionPlanner(Component):
                     #print("Pedestrian poly",a.polygon_parent())
                     #prevent
 
-                    max_progress = max(progress - collision_check_resolution,0.0) # probably need to replace
-                    # Figure out the progress along the path at which we potentially collide with any of
-                    # the pedestrians. Take the distance to the closest pedestrian since we want to brake
-                    # before we hit the first one.
+                    max_progress = max(progress - collision_check_resolution,0.0)
                     break
             progress += collision_check_resolution
-        if max_progress is not None:           
-            #allow enough room to brake from the current velocity
+        if max_progress is not None:
 
             # calculate distance needed to brake (distance between start braking and stopped moving)
             braking_distance = 0.5*(curr_v)**2/self.deceleration * 0.96 
