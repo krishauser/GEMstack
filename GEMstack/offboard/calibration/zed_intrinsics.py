@@ -27,7 +27,7 @@ def write_intrinsics(message, file):
 	with open(file, 'w') as yaml_file:
 		yaml.dump(camera_info, yaml_file)
 
-if __name__ == '__main__':
+def main():
 	message = get_intrinsics()
 	file = settings.get('calibration.zed_intrinsics')
 	write_intrinsics(message, file)
