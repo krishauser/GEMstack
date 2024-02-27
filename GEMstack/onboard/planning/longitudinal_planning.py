@@ -24,6 +24,11 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     points.append(path.points[0])
     times.append(0.0)
 
+    # If the path only has one point, then we don't know which direction to go
+    if len(path.points) == 1:
+        trajectory = Trajectory(path.frame,points,times)
+        return trajectory
+
     # Calculate the full path length and distance to each intermediate point
     path_length = 0
     milestone_distances = [0]
@@ -79,6 +84,11 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     # Add the first point and time
     points.append(path.points[0])
     times.append(0.0)
+
+    # If the path only has one point, then we don't know which direction to go
+    if len(path.points) == 1:
+        trajectory = Trajectory(path.frame,points,times)
+        return trajectory
 
     # Calculate the full path length and distance to each intermediate point
     path_length = 0

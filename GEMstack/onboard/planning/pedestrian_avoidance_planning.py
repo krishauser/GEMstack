@@ -1,7 +1,6 @@
 from typing import List
 from ..component import Component
-#these could be helpful in your implementation
-#from .longitudinal_planning import longitudinal_brake, longitudinal_plan
+from .longitudinal_planning import longitudinal_brake, longitudinal_plan
 from ...state import AllState, VehicleState, PhysicalObject, AgentEnum, AgentState, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd
@@ -63,16 +62,23 @@ class PedestrianAvoidanceMotionPlanner(Component):
             if a.type == AgentEnum.PEDESTRIAN:
                 all_pedestrians.append(a)
 
-        #extract out a 10m segment of the route
-        route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
+        # Calculate the lookahead distance as the distance to stop from the current speed
+        lookahead_distance = curr_v**2 / (2 * self.deceleration)
+        lookahead_distance = max(lookahead_distance,1.0)
+        route_with_lookahead = route.trim(closest_parameter,closest_parameter+lookahead_distance)
         route_with_lookahead = route_with_lookahead.arc_length_parameterize()
         
         #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
         #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
-        all_pedestrians = []
-        for k,a in agents.items():
-            if a.type == AgentEnum.PEDESTRIAN:
-                all_pedestrians.append(a)
+        
+        # stretch the vehicle polygon by the desired margins
+        vehicle_poly_local = vehicle.to_object().polygon()
+        x_max = max([p[0] for p in vehicle_poly_local])
+        y_max = max([p[1] for p in vehicle_poly_local])
+        x_multiplier = (x_max + 3) / x_max
+        y_multiplier = (y_max + 1) / y_max
+        vehicle_poly_local = [[p[0] * x_multiplier, p[1] * y_multiplier] for p in vehicle_poly_local]
+
         collision_check_resolution = 0.1  #m
         progress_start, progress_end = route_with_lookahead.domain()
         progress = progress_start
@@ -87,16 +93,18 @@ class PedestrianAvoidanceMotionPlanner(Component):
             except Exception:
                 #path has only one point?
                 vehicle.pose.yaw = 0
-            #this is a CCW polygon specifying the vehicle's position at the given progress, in the START frame
-            vehicle_poly_world = vehicle.to_object().polygon_parent() 
+            
+            # transform the vehicle polygon to the world frame
+            vehicle_poly_world = [vehicle.pose.apply(p) for p in vehicle_poly_local]
+
             if len(all_pedestrians) > 0:
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
                 if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
                     print("Predicted collision with pedestrian at",progress)
                     print("Vehicle position",xy[0],xy[1])
                     print("Pedestrian position",a.pose.x,a.pose.y)
-                    #print("Vehicle poly",vehicle_poly_world)
-                    #print("Pedestrian poly",a.polygon_parent())
+                    print("Vehicle poly",vehicle_poly_world)
+                    print("Pedestrian poly",a.polygon_parent())
                     #prevent
                     max_progress = max(progress - collision_check_resolution,0.0)
                     break
