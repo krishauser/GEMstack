@@ -138,7 +138,16 @@ class PedestrianDetector(Component):
         point cloud, and the calibrated camera / lidar poses to get a good
         estimate of the pedestrian's pose and dimensions.
         """
-        x, y, w, h = box
+        # get the idxs of point cloud that belongs to the agent
+        x,y,w,h = box
+        xmin, xmax = x - w/2, x + w/2
+        ymin, ymax = y - h/2, y + h/2
+        idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
+                        (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
+        
+        agent_image_pc = point_cloud_image[idxs]
+        agent_world_pc = point_cloud_image_world[idxs]
+        
 
         # Find the point_cloud that is closest to the center of our bounding box
         center_x = x + w / 2
@@ -147,11 +156,30 @@ class PedestrianDetector(Component):
         closest_point_cloud_idx = np.argmin(distances)
         closest_point_cloud = point_cloud_image_world[closest_point_cloud_idx]
 
-        # Extract the z-coordinate (depth) from the closest point cloud
-        _, _, z = closest_point_cloud
+        #########################################################################################################
+        # Definition of ObjectPose and dimensions:
+        # 
+        #   Copy from the comment of class PhysicalObject:
+        #     The origin is at the object's center in the x-y plane but at the bottom
+        #     in the z axis.  I.e., if l,w,h are the dimensions, then the object is
+        #     contained in a bounding box [-l/2,l/2] x [-w/2,w/2] x [0,h].
+        #   
+        #   Copy from the comment of class ObjectFrameEnum(Enum):
+        #     ObjectFrameEnum.CURRENT: position / yaw in m / radians relative to current pose of vehicle
+        #########################################################################################################
+        
+        # Specify ObjectPose. Note that The pose's yaw, pitch, and roll are assumed to be 0 for simplicity.
+        x, y, _ = closest_point_cloud
+        pose = ObjectPose(t=0, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+        
+        # Specify AgentState.
+        l = np.max(agent_world_pc[:, 0]) - np.min(agent_world_pc[:, 0])
+        w = np.max(agent_world_pc[:, 1]) - np.min(agent_world_pc[:, 1])
+        h = np.max(agent_world_pc[:, 2]) - np.min(agent_world_pc[:, 2])
+        dims = (l, w, h) 
+        return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
-        # The pose's yaw, pitch, and roll are assumed to be 0 for simplicity.
-        pose = ObjectPose(t=0, x=center_x, y=center_y, z=z, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+        
         depth = np.max(point_cloud_image_world[:, 2]) - np.min(point_cloud_image_world[:, 2])
         dimensions = [w, h, depth]
 
