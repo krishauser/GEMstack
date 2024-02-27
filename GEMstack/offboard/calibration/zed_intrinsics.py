@@ -13,7 +13,7 @@ import yaml
 
 def get_intrinsics():
 	rospy.init_node('zed2_intrinsics', disable_signals=True)
-	message = rospy.wait_for_message('/zed2/zed_node/depth/camera_info', CameraInfo)
+	message = rospy.wait_for_message('/zed2/zed_node/rgb/camera_info', CameraInfo)
 	return message
 
 def write_intrinsics(message, file):
