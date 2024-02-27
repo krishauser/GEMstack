@@ -17,6 +17,7 @@ data
 1. Manually extract corresponding feature points between 3D lidar point cloud and 2D image using `lidar_feature_extract.py` and `camera_feature_extract.py`. After extraction, scripts will output the .csv file including the coordinate of feature points. Make sure two .csv files of lidar and image including the same number of feature points. <br>
 Note: You can select points by `shift + click` in Open3D: <br>
 <img width="941" alt="image" src="https://github.com/krishauser/GEMstack/assets/22386566/74b20ea2-571c-4e1f-b95c-24a3f8583193">
+
 2. Use `lidar_camera_calibration.py` to find optimized parameters of extrinsic matrix based on corresponding feature points extracted in previous step.
 3. Use `open3D_verify_calibration.py` to verify the obtained extrinsic matrix. If it works, you can see point clouds well align with the image pixels on target object <br>
 <img width="540" alt="image" src="https://github.com/krishauser/GEMstack/assets/22386566/23d48634-c9e2-4887-9ecf-d836619cf3c6">
