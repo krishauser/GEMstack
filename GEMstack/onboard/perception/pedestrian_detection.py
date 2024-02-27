@@ -56,7 +56,7 @@ class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        #self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
+        # self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
@@ -90,21 +90,21 @@ class PedestrianDetector(Component):
     
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        #self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
         #tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
-        #self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
+        self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         #subscribe to the Zed CameraInfo topic
-        #self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
-        pass
-    
-    # def image_callback(self, image : cv2.Mat):
-    #     self.zed_image = image
+        self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
 
-    # def camera_info_callback(self, info : CameraInfo):
-    #     self.camera_info = info
 
-    # def lidar_callback(self, point_cloud: np.ndarray):
-    #     self.point_cloud = point_cloud
+    def image_callback(self, image : cv2.Mat):
+        self.zed_image = image
+
+    def camera_info_callback(self, info : CameraInfo):
+        self.camera_info = info
+
+    def lidar_callback(self, point_cloud: np.ndarray):
+        self.point_cloud = point_cloud
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         if self.zed_image is None:
@@ -133,15 +133,29 @@ class PedestrianDetector(Component):
 
     def box_to_agent(self, box, point_cloud_image, point_cloud_image_world):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
-        
+
         TODO: you need to use the image, the camera intrinsics, the lidar
         point cloud, and the calibrated camera / lidar poses to get a good
         estimate of the pedestrian's pose and dimensions.
         """
-        x,y,w,h = box
-        pose = ObjectPose(t=0,x=x,y=y,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-        dims = [w,h,1.7]
-        return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+        x, y, w, h = box
+
+        # Find the point_cloud that is closest to the center of our bounding box
+        center_x = x + w / 2
+        center_y = y + h / 2
+        distances = np.linalg.norm(point_cloud_image - [center_x, center_y], axis=1)
+        closest_point_cloud_idx = np.argmin(distances)
+        closest_point_cloud = point_cloud_image_world[closest_point_cloud_idx]
+
+        # Extract the z-coordinate (depth) from the closest point cloud
+        _, _, z = closest_point_cloud
+
+        # The pose's yaw, pitch, and roll are assumed to be 0 for simplicity.
+        pose = ObjectPose(t=0, x=center_x, y=center_y, z=z, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+        depth = np.max(point_cloud_image_world[:, 2]) - np.min(point_cloud_image_world[:, 2])
+        dimensions = [w, h, depth]
+
+        return AgentState(pose=pose, dimensions=dimensions, outline=None, type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
 
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
