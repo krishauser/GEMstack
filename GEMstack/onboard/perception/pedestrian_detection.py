@@ -8,6 +8,7 @@ import cv2
 import rospy
 from sensor_msgs.msg import CameraInfo
 from image_geometry import PinholeCameraModel
+from mathutils import collisions
 
 import numpy as np
 from typing import Dict,Tuple
@@ -189,8 +190,17 @@ class PedestrianDetector(Component):
         # TODO: keep track of which pedestrians were detected before using last_agent_states.
         # use these to assign their ids and estimate velocities.
         results = {}
-        for i,a in enumerate(detected_agents):
-            results['pedestrian_'+str(self.pedestrian_counter)] = a
+        for detection in detected_agents:
+            for previous_detection_name in self.last_agent_states:
+                start_frame = self.last_agent_states[previous_detection_name]
+                start_frame = start_frame.to_frame(1, VehicleState.pose)
+                current_frame = detection
+                if collisions.polygon_intersects_polygon_2d(current_frame.polygon(), start_frame.polygon()):
+                    results[previous_detection_name] = detection
+                    detection.velocity = (0,0,0)
+                    continue
+            detection.velocity = (0,0,0)
+            results['ped'+str(self.pedestrian_counter)] = detection
             self.pedestrian_counter += 1
         return results
 
