@@ -90,21 +90,21 @@ class PedestrianDetector(Component):
     
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        #self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
         #tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
-        #self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
+        self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         #subscribe to the Zed CameraInfo topic
-        #self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
-        pass
+        self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
     
-    # def image_callback(self, image : cv2.Mat):
-    #     self.zed_image = image
+    def image_callback(self, image : cv2.Mat):
+        self.zed_image = image
+        self.update(self.vehicle_interface.get_state('vehicle'))
 
-    # def camera_info_callback(self, info : CameraInfo):
-    #     self.camera_info = info
+    def camera_info_callback(self, info : CameraInfo):
+        self.camera_info = info
 
-    # def lidar_callback(self, point_cloud: np.ndarray):
-    #     self.point_cloud = point_cloud
+    def lidar_callback(self, point_cloud: np.ndarray):
+        self.point_cloud = point_cloud
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         if self.zed_image is None:
@@ -147,7 +147,15 @@ class PedestrianDetector(Component):
         detection_result = self.detector(self.zed_image,verbose=False)
         self.last_person_boxes = []
         #TODO: create boxes from detection result
+        boxes = detection_result[0].boxes
+        for i in range(len(boxes)):
+            if(boxes.cls[i] == 0):
+                self.last_person_boxes.append(boxes.xywh[i].tolist())
+
         #TODO: create point clouds in image frame and world frame
+        # copilot wrote the below line: 
+        point_cloud_image, image_indices = project_point_cloud(self.point_cloud, Pmatrix(560,560,640,360), (0,1280),(0,720))
+
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
             #agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
