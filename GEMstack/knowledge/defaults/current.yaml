@@ -46,6 +46,7 @@ planning:
 
 # HW3
 calibration:
+    data1: !relative_path "../../../data/calibration1"
     zed_intrinsics: !relative_path "../calibration/gem_e2_zed_intrinsics.yaml"
 
 #configure the simulator, if using
