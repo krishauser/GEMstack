@@ -1,6 +1,6 @@
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ...utils import settings
-from ...mathutils import transforms
+from ...mathutils import transforms, collisions
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
@@ -8,7 +8,6 @@ import cv2
 import rospy
 from sensor_msgs.msg import CameraInfo
 from image_geometry import PinholeCameraModel
-from mathutils import collisions
 
 import numpy as np
 from typing import Dict,Tuple
@@ -141,12 +140,21 @@ class PedestrianDetector(Component):
         """
         x,y,w,h = box
         # find the point_cloud that is closest to the center of our bounding box
-        center_point_cloud_idx =  np.argmin(np.linalg.norm(point_cloud_image - [x+w/2,y+h/2],axis=1))
-        x_3d,y_3d,z_3d = point_cloud_image_world[center_point_cloud_idx]
+        # center_point_cloud_idx =  np.argmin(np.linalg.norm(point_cloud_image - [x,y],axis=1))
+
+        # the nearest point may be on the ground, so we take the 10 nearest points take the one with smallest distance
+        center_point_cloud_idx =  np.argsort(np.linalg.norm(point_cloud_image - [x,y],axis=1))
+        center_point_cloud_idx = center_point_cloud_idx[:10]
+        center_point_cloud = point_cloud_image_world[center_point_cloud_idx]
+        x_3d,y_3d,z_3d = center_point_cloud[np.argmin(np.linalg.norm(center_point_cloud,axis=1))]
+
+        height = 1.7
+        # the bbox is [-w/2,w/2] x [-h/2,h/2] x [0,height], see PhysicalObject.py
+        z_3d -= height/2
         pose = ObjectPose(t=0,x=x_3d,y=y_3d,z=z_3d,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-        depth = max(point_cloud_image_world[:,2]) - min(point_cloud_image_world[:,2])
+        # depth = max(point_cloud_image_world[:,2]) - min(point_cloud_image_world[:,2])
         # dims = [w,h,depth]
-        dims = [1,1,1]
+        dims = [1,1,height]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
