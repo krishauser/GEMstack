@@ -144,7 +144,8 @@ class PedestrianDetector(Component):
         x_3d,y_3d,z_3d = point_cloud_image_world[center_point_cloud_idx]
         pose = ObjectPose(t=0,x=x_3d,y=y_3d,z=z_3d,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
         depth = max(point_cloud_image_world[:,2]) - min(point_cloud_image_world[:,2])
-        dims = [w,h,depth]
+        # dims = [w,h,depth]
+        dims = [1,1,1]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
@@ -170,11 +171,8 @@ class PedestrianDetector(Component):
         point_cloud = (np.dot(self.T_lidar_to_zed, point_cloud.T).T)[:,:3]
         point_cloud_image, image_indices =  project_point_cloud(point_cloud, p_matrix, xrange, yrange)
         point_cloud_image_world = point_cloud[image_indices]
-        # visualize point_cloud_image with cv2
-        # mask = np.zeros((self.camera_info.height, self.camera_info.width), dtype=np.uint8)
-        # for u,v in point_cloud_image.astype(int):
-        #     self.zed_image[v,u] = (255,0,0)
-        # cv2.imshow('point_cloud_image', self.zed_image)
+        point_cloud_image_world = np.concatenate((point_cloud_image_world,np.ones((point_cloud_image_world.shape[0],1))),axis=1)
+        point_cloud_image_world = (np.dot(self.T_zed, point_cloud_image_world.T).T)[:,:3]
 
         self._point_cloud_image = point_cloud_image
         self._point_cloud_image_world = point_cloud_image_world
