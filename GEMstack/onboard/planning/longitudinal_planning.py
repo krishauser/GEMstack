@@ -4,7 +4,8 @@ from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum,
 from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd, vector_dist
 
-
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 DELTA_TIME = settings.get('longitudinal_planning.delta_time')
 # DELTA_TIME = 0.05
 
