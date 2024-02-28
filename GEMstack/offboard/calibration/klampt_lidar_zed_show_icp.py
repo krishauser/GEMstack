@@ -26,11 +26,15 @@ def main(folder):
     lidar_pattern = os.path.join(folder,"lidar{}.npz")
     color_pattern = os.path.join(folder,"color{}.png")
     depth_pattern = os.path.join(folder,"depth{}.tif")
+    points_pattern1 = os.path.join(folder,"lidar{}.npy")
+    points_pattern2 = os.path.join(folder,"zed{}.npy")
     data = {}
     def load_and_show_scan(idx):
         arr_compressed = np.load(lidar_pattern.format(idx))
         arr = arr_compressed['arr_0']
         arr_compressed.close()
+        # mask = arr[:,1] > 0
+        # arr = arr[mask]
         pc = numpy_convert.from_numpy(arr,'PointCloud')
         pc = colorize(pc,'z','plasma')
         data['lidar'] = Geometry3D(pc)
@@ -52,15 +56,22 @@ def main(folder):
         # NEW CODE
         source_pts = image_to_points(depth,None,zed_xfov,zed_yfov,depth_scale=4000.0/0xffff, points_format='numpy')
         target_pts = data['lidar'].getPointCloud().getPoints() # (25281, 3)
+        # data['zed'] = Geometry3D(numpy_convert.from_numpy(source_pts,'PointCloud'))
+        # data['zed'].setCurrentTransform(*zed_xform)
+
+        np.save(points_pattern1.format(idx), target_pts)
+        np.save(points_pattern2.format(idx), source_pts)
 
         # transfer to point cloud
         source_pcd = o3d.geometry.PointCloud()
         target_pcd = o3d.geometry.PointCloud()
+
         source_pcd.points = o3d.utility.Vector3dVector(source_pts)
         target_pcd.points = o3d.utility.Vector3dVector(target_pts)
         
         threshold = 0.0244 #TODO
         trans_init = np.identity(4) #zed_xform #TODO
+        trans_init = np.array([[0,0,1,0],[-1,0,0,0],[0,-1,0,0],[0,0,0,1]]).T
         print("Apply point-to-point ICP")
         reg_p2p = o3d.pipelines.registration.registration_icp(
             source_pcd, target_pcd, threshold, trans_init,

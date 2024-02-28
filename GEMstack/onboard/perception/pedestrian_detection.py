@@ -5,12 +5,10 @@ from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
 import cv2
-try:
-    from sensor_msgs.msg import CameraInfo
-    from image_geometry import PinholeCameraModel
-    import rospy
-except ImportError:
-    pass
+import rospy
+from sensor_msgs.msg import CameraInfo
+from image_geometry import PinholeCameraModel
+
 import numpy as np
 from typing import Dict,Tuple
 import time
@@ -44,7 +42,7 @@ def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple
     #this is the hard but fast way
 
     pc_with_ids = np.hstack((point_cloud,np.arange(len(point_cloud)).reshape(-1,1)))
-    pc_fwa = pc_with_ids[pc_with_ids[:,2] > 0]
+    pc_fwd = pc_with_ids[pc_with_ids[:,2] > 0]
     pxform = pc_fwd[:,:3].dot(P[:3,:3].T) + P[:3,3]
     uv = (pxform[:,0:2].T/pxform[:,2]).T
     inds = np.logical_and(np.logical_and(uv[:,0] >= xrange[0],uv[:,0] < xrange[1]),
@@ -58,7 +56,7 @@ class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        #self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
+        self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
@@ -143,15 +141,15 @@ class PedestrianDetector(Component):
         x,y,w,h = box
         # find the point_cloud that is closest to the center of our bounding box
         center_point_cloud_idx =  np.argmin(np.linalg.norm(point_cloud_image - [x+w/2,y+h/2],axis=1))
-        _,_,z = point_cloud_image_world[center_point_cloud_idx]
-        pose = ObjectPose(t=0,x=x,y=y,z=z,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
+        x_3d,y_3d,z_3d = point_cloud_image_world[center_point_cloud_idx]
+        pose = ObjectPose(t=0,x=x_3d,y=y_3d,z=z_3d,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
         depth = max(point_cloud_image_world[:,2]) - min(point_cloud_image_world[:,2])
         dims = [w,h,depth]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)[0]
-        boxes = detection_result
+        boxes = detection_result.boxes
         self.last_person_boxes = []
         for i, class_idx in enumerate(boxes.cls):
             if class_idx == PERSON_INDEX:
@@ -159,7 +157,8 @@ class PedestrianDetector(Component):
         #TODO: create point clouds in image frame and world frame
         # in order to get pmatrix, we first need the camera intrinsics(fx,fy,cx,cy)
         # we can get these from the camera_info message but we first need to convert the camera info into a 
-        image_geometry = image_geometry.PinholeCameraModel().fromCameraInfo(self.camera_info)
+        image_geometry = PinholeCameraModel()
+        image_geometry.fromCameraInfo(self.camera_info)
         fx, fy, cx, cy = image_geometry.fx(), image_geometry.fy(), image_geometry.cx(), image_geometry.cy()
         p_matrix = Pmatrix(fx, fy, cx, cy)
         # we also need the range of the image
@@ -167,9 +166,18 @@ class PedestrianDetector(Component):
         yrange = (0, self.camera_info.height)
         # we might need to convert the point cloud into the camera frame we can use the T_lidar_to_zed matrix to convert the point cloud into the camera frame
         # however I'm not sure when/if we need to do this
-
+        point_cloud = np.concatenate((self.point_cloud[:,:3],np.ones((self.point_cloud.shape[0],1))),axis=1)
+        point_cloud = (np.dot(self.T_lidar_to_zed, point_cloud.T).T)[:,:3]
         point_cloud_image, image_indices =  project_point_cloud(point_cloud, p_matrix, xrange, yrange)
-        point_cloud_image_world = self.point_cloud[image_indices]
+        point_cloud_image_world = point_cloud[image_indices]
+        # visualize point_cloud_image with cv2
+        # mask = np.zeros((self.camera_info.height, self.camera_info.width), dtype=np.uint8)
+        # for u,v in point_cloud_image.astype(int):
+        #     self.zed_image[v,u] = (255,0,0)
+        # cv2.imshow('point_cloud_image', self.zed_image)
+
+        self._point_cloud_image = point_cloud_image
+        self._point_cloud_image_world = point_cloud_image_world
 
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
@@ -178,7 +186,7 @@ class PedestrianDetector(Component):
             pass
         return detected_agents
     
-    def track_agents(self, vehicle : VehicleState, detected_agents : list[AgentState]):
+    def track_agents(self, vehicle : VehicleState, detected_agents):
         """Given a list of detected agents, updates the state of the agents."""
         # TODO: keep track of which pedestrians were detected before using last_agent_states.
         # use these to assign their ids and estimate velocities.
@@ -215,3 +223,7 @@ class PedestrianDetector(Component):
             CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             #TODO: these are guessed parameters
             self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
+        self.detect_agents()
+
+    def point_cloud_image(self):
+        return self._point_cloud_image, self._point_cloud_image_world
