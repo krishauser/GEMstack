@@ -4,7 +4,7 @@ from klampt.vis.colorize import colorize
 from klampt import PointCloud,Geometry3D
 from klampt.io import numpy_convert
 from klampt.model.sensing import image_to_points
-import open3d as o3d
+import GEMstack.offboard.calibration.extract_lidar_points as o3d
 import cv2
 import os
 import numpy as np
