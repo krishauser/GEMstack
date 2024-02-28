@@ -111,10 +111,25 @@ class PedestrianAvoidanceMotionPlanner(Component):
             if len(all_pedestrians) > 0:
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
                 # Calculate distance between vehicle and pedestrain:
-                if abs(curr_y - a.pose.y) <= vehicle_margin_lateral and abs(curr_x - a.pose.x) <= vehicle_margin_longitudinal:
+                x_p = a.pose.x
+                y_p = a.pose.y
+                w_p = a.dimensions[0]
+                h_p = a.dimensions[1]
+
+                x_v = curr_x
+                y_v = curr_y
+                w_v = vehicle_margin_lateral
+                h_v = vehicle_margin_longitudinal
+
+                left_p, right_p = y_p - w_p, y_p + w_p
+                top_p, bottom_p = x_p + h_p, x_p - h_p
+                left_v, right_v = y_v - w_v/2, y_v + w_v/2
+                top_v, bottom_v = x_v + h_v/2, x_v - h_v/2
+
+                if left_p < right_v and right_p > left_v and bottom_p < top_v and top_p > bottom_v:
                     print("Collision Warning!!!")  
                     max_progress = max(progress - collision_check_resolution,0.0)
-                    break       
+                    break   
                         
                 # if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
                 #     print("Predicted collision with pedestrian at",progress)
