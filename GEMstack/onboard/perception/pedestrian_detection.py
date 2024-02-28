@@ -13,7 +13,7 @@ try:
 except ImportError:
     pass
 import numpy as np
-from typing import Dict,Tuple
+from typing import Dict,Tuple, List
 import time
 
 def Pmatrix(fx,fy,cx,cy):
@@ -52,12 +52,38 @@ def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple
     image_indices = pc_fwd[inds,3].astype(int)
     return point_cloud_image, image_indices
 
+def lidar_to_image(point_cloud_lidar: np.ndarray, extrinsic : np.ndarray, intrinsic : np.ndarray):
+    
+    homo_point_cloud_lidar = np.hstack((point_cloud_lidar, np.ones((point_cloud_lidar.shape[0], 1)))) # (N, 4)
+    pointcloud_pixel = (intrinsic @ extrinsic @ (homo_point_cloud_lidar).T) # (3, N)
+    pointcloud_pixel = pointcloud_pixel.T # (N, 3)
+
+    # normalize
+    pointcloud_pixel[:, 0] /= pointcloud_pixel[:, 2] # normalize
+    pointcloud_pixel[:, 1] /= pointcloud_pixel[:, 2] # normalize
+    point_cloud_image =  pointcloud_pixel[:,:2] # (N, 2)
+    return point_cloud_image
+
+def lidar_to_vehicle(point_cloud_lidar: np.ndarray, T_lidar2_Gem: np.ndarray):
+    ones = np.ones((point_cloud_lidar.shape[0], 1))
+    pcd_homogeneous = np.hstack((point_cloud_lidar, ones)) # (N, 4)
+    pointcloud_trans = np.dot(T_lidar2_Gem, pcd_homogeneous.T) # (4, N)
+    pointcloud_trans = pointcloud_trans.T # (N, 4)
+    point_cloud_image_world = pointcloud_trans[:, :3] # (N, 3)
+    return point_cloud_image_world
+
+def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tuple[float, float]):
+    xmin, xmax = xrange
+    ymin, ymax = yrange
+    idxs = np.where((point_cloud[:, 0] > xmin) & (point_cloud[:, 0] < xmax) &
+                    (point_cloud[:, 1] > ymin) & (point_cloud[:, 1] < ymax) )
+    return point_cloud[idxs]
 
 class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        # self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
+        self.detector = YOLO(settings.get('pedestrian_detection.model'))
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
@@ -79,7 +105,28 @@ class PedestrianDetector(Component):
         assert(settings.get('vehicle.calibration.front_camera.reference') == 'rear_axle_center')
         self.pedestrian_counter = 0
         self.last_agent_states = {}
+        
+        # init transformation parameters
+        extrinsic = [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
+                          [-0.04834961 , -0.02051524, -0.99861977, -0.02062586],
+                          [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
+                          [ 0.         ,  0.        ,  0.        ,  1.        ]]
+        self.extrinsic = np.asarray(extrinsic)
+        intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0]
+        intrinsic = np.array(intrinsic).reshape((3, 3))
+        self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
+        T_lidar2_Gem = [[ 0.9988692,  -0.04754282, 0.,       0.81915   ],
+                        [0.04754282,  0.9988692,    0.,          0.        ],
+                        [ 0.,          0.,          1.,          1.7272    ],
+                        [ 0.,          0.,          0.,          1.        ]]
+        self.T_lidar2_Gem = np.asarray(T_lidar2_Gem)
+
+        # obtained by GEMstack/offboard/calibration/check_target_lidar_range.py
+        # Hardcode the roi area for agents
+        self.xrange = (2.3959036, 5.8143473)
+        self.yrange = (-2.0247698, 4.0374074)
+        
     def rate(self):
         return 4.0
     
@@ -89,6 +136,11 @@ class PedestrianDetector(Component):
     def state_outputs(self):
         return ['agents']
     
+    def test_set_data(self, zed_image, point_cloud, camera_info='dummy'):
+        self.zed_image = zed_image
+        self.point_cloud = point_cloud
+        self.camera_info = camera_info
+
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
         self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
@@ -158,10 +210,10 @@ class PedestrianDetector(Component):
         closest_point_cloud = point_cloud_image_world[closest_point_cloud_idx]
 
         # Filter out noise
-        dbscan = DBSCAN(eps=0.5, min_samples=10)
-        clusters = dbscan.fit_predict(closest_point_cloud)
-        largest_cluster_idx = np.argmax(np.bincount(clusters[clusters >= 0]))
-        closest_point_cloud = closest_point_cloud[clusters == largest_cluster_idx]
+        # dbscan = DBSCAN(eps=0.5, min_samples=10)
+        # clusters = dbscan.fit_predict(closest_point_cloud)
+        # largest_cluster_idx = np.argmax(np.bincount(clusters[clusters >= 0]))
+        # closest_point_cloud = closest_point_cloud[clusters == largest_cluster_idx]
 
         #########################################################################################################
         # Definition of ObjectPose and dimensions:
@@ -187,59 +239,29 @@ class PedestrianDetector(Component):
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
         
-        depth = np.max(point_cloud_image_world[:, 2]) - np.min(point_cloud_image_world[:, 2])
-        dimensions = [w, h, depth]
-
-        return AgentState(pose=pose, dimensions=dimensions, outline=None, type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
-
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
-        self.last_person_boxes = []
         
         #TODO: create boxes from detection result
-        for detection in detection_result:
-            if detection['class_id'] == 0:  
-                x, y, w, h = detection['bbox']
-                self.last_person_boxes.append([x, y, w, h])  
-                
-        #TODO: create point clouds in image frame and world frame
-        """
-        Tansfer point cloud to camera frame
-        """
-        extrinsic = [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
-             [-0.04834961 , -0.02051524, -0.99861977, -0.02062586],
-             [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
-             [ 0.         ,  0.        ,  0.        ,  1.        ]]
-        extrinsic = np.asarray(extrinsic)
-        intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0]
-        intrinsic = np.array(intrinsic).reshape((3, 3))
-        intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
+        pedestrian_boxes = []
+        for box in detection_result[0].boxes: # only one image, so use index 0 of result
+           class_id = int(box.cls[0].item())
+           if class_id == 0: # class 0 stands for pedestrian
+               bbox = box.xywh[0].tolist()
+               pedestrian_boxes.append(bbox)
+    
+        # Only keep lidar point cloud that lies in roi area for agents
+        point_cloud_lidar = filter_lidar_by_range(self.point_cloud, self.xrange, self.yrange)
+        
+        # Tansfer lidar point cloud to camera frame
+        point_cloud_image = lidar_to_image(point_cloud_lidar, self.extrinsic, self.intrinsic)
+        
+        # Tansfer lidar point cloud to vehicle frame
+        point_cloud_image_world = lidar_to_vehicle(point_cloud_lidar, self.T_lidar2_Gem)
 
-        pointcloud_pixel = (intrinsic @ extrinsic @ (np.hstack((self.point_cloud, np.ones((self.point_cloud.shape[0], 1))))).T).T
-
-        pointcloud_pixel[:, 0] /= pointcloud_pixel[:, 2]
-        pointcloud_pixel[:, 1] /= pointcloud_pixel[:, 2]
-        point_cloud_image =  pointcloud_pixel[:,:2]
-
-        """
-        Tansfer point cloud to vehicle frame
-        """
-        T_lidar2_Gem = [[ 0.9988692,  -0.04754282, 0.,       0.81915   ],
-             [0.04754282,  0.9988692,    0.,          0.        ],
-             [ 0.,          0.,          1.,          1.7272    ],
-             [ 0.,          0.,          0.,          1.        ]]
-        T_lidar2_Gem = np.asarray(T_lidar2_Gem)
-
-        ones = np.ones((self.point_cloud.shape[0], 1))
-        pcd_homogeneous = np.hstack((self.point_cloud, ones))
-        pointcloud_trans = np.dot(T_lidar2_Gem, pcd_homogeneous.T).T
-        point_cloud_image_world = pointcloud_trans[:, :3]
-
-        """
-        Find agents
-        """
+        # Find agents
         detected_agents = []
-        for i,b in enumerate(self.last_person_boxes):
+        for i,b in enumerate(pedestrian_boxes):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             detected_agents.append(agent)
         return detected_agents
