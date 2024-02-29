@@ -11,6 +11,7 @@ from .lidar_zed import Lidar, select_points_from_pcd
 import open3d as o3d
 
 import numpy as np
+import yaml
 
 def compute_best_fitting_plane(pts):
     pcd = o3d.geometry.PointCloud()
@@ -31,7 +32,7 @@ def compute_rotation(lidar_pts):
     R = [[np.cos(theta), -np.sin(theta), 0], 
          [np.sin(theta), np.cos(theta), 0], 
          [0,0,1]]
-    print('R:\n', R)
+    
     return R
 
 def compute_translation():
@@ -45,7 +46,6 @@ def compute_translation():
     tz = d_ground_to_lidar - d_ground_to_rear_axle
 
     t = [tx, ty, tz]
-    print('t:\n', t)
     return t
 
 def run(folder, idx):
@@ -57,9 +57,21 @@ def run(folder, idx):
     lidar_pts = select_points_from_pcd(lidar_data)    
     
     R = compute_rotation(lidar_pts)
-    t = compute_translation()
+    print('R:\n', R)
 
-    # write to file
+    t = compute_translation()
+    print('t:\n', t)
+
+    # TODO: write R and t to GEMstack/GEMstack/knowledge/calibration/gem_e2_velodyne.yaml
+
+    d = {
+        'lidar2vehicle': {
+            'R': np.array(R).flatten().tolist(),
+            't': t
+        }
+    }
+    with open(settings.get('calibration.transforms'), 'a') as yaml_file:
+        yaml.dump(d, yaml_file)
 
 def main():
     calib_data_folder = settings.get('calibration.data2')
