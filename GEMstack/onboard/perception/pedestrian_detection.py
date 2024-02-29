@@ -293,6 +293,11 @@ class PedestrianDetector(Component):
             assigned = False  # Flag to check if the current agent is assigned to an existing track
 
             for ped_id, prev_agent in self.previous_agents.items():
+                
+                # Car moves between frames. So have to transform the previous agent's pose
+                # to align with the current vehicle's pose.
+                prev_agent = prev_agent.to_frame(ObjectFrameEnum.CURRENT, vehicle.pose)
+                
                 if self.overlaps(current_agent.pose, prev_agent.pose):
                     # If the current agent overlaps with a previous agent, it's the same pedestrian
                     velocity = self.estimate_velocity(prev_agent.pose, current_agent.pose)
