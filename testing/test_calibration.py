@@ -79,16 +79,16 @@ def run_lidar_vehicle_transform():
     import GEMstack.offboard.calibration.lidar_vehicle_transform as lidar_vehicle_transform
     lidar_vehicle_transform.main()
 
-    # visualization
-    # read_zed_intrinsics()
-    # read_lidar_zed_transform()
-    # visualize_lidar_zed_transform(16)
+def run_zed_vehicle_transform():
+    import GEMstack.offboard.calibration.zed_vehicle_transform as zed_vehicle_transform
+    zed_vehicle_transform.main()
 
 if __name__ == '__main__':
     print('Options:')
     print('1. Obtain ZED2 intrinsics')
     print('2. Compute Velodyne to ZED2 transform')
     print('3. Compute Velodyne to vehicle transform')
+    print('3. Compute ZED2 to vehicle transform')
     choice = input('Enter choice - ')
     print()
 
@@ -98,3 +98,5 @@ if __name__ == '__main__':
         run_lidar_zed_transform()
     elif choice == '3':
         run_lidar_vehicle_transform()
+    elif choice == '4':
+        run_zed_vehicle_transform()
