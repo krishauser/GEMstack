@@ -47,6 +47,7 @@ planning:
 # HW3
 calibration:
     data1: !relative_path "../../../data/calibration1"
+    data2: !relative_path "../../../data/calibration2"
     zed_intrinsics: !relative_path "../calibration/gem_e2_zed_intrinsics.yaml"
     transforms: !relative_path "../calibration/gem_e2_transforms.yaml"
 

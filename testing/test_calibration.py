@@ -36,6 +36,8 @@ def read_lidar_zed_transform():
 def visualize_lidar_zed_transform(idx):
     lidar_data_path = os.path.join(calib1_folder, 'lidar{}.npz').format(idx)
     lidar_data = np.load(lidar_data_path)['arr_0']
+
+    # select points of interest
     lidar_pts = select_points_from_pcd(lidar_data)
 
     # convert lidar points to 4 by |pts| format
