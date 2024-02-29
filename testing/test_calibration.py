@@ -10,6 +10,7 @@ import os
 sys.path.append(os.getcwd())
 
 from GEMstack.utils import settings
+from GEMstack.offboard.calibration.lidar_zed import select_points_from_pcd
 
 import open3d as o3d
 import numpy as np
@@ -35,17 +36,7 @@ def read_lidar_zed_transform():
 def visualize_lidar_zed_transform(idx):
     lidar_data_path = os.path.join(calib1_folder, 'lidar{}.npz').format(idx)
     lidar_data = np.load(lidar_data_path)['arr_0']
-    lidar_pcd = o3d.geometry.PointCloud()
-    lidar_pcd.points = o3d.utility.Vector3dVector(lidar_data)
-
-    # select points of interest
-    vis = o3d.visualization.VisualizerWithVertexSelection()
-    vis.create_window()
-    vis.add_geometry(lidar_pcd)
-    vis.run()
-    vis.destroy_window()
-    idxs = [point.index for point in vis.get_picked_points()]
-    lidar_pts = lidar_data[idxs]
+    lidar_pts = select_points_from_pcd(lidar_data)
 
     # convert lidar points to 4 by |pts| format
     lidar_pts4 = np.ones((4,len(lidar_pts)))
@@ -82,10 +73,20 @@ def run_lidar_zed_transform():
     read_lidar_zed_transform()
     visualize_lidar_zed_transform(16)
 
+def run_lidar_vehicle_transform():
+    import GEMstack.offboard.calibration.lidar_vehicle_transform as lidar_vehicle_transform
+    lidar_vehicle_transform.main()
+
+    # visualization
+    # read_zed_intrinsics()
+    # read_lidar_zed_transform()
+    # visualize_lidar_zed_transform(16)
+
 if __name__ == '__main__':
     print('Options:')
     print('1. Obtain ZED2 intrinsics')
     print('2. Compute Velodyne to ZED2 transform')
+    print('3. Compute Velodyne to vehicle transform')
     choice = input('Enter choice - ')
     print()
 
@@ -93,3 +94,5 @@ if __name__ == '__main__':
         run_zed_intrinsics()
     elif choice == '2':
         run_lidar_zed_transform()
+    elif choice == '3':
+        run_lidar_vehicle_transform()

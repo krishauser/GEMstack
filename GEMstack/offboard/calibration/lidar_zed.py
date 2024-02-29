@@ -77,3 +77,18 @@ class Lidar:
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(lidar_data)
         return pcd
+    
+def select_points_from_pcd(lidar_data):
+    lidar_pcd = o3d.geometry.PointCloud()
+    lidar_pcd.points = o3d.utility.Vector3dVector(lidar_data)
+
+    # select points of interest
+    vis = o3d.visualization.VisualizerWithVertexSelection()
+    vis.create_window()
+    vis.add_geometry(lidar_pcd)
+    vis.run()
+    vis.destroy_window()
+    idxs = [point.index for point in vis.get_picked_points()]
+    lidar_pts = lidar_data[idxs]
+
+    return lidar_pts
