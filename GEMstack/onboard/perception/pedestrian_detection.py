@@ -278,7 +278,7 @@ class PedestrianDetector(Component):
     def overlaps(self, pose1, pose2) -> bool:
         """Check if two agents overlap (simplified check)."""
         distance_threshold = 0.5
-        distance = ((pose1.x - pose2.x) ** 2 + (pose1.y - pose2.y) ** 2 + (pose1.pose.z - pose2.z) ** 2) ** 0.5
+        distance = ((pose1.x - pose2.x) ** 2 + (pose1.y - pose2.y) ** 2 + (pose1.z - pose2.z) ** 2) ** 0.5
         return distance < distance_threshold
 
     def track_agents(self, vehicle : VehicleState, detected_agents : List[AgentState]):
