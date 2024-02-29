@@ -105,6 +105,7 @@ class PedestrianDetector(Component):
         assert(settings.get('vehicle.calibration.front_camera.reference') == 'rear_axle_center')
         self.pedestrian_counter = 0
         self.last_agent_states = {}
+        self.previous_agents = {} 
         
         # init transformation parameters
         extrinsic = [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
@@ -265,16 +266,63 @@ class PedestrianDetector(Component):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             detected_agents.append(agent)
         return detected_agents
+        
+    def estimate_velocity(self, prev_pose, current_pose) -> tuple:
+        """Estimate the velocity of an agent based on previous and current positions."""
+        delta_time = 1.0  
+        velocity_x = (current_pose.x -prev_pose.x) / delta_time
+        velocity_y = (current_pose.y -prev_pose.y) / delta_time
+        velocity_z = (current_pose.z -prev_pose.z) / delta_time
+        return (velocity_x, velocity_y, velocity_z)
     
+    def overlaps(self, pose1, pose2) -> bool:
+        """Check if two agents overlap (simplified check)."""
+        distance_threshold = 0.5
+        distance = ((pose1.x - pose2.x) ** 2 + (pose1.y - pose2.y) ** 2 + (pose1.pose.z - pose2.z) ** 2) ** 0.5
+        return distance < distance_threshold
+
     def track_agents(self, vehicle : VehicleState, detected_agents : List[AgentState]):
         """Given a list of detected agents, updates the state of the agents."""
-        # TODO: keep track of which pedestrians were detected before using last_agent_states.
-        # use these to assign their ids and estimate velocities.
-        results = {}
-        for i,a in enumerate(detected_agents):
-            results['pedestrian_'+str(self.pedestrian_counter)] = a
-            self.pedestrian_counter += 1
-        return results
+        # TODO: keep track of which pedestrians were detected before u 
+        # results = {}
+
+        current_frame_results = {}
+        new_pedestrian_counter = 0  
+
+        for current_agent in detected_agents:
+            assigned = False  # Flag to check if the current agent is assigned to an existing track
+
+            for ped_id, prev_agent in self.previous_agents.items():
+                if self.overlaps(current_agent.pose, prev_agent.pose):
+                    # If the current agent overlaps with a previous agent, it's the same pedestrian
+                    velocity = self.estimate_velocity(prev_agent.pose, current_agent.pose)
+                    # Update agent state with new position and calculated velocity
+                    updated_agent = AgentState(pose=current_agent.pose, dimensions=current_agent.dimensions,
+                                            outline=current_agent.outline, type=current_agent.type,
+                                            activity=AgentActivityEnum.MOVING, velocity=velocity, yaw_rate=current_agent.yaw_rate)
+                    current_frame_results[ped_id] = updated_agent
+                    assigned = True
+                    break  
+
+            if not assigned:
+                # This is a new pedestrian
+                new_id = f"ped{self.pedestrian_counter + new_pedestrian_counter}"
+                new_pedestrian_counter += 1
+                # For new pedestrians, the velocity is initialized to (0, 0, 0)
+                new_agent = AgentState(pose=current_agent.pose, dimensions=current_agent.dimensions,
+                                    outline=None, type=AgentEnum.PEDESTRIAN,
+                                    activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
+                current_frame_results[new_id] = new_agent
+
+        # Update the pedestrian counter and previous_agents for the next frame
+        self.pedestrian_counter += new_pedestrian_counter
+        self.previous_agents = {p_id: agent for p_id, agent in current_frame_results.items()}
+
+        return list(current_frame_results.values())
+        # for i,a in enumerate(detected_agents):
+        #     results['pedestrian_'+str(self.pedestrian_counter)] = a
+        #     self.pedestrian_counter += 1
+        # return results
 
     def save_data(self, loc=None):
         """This can be used for debugging.  See the provided test."""
