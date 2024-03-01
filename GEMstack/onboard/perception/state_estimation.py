@@ -9,7 +9,7 @@ from ...knowledge.vehicle.geometry import front2steer,steer2front
 from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
-
+import numpy as np
 class GNSSStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
     def __init__(self, vehicle_interface : GEMInterface):
@@ -35,6 +35,7 @@ class GNSSStateEstimator(Component):
                                     pitch=math.radians(inspva_msg.pitch),
                                     )
         self.status = inspva_msg.status
+        self.gps_speed = round(np.sqrt(inspva_msg.east_velocity**2 + inspva_msg.north_velocity**2), 2)
     
     def rate(self):
         return 10.0
@@ -62,13 +63,14 @@ class GNSSStateEstimator(Component):
                                       x=center_xyhead[0],
                                       y=center_xyhead[1],
                                       yaw=center_xyhead[2])
-
+ 
         readings = self.vehicle_interface.get_reading()
         raw = readings.to_state(vehicle_pose_global)
 
         #filtering speed
-        filt_vel     = self.speed_filter(raw.v)
-        raw.v = filt_vel
+        # filt_vel     = self.speed_filter(raw.v)
+        # raw.v = filt_vel
+        raw.v = self.gps_speed
         return raw
         
 

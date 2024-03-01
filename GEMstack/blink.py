@@ -1,6 +1,8 @@
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptInt, SystemRptFloat, VehicleSpeedRpt
+from pacmod_msgs.msg import SystemCmdInt
+# from pacmod_msgs.msg import AccelRpt
 
 # For message format, see
 # https://github.com/astuff/astuff_sensor_msgs/blob/3.3.0/pacmod_msgs/msg/PacmodCmd.msg

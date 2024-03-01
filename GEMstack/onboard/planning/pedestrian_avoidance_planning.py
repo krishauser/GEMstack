@@ -1,7 +1,7 @@
 from typing import List
 from ..component import Component
 #these could be helpful in your implementation
-#from .longitudinal_planning import longitudinal_brake, longitudinal_plan
+from .longitudinal_planning import longitudinal_brake, longitudinal_plan
 from ...state import AllState, VehicleState, PhysicalObject, AgentEnum, AgentState, Path, Trajectory, Route, ObjectFrameEnum
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd
@@ -10,6 +10,10 @@ import copy
 import math
 import numpy as np
 from typing import Dict
+
+# Buffers given in the prompt (in m)
+LATERAL_DISTANCE_BUFFER = 5.0
+LONGITUDINAL_DISTANCE_BUFFER = 10.0
 
 
 class PedestrianAvoidanceMotionPlanner(Component):
@@ -55,7 +59,9 @@ class PedestrianAvoidanceMotionPlanner(Component):
         #figure out where we are on the route
         if self.route_progress is None:
             self.route_progress = 0.0
+        # closest parameter along with the distance to that parameter (take 10 m segment from 5.0 meters ahead and behind)
         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
+        # index corresponding to the point closest to the car
         self.route_progress = closest_parameter
 
         all_pedestrians = []
@@ -69,18 +75,18 @@ class PedestrianAvoidanceMotionPlanner(Component):
         
         #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
         #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
-        all_pedestrians = []
-        for k,a in agents.items():
-            if a.type == AgentEnum.PEDESTRIAN:
-                all_pedestrians.append(a)
+
         collision_check_resolution = 0.1  #m
+        # start point index, end point index (number of points in the path)
         progress_start, progress_end = route_with_lookahead.domain()
         progress = progress_start
+        # If we can keep going without braking, then this should remain None
         max_progress = None
         while progress < progress_end:
             xy = route_with_lookahead.eval(progress)
             vehicle.pose.x = xy[0]
             vehicle.pose.y = xy[1]
+            # add the margins to the pedestrian polygons
             try:
                 v = route_with_lookahead.eval_derivative(t)
                 vehicle.pose.yaw = math.atan2(v[1],v[0])
@@ -88,7 +94,13 @@ class PedestrianAvoidanceMotionPlanner(Component):
                 #path has only one point?
                 vehicle.pose.yaw = 0
             #this is a CCW polygon specifying the vehicle's position at the given progress, in the START frame
-            vehicle_poly_world = vehicle.to_object().polygon_parent() 
+            vehicle_object = vehicle.to_object()
+            l,w,h = vehicle_object.dimensions
+            new_l, new_w = l + 2*LATERAL_DISTANCE_BUFFER, w + 2*LONGITUDINAL_DISTANCE_BUFFER
+            vehicle_object.dimensions = (new_l, new_w, h)
+            vehicle_poly_world = vehicle_object.polygon_parent()
+            # add the buffer to the vehicle here
+
             if len(all_pedestrians) > 0:
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
                 if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
@@ -98,11 +110,13 @@ class PedestrianAvoidanceMotionPlanner(Component):
                     #print("Vehicle poly",vehicle_poly_world)
                     #print("Pedestrian poly",a.polygon_parent())
                     #prevent
+
                     max_progress = max(progress - collision_check_resolution,0.0)
                     break
             progress += collision_check_resolution
-        if max_progress is not None:           
-            #allow enough room to brake from the current velocity
+        if max_progress is not None:
+
+            # calculate distance needed to brake (distance between start braking and stopped moving)
             braking_distance = 0.5*(curr_v)**2/self.deceleration * 0.96 
             max_progress = max(max_progress,braking_distance)
             route_with_lookahead = route_with_lookahead.trim(progress_start,max_progress)
