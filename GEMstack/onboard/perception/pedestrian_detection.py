@@ -192,7 +192,7 @@ class PedestrianDetector(Component):
                           velocity=(0,0,0), yaw_rate=0)
     
 
-    def detect_agents(self, point_cloud_image, point_cloud_image_world):
+    def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
         # print(detection_result)
         bboxes = []
@@ -210,7 +210,7 @@ class PedestrianDetector(Component):
         for i,b in enumerate(self.last_person_boxes):
             # print(b)
             # print(point_cloud_image)
-            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
+            agent = self.box_to_agent(b, self.point_cloud_image, self.point_cloud_image_world)
             detected_agents.append(agent)
             pass
         return detected_agents
@@ -258,9 +258,8 @@ class PedestrianDetector(Component):
 
     def point_cloud_image(self):
         # Assuming camera_info contains fx, fy, cx, cy directly
-        # fx, fy, cx, cy = self.camera_info.fx, self.camera_info.fy, self.camera_info.cx, self.camera_info.cy
-        # P = self.Pmatrix(fx, fy, cx, cy)  # Generate the camera projection matrix
-        P = self.P
+        P = np.array(self.camera_info.P).reshape(3,4)
+        self.P = P
         
         # Transform LiDAR points to the camera frame
         point_cloud_homogeneous = np.hstack((self.point_cloud, np.ones((self.point_cloud.shape[0], 1))))
@@ -274,7 +273,8 @@ class PedestrianDetector(Component):
         # For pc_img_world, if additional transformation to world coordinates is needed, implement here
         # For this example, we'll use the camera frame points directly
         point_cloud_world = point_cloud_camera_frame  # This could be adjusted based on specific requirements
-        
+        self.point_cloud_image = projected_points
+        self.point_cloud_image_world = point_cloud_world[image_indices]
 
         return projected_points, point_cloud_world[image_indices]
 
