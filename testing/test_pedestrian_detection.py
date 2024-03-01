@@ -9,6 +9,7 @@ from GEMstack.onboard.perception.pedestrian_detection import PedestrianDetector,
 from GEMstack.onboard.interface.gem import GEMInterface
 # from GEMstack.utils.mpl_visualization import plot_object
 from GEMstack.utils.klampt_visualization import plot_object
+from GEMstack.state import VehicleState
 import numpy as np
 import pathlib
 from ultralytics import YOLO
@@ -130,6 +131,11 @@ class TestHelper:
         print ('Output lidar_to_image result:', output_path)
         cv2.imwrite(output_path, vis)
 
+    def test_update(self):
+        print ('\nTest function update()...')
+        self.ped_detector.test_set_data(self.zed_image, self.point_cloud)
+        self.ped_detector.update(VehicleState.zero())
+
     def test_detect_agents(self):
         print ('\nTest function detect_agents()...')
         self.ped_detector.test_set_data(self.zed_image, self.point_cloud)
@@ -187,7 +193,8 @@ if __name__=='__main__':
     
     # test_helper.test_lidar_to_image()
     # test_helper.test_detect_agents()
-    test_helper.test_box_to_agent()
+    # test_helper.test_box_to_agent()
+    test_helper.test_update()
     
     print ('\nDone!')
     
