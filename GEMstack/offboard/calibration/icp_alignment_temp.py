@@ -9,7 +9,7 @@ import os
 import numpy as np
 import math
 import time
-import GEMstack.offboard.calibration.extract_lidar_points as o3d
+import open3d as o3d
 
 #uncalibrated values -- TODO: load these from a calibration file
 zed_K = np.array([[527.5779418945312, 0.0, 616.2459716796875],
