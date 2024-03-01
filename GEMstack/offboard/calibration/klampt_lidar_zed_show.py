@@ -35,13 +35,13 @@ def main(folder):
         data['lidar'] = Geometry3D(pc)
 
         color = cv2.imread(color_pattern.format(idx))
-        depth = cv2.imread(depth_pattern.format(idx),cv2.IMREAD_UNCHANGED)
-        depth = depth.astype(np.float32)
-        print("depth range",np.min(depth),np.max(depth))
+        #depth = cv2.imread(depth_pattern.format(idx),cv2.IMREAD_UNCHANGED)
+        #depth = depth.astype(np.float32)
+        #print("depth range",np.min(depth),np.max(depth))
         zed_xfov = 2*np.arctan(zed_w/(2*zed_intrinsics[0]))
         zed_yfov = 2*np.arctan(zed_h/(2*zed_intrinsics[1]))
         print("estimated zed horizontal FOV",math.degrees(zed_xfov),"deg")
-        pc = image_to_points(depth,color,zed_xfov,zed_yfov,depth_scale=4000.0/0xffff, points_format='PointCloud')
+        #pc = image_to_points(depth,color,zed_xfov,zed_yfov,depth_scale=4000.0/0xffff, points_format='PointCloud')
 
         data['zed'] = Geometry3D(pc)
         data['lidar'].setCurrentTransform(*lidar_xform)
