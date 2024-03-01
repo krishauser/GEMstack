@@ -1,6 +1,6 @@
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ...utils import settings
-from ...mathutils import transforms
+from ...mathutils import transforms, collisions
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
@@ -12,6 +12,7 @@ from image_geometry import PinholeCameraModel
 import numpy as np
 from typing import Dict,Tuple
 import time
+import copy
 
 PERSON_INDEX = 0
 
@@ -140,11 +141,21 @@ class PedestrianDetector(Component):
         """
         x,y,w,h = box
         # find the point_cloud that is closest to the center of our bounding box
-        center_point_cloud_idx =  np.argmin(np.linalg.norm(point_cloud_image - [x+w/2,y+h/2],axis=1))
-        x_3d,y_3d,z_3d = point_cloud_image_world[center_point_cloud_idx]
+        # center_point_cloud_idx =  np.argmin(np.linalg.norm(point_cloud_image - [x,y],axis=1))
+        # x_3d,y_3d,z_3d = point_cloud_image_world[center_point_cloud_idx]
+
+        # the nearest point may be on the ground, so we take the 10 nearest points take the one with smallest distance
+        center_point_cloud_idx =  np.argsort(np.linalg.norm(point_cloud_image - [x,y],axis=1))
+        center_point_cloud_idx = center_point_cloud_idx[:10]
+        center_point_cloud = point_cloud_image_world[center_point_cloud_idx]
+        x_3d,y_3d,z_3d = center_point_cloud[np.argmin(np.linalg.norm(center_point_cloud,axis=1))]
+
+        # we assume the pedestrian is 1.7m tall
+        height = 1.7
+        # the bbox is [-w/2,w/2] x [-h/2,h/2] x [0,height], see PhysicalObject.py
+        z_3d -= height/2
         pose = ObjectPose(t=0,x=x_3d,y=y_3d,z=z_3d,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-        depth = max(point_cloud_image_world[:,2]) - min(point_cloud_image_world[:,2])
-        dims = [w,h,depth]
+        dims = [1,1,height]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
@@ -170,11 +181,8 @@ class PedestrianDetector(Component):
         point_cloud = (np.dot(self.T_lidar_to_zed, point_cloud.T).T)[:,:3]
         point_cloud_image, image_indices =  project_point_cloud(point_cloud, p_matrix, xrange, yrange)
         point_cloud_image_world = point_cloud[image_indices]
-        # visualize point_cloud_image with cv2
-        # mask = np.zeros((self.camera_info.height, self.camera_info.width), dtype=np.uint8)
-        # for u,v in point_cloud_image.astype(int):
-        #     self.zed_image[v,u] = (255,0,0)
-        # cv2.imshow('point_cloud_image', self.zed_image)
+        point_cloud_image_world = np.concatenate((point_cloud_image_world,np.ones((point_cloud_image_world.shape[0],1))),axis=1)
+        point_cloud_image_world = (np.dot(self.T_zed, point_cloud_image_world.T).T)[:,:3]
 
         self._point_cloud_image = point_cloud_image
         self._point_cloud_image_world = point_cloud_image_world
@@ -183,7 +191,6 @@ class PedestrianDetector(Component):
         for i,b in enumerate(self.last_person_boxes):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             detected_agents.append(agent)
-            pass
         return detected_agents
     
     def track_agents(self, vehicle : VehicleState, detected_agents):
@@ -191,8 +198,21 @@ class PedestrianDetector(Component):
         # TODO: keep track of which pedestrians were detected before using last_agent_states.
         # use these to assign their ids and estimate velocities.
         results = {}
-        for i,a in enumerate(detected_agents):
-            results['pedestrian_'+str(self.pedestrian_counter)] = a
+        for detection in detected_agents:
+            for previous_detection_name in self.last_agent_states:
+                start_frame = self.last_agent_states[previous_detection_name]
+                # start_frame = start_frame.to_frame(1, VehicleState.pose)
+                current_frame = copy.deepcopy(detection)
+                current_frame.pose.x += vehicle.v * self.rate()
+                if collisions.polygon_intersects_polygon_2d(current_frame.polygon_parent(), start_frame.polygon_parent()):
+                    results[previous_detection_name] = detection
+                    velocity = ((current_frame.pose.x - start_frame.pose.x) * self.rate(),
+                                (current_frame.pose.y - start_frame.pose.y) * self.rate(),
+                                (current_frame.pose.z - start_frame.pose.z) * self.rate())
+                    detection.velocity = velocity
+                    continue
+            detection.velocity = (0,0,0)
+            results['ped'+str(self.pedestrian_counter)] = detection
             self.pedestrian_counter += 1
         return results
 
