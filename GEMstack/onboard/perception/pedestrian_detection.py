@@ -146,9 +146,12 @@ class PedestrianDetector(Component):
 
         # the nearest point may be on the ground, so we take the 10 nearest points take the one with smallest distance
         center_point_cloud_idx =  np.argsort(np.linalg.norm(point_cloud_image - [x,y],axis=1))
-        center_point_cloud_idx = center_point_cloud_idx[:3]
+        center_point_cloud_idx = center_point_cloud_idx[:20]
         center_point_cloud = point_cloud_image_world[center_point_cloud_idx]
-        x_3d,y_3d,z_3d = center_point_cloud[np.argmin(np.linalg.norm(center_point_cloud,axis=1))]
+        close_point_idx = np.argsort(np.linalg.norm(center_point_cloud,axis=1))
+        close_point_idx = close_point_idx[:5]
+        close_point_cloud = center_point_cloud[close_point_idx]
+        x_3d,y_3d,z_3d = np.mean(close_point_cloud,axis=0)
 
         # we assume the pedestrian is 1.7m tall
         height = 1.7
