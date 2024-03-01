@@ -55,15 +55,15 @@ def compute_R_yaw(lidar_pts):
 
 def compute_rotation(folder):
     print('--- for measuring roll ---')
-    lidar_pts = select_points_from_pcd(get_lidar_data(folder, 1))   
+    lidar_pts = select_points_from_pcd(get_lidar_data(folder, 5))   
     R_roll = compute_R_roll(lidar_pts)
 
     print('--- for measuring pitch ---')
-    lidar_pts = select_points_from_pcd(get_lidar_data(folder, 2)) 
+    lidar_pts = select_points_from_pcd(get_lidar_data(folder, 6)) 
     R_pitch = compute_R_pitch(lidar_pts)
 
     print('--- for measuring yaw ---')
-    lidar_pts = select_points_from_pcd(get_lidar_data(folder, 3)) 
+    lidar_pts = select_points_from_pcd(get_lidar_data(folder, 8)) 
     R_yaw = compute_R_yaw(lidar_pts)
     
     print(np.array(R_roll))
@@ -74,9 +74,9 @@ def compute_rotation(folder):
 
 def compute_translation():
     # TODO: measure and record translation in metres
-    d_ground_to_lidar = 0
-    d_ground_to_rear_axle = 0
-    d_rear_axle_to_lidar = 0 # measured along vehicle X axis
+    d_ground_to_lidar = 1.985
+    d_ground_to_rear_axle = 0.28
+    d_rear_axle_to_lidar = 0.87 # measured along vehicle X axis
 
     tx = d_rear_axle_to_lidar
     ty = 0 # lidar is on the vehicle's y = 0 plane
