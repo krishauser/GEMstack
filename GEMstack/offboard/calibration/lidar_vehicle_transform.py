@@ -2,16 +2,19 @@
 
 References:
 - Plane segmentation: https://www.open3d.org/docs/latest/tutorial/Basic/pointcloud.html#Plane-segmentation
+- Roll, pitch, yaw: https://msl.cs.uiuc.edu/planning/node102.html
 - GEM e2 sensors: https://publish.illinois.edu/robotics-autonomy-resources/gem-e2/hardware/ 
 """
 
 from ...utils import settings
-from .lidar_zed import Lidar, select_points_from_pcd
+from .lidar_zed import get_lidar_data, select_points_from_pcd
 
 import open3d as o3d
 
 import numpy as np
 import yaml
+
+unit_vec = lambda v : v / np.linalg.norm(v)
 
 def compute_best_fitting_plane(pts):
     pcd = o3d.geometry.PointCloud()
@@ -20,26 +23,60 @@ def compute_best_fitting_plane(pts):
     print('Best fit plane:', plane)
     return plane
 
-def compute_rotation(lidar_pts):
+def compute_R_roll(lidar_pts):
     # compute best fit plane and normal
     best_fit_plane = compute_best_fitting_plane(lidar_pts)
-
-    unit_vec = lambda v : v / np.linalg.norm(v)
-    unit_normal = unit_vec(best_fit_plane[:3])
-
-    # compute rotation matrix
-    theta = np.arccos(np.dot(unit_normal, [1,0,0]))
-    R = [[np.cos(theta), -np.sin(theta), 0], 
-         [np.sin(theta), np.cos(theta), 0], 
-         [0,0,1]]
+    unit_normal = unit_vec(best_fit_plane[:3]) # along vehicle Y axis
     
+    gamma = np.arccos(np.dot(unit_normal, [0,1,0])) # angle between Y axes of vehicle and lidar
+    R = [[1, 0, 0],
+         [0, np.cos(gamma), -np.sin(gamma)],
+         [0, np.sin(gamma), np.cos(gamma)]]
     return R
+
+def compute_R_pitch(lidar_pts):
+    best_fit_plane = compute_best_fitting_plane(lidar_pts)
+    unit_normal = unit_vec(best_fit_plane[:3]) # along vehicle X axis
+    
+    beta = np.arccos(np.dot(unit_normal, [1,0,0])) # angle between X axes of vehicle and lidar
+    R = [[np.cos(beta), 0, np.sin(beta)],
+         [0, 1, 0],
+         [-np.sin(beta), 0, np.cos(beta)]]
+    return R
+
+def compute_R_yaw(lidar_pts):
+    p = min(lidar_pts, key=lambda x: abs(x[2])) # point closest to lidar xy = 0
+
+    alpha = -np.arctan(p[1] / p[0])
+    R = [[np.cos(alpha), -np.sin(alpha), 0], 
+         [np.sin(alpha), np.cos(alpha), 0], 
+         [0, 0, 1]]
+    return R
+
+def compute_rotation(folder):
+    print('--- for measuring roll ---')
+    lidar_pts = select_points_from_pcd(get_lidar_data(folder, 1))   
+    R_roll = compute_R_roll(lidar_pts)
+
+    print('--- for measuring pitch ---')
+    lidar_pts = select_points_from_pcd(get_lidar_data(folder, 2)) 
+    R_pitch = compute_R_pitch(lidar_pts)
+
+    print('--- for measuring yaw ---')
+    lidar_pts = select_points_from_pcd(get_lidar_data(folder, 3)) 
+    R_yaw = compute_R_yaw(lidar_pts)
+    
+    print(np.array(R_roll))
+    print(np.array(R_pitch))
+    print(np.array(R_yaw))
+
+    return np.matmul(R_yaw, np.matmul(R_pitch, R_roll))
 
 def compute_translation():
     # TODO: measure and record translation in metres
     d_ground_to_lidar = 0
     d_ground_to_rear_axle = 0
-    d_rear_axle_to_lidar = 0 # along vehicle X axis
+    d_rear_axle_to_lidar = 0 # measured along vehicle X axis
 
     tx = d_rear_axle_to_lidar
     ty = 0 # lidar is on the vehicle's y = 0 plane
@@ -48,15 +85,8 @@ def compute_translation():
     t = [tx, ty, tz]
     return t
 
-def run(folder, idx):
-    lidar = Lidar()
-    lidar.print()
-    lidar_data = lidar.get_lidar_data(folder, idx)
-
-    # select points of interest
-    lidar_pts = select_points_from_pcd(lidar_data)    
-    
-    R = compute_rotation(lidar_pts)
+def run(folder):
+    R = compute_rotation(folder)
     print('R:\n', R)
 
     t = compute_translation()
@@ -75,4 +105,4 @@ def run(folder, idx):
 
 def main():
     calib_data_folder = settings.get('calibration.data2')
-    run(calib_data_folder, 1)
+    run(calib_data_folder)

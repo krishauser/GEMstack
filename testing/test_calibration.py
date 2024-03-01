@@ -56,7 +56,7 @@ def visualize_lidar_zed_transform(idx):
     for i in range(len(proj_img_pts[0])):
         u = int(proj_img_pts[0,i] / proj_img_pts[2,i])
         v = int(proj_img_pts[1,i] / proj_img_pts[2,i])
-        img[v,u] = np.zeros((1,3))
+        img[v,u] = [0,255,255]
 
     cv2.imshow('proj_img_pts', img)
     cv2.waitKey(0)
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     print('1. Obtain ZED2 intrinsics')
     print('2. Compute Velodyne to ZED2 transform')
     print('3. Compute Velodyne to vehicle transform')
-    print('3. Compute ZED2 to vehicle transform')
+    print('4. Compute ZED2 to vehicle transform')
     choice = input('Enter choice - ')
     print()
 

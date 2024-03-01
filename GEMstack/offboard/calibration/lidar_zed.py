@@ -65,10 +65,6 @@ class Lidar:
         print('--- Lidar params ---')
         print('T:', self.T)
 
-    def get_lidar_data(self, folder, idx):
-        lidar_data_path = os.path.join(folder, 'lidar{}.npz').format(idx)
-        return np.load(lidar_data_path)['arr_0']
-
     def get_point_cloud(self, folder, idx):
         lidar_data_path = os.path.join(folder, 'lidar{}.npz').format(idx)
         lidar_data = np.load(lidar_data_path)['arr_0']
@@ -81,10 +77,15 @@ class Lidar:
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(lidar_data)
         return pcd
-    
+
+def get_lidar_data(folder, idx):
+        lidar_data_path = os.path.join(folder, 'lidar{}.npz').format(idx)
+        return np.load(lidar_data_path)['arr_0']
+
 def select_points_from_pcd(lidar_data):
     lidar_pcd = o3d.geometry.PointCloud()
     lidar_pcd.points = o3d.utility.Vector3dVector(lidar_data)
+    lidar_pcd.paint_uniform_color([0.5,0.5,0.5])
 
     # select points of interest from the visualization
     vis = o3d.visualization.VisualizerWithVertexSelection()
