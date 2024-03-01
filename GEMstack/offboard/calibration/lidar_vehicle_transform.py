@@ -45,9 +45,11 @@ def compute_R_pitch(lidar_pts):
     return R
 
 def compute_R_yaw(lidar_pts):
-    p = min(lidar_pts, key=lambda x: abs(x[2])) # point closest to lidar xy = 0
+    pts_z0 = [p for p in lidar_pts if abs(p[2]) <= 0.04]
+    avg = [sum(p) / len(p) for p in zip(*pts_z0)]
+    pt = min(pts_z0, key=lambda p: np.linalg.norm(p - avg)) 
 
-    alpha = -np.arctan(p[1] / p[0])
+    alpha = -np.arctan(pt[1] / pt[0])
     R = [[np.cos(alpha), -np.sin(alpha), 0], 
          [np.sin(alpha), np.cos(alpha), 0], 
          [0, 0, 1]]
@@ -73,7 +75,7 @@ def compute_rotation(folder):
     return np.matmul(R_yaw, np.matmul(R_pitch, R_roll))
 
 def compute_translation():
-    # TODO: measure and record translation in metres
+    # translation in metres
     d_ground_to_lidar = 1.985
     d_ground_to_rear_axle = 0.28
     d_rear_axle_to_lidar = 0.87 # measured along vehicle X axis
