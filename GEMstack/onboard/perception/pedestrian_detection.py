@@ -144,7 +144,8 @@ class PedestrianDetector(Component):
         # center_point_cloud_idx =  np.argmin(np.linalg.norm(point_cloud_image - [x,y],axis=1))
         # x_3d,y_3d,z_3d = point_cloud_image_world[center_point_cloud_idx]
 
-        # the nearest point may be on the ground, so we take the 10 nearest points take the one with smallest distance
+        # the nearest point may be on the ground
+        # so we take the 20 nearest points and take the mean of 5 with smallest distance
         center_point_cloud_idx =  np.argsort(np.linalg.norm(point_cloud_image - [x,y],axis=1))
         center_point_cloud_idx = center_point_cloud_idx[:20]
         center_point_cloud = point_cloud_image_world[center_point_cloud_idx]
