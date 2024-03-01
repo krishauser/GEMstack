@@ -42,7 +42,7 @@ for idx in picked_points:
 # save picked points
 picked_points = np.array(picked_points)
 picked_points_coords = np.array([lidar_pcd.points[idx] for idx in picked_points])
-save_path = '/Users/baoyu/baoyu/GEMstack/data/calibration_points/step2' #TODO: change it to uniform path
+save_path = '/Users/baoyu/baoyu/GEMstack/data/calibration_points/lidar' #TODO: change it to uniform path
 os.makedirs(save_path, exist_ok=True)
 np.save(os.path.join(save_path, f'lidar{data_idx}_picked_points.npy'), picked_points)
 np.save(os.path.join(save_path, f'lidar{data_idx}_picked_points_coords.npy'), picked_points_coords)
