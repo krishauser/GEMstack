@@ -19,10 +19,11 @@ def get_intrinsics():
 	return message
 
 def write_intrinsics(message, file):
+	K = message.K
 	camera_info = {
 		'height': message.height,
 		'width': message.width,
-		'K': message.K
+		'K': K.tolist()
 	}
 	with open(file, 'w') as yaml_file:
 		yaml.dump(camera_info, yaml_file)
