@@ -73,7 +73,7 @@ def run_lidar_zed_transform():
     # visualization
     read_zed_intrinsics()
     read_lidar_zed_transform()
-    visualize_lidar_zed_transform(16)
+    visualize_lidar_zed_transform(9)
 
 def run_lidar_vehicle_transform():
     import GEMstack.offboard.calibration.lidar_vehicle_transform as lidar_vehicle_transform
