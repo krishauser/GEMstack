@@ -5,7 +5,6 @@ from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
 import cv2
-from sklearn.cluster import DBSCAN
 try:
     from sensor_msgs.msg import CameraInfo
     from image_geometry import PinholeCameraModel
@@ -210,12 +209,6 @@ class PedestrianDetector(Component):
         closest_point_cloud_idx = np.argmin(distances)
         closest_point_cloud = point_cloud_image_world[closest_point_cloud_idx]
 
-        # Filter out noise
-        # dbscan = DBSCAN(eps=0.5, min_samples=10)
-        # clusters = dbscan.fit_predict(closest_point_cloud)
-        # largest_cluster_idx = np.argmax(np.bincount(clusters[clusters >= 0]))
-        # closest_point_cloud = closest_point_cloud[clusters == largest_cluster_idx]
-
         #########################################################################################################
         # Definition of ObjectPose and dimensions:
         # 
@@ -323,7 +316,7 @@ class PedestrianDetector(Component):
         self.pedestrian_counter += new_pedestrian_counter
         self.previous_agents = {p_id: agent for p_id, agent in current_frame_results.items()}
 
-        return list(current_frame_results.values())
+        return current_frame_results
         # for i,a in enumerate(detected_agents):
         #     results['pedestrian_'+str(self.pedestrian_counter)] = a
         #     self.pedestrian_counter += 1
