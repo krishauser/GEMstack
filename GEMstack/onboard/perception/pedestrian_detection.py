@@ -1,3 +1,5 @@
+import yaml
+
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
@@ -100,4 +102,77 @@ class FakePedestrianDetector2D(Component):
             if t >= times[0] and t <= times[1]:
                 res['pedestrian0'] = box_to_fake_agent((0,0,0,0))
                 print("Detected a pedestrian")
+        return res
+
+
+class PedestrianDetector3D(Component):
+    """Detects pedestrians."""
+
+    def __init__(self, vehicle_interface: GEMInterface):
+        self.vehicle_interface = vehicle_interface
+        self.detector = YOLO(settings.get('perception.pedestrian_detection.model'))
+        self.last_person_boxes = []
+        with open('gem_e2_zed.yaml', 'r') as file:
+            data1 = yaml.safe_load(file)
+        self.rotation_matrix = data1['rotation']
+        self.translation = data1['center_position']
+
+        with open('gem_e2.yaml', 'r') as file:
+            data2 = yaml.safe_load(file)
+        self.rear_axle_height = data2['rear_axle_height']
+
+    def rate(self):
+        return 4.0
+
+    def state_inputs(self):
+        return ['vehicle']
+
+    def state_outputs(self):
+        return ['agents']
+
+    def initialize(self):
+        # tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
+        self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
+
+    def image_callback(self, image: cv2.Mat):
+        # detection_result = self.detector(image)
+        # person_indices = np.where(detection_result[-1].boxes.cls.cpu().numpy() == 0 and
+        #                           detection_result[-1].boxes.conf.cpu().numpy() > 0.8)
+        # xywhboxes = detection_result[-1].boxes.xywh.cpu().numpy()[person_indices]
+        # self.last_person_boxes = xywhboxes
+
+        detection_result = self.detector(image)
+        latest_boxes = detection_result[-1].boxes
+        person_indices = []
+        for i in range(len(latest_boxes.cls)):
+            if latest_boxes.cls[i] == 0 and latest_boxes.conf[i] > 0.8:
+                person_indices.append(i)
+        self.last_person_boxes = []
+
+        for idx in person_indices:
+            x, y, w, h = latest_boxes[idx].xywh[0].cpu().detach().numpy().tolist()
+            points_2d = np.array([x,y,1])
+            extrinsic_matrix = np.hstack((self.rotation_matrix, self.translation))
+            K = [[526.98120117, 0.0, 616.24475098], [0.0, 526.98120117, 359.2144165], [0.0, 0.0, 1.0]]
+
+            points_2d_normalized = np.linalg.inv(K) @ points_2d.T
+
+            points_3d_world_homogeneous = np.linalg.inv(extrinsic_matrix) @ points_2d_normalized
+            points_3d_world = (points_3d_world_homogeneous[:3, :] / points_3d_world_homogeneous[3, :]).T
+
+            x = points_3d_world[0]
+            y = points_3d_world[1]
+            z = points_3d_world[2]
+            self.last_person_boxes.append((x, y, z, w, h))
+            # self.last_person_boxes.append((x, y, z, w, h+self.rear_axle_height+self.translation[2]))
+
+        res = self.detector
+
+    def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
+        res = {}
+        for i, b in enumerate(self.last_person_boxes):
+            x, y, w, h = b
+            res['pedestrian' + str(i)] = box_to_fake_agent(b)
+        if len(res) > 0:
+            print("Detected", len(res), "pedestrians")
         return res
