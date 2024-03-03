@@ -24,70 +24,64 @@ The translation component is set using a trial and error method.
 
 #### Measuring roll
 
-<center>
-<img
+<img align = "right"
     src = "figures/roll.png"
-    style = "float: right;
-            width: 330px"
+    style = "width: 330px"
 />
-</center>
 
 The roll of the lidar is calibrated with the help of a flat surface (eg: white board) placed parallel to the XZ plane of the vehicle. The angle between the Y axes (or Z axes) of the vehicle and the lidar $\gamma$ is computed as follows:
 
 - The unit normal of the white board ($\hat{n}$) is along the Y axis of the vehicle.
-- If $\hat{j}$ is the unit vector along the Y axis of the lidar, $\gamma = \cos^{-1}(\hat{n} \dot \hat{j})$.
+- If $\hat{y}$ is the unit vector along the Y axis of the lidar, $\gamma = \cos^{-1}({\hat{n}} \cdot {\hat{y}})$
 
 The rotation matrix is:
 
 ```math
 R_x(\gamma) = \begin{pmatrix}
                 1 & 0 & 0 \\\
-                0 & \cos(\gamma) & -\sin(\gamma) \\\
-                0 & \sin(\gamma) & \cos(\gamma)
+                0 & \cos \gamma & -\sin \gamma \\\
+                0 & \sin \gamma & \cos \gamma
               \end{pmatrix}
 ```
 
 #### Measuring pitch
 
-<center>
-<img
+<img align = "right"
     src = "figures/pitch.png"
-    style = "float: right;
-            width: 490px"
+    style = "width: 490px"
 />
-</center>
 
 The pitch of the lidar is measured by placing a flat surface (eg: white board) parallel to the YZ plane of the vehicle. The angle $\beta$ between the X axes (or Z axes) of the vehicle of the vehicle and the lidar is obtained as follows:
 
 - The unit normal of the white board ($\hat{n}$) is along the X axis of the vehicle.
-- If $\hat{i}$ is the unit vector along the X axis of the lidar, $\beta = \cos^{-1}(\hat{n} \dot \hat{i})$.
+- If $\hat{x}$ is the unit vector along the X axis of the lidar, then $\beta = \cos^{-1}({\hat{n}} \cdot {\hat{x}})$.
 
 The rotation matrix is:
 
 ```math
 R_y(\beta) = \begin{pmatrix}
-                \cos(\beta) & 0 & \sin(\beta) \\\
+                \cos \beta & 0 & \sin \beta \\\
                 0 & 1 & 0 \\\
-                -\sin(\beta) & 0 & \cos(\beta)
+                -\sin \beta & 0 & \cos \beta
               \end{pmatrix}
 ```
 
 #### Measuring yaw
 
-<center>
-<img
+<img align = "right"
     src = "figures/yaw.png"
-    style = "float: right;
-            height: 400px"
+    style = "height: 400px"
 />
-</center>
 
 Foam cubes are stacked on top of each other along the centerline of the vehicle. Let $P$ be the points in the point cloud representing the foam cubes. Let $(x_l, y_l, z_l) \in P$ be the coordinates (in the lidar frame) of the point along the lidar's XY plane closest to the vehicle's XZ plane. If $d$ is the distance between the lidar and P, the angle between the X axes of the vehicle and the lidar ($\alpha$) $ can be computed as follows:
 
+$$ x_l = d \cos(\alpha) $$
+
+$$ y_l = -d \sin(\alpha) $$
+
+$$ z_l \approx 0 $$
+
 ```math
-x_l = d \cos(\alpha)
-y_l = -d \sin(\alpha)
-z_l \approx 0
 \alpha = -\tan^{-1} (y_l / x_l)
 ```
 
@@ -95,8 +89,8 @@ The rotation matrix is given by:
 
 ```math
 R_z(\alpha) = \begin{pmatrix}
-                \cos(\alpha) & -\sin(\alpha) & 0 \\\
-                \sin(\alpha) & \cos(\alpha) & 0 \\\
+                \cos \alpha & -\sin \alpha & 0 \\\
+                \sin \alpha & \cos \alpha & 0 \\\
                 0 & 0 & 1
               \end{pmatrix}
 ```
@@ -106,7 +100,7 @@ R_z(\alpha) = \begin{pmatrix}
 A single rotation matrix is obtained by multiplying the yaw, pitch and roll rotation matrices.
 
 ```math
-R(\alpha, \beta, \gamma) = R_z(\alpha) R_y(\beta) R_x(\gamma)
+R(\alpha, \beta, \gamma) = R_z(\alpha) \: R_y(\beta) \: R_x(\gamma)
 ```
 
 #### Measuring translation
@@ -121,7 +115,7 @@ The translation matrix is $t = [t_x, t_y, t_z]^{T}$ where:
 The transformation that converts points from the zed frame to the vehicle frame is computed using the previous 2 matrices as:
 
 ```math
-T_{zed}^{vehicle} = T_{lidar}^{vehicle} \left( T_{lidar}^{zed} \right)^{-1}
+T_{zed}^{vehicle} = T_{lidar}^{vehicle} \: \left( T_{lidar}^{zed} \right)^{-1}
 ```
 
 
