@@ -25,8 +25,8 @@ The translation component is set using a trial and error method.
 #### Measuring roll
 
 <img align = "right"
-    src = "figures/roll.png"
-    style = "width: 330px"
+    src = "https://github.com/krishauser/GEMstack/blob/s2024_group3/GEMstack/offboard/calibration/figures/roll.png"
+    style = "width: 400px"
 />
 
 The roll of the lidar is calibrated with the help of a flat surface (eg: white board) placed parallel to the XZ plane of the vehicle. The angle between the Y axes (or Z axes) of the vehicle and the lidar $\gamma$ is computed as follows:
@@ -47,8 +47,8 @@ R_x(\gamma) = \begin{pmatrix}
 #### Measuring pitch
 
 <img align = "right"
-    src = "figures/pitch.png"
-    style = "width: 490px"
+    src = "https://github.com/krishauser/GEMstack/blob/s2024_group3/GEMstack/offboard/calibration/figures/pitch.png"
+    style = "width: 560px"
 />
 
 The pitch of the lidar is measured by placing a flat surface (eg: white board) parallel to the YZ plane of the vehicle. The angle $\beta$ between the X axes (or Z axes) of the vehicle of the vehicle and the lidar is obtained as follows:
@@ -69,8 +69,8 @@ R_y(\beta) = \begin{pmatrix}
 #### Measuring yaw
 
 <img align = "right"
-    src = "figures/yaw.png"
-    style = "height: 400px"
+    src = "https://github.com/krishauser/GEMstack/blob/s2024_group3/GEMstack/offboard/calibration/figures/yaw.png"
+    style = "height: 480px"
 />
 
 Foam cubes are stacked on top of each other along the centerline of the vehicle. Let $P$ be the points in the point cloud representing the foam cubes. Let $(x_l, y_l, z_l) \in P$ be the coordinates (in the lidar frame) of the point along the lidar's XY plane closest to the vehicle's XZ plane. If $d$ is the distance between the lidar and P, the angle between the X axes of the vehicle and the lidar ($\alpha$) $ can be computed as follows:
@@ -136,54 +136,54 @@ T_{zed}^{vehicle} = T_{lidar}^{vehicle} \: \left( T_{lidar}^{zed} \right)^{-1}
     - $T_{zed}^{vehicle}$ is computed and written to `GEMstack/knowledge/calibration/gem_e2_transforms.yaml`.
     - An Open3D visualization will open up with the lidar point cloud corresponding to scan 9 in the `data/calibration1` dataset.
     - Hold <kbd>Shift</kbd> and drag the mouse to draw a rectangle around the points of interest. For example, in the figure below, points in the stop sign and the foam cubes are selected (in green). Close the window.
-
-        <center>
+        
+        <p align="center">
         <img
-            src = "../../../testing/figures/hw3_step1_pcd.png"
-            style = "width: 400px"
+            src = "https://github.com/krishauser/GEMstack/blob/s2024_group3/testing/figures/hw3_step1_pcd.png"
+            style = "width: 800px"
         />
-        </center>
+        </p>
 
     - The selected lidar points are projected onto the zed frame using $T_{lidar}^{zed}$. The projected points are then conveted to pixel coordinates using the intrinsic matrix.
     - The projected image pixels are colored yellow as shown.
 
-        <center>
+        <p align="center">
         <img
-            src = "../../../testing/figures/hw3_step1_proj.png"
-            style = "width: 400px"
+            src = "https://github.com/krishauser/GEMstack/blob/s2024_group3/testing/figures/hw3_step1_proj.png"
+            style = "width: 1000px"
         />
-        </center>
+        </p>
 
 3. Compute Velodyne to vehicle transform    
     - An Open3D visualization will open up with the lidar point cloud corresponding to scan 5 in the `data/calibration2` dataset.
     - Select the points for the white board placed *parallel* to the vehicle. Close the window.
 
-        <center>
+        <p align="center">
         <img
-            src = "../../../testing/figures/hw3_step2_pcd1.png"
-            style = "height: 300px"
+            src = "https://github.com/krishauser/GEMstack/blob/s2024_group3/testing/figures/hw3_step2_pcd1.png"
+            style = "width: 800px"
         />
-        </center>
+        </p>
 
     - Another visualization will open up with the point cloud corresponding to scan 6.
     - Select the points for the white board *in front* of the vehicle and close the window.
 
-        <center>
+        <p align="center">
         <img
-        src = "../../../testing/figures/hw3_step2_pcd2.png"
-        style = "height: 300px"
+        src = "https://github.com/krishauser/GEMstack/blob/s2024_group3/testing/figures/hw3_step2_pcd2.png"
+        style = "width: 800px"
         />
-        </center>
+        </p>
 
     - The third visualization will open up with the point cloud corresponding to scan 8.
     - Select the points for the foam cubes placed along the centerline and close the window.
 
-        <center>
+        <p align="center">
         <img
-            src = "../../../testing/figures/hw3_step2_pcd3.png"
-            style = "width: 480px"
+            src = "https://github.com/krishauser/GEMstack/blob/s2024_group3/testing/figures/hw3_step2_pcd3.png"
+            style = "width: 800px"
         />
-        </center>
+        </p>
 
     - The rotation matrix will then be computed based on the selection.
     - The translation matrix is computed based on the physical measurements taken from the vehicle.
