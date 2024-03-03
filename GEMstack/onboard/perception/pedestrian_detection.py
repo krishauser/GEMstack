@@ -5,6 +5,7 @@ from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
 import cv2
+import pickle
 try:
     from sensor_msgs.msg import CameraInfo
     from image_geometry import PinholeCameraModel
@@ -14,6 +15,7 @@ except ImportError:
 import numpy as np
 from typing import Dict,Tuple
 import time
+
 
 def Pmatrix(fx,fy,cx,cy):
     """Returns a projection matrix for a given set of camera intrinsics."""
@@ -147,12 +149,32 @@ class PedestrianDetector(Component):
         detection_result = self.detector(self.zed_image,verbose=False)
         self.last_person_boxes = []
         #TODO: create boxes from detection result
+        people = detection_result[0]
+        for box in people.boxes:
+            # x1, y1, x2, y2 are x,y coordinates of image
+            x1, y1, x2, y2 = box.xyxy[0].tolist()
+            w = x2 - x1
+            h = y2 - y1
+            x = x1 + w / 2
+            y = y1 + h / 2
+            self.last_person_boxes.append([x, y, w, h])
+
         #TODO: create point clouds in image frame and world frame
+        with open("GEMstack/knowledge/calibration/values.pickle", 'rb') as f:
+            camera_info = pickle.load(f)
+
+        zed_intrinsics = [camera_info['fx'], camera_info['fy'], camera_info['cx'],camera_info['cy']]
+        zed_w = camera_info['width']
+        zed_h = camera_info['height']
+
+        point_cloud_image, image_indices = project_point_cloud(self.point_cloud, Pmatrix(*zed_intrinsics), (0,zed_w),(0,zed_h))
+
+
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
-            #agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            #detected_agents.append(agent)
-            pass
+            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
+            detected_agents.append(agent)
+            
         return detected_agents
     
     def track_agents(self, vehicle : VehicleState, detected_agents : List[AgentState]):
