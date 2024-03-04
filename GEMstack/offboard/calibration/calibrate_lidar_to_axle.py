@@ -189,8 +189,10 @@ def main(folder):
 
     o3d.visualization.draw_geometries([coordinate, adjusted_lidar_pc])
 
+    
+    np.savetxt("GEMstack/knowledge/calibration/lidar2axle.txt", final)
 
-    print('done')
+    #print('done')
 
 
 
