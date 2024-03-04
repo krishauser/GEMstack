@@ -150,7 +150,7 @@ def main(folder):
     zed_pc.transform(transform)
     o3d.visualization.draw_geometries([zed_pc, lidar_pc])
 
-    np.savetxt("GEMstack/knowledge/calibration/step1.txt", transform)
+    np.savetxt("GEMstack/knowledge/calibration/zed2lidar.txt", transform)
 
     print('done')
 
