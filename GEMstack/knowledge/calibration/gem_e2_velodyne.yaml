@@ -1,3 +1,5 @@
 reference: rear_axle_center  # rear axle center
-position: [-0.12,0,1.6] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/platform_launch/launch/white_e2/platform.launch (almost certainly wrong)
-rotation: [[1,0,0],[0,1,0],[0,0,1]]  #rotation matrix mapping lidar frame to vehicle frame
+position: [0.87, 0, 1.705]
+rotation: [[0.9973763699875017, 0.043861305694493286, 0.05758942431947], 
+           [-0.042151360457271754, 0.9986431654663658, -0.030578917885326348], 
+           [-0.05885251748084231, 0.02807121811554394, 0.9978719296080418]] # mapping lidar frame to vehicle frame

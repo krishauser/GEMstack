@@ -18,7 +18,7 @@ import yaml
 def register_points(source, target, T):
     d_max = 0.05
     T_init = np.identity(4)
-    T_init[:3,:3] = np.array(T[0]).reshape((3,3)).transpose()
+    T_init[:3,:3] = np.linalg.inv(np.array(T[0]).reshape((3,3)))
     T_init[:3,3] = [0.2,-0.2,0.2]
     
     reg = o3d.pipelines.registration.registration_icp(source, target, d_max, T_init, \
