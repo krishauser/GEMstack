@@ -159,6 +159,7 @@ class PedestrianDetector(Component):
                 self.last_person_boxes.append(box.xywh[0].detach().cpu().numpy())
         #TODO: create boxes from detection result
         #TODO: create point clouds in image frame and world frame
+        P=self.camera_info.P.reshape(3, 4)
         point_cloud_image, image_indices=project_point_cloud(self.point_cloud, P,[0,self.camera_info.width], [0,self.camera_info.height] )        
         point_cloud_image_world=self.point_cloud[image_indices]
         detected_agents = []
