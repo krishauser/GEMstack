@@ -257,7 +257,7 @@ class PedestrianDetector(Component):
             # figure out if the agent is new or previously detected
             for s in self.last_agent_states:
                 name, past_agent = s, self.last_agent_states[s]
-                previous_pose = past_agent.pose
+                previous_pose = past_agent
                 current_pose = copy.deepcopy(agent)
                 current_pose.pose.x += vehicle.v * dt
 
