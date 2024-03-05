@@ -11,7 +11,7 @@ import math
 import numpy as np
 from typing import Dict
 
-# Buffers given in the prompt (in m)
+#add buffers
 dist_lat = 5
 dist_long = 10
 
