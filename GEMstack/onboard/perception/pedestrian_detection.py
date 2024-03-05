@@ -258,7 +258,7 @@ class PedestrianDetector(Component):
             for s in self.last_agent_states:
                 name, past_agent = s, self.last_agent_states[s]
                 previous_pose = past_agent.pose
-                current_pose = copy.deepcopy(agent.pose)
+                current_pose = copy.deepcopy(agent)
                 current_pose.pose.x += vehicle.v * dt
 
                 prev_polygon = past_agent.polygon_parent()
