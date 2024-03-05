@@ -5,14 +5,11 @@ from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
 import cv2
-try:
-    from sensor_msgs.msg import CameraInfo
-    from image_geometry import PinholeCameraModel
-    import rospy
-except ImportError:
-    pass
+from sensor_msgs.msg import CameraInfo
+from image_geometry import PinholeCameraModel
+import rospy
 import numpy as np
-from typing import Dict,Tuple
+from typing import Dict,Tuple, List
 import time
 
 def Pmatrix(fx,fy,cx,cy):
@@ -56,7 +53,7 @@ class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        #self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
+        self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
@@ -131,7 +128,7 @@ class PedestrianDetector(Component):
         self.last_agent_states = current_agent_states
         return current_agent_states
 
-    def box_to_agent(self, box, point_cloud_image, point_cloud_image_world):
+    def box_to_agent(self, box, point_cloud_image, point_cloud_image_world): # TODO
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
         
         TODO: you need to use the image, the camera intrinsics, the lidar
@@ -139,11 +136,14 @@ class PedestrianDetector(Component):
         estimate of the pedestrian's pose and dimensions.
         """
         x,y,w,h = box
+        
+
+
         pose = ObjectPose(t=0,x=x,y=y,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
         dims = [w,h,1.7]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
-    def detect_agents(self):
+    def detect_agents(self): # TODO
         detection_result = self.detector(self.zed_image,verbose=False)
         self.last_person_boxes = []
         #TODO: create boxes from detection result
@@ -153,14 +153,35 @@ class PedestrianDetector(Component):
                 self.last_person_boxes.append(boxes.xywh[i].tolist())
 
         #TODO: create point clouds in image frame and world frame
-        # copilot wrote the below line: 
-        point_cloud_image, image_indices = project_point_cloud(self.point_cloud, Pmatrix(560,560,640,360), (0,1280),(0,720))
+        camera = PinholeCameraModel()
+        camera.fromCameraInfo(self.camera_info)
+
+        fx = camera.fx()
+        fy = camera.fy()
+        cx = camera.cx()
+        cy = camera.cy()
+
+        p_matrix = Pmatrix(fx, fy, cx, cy)
+        xrange = (0, self.camera_info.width)
+        yrange = (0, self.camera_info.height)
+        point_cloud_image, image_indices = project_point_cloud(self.point_cloud, p_matrix, xrange, yrange)
+
+        # lecture 7 slide 24 says pciw[i, j, k] should be (x, y, 1). 
+        # copilot wrote the below lines, gotta test if they work
+        point_cloud_image_world = self.point_cloud[image_indices]
+        ones = np.ones((point_cloud_image_world.shape[0], 1))
+        point_cloud_image_world = np.hstack((point_cloud_image_world, ones)) 
 
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
-            #agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            #detected_agents.append(agent)
-            pass
+            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
+            detected_agents.append(agent)
+
+
+        # set some variables for l8r
+        self._point_cloud_image = point_cloud_image
+        self._point_cloud_image_world = point_cloud_image_world
+
         return detected_agents
     
     def track_agents(self, vehicle : VehicleState, detected_agents : List[AgentState]):
@@ -200,3 +221,6 @@ class PedestrianDetector(Component):
             CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             #TODO: these are guessed parameters
             self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
+
+    def point_cloud_image(self):
+        return self._point_cloud_image, self._point_cloud_image_world
