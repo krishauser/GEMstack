@@ -12,7 +12,7 @@ import numpy as np
 from typing import Dict,Tuple, List
 import time, copy
 
-MAX_FATNESS_IN_M = 0.75
+MAX_HUMAN_FATNESS_IN_M = 0.75
 
 '''
 lidar to zed = lidar frame to camera frame
@@ -168,12 +168,10 @@ class PedestrianDetector(Component):
 
         # center_of_guy 
 
-        person_lidar_points = []
         our_point_indices = []
         for i in range(point_cloud_image.shape[0]):
             point = point_cloud_image[i, :]
             if point[0] >= x - (w/2) and point[0] <= x+(w/2) and point[1] >= y -(h/2)and point[1] <= y+(h/2):
-                person_lidar_points.append(point_cloud_image_world[i])
                 our_point_indices.append(i)
         
         person_lidar_points = point_cloud_image_world[our_point_indices]
@@ -182,8 +180,8 @@ class PedestrianDetector(Component):
         new_x = np.min(person_lidar_points[:, 0])
         new_y = np.min(person_lidar_points[:, 1])
         new_z = np.min(person_lidar_points[:, 2])
-        new_depth = MAX_FATNESS_IN_M
-        new_width = MAX_FATNESS_IN_M
+        new_depth = MAX_HUMAN_FATNESS_IN_M
+        new_width = MAX_HUMAN_FATNESS_IN_M
         new_height = 1.7 # given constant
         
 
