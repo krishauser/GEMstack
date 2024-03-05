@@ -75,7 +75,9 @@ class PedestrianDetector(Component):
         self.T_zed = np.eye(4)
         self.T_zed[:3,:3] = self.zed_rotation
         self.T_zed[:3,3] = self.zed_translation
-        self.T_lidar_to_zed = np.linalg.inv(self.T_zed) @ self.T_lidar
+        #self.T_lidar_to_zed = np.linalg.inv(self.T_zed) @ self.T_lidar
+        #todo load from file?
+        self.T_lidar_to_zed = np.array([[-0.00115108, -0.99996643,  0.00811196, -0.02388523], [-0.0053156,  -0.00810573, -0.99995302,  0.01848758], [ 0.99998521, -0.00119414, -0.00530609, -0.01805329],[ 0.,0.,0.,1.]])
         self.point_cloud = None
         self.point_cloud_zed = None
         assert(settings.get('vehicle.calibration.top_lidar.reference') == 'rear_axle_center')
