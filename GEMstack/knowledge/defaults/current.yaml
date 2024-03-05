@@ -33,7 +33,12 @@ control:
         pid_i: 0.1
         pid_d: 0.0
 
-# HW2
+calibration:
+    data1: !relative_path "../../../data/calibration1"
+    data2: !relative_path "../../../data/calibration2"
+    zed_intrinsics: !relative_path "../calibration/gem_e2_zed_intrinsics.yaml"
+    transforms: !relative_path "../calibration/gem_e2_transforms.yaml"
+
 perception:
     pedestrian_detection:
         model: !relative_path "../detection/yolov8n.pt"
@@ -43,13 +48,15 @@ planning:
     longitudinal_plan:
         n_points: 100   # number of points added between 2 points in the path
         dt: 0.02    # for discretizing time
+    pedestrian_avoidance:
+        buffer:
+            lateral: 1
+            longitudinal: 3
+        rate: 10.0 
+        resolution: # collision checking resolution
+            min: 0.1 # m
+            max: 0.5
 
-# HW3
-calibration:
-    data1: !relative_path "../../../data/calibration1"
-    data2: !relative_path "../../../data/calibration2"
-    zed_intrinsics: !relative_path "../calibration/gem_e2_zed_intrinsics.yaml"
-    transforms: !relative_path "../calibration/gem_e2_transforms.yaml"
 
 #configure the simulator, if using
 simulator:
