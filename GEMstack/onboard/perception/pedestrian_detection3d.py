@@ -5,28 +5,71 @@ from ultralytics import YOLO
 import cv2
 from typing import Dict
 import numpy as np
-import rospy
 from sensor_msgs.msg import CameraInfo
+from ...utils import settings
 index_person = 0
-
-def box_to_fake_agent(box):
-    """Creates a fake agent state from an (x,y,w,h) bounding box.
-    
-    The location and size are pretty much meaningless since this is just giving a 2D location.
-    """
-    x,y,w,h = box
-    pose = ObjectPose(t=0,x=x+w/2,y=y+h/2,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-    dims = (w,h,0)
-    return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
-
 
 class PedestrianDetector3D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.detector = YOLO('./GEMstack/knowledge/detection/yolov8n.pt')
-        self.last_person_boxes = []
+        self.camera_info = None
+        self.image = None
+        self.detected_pedestrians = None
+        self.camera_info = None
+        self.camera_range = ()
+        global SETTINGS_LOC
+        global SENSOR_FRONT_CAMERA
+        global SENSOR_LIDAR
+        global HUMAN_HEIGHT
+        HUMAN_HEIGHT = 1
+        SETTINGS_LOC = 'vehicle.calibration'
+        SENSOR_LIDAR = 'top_lidar'
+        SENSOR_FRONT_CAMERA = 'front_camera'
         self.lidar_points = None
+        self.point_cloud_zed = None
+        self.ped_state = {}
+        self.make_camera_info()
+        self.make_transformation_matrices()
+
+
+    def box_to_agent(box, pc2d, pc3d):
+        """Creates an agent state from an (x,y,w,h) bounding box.
+        
+        The location and size are pretty much meaningless since this is just giving a 2D location.
+        """
+
+        x,y,w,h = box
+
+        dist_2 = np.sum((pc2d - [x, y])**2, axis=1)
+        closest_ind = np.argmin(dist_2)
+        closest_point = pc3d[closest_ind]
+        pose = ObjectPose(t=0,x=closest_point[0],y=closest_point[1],z=closest_point[2] - HUMAN_HEIGHT,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
+        dims = (1,1,HUMAN_HEIGHT)
+        return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+
+
+    def make_transformation_matrices(self) -> None : 
+        self.lidar_translation = np.array(settings.get(SETTINGS_LOC + '.' + SENSOR_LIDAR + '.position'))
+        self.lidar_rotation = np.array(settings.get(SETTINGS_LOC + '.' + SENSOR_LIDAR + '.rotation'))
+        self.zed_translation = np.array(settings.get(SETTINGS_LOC + '.' + SENSOR_FRONT_CAMERA + '.center_position'))
+        self.zed_rotation = np.array(settings.get(SETTINGS_LOC + '.' + SENSOR_FRONT_CAMERA + '.rotation'))
+        self.lidar_transformation= np.hstack((self.lidar_rotation, self.lidar_translation.reshape(-1, 1)))
+        self.lidar_transformation= np.vstack((self.lidar_transformation, np.array([0, 0, 0, 1])))
+        self.zed_tranformation= np.hstack((self.zed_rotation, self.zed_translation.reshape(-1, 1)))
+        self.zed_tranformation= np.vstack((self.zed_tranformation, np.array([0, 0, 0, 1])))
+        self.lidar_to_zed = np.linalg.inv(self.zed_tranformation) @ self.lidar_transformation # essentially ICP matrix
+
+    def make_camera_info(self) -> None:
+        fx = settings.get(SETTINGS_LOC + '.' + SENSOR_FRONT_CAMERA + ".rgb_calibration.fx")
+        fy = settings.get(SETTINGS_LOC + '.' + SENSOR_FRONT_CAMERA + ".rgb_calibration.fy")
+        cx = settings.get(SETTINGS_LOC + '.' + SENSOR_FRONT_CAMERA + ".rgb_calibration.cx")
+        cy = settings.get(SETTINGS_LOC + '.' + SENSOR_FRONT_CAMERA + ".rgb_calibration.cy")
+        w = settings.get(SETTINGS_LOC + '.' + SENSOR_FRONT_CAMERA + ".rgb_image.width")
+        h = settings.get(SETTINGS_LOC + '.' + SENSOR_FRONT_CAMERA + ".rgb_image.height")
+        self.camera_info = np.array([[fx, 0, cx, 0],[0, fy, cy, 0],[0, 0, 1, 0]])
+        self.camera_range = (w, h)
 
     def rate(self):
         return 17.0
@@ -39,39 +82,97 @@ class PedestrianDetector3D(Component):
     
     def initialize(self):
         
-        #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
-        self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat) # subscribe to zed
+        self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray) # subscribe to lidar
         
         pass
     
     def image_callback(self, image : cv2.Mat):
-       detection_result = self.detector.predict(image, conf=0.85)
-       boxes = detection_result[0].boxes
-       person_bboxes = []
-       for i, class_idx in enumerate(boxes.cls):
-           if class_idx == index_person:
-               person_bboxes.append(boxes.xywh[i].tolist())
-       self.last_person_boxes = person_bboxes
-       #uncomment if you want to debug the detector...
-        #for bb in self.last_person_boxes:
-        #x,y,w,h = bb
-        #cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
-        #cv2.imwrite("pedestrian_detections.png",image)
+        self.image = image
+        # detection_result = self.detector.predict(image, conf=0.85)
+        # boxes = detection_result[0].boxes
+        # person_bboxes = []
+        # for i, class_idx in enumerate(boxes.cls):
+        #     if class_idx == index_person:
+        #         person_bboxes.append(boxes.xywh[i].tolist())
+        # self.last_person_boxes = person_bboxes
     
     def lidar_callback(self, lidar_pts: np.ndarray) :
         self.lidar_points = lidar_pts
-    
+
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        res = {}
-        for i,b in enumerate(self.last_person_boxes):
-            x,y,w,h = b
-            res['pedestrian'+str(i)] = box_to_fake_agent(b)
-        if len(res) > 0:
-            print("Detected",len(res),"pedestrians")
-        return res
+        if not self.image and not self.lidar_points:
+            return None
 
+        detected_agents = self.detect_agents()
+
+        current_agent_states = self.track_agents(vehicle,detected_agents)
+
+        self.last_agent_states = current_agent_states
+        return current_agent_states
+    
+    def detect_agents(self):
+
+        # detect pedestrians
+
+        detection_result = self.detector(self.image,verbose=False, conf = 0.85)[0]
+        boxes = detection_result.boxes
+        self.detected_pedestrians = []
+        for i, class_idx in enumerate(boxes.cls):
+            if class_idx == 0:
+                self.detected_pedestrians.append(boxes.xywh[i].tolist())
+
+        image_coor_x = (0, self.camera_range[0])
+        image_coor_y = (0, self.camera_range[1])
+
+        # prepare point cloud points for calibration
+        point_cloud = np.hstack(\
+            (self.lidar_points[:,:3],\
+            np.array([ 1 for x in range(self.lidar_points.shape[0])]).reshape(-1, 1)))
+        
+        # calibrate lidar points to zed
+        point_cloud_as_zed = (np.dot(self.lidar_to_zed, point_cloud.T).T)[:,:3]
+
+        # assign ids to indentify lidar points
+        pc_with_ids_from_lidar = np.hstack((\
+            point_cloud_as_zed,\
+            np.array([ [x] for x in range(self.lidar_points.shape[0])])\
+            ))
+        
+        # crop off lidar points behind the camera hemisphere
+        pc_zed_hemisphere = pc_with_ids_from_lidar[pc_with_ids_from_lidar[:,2] > 0] # in front of the car
+        
+        # magnify lidar (x,y,z) to zed dimensions
+        zed_points = pc_zed_hemisphere[:,:3].dot(self.camera_info[:3,:3].T)
+
+        # flatten zed points to form 2d image
+        zed_points_depth_magnified = (zed_points[:,0:2].T/zed_points[:,2]).T
+
+        # select points in zed image range
+        inds = np.logical_and(\
+            np.logical_and(zed_points_depth_magnified[:,0] >= image_coor_x[0],zed_points_depth_magnified[:,0] < image_coor_x[1]),\
+            np.logical_and(zed_points_depth_magnified[:,1] >= image_coor_y[0],zed_points_depth_magnified[:,1] < image_coor_y[1]))
+        
+        point_cloud_image_2d = zed_points_depth_magnified[inds]
+        ids_on_lidar = pc_zed_hemisphere[inds,3].astype(int)
+        
+        point_cloud_mapped_in_zed_3d = point_cloud_as_zed[ids_on_lidar]
+
+        point_cloud_mapped_in_zed_3d = \
+            np.concatenate(\
+                (point_cloud_mapped_in_zed_3d,\
+                 np.array([ 1 for x in range(point_cloud_mapped_in_zed_3d.shape[0])]).reshape(-1, 1)),axis=1)
+        point_cloud_mapped_in_zed_3d = (np.dot(self.zed_tranformation, point_cloud_mapped_in_zed_3d.T).T)[:,:3]
+
+        self.point_cloud_image_2d = point_cloud_image_2d
+        self.point_cloud_image_2d = point_cloud_mapped_in_zed_3d
+
+        detected_agents = []
+        for i,box in enumerate(self.detected_pedestrians):
+            agent = self.box_to_agent(box, point_cloud_image_2d, point_cloud_mapped_in_zed_3d)
+            detected_agents.append(agent)
+        return detected_agents
 
 class FakePedestrianDetector2D(Component):
     """Triggers a pedestrian detection at some random time ranges"""
@@ -96,6 +197,6 @@ class FakePedestrianDetector2D(Component):
         res = {}
         for times in self.times:
             if t >= times[0] and t <= times[1]:
-                res['pedestrian0'] = box_to_fake_agent((0,0,0,0))
+                # res['pedestrian0'] = box_to_fake_agent((0,0,0,0))
                 print("Detected a pedestrian")
         return res
