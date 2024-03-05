@@ -261,8 +261,8 @@ class PedestrianDetector(Component):
                 current_pose = copy.deepcopy(agent.pose)
                 current_pose.pose.x += vehicle.v * dt
 
-                prev_polygon = previous_pose.polygon_parent()
-                current_polygon = current_pose.polygon_parent()
+                prev_polygon = past_agent.polygon_parent()
+                current_polygon = agent.polygon_parent()
                 if collisions(prev_polygon, current_polygon):
                     results[name] = agent
                     v = ((current_pose.pose.x - previous_pose.pose.x) * dt,
