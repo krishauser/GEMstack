@@ -7,6 +7,9 @@ from typing import Dict
 import numpy as np
 from sensor_msgs.msg import CameraInfo
 from ...utils import settings
+import copy
+import uuid
+from ...mathutils import collisions
 index_person = 0
 
 class PedestrianDetector3D(Component):
@@ -103,11 +106,28 @@ class PedestrianDetector3D(Component):
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         if not self.image and not self.lidar_points:
-            return None
+            return dict()
 
         detected_agents = self.detect_agents()
 
-        current_agent_states = self.track_agents(vehicle,detected_agents)
+        current_agent_states = {}
+        for agent in detected_agents:
+            polygon_collision = False
+            for previous_detection_name in self.last_agent_states:
+                last_agent = self.last_agent_states[previous_detection_name]
+                # start_frame = start_frame.to_frame(1, VehicleState.pose)
+                current_agent = copy.deepcopy(agent)
+                current_agent.pose.x += vehicle.v * self.rate()
+                if collisions.polygon_intersects_polygon_2d(current_agent.polygon_parent(), last_agent.polygon_parent()):
+                    current_agent_states[previous_detection_name] = agent
+                    velocity = ((current_agent.pose.x - last_agent.pose.x) * self.rate(),\
+                                (current_agent.pose.y - last_agent.pose.y) * self.rate(),\
+                                (current_agent.pose.z - last_agent.pose.z) * self.rate())
+                    agent.velocity = velocity
+                    polygon_collision = True
+            if not polygon_collision:
+                agent.velocity = (0,0,0)
+                current_agent_states['person'+str(uuid.uuid4())] = agent
 
         self.last_agent_states = current_agent_states
         return current_agent_states
