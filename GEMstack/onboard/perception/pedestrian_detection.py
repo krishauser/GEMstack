@@ -198,6 +198,7 @@ class PedestrianDetector(Component):
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self): # TODO
+        print(self.T_lidar_to_zed)
         detection_result = self.detector(self.zed_image,verbose=False)
         self.last_person_boxes = []
         #TODO: create boxes from detection result
