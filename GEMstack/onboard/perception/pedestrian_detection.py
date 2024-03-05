@@ -178,7 +178,8 @@ class PedestrianDetector(Component):
                     person_lidar_points.append(point_cloud_image_world[i])
                 except:
                     pass
-        
+
+        person_lidar_points = np.array(person_lidar_points)
 
         # PErson is at the front of the img
         new_x = np.min(person_lidar_points[:, 0])
@@ -226,7 +227,7 @@ class PedestrianDetector(Component):
 
         # lecture 7 slide 24 says pciw[i, j, k] should be (x, y, 1). 
         # copilot wrote the below lines, gotta test if they work
-        point_cloud_image_world = self.point_cloud[image_indices] # just the pc that's in the img
+        point_cloud_image_world = point_cloud[image_indices] # just the pc that's in the img
         ones = np.ones((point_cloud_image_world.shape[0], 1))
         point_cloud_image_world = np.hstack((point_cloud_image_world, ones)) 
         point_cloud_image_world = (np.dot(self.T_lidar, point_cloud_image_world.T).T)[:,:3]
