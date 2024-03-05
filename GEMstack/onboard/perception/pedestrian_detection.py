@@ -1,6 +1,6 @@
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ...utils import settings
-from ...mathutils import transforms
+from ...mathutils import transforms, collisions
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
@@ -10,7 +10,7 @@ from image_geometry import PinholeCameraModel
 import rospy
 import numpy as np
 from typing import Dict,Tuple, List
-import time
+import time, copy
 
 MAX_FATNESS_IN_M = 0.75
 
@@ -164,8 +164,6 @@ class PedestrianDetector(Component):
         # corners = [[x, y, 1, 1], [x+w, y, 1, 1], [x+w, y+h, 1, 1], [x, y+h, 1, 1]]
         # corners = np.array(corners)
 
-        print("pci", point_cloud_image, point_cloud_image.shape)
-
         # the points that are going to be on simon are the nearest points to his stomach
 
         # center_of_guy 
@@ -179,7 +177,6 @@ class PedestrianDetector(Component):
                 our_point_indices.append(i)
         
         person_lidar_points = point_cloud_image_world[our_point_indices]
-        print("plp", person_lidar_points, person_lidar_points.shape)
 
         # PErson is at the front of the img
         new_x = np.min(person_lidar_points[:, 0])
@@ -251,10 +248,31 @@ class PedestrianDetector(Component):
         """Given a list of detected agents, updates the state of the agents."""
         # TODO: keep track of which pedestrians were detected before using last_agent_states.
         # use these to assign their ids and estimate velocities.
+        
+        dt = self.rate()
         results = {}
-        for i,a in enumerate(detected_agents):
-            results['pedestrian_'+str(self.pedestrian_counter)] = a
-            self.pedestrian_counter += 1
+        for agent in detected_agents:
+            # agent has pose and dimensions
+            new_agent = True
+            # figure out if the agent is new or previously detected
+            for name, past_agent in self.last_agent_states:
+                previous_pose = past_agent.pose
+                current_pose = copy.deepcopy(agent.pose)
+                current_pose.pose.x += vehicle.v * dt
+
+                prev_polygon = previous_pose.polygon_parent()
+                current_polygon = current_pose.polygon_parent()
+                if collisions(prev_polygon, current_polygon):
+                    results[name] = agent
+                    v = ((current_pose.pose.x - previous_pose.pose.x) * dt,
+                                (current_pose.pose.y - previous_pose.pose.y) * dt,
+                                (current_pose.pose.z - previous_pose.pose.z) * dt)
+                    agent.velocity = v
+                    new_agent = False           
+
+            if new_agent:
+                results['pedestrian_'+str(self.pedestrian_counter)] = agent
+                self.pedestrian_counter += 1
         return results
 
     def save_data(self, loc=None):
