@@ -102,7 +102,7 @@ class PedestrianDetector(Component):
     
     def image_callback(self, image : cv2.Mat):
         self.zed_image = image
-        self.update(self.vehicle_interface.get_state('vehicle'))
+        # self.update(self.vehicle_interface.get_state('vehicle'))
 
     def camera_info_callback(self, info : CameraInfo):
         self.camera_info = info
@@ -229,8 +229,8 @@ class PedestrianDetector(Component):
         point_cloud_image_world = np.hstack((point_cloud_image_world, ones)) 
         point_cloud_image_world = (np.dot(self.T_lidar, point_cloud_image_world.T).T)[:,:3]
 
-        print(point_cloud_image, point_cloud_image_world)
-        print("\n\n" )
+        # print(point_cloud_image, point_cloud_image_world)
+        # print("\n\n" )
 
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
