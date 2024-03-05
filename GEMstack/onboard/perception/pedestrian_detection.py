@@ -170,13 +170,18 @@ class PedestrianDetector(Component):
 
         # center_of_guy 
 
-        our_point_indices = []
+        # our_point_indices = []
+        person_lidar_points = []
         for i in range(point_cloud_image.shape[0]):
             point = point_cloud_image[i, :]
             if point[0] >= x - (w/2) and point[0] <= x+(w/2) and point[1] >= y -(h/2)and point[1] <= y+(h/2):
-                our_point_indices.append(i)
-        
-        person_lidar_points = point_cloud_image_world[our_point_indices]
+                # our_point_indices.append(i)
+                try:
+                    person_lidar_points.append(point_cloud_image_world[i])
+                except:
+                    pass
+
+        person_lidar_points = np.array(person_lidar_points)
 
         # PErson is at the front of the img
         new_x = np.min(person_lidar_points[:, 0])
@@ -195,6 +200,7 @@ class PedestrianDetector(Component):
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self): # TODO
+        print(self.T_lidar_to_zed)
         detection_result = self.detector(self.zed_image,verbose=False)
         self.last_person_boxes = []
         #TODO: create boxes from detection result
@@ -224,10 +230,10 @@ class PedestrianDetector(Component):
 
         # lecture 7 slide 24 says pciw[i, j, k] should be (x, y, 1). 
         # copilot wrote the below lines, gotta test if they work
-        point_cloud_image_world = self.point_cloud[image_indices] # just the pc that's in the img
+        point_cloud_image_world = point_cloud[image_indices] # just the pc that's in the img
         ones = np.ones((point_cloud_image_world.shape[0], 1))
         point_cloud_image_world = np.hstack((point_cloud_image_world, ones)) 
-        point_cloud_image_world = (np.dot(self.T_lidar, point_cloud_image_world.T).T)[:,:3]
+        point_cloud_image_world = (np.dot(self.T_zed, point_cloud_image_world.T).T)[:,:3]
 
         # print(point_cloud_image, point_cloud_image_world)
         # print("\n\n" )
