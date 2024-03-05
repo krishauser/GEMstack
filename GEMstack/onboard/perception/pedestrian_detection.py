@@ -17,9 +17,9 @@ import time
 
 def Pmatrix(fx,fy,cx,cy):
     """Returns a projection matrix for a given set of camera intrinsics."""
-    return np.array([[fx,0,cx,0],
-                     [0,fy,cy,0],
-                     [0,0,1,0]])
+    return np.array([[fx, 0,  cx, 0],
+                     [0,  fy, cy, 0],
+                     [0,  0,  1,  0]])
 
 def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple[int,int], yrange : Tuple[int,int]) -> Tuple[np.ndarray,np.ndarray]:
     """Projects a point cloud into a 2D image using a camera intrinsic projection matrix P.
@@ -51,12 +51,37 @@ def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple
     image_indices = pc_fwd[inds,3].astype(int)
     return point_cloud_image, image_indices
 
+def lidar2range (w:(float, float), h:(float, float), point_cloud):
+    w_left, w_right = w
+    h_bot, h_top = h
+    pc_range = np.where((point_cloud[:, 0] > w_left) & (point_cloud[:, 0] < w_right) & (point_cloud[:, 1] > h_bot) & (point_cloud[:, 1] < h_top))
+
+    return point_cloud[pc_range]
+    
+def lidar2pixel (intrinsic, extrinsic, point_cloud):
+    homo_matrix = np.concatenate((point_cloud, np.ones((point_cloud.shape[0], 1))), axis=1) # N,4
+    lidar_pixel = (intrinsic @ extrinsic @ (homo_matrix).T) # Lidar to pixel coordinate
+    lidar_pixel = lidar_pixel.T
+
+    lidar_pixel = lidar_pixel / lidar_pixel[:, [2]]  # Normalize x and y
+    lidar_pixel = lidar_pixel[:, :2]
+
+    return lidar_pixel
+
+def lidar2world (lidar_vehicle_matrix, point_cloud):
+    homo_matrix = np.concatenate((point_cloud, np.ones((point_cloud.shape[0], 1))), axis=1) # N,4
+    pc_world = (lidar_vehicle_matrix @ homo_matrix.T) # 4,N
+    pc_world = pc_world.T
+    pc_world = pc_world[:, :3]
+
+    return pc_world
 
 class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        #self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
+        self.detector = YOLO(settings.get('pedestrian_detection.model'))
+        # self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
@@ -78,6 +103,21 @@ class PedestrianDetector(Component):
         assert(settings.get('vehicle.calibration.front_camera.reference') == 'rear_axle_center')
         self.pedestrian_counter = 0
         self.last_agent_states = {}
+        self.prev_agents = {}
+        # self.w = ()
+        # self.h = ()
+
+        extrinsic = [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
+                     [-0.04834961 , -0.02051524, -0.99861977, -0.02062586],
+                     [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
+                     [ 0.         ,  0.        ,  0.        ,  1.        ]]
+        self.extrinsic = np.asarray(extrinsic)
+
+        intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0]
+        self.intrinsic = np.asarray(intrinsic).reshape((3,3))
+
+        lidar_vehicle_matrix = []
+        self.lidar_vehicle_matrix = np.asarray(lidar_vehicle_matrix)
 
     def rate(self):
         return 4.0
@@ -90,21 +130,20 @@ class PedestrianDetector(Component):
     
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        #self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
-        #tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
-        #self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
-        #subscribe to the Zed CameraInfo topic
-        #self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
-        pass
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        # tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
+        self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
+        # subscribe to the Zed CameraInfo topic
+        self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
     
-    # def image_callback(self, image : cv2.Mat):
-    #     self.zed_image = image
+    def image_callback(self, image : cv2.Mat):
+        self.zed_image = image
 
-    # def camera_info_callback(self, info : CameraInfo):
-    #     self.camera_info = info
+    def camera_info_callback(self, info : CameraInfo):
+        self.camera_info = info
 
-    # def lidar_callback(self, point_cloud: np.ndarray):
-    #     self.point_cloud = point_cloud
+    def lidar_callback(self, point_cloud: np.ndarray):
+        self.point_cloud = point_cloud
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         if self.zed_image is None:
@@ -139,20 +178,52 @@ class PedestrianDetector(Component):
         estimate of the pedestrian's pose and dimensions.
         """
         x,y,w,h = box
+
+        # The box boundary
+        b_left, b_right = x, x + w
+        b_top, b_bottom = y, y + h
+        center_x = x + w/2
+        center_y = y + w/2
+
+        # The point could in the box
+        index = np.where((point_cloud_image[:, 0] >= b_left) & (point_cloud_image[:, 0] <= b_right) 
+                            & (point_cloud_image[:, 1] > b_top) & (point_cloud_image[:, 1] < b_bottom))
+        point_cloud_agent = point_cloud_image[index]
+        point_cloud_world_agent = point_cloud_image_world[index]
+
+        # The distance from center point to any point
+        distance = np.linalg.norm(point_cloud_image - [center_x, center_y])
+        center_pc_index = np.argmin(distance)
+        center_pc = point_cloud_image_world[center_pc_index]
+
+        w = np.max(point_cloud_world_agent[:, 0]) - np.min(point_cloud_world_agent[:, 0])
+        h = np.max(point_cloud_world_agent[:, 1]) - np.min(point_cloud_world_agent[:, 1])
+        l = np.max(point_cloud_world_agent[:, 2]) - np.min(point_cloud_world_agent[:, 2])
+
         pose = ObjectPose(t=0,x=x,y=y,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-        dims = [w,h,1.7]
+        dims = [w,h,l]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
         self.last_person_boxes = []
+        boxes = results[0].boxes
+
         #TODO: create boxes from detection result
+        for i in detection_result[0].boxes:
+            if (boxes.cls[i] == settings.get('pedestrian_detection.pedestrian_class')) and (boxes.conf[i] >= settings.get('prediction_confidence')):
+                x, y, w, h = boxes[i].xywh[0].cpu().detach().numpy().tolist()
+                self.last_person_boxes.append((x,y,w,h))
+        
+        point_cloud_image = lidar2pixel(self.intrinsic, self.extrinsic, self.point_cloud)
+        point_cloud_image_world = lidar2world(self.lidar_vehicle_matrix, self.point_cloud)
+
         #TODO: create point clouds in image frame and world frame
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
-            #agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            #detected_agents.append(agent)
-            pass
+            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
+            detected_agents.append(agent)
+
         return detected_agents
     
     def track_agents(self, vehicle : VehicleState, detected_agents : List[AgentState]):
@@ -160,9 +231,39 @@ class PedestrianDetector(Component):
         # TODO: keep track of which pedestrians were detected before using last_agent_states.
         # use these to assign their ids and estimate velocities.
         results = {}
-        for i,a in enumerate(detected_agents):
-            results['pedestrian_'+str(self.pedestrian_counter)] = a
-            self.pedestrian_counter += 1
+        self.pedestrian_counter = 0
+        overlap_dist = 1
+        dt = 1
+
+        for agent in detected_agents:
+            state = False
+
+            for id, prev_agent in self.prev_agents.items():
+                prev_agent = prev_agent.to_frame(ObjectFrameEnum.CURRENT, vehicle.pose)  # Using the current vehicle coornidate
+                
+                dist = ((agent.pose.x - prev_agent.pose.x) ** 2 + (agent.pose.y - prev_agent.pose.y) ** 2 + (agent.pose.z - prev_agent.pose.z) ** 2 ) ** 0.5
+                if dist < overlap_dist:
+                    vx = (agent.pose.x - prev_agent.pose.x) / dt
+                    vy = (agent.pose.y - prev_agent.pose.y) / dt
+ 
+                    vz = (agent.pose.z - prev_agent.pose.z) / dt
+                    v = (vx, vy, vz)
+                    update_agent = AgentState(pose=agent.pose, dimensions=agent.dimensions,outline=None, type=AgentEnum.PEDESTRIAN,
+                                            activity=AgentActivityEnum.MOVING, velocity=v, yaw_rate=agent.yaw_rate)
+                    results[id] = update_agent
+                    state = True
+                    break
+            
+            if state == False: # No overlap => new pedestrian
+                self.pedestrian_counter += 1
+                pedestrian_number = f'pedestrian_{self.pedestrian_counter}'
+                new_agent = AgentState(pose=agent.pose, dimensions=agent.dimensions,outline=agent.outline, type=agent.type,
+                                            activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
+                results[pedestrian_number] = new_agent
+            
+        for id, agent in results.items():
+            self.prev_agents[id] = agent
+
         return results
 
     def save_data(self, loc=None):
@@ -191,4 +292,5 @@ class PedestrianDetector(Component):
             from collections import namedtuple
             CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             #TODO: these are guessed parameters
-            self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
+            self.camera_info = CameraInfo(width=1280,height=720,P=[527.5779418945312, 0.0, 616.2459716796875, 0.0, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 0.0, 1.0, 0.0])
+            # self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
