@@ -23,6 +23,7 @@ def box_to_outline(P,x,y,w,h):
 def test_pedestrian_detection():
     detector = PedestrianDetector(None)
     detector.load_data(data_folder)
+    detector.detect_agents() # AY added this
     pc_img,pc_img_world = detector.point_cloud_image()
     P = np.array(detector.camera_info.P).reshape(3,4)
     pc_img[:,0] -= P[0,2]

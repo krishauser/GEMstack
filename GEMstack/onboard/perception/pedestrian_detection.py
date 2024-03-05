@@ -12,6 +12,13 @@ import numpy as np
 from typing import Dict,Tuple, List
 import time
 
+MAX_FATNESS_IN_M = 0.75
+
+'''
+lidar to zed = lidar frame to camera frame
+lidar = lidar to world
+zed = zed to world
+'''
 def Pmatrix(fx,fy,cx,cy):
     """Returns a projection matrix for a given set of camera intrinsics."""
     return np.array([[fx,0,cx,0],
@@ -135,12 +142,59 @@ class PedestrianDetector(Component):
         point cloud, and the calibrated camera / lidar poses to get a good
         estimate of the pedestrian's pose and dimensions.
         """
+        # yeah idk what to do here
         x,y,w,h = box
+        # camera intrinsics
+        camera = PinholeCameraModel()
+        camera.fromCameraInfo(self.camera_info)
+        fx = camera.fx()
+        fy = camera.fy()
+        cx = camera.cx()
+        cy = camera.cy()
+
+        p_matrix = Pmatrix(fx, fy, cx, cy)
+        xrange = (0, self.camera_info.width)
+        yrange = (0, self.camera_info.height)
+
+        # assume x, y is the top left of bbx?
+        # goal: change camera frame box to world frame box?
+        # and then get the z correct
+
+        # # 4 corners of the box
+        # corners = [[x, y, 1, 1], [x+w, y, 1, 1], [x+w, y+h, 1, 1], [x, y+h, 1, 1]]
+        # corners = np.array(corners)
+
+        print("pci", point_cloud_image, point_cloud_image.shape)
+
+        # the points that are going to be on simon are the nearest points to his stomach
+
+        # center_of_guy 
+
+        person_lidar_points = []
+        our_point_indices = []
+        for i in range(point_cloud_image.shape[0]):
+            point = point_cloud_image[i, :]
+            if point[0] >= x - (w/2) and point[0] <= x+(w/2) and point[1] >= y -(h/2)and point[1] <= y+(h/2):
+                person_lidar_points.append(point_cloud_image_world[i])
+                our_point_indices.append(i)
+        
+        person_lidar_points = point_cloud_image_world[our_point_indices]
+        print("plp", person_lidar_points, person_lidar_points.shape)
+
+        # PErson is at the front of the img
+        new_x = np.min(person_lidar_points[:, 0])
+        new_y = np.min(person_lidar_points[:, 1])
+        new_z = np.min(person_lidar_points[:, 2])
+        new_depth = MAX_FATNESS_IN_M
+        new_width = MAX_FATNESS_IN_M
+        new_height = 1.7 # given constant
         
 
-
-        pose = ObjectPose(t=0,x=x,y=y,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-        dims = [w,h,1.7]
+        # x is forward in the object's frame
+        # y is left in the object's frame
+        # z is up in the object's frame
+        pose = ObjectPose(t=0,x=new_x,y=new_y,z=new_z,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
+        dims = [new_depth, new_width, new_height]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self): # TODO
@@ -164,13 +218,22 @@ class PedestrianDetector(Component):
         p_matrix = Pmatrix(fx, fy, cx, cy)
         xrange = (0, self.camera_info.width)
         yrange = (0, self.camera_info.height)
-        point_cloud_image, image_indices = project_point_cloud(self.point_cloud, p_matrix, xrange, yrange)
+
+        point_cloud = np.concatenate((self.point_cloud[:,:3],np.ones((self.point_cloud.shape[0],1))),axis=1)
+        point_cloud = (np.dot(self.T_lidar_to_zed, point_cloud.T).T)[:,:3] # move the pc to image frame
+
+        point_cloud_image, image_indices = project_point_cloud(point_cloud, p_matrix, xrange, yrange)
+
 
         # lecture 7 slide 24 says pciw[i, j, k] should be (x, y, 1). 
         # copilot wrote the below lines, gotta test if they work
-        point_cloud_image_world = self.point_cloud[image_indices]
+        point_cloud_image_world = self.point_cloud[image_indices] # just the pc that's in the img
         ones = np.ones((point_cloud_image_world.shape[0], 1))
         point_cloud_image_world = np.hstack((point_cloud_image_world, ones)) 
+        point_cloud_image_world = (np.dot(self.T_lidar, point_cloud_image_world.T).T)[:,:3]
+
+        print(point_cloud_image, point_cloud_image_world)
+        print("\n\n" )
 
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
