@@ -168,13 +168,17 @@ class PedestrianDetector(Component):
 
         # center_of_guy 
 
-        our_point_indices = []
+        # our_point_indices = []
+        person_lidar_points = []
         for i in range(point_cloud_image.shape[0]):
             point = point_cloud_image[i, :]
             if point[0] >= x - (w/2) and point[0] <= x+(w/2) and point[1] >= y -(h/2)and point[1] <= y+(h/2):
-                our_point_indices.append(i)
+                # our_point_indices.append(i)
+                try:
+                    person_lidar_points.append(point_cloud_image_world[i])
+                except:
+                    pass
         
-        person_lidar_points = point_cloud_image_world[our_point_indices]
 
         # PErson is at the front of the img
         new_x = np.min(person_lidar_points[:, 0])
