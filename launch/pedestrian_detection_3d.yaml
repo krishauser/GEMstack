@@ -19,7 +19,7 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']adddd
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
         motion_planning: pedestrian_avoidance_planning.# TODO add your class here
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
