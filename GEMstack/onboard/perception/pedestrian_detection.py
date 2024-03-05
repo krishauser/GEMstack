@@ -263,7 +263,7 @@ class PedestrianDetector(Component):
 
                 prev_polygon = past_agent.polygon_parent()
                 current_polygon = agent.polygon_parent()
-                if collisions(prev_polygon, current_polygon):
+                if collisions.polygon_intersects_polygon_2d(prev_polygon, current_polygon):
                     results[name] = agent
                     v = ((current_pose.pose.x - previous_pose.pose.x) * dt,
                                 (current_pose.pose.y - previous_pose.pose.y) * dt,
