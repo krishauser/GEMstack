@@ -230,7 +230,7 @@ class PedestrianDetector(Component):
         point_cloud_image_world = point_cloud[image_indices] # just the pc that's in the img
         ones = np.ones((point_cloud_image_world.shape[0], 1))
         point_cloud_image_world = np.hstack((point_cloud_image_world, ones)) 
-        point_cloud_image_world = (np.dot(self.T_lidar, point_cloud_image_world.T).T)[:,:3]
+        point_cloud_image_world = (np.dot(self.T_zed, point_cloud_image_world.T).T)[:,:3]
 
         # print(point_cloud_image, point_cloud_image_world)
         # print("\n\n" )
