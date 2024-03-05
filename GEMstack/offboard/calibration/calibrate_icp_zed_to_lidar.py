@@ -61,9 +61,9 @@ print("Transformation is:")
 print(reg_p2p.transformation)
 print("")
 
-draw_registration_result(source_pcd, target_pcd, trans_init)
+draw_registration_result(source_pcd, target_pcd, reg_p2p.transformation)
 
 translation = 'lidar2_translation.npy'
 
-np.save(os.path.join(path, translation), trans_init)
+np.save(os.path.join(path, translation), reg_p2p.transformation)
 
