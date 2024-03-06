@@ -1,0 +1,6 @@
+ros_topics:
+  top_lidar: /lidar1/velodyne_points
+  front_camera: /zed2/zed_node/rgb/image_rect_color
+  front_depth: /zed2/zed_node/depth/depth_registered
+  gnss: /novatel/inspva
+  

@@ -286,7 +286,7 @@
     <axis xyz="0 0 0" />
   </joint>
   
-  <link name="stoplight_rl_link">
+  <link name="rear_left_stop_light_link">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <mass value="0" />
@@ -312,11 +312,11 @@
   <joint name="stoplight_rl_joint" type="fixed">
     <origin xyz="-1.625 0.38 0.423" rpy="0 0 3.1416" />
     <parent link="base_link" />
-    <child link="stoplight_rl_link" />
+    <child link="rear_left_stop_light_link" />
     <axis xyz="0 0 0" />
   </joint>
   
-  <link name="stoplight_rr_link">
+  <link name="rear_right_stop_light_link">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <mass value="0" />
@@ -342,7 +342,7 @@
   <joint name="stoplight_rr_joint" type="fixed">
     <origin xyz="-1.625 -0.38 0.423" rpy="0 0 3.1416" />
     <parent link="base_link" />
-    <child link="stoplight_rr_link" />
+    <child link="rear_right_stop_light_link" />
     <axis xyz="0 0 0" />
   </joint>
 
