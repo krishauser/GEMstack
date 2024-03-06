@@ -1,0 +1,6 @@
+ros_topics:
+  top_lidar: /ouster/points
+  front_camera: /oak/rgb/image_raw
+  front_depth: /oak/stereo/image_raw
+  gnss: /septentrio_gnss/insnavgeod
+  

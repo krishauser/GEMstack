@@ -8,4 +8,4 @@ min_wheel_angle: -0.6108    #radians, 35 degrees
 max_wheel_angle: 0.6108     #radians, 35 degrees
 min_steering_angle: -11.0   #radians, 630 degrees
 max_steering_angle: 11.0    #radians, 630 degrees
-
+urdf_model: !relative_path model/gem_e2.urdf
