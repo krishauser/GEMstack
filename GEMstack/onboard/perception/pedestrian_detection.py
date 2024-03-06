@@ -195,12 +195,20 @@ class PedestrianDetector(Component):
         x,y,w,h = box
         xmin, xmax = x - w/2, x + w/2
         ymin, ymax = y - h/2, y + h/2
+        
+        # enlarge bbox in case inaccuracy calibration
+        enlarge_factor = 1.5
+        xmin *= enlarge_factor
+        xmax *= enlarge_factor
+        ymin *= enlarge_factor
+        ymax *= enlarge_factor
         idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
                         (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
         
         agent_image_pc = point_cloud_image[idxs]
         agent_world_pc = point_cloud_image_world[idxs]
-        
+        if len(agent_world_pc) == 0: # might FP bbox from YOLO
+            return None
 
         # Find the point_cloud that is closest to the center of our bounding box
         center_x = x + w / 2
@@ -257,7 +265,8 @@ class PedestrianDetector(Component):
         detected_agents = []
         for i,b in enumerate(pedestrian_boxes):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            detected_agents.append(agent)
+            if agent is not None:
+                detected_agents.append(agent)
         return detected_agents
         
     def estimate_velocity(self, prev_pose, current_pose) -> tuple:
