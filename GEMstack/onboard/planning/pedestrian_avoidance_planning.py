@@ -11,15 +11,20 @@ import math
 import numpy as np
 from typing import Dict
 
-buffer_x = settings.get('planning.pedestrian_avoidance.buffer.longitudinal')
-buffer_y = settings.get('planning.pedestrian_avoidance.buffer.lateral')
+buffer = {
+    'x': settings.get('planning.pedestrian_avoidance.buffer.longitudinal'),
+    'y': settings.get('planning.pedestrian_avoidance.buffer.lateral')
+}
 
 def get_resolution(vehicle, all_pedestrians, braking_distance): # collision check resolution
     res_min = settings.get('planning.pedestrian_avoidance.resolution.min')
     res_max = settings.get('planning.pedestrian_avoidance.resolution.max')
     resolution = res_min
 
-    # if planner is too slow, resolution should be proportional to the vehicle-pedestrian distance
+    ''' uncomment if planner is too slow
+    - this sets resolution in range [res_min, res_max] 
+    - sets resolution such that it is proportional to the vehicle-pedestrian distance
+    '''
     # vehicle_poly = vehicle.to_object().polygon_parent() # in world frame
     # peds_poly = [a.polygon_parent() for a in all_pedestrians]
     # peds_dist = [collisions.polygon_polygon_distance_2d(vehicle_poly, p) for p in peds_poly]
@@ -33,16 +38,19 @@ def get_resolution(vehicle, all_pedestrians, braking_distance): # collision chec
 
     return resolution
 
-def add_buffer(dims):
-    l, w, h = dims
-    l += 2 * buffer_x
-    w += 2 * buffer_y
+def add_buffer(dimensions): 
+    l, w, h = dimensions
+    
+    # to compute new dimensions after expansion
+    l += 2 * buffer['x']
+    w += 2 * buffer['y']
     return [l, w, h]
-
-    # to get corners of new polygon in the local frame
-    # x = [-l/2 - buffer_x, l/2 + buffer_x]
-    # y = [-w/2 - buffer_y, w/2 + buffer_y]
+    
+    # # to get corners of new polygon in the local frame
+    # x = [-l/2 - buffer['x'], l/2 + buffer['x']]
+    # y = [-w/2 - buffer['y'], w/2 + buffer['y']]
     # return [(x[i], y[j]) for i in range(2) for j in range(2)]
+
 
 class PedestrianAvoidanceMotionPlanner(Component):
     """Follows the given route.  Brakes to yield to pedestrians or you are at the
@@ -97,7 +105,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
 
         # extract out a segment of length = braking distance
         braking_distance = curr_v**2 / (2 * self.deceleration)
-        lookahead = min(braking_distance, buffer_x)
+        lookahead = min(braking_distance, buffer['x'])
         route_with_lookahead = route.trim(closest_parameter, closest_parameter + lookahead)
         route_with_lookahead = route_with_lookahead.arc_length_parameterize()
         
@@ -118,7 +126,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
                 #path has only one point?
                 vehicle.pose.yaw = 0
             
-            # modify the margins aroun  d the vehicle to keep a safe distance from pedestrians
+            # modify the margins around the vehicle to keep a safe distance from pedestrians
             vehicle_obj = vehicle.to_object()
             vehicle_obj.dimensions = add_buffer(vehicle_obj.dimensions)
 
@@ -127,7 +135,9 @@ class PedestrianAvoidanceMotionPlanner(Component):
             
             if len(all_pedestrians) > 0:
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
-                if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
+                collision = [collisions.polygon_intersects_polygon_2d(vehicle_poly_world, a.polygon_parent()) for a in all_pedestrians]
+                if any(collision):
+                    a = all_pedestrians[all_pedestrians.index(True)] # pedestrian ivolved
                     print("Predicted collision with pedestrian at",progress)
                     print("Vehicle position",xy[0],xy[1])
                     print("Pedestrian position",a.pose.x,a.pose.y)

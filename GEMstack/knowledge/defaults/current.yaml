@@ -57,7 +57,6 @@ planning:
             min: 0.1 # m
             max: 0.5
 
-
 #configure the simulator, if using
 simulator:
     dt: 0.01
