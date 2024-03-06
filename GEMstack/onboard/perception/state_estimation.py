@@ -9,6 +9,7 @@ from ...knowledge.vehicle.geometry import front2steer,steer2front
 from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
+from ..interface.gem_hardware import GNSSReading
 
 class GNSSStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
@@ -16,7 +17,7 @@ class GNSSStateEstimator(Component):
         self.vehicle_interface = vehicle_interface
         if 'gnss' not in vehicle_interface.sensors():
             raise RuntimeError("GNSS sensor not available")
-        vehicle_interface.subscribe_sensor('gnss',self.inspva_callback)
+        vehicle_interface.subscribe_sensor('gnss',self.c,ObjectPose)
         self.gnss_pose = None
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
@@ -24,17 +25,9 @@ class GNSSStateEstimator(Component):
         self.status = None
 
     # Get GNSS information
-    def inspva_callback(self, inspva_msg):
-        self.gnss_pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-                                    t=self.vehicle_interface.time(),
-                                    x=inspva_msg.longitude,
-                                    y=inspva_msg.latitude,
-                                    z=inspva_msg.height,
-                                    yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
-                                    roll=math.radians(inspva_msg.roll),
-                                    pitch=math.radians(inspva_msg.pitch),
-                                    )
-        self.status = inspva_msg.status
+    def gnss_callback(self, reading : GNSSReading):
+        self.gnss_pose = reading.pose
+        self.status = reading.status
     
     def rate(self):
         return 10.0
