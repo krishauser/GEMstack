@@ -1,5 +1,3 @@
-*
-
 # track just these files
 !.gitignore
 !README.md

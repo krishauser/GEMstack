@@ -26,7 +26,7 @@ def main(folder='data'):
     while camera_info is None or depth_info is None:
         import time
         time.sleep(0.1)
-    with open(f'{folder}/cameraIncrinsics.txt', 'w') as f:
+    with open(f'{folder}/camera_intrinsics.txt', 'w') as f:
         print("################# RGB #################", file=f)
         print(camera_info, file=f)
         print("################# DEPTH #################", file=f)

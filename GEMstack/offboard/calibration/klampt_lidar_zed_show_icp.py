@@ -19,10 +19,51 @@ zed_intrinsics = [zed_K[0,0],zed_K[1,1],zed_K[0,2],zed_K[1,2]]
 zed_w = 1280
 zed_h = 720
 
+def execute_fast_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size):
+    distance_threshold = voxel_size * 0.5
+    result = o3d.pipelines.registration.registration_fgr_based_on_feature_matching(
+        source_down, target_down, source_fpfh, target_fpfh,
+        o3d.pipelines.registration.FastGlobalRegistrationOption(
+            maximum_correspondence_distance=distance_threshold))
+    return result
+
+def preprocess_pcd(pcd, voxel_size):
+    # voxel down sample
+    pcd_sample = pcd.voxel_down_sample(voxel_size)
+
+    # normal estimation
+    radius_normal = voxel_size * 2
+    pcd_sample.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=radius_normal, max_nn=30))
+
+    # compute FPFH feature
+    radius_feature = voxel_size * 5
+    pcd_fpfh = o3d.pipelines.registration.compute_fpfh_feature(
+        pcd_sample,
+        o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))    
+    return pcd_sample, pcd_fpfh
+
+def icp(pc_0, pc_1, init=None):
+    pc_0.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    pc_1.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+    source_down, source_fpfh = preprocess_pcd(pc_0, 0.5)
+    target_down, target_fpfh = preprocess_pcd(pc_1, 0.5)
+
+    if init is None:
+        result_fast = execute_fast_global_registration(source_down, target_down, source_fpfh, target_fpfh, 0.5)
+        trans_init = result_fast.transformation
+    else:
+        trans_init = init
+
+    # icp registration
+    reg_p2l = o3d.pipelines.registration.registration_icp(pc_0, pc_1, 0.02, trans_init, o3d.pipelines.registration.TransformationEstimationPointToPoint())
+    transform_matrix = reg_p2l.transformation
+
+    return transform_matrix
 
 def main(folder):
     lidar_xform = se3.identity()
     zed_xform = (so3.from_ndarray(np.array([[0,0,1],[-1,0,0],[0,-1,0]])),[0,0,0])
+    zed_xform_numpy = np.array([[0, 0, 1, 0],[-1, 0, 0, 0],[0, -1, 0, 0], [0, 0, 0, 1]])
     lidar_pattern = os.path.join(folder,"lidar{}.npz")
     color_pattern = os.path.join(folder,"color{}.png")
     depth_pattern = os.path.join(folder,"depth{}.tif")
@@ -35,6 +76,7 @@ def main(folder):
         arr_compressed.close()
         # mask = arr[:,1] > 0
         # arr = arr[mask]
+
         pc = numpy_convert.from_numpy(arr,'PointCloud')
         pc = colorize(pc,'z','plasma')
         data['lidar'] = Geometry3D(pc)
@@ -52,33 +94,17 @@ def main(folder):
         data['lidar'].setCurrentTransform(*lidar_xform)
         data['zed'].setCurrentTransform(*zed_xform)
         
-        
-        # NEW CODE
-        source_pts = image_to_points(depth,None,zed_xfov,zed_yfov,depth_scale=4000.0/0xffff, points_format='numpy')
-        target_pts = data['lidar'].getPointCloud().getPoints() # (25281, 3)
-        # data['zed'] = Geometry3D(numpy_convert.from_numpy(source_pts,'PointCloud'))
-        # data['zed'].setCurrentTransform(*zed_xform)
+        # source_pts = image_to_points(depth,None,zed_xfov,zed_yfov,depth_scale=4000.0/0xffff, points_format='numpy')
+        # target_pts = data['lidar'].getPointCloud().getPoints() # (25281, 3)
+        # # data['zed'] = Geometry3D(numpy_convert.from_numpy(source_pts,'PointCloud'))
+        # # data['zed'].setCurrentTransform(*zed_xform)
 
-        np.save(points_pattern1.format(idx), target_pts)
-        np.save(points_pattern2.format(idx), source_pts)
+        # # save the point cloud
+        # np.save(points_pattern1.format(idx), target_pts)
+        # np.save(points_pattern2.format(idx), source_pts)
 
-        # transfer to point cloud
-        source_pcd = o3d.geometry.PointCloud()
-        target_pcd = o3d.geometry.PointCloud()
-
-        source_pcd.points = o3d.utility.Vector3dVector(source_pts)
-        target_pcd.points = o3d.utility.Vector3dVector(target_pts)
-        
-        threshold = 0.0244 #TODO
-        trans_init = np.identity(4) #zed_xform #TODO
-        trans_init = np.array([[0,0,1,0],[-1,0,0,0],[0,-1,0,0],[0,0,0,1]]).T
-        print("Apply point-to-point ICP")
-        reg_p2p = o3d.pipelines.registration.registration_icp(
-            source_pcd, target_pcd, threshold, trans_init,
-            o3d.pipelines.registration.TransformationEstimationPointToPoint())
-        print(reg_p2p)
-        print("Transformation is:")
-        print(reg_p2p.transformation)
+        data['lidar_points'] = arr
+        data['zed_points'] = image_to_points(depth,None,zed_xfov,zed_yfov,depth_scale=4000.0/0xffff, points_format='numpy')
 
         vis.add('lidar',data['lidar'])
         vis.add('zed',data['zed'])
@@ -106,6 +132,18 @@ def main(folder):
         print("rotation:",so3.ndarray(zed_xform[0]))
         print("position:",zed_xform[1])
 
+    zed_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(data['zed_points']))
+    lidar_pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(data['lidar_points']))
+
+    zed_pcd.paint_uniform_color([1,0,0])
+    lidar_pcd.paint_uniform_color([0,1,0])
+
+    transformation = icp(zed_pcd, lidar_pcd, zed_xform_numpy)
+    zed_pcd.transform(transformation)
+    o3d.visualization.draw_geometries([zed_pcd, lidar_pcd])
+
+    print('lidar to camera transform:', transformation)
+    np.savetxt("/GEMstack/data/lidar_zed_calibration.txt", transformation)
 
     vis.addAction(increment_index,"Increment index",'=')
     vis.addAction(decrement_index,"Decrement index",'-')
