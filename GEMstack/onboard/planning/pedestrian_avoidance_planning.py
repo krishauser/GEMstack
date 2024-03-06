@@ -19,22 +19,27 @@ buffer = {
 def get_resolution(vehicle, all_pedestrians, braking_distance): # collision check resolution
     res_min = settings.get('planning.pedestrian_avoidance.resolution.min')
     res_max = settings.get('planning.pedestrian_avoidance.resolution.max')
-    resolution = res_min
+    
+    # resolution = res_min    # use if planner is fast enough
 
     ''' uncomment if planner is too slow
     - this sets resolution in range [res_min, res_max] 
     - sets resolution such that it is proportional to the vehicle-pedestrian distance
     '''
-    # vehicle_poly = vehicle.to_object().polygon_parent() # in world frame
-    # peds_poly = [a.polygon_parent() for a in all_pedestrians]
-    # peds_dist = [collisions.polygon_polygon_distance_2d(vehicle_poly, p) for p in peds_poly]
-    # d = min(peds_dist) # distance to closest pedestrian
-    # if d <= braking_distance:
-    #     resolution = res_min
-    # elif d >= 2 * braking_distance: 
-    #     resolution = res_max
-    # else:
-    #     resolution = res_min + (res_max - res_min) * (d / braking_distance - 1)
+    vehicle_poly = vehicle.to_object().polygon_parent() # in world frame
+    peds_poly = [a.polygon_parent() for a in all_pedestrians]
+    peds_dist = [collisions.polygon_polygon_distance_2d(vehicle_poly, p) for p in peds_poly]
+    try:
+        d = min(peds_dist) # distance to closest pedestrian
+    except:
+        d = np.inf
+    
+    if d <= braking_distance:
+        resolution = res_min
+    elif d >= 2 * braking_distance: 
+        resolution = res_max
+    else:
+        resolution = round(res_min + (res_max - res_min) * (d / braking_distance - 1), 1)
 
     return resolution
 
@@ -103,9 +108,9 @@ class PedestrianAvoidanceMotionPlanner(Component):
             if a.type == AgentEnum.PEDESTRIAN:
                 all_pedestrians.append(a)
 
-        # extract out a segment of length = braking distance
+        # extract out a segment of length = max(braking distance, buffer)
         braking_distance = curr_v**2 / (2 * self.deceleration)
-        lookahead = min(braking_distance, buffer['x'])
+        lookahead = max(braking_distance, buffer['x'])
         route_with_lookahead = route.trim(closest_parameter, closest_parameter + lookahead)
         route_with_lookahead = route_with_lookahead.arc_length_parameterize()
         
@@ -137,7 +142,6 @@ class PedestrianAvoidanceMotionPlanner(Component):
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
                 collision = [collisions.polygon_intersects_polygon_2d(vehicle_poly_world, a.polygon_parent()) for a in all_pedestrians]
                 if any(collision):
-                    a = all_pedestrians[all_pedestrians.index(True)] # pedestrian ivolved
                     print("Predicted collision with pedestrian at",progress)
                     print("Vehicle position",xy[0],xy[1])
                     print("Pedestrian position",a.pose.x,a.pose.y)
