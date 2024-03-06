@@ -12,7 +12,7 @@ try:
 except ImportError:
     pass
 import numpy as np
-from typing import Dict,Tuple
+from typing import Dict,Tuple, List
 import time
 
 def Pmatrix(fx,fy,cx,cy):
@@ -146,6 +146,7 @@ class PedestrianDetector(Component):
         self.point_cloud = point_cloud
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
+        print('start')
         if self.zed_image is None:
             #no image data yet
             return {}
@@ -157,7 +158,7 @@ class PedestrianDetector(Component):
             return {}
         
         #debugging
-        #self.save_data()
+        self.save_data()
 
         t1 = time.time()
         detected_agents = self.detect_agents()
@@ -207,12 +208,13 @@ class PedestrianDetector(Component):
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
         self.last_person_boxes = []
-        boxes = results[0].boxes
+        boxes = detection_result[0].boxes
 
         #TODO: create boxes from detection result
-        for i in detection_result[0].boxes:
-            if (boxes.cls[i] == settings.get('pedestrian_detection.pedestrian_class')) and (boxes.conf[i] >= settings.get('prediction_confidence')):
+        for i in range(len(detection_result[0].boxes)):
+            if (boxes.cls[i] == settings.get('pedestrian_detection.pedestrian_class')) and (boxes.conf[i] >= settings.get('pedestrian_detection.prediction_confidence')):
                 x, y, w, h = boxes[i].xywh[0].cpu().detach().numpy().tolist()
+                print(f'xywh{x, y, w, h}')
                 self.last_person_boxes.append((x,y,w,h))
         
         point_cloud_image = lidar2pixel(self.intrinsic, self.extrinsic, self.point_cloud)
@@ -233,7 +235,7 @@ class PedestrianDetector(Component):
         results = {}
         self.pedestrian_counter = 0
         overlap_dist = 1
-        dt = 1
+        dt = 1.0
 
         for agent in detected_agents:
             state = False
