@@ -1,3 +1,6 @@
+calibration_date: "2024-03-01"  # Date of calibration YYYY-MM-DD
+calibration_time: "12:30"  # Time in 24 hr format
+
 reference: rear_axle_center  # rear axle center
 rotation: [[-0.044645686603095605, -0.05779423890409078, 0.9973297187777733], 
            [-0.9983638331237861, 0.038283672954995754, -0.0424734792025802], 

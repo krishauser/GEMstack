@@ -1,3 +1,6 @@
+calibration_date: "2024-03-01"  # Date of calibration YYYY-MM-DD
+calibration_time: "11:45"  # Time in 24 hr format
+
 K:
 - 527.0584716796875
 - 0.0

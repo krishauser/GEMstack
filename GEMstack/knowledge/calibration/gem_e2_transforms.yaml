@@ -1,3 +1,6 @@
+calibration_date: "2024-03-01"  # Date of calibration YYYY-MM-DD
+calibration_time: "12:30"  # Time in 24 hr format
+
 lidar2zed:
 - -0.00034355149611217434
 - -0.9999703499816052
