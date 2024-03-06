@@ -1,0 +1,3 @@
+reference: rear_axle_center  # rear axle center
+position: [1.10,0,2.03] # meters, calibrated by Hang's watchful eye
+rotation: [[1,0,0],[0,1,0],[0,0,1]]  #rotation matrix mapping lidar frame to vehicle frame
