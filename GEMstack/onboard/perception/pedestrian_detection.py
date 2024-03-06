@@ -197,18 +197,22 @@ class PedestrianDetector(Component):
         ymin, ymax = y - h/2, y + h/2
         
         # enlarge bbox in case inaccuracy calibration
-        enlarge_factor = 1.5
+        enlarge_factor = 3
         xmin *= enlarge_factor
         xmax *= enlarge_factor
         ymin *= enlarge_factor
         ymax *= enlarge_factor
-        idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
-                        (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
+
+        agent_world_pc = point_cloud_image_world
+
+        # idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
+        #                 (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
         
-        agent_image_pc = point_cloud_image[idxs]
-        agent_world_pc = point_cloud_image_world[idxs]
-        if len(agent_world_pc) == 0: # might FP bbox from YOLO
-            return None
+        # agent_image_pc = point_cloud_image[idxs]
+        # agent_world_pc = point_cloud_image_world[idxs]
+        # print ('# of agent_world_pc:', len(agent_world_pc))
+        # if len(agent_world_pc) == 0: # might FP bbox from YOLO
+        #     return None
 
         # Find the point_cloud that is closest to the center of our bounding box
         center_x = x + w / 2
@@ -237,7 +241,7 @@ class PedestrianDetector(Component):
         l = np.max(agent_world_pc[:, 0]) - np.min(agent_world_pc[:, 0])
         w = np.max(agent_world_pc[:, 1]) - np.min(agent_world_pc[:, 1])
         h = np.max(agent_world_pc[:, 2]) - np.min(agent_world_pc[:, 2])
-        dims = (l, w, h) 
+        dims = (2, 2, 1.7) 
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
         
@@ -298,7 +302,7 @@ class PedestrianDetector(Component):
                 
                 # Car moves between frames. So have to transform the previous agent's pose
                 # to align with the current vehicle's pose.
-                prev_agent = prev_agent.to_frame(ObjectFrameEnum.CURRENT, vehicle.pose)
+                # prev_agent = prev_agent.to_frame(ObjectFrameEnum.CURRENT, vehicle.pose)
                 
                 if self.overlaps(current_agent.pose, prev_agent.pose):
                     # If the current agent overlaps with a previous agent, it's the same pedestrian

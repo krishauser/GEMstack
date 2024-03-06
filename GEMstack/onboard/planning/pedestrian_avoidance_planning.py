@@ -19,9 +19,9 @@ class PedestrianAvoidanceMotionPlanner(Component):
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 1.0
-        self.desired_speed = 2.0 
-        self.deceleration = 1.0 
+        self.acceleration = 0.5#1.0
+        self.desired_speed = 1.0#2.0 
+        self.deceleration = 2.0 
     def state_inputs(self):
         return ['all']
 
@@ -83,8 +83,8 @@ class PedestrianAvoidanceMotionPlanner(Component):
         # Adjusting margins around the vehicle
         vehicle_margin_lateral = 1.0 
         vehicle_margin_longitudinal = 3.0 
-        safe_margin_d = 3.0
-        safe_margin_h = 1.5
+        safe_margin_d = 6.0
+        safe_margin_h = 2.5
         
         # Calculate lookahead distance
         lookahead_distance = (self.desired_speed ** 2) / (2 * abs(self.deceleration))
