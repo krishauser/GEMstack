@@ -35,10 +35,10 @@ Run `python3 GEMstack/offboard/calibration/klampt_lidar_zed_show_icp.py data/cal
 
 2. Use `pc-to-ground.py`, manually select lidar points that are on the ground and obtain the plane equation. We can derive the height and roll of lidar. The ground equation is  $-0.03852875x-0.01000802y+0.99920737z+2.1135=0$.
 
-   ![image-20240305202142389](assets/image-20240305202142389.png)
+   ![image-20240305202142389](./asset/image-20240305202142389.png)
 
 3. Use `centerline.py`, manually choose the lidar lines that correspond to the object that is on the centerline. Assuming the center of the object is on the centerline, we can calculate the yaw. The center is $(8.077,0.159,-0.420)$.Or we can calculate the yaw from plane equation. The plane equation is $0.998x - 0.0025y + 0.0614z -8.03562 = 0.$
 
-   ![image-20240305202212681](assets/image-20240305202212681.png)
+   ![image-20240305202212681](./asset/image-20240305202212681.png)
 
 4. The resultant transformation is stored in the configuration file.
