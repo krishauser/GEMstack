@@ -1,3 +1,8 @@
+""" Instructions:
+From the main GEMstack folder, run
+python3 main.py --variant=detector_only launch/pedestrian_avoidance.yaml
+"""
+
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ...utils import settings
 from ...mathutils import transforms
@@ -15,6 +20,12 @@ import numpy as np
 from typing import Dict,Tuple
 import time
 import yaml
+
+# def Pmatrix(fx,fy,cx,cy):
+#     """Returns a projection matrix for a given set of camera intrinsics."""
+#     return np.array([[fx,0,cx,0],
+#                      [0,fy,cy,0],
+#                      [0,0,1,0]])
 
 def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple[int,int], yrange : Tuple[int,int]) -> Tuple[np.ndarray,np.ndarray]:
     """Projects a point cloud into a 2D image using a camera intrinsic projection matrix P.
@@ -42,7 +53,7 @@ def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple
     pxform = pc_fwd[:,:3].dot(P[:3,:3].T) + P[:3,3]
     uv = (pxform[:,0:2].T/pxform[:,2]).T
     inds = np.logical_and(np.logical_and(uv[:,0] >= xrange[0],uv[:,0] < xrange[1]),
-                    np.logical_and(uv[:,1] >= yrange[0],uv[:,1] < yrange[1]))
+                          np.logical_and(uv[:,1] >= yrange[0],uv[:,1] < yrange[1]))
     point_cloud_image = uv[inds]
     image_indices = pc_fwd[inds,3].astype(int)
     return point_cloud_image, image_indices
@@ -76,7 +87,7 @@ class PedestrianDetector(Component):
         self.last_agent_states = {}
 
     def rate(self):
-        return 4.0
+        return settings.get('perception.pedestrian_detection.rate')
     
     def state_inputs(self):
         return ['vehicle']
@@ -91,13 +102,12 @@ class PedestrianDetector(Component):
         self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         #subscribe to the Zed CameraInfo topic
         self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
-        pass
     
     def image_callback(self, image : cv2.Mat):
         self.zed_image = image
 
-    # def camera_info_callback(self, info : CameraInfo):
-    #     self.camera_info = info
+    def camera_info_callback(self, info : CameraInfo):
+        self.camera_info = info
 
     def lidar_callback(self, point_cloud: np.ndarray):
         self.point_cloud = point_cloud
@@ -128,15 +138,14 @@ class PedestrianDetector(Component):
         return current_agent_states
 
     def box_to_agent(self, box, point_cloud_image, point_cloud_image_world):
-        #     """Creates a 3D agent state from an (x,y,w,h) bounding box.
-            
-        #     TODO: you need to use the image, the camera intrinsics, the lidar
-        #     point cloud, and the calibrated camera / lidar poses to get a good
-        #     estimate of the pedestrian's pose and dimensions.
-        #     """
+        """Creates a 3D agent state from an (x,y,w,h) bounding box.
+        
+        Uses the image, the camera intrinsics, the lidar point cloud, 
+        and the calibrated camera / lidar poses to get a good estimate 
+        of the pedestrian's pose and dimensions.
+        """
     
-        # We first find the points in point_cloud_image that are within the 
-        # bounding box
+        # We first find the points in point_cloud_image that are within the bounding box
         x, y, w, h = box
         
         fx = self.camera_info.P[0]
@@ -185,12 +194,11 @@ class PedestrianDetector(Component):
                           type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, 
                           velocity=(0,0,0), yaw_rate=0)
     
-
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
         # print(detection_result)
 
-        #TODO: create boxes from detection result
+        # Create boxes from detection result
         bboxes = []
         for box in detection_result[0].boxes:
             if box.cls != 0: 
@@ -200,15 +208,13 @@ class PedestrianDetector(Component):
             bboxes.append(xywh)
         self.last_person_boxes = bboxes
         
-        #TODO: create point clouds in image frame and world frame
+        # Create point clouds in image frame and world frame
         detected_agents = []     
-
         for i,b in enumerate(self.last_person_boxes):
             # print(b)
-            # print(point_cloud_image)
             agent = self.box_to_agent(b, self.point_cloud_image, self.point_cloud_image_world)
             detected_agents.append(agent)
-            pass
+            
         return detected_agents
     
     def track_agents(self, vehicle : VehicleState, detected_agents : list[AgentState]):
@@ -267,9 +273,9 @@ class PedestrianDetector(Component):
         xrange = [0, self.camera_info.width]
         yrange = [0, self.camera_info.height]
         projected_points, image_indices = project_point_cloud(point_cloud_camera_frame, P, xrange, yrange)
-        self.point_cloud_image = projected_points
+        self.point_cloud_image = projected_points   # (u,v) visible image coordinates
 
-        # For pc_img_world, if additional transformation to world coordinates is needed, implement here
+        # Convert the visible points from camera frame to world frame
         point_cloud_camera_frame = point_cloud_camera_frame[image_indices] 
         
         pcd_temp = np.ones((4, len(point_cloud_camera_frame)))
