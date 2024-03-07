@@ -220,6 +220,19 @@ class PedestrianDetector(Component):
         for i,a in enumerate(detected_agents):
             results['pedestrian_'+str(self.pedestrian_counter)] = a
             self.pedestrian_counter += 1
+
+            last = self.last_agent_states[i]
+            current_pose = a.ObjectPose
+            dimensions  = a.dimensions
+            x_velocity = (current_pose.x - last.x) / (current_pose.t - last.t)
+            y_velocity = (current_pose.y - last.y) / (current_pose.t - last.t)
+            z_velocity = (current_pose.z - last.z) / (current_pose.t - last.t)
+            yaw_rate   = (current_pose.yaw - last.yaw) / (current_pose.t - last.t)
+
+            current_state = AgentState(pose=current_pose, dimensions=dimensions, outline=None, 
+                                    type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, 
+                                    velocity=(x_velocity,y_velocity,z_velocity), yaw_rate=yaw_rate)
+            results.append(current_state)
         return results
 
     def save_data(self, loc=None):
