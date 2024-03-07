@@ -25,6 +25,7 @@ from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, Vehicl
 import cv2
 import numpy as np
 from ...utils import conversions
+import time
 
 @dataclass 
 class GNSSReading:
@@ -166,7 +167,7 @@ class GEMHardwareInterface(GEMInterface):
                                     yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
                                     roll=math.radians(inspva_msg.roll),
                                     pitch=math.radians(inspva_msg.pitch),
-                                    )
+                                    t = time.time())
                         callback(GNSSReading(pose,inspva_msg.status))
                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
             else:

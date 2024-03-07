@@ -14,7 +14,7 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : pedestrian_detection3d.PedestrianDetector3d
+        agent_detection : pedestrian_detection3d.PedestrianDetector3D
         perception_normalization : StandardPerceptionNormalizer
     planning:
         route_planning:
@@ -58,7 +58,7 @@ after:
     show_log_folder: False  #set to false to avoid showing the log folder
 
 variants:
-    detector_only:
+    perception_only:
         run:
             description: "Run the pedestrian detection code and show a visualization"
             visualization: !include "klampt_visualization.yaml"
@@ -84,3 +84,4 @@ variants:
                     state_estimation : OmniscientStateEstimator
                     agent_detection : OmniscientAgentDetector
                     perception_normalization : StandardPerceptionNormalizer
+                    

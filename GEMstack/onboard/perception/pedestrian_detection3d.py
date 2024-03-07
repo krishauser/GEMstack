@@ -105,7 +105,7 @@ class PedestrianDetector3D(Component):
 
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        if not self.image and not self.lidar_points:
+        if self.image is None and self.lidar_points is None:
             return dict()
 
         detected_agents = self.detect_agents()
