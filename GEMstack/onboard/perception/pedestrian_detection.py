@@ -21,12 +21,6 @@ from typing import Dict,Tuple
 import time
 import yaml
 
-# def Pmatrix(fx,fy,cx,cy):
-#     """Returns a projection matrix for a given set of camera intrinsics."""
-#     return np.array([[fx,0,cx,0],
-#                      [0,fy,cy,0],
-#                      [0,0,1,0]])
-
 def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple[int,int], yrange : Tuple[int,int]) -> Tuple[np.ndarray,np.ndarray]:
     """Projects a point cloud into a 2D image using a camera intrinsic projection matrix P.
     
@@ -106,8 +100,9 @@ class PedestrianDetector(Component):
     def image_callback(self, image : cv2.Mat):
         self.zed_image = image
 
-    def camera_info_callback(self, info : CameraInfo):
-        self.camera_info = info
+    # TODO: uncomment before running on the vehicle
+    # def camera_info_callback(self, info : CameraInfo):
+    #     self.camera_info = info
 
     def lidar_callback(self, point_cloud: np.ndarray):
         self.point_cloud = point_cloud
@@ -148,22 +143,19 @@ class PedestrianDetector(Component):
         # We first find the points in point_cloud_image that are within the bounding box
         x, y, w, h = box
         
-        fx = self.camera_info.P[0]
-        fy = self.camera_info.P[5]
-        cx = self.camera_info.P[2]
-        cy = self.camera_info.P[6]
+        fx = self.camera_info.P[0,0]
+        fy = self.camera_info.P[1,1]
+        cx = self.camera_info.P[0,2]
+        cy = self.camera_info.P[1,2]
 
         point_cloud_image[:, 0] = fx * point_cloud_image[:, 0] + cx
         point_cloud_image[:, 1] = fy * point_cloud_image[:, 1] + cy
-
 
         points_in_box_idx = [i for i in range(len(point_cloud_image)) if 
                             point_cloud_image[i][0] >= x and 
                             point_cloud_image[i][1] >= y and 
                             point_cloud_image[i][0] <= x + w and 
                             point_cloud_image[i][1] <= y + h]
-        # print(points_in_box)
-        # return None
         points_in_box = [point_cloud_image_world[idx] for idx in points_in_box_idx]
 
         position = np.mean(points_in_box, axis=0)
@@ -209,10 +201,12 @@ class PedestrianDetector(Component):
         self.last_person_boxes = bboxes
         
         # Create point clouds in image frame and world frame
+        point_cloud_image, point_cloud_image_world = self.point_cloud_image()
+
         detected_agents = []     
         for i,b in enumerate(self.last_person_boxes):
             # print(b)
-            agent = self.box_to_agent(b, self.point_cloud_image, self.point_cloud_image_world)
+            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             detected_agents.append(agent)
             
         return detected_agents
@@ -256,31 +250,31 @@ class PedestrianDetector(Component):
             
             with open(settings.get('calibration.zed_intrinsics'), 'r') as file:
                 config = yaml.load(file, yaml.SafeLoader)
-            K = np.zeros((3,4))
-            K[:3,:3] = np.array(config['K']).reshape(3,3)
-
-            self.camera_info = CameraInfo(width=1280, height=720, P=K.flatten())
+            
+            P = np.zeros((3,4))
+            P[:3,:3] = np.array(config['K']).reshape(3,3)
+            
+            self.camera_info = CameraInfo(width=1280, height=720, P=P.flatten())
 
     def point_cloud_image(self):
-        # Assuming camera_info contains fx, fy, cx, cy
-        P = np.array(self.camera_info.P).reshape(3,4)
-        
+        self.camera_info.P = np.array(self.camera_info.P).reshape(3,4)
+
         # Transform LiDAR points to the camera frame
         point_cloud_homogeneous = np.hstack((self.point_cloud, np.ones((self.point_cloud.shape[0], 1))))
         point_cloud_camera_frame = (self.T_lidar_to_zed @ point_cloud_homogeneous.T).T[:, :3]
         
         # Project the 3D points in the camera frame onto the 2D image
-        xrange = [0, self.camera_info.width]
-        yrange = [0, self.camera_info.height]
-        projected_points, image_indices = project_point_cloud(point_cloud_camera_frame, P, xrange, yrange)
-        self.point_cloud_image = projected_points   # (u,v) visible image coordinates
+        projected_points, image_indices = project_point_cloud(
+            point_cloud_camera_frame, self.camera_info.P, 
+            [0, self.camera_info.width], [0, self.camera_info.height]
+        )
+        
+        point_cloud_image = projected_points   # (u,v) visible image coordinates
+        point_cloud_camera_frame = point_cloud_camera_frame[image_indices] 
 
         # Convert the visible points from camera frame to world frame
-        point_cloud_camera_frame = point_cloud_camera_frame[image_indices] 
-        
         pcd_temp = np.ones((4, len(point_cloud_camera_frame)))
         pcd_temp[:3, :] = point_cloud_camera_frame.transpose()
-        
-        self.point_cloud_image_world = (self.T_zed @ pcd_temp).transpose()
+        point_cloud_image_world = (self.T_zed @ pcd_temp).T[:, :3]
 
-        return self.point_cloud_image, self.point_cloud_image_world
+        return point_cloud_image, point_cloud_image_world
