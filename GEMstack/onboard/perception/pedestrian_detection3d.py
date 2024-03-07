@@ -37,12 +37,11 @@ class PedestrianDetector3D(Component):
         self.make_transformation_matrices()
 
 
-    def box_to_agent(box, pc2d, pc3d):
+    def box_to_agent(self,box, pc2d, pc3d):
         """Creates an agent state from an (x,y,w,h) bounding box.
         
         The location and size are pretty much meaningless since this is just giving a 2D location.
         """
-
         x,y,w,h = box
 
         dist_2 = np.sum((pc2d - [x, y])**2, axis=1)
@@ -113,8 +112,8 @@ class PedestrianDetector3D(Component):
         current_agent_states = {}
         for agent in detected_agents:
             polygon_collision = False
-            for previous_detection_name in self.last_agent_states:
-                last_agent = self.last_agent_states[previous_detection_name]
+            for previous_detection_name in self.ped_state:
+                last_agent = self.ped_state[previous_detection_name]
                 # start_frame = start_frame.to_frame(1, VehicleState.pose)
                 current_agent = copy.deepcopy(agent)
                 current_agent.pose.x += vehicle.v * self.rate()
@@ -129,7 +128,7 @@ class PedestrianDetector3D(Component):
                 agent.velocity = (0,0,0)
                 current_agent_states['person'+str(uuid.uuid4())] = agent
 
-        self.last_agent_states = current_agent_states
+        self.ped_state = current_agent_states
         return current_agent_states
     
     def detect_agents(self):
@@ -157,7 +156,7 @@ class PedestrianDetector3D(Component):
         # assign ids to indentify lidar points
         pc_with_ids_from_lidar = np.hstack((\
             point_cloud_as_zed,\
-            np.array([ [x] for x in range(self.lidar_points.shape[0])])\
+            np.array([ [x] for x in range(point_cloud_as_zed.shape[0])])\
             ))
         
         # crop off lidar points behind the camera hemisphere
@@ -190,6 +189,9 @@ class PedestrianDetector3D(Component):
 
         detected_agents = []
         for i,box in enumerate(self.detected_pedestrians):
+            print(box)
+            print(point_cloud_image_2d)
+            print(point_cloud_mapped_in_zed_3d)
             agent = self.box_to_agent(box, point_cloud_image_2d, point_cloud_mapped_in_zed_3d)
             detected_agents.append(agent)
         return detected_agents
