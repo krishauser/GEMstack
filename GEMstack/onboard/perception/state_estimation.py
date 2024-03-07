@@ -17,17 +17,27 @@ class GNSSStateEstimator(Component):
         self.vehicle_interface = vehicle_interface
         if 'gnss' not in vehicle_interface.sensors():
             raise RuntimeError("GNSS sensor not available")
-        vehicle_interface.subscribe_sensor('gnss',self.c,ObjectPose)
+        vehicle_interface.subscribe_sensor('gnss',self.gnss_callback)
         self.gnss_pose = None
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
         self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
         self.status = None
+        self.speed = None
 
     # Get GNSS information
-    def gnss_callback(self, reading : GNSSReading):
-        self.gnss_pose = reading.pose
-        self.status = reading.status
+    def gnss_callback(self, gnss):
+        self.gnss_pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t=self.vehicle_interface.time(),
+                                    x=gnss.longitude,
+                                    y=gnss.latitude,
+                                    z=gnss.height,
+                                    yaw=math.radians(gnss.azimuth),  #heading from north in degrees
+                                    roll=math.radians(gnss.roll),
+                                    pitch=math.radians(gnss.pitch),
+                                    )
+        self.status = gnss.status
+        self.speed = round((gnss.east_velocity**2 + gnss.north_velocity**2)**0.5, 2)
     
     def rate(self):
         return 10.0
@@ -41,12 +51,7 @@ class GNSSStateEstimator(Component):
     def update(self) -> VehicleState:
         if self.gnss_pose is None:
             return
-        #TODO: figure out what this status means
-        #print("INS status",self.status)
-
-        # vehicle gnss heading (yaw) in radians
-        # vehicle x, y position in fixed local frame, in meters
-        # reference point is located at the center of GNSS antennas
+        
         localxy = transforms.rotate2d(self.location,-self.yaw_offset)
         gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
         center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
@@ -60,8 +65,8 @@ class GNSSStateEstimator(Component):
         raw = readings.to_state(vehicle_pose_global)
 
         #filtering speed
-        filt_vel     = self.speed_filter(raw.v)
-        raw.v = filt_vel
+        filt_vel = self.speed_filter(raw.v)
+        raw.v = self.speed
         return raw
         
 
