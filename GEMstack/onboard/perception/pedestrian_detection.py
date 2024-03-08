@@ -142,60 +142,44 @@ class PedestrianDetector(Component):
     
         # We first find the points in point_cloud_image that are within the bounding box
         x, y, w, h = box
-        
-        fx = self.camera_info.P[0,0]
-        fy = self.camera_info.P[1,1]
-        cx = self.camera_info.P[0,2]
-        cy = self.camera_info.P[1,2]
-
-        point_cloud_image[:, 0] = fx * point_cloud_image[:, 0] + cx
-        point_cloud_image[:, 1] = fy * point_cloud_image[:, 1] + cy
+        # print('Bbox: [{0:.2f}, {1:.2f}, {2:.2f}, {3:.2f}]'.format(x,y,w,h))
 
         points_in_box_idx = [i for i in range(len(point_cloud_image)) if 
-                            point_cloud_image[i][0] >= x and 
-                            point_cloud_image[i][1] >= y and 
-                            point_cloud_image[i][0] <= x + w and 
-                            point_cloud_image[i][1] <= y + h]
+                            point_cloud_image[i][0] >= x - w/2 and 
+                            point_cloud_image[i][1] >= y - w/2 and 
+                            point_cloud_image[i][0] <= x + w/2 and 
+                            point_cloud_image[i][1] <= y + h/2]
         points_in_box = [point_cloud_image_world[idx] for idx in points_in_box_idx]
+        # print("points_in_box", points_in_box)
 
         position = np.mean(points_in_box, axis=0)
 
-        # points_in_box = point_cloud_image[mask]
-        # print(points_in_box)
-        # print(x, y, w, h)
-        # print("point_cloud_image", point_cloud_image)
-
-        # print("point_in_box", points_in_box)
-        # print("point_cloud_image_world", point_cloud_image_world)
         # Estimate dimensions - assuming the pedestrian is upright for simplicity
         # This could be refined with a more sophisticated model
         min_pt = np.min(points_in_box, axis=0)
         max_pt = np.max(points_in_box, axis=0)
         dimensions = max_pt - min_pt
+        # print("dimensions", dimensions)
+
+        # You might want to adjust the dimensions if they are too small or too large
+        # This is a simple heuristic that may need refinement
+        dims = [max(dimensions[0], 0.5), max(dimensions[1], 0.5), max(dimensions[2], 1.5)]
 
         # Create the agent state with the estimated position and dimensions
         pose = ObjectPose(t=0, x=position[0], y=position[1], z=position[2], 
                           yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
         
-        # print("dimensions", dimensions)
-        # You might want to adjust the dimensions if they are too small or too large
-        # This is a simple heuristic that may need refinement
-        dims = [max(dimensions[0], 0.5), max(dimensions[1], 0.5), max(dimensions[2], 1.5)]
-
         return AgentState(pose=pose, dimensions=dims, outline=None, 
                           type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, 
                           velocity=(0,0,0), yaw_rate=0)
     
     def detect_agents(self):
-        detection_result = self.detector(self.zed_image,verbose=False)
+        detection_result = self.detector(self.zed_image, classes=0, verbose=False)
         # print(detection_result)
 
         # Create boxes from detection result
         bboxes = []
         for box in detection_result[0].boxes:
-            if box.cls != 0: 
-                continue
-            
             xywh = box.xywh.cpu().clone().numpy().reshape(4, )
             bboxes.append(xywh)
         self.last_person_boxes = bboxes
@@ -205,7 +189,6 @@ class PedestrianDetector(Component):
 
         detected_agents = []     
         for i,b in enumerate(self.last_person_boxes):
-            # print(b)
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             detected_agents.append(agent)
             
@@ -257,35 +240,34 @@ class PedestrianDetector(Component):
             with open(prefix+'zed_camera_info.pkl','rb') as f:
                 self.camera_info = pickle.load(f)
         except ModuleNotFoundError:
-            #ros not found?
-            from collections import namedtuple
-            CameraInfo = namedtuple('CameraInfo',['width','height','P'])
-            
+            #ros not found?            
             with open(settings.get('calibration.zed_intrinsics'), 'r') as file:
                 config = yaml.load(file, yaml.SafeLoader)
             
             P = np.zeros((3,4))
             P[:3,:3] = np.array(config['K']).reshape(3,3)
             
+            from collections import namedtuple
+            CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             self.camera_info = CameraInfo(width=1280, height=720, P=P.flatten())
 
     def point_cloud_image(self):
-        self.camera_info.P = np.array(self.camera_info.P).reshape(3,4)
-
         # Transform LiDAR points to the camera frame
         point_cloud_homogeneous = np.hstack((self.point_cloud, np.ones((self.point_cloud.shape[0], 1))))
         point_cloud_camera_frame = (self.T_lidar_to_zed @ point_cloud_homogeneous.T).T[:, :3]
         
         # Project the 3D points in the camera frame onto the 2D image
         projected_points, image_indices = project_point_cloud(
-            point_cloud_camera_frame, self.camera_info.P, 
+            point_cloud_camera_frame, np.array(self.camera_info.P).reshape(3,4), 
             [0, self.camera_info.width], [0, self.camera_info.height]
         )
-        
+
         point_cloud_image = projected_points   # (u,v) visible image coordinates
+        # print('Point cloud image:\n', point_cloud_image)
+
         point_cloud_camera_frame = point_cloud_camera_frame[image_indices] 
 
-        # Convert the visible points from camera frame to world frame
+        # Convert the visible points from camera frame to vehicle frame
         pcd_temp = np.ones((4, len(point_cloud_camera_frame)))
         pcd_temp[:3, :] = point_cloud_camera_frame.transpose()
         point_cloud_image_world = (self.T_zed @ pcd_temp).T[:, :3]
