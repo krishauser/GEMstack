@@ -69,14 +69,32 @@ class PedestrianAvoidanceMotionPlanner(Component):
         
         #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
         #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
+
+        vehicle_margin_x = 1.0
+        vehicle_margin_y = 3.0
+        pedestrian_margin_x = 1.0
+        pedestrian_margin_y = 3.0
+        
+        closest_pedestrian = None
+        closest_pedestrian_dist = 1000000
+
         all_pedestrians = []
         for k,a in agents.items():
             if a.type == AgentEnum.PEDESTRIAN:
+                dist = math.sqrt((a.pose.x - vehicle.pose.x) ** 2 + (a.pose.y - vehicle.pose.y) ** 2)
+                (a_l, a_w, a_h) = a.dimensions
+                a.dimensions = (a_l + pedestrian_margin_x, a_w + pedestrian_margin_y, a_h)
+                if dist < closest_pedestrian_dist:
+                    closest_pedestrian = a
+                    closest_pedestrian_dist = dist
                 all_pedestrians.append(a)
+
+        
         collision_check_resolution = 0.1  #m
         progress_start, progress_end = route_with_lookahead.domain()
         progress = progress_start
         max_progress = None
+
         while progress < progress_end:
             xy = route_with_lookahead.eval(progress)
             vehicle.pose.x = xy[0]
@@ -88,15 +106,19 @@ class PedestrianAvoidanceMotionPlanner(Component):
                 #path has only one point?
                 vehicle.pose.yaw = 0
             #this is a CCW polygon specifying the vehicle's position at the given progress, in the START frame
-            vehicle_poly_world = vehicle.to_object().polygon_parent() 
+            # vehicle_poly_world = vehicle.to_object().polygon_parent()
+            vehicle_object = vehicle.to_object()
+            (v_l, v_w, v_h) = vehicle_object.dimensions
+            vehicle_object.dimensions = (v_l + vehicle_margin_x, v_w + vehicle_margin_y, v_h)
+            vehicle_poly_world = vehicle.to_object().polygon_parent()
             if len(all_pedestrians) > 0:
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
                 if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
                     print("Predicted collision with pedestrian at",progress)
                     print("Vehicle position",xy[0],xy[1])
                     print("Pedestrian position",a.pose.x,a.pose.y)
-                    #print("Vehicle poly",vehicle_poly_world)
-                    #print("Pedestrian poly",a.polygon_parent())
+                    print("Vehicle poly",vehicle_poly_world)
+                    print("Pedestrian poly",a.polygon_parent())
                     #prevent
                     max_progress = max(progress - collision_check_resolution,0.0)
                     break
@@ -110,8 +132,17 @@ class PedestrianAvoidanceMotionPlanner(Component):
             max_progress = progress_end
         print("Progress",route_with_lookahead.domain()[1])
 
+        print("braking distance: ",braking_distance)
+        print("acceleration: ",self.acceleration)
+        print("deceleration: ",self.deceleration)
+        print("desired speed: ",self.desired_speed)
+        print("current speed: ",curr_v)
+
+        dist_x_to_closet_pedestrian_with_margin = abs(closest_pedestrian.pose.x - vehicle.pose.x) - vehicle_margin_x - pedestrian_margin_x
+        dist_y_to_closet_pedestrian_with_margin = abs(closest_pedestrian.pose.y - vehicle.pose.y) - vehicle_margin_y - pedestrian_margin_y
+
         #choose whether to accelerate, brake, or keep at current velocity
-        if max_progress > 0:
+        if max_progress > 0 or braking_distance < dist_x_to_closet_pedestrian_with_margin or 0 < dist_y_to_closet_pedestrian_with_margin:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         else:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
