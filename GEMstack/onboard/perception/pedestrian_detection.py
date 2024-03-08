@@ -203,13 +203,13 @@ class PedestrianDetector(Component):
         print(self.T_lidar_to_zed)
         detection_result = self.detector(self.zed_image,verbose=False)
         self.last_person_boxes = []
-        #TODO: create boxes from detection result
+        #create boxes from detection result, copied from hw2
         boxes = detection_result[0].boxes
         for i in range(len(boxes)):
             if(boxes.cls[i] == 0):
                 self.last_person_boxes.append(boxes.xywh[i].tolist())
 
-        #TODO: create point clouds in image frame and world frame
+        #create point clouds in image frame and world frame
         camera = PinholeCameraModel()
         camera.fromCameraInfo(self.camera_info)
 
@@ -235,8 +235,6 @@ class PedestrianDetector(Component):
         point_cloud_image_world = np.hstack((point_cloud_image_world, ones)) 
         point_cloud_image_world = (np.dot(self.T_zed, point_cloud_image_world.T).T)[:,:3]
 
-        # print(point_cloud_image, point_cloud_image_world)
-        # print("\n\n" )
 
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
@@ -252,7 +250,7 @@ class PedestrianDetector(Component):
     
     def track_agents(self, vehicle : VehicleState, detected_agents : List[AgentState]):
         """Given a list of detected agents, updates the state of the agents."""
-        # TODO: keep track of which pedestrians were detected before using last_agent_states.
+        # keep track of which pedestrians were detected before using last_agent_states.
         # use these to assign their ids and estimate velocities.
         
         dt = self.rate()
