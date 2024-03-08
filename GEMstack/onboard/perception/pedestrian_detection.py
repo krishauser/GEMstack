@@ -1,6 +1,6 @@
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ...utils import settings
-from ...mathutils import transforms
+from ...mathutils import transforms, collisions
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
@@ -200,9 +200,31 @@ class PedestrianDetector(Component):
         # TODO: keep track of which pedestrians were detected before using last_agent_states.
         # use these to assign their ids and estimate velocities.
         results = {}
-        for i,a in enumerate(detected_agents):
-            results['pedestrian_'+str(self.pedestrian_counter)] = a
-            self.pedestrian_counter += 1
+        delta_time = 1.0
+        for agent in detected_agents:
+            tracked = False
+            #agent.pose.x += vehicle.v * delta_time
+            for id, last_agent in self.last_agent_states.items():
+                if collisions.polygon_intersects_polygon_2d(agent.polygon_parent(), last_agent.polygon_parent()):
+                    velocity_x = (agent.pose.x - last_agent.pose.x) / delta_time
+                    velocity_y = (agent.pose.y - last_agent.pose.y) / delta_time
+                    velocity_z = (agent.pose.z - last_agent.pose.z) / delta_time
+                    if velocity_x != 0 or velocity_y != 0 or velocity_z != 0:
+                        activity = AgentActivityEnum.MOVING
+                    else:
+                        activity = AgentActivityEnum.STOPPED
+
+                    new_agent = AgentState(pose=agent.pose, dimensions=agent.dimensions,
+                                           outline=agent.outline, type=agent.type,
+                                           activity=activity, velocity=(velocity_x, velocity_y, velocity_z),
+                                           yaw_rate=agent.yaw_rate)
+                    results[id] = new_agent
+                    tracked = True
+                    break
+
+            if not tracked:
+                self.pedestrian_counter += 1
+                results['ped'+str(self.pedestrian_counter)] = agent
         return results
 
     def save_data(self, loc=None):
