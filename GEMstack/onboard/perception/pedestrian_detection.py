@@ -188,7 +188,7 @@ class PedestrianDetector(Component):
         # This is a simple heuristic that may need refinement
         dims = [max(dimensions[0], 0.5), max(dimensions[1], 0.5), max(dimensions[2], 1.5)]
 
-        # Create the agent state with the estimated position and dimensions
+        # Create the agent state with the estimated position (in vehicle frame) and dimensions
         pose = ObjectPose(t=0, x=position[0], y=position[1], z=position[2], 
                           yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
         
@@ -207,7 +207,7 @@ class PedestrianDetector(Component):
             bboxes.append(xywh)
         self.last_person_boxes = bboxes
         
-        # Create point clouds in image frame and global frame
+        # Create point clouds in image frame and vehicle frame
         point_cloud_image, point_cloud_vehicle_frame = self.point_cloud_image()
 
         detected_agents = []     
@@ -239,9 +239,13 @@ class PedestrianDetector(Component):
         - Keep track of which pedestrians were detected before.
         - For each agent, assign appropriate ids and estimate velocities.
         """
+        dt = 1 / self.rate()    # time between updates
+
         results = {}
 
         for agent in detected_agents:
+            agent.pose += vehicle.v * dt  # in start frame
+
             prev_agent_key = self.deduplication(agent)
 
             if prev_agent_key is None: # new agent
@@ -249,15 +253,12 @@ class PedestrianDetector(Component):
                 results['pedestrian_'+str(self.pedestrian_counter)] = agent
                 self.pedestrian_counter += 1
             else:
-                pose = agent.pose
-
                 prev_agent = self.last_agent_states[prev_agent_key]
                 prev_pose = prev_agent.pose
 
-                dt = 1 / self.rate()    # time between updates
-                v_x = (pose.x - prev_pose.x) / dt
-                v_y = (pose.y - prev_pose.y) / dt
-                v_z = (pose.z - prev_pose.z) / dt
+                v_x = (agent.pose.x - prev_pose.x) / dt
+                v_y = (agent.pose.y - prev_pose.y) / dt
+                v_z = (agent.pose.z - prev_pose.z) / dt
 
                 if v_x != 0 or v_y != 0 or v_z != 0:
                     agent.activity = AgentActivityEnum.MOVING
