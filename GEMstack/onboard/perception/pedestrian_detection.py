@@ -92,21 +92,21 @@ class PedestrianDetector(Component):
     
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        #self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
         #tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
-        #self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
+        self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         #subscribe to the Zed CameraInfo topic
-        #self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
+        self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
         pass
     
-    # def image_callback(self, image : cv2.Mat):
-    #     self.zed_image = image
+    def image_callback(self, image : cv2.Mat):
+        self.zed_image = image
 
-    # def camera_info_callback(self, info : CameraInfo):
-    #     self.camera_info = info
+    def camera_info_callback(self, info : CameraInfo):
+        self.camera_info = info
 
-    # def lidar_callback(self, point_cloud: np.ndarray):
-    #     self.point_cloud = point_cloud
+    def lidar_callback(self, point_cloud: np.ndarray):
+        self.point_cloud = point_cloud
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         if self.zed_image is None:
@@ -146,18 +146,12 @@ class PedestrianDetector(Component):
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
-        detection_result = self.detector(self.zed_image,verbose=False)
+        detection_result = self.detector(self.zed_image,verbose=False, classes=0)
         self.last_person_boxes = []
         #TODO: create boxes from detection result
         people = detection_result[0]
         for box in people.boxes:
-            # x1, y1, x2, y2 are x,y coordinates of image
-            x1, y1, x2, y2 = box.xyxy[0].tolist()
-            w = x2 - x1
-            h = y2 - y1
-            x = x1 + w / 2
-            y = y1 + h / 2
-            self.last_person_boxes.append([x, y, w, h])
+            self.last_person_boxes.append(box.xywh[0].tolist())
 
         #TODO: create point clouds in image frame and world frame
         with open("GEMstack/knowledge/calibration/values.pickle", 'rb') as f:
