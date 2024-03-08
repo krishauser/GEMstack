@@ -151,11 +151,11 @@ class PedestrianDetector(Component):
         # Convert the visible points from camera frame to vehicle frame
         pcd_temp = np.ones((4, len(point_cloud_camera_frame)))
         pcd_temp[:3, :] = point_cloud_camera_frame.transpose()
-        point_cloud_image_world = (self.T_zed @ pcd_temp).T[:, :3]
+        point_cloud_vehicle_frame = (self.T_zed @ pcd_temp).T[:, :3]
 
-        return point_cloud_image, point_cloud_image_world
+        return point_cloud_image, point_cloud_vehicle_frame
 
-    def box_to_agent(self, box, point_cloud_image, point_cloud_image_world):
+    def box_to_agent(self, box, point_cloud_image, point_cloud_vehicle_frame):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
         
         Uses the image, the camera intrinsics, the lidar point cloud, 
@@ -167,12 +167,12 @@ class PedestrianDetector(Component):
         x, y, w, h = box
         # print('Bbox: [{0:.2f}, {1:.2f}, {2:.2f}, {3:.2f}]'.format(x,y,w,h))
 
-        points_in_box_idx = [i for i in range(len(point_cloud_image)) if 
-                            point_cloud_image[i][0] >= x - w/2 and 
-                            point_cloud_image[i][1] >= y - w/2 and 
-                            point_cloud_image[i][0] <= x + w/2 and 
-                            point_cloud_image[i][1] <= y + h/2]
-        points_in_box = [point_cloud_image_world[idx] for idx in points_in_box_idx]
+        idx = [i for i in range(len(point_cloud_image)) if 
+                    point_cloud_image[i][0] >= x - w/2 and 
+                    point_cloud_image[i][1] >= y - w/2 and 
+                    point_cloud_image[i][0] <= x + w/2 and 
+                    point_cloud_image[i][1] <= y + h/2]
+        points_in_box = [point_cloud_vehicle_frame[i] for i in idx]   # in vehicle frame
         # print("points_in_box", points_in_box)
 
         position = np.mean(points_in_box, axis=0)
@@ -207,12 +207,12 @@ class PedestrianDetector(Component):
             bboxes.append(xywh)
         self.last_person_boxes = bboxes
         
-        # Create point clouds in image frame and world frame
-        point_cloud_image, point_cloud_image_world = self.point_cloud_image()
+        # Create point clouds in image frame and global frame
+        point_cloud_image, point_cloud_vehicle_frame = self.point_cloud_image()
 
         detected_agents = []     
         for i,b in enumerate(self.last_person_boxes):
-            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
+            agent = self.box_to_agent(b, point_cloud_image, point_cloud_vehicle_frame)
             detected_agents.append(agent)
         
         return detected_agents
@@ -228,7 +228,7 @@ class PedestrianDetector(Component):
         for key in self.last_agent_states:
             prev_agent = self.last_agent_states[key]
             prev_poly_world = prev_agent.polygon_parent()
-            
+
             if collisions.polygon_intersects_polygon_2d(poly_world, prev_poly_world):
                 return key
         
@@ -255,9 +255,9 @@ class PedestrianDetector(Component):
                 prev_pose = prev_agent.pose
 
                 dt = 1 / self.rate()    # time between updates
-                v_x = (pose.x - prev_pose.x) * dt
-                v_y = (pose.y - prev_pose.y) * dt
-                v_z = (pose.z - prev_pose.z) * dt
+                v_x = (pose.x - prev_pose.x) / dt
+                v_y = (pose.y - prev_pose.y) / dt
+                v_z = (pose.z - prev_pose.z) / dt
 
                 if v_x != 0 or v_y != 0 or v_z != 0:
                     agent.activity = AgentActivityEnum.MOVING
