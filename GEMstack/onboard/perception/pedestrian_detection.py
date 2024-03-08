@@ -207,4 +207,12 @@ class PedestrianDetector(Component):
             from collections import namedtuple
             CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             #TODO: these are guessed parameters
-            self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
+            with open("GEMstack/knowledge/calibration/values.pickle", 'rb') as f:
+                camera_info = pickle.load(f)
+
+            zed_intrinsics = [camera_info['fx'], camera_info['fy'], camera_info['cx'], camera_info['cy']]
+            zed_w = camera_info['width']
+            zed_h = camera_info['height']
+            self.camera_info = CameraInfo(width=zed_w, height=zed_h, P=[camera_info['fx'], 0,
+                                                                        camera_info['cx'], 0,  0, camera_info['fy'],
+                                                                        camera_info['cy'], 0, 0, 0, 1, 0])
