@@ -5,7 +5,7 @@ python3 main.py --variant=detector_only launch/pedestrian_avoidance.yaml
 
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ...utils import settings
-from ...mathutils import transforms
+from ...mathutils import collisions, transforms
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
@@ -132,6 +132,29 @@ class PedestrianDetector(Component):
         self.last_agent_states = current_agent_states
         return current_agent_states
 
+    def point_cloud_image(self):
+        # Transform LiDAR points to the camera frame
+        point_cloud_homogeneous = np.hstack((self.point_cloud, np.ones((self.point_cloud.shape[0], 1))))
+        point_cloud_camera_frame = (self.T_lidar_to_zed @ point_cloud_homogeneous.T).T[:, :3]
+        
+        # Project the 3D points in the camera frame onto the 2D image
+        projected_points, image_indices = project_point_cloud(
+            point_cloud_camera_frame, np.array(self.camera_info.P).reshape(3,4), 
+            [0, self.camera_info.width], [0, self.camera_info.height]
+        )
+
+        point_cloud_image = projected_points   # (u,v) visible image coordinates
+        # print('Point cloud image:\n', point_cloud_image)
+
+        point_cloud_camera_frame = point_cloud_camera_frame[image_indices] 
+
+        # Convert the visible points from camera frame to vehicle frame
+        pcd_temp = np.ones((4, len(point_cloud_camera_frame)))
+        pcd_temp[:3, :] = point_cloud_camera_frame.transpose()
+        point_cloud_image_world = (self.T_zed @ pcd_temp).T[:, :3]
+
+        return point_cloud_image, point_cloud_image_world
+
     def box_to_agent(self, box, point_cloud_image, point_cloud_image_world):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
         
@@ -170,7 +193,7 @@ class PedestrianDetector(Component):
                           yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
         
         return AgentState(pose=pose, dimensions=dims, outline=None, 
-                          type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, 
+                          type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.STOPPED, 
                           velocity=(0,0,0), yaw_rate=0)
     
     def detect_agents(self):
@@ -191,31 +214,58 @@ class PedestrianDetector(Component):
         for i,b in enumerate(self.last_person_boxes):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             detected_agents.append(agent)
-            
+        
         return detected_agents
     
+    def deduplication(self, agent):
+        ''' For dedupliction:
+        - Check if agent was detected before using last_agent_states.
+        - If seen before, 
+            return the dict key corresponding to the previous agent matching the current one. 
+        '''
+        poly_world = agent.polygon_parent()
+
+        for key in self.last_agent_states:
+            prev_agent = self.last_agent_states[key]
+            prev_poly_world = prev_agent.polygon_parent()
+            
+            if collisions.polygon_intersects_polygon_2d(poly_world, prev_poly_world):
+                return key
+        
+        return None
+
     def track_agents(self, vehicle : VehicleState, detected_agents : list[AgentState]):
-        """Given a list of detected agents, updates the state of the agents."""
-        # TODO: keep track of which pedestrians were detected before using last_agent_states.
-        # use these to assign their ids and estimate velocities.
-        # return None
+        """ Given a list of detected agents, updates the state of the agents.
+        - Keep track of which pedestrians were detected before.
+        - For each agent, assign appropriate ids and estimate velocities.
+        """
         results = {}
-        for i,a in enumerate(detected_agents):
-            results['pedestrian_'+str(self.pedestrian_counter)] = a
-            self.pedestrian_counter += 1
 
-            last = self.last_agent_states[i]
-            current_pose = a.ObjectPose
-            dimensions  = a.dimensions
-            x_velocity = (current_pose.x - last.x) / (current_pose.t - last.t)
-            y_velocity = (current_pose.y - last.y) / (current_pose.t - last.t)
-            z_velocity = (current_pose.z - last.z) / (current_pose.t - last.t)
-            yaw_rate   = (current_pose.yaw - last.yaw) / (current_pose.t - last.t)
+        for agent in detected_agents:
+            prev_agent_key = self.deduplication(agent)
 
-            current_state = AgentState(pose=current_pose, dimensions=dimensions, outline=None, 
-                                    type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, 
-                                    velocity=(x_velocity,y_velocity,z_velocity), yaw_rate=yaw_rate)
-            results.append(current_state)
+            if prev_agent_key is None: # new agent
+                # velocity of a new agent is 0 by default
+                results['pedestrian_'+str(self.pedestrian_counter)] = agent
+                self.pedestrian_counter += 1
+            else:
+                pose = agent.pose
+
+                prev_agent = self.last_agent_states[prev_agent_key]
+                prev_pose = prev_agent.pose
+
+                dt = 1 / self.rate()    # time between updates
+                v_x = (pose.x - prev_pose.x) * dt
+                v_y = (pose.y - prev_pose.y) * dt
+                v_z = (pose.z - prev_pose.z) * dt
+
+                if v_x != 0 or v_y != 0 or v_z != 0:
+                    agent.activity = AgentActivityEnum.MOVING
+                    agent.velocity = (v_x, v_y, v_z)
+            
+                results[prev_agent_key] = agent            
+        
+        # print("Agent states:", results)
         return results
 
     def save_data(self, loc=None):
@@ -250,26 +300,3 @@ class PedestrianDetector(Component):
             from collections import namedtuple
             CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             self.camera_info = CameraInfo(width=1280, height=720, P=P.flatten())
-
-    def point_cloud_image(self):
-        # Transform LiDAR points to the camera frame
-        point_cloud_homogeneous = np.hstack((self.point_cloud, np.ones((self.point_cloud.shape[0], 1))))
-        point_cloud_camera_frame = (self.T_lidar_to_zed @ point_cloud_homogeneous.T).T[:, :3]
-        
-        # Project the 3D points in the camera frame onto the 2D image
-        projected_points, image_indices = project_point_cloud(
-            point_cloud_camera_frame, np.array(self.camera_info.P).reshape(3,4), 
-            [0, self.camera_info.width], [0, self.camera_info.height]
-        )
-
-        point_cloud_image = projected_points   # (u,v) visible image coordinates
-        # print('Point cloud image:\n', point_cloud_image)
-
-        point_cloud_camera_frame = point_cloud_camera_frame[image_indices] 
-
-        # Convert the visible points from camera frame to vehicle frame
-        pcd_temp = np.ones((4, len(point_cloud_camera_frame)))
-        pcd_temp[:3, :] = point_cloud_camera_frame.transpose()
-        point_cloud_image_world = (self.T_zed @ pcd_temp).T[:, :3]
-
-        return point_cloud_image, point_cloud_image_world
