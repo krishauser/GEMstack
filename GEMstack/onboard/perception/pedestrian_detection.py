@@ -58,7 +58,7 @@ class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        #self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
+        self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
@@ -140,32 +140,56 @@ class PedestrianDetector(Component):
         point cloud, and the calibrated camera / lidar poses to get a good
         estimate of the pedestrian's pose and dimensions.
         """
-        x,y,w,h = box
-        pose = ObjectPose(t=0,x=x,y=y,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-        dims = [w,h,1.7]
-        return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+        x, y, w, h = box
+
+        indices_in_box = []
+        for i in range(len(point_cloud_image)):
+            if x - w / 2 <= point_cloud_image[i][0] <= x + w / 2 and y - w / 2 <= point_cloud_image[i][1] <= y + h / 2:
+                indices_in_box.append(i)
+
+        points_in_box = [point_cloud_image_world[i] for i in indices_in_box]
+
+        position = np.mean(points_in_box, axis=0)
+
+        pose = ObjectPose(t=0, x=position[0], y=position[1], z=position[2], yaw=0, pitch=0,
+                          roll=0, frame=ObjectFrameEnum.CURRENT)
+
+        dims = np.max(points_in_box, axis=0) - np.min(points_in_box, axis=0)
+
+        return AgentState(pose=pose, dimensions=dims, outline=None,
+                          type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
+
+    def get_point_cloud_image_world(self, image_indices):
+        point_cloud_homogeneous = np.hstack((self.point_cloud, np.ones((self.point_cloud.shape[0], 1))))
+        point_cloud_camera_frame = (self.T_lidar_to_zed @ point_cloud_homogeneous.T).T[:, :3]
+
+        point_cloud_camera_frame = point_cloud_camera_frame[image_indices]
+
+        # Change camera frame to world frame
+        point_cloud_camera = np.ones((4, len(point_cloud_camera_frame)))
+        point_cloud_camera[:3, :] = point_cloud_camera_frame.transpose()
+        point_cloud_image_world = (self.T_zed @ point_cloud_camera).T[:, :3]
+
+        return point_cloud_image_world
+
 
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False, classes=0)
         self.last_person_boxes = []
-        #TODO: create boxes from detection result
+
+        # Create boxes from detection result
         people = detection_result[0]
         for box in people.boxes:
             self.last_person_boxes.append(box.xywh[0].tolist())
 
-        #TODO: create point clouds in image frame and world frame
-        with open("GEMstack/knowledge/calibration/values.pickle", 'rb') as f:
-            camera_info = pickle.load(f)
+        # TODO: create point clouds in image frame and world frame
+        point_cloud_image, image_indices = project_point_cloud(self.point_cloud,
+                                                               self.camera_info.P, (0, self.camera_info.width),
+                                                               (0, self.camera_info.height))
 
-        zed_intrinsics = [camera_info['fx'], camera_info['fy'], camera_info['cx'],camera_info['cy']]
-        zed_w = camera_info['width']
-        zed_h = camera_info['height']
-
-        point_cloud_image, image_indices = project_point_cloud(self.point_cloud, Pmatrix(*zed_intrinsics), (0,zed_w),(0,zed_h))
-
-
+        point_cloud_image_world = self.get_point_cloud_image_world(image_indices)
         detected_agents = []
-        for i,b in enumerate(self.last_person_boxes):
+        for i, b in enumerate(self.last_person_boxes):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             detected_agents.append(agent)
             
