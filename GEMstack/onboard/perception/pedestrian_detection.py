@@ -101,8 +101,8 @@ class PedestrianDetector(Component):
         self.zed_image = image
 
     # TODO: uncomment before running on the vehicle
-    # def camera_info_callback(self, info : CameraInfo):
-    #     self.camera_info = info
+    def camera_info_callback(self, info : CameraInfo):
+        self.camera_info = info
 
     def lidar_callback(self, point_cloud: np.ndarray):
         self.point_cloud = point_cloud
@@ -234,7 +234,7 @@ class PedestrianDetector(Component):
         
         return None
 
-    def track_agents(self, vehicle : VehicleState, detected_agents : list[AgentState]):
+    def track_agents(self, vehicle : VehicleState, detected_agents):
         """ Given a list of detected agents, updates the state of the agents.
         - Keep track of which pedestrians were detected before.
         - For each agent, assign appropriate ids and estimate velocities.
@@ -244,7 +244,7 @@ class PedestrianDetector(Component):
         results = {}
 
         for agent in detected_agents:
-            agent.pose += vehicle.v * dt  # in start frame
+            agent.pose.x += vehicle.v * dt  # in start frame
 
             prev_agent_key = self.deduplication(agent)
 
