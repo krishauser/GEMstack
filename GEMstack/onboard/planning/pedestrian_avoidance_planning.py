@@ -74,6 +74,8 @@ class PedestrianAvoidanceMotionPlanner(Component):
         vehicle_margin_y = 3.0
         pedestrian_margin_x = 1.0
         pedestrian_margin_y = 3.0
+
+        lookahead_dist = (self.desired_speed ** 2) / (2 * abs(self.deceleration))
         
         closest_pedestrian = None
         closest_pedestrian_dist = 1000000
@@ -81,14 +83,23 @@ class PedestrianAvoidanceMotionPlanner(Component):
         all_pedestrians = []
         for k,a in agents.items():
             if a.type == AgentEnum.PEDESTRIAN:
-                dist = math.sqrt((a.pose.x - vehicle.pose.x) ** 2 + (a.pose.y - vehicle.pose.y) ** 2)
                 (a_l, a_w, a_h) = a.dimensions
                 a.dimensions = (a_l + pedestrian_margin_x, a_w + pedestrian_margin_y, a_h)
+
+                dist = math.sqrt((a.pose.x - curr_x) ** 2 + (a.pose.y - curr_y) ** 2)
+                print(dist)
                 if dist < closest_pedestrian_dist:
                     closest_pedestrian = a
                     closest_pedestrian_dist = dist
+
                 all_pedestrians.append(a)
 
+        dist_x_to_closet_pedestrian = 0
+        dist_y_to_closet_pedestrian = 0
+
+        if len(all_pedestrians) > 0:
+            dist_x_to_closet_pedestrian = closest_pedestrian.pose.x - curr_x
+            dist_y_to_closet_pedestrian = closest_pedestrian.pose.y - curr_y
         
         collision_check_resolution = 0.1  #m
         progress_start, progress_end = route_with_lookahead.domain()
@@ -132,17 +143,17 @@ class PedestrianAvoidanceMotionPlanner(Component):
             max_progress = progress_end
         print("Progress",route_with_lookahead.domain()[1])
 
-        print("braking distance: ",braking_distance)
+        print("lookahead distance: ",lookahead_dist)
         print("acceleration: ",self.acceleration)
         print("deceleration: ",self.deceleration)
         print("desired speed: ",self.desired_speed)
         print("current speed: ",curr_v)
 
-        dist_x_to_closet_pedestrian_with_margin = abs(closest_pedestrian.pose.x - vehicle.pose.x) - vehicle_margin_x - pedestrian_margin_x
-        dist_y_to_closet_pedestrian_with_margin = abs(closest_pedestrian.pose.y - vehicle.pose.y) - vehicle_margin_y - pedestrian_margin_y
+        dist_x_to_closet_pedestrian_with_margin = dist_x_to_closet_pedestrian - vehicle_margin_x - pedestrian_margin_x
+        dist_y_to_closet_pedestrian_with_margin = dist_y_to_closet_pedestrian - vehicle_margin_y - pedestrian_margin_y
 
         #choose whether to accelerate, brake, or keep at current velocity
-        if max_progress > 0 or braking_distance < dist_x_to_closet_pedestrian_with_margin or 0 < dist_y_to_closet_pedestrian_with_margin:
+        if max_progress > 0 or lookahead_dist < dist_x_to_closet_pedestrian_with_margin or 0 < dist_y_to_closet_pedestrian_with_margin:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         else:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
