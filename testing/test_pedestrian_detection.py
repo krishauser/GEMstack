@@ -13,6 +13,8 @@ from klampt.model import create
 from klampt.vis import colorize
 from klampt.io import numpy_convert
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 data_folder = 'testing/pedestrian_detection/'
 
@@ -23,12 +25,28 @@ def box_to_outline(P,x,y,w,h):
 def test_pedestrian_detection():
     detector = PedestrianDetector(None)
     detector.load_data(data_folder)
-    pc_img,pc_img_world = detector.point_cloud_image()
+
     P = np.array(detector.camera_info.P).reshape(3,4)
+    detector.P = P
+    pc_img,pc_img_world = detector.point_cloud_image()
+
+    # TODO: you can comment out the following for debugging purposes -- seeing which points from
+    # the point cloud lie within the bounding box    
+    # # Plot points
+    # plt.scatter(pc_img[:, 0], pc_img[:, 1], s=1)
+
+    # # Add bounding box
+    # rect = patches.Rectangle((225.17462, 466.40356), 95.29883, 250.26538, linewidth=1, edgecolor='r', facecolor='none')
+    # plt.gca().add_patch(rect)
+
+    # plt.gca().invert_yaxis()  # Invert y-axis to match image coordinates
+    # plt.show()
+
     pc_img[:,0] -= P[0,2]
     pc_img[:,1] -= P[1,2]
     pc_img[:,0] /= P[0,0]
     pc_img[:,1] /= P[1,1]
+    P = detector.P
     T_zed = se3.from_ndarray(detector.T_zed)
     T_velodyne = se3.from_ndarray(detector.T_lidar)
     pc_img = np.hstack((pc_img, np.full((pc_img.shape[0],1),1.0)))
@@ -42,10 +60,12 @@ def test_pedestrian_detection():
     vis.add('velodyne_frame',T_velodyne,fancy=True)
     vis.add('pc_img',pc_img_klampt,color=(1,0,0,0.5))
     vis.add('pc_img_world',pc_img_world_klampt,color=(0,1,0,0.5))
+
     agents = detector.detect_agents()
     for i,a in enumerate(agents):
         center = a.pose.x,a.pose.y,a.pose.z + a.dimensions[2]/2
         dims = a.dimensions
+        print(dims)
         b = create.box(width=dims[0],depth=dims[1],height=dims[2],R=se3.identity()[0],t=center,name='agent'+str(i))
         vis.add('ped '+str(i),b,color=(0,1,5,0.25))
         #vis.add(AGENT_TYPE_TO_TAG[a.type]+' '+str(i),b,color=(0,1,5,0.25))
