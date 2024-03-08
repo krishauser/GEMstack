@@ -48,6 +48,12 @@ simulator:
 longitudinal_planning:
     dt: 0.05
 
+pedestrian_avoidance:
+    lateral_distance_buffer: 2.0
+    longitudinal_distance_buffer: 1.0
+
 pedestrian_detection:
     model: !relative_path "../detection/yolov8n.pt"   #the !relative_path directive finds a file in a relative location to this file
     rate: 17.0
+    center_points_num: 20
+    closest_points_num: 5

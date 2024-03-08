@@ -16,6 +16,9 @@ import copy
 
 PERSON_INDEX = 0
 
+CENTER_POINTS_NUM = settings.get('pedestrian_detection.center_points_num')
+CLOSEST_POINTS_NUM = settings.get('pedestrian_detection.closest_points_num')
+
 def Pmatrix(fx,fy,cx,cy):
     """Returns a projection matrix for a given set of camera intrinsics."""
     return np.array([[fx,0,cx,0],
@@ -57,7 +60,9 @@ class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
+        model_path = settings.get('pedestrian_detection.model')
+        self.detector = YOLO(model_path)
+        self._rate = settings.get('pedestrian_detection.rate')
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
@@ -81,7 +86,7 @@ class PedestrianDetector(Component):
         self.last_agent_states = {}
 
     def rate(self):
-        return 10.0
+        return self._rate
     
     def state_inputs(self):
         return ['vehicle']

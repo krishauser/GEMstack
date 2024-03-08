@@ -23,7 +23,7 @@ drive:
         motion_planning: pedestrian_avoidance_planning.PedestrianAvoidanceMotionPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
-            print: True
+            print: False
 
 
 log:

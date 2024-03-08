@@ -3,7 +3,7 @@ from ..component import Component
 #these could be helpful in your implementation
 from .longitudinal_planning import longitudinal_brake, longitudinal_plan
 from ...state import AllState, VehicleState, PhysicalObject, AgentEnum, AgentState, Path, Trajectory, Route, ObjectFrameEnum
-from ...utils import serialization
+from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd
 from ...mathutils import collisions
 import copy
@@ -12,8 +12,8 @@ import numpy as np
 from typing import Dict
 
 # Buffers given in the prompt (in m)
-LATERAL_DISTANCE_BUFFER = 5.0
-LONGITUDINAL_DISTANCE_BUFFER = 10.0
+LATERAL_DISTANCE_BUFFER = settings.get('pedestrian_avoidance.lateral_distance_buffer')
+LONGITUDINAL_DISTANCE_BUFFER = settings.get('pedestrian_avoidance.longitudinal_distance_buffer')
 
 
 class PedestrianAvoidanceMotionPlanner(Component):
