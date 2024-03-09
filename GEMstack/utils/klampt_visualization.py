@@ -76,7 +76,7 @@ def plot_object(name : str, obj : PhysicalObject, type=None, axis_len=None, outl
         #add a point at the object's origin
         vis.add(name,obj.pose.translation(),size=5,color=(0,0,0,1))
     if axis_len: 
-        plot_pose(name+"_pose", obj.pose, axis_len=0, hide_label=True)
+        plot_pose(name+"_pose", obj.pose, axis_len=0)
     #plot bounding box
     R = obj.pose.rotation()
     t = obj.pose.translation()
