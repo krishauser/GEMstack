@@ -8,7 +8,7 @@ from GEMstack.onboard.planning.pedestrian_avoidance_planning import longitudinal
 import matplotlib.pyplot as plt
     
 def test_pedestrian_avoidance():
-    # TODO: Add test cases if you'd like
+    # Add test cases if you'd like
     pass
 
 if __name__ == '__main__':

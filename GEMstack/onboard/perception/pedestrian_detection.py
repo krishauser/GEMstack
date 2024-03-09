@@ -140,7 +140,7 @@ class PedestrianDetector(Component):
         # Project the 3D points in the camera frame onto the 2D image
         projected_points, image_indices = project_point_cloud(
             point_cloud_camera_frame, np.array(self.camera_info.P).reshape(3,4), 
-            [0, self.camera_info.width], [0, self.camera_info.height]
+            (0, self.camera_info.width), (0, self.camera_info.height)
         )
 
         point_cloud_image = projected_points   # (u,v) visible image coordinates

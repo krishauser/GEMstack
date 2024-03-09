@@ -43,8 +43,7 @@ class BlinkDistress(Component):
             command.right_turn_signal = False
             command.left_turn_signal = False
 
-        # TODO: alter command to execute turn signals, then uncomment line below to send
-        # the command to vehicle
+        # alter command to execute turn signals
         self.vehicle_interface.send_command(command)
        
     def healthy(self):

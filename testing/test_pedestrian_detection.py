@@ -30,7 +30,7 @@ def test_pedestrian_detection():
     detector.P = P
     pc_img,pc_img_world = detector.point_cloud_image()
 
-    # TODO: you can comment out the following for debugging purposes -- seeing which points from
+    # You can comment out the following for debugging purposes -- seeing which points from
     # the point cloud lie within the bounding box    
     # # Plot points
     # plt.scatter(pc_img[:, 0], pc_img[:, 1], s=1)
@@ -77,7 +77,6 @@ def test_pedestrian_detection():
         vis.add('detection... '+str(i),[se3.apply(T_zed,vectorops.mul(p,3.8)) for p in box_to_outline(P,x-w/2,y-h/2,w,h)],color=(0,0,1,1))
     vis.autoFitCamera()
     vis.loop()
-    pass
 
 if __name__ == '__main__':
     test_pedestrian_detection()

@@ -31,7 +31,7 @@ def get_resolution(vehicle, all_pedestrians, braking_distance): # collision chec
     peds_dist = [collisions.polygon_polygon_distance_2d(vehicle_poly, p) for p in peds_poly]
     try:
         d = min(peds_dist) # distance to closest pedestrian
-    except:
+    except ValueError:
         d = np.inf
     
     if d <= braking_distance:
@@ -114,7 +114,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
         route_with_lookahead = route.trim(closest_parameter, closest_parameter + lookahead)
         route_with_lookahead = route_with_lookahead.arc_length_parameterize()
         
-        #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
+        # Use the collision detection primitives to determine whether to stop for a pedestrian
 
         collision_check_resolution = get_resolution(vehicle, all_pedestrians, braking_distance)
         progress_start, progress_end = route_with_lookahead.domain()
@@ -139,7 +139,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
             vehicle_poly_world = vehicle_obj.polygon_parent() 
             
             if len(all_pedestrians) > 0:
-                #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
+                # check for collisions with pedestrians with the desired margins
                 collision = [collisions.polygon_intersects_polygon_2d(vehicle_poly_world, a.polygon_parent()) for a in all_pedestrians]
                 if any(collision):
                     print("Predicted collision with pedestrian at",progress)

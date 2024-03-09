@@ -3,7 +3,7 @@ import cv2
 import sys
 
 def person_detector(img : cv2.Mat):
-    #TODO: implement me to produce a list of (x,y,w,h) bounding boxes of people in the image
+    # Produce a list of (x,y,w,h) bounding boxes of people in the image
     model = YOLO('yolov8n.pt')
     results = model(img, classes=0, verbose=False)
     return results[0].boxes.xywh.tolist()

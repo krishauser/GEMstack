@@ -50,7 +50,6 @@ class PedestrianDetector2D(Component):
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         res = {}
         for i,b in enumerate(self.last_person_boxes):
-            x,y,w,h = b
             res['pedestrian'+str(i)] = box_to_fake_agent(b)
         if len(res) > 0:
             print("Detected",len(res),"pedestrians")
