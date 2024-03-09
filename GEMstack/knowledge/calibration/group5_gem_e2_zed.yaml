@@ -1,0 +1,4 @@
+reference: rear_axle_center
+rotation: [[0,0,1],[-1,0,0],[0,-1,0]]
+center_position: [-0.02,0,1.63]
+rgb_position: [-0.02,0.06,1.63]
