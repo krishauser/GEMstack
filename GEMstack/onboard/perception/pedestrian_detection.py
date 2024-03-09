@@ -174,7 +174,7 @@ class PedestrianDetector(Component):
                 if box.id is None:
                     break
                 self.detected_id.append(int(box.id.item()))
-                self.last_person_boxes.append(box.xywh[0].detach().cpu().numpy())
+                self.last_person_boxes.append(box.xywh[0].detach().cpu().numpy().tolist())
 
         #TODO: create boxes from detection result
         #TODO: create point clouds _img[:,:2]/point_cloud_img[:,2]in image frame and world frame
