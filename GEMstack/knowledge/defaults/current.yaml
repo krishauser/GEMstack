@@ -38,6 +38,10 @@ calibration:
     data2: !relative_path "../../../data/calibration2"
     zed_intrinsics: !relative_path "../calibration/gem_e2_zed_intrinsics.yaml"
     transforms: !relative_path "../calibration/gem_e2_transforms.yaml"
+    measurements:
+        d_ground_to_lidar: 1.985
+        d_ground_to_rear_axle: 0.28
+        d_rear_axle_to_lidar: 0.87 # measured along vehicle X axis
 
 perception:
     pedestrian_detection:

@@ -74,17 +74,12 @@ def compute_rotation(folder):
 
     return np.matmul(R_yaw, np.matmul(R_pitch, R_roll))
 
-def compute_translation():
-    # translation in metres
-    d_ground_to_lidar = 1.985
-    d_ground_to_rear_axle = 0.28
-    d_rear_axle_to_lidar = 0.87 # measured along vehicle X axis
+def compute_translation(): # translation in metres
+    d1 = settings.get('calibration.measurements.d_ground_to_lidar')
+    d2 = settings.get('calibration.measurements.d_ground_to_rear_axle')
+    d3 = settings.get('calibration.measurements.d_rear_axle_to_lidar')
 
-    t_x = d_rear_axle_to_lidar
-    t_y = 0 # lidar is on the vehicle's y = 0 plane
-    t_z = d_ground_to_lidar - d_ground_to_rear_axle
-
-    t = [t_x, t_y, t_z]
+    t = [d3, 0, d1 - d2] # lidar is on the vehicle's y = 0 plane
     return t
 
 def run(folder):
