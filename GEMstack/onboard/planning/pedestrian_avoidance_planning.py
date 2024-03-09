@@ -72,18 +72,8 @@ class PedestrianAvoidanceMotionPlanner(Component):
         lookahead_distance = max(lookahead_distance,self.min_lookahead_distance)
         route_with_lookahead = route.trim(closest_parameter,closest_parameter+lookahead_distance)
         route_with_lookahead = route_with_lookahead.arc_length_parameterize()
-        
-        #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
-        #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
-        
-        # stretch the vehicle polygon by the desired margins
-        vehicle_poly_local = vehicle.to_object().polygon()
-        x_max = max([p[0] for p in vehicle_poly_local])
-        y_max = max([p[1] for p in vehicle_poly_local])
-        x_multiplier = (x_max + self.longitudinal_margin) / x_max
-        y_multiplier = (y_max + self.lateral_margin) / y_max
-        vehicle_poly_local = [[p[0] * x_multiplier, p[1] * y_multiplier] for p in vehicle_poly_local]
 
+        # use the collision detection primitives to determine whether to stop for a pedestrian
         collision_check_resolution = self.collision_detection_resolution  #m
         progress_start, progress_end = route_with_lookahead.domain()
         progress = progress_start
@@ -99,11 +89,18 @@ class PedestrianAvoidanceMotionPlanner(Component):
                 #path has only one point?
                 vehicle.pose.yaw = 0
             
+            # stretch the vehicle polygon by the desired margins to keep a safe distance from pedestrians
+            vehicle_obj = vehicle.to_object()
+            length, width, height = vehicle_obj.dimensions
+            length += self.longitudinal_margin * 2
+            width += self.lateral_margin * 2
+            vehicle_obj.dimensions = (length, width, height)
+
             # transform the vehicle polygon to the world frame
-            vehicle_poly_world = [vehicle.pose.apply(p) for p in vehicle_poly_local]
+            vehicle_poly_world = vehicle_obj.polygon_parent()
 
             if len(all_pedestrians) > 0:
-                #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
+                # check for collisions with pedestrians with the desired margins
                 if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
                     print("Predicted collision with pedestrian at",progress)
                     print("Vehicle position",xy[0],xy[1])
