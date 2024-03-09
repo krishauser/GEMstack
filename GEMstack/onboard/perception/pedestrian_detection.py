@@ -214,6 +214,16 @@ class PedestrianDetector(Component):
 
 
 
+        # self.fx = 527.5779418945312
+
+        # self.cx = 616.2459716796875
+
+        # self.fy = 527.5779418945312
+
+        # self.cy = 359.2155456542969
+
+        # self.P = Pmatrix(self.fx, self.fy, self.cx, self.cy)
+
         intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0]
 
         self.intrinsic = np.asarray(intrinsic).reshape((3,3))
@@ -420,6 +430,10 @@ class PedestrianDetector(Component):
 
         boxes = detection_result[0].boxes
 
+        image_w = 1280
+
+        image_h = 720
+
 
 
         #TODO: create boxes from detection result
@@ -436,9 +450,19 @@ class PedestrianDetector(Component):
 
         
 
-        point_cloud_image = lidar2pixel(self.intrinsic, self.extrinsic, self.point_cloud)
+        point_cloud_in_range = []
 
-        point_cloud_image_world = lidar2world(self.lidar_vehicle_matrix, self.point_cloud)
+        indexs = np.where((self.point_cloud[:, 0] > 0) & (self.point_cloud[:, 0] < image_w) & (self.point_cloud[:, 1] > 0) & (self.point_cloud[:, 1] < image_h))
+
+        for index in len(indexs):
+
+            point_cloud_in_range.append(self.point_cloud[index])
+
+
+
+        point_cloud_image = lidar2pixel(self.intrinsic, self.extrinsic, point_cloud_in_range)
+
+        point_cloud_image_world = lidar2world(self.lidar_vehicle_matrix, point_cloud_in_range)
 
 
 
