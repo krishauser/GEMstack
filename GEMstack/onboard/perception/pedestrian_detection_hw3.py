@@ -197,13 +197,13 @@ class PedestrianDetector(Component):
                 if self.detected_id[i] in self.previous_id:
                     idx = np.where(self.previous_id == self.detected_id[i])[0][0]
                     #x is forward direction
-                    agent.pose.x+=vehicle.v*t
+                    curr_pos=agent.pose.x+vehicle.v*t
                     #v=s/t
-                    curr_v_x=(agent.pose.x-self.previous_agents[idx].pose.x)/t
+                    curr_v_x=(curr_pos-self.previous_agents[idx].pose.x)/t
                     curr_v_y=(agent.pose.y-self.previous_agents[idx].pose.y)/t
                     curr_v_z=(agent.pose.z-self.previous_agents[idx].pose.z)/t
                     agent.velocity = (curr_v_x,curr_v_y,curr_v_z)
-                    results['pedestrian_'+str(self.detected_id[i])] = detected_agents[i]
+                    results['pedestrian_'+str(self.detected_id[i])] = agent
                 else:
                     results['pedestrian_'+str(self.detected_id[i])] = detected_agents[i]
                 self.pedestrian_counter += 1
