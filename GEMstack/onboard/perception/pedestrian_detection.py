@@ -58,7 +58,7 @@ class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
+        self.detector = YOLO(settings.get('pedestrian_detection.model'))
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
@@ -253,9 +253,9 @@ class PedestrianDetector(Component):
             from collections import namedtuple
             CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             #TODO: these are guessed parameters
-            with open("GEMstack/knowledge/calibration/values.pickle", 'rb') as f:
-                camera_info = pickle.load(f)
-
+            #with open("GEMstack/knowledge/calibration/values.pickle", 'rb') as f:
+            #    camera_info = pickle.load(f)
+            camera_info = settings.get('camera_info')
             zed_intrinsics = [camera_info['fx'], camera_info['fy'], camera_info['cx'], camera_info['cy']]
             zed_w = camera_info['width']
             zed_h = camera_info['height']

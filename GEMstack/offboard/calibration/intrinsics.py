@@ -25,7 +25,3 @@ if __name__ == '__main__':
 
 	with open("../../knowledge/calibration/values.pickle", 'wb') as f:
 		pickle.dump(values, f)
-		 
-	with open("../../knowledge/calibration/values.pickle", 'rb') as f:
-		camera_info = pickle.load(f)
-		print(camera_info)
