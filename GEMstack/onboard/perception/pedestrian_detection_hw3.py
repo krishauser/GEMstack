@@ -170,6 +170,8 @@ class PedestrianDetector(Component):
         boxes = detection_result[0].boxes
         if len(boxes)!=0:
             for box in boxes:
+                if box.id is None:
+                    break
                 self.detected_id.append(int(box.id.item()))
                 self.last_person_boxes.append(box.xywh[0].detach().cpu().numpy())
 
