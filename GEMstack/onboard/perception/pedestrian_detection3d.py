@@ -22,11 +22,12 @@ class PedestrianDetector3D(Component):
         self.detected_pedestrians = None
         self.camera_info = None
         self.camera_range = ()
+        self.person_count = 0
         global SETTINGS_LOC
         global SENSOR_FRONT_CAMERA
         global SENSOR_LIDAR
         global HUMAN_HEIGHT
-        HUMAN_HEIGHT = 1
+        HUMAN_HEIGHT =1.95
         SETTINGS_LOC = 'vehicle.calibration'
         SENSOR_LIDAR = 'top_lidar'
         SENSOR_FRONT_CAMERA = 'front_camera'
@@ -74,7 +75,7 @@ class PedestrianDetector3D(Component):
         self.camera_range = (w, h)
 
     def rate(self):
-        return 17.0
+        return 10.0
     
     def state_inputs(self):
         return ['vehicle']
@@ -126,7 +127,7 @@ class PedestrianDetector3D(Component):
                     polygon_collision = True
             if not polygon_collision:
                 agent.velocity = (0,0,0)
-                current_agent_states['person'+str(uuid.uuid4())] = agent
+                current_agent_states['person-'+str(self.person_count)] = agent
 
         self.ped_state = current_agent_states
         return current_agent_states
@@ -135,7 +136,7 @@ class PedestrianDetector3D(Component):
 
         # detect pedestrians
 
-        detection_result = self.detector(self.image,verbose=False, conf = 0.85)[0]
+        detection_result = self.detector(self.image,verbose=False)[0]
         boxes = detection_result.boxes
         self.detected_pedestrians = []
         for i, class_idx in enumerate(boxes.cls):
