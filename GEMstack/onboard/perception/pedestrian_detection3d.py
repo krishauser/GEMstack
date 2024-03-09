@@ -45,10 +45,10 @@ class PedestrianDetector3D(Component):
         """
         x,y,w,h = box
 
-        dist_2 = np.sum((pc2d - [x, y])**2, axis=1)
+        dist_2 = np.sum((pc2d - [x+(w/2), y+(h/2)])**2, axis=1)
         closest_ind = np.argmin(dist_2)
         closest_point = pc3d[closest_ind]
-        pose = ObjectPose(t=0,x=closest_point[0],y=closest_point[1],z=closest_point[2] - HUMAN_HEIGHT,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
+        pose = ObjectPose(t=0,x=closest_point[0],y=closest_point[1],z= 0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
         dims = (1,1,HUMAN_HEIGHT)
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
@@ -75,7 +75,7 @@ class PedestrianDetector3D(Component):
         self.camera_range = (w, h)
 
     def rate(self):
-        return 10.0
+        return 4.0
     
     def state_inputs(self):
         return ['vehicle']
@@ -190,9 +190,6 @@ class PedestrianDetector3D(Component):
 
         detected_agents = []
         for i,box in enumerate(self.detected_pedestrians):
-            print(box)
-            print(point_cloud_image_2d)
-            print(point_cloud_mapped_in_zed_3d)
             agent = self.box_to_agent(box, point_cloud_image_2d, point_cloud_mapped_in_zed_3d)
             detected_agents.append(agent)
         return detected_agents
