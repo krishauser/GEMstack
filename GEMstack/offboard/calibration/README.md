@@ -2,7 +2,7 @@
 
 ### Obtaining the intrinsic parameters of the ZED2 camera
 
-We used the `wait_for_message` function to create a new subscription to the `/zed2/zed_node/rgb/camera_info` topic, receive one message and then unsubscribe. The intrinsic matrix $K$ can be obtainined by reading the contents of the obtained message.
+We used the `wait_for_message` function to create a new subscription to the `/zed2/zed_node/rgb/camera_info` topic, receive one message and then unsubscribe. The intrinsic matrix $K$ and the image dimensions can be obtained by reading the contents of the obtained message.
 
 ### Computing the lidar to ZED2 transform
 
@@ -18,7 +18,7 @@ R_{init} = \begin{pmatrix}
            \end{pmatrix}
 ```
 
-The translation component is set using a trial and error method.
+The translation component of the transform is set using a trial and error method (by viewing if points of interest in the lidar point cloud map to appropriate 2D points in the image plane).
 
 ### Computing the lidar to vehicle transform
 
@@ -29,10 +29,10 @@ The translation component is set using a trial and error method.
     style = "width: 400px"
 />
 
-The roll of the lidar is calibrated with the help of a flat surface (eg: white board) placed parallel to the XZ plane of the vehicle. The angle between the Y axes (or Z axes) of the vehicle and the lidar $\gamma$ is computed as follows:
+The roll of the lidar is calibrated with the help of a flat surface (eg: white board) placed parallel to the XZ plane of the vehicle. The angle between the Y axes (or Z axes) of the vehicle and the lidar, $\gamma$ is computed as follows:
 
 - The unit normal of the white board ($\hat{n}$) is along the Y axis of the vehicle.
-- If $\hat{y}$ is the unit vector along the Y axis of the lidar, $\gamma = \cos^{-1}({\hat{n}} \cdot {\hat{y}})$
+- If $\hat{y}$ is the unit vector along the Y axis of the lidar, then $\gamma = \cos^{-1}({\hat{n}} \cdot {\hat{y}})$
 
 The rotation matrix is:
 
@@ -73,11 +73,11 @@ R_y(\beta) = \begin{pmatrix}
     style = "height: 480px"
 />
 
-Foam cubes are stacked on top of each other along the centerline of the vehicle. Let $P$ be the points in the point cloud representing the foam cubes. Let $(x_l, y_l, z_l) \in P$ be the coordinates (in the lidar frame) of the point along the lidar's XY plane closest to the vehicle's XZ plane. If $d$ is the distance between the lidar and P, the angle between the X axes of the vehicle and the lidar ($\alpha$) $ can be computed as follows:
+Foam cubes are stacked on top of each other along the centerline of the vehicle. Let $P$ be the points in the point cloud representing the foam cubes. Let $(x_l, y_l, z_l) \in P$ be the coordinates (in the lidar frame) of the point along the lidar's XY plane closest to the vehicle's XZ plane. If $d$ is the distance between the lidar and P, the angle between the X axes of the vehicle and the lidar, $\alpha$ can be computed as follows:
 
-$$ x_l = d \cos(\alpha) $$
+$$ x_l = d \cos \alpha $$
 
-$$ y_l = -d \sin(\alpha) $$
+$$ y_l = -d \sin \alpha $$
 
 $$ z_l \approx 0 $$
 
@@ -105,10 +105,22 @@ R(\alpha, \beta, \gamma) = R_z(\alpha) \: R_y(\beta) \: R_x(\gamma)
 
 #### Measuring translation
 
-The translation matrix is $t = [t_x, t_y, t_z]^{T}$ where:
+The translation vector is $t = [t_x, t_y, t_z]^{T}$ where:
 - $t_x$ is the distance between the center of the rear axle and the lidar, measured along the X axis of the vehicle.
 - $t_y$ is $0$ as the lidar is placed along the vehicle's XZ plane.
 - $t_z$ is the distance between the rear axle and the lidar, measured along the vehicle's Z axis.
+
+The resulting transformation matrix is:
+
+```math
+T_{lidar}^{vehicle} = \begin{pmatrix}
+                        R_{0,0} & R_{0,1} & R_{0,2} & t_x \\\
+                        R_{1,0} & R_{1,1} & R_{1,2} & 0 \\\
+                        R_{2,0} & R_{2,1} & R_{2,2} & t_z \\\
+                        0 & 0 & 0 & 1
+                      \end{pmatrix}
+```
+
 
 ### Computing the ZED2 to vehicle transform
 
@@ -192,3 +204,5 @@ T_{zed}^{vehicle} = T_{lidar}^{vehicle} \: \left( T_{lidar}^{zed} \right)^{-1}
 4. Compute ZED2 to vehicle transform
     - $T_{lidar}^{zed}$ and $T_{lidar}^{vehicle}$ are read from `GEMstack/knowledge/calibration/gem_e2_transforms.yaml`.
     - The program computes and writes $T_{zed}^{vehicle}$ to file.
+
+The values of the transforms are then written to the files referenced by `GEMstack/knowledge/calibration/gem_e2.yaml`.
