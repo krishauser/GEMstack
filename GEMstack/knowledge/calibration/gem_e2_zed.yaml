@@ -2,3 +2,5 @@ reference: rear_axle_center  # rear axle center
 rotation: [[0,0,1],[-1,0,0],[0,-1,0]] # rotation matrix mapping z to forward, x to left, y to down, guesstimated
 center_position: [-0.02,0,1.5] # meters, center of Zed camera, guesstimated
 rgb_position: [-0.02,0.06,1.5] # meters, center of color (left) camera, guesstimated
+
+T_cam_gem: [[ 0.02351885 ,-0.02573643 , 0.99939207 , 2.0072542 ], [-0.99971381,  0.00377086 , 0.02362353, -0.70934191], [-0.00437655 ,-0.99966165, -0.02564038 ,-0.16829572],[ 0, 0 ,0,1]]
