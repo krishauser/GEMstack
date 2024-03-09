@@ -161,7 +161,7 @@ class PedestrianDetector(Component):
         representative = point_cloud_image_world[min_loc]
         pose = ObjectPose(t=0,x=representative[0],y=representative[1],z=representative[2],yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
         ##may need to find estimate size within the bounding box
-        dims = [2, 2,1.7]
+        dims = [w, h, 1.7]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
         
     def detect_agents(self):
