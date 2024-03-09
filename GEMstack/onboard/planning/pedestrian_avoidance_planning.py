@@ -70,21 +70,21 @@ class PedestrianAvoidanceMotionPlanner(Component):
         #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
         #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
 
-        vehicle_margin_x = 1.0
-        vehicle_margin_y = 3.0
+        vehicle_margin_x = 4.0
+        vehicle_margin_y = 2.0
         pedestrian_margin_x = 1.0
-        pedestrian_margin_y = 3.0
+        pedestrian_margin_y = 1.0
 
         lookahead_dist = (self.desired_speed ** 2) / (2 * abs(self.deceleration))
         
         closest_pedestrian = None
-        closest_pedestrian_dist = 1000000
+        closest_pedestrian_dist = float('INF')
 
         all_pedestrians = []
         for k,a in agents.items():
             if a.type == AgentEnum.PEDESTRIAN:
-                (a_l, a_w, a_h) = a.dimensions
-                a.dimensions = (a_l + pedestrian_margin_x, a_w + pedestrian_margin_y, a_h)
+                # (a_l, a_w, a_h) = a.dimensions
+                # a.dimensions = (a_l + pedestrian_margin_x, a_w + pedestrian_margin_y, a_h)
 
                 dist = math.sqrt((a.pose.x - curr_x) ** 2 + (a.pose.y - curr_y) ** 2)
                 print(dist)
@@ -94,12 +94,12 @@ class PedestrianAvoidanceMotionPlanner(Component):
 
                 all_pedestrians.append(a)
 
-        dist_x_to_closet_pedestrian = 0
-        dist_y_to_closet_pedestrian = 0
+        # dist_x_to_closet_pedestrian = 0
+        # dist_y_to_closet_pedestrian = 0
 
-        if len(all_pedestrians) > 0:
-            dist_x_to_closet_pedestrian = closest_pedestrian.pose.x - curr_x
-            dist_y_to_closet_pedestrian = closest_pedestrian.pose.y - curr_y
+        # if len(all_pedestrians) > 0:
+        #     dist_x_to_closet_pedestrian = abs(closest_pedestrian.pose.x - curr_x)
+        #     dist_y_to_closet_pedestrian = abs(closest_pedestrian.pose.y - curr_y)
         
         collision_check_resolution = 0.1  #m
         progress_start, progress_end = route_with_lookahead.domain()
@@ -121,7 +121,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
             vehicle_object = vehicle.to_object()
             (v_l, v_w, v_h) = vehicle_object.dimensions
             vehicle_object.dimensions = (v_l + vehicle_margin_x, v_w + vehicle_margin_y, v_h)
-            vehicle_poly_world = vehicle.to_object().polygon_parent()
+            vehicle_poly_world = vehicle_object.polygon_parent()
             if len(all_pedestrians) > 0:
                 #TODO: figure out a good way to check for collisions with pedestrians with the desired margins
                 if any([collisions.polygon_intersects_polygon_2d(vehicle_poly_world,a.polygon_parent()) for a in all_pedestrians]):
@@ -149,11 +149,11 @@ class PedestrianAvoidanceMotionPlanner(Component):
         print("desired speed: ",self.desired_speed)
         print("current speed: ",curr_v)
 
-        dist_x_to_closet_pedestrian_with_margin = dist_x_to_closet_pedestrian - vehicle_margin_x - pedestrian_margin_x
-        dist_y_to_closet_pedestrian_with_margin = dist_y_to_closet_pedestrian - vehicle_margin_y - pedestrian_margin_y
+        # dist_x_to_closet_pedestrian_with_margin = dist_x_to_closet_pedestrian - vehicle_margin_x - pedestrian_margin_x
+        # dist_y_to_closet_pedestrian_with_margin = dist_y_to_closet_pedestrian - vehicle_margin_y - pedestrian_margin_y
 
         #choose whether to accelerate, brake, or keep at current velocity
-        if max_progress > 0 or lookahead_dist < dist_x_to_closet_pedestrian_with_margin or 0 < dist_y_to_closet_pedestrian_with_margin:
+        if max_progress > 0:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         else:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
