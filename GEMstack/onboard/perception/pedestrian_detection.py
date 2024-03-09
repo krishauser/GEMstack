@@ -50,7 +50,7 @@ def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple
     inds = np.logical_and(np.logical_and(uv[:,0] >= xrange[0],uv[:,0] < xrange[1]),
                     np.logical_and(uv[:,1] >= yrange[0],uv[:,1] < yrange[1]))
     point_cloud_image = uv[inds]
-    image_indices = pc_fwd[inds,3].astype(int)
+    image_indices = pc_fwd[inds,4].astype(int)
     return point_cloud_image, image_indices
 
 
