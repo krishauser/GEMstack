@@ -11,14 +11,13 @@ def get_lidar_zed_transform(file):
         return np.array(config['lidar2zed']).reshape((4,4))   
 
 def get_lidar_vehicle_transform(file):
+    T = np.identity(4)
+
     with open(file, 'r') as f:
         config = yaml.load(f, yaml.SafeLoader)
-        R = np.array(config['lidar2vehicle']['R']).reshape((3,3))
-        t = np.array(config['lidar2vehicle']['t'])
+        T[:3,:3] = np.array(config['lidar2vehicle']['R']).reshape((3,3))
+        T[:3,3] = np.array(config['lidar2vehicle']['t'])
     
-    T = np.identity(4)
-    T[:3,:3] = R
-    T[:3,3] = t
     return T
 
 def run(file):

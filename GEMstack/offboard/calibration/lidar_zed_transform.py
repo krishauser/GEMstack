@@ -15,10 +15,11 @@ import open3d as o3d
 import numpy as np
 import yaml
 
-def register_points(source, target, T):
+def register_points(source, target, T_zed_vehicle_init):
     d_max = 0.05
+    R_zed_lidar_init = T_zed_vehicle_init[0] # lidar axes align with the vehicle axes
     T_init = np.identity(4)
-    T_init[:3,:3] = np.linalg.inv(np.array(T[0]).reshape((3,3)))
+    T_init[:3,:3] = np.linalg.inv(np.array(R_zed_lidar_init).reshape((3,3)))
     T_init[:3,3] = [0.2,-0.2,0.2]
     
     reg = o3d.pipelines.registration.registration_icp(source, target, d_max, T_init, \

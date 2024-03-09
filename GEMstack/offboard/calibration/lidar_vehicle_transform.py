@@ -23,7 +23,7 @@ def compute_best_fitting_plane(pts):
     print('Best fit plane:', plane)
     return plane
 
-def compute_R_roll(lidar_pts):
+def compute_rotation_roll(lidar_pts):
     # compute best fit plane and normal
     best_fit_plane = compute_best_fitting_plane(lidar_pts)
     unit_normal = unit_vec(best_fit_plane[:3]) # along vehicle Y axis
@@ -34,7 +34,7 @@ def compute_R_roll(lidar_pts):
          [0, np.sin(gamma), np.cos(gamma)]]
     return R
 
-def compute_R_pitch(lidar_pts):
+def compute_rotation_pitch(lidar_pts):
     best_fit_plane = compute_best_fitting_plane(lidar_pts)
     unit_normal = unit_vec(best_fit_plane[:3]) # along vehicle X axis
     
@@ -44,7 +44,7 @@ def compute_R_pitch(lidar_pts):
          [-np.sin(beta), 0, np.cos(beta)]]
     return R
 
-def compute_R_yaw(lidar_pts):
+def compute_rotation_yaw(lidar_pts):
     pts_z0 = [p for p in lidar_pts if abs(p[2]) <= 0.04]
     avg = [sum(p) / len(p) for p in zip(*pts_z0)]
     pt = min(pts_z0, key=lambda p: np.linalg.norm(p - avg)) 
@@ -58,15 +58,15 @@ def compute_R_yaw(lidar_pts):
 def compute_rotation(folder):
     print('--- for measuring roll ---')
     lidar_pts = select_points_from_pcd(get_lidar_data(folder, 5))   
-    R_roll = compute_R_roll(lidar_pts)
+    R_roll = compute_rotation_roll(lidar_pts)
 
     print('--- for measuring pitch ---')
     lidar_pts = select_points_from_pcd(get_lidar_data(folder, 6)) 
-    R_pitch = compute_R_pitch(lidar_pts)
+    R_pitch = compute_rotation_pitch(lidar_pts)
 
     print('--- for measuring yaw ---')
     lidar_pts = select_points_from_pcd(get_lidar_data(folder, 8)) 
-    R_yaw = compute_R_yaw(lidar_pts)
+    R_yaw = compute_rotation_yaw(lidar_pts)
     
     print(np.array(R_roll))
     print(np.array(R_pitch))
@@ -80,11 +80,11 @@ def compute_translation():
     d_ground_to_rear_axle = 0.28
     d_rear_axle_to_lidar = 0.87 # measured along vehicle X axis
 
-    tx = d_rear_axle_to_lidar
-    ty = 0 # lidar is on the vehicle's y = 0 plane
-    tz = d_ground_to_lidar - d_ground_to_rear_axle
+    t_x = d_rear_axle_to_lidar
+    t_y = 0 # lidar is on the vehicle's y = 0 plane
+    t_z = d_ground_to_lidar - d_ground_to_rear_axle
 
-    t = [tx, ty, tz]
+    t = [t_x, t_y, t_z]
     return t
 
 def run(folder):
@@ -93,8 +93,6 @@ def run(folder):
 
     t = compute_translation()
     print('t:\n', t)
-
-    # TODO: write R and t to GEMstack/GEMstack/knowledge/calibration/gem_e2_velodyne.yaml
 
     d = {
         'lidar2vehicle': {
