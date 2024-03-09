@@ -100,7 +100,7 @@ class PedestrianDetector(Component):
     def image_callback(self, image : cv2.Mat):
         self.zed_image = image
 
-    # TODO: uncomment before running on the vehicle
+    # Uncomment before running on the vehicle
     def camera_info_callback(self, info : CameraInfo):
         self.camera_info = info
 
@@ -175,21 +175,22 @@ class PedestrianDetector(Component):
         points_in_box = [point_cloud_vehicle_frame[i] for i in idx]   # in vehicle frame
         # print("points_in_box", points_in_box)
 
-        position = np.mean(points_in_box, axis=0)
+        center_pt = np.mean(points_in_box, axis=0)
 
         # Estimate dimensions - assuming the pedestrian is upright for simplicity
         # This could be refined with a more sophisticated model
         min_pt = np.min(points_in_box, axis=0)
         max_pt = np.max(points_in_box, axis=0)
         dimensions = max_pt - min_pt
-        # print("dimensions", dimensions)
 
         # You might want to adjust the dimensions if they are too small or too large
-        # This is a simple heuristic that may need refinement
-        dims = [max(dimensions[0], 0.5), max(dimensions[1], 0.5), max(dimensions[2], 1.5)]
+        clamp = lambda n, lbound, ubound: max(min(ubound, n), lbound)
+        dims = [clamp(dimensions[0], 0.5, 1), clamp(dimensions[1], 0.5, 1), clamp(dimensions[2], 1.5, 1.8)]
+        # print("dimensions", dims)
 
         # Create the agent state with the estimated position (in vehicle frame) and dimensions
-        pose = ObjectPose(t=0, x=position[0], y=position[1], z=position[2], 
+        # For a PhysicalObject, origin is at the object's center in the x-y plane and at the bottom in the z axis
+        pose = ObjectPose(t=0, x=center_pt[0], y=center_pt[1], z=center_pt[2] - dims[2]/2, 
                           yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
         
         return AgentState(pose=pose, dimensions=dims, outline=None, 
@@ -239,13 +240,11 @@ class PedestrianDetector(Component):
         - Keep track of which pedestrians were detected before.
         - For each agent, assign appropriate ids and estimate velocities.
         """
-        dt = 1 / self.rate()    # time between updates
+        dt = 1 / self.rate() # time between updates
 
         results = {}
 
         for agent in detected_agents:
-            agent.pose.x += vehicle.v * dt  # in start frame
-
             prev_agent_key = self.deduplication(agent)
 
             if prev_agent_key is None: # new agent
@@ -256,7 +255,8 @@ class PedestrianDetector(Component):
                 prev_agent = self.last_agent_states[prev_agent_key]
                 prev_pose = prev_agent.pose
 
-                v_x = (agent.pose.x - prev_pose.x) / dt
+                # absolute vel = vel w.r.t vehicle + vehicle velocity 
+                v_x = (agent.pose.x - prev_pose.x) / dt + vehicle.v
                 v_y = (agent.pose.y - prev_pose.y) / dt
                 v_z = (agent.pose.z - prev_pose.z) / dt
 
