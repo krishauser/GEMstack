@@ -6,3 +6,4 @@ gnss_yaw: 0.0 # radians
 front_radar_location: [1.45,0,0.07] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/platform_launch/launch/white_e2/platform.launch
 top_lidar: !include "gem_e2_velodyne.yaml"
 front_camera: !include "gem_e2_zed.yaml"
+T_lidar_to_cam:  [[ 0.04546774, -0.99892081, -0.00948209 , 0.04856251],[-0.02589312 , 0.00831025, -0.99963017 ,-0.11036461], [ 0.99863018 , 0.04569644 ,-0.02548732, -0.26637962],[0,0,0,1]]
