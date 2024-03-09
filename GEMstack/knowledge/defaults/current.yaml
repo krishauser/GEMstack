@@ -51,3 +51,11 @@ longitudinal_planning:
         #velocity_noise:
         #    constant: 0.04  #4cm/s noise
         #    linear: 0.02    #2% noise
+
+camera_info:
+    fx: 527.1143188476562
+    fy: 527.1143188476562
+    cx: 616.244873046875
+    cy: 359.211669921875
+    height: 720
+    width: 1280

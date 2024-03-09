@@ -296,14 +296,14 @@ def _get_frame_chain(source_frame : ObjectFrameEnum, target_frame : ObjectFrameE
             raise ValueError("start_pose_abs must be specified when converting to START")
         frame_chain.append((ObjectFrameEnum.START,start_pose_abs,-1))
     elif target_frame == ObjectFrameEnum.CURRENT:
+        if current_pose is None:
+            raise ValueError("current_pose must be specified when converting to CURRENT")
         if current_pose.frame != frame_chain[-1][0]:  #global to start
             assert start_pose_abs.frame == frame_chain[-1][0]
             assert current_pose.frame == ObjectFrameEnum.START
             if start_pose_abs is None:
                 raise ValueError("start_pose_abs must be specified when converting to CURRENT and current_pose is in START frame")
             frame_chain.append((ObjectFrameEnum.START,start_pose_abs,-1))
-        if current_pose is None:
-            raise ValueError("current_pose must be specified when converting to CURRENT")
         frame_chain.append((ObjectFrameEnum.CURRENT,current_pose,-1))
     return frame_chain
 
