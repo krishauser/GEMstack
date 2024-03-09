@@ -180,7 +180,7 @@ class PedestrianDetector(Component):
         #TODO: create point clouds _img[:,:2]/point_cloud_img[:,2]in image frame and world frame
         P=np.array(self.camera_info.P).reshape(3, 4)
         point_cloud_camera=self.transform_lidar_camera(self.point_cloud)
-        point_cloud_image, image_indices=project_point_cloud(point_cloud_camera, P,[0,self.camera_info.width], [0,self.camera_info.height] )        
+        point_cloud_image, image_indices=project_point_cloud(point_cloud_camera, P,(0,self.camera_info.width), (0,self.camera_info.height) )        
         point_cloud_image_world=self.transform_lidar_world(self.point_cloud[image_indices])
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
