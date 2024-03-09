@@ -7,6 +7,7 @@ if __name__ == '__main__':
     lidar2zed = np.linalg.inv(zed2lidar)
     zed2vechicle = np.dot(lidar2vechicle, zed2lidar)
 
+    T_lidar_to_zed = np.linalg.inv(zed2vechicle) @ lidar2vechicle
         
     import pdb
     pdb.set_trace()
