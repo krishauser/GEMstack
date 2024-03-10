@@ -21,10 +21,10 @@ To record all these topics use the following command :
 
     $ rosbag record /lidar1/velodyne_points  /zed2/zed_node/rgb/camera_info /zed2/zed_node/rgb/image_rect_color
 
-3)To perform calibration using the GUI to pick correspondences:
-
+3) To perform calibration using the GUI to pick correspondences:
+```
     $ roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
-
+```
 ## STEP 2: LiDAR -> Vehicle Calibration
 
     $ rosrun lidar_camera_calibration calibrate_camera_lidar.py --calibrate
@@ -38,10 +38,10 @@ To record all these topics use the following command :
 Save it as T_Velodyne_Zed matrix.
 
 
-5)To display the LiDAR points projected on to the camera plane:
-
+5) To display the LiDAR points projected on to the camera plane:
+```
     $ roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
-
+```
 ## STEP 2: LiDAR -> Vehicle Calibration
 
 1) Create the T_Velodyne_Vehicle matrix using measurements from vehicle and point correspondances.
