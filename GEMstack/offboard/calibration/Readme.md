@@ -34,6 +34,8 @@ To record all these topics use the following command :
     --> 'T'     : translation offsets (3, )
       
 Save it as T_Velodyne_Zed matrix.
+
+
 5)To display the LiDAR points projected on to the camera plane:
 
     $ roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
