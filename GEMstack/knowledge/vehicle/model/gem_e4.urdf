@@ -1,0 +1,919 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<robot name="gem_e4">
+  
+  <link name="base_footprint"> 
+  </link>
+  
+  <link name="base_link">
+    <inertial>
+      <origin xyz="-0.01178 0.0012042 0.47962" rpy="0 0 0" />
+      <mass value="1950.5" />
+      <inertia
+        ixx="546.93"
+        ixy="-0.50772"
+        ixz="-13.079"
+        iyy="1803.2"
+        iyz="0.093832"
+        izz="1702.3" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/base_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0 0 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="base_link" type="fixed">
+    <origin xyz="0 0 0.268" rpy="0 0 0"/>
+    <parent link="base_footprint"/>
+    <child link="base_link"/>
+  </joint>
+  
+  <!-- ************************************* Fixed Links ************************************* -->
+  
+  <link name="top_rack_link">
+    <inertial>
+      <!--
+      <origin xyz="-0.207 0 1.6989" rpy="0 0 0" />
+      -->
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/top_rack_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0 0 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/top_rack_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="top_rack_joint" type="fixed">
+    <origin xyz="-0.17 0 1.66" rpy="1.5708 0 0" />
+    <parent link="base_link" />
+    <child link="top_rack_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+
+  <link name="front_rack_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/front_rack_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0 0 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/front_rack_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="front_rack_joint" type="fixed">
+    <origin xyz="1.7594 0 -0.15" rpy="1.5708 0 1.5708" />
+    <parent link="base_link" />
+    <child link="front_rack_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+
+  <link name="rear_rack_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/rear_rack_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0 0 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/rear_rack_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="rear_rack_joint" type="fixed">
+    <origin xyz="-1.7372 0 -0.1" rpy="1.5708 0 -1.5708" />
+    <parent link="base_link" />
+    <child link="rear_rack_link" />
+    <axis xyz="0 0 0" />
+  </joint>  
+  
+  <link name="headlight_fr_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/headlight_fr_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/headlight_fr_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="headlight_fr_joint" type="fixed">
+    <origin xyz="1.1677 -0.5 0.765" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="headlight_fr_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  
+  <link name="headlight_fl_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/headlight_fl_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/headlight_fl_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="headlight_fl_joint" type="fixed">
+    <origin xyz="1.1677 0.5 0.765" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="headlight_fl_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  
+  <link name="turnlight_fl_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/turnlight_fl_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 0.6 0.2 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/turnlight_fl_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="turnlight_fl_joint" type="fixed">
+    <origin xyz="1.1731 0.345 0.765" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="turnlight_fl_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  
+  <link name="turnlight_fr_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/turnlight_fr_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 0.6 0.2 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/turnlight_fr_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="turnlight_fr_joint" type="fixed">
+    <origin xyz="1.1731 -0.345 0.765" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="turnlight_fr_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  
+  <link name="lightbar_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/lightbar_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 0 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/lightbar_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="lightbar_joint" type="fixed">
+    <origin xyz="-1.07655 0 0.9449" rpy="-1.9138 0 1.5708" />
+    <origin xyz="0 0 0" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="lightbar_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  
+  <link name="rear_left_stop_light_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/stoplight_rl_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/stoplight_rl_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="stoplight_rl_joint" type="fixed">
+    <origin xyz="-1.625 0.38 0.423" rpy="0 0 3.1416" />
+    <parent link="base_link" />
+    <child link="rear_left_stop_light_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  
+  <link name="rear_right_stop_light_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/stoplight_rr_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/stoplight_rr_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="stoplight_rr_joint" type="fixed">
+    <origin xyz="-1.625 -0.38 0.423" rpy="0 0 3.1416" />
+    <parent link="base_link" />
+    <child link="rear_right_stop_light_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+
+  <link name="taillight_rl_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/taillight_rl_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 0 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/taillight_rl_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="taillight_rl_joint" type="fixed">
+    <origin xyz="-1.62 0.32 0.203" rpy="0 0 3.1416" />
+    <parent link="base_link" />
+    <child link="taillight_rl_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  
+  <link name="taillight_rr_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/taillight_rr_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 0 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/taillight_rr_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="taillight_rr_joint" type="fixed">
+    <origin xyz="-1.62 -0.32 0.203" rpy="0 0 3.1416" />
+    <parent link="base_link" />
+    <child link="taillight_rr_link" />
+    <axis xyz="0 0 0" />
+  </joint>  
+ 
+  <link name="i_logo_fl_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/i_logo_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 0.6 0.2 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/i_logo_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="i_logo_fl_joint" type="fixed">
+    <origin xyz="0.3966 0.6695 0.4123" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="i_logo_fl_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  
+  <link name="i_logo_rl_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/i_logo_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 0.6 0.2 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/i_logo_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="i_logo_rl_joint" type="fixed">
+    <origin xyz="-0.42344 0.6695 0.4123" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="i_logo_rl_link" />
+    <axis xyz="0 0 0" />
+  </joint>  
+  
+  <link name="i_logo_fr_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/i_logo_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 0.6 0.2 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/i_logo_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="i_logo_fr_joint" type="fixed">
+    <origin xyz="0.3966 -0.68 0.4123" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="i_logo_fr_link" />
+    <axis xyz="0 0 0" />
+  </joint>   
+  
+  <link name="i_logo_rr_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/i_logo_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="1 0.6 0.2 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/i_logo_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="i_logo_rr_joint" type="fixed">
+    <origin xyz="-0.42344 -0.68 0.4123" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="i_logo_rr_link" />
+    <axis xyz="0 0 0" />
+  </joint>    
+  
+  <!-- ************************************* Sensor Links ************************************* -->
+  
+  <link name="gps_antenna_main_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/gps_antenna_main_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.9 0.8 0.9 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/gps_antenna_main_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="gps_antenna_main_joint" type="fixed">
+    <origin xyz="-0.01144 0.6525 1.7" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="gps_antenna_main_link" />
+    <axis xyz="0 0 1" />
+  </joint>
+  
+  <link name="gps_antenna_aux_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/gps_antenna_aux_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.9 0.8 0.9 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/gps_antenna_aux_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="gps_antenna_aux_joint" type="fixed">
+    <origin xyz="-0.01144 -0.6525 1.7" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="gps_antenna_aux_link" />
+    <axis xyz="0 0 1" />
+  </joint>  
+  
+  <link name="top_lidar_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/top_lidar_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.8 0.8 0.9 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/top_lidar_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="top_lidar_joint" type="fixed">
+    <origin xyz="-0.15144 0 2.08" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="top_lidar_link" />
+    <axis xyz="0 0 0" />
+  </joint>  
+  
+  <link name="front_camera_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/front_camera_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.8 0.8 0.9 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/front_camera_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="front_camera_joint" type="fixed">
+    <origin xyz="0.535 0 1.683" rpy="0 1.5708 0" />
+    <parent link="base_link" />
+    <child link="front_camera_link" />
+    <axis xyz="0 0 0" />
+  </joint>
+  
+  <link name="front_lidar_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/front_lidar_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.8 0.8 0.9 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/front_lidar_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="front_lidar_joint" type="fixed">
+    <origin xyz="0.38206 0 1.71" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="front_lidar_link" />
+    <axis xyz="0 0 0" />
+  </joint>  
+  
+  <link name="front_radar_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/front_radar_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.8 0.8 0.9 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/front_radar_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="front_radar_joint" type="fixed">
+    <origin xyz="1.835 0 0.35" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="front_radar_link" />
+    <axis xyz="0 0 0" />
+  </joint>    
+  
+  <link name="imu_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/imu_link.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0.8 0.8 0.9 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/imu_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name="imu_joint" type="fixed">
+    <origin xyz="-0.0044387 0 0.18294" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="imu_link" />
+    <axis xyz="0 0 0" />
+  </joint>  
+  
+  <!-- *********************************** Front Left Wheel *********************************** -->
+  
+  <link name="left_steering_hinge_link">
+    <inertial>
+      <mass value="1"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.004" ixy="0.0" ixz="0.0" iyy="0.004" iyz="0.0" izz="0.004"/>
+    </inertial>
+  </link>
+
+  <joint name="left_steering_hinge_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="left_steering_hinge_link"/>
+    <origin xyz="1.2746 0.6545 0.027" rpy="0 0 0"/>    
+    <axis xyz="0 0 1" />
+    <limit lower="-0.61" upper="0.61" effort="100" velocity="0.5"/>
+  </joint>
+  
+  <link name="wheel_link_fl">
+    <inertial>
+      <mass value="11"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.58631238" ixy="0.0" ixz="0.0" iyy="0.33552910" iyz="0.0" izz="0.33552910"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/e4/wheel_link_fl.STL"/>
+      </geometry>
+      <material name="">
+        <color rgba="0 0 0 1" />
+      </material>
+    </visual>
+    <collision name="front_left_wheel_collision">
+      <geometry>
+        <sphere radius="0.295"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wheel_joint_fl" type="continuous">
+    <parent link="left_steering_hinge_link"/>
+    <child link="wheel_link_fl"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit effort="1000" velocity="100.0"/>
+  </joint>
+  
+  <!-- ********************************** Front Right Wheel ********************************** -->
+  
+  <link name="right_steering_hinge_link">
+    <inertial>
+      <mass value="1"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <inertia ixx="0.004" ixy="0.0" ixz="0.0" iyy="0.004" iyz="0.0" izz="0.004"/>
+    </inertial>
+  </link>
+
+  <joint name="right_steering_hinge_joint" type="revolute">
+    <parent link="base_link"/>
+    <child link="right_steering_hinge_link"/>
+    <origin xyz="1.2746 -0.6535 0.027" rpy="0 0 0"/>
+    <axis xyz="0 0 1" />
+    <limit lower="-0.61" upper="0.61" effort="100" velocity="0.5"/>
+  </joint>
+  
+  <link name="wheel_link_fr">
+    <inertial>
+      <mass value="11"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.58631238" ixy="0.0" ixz="0.0" iyy="0.33552910" iyz="0.0" izz="0.33552910"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/e4/wheel_link_fr.STL"/>
+      </geometry>
+      <material name="">
+        <color rgba="0 0 0 1" />
+      </material>
+    </visual>
+    <collision name="front_right_wheel_collision">
+      <geometry>
+        <sphere radius="0.295"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wheel_joint_fr" type="continuous">
+    <parent link="right_steering_hinge_link"/>
+    <child link="wheel_link_fr"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>  
+    <axis xyz="0 1 0"/>
+    <limit effort="1000" velocity="100.0"/>
+  </joint>
+  
+  <!-- ************************************ Rear Left Wheel ************************************ -->
+  
+  <link name="wheel_link_rl">
+    <inertial>
+      <mass value="11"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.58631238" ixy="0.0" ixz="0.0" iyy="0.33552910" iyz="0.0" izz="0.33552910"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/wheel_link_rl.STL"  />
+      </geometry>
+      <material name="">
+        <color rgba="0 0 0 1" />
+      </material>
+    </visual>
+    <collision name="rear_left_wheel_collision">
+      <geometry>
+        <sphere radius="0.295"/>
+      </geometry>
+    </collision>
+  </link>  
+  
+  <joint name="wheel_joint_rl" type="continuous">
+    <origin xyz="-1.2904 0.6545 0.027" rpy="0 0 0" /> 
+    <parent link="base_link" />
+    <child link="wheel_link_rl" />
+    <axis xyz="0 1 0" />
+    <limit effort="1000.0" velocity="100.0"/>
+  </joint>
+  
+  <!-- *********************************** Rear Right Wheel *********************************** -->
+
+  <link name="wheel_link_rr">
+    <inertial>
+      <mass value="11"/>
+      <origin xyz="0 0 0"/>
+      <inertia ixx="0.58631238" ixy="0.0" ixz="0.0" iyy="0.33552910" iyz="0.0" izz="0.33552910"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0" />
+      <geometry>
+        <mesh filename="meshes/e4/wheel_link_rr.STL" />
+      </geometry>
+      <material name="">
+        <color rgba="0 0 0 1" />
+      </material>
+    </visual>
+    <collision name="rear_right_wheel_collision">
+      <geometry>
+        <sphere radius="0.295"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wheel_joint_rr" type="continuous">
+    <origin xyz="-1.2904 -0.6535 0.027" rpy="0 0 0" />
+    <parent link="base_link" />
+    <child link="wheel_link_rr" />
+    <axis xyz="0 1 0" />
+    <limit effort="1000.0" velocity="100.0"/>
+  </joint>
+ 
+  <!-- **************************************************************************************** -->
+  
+  <klampt use_vis_geom="1" default_acc_max="4" default_vel_max="2" >
+  </klampt>
+
+</robot>
+
+
+
+
+
+
+
+
+
+
+
+
+

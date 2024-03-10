@@ -4,7 +4,7 @@ from klampt.math import se3
 from klampt import *
 from ...state import AllState,ObjectFrameEnum,VehicleState
 from ...mathutils.signal import OnlineLowPassFilter
-from ...utils import klampt_visualization
+from ...utils import klampt_visualization, settings
 import time
 import os
 import math
@@ -27,7 +27,7 @@ class KlamptVisualization(Component):
         self.last_v = 0.0
 
         self.world = WorldModel()
-        fn = os.path.abspath(os.path.join(__file__,"../../../knowledge/vehicle/model/gem_e2.urdf"))
+        fn = os.path.abspath(os.path.join(__file__,settings.get('vehicle.geometry.urdf_model')))
         if not self.world.loadFile(fn):
             print("Warning, could not load vehicle model from",fn)
             input("Press enter to continue.")
