@@ -35,6 +35,8 @@ To run the calibration GUI :
 ```
 
 ![](assets/gui.gif)
+
+
 4)  The calibrate extrinsic are saved as following:
     - PKG_PATH/calibration_data/lidar_camera_calibration/extrinsics.npz
     --> 'euler' : euler angles (3, )
