@@ -33,8 +33,8 @@ simulator:
         #    constant: 0.04  #4cm/s noise
         #    linear: 0.02    #2% noise
 longitudinal_planning:
-    no_of_samples: 50
-    rate: 10
+    no_of_samples: 20
+    rate: 20
     vehicle_prop:
         acc: 0.5
         dec: 2.0
