@@ -9,7 +9,7 @@ In data folder,
 
 Method
 ===================
-We use `interactive_visualization.py` to help us to automatically calibrate our camera. When you run the code, it will display the LiDAR point cloud and the ZED camera image in sequence, and you just need to choose the feature points(the corner of an object) in the data. Step1 and Step2 are similar.
+We use ICP algorithm (`global_registration.py`) to help us to automatically calibrate our camera. When you run the code, it will display the LiDAR point cloud and the ZED camera image in sequence, and you just need to choose the feature points(the corner of an object) in the data. Step1 and Step2 are similar.
 
 Steps
 ====================
