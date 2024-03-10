@@ -12,11 +12,11 @@
 
 2) The rosbag should contain all the following topics:
    
-   /sensors/velodyne_points    (sensor_msgs/PointCloud2)
+  > /sensors/velodyne_points    (sensor_msgs/PointCloud2)
    
-   /sensors/camera/image_color (sensor_msgs/Image)
+  > /sensors/camera/image_color (sensor_msgs/Image)
    
-   /sensors/camera/camera_info (sensor_msgs/CameraInfo)
+  > /sensors/camera/camera_info (sensor_msgs/CameraInfo)
    
 To record all these topics use the following command :
 
