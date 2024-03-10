@@ -32,9 +32,14 @@ To record all these topics use the following command :
     --> 'euler' : euler angles (3, )
     --> 'R'     : rotation matrix (3, 3)
     --> 'T'     : translation offsets (3, )
-
+      
+Save it as T_Velodyne_Zed matrix.
 5)To display the LiDAR points projected on to the camera plane:
 
     $ roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
 
 ## STEP 2: LiDAR -> Vehicle Calibration
+
+1) Create the T_Velodyne_Vehicle matrix using measurements from vehicle and point correspondances.
+2) Get the T_Zed_Vehicle using the get_transforms.py file, you will need to input the T_Velodyne_Vehicle and T_Velodyne_zed matrix.
+
