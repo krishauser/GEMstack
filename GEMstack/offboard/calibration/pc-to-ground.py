@@ -23,7 +23,7 @@ def display_inlier_outlier(cloud : o3d.t.geometry.PointCloud, mask : o3c.Tensor)
                                       front=[0.4257, -0.2125, -0.8795],
                                       lookat=[2.6172, 2.0475, 1.532],
                                       up=[-0.0694, -0.9768, 0.2024])
-target = np.load(r"C:\Users\Li\Desktop\HW3\pc\pc\lidar2.npy")
+target = np.load(r"/GEMstack/data/calibration_pcd/lidar2.npy")
 target = o3d.t.geometry.PointCloud(target)
 # print(target)
 # aabb = target.get_axis_aligned_bounding_box()

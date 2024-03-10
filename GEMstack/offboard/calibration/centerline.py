@@ -19,8 +19,8 @@ def draw_registration_result(source, target, transformation):
 from sys import exit
 if __name__ == "__main__":
     # TODO put an object on the center line of the vehicle and load the image and lidar cloud
-    source = np.load(r"C:\Users\Li\Desktop\HW3\pc\pc\zed2.npy")[::64]
-    target = np.load(r"C:\Users\Li\Desktop\HW3\pc\pc\lidar2.npy")
+    source = np.load(r"/GEMstack/data/calibration_pcd/zed2.npy")[::64]
+    target = np.load(r"/GEMstack/data/calibration_pcd/lidar2.npy")
     
     # mannually select the points that correspond to the object
     target = np.array([p for p in target if p[0]>0.1 and p[2]<1 and p[0]<10 and p[2]>-1 and p[1]>-1 and p[1]<1])
