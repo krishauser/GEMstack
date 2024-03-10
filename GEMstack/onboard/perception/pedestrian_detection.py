@@ -1,10 +1,10 @@
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ...utils import settings
-from ...mathutils import transforms
+from ...mathutils import transforms, collisions
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
-import cv2
+import cv2, copy
 try:
     from sensor_msgs.msg import CameraInfo
     from image_geometry import PinholeCameraModel
@@ -58,6 +58,7 @@ class PedestrianDetector(Component):
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
+        self._rate = settings.get('pedestrian_detection.rate')
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
@@ -82,7 +83,7 @@ class PedestrianDetector(Component):
         self.persons_id = []
 
     def rate(self):
-        return 4.0
+        return self._rate
     
     def state_inputs(self):
         return ['vehicle']
@@ -146,40 +147,49 @@ class PedestrianDetector(Component):
         u=x+w/2
         v=y+h/2
 
-        mask_indices = np.where((point_cloud_image[:, 0] == u) and (point_cloud_image[:, 1] == v))
-        agent_indices = image_indices[mask_indices]
-        x = point_cloud_image_world[agent_indices, 2] #z
-        y = point_cloud_image_world[agent_indices, 1] #y
-        z = point_cloud_image_world[agent_indices, 0] #x
-
-        pose = ObjectPose(t=time.time(),x=x,y=y,z=z,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-        dims = [w,h,1.7]
+        mask_indices = (np.argsort(np.linalg.norm(point_cloud_image - [x,y],axis=1)))[:20]
+        agent_pcd = point_cloud_image_world[mask_indices]
+        agent_close_idx = np.argsort(np.linalg.norm(agent_pcd, axis=1))[:5]
+        agent_close_pcd =  agent_pcd[agent_close_idx]
+        x_3d, y_3d,z_3d = np.mean(agent_close_pcd, axis=0)
+        
+        height = 1.7
+        z_3d -= height/2
+        pose = ObjectPose(t=0,x=x_3d,y=y_3d,z=z_3d,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
+        dims = [1,1,1.7]
         
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
-        detection_result = self.detector.track(self.zed_image,verbose=False)
+        detection_result = self.detector(self.zed_image,verbose=False)[0]
         #TODO: create boxes from detection result
-        latest_boxes = detection_result[-1].boxes
-
-
+        latest_boxes = detection_result.boxes
         self.last_person_boxes = []
-        for i in range(len(latest_boxes.cls)):
-            if latest_boxes.cls[i] == 0 and latest_boxes.conf[i] > 0.8:
-                x,y,w,h = latest_boxes[i].xywh[0].cpu().detach().numpy().tolist()
-                self.last_person_boxes.append((x, y, w, h))
-                self.persons_id.append("ped" + str(int(latest_boxes[i].id[0].cpu().detach().numpy().tolist())))
 
+        for i, b in enumerate(latest_boxes.cls):
+            if b == 0:
+                x,y,w,h = latest_boxes.xywh[i].tolist()
+                self.last_person_boxes.append((x, y, w, h))
+
+        image_geometry = PinholeCameraModel()
+        image_geometry.fromCameraInfo(self.camera_info)
+        fx, fy, cx, cy = image_geometry.fx(), image_geometry.fy(), image_geometry.cx(), image_geometry.cy()
+        p_matrix = Pmatrix(fx, fy, cx, cy)
+        xrange = (0, self.camera_info.width)
+        yrange = (0, self.camera_info.height)
 
         #TODO: create point clouds in image frame and world frame
-        (n, d) = self.point_cloud_lidar.shape
-        homo_point_cloud_lidar = np.hstack((self.point_cloud_lidar, np.ones((n,1))))
-        self.point_cloud_zed = homo_point_cloud_lidar @ self.T_lidar_to_zed #nx4
+        homo_point_cloud_lidar = np.concatenate((self.point_cloud_lidar[:,:3], np.ones((self.point_cloud_lidar.shape[0],1))),axis=1)
+        homo_point_cloud_lidar = (np.dot(self.T_lidar_to_zed, homo_point_cloud_lidar.T).T)[:,:3] #nx4
 
-        P_matrix = Pmatrix(526.9296264648438,526.9296264648438,616.2447509765625,359.2161560058594)
-        point_cloud_image, image_indices = project_point_cloud(self.point_cloud_zed[:,:3], P_matrix, (0, 1280), (0, 720))
-        point_cloud_image_world = self.point_cloud_zed @ self.T_zed #nx4
-
+        point_cloud_image, image_indices = project_point_cloud(homo_point_cloud_lidar, p_matrix, xrange, yrange)
+        point_cloud_image_world = homo_point_cloud_lidar[image_indices] #nx4
+        point_cloud_image_world = np.concatenate((point_cloud_image_world, np.ones((point_cloud_image_world.shape[0], 1))),axis=1)
+        point_cloud_image_world = (self.T_zed @ (point_cloud_image_world.T)).T[:,:3]
+        
+        self._point_cloud_image = point_cloud_image
+        self._point_cloud_image_world = point_cloud_image_world
+        
         detected_agents = []
         for i,b in enumerate(self.last_person_boxes):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world, image_indices)
@@ -192,27 +202,26 @@ class PedestrianDetector(Component):
         # TODO: keep track of which pedestrians were detected before using last_agent_states.
         # use these to assign their ids and estimate velocities.
 
-        for i, id in enumerate(self.persons_id):
-            if id not in self.last_agent_states.keys():
-                self.last_agent_states[id] = detected_agents[i]
-                self.pedestrian_counter+=1
-            else:
-                xprev = self.last_agent_states[id].pose.x
-                yprev = self.last_agent_states[id].pose.y
-                zprev = self.last_agent_states[id].pose.z
-
-                xcurr = detected_agents[i].pose.x + vehicle.pose.x
-                ycurr = detected_agents[i].pose.y + vehicle.pose.y
-                zcurr = detected_agents[i].pose.z + vehicle.pose.z
-                
-                dt = detected_agents[i].pose.t - self.last_agent_states[id].pose.t
-
-                vx = (xcurr-xprev)/dt
-                vy = (ycurr-yprev)/dt
-                vz = (zcurr-zprev)/dt
-
-                self.last_agent_states[id].velocity = (vx, vy, vz)
-
+        results = {}
+        for agent in detected_agents:
+            detected = False
+            for previous_agent_name in self.last_agent_states:
+                frame_zero = self.last_agent_states[previous_agent_name]
+                # frame_zero = frame_zero.to_frame(1, VehicleState.pose)
+                frame_curr = copy.deepcopy(agent)
+                frame_curr.pose.x += vehicle.v * self.rate()
+                if collisions.polygon_intersects_polygon_2d(frame_curr.polygon_parent(), frame_zero.polygon_parent()):
+                    results[previous_agent_name] = agent
+                    velocity = ((frame_curr.pose.x - frame_zero.pose.x) * self.rate(),
+                                (frame_curr.pose.y - frame_zero.pose.y) * self.rate(),
+                                (frame_curr.pose.z - frame_zero.pose.z) * self.rate())
+                    agent.velocity = velocity
+                    detected = True
+            if not detected:
+                agent.velocity = (0,0,0)
+                results['ped'+str(self.pedestrian_counter)] = agent
+                self.pedestrian_counter += 1
+        return results
 
     def save_data(self, loc=None):
         """This can be used for debugging.  See the provided test."""
@@ -241,3 +250,6 @@ class PedestrianDetector(Component):
             CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             #TODO: these are guessed parameters
             self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
+    
+    def point_cloud_image(self):
+        return self._point_cloud_image, self._point_cloud_image_world
