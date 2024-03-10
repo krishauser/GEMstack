@@ -1,0 +1,14 @@
+Lidar_vehicle data:
+Rear axle-bxo = 3.9m
+Lidar-box = 3m
+Lidar-rear axle = 0.9m
+ 
+Transformation Matrix obtained after calibration.
+T_Velodyne_ZED:
+
+ Euler angles (RPY): (2.267463229660276, -1.5172588007567585, -0.7309947047304568)
+Rotation Matrix: [[ 0.03984022 -0.99859269 -0.03500554]
+ [-0.03572514  0.0335874  -0.99879708]
+ [ 0.99856721  0.04104288 -0.03433674]]
+Translation Offsets: [[ 0.06235127 -0.09074296 -0.1632304 ]]
+
