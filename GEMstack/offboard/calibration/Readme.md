@@ -13,11 +13,15 @@
    /sensors/camera/image_color (sensor_msgs/Image)
    /sensors/camera/camera_info (sensor_msgs/CameraInfo)
    
-To record all these topics use the following command : 
+To record all these topics use the following command :
 
-   $ rosbag record /lidar1/velodyne_points  /zed2/zed_node/rgb/camera_info /zed2/zed_node/rgb/image_rect_color
+    $ rosbag record /lidar1/velodyne_points  /zed2/zed_node/rgb/camera_info /zed2/zed_node/rgb/image_rect_color
 
-3) To perform calibration using the GUI to pick correspondences:
+3)To perform calibration using the GUI to pick correspondences:
+
+    $ roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
+
+## STEP 2: LiDAR -> Vehicle Calibration
 
     $ rosrun lidar_camera_calibration calibrate_camera_lidar.py --calibrate
     
