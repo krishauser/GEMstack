@@ -7,6 +7,8 @@
 
 ## STEP 1: LiDAR -> Camera Calibration
 1) Record Rosbag for calibration by moving a board in the camera and Lidar frame of the vehicle at different orientations and positions.
+![alt text](assetscalib.gif)
+
 2) The rosbag should contain all the following topics:
    
    /sensors/velodyne_points    (sensor_msgs/PointCloud2)
