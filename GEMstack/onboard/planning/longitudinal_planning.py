@@ -19,55 +19,55 @@ def longitudinal_plan(path: Path, acceleration: float, deceleration: float, max_
        decelerate with accel = -deceleration until velocity goes to 0.
     """
 
-    path_normalized = path.arc_length_parameterize()
-    points = [p for p in path_normalized.points]
-    theta = np.arctan2(points[-1][1] - points[0][1], points[-1][0] - points[0][0])
-    acceleration, deceleration, max_speed, current_speed = acceleration * np.cos(theta), deceleration * np.cos(
-        theta), max_speed * np.cos(theta), current_speed * np.cos(theta)
+    # s_acc = (max_speed ** 2 - current_speed ** 2) / (2 * acceleration)
+    # s_dec = max_speed ** 2 / (2 * deceleration)
+    # t_acc = (max_speed - current_speed) / acceleration
+    # t_const = (length - s_acc - s_dec) / max_speed
+    # points_acc, times_acc = accelerate(sp, acceleration, current_speed, max_speed)
+    # points_const, times_const = const_speed(sp + s_acc, ep - s_dec, max_speed, t_acc)
+    # points_dec, times_dec = decelerate(ep - s_dec, deceleration, max_speed, t_acc + t_const)
+    # points, times = sample(points_acc + points_const + points_dec, times_acc + times_const + times_dec)
+    # trajectory = Trajectory(path.frame, points, times)
 
-    sp = points[0][0]
-    ep = points[-1][0]
-    length = ep - sp
-    s_stop = current_speed ** 2 / (2 * deceleration)
-    if s_stop > length:
-        points, times = decelerate(sp, deceleration, current_speed)
-        trajectory = Trajectory(path.frame, points, times)
-        return trajectory
+    sp = path.points[0][0]
+    length = 0
 
-    if acceleration == 0:
-        # t_const=current_speed/deceleration
-        s_const = length - s_stop
-        t_const = s_const / current_speed
-        points_const, times_const = const_speed(sp, sp + s_const, current_speed, 0)
-        points_dec, times_dec = decelerate(sp + s_const, deceleration, current_speed, t_const)
-        trajectory = Trajectory(path.frame, points_const + points_dec, times_const + times_dec)
-        return trajectory
+    points = [[sp, 0]]
+    times = [0]
 
-    s_th = (max_speed ** 2 - current_speed ** 2) / (2 * acceleration) + max_speed ** 2 / (2 * deceleration)
+    expected_points_in_traj = [0]
 
-    if s_th > length:
-        v_max = np.sqrt(
-            (length + current_speed ** 2 / (2 * acceleration))
-            /
-            (1 / (2 * acceleration) + 1 / (2 * deceleration))
-        )
-        time_acc = (v_max - current_speed) / acceleration
-        points_acc, times_acc = accelerate(sp, acceleration, current_speed, v_max)
-        s_dec = v_max ** 2 / (2 * deceleration)
-        points_dec, times_dec = decelerate(ep - s_dec, deceleration, v_max, time_acc)
-        points, times = sample(points_acc + points_dec, times_acc + times_dec)
-        trajectory = Trajectory(path.frame, points, times)
-        return trajectory
+    # vector distances for all points
+    for i in range(len(path.points) - 1):
+        length += path.points[i+1][0] - path.points[i][0]
+        expected_points_in_traj.append(length)
 
-    s_acc = (max_speed ** 2 - current_speed ** 2) / (2 * acceleration)
-    s_dec = max_speed ** 2 / (2 * deceleration)
-    t_acc = (max_speed - current_speed) / acceleration
-    t_const = (length - s_acc - s_dec) / max_speed
-    points_acc, times_acc = accelerate(sp, acceleration, current_speed, max_speed)
-    points_const, times_const = const_speed(sp + s_acc, ep - s_dec, max_speed, t_acc)
-    points_dec, times_dec = decelerate(ep - s_dec, deceleration, max_speed, t_acc + t_const)
-    points, times = sample(points_acc + points_const + points_dec, times_acc + times_const + times_dec)
-    trajectory = Trajectory(path.frame, points, times)
+    s = 0
+    step_count = 1
+    v = current_speed
+    a = acceleration
+    d = -1 * deceleration
+    while s == 0 or v > 0:
+        
+        s_stop = -1 * v**2 / (2 * d)
+
+        applied_a = d if s_stop  >= length - s else a
+
+        v = v + applied_a * 1/NO_OF_POINTS
+        if v >= max_speed:
+            v = max_speed
+
+        s += v/NO_OF_POINTS
+        if s >= expected_points_in_traj[step_count] and step_count < len(expected_points_in_traj) - 1:
+            step_count += 1
+
+        distance_covered_before_next_step = s - expected_points_in_traj[step_count - 1]
+        next_point = path.points[step_count - 1][0] + distance_covered_before_next_step
+
+        points.append([next_point, 0])
+        times.append(times[-1] + 1/NO_OF_POINTS)
+
+    trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
 def sample(points: List, times: List):
