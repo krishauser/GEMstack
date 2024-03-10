@@ -60,3 +60,21 @@ longitudinal_planning:
         desired_speed: 1.0
         deceleration: 2.0
     rate: 10.0
+    
+#magic constant in pedestrian_detection.py
+pedestrian_detection:
+    self.fx: 527.5779418945312
+    self.fy: 527.5779418945312
+    self.cx: 616.2459716796875
+    self.cy: 359.2155456542969
+    image_w: 1280
+    image_h: 720
+    dt: 1.0
+
+#magic constant in pedestrian_avoidance_planning.py
+pedestrian_avoidance_planning:
+    V_l: 4.0
+    V_w: 1.6
+    margin_x: 4.0
+    margin_y: 1.5
+	
