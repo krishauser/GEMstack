@@ -35,7 +35,8 @@ control:
 
 #configure the simulator, if using
 simulator:
-    dt: 0.01
+    dt: 0.01 center_points_num: 20
+    closest_points_num: 5
     real_time_multiplier: 1.0    # make the simulator run faster than real time by making this > 1
     gnss_emulator: 
         dt: 0.1    #10Hz
@@ -55,5 +56,4 @@ pedestrian_avoidance:
 pedestrian_detection:
     model: !relative_path "../detection/yolov8n.pt"   #the !relative_path directive finds a file in a relative location to this file
     rate: 17.0
-    center_points_num: 20
-    closest_points_num: 5
+
