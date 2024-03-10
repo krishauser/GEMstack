@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+    <arg name="bagfile" default="calib3.bag" />
+
+    <!-- Play rosbag record -->
+    <remap from="/lidar1/velodyne_points" to="/sensors/velodyne_points"/>
+    <remap from="/zed2/zed_node/rgb/camera_info" to="/sensors/camera/camera_info"/>
+    <remap from="/zed2/zed_node/rgb/image_rect_color" to="/sensors/camera/image_color"/>
+    <node 
+        pkg="rosbag"
+        type="play"
+        name="player"
+        output="screen"
+        args="--clock --loop $(find lidar_camera_calibration)/bagfiles/$(arg bagfile)" />
+
+    
+</launch>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+
+    <arg name="camera" default="/sensors/camera" />
+    <arg name="size" default="7x5" />
+    <arg name="square" default="0.05" />
+    <arg name="k-coefficients" default="2" />
+
+    <!-- Play rosbag record -->
+    <include file="$(find lidar_camera_calibration)/launch/play_rosbag.launch">
+        <arg name="bagfile" value="calib3.bag" />
+    </include>
+
+    <!-- Run camera calibration -->
+    <node   
+        pkg="camera_calibration"
+        type="cameracalibrator.py"
+        name="cameracalibrator"
+        output="screen"
+        args="--size=$(arg size) 
+              --square=$(arg square)
+              --k-coefficients=$(arg k-coefficients) 
+              --no-service-check" >
+
+        <!-- Remap input topics -->
+        <remap from="image" to="$(arg camera)/image_color" />
+        <remap from="camera" to="$(arg camera)/camera_info" />
+    </node>
+
+</launch>
