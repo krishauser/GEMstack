@@ -34,7 +34,6 @@ class GNSSStateEstimator(Component):
             self.gnss_old_status = gnss.status
             self.speed = 0
             return
-        print(gnss)
         self.gnss_pose = gnss.pose
         self.status = gnss.status
         self.speed = round(((self.gnss_pose.x - self.gnss_old.x)**2 + (self.gnss_pose.y - self.gnss_old.y)**2)**0.5, 2) / (self.gnss_pose.t - self.gnss_old.t)
