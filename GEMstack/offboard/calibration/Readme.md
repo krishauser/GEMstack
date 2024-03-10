@@ -53,8 +53,8 @@ To run the calibration GUI :
           [ 0.97567909  0.05430939 -0.2123695 ]]
          Translation Offsets: [[ 0.04247593  0.44027576 -0.23995718]]
  ```
-               
- Save it as T_Velodyne_Zed matrix.
+                
+     Save it as T_Velodyne_Zed matrix.
 
 
 5) To display the LiDAR points projected on to the camera plane:
