@@ -22,13 +22,14 @@ To record all these topics use the following command :
          rosbag record /lidar1/velodyne_points  /zed2/zed_node/rgb/camera_info /zed2/zed_node/rgb/image_rect_color
 
 3) To perform calibration using the GUI to pick correspondences:
+Run the rosbag using
 ```
      roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
 ```
-## STEP 2: LiDAR -> Vehicle Calibration
-
+To run the calibration GUI run
+```
      rosrun lidar_camera_calibration calibrate_camera_lidar.py --calibrate
-    
+```    
 4)  The calibrate extrinsic are saved as following:
     - PKG_PATH/calibration_data/lidar_camera_calibration/extrinsics.npz
     --> 'euler' : euler angles (3, )
