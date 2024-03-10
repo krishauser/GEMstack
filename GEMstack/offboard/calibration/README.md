@@ -2,10 +2,10 @@ Calibration
 ==============================================================================================================================
 Folder 
 ===============================================================================================================================
-In data folder, 
->`camera_info`: includes the camera instrinsic.
->`data_part1`: include all data relate to calibration.
->`data_part2`: include all data relate to calibration.
+In data folder,
+`camera_info`: includes the camera instrinsic.
+`data_part1`: include all data relate to calibration.
+`data_part2`: include all data relate to calibration.
 
 Method
 ===================
