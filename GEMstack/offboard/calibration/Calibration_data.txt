@@ -1,7 +1,7 @@
 Lidar_vehicle data:
-Rear axle-bxo = 3.9m
+Rearaxle-box = 3.9m
 Lidar-box = 3m
-Lidar-rear axle = 0.9m
+Lidar-rearaxle = 0.9m
  
 Transformation Matrix obtained after calibration.
 T_Velodyne_ZED:
