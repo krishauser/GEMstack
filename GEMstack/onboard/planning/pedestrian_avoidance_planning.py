@@ -12,8 +12,8 @@ import numpy as np
 from typing import Dict
 
 #add buffers
-dist_lat = 5
-dist_long = 10
+dist_lat = 2.5
+dist_long = 1
 
 class PedestrianAvoidanceMotionPlanner(Component):
     """Follows the given route.  Brakes to yield to pedestrians or you are at the
