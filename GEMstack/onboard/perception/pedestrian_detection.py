@@ -159,7 +159,7 @@ class PedestrianDetector(Component):
         pose = ObjectPose(t=0, x=position[0], y=position[1], z=position[2], yaw=0, pitch=0,
                           roll=0, frame=ObjectFrameEnum.CURRENT)
 
-        dims = (1, 1, 1.7)
+        dims = settings.get('pedestrian_detection.dim')
 
         return AgentState(pose=pose, dimensions=dims, outline=None,
                           type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)

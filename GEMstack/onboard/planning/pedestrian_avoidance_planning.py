@@ -3,14 +3,13 @@ from ..component import Component
 #these could be helpful in your implementation
 from .longitudinal_planning import longitudinal_brake, longitudinal_plan
 from ...state import AllState, VehicleState, PhysicalObject, AgentEnum, AgentState, Path, Trajectory, Route, ObjectFrameEnum
-from ...utils import serialization
+from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd
 from ...mathutils import collisions
 import copy
 import math
 import numpy as np
 from typing import Dict
-
 
 class PedestrianAvoidanceMotionPlanner(Component):
     """Follows the given route.  Brakes to yield to pedestrians or you are at the
@@ -70,8 +69,8 @@ class PedestrianAvoidanceMotionPlanner(Component):
         #TODO: use the collision detection primitives to determine whether to stop for a pedestrian
         #TODO: modify the margins around the vehicle to keep a safe distance from pedestrians
 
-        vehicle_margin_x = 4.0
-        vehicle_margin_y = 2.0
+        vehicle_margin_x = settings.get('pedestrian_avoidance.vehicle_margin_x')
+        vehicle_margin_y = settings.get('pedestrian_avoidance.vehicle_margin_y')
         pedestrian_margin_x = 1.0
         pedestrian_margin_y = 1.0
 
@@ -101,7 +100,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
         #     dist_x_to_closet_pedestrian = abs(closest_pedestrian.pose.x - curr_x)
         #     dist_y_to_closet_pedestrian = abs(closest_pedestrian.pose.y - curr_y)
         
-        collision_check_resolution = 0.1  #m
+        collision_check_resolution = settings.get('pedestrian_avoidance.collision_check_resolution')  #m
         progress_start, progress_end = route_with_lookahead.domain()
         progress = progress_start
         max_progress = None

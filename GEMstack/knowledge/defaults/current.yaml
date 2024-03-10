@@ -41,6 +41,7 @@ simulator:
 pedestrian_detection:
     model: !relative_path "../../knowledge/detection/yolov8n.pt"   #the !relative_path directive finds a file in a relative location to this file
     rate: 5.0
+    dim: (1, 1, 1.7)
 
 longitudinal_planning:
     delta_time: 0.05
@@ -59,3 +60,8 @@ camera_info:
     cy: 359.211669921875
     height: 720
     width: 1280
+
+pedestrian_avoidance:
+    vehicle_margin_x: 4.0
+    vehicle_margin_y: 2.0
+    collision_check_resolution: 0.1
