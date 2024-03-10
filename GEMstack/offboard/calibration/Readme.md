@@ -44,8 +44,8 @@ To run the calibration GUI :
     --> 'R'     : rotation matrix (3, 3)
     --> 'T'     : translation offsets (3, )
 
-   ```
 OUTPUT in Terminal:
+   ```
 Euler angles (RPY): (2.8912277465715897, -1.3497979583847732, -1.2987728581641935)
 Rotation Matrix: [[ 0.05889591 -0.99814647  0.01532603]
  [-0.21114352 -0.02746099 -0.97706924]
