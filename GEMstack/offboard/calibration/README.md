@@ -1,4 +1,4 @@
-<font size="4">Calibration</font>
+#Calibration
 In data folder, camera_info includes the camera instrinsic, and data_part1, data_part2 include all data relate to calibration.
 
 We use open3d to help us to automatically calibrate our camera. When you run the code, it will display the LiDAR point cloud and the ZED camera image in sequence, 
