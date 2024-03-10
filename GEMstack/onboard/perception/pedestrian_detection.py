@@ -105,7 +105,7 @@ def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple
     
 
 def lidar2pixel (intrinsic, extrinsic, point_cloud):
-
+    point_cloud = np.array(point_cloud)
     homo_matrix = np.concatenate((point_cloud, np.ones((point_cloud.shape[0], 1))), axis=1) # N,4
 
     lidar_pixel = (intrinsic @ extrinsic @ (homo_matrix).T) # Lidar to pixel coordinate
@@ -125,7 +125,7 @@ def lidar2pixel (intrinsic, extrinsic, point_cloud):
 
 
 def lidar2world (lidar_vehicle_matrix, point_cloud):
-
+    point_cloud = np.array(point_cloud)[0]
     homo_matrix = np.concatenate((point_cloud, np.ones((point_cloud.shape[0], 1))), axis=1) # N,4
 
     pc_world = (lidar_vehicle_matrix @ homo_matrix.T) # 4,N
@@ -202,42 +202,41 @@ class PedestrianDetector(Component):
 
 
 
-        extrinsic = [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
+        # extrinsic = settings.get('vehicle.calibration.front_camera.extrinsic')
+        # [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
 
-                     [-0.04834961 , -0.02051524, -0.99861977, -0.02062586],
+        #              [-0.04834961 , -0.02051524, -0.99861977, -0.02062586],
 
-                     [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
+        #              [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
 
-                     [ 0.         ,  0.        ,  0.        ,  1.        ]]
+        #              [ 0.         ,  0.        ,  0.        ,  1.        ]]
 
-        self.extrinsic = np.asarray(extrinsic)
+        self.extrinsic = self.T_lidar_to_zed # np.asarray(extrinsic)
 
 
 
-        # self.fx = 527.5779418945312
+        self.fx = 527.5779418945312
 
-        # self.cx = 616.2459716796875
+        self.cx = 616.2459716796875
 
-        # self.fy = 527.5779418945312
+        self.fy = 527.5779418945312
 
-        # self.cy = 359.2155456542969
+        self.cy = 359.2155456542969
 
-        # self.P = Pmatrix(self.fx, self.fy, self.cx, self.cy)
+        self.P = Pmatrix(self.fx, self.fy, self.cx, self.cy)
 
         intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0]
 
-        self.intrinsic = np.asarray(intrinsic).reshape((3,3))
+        self.intrinsic = self.P # np.asarray(intrinsic).reshape((3,3))
+        print(self.intrinsic)
 
-        self.intrinsic = np.concatenate([self.intrinsic, np.zeros(3,1)], axis = 1)
+        # self.intrinsic = np.concatenate([self.intrinsic, np.zeros((3,1))], axis = 1)
 
 
 
-        T_lidar_to_vehicle = [[ 0.9988692,  -0.04754282,  0.,   0.81915   ],
-
-                              [ 0.04754282,  0.9988692,   0.,   0.        ],
-
-                              [ 0.,          0.,          1.,   1.7272    ],
-
+        T_lidar_to_vehicle = [[1,  0,  0.,   0.85   ],
+                              [ 0,  1,   0.,   0. ],
+                              [ 0.,          0.,          1.,   1.68    ],
                               [ 0.,          0.,          0.,   1.        ]]
 
         self.T_lidar_to_vehicle = np.asarray(T_lidar_to_vehicle)
@@ -324,8 +323,6 @@ class PedestrianDetector(Component):
 
         self.save_data()
 
-
-
         t1 = time.time()
 
         detected_agents = self.detect_agents()
@@ -374,9 +371,9 @@ class PedestrianDetector(Component):
 
         # b_top, b_bottom = y, y + h
 
-        center_x = x + w/2
+        center_x = x # + w/2
 
-        center_y = y + w/2
+        center_y = y # + h/2
 
         b_left, b_right = x - w/2, x + w/2
 
@@ -391,32 +388,32 @@ class PedestrianDetector(Component):
                             & (point_cloud_image[:, 1] > b_top) & (point_cloud_image[:, 1] < b_bottom))
 
         point_cloud_agent = point_cloud_image[index]
-
+        
         point_cloud_world_agent = point_cloud_image_world[index]
+        idx = np.argsort(point_cloud_world_agent[:,0], axis=0)[:point_cloud_world_agent.shape[0]//3]
+        point_cloud_world_agent = point_cloud_world_agent[idx]
 
-
-
+        x_3d = point_cloud_world_agent[:, 0].mean()
+        y_3d = point_cloud_world_agent[:, 1].mean()
+        z_3d = 0 # point_cloud_world_agent[:, 2][:10].mean()
         # The distance from center point to any point
-
-        distance = np.linalg.norm(point_cloud_image - [center_x, center_y])
-
-        center_pc_index = np.argmin(distance)
-
-        center_pc = point_cloud_image_world[center_pc_index]
-
-
+        # distance = np.linalg.norm(point_cloud_image - [center_x, center_y])
+        # center_pc_index = np.argmin(distance)
+        # center_pc = point_cloud_image_world[center_pc_index]
 
         w = np.max(point_cloud_world_agent[:, 0]) - np.min(point_cloud_world_agent[:, 0])
 
         h = np.max(point_cloud_world_agent[:, 1]) - np.min(point_cloud_world_agent[:, 1])
 
         l = np.max(point_cloud_world_agent[:, 2]) - np.min(point_cloud_world_agent[:, 2])
+        # w = 2
+        # h = 2
+        # l = 1.7
 
 
+        pose = ObjectPose(t=0,x=x_3d,y=y_3d,z=z_3d,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
 
-        pose = ObjectPose(t=0,x=x,y=y,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-
-        dims = [w,h,l]
+        dims = [1, 1, 1.7] # [w,h,l]
 
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
@@ -451,20 +448,18 @@ class PedestrianDetector(Component):
         
 
         point_cloud_in_range = []
+        filetered_point_cloud = np.where(self.point_cloud[:, 0] > 0)
+        self.point_cloud = self.point_cloud[filetered_point_cloud]
+        point_cloud_image = lidar2pixel(self.intrinsic, self.extrinsic, self.point_cloud)
 
-        indexs = np.where((self.point_cloud[:, 0] > 0) & (self.point_cloud[:, 0] < image_w) & (self.point_cloud[:, 1] > 0) & (self.point_cloud[:, 1] < image_h))
+        indexs = np.where((point_cloud_image[:, 0] > 0) & (point_cloud_image[:, 0] < image_w) & (point_cloud_image[:, 1] > 0) & (point_cloud_image[:, 1] < image_h))
 
-        for index in len(indexs):
+        for index in indexs:
 
             point_cloud_in_range.append(self.point_cloud[index])
-
-
-
-        point_cloud_image = lidar2pixel(self.intrinsic, self.extrinsic, point_cloud_in_range)
-
-        point_cloud_image_world = lidar2world(self.lidar_vehicle_matrix, point_cloud_in_range)
-
-
+        
+        point_cloud_image = point_cloud_image[indexs]
+        point_cloud_image_world = lidar2world(self.T_lidar_to_vehicle, point_cloud_in_range)
 
         #TODO: create point clouds in image frame and world frame
 
@@ -477,8 +472,6 @@ class PedestrianDetector(Component):
             if agent is not None:
 
                 detected_agents.append(agent)
-
-
 
         return detected_agents
 
@@ -510,7 +503,8 @@ class PedestrianDetector(Component):
 
             for id, prev_agent in self.last_agent_states.items():
 
-                prev_agent = prev_agent.to_frame(ObjectFrameEnum.CURRENT, vehicle.pose)  # Using the current vehicle coornidate
+
+                # prev_agent = prev_agent.to_frame(ObjectFrameEnum.CURRENT, vehicle.pose)  # Using the current vehicle coornidate
 
                 prev_poly = prev_agent.polygon_parent()
 
