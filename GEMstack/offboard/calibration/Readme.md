@@ -10,6 +10,8 @@
 
 ![](assets/calib.gif)
 
+
+
 2) The rosbag should contain all the following topics:
 ```
  /sensors/velodyne_points    (sensor_msgs/PointCloud2)
