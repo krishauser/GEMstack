@@ -145,8 +145,6 @@ class PedestrianDetector(Component):
         """
         x, y, w, h = box
 
-        print('point_cloud_image:', point_cloud_image)
-
         indices_in_box = []
         for i in range(len(point_cloud_image)):
             if x - w / 2 <= point_cloud_image[i][0] <= x + w / 2 and y - w / 2 <= point_cloud_image[i][1] <= y + h / 2:
@@ -161,7 +159,7 @@ class PedestrianDetector(Component):
         pose = ObjectPose(t=0, x=position[0], y=position[1], z=position[2], yaw=0, pitch=0,
                           roll=0, frame=ObjectFrameEnum.CURRENT)
 
-        dims = np.max(points_in_box, axis=0) - np.min(points_in_box, axis=0)
+        dims = (1, 1, 1.7)
 
         return AgentState(pose=pose, dimensions=dims, outline=None,
                           type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
@@ -187,20 +185,6 @@ class PedestrianDetector(Component):
             self.last_person_boxes.append(box.xywh[0].tolist())
 
         # TODO: create point clouds in image frame and world frame
-        from collections import namedtuple
-        CameraInfo = namedtuple('CameraInfo',['width','height','P'])
-        #TODO: these are guessed parameters
-        #with open("GEMstack/knowledge/calibration/values.pickle", 'rb') as f:
-        #    camera_info = pickle.load(f)
-        camera_info = settings.get('camera_info')
-        zed_intrinsics = [camera_info['fx'], camera_info['fy'], camera_info['cx'], camera_info['cy']]
-        zed_w = camera_info['width']
-        zed_h = camera_info['height']
-        P_M = Pmatrix(camera_info['fx'],camera_info['fy'],camera_info['cx'],camera_info['cy'])
-        self.camera_info = CameraInfo(width=zed_w, height=zed_h, P=P_M)
-        print(self.camera_info.P)
-        print(self.point_cloud)
-
         point_cloud_homogeneous = np.hstack((self.point_cloud, np.ones((self.point_cloud.shape[0], 1))))
         point_cloud_camera_frame = (self.T_lidar_to_zed @ point_cloud_homogeneous.T).T[:, :3]
 
@@ -261,8 +245,6 @@ class PedestrianDetector(Component):
             pickle.dump(self.camera_info,f)
 
     def load_data(self, loc=None):
-        print('##############################')
-        print('load data called')
         prefix = ''
         if loc is not None:
             prefix = loc + '/'
@@ -272,26 +254,13 @@ class PedestrianDetector(Component):
             import pickle
             with open(prefix+'zed_camera_info.pkl','rb') as f:
                 self.camera_info = pickle.load(f)
-            print('##############################')
-            print('In try segment')
-            print('##############################')
-            print(self.camera_info)
         except ModuleNotFoundError:
-            print('##############################')
-            print("In load fail")
-            print('##############################')
             #ros not found?
             from collections import namedtuple
             CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             #TODO: these are guessed parameters
-            #with open("GEMstack/knowledge/calibration/values.pickle", 'rb') as f:
-            #    camera_info = pickle.load(f)
             camera_info = settings.get('camera_info')
-            zed_intrinsics = [camera_info['fx'], camera_info['fy'], camera_info['cx'], camera_info['cy']]
             zed_w = camera_info['width']
             zed_h = camera_info['height']
-            P_M = self.Pmatrix(camera_info['fx'],camera_info['fy'],camera_info['cx'],camera_info['cy'])
+            P_M = [camera_info['fx'], 0, camera_info['cx'], 0, 0, camera_info['fy'],camera_info['cy'], 0, 0, 0, 1, 0]
             self.camera_info = CameraInfo(width=zed_w, height=zed_h, P=P_M)
-
-            with open(prefix+'zed_camera_info.pkl','wb') as f:
-                pickle.dump(self.camera_info)
