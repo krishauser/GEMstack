@@ -1,7 +1,7 @@
 # Calibration
 ## Scripts
 - `get_intrinsics.py`: Step 1 usage - get the intrinsic matrix of the camera using the file "zed_camera_info.pkl".
-- `calibrate_camera_lidar`: Get extrinsic matrix (T_Velodyne_Zed) using a PnP based solver after selecting points between Lidar pcd and the image using a matplotlibGUI.
+- `calibrate_camera_lidar`: Get extrinsic matrix (T_Velodyne_Zed) using a PnP based solver after selecting points between Lidar pcd and the image using a matplotlibGUI.    $ roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
 - `get_transforms.py`: Get the transformation matrix (T_Zed_Vehicle) using (T_Velodyn_Zed and T_Velodyne_vehicle).
 
 
@@ -19,15 +19,15 @@
    
 To record all these topics use the following command :
 
-        $ rosbag record /lidar1/velodyne_points  /zed2/zed_node/rgb/camera_info /zed2/zed_node/rgb/image_rect_color
+         rosbag record /lidar1/velodyne_points  /zed2/zed_node/rgb/camera_info /zed2/zed_node/rgb/image_rect_color
 
 3) To perform calibration using the GUI to pick correspondences:
 ```
-    $ roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
+     roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
 ```
 ## STEP 2: LiDAR -> Vehicle Calibration
 
-    $ rosrun lidar_camera_calibration calibrate_camera_lidar.py --calibrate
+     rosrun lidar_camera_calibration calibrate_camera_lidar.py --calibrate
     
 4)  The calibrate extrinsic are saved as following:
     - PKG_PATH/calibration_data/lidar_camera_calibration/extrinsics.npz
@@ -40,7 +40,7 @@ Save it as T_Velodyne_Zed matrix.
 
 5) To display the LiDAR points projected on to the camera plane:
 ```
-    $ roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
+     roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
 ```
 ## STEP 2: LiDAR -> Vehicle Calibration
 
