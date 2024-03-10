@@ -30,7 +30,9 @@ Run the rosbag using
 To run the calibration GUI :
 ```
      rosrun lidar_camera_calibration calibrate_camera_lidar.py --calibrate
-```    
+```
+
+![](assets/gui.gif)
 4)  The calibrate extrinsic are saved as following:
     - PKG_PATH/calibration_data/lidar_camera_calibration/extrinsics.npz
     --> 'euler' : euler angles (3, )
