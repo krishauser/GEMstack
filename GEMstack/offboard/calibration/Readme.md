@@ -63,6 +63,7 @@ To run the calibration GUI :
 ```
      roslaunch lidar_camera_calibration display_camera_lidar_calibration.launch
 ```
+![](assets/output.gif)
 ## STEP 2: LiDAR -> Vehicle Calibration
 
 1) Create the T_Velodyne_Vehicle matrix using measurements from vehicle and point correspondances.
