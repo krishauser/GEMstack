@@ -6,7 +6,7 @@ In data folder, camera_info includes the camera instrinsic, and data_part1, data
 
 Method
 ===================
-We use interactive_visualization.py to help us to automatically calibrate our camera. When you run the code, it will display the LiDAR point cloud and the ZED camera image in sequence, and you just need to choose the feature points(the corner of an object) in the data. Step1 and Step2 are similar.
+We use 'interactive_visualization.py' to help us to automatically calibrate our camera. When you run the code, it will display the LiDAR point cloud and the ZED camera image in sequence, and you just need to choose the feature points(the corner of an object) in the data. Step1 and Step2 are similar.
 
 Steps
 ====================
