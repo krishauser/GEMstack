@@ -103,10 +103,6 @@ class PedestrianDetector(Component):
 
         # extrinsic = settings.get('vehicle.calibration.front_camera.extrinsic')
 
-        # [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
-        #              [-0.04834961 , -0.02051524, -0.99861977, -0.02062586],
-        #              [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
-        #              [ 0.         ,  0.        ,  0.        ,  1.        ]]
         self.extrinsic = self.T_lidar_to_zed # np.asarray(extrinsic)
         self.fx = 527.5779418945312
         self.cx = 616.2459716796875
