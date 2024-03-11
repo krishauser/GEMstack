@@ -7,13 +7,14 @@ from ...utils import serialization
 from ...mathutils.transforms import vector_madd
 from ...mathutils import collisions
 import copy
+from ...utils import settings
 import math
 import numpy as np
 from typing import Dict
 
 #add buffers
-dist_lat = 2.5
-dist_long = 1
+dist_lat = settings.get('pedestrian_avoidance.lat')
+dist_long = settings.get('pedestrian_avoidance.long')
 
 class PedestrianAvoidanceMotionPlanner(Component):
     """Follows the given route.  Brakes to yield to pedestrians or you are at the
@@ -22,9 +23,9 @@ class PedestrianAvoidanceMotionPlanner(Component):
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 1.0
-        self.desired_speed = 2.0
-        self.deceleration = 1.0
+        self.acceleration = settings.get('pedestrian_avoidance.acc')
+        self.desired_speed = settings.get('pedestrian_avoidance.desired_speed')
+        self.deceleration = settings.get('pedestrian_avoidance.dec')
 
     def state_inputs(self):
         return ['all']
@@ -33,7 +34,7 @@ class PedestrianAvoidanceMotionPlanner(Component):
         return ['trajectory']
 
     def rate(self):
-        return 10.0
+        return settings.get('longitudinal_planning.rate')
 
     def update(self, state : AllState):
         vehicle = copy.deepcopy(state.vehicle) # type: VehicleState
