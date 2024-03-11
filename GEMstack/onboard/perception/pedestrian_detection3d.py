@@ -75,7 +75,7 @@ class PedestrianDetector3D(Component):
         self.camera_range = (w, h)
 
     def rate(self):
-        return 4.0
+        return settings.get('longitudinal_planning.rate')
     
     def state_inputs(self):
         return ['vehicle']
@@ -92,13 +92,6 @@ class PedestrianDetector3D(Component):
     
     def image_callback(self, image : cv2.Mat):
         self.image = image
-        # detection_result = self.detector.predict(image, conf=0.85)
-        # boxes = detection_result[0].boxes
-        # person_bboxes = []
-        # for i, class_idx in enumerate(boxes.cls):
-        #     if class_idx == index_person:
-        #         person_bboxes.append(boxes.xywh[i].tolist())
-        # self.last_person_boxes = person_bboxes
     
     def lidar_callback(self, lidar_pts: np.ndarray) :
         self.lidar_points = lidar_pts
@@ -202,7 +195,7 @@ class FakePedestrianDetector2D(Component):
         self.t_start = None
 
     def rate(self):
-        return 4.0
+        return settings.get("longitudinal_planning.rate")
     
     def state_inputs(self):
         return ['vehicle']
