@@ -50,7 +50,7 @@ def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple
     inds = np.logical_and(np.logical_and(uv[:,0] >= xrange[0],uv[:,0] < xrange[1]),
                     np.logical_and(uv[:,1] >= yrange[0],uv[:,1] < yrange[1]))
     point_cloud_image = uv[inds]
-    image_indices = pc_fwd[inds,4].astype(int)
+    image_indices = pc_fwd[inds,3].astype(int)
     return point_cloud_image, image_indices
 
 
@@ -139,7 +139,7 @@ class PedestrianDetector(Component):
     def transform_lidar_camera(self,point_cloud):
         point_cloud_homo = np.concatenate((point_cloud, np.ones((point_cloud.shape[0], 1))),axis=1)
         point_cloud_img = np.dot(self.T_lidar_to_zed,point_cloud_homo.T).T
-        return point_cloud_img
+        return point_cloud_img[:,:3]
         #[:,:2]/np.stack([point_cloud_img[:,2]]*2, axis=1)
     
     def transform_lidar_world(self,point_cloud):
