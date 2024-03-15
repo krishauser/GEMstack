@@ -1,6 +1,6 @@
 # Calibration
 ## Scripts
-- `get_intrinsics.py`: Step 1 usage - get the intrinsic matrix of the camera using the file "zed_camera_info.pkl".
+- `get_intrinsics.py`: Get the intrinsic matrix of the camera using the file "zed_camera_info.pkl".
 - `scripts/calibrate_camera_lidar.py`: Get extrinsic matrix (T_Velodyne_Zed) using a PnP based solver after selecting points between Lidar pcd and the image using a matplotlibGUI.   
 - `get_transforms.py`: Get the transformation matrix (T_Zed_Vehicle) using (T_Velodyn_Zed and T_Velodyne_vehicle).
 
