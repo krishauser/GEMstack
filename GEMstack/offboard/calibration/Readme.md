@@ -5,7 +5,7 @@
 - `get_transforms.py`: Get the transformation matrix (T_Zed_Vehicle) using (T_Velodyn_Zed and T_Velodyne_vehicle).
 
 
-## STEP 1: LiDAR -> Camera Extrinsic Calibration
+## STEP 1: LiDAR -> Camera (Extrinsic Calibration)
 1) Record Rosbag for calibration by moving a board in the camera and Lidar frame of the vehicle at different orientations and positions.
 
 ![](assets/calib.gif)
