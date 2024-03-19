@@ -29,6 +29,7 @@ from ...utils import conversions
 @dataclass 
 class GNSSReading:
     pose : ObjectPose
+    speed : float
     status : str
 
 class GEMHardwareInterface(GEMInterface):
@@ -167,7 +168,8 @@ class GEMHardwareInterface(GEMInterface):
                                     roll=math.radians(inspva_msg.roll),
                                     pitch=math.radians(inspva_msg.pitch),
                                     )
-                        callback(GNSSReading(pose,inspva_msg.status))
+                        speed = np.sqrt(inspva_msg.east_velocity**2 + inspva_msg.north_velocity**2)
+                        callback(GNSSReading(pose,speed,inspva_msg.status))
                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
             else:
                 #assume it's septentrio
@@ -185,7 +187,8 @@ class GEMHardwareInterface(GEMInterface):
                                     roll=math.radians(msg.roll),
                                     pitch=math.radians(msg.pitch),
                                     )
-                        callback(GNSSReading(pose,'error' if msg.error else 'ok'))
+                        speed = np.sqrt(msg.ve**2 + msg.vn**2)
+                        callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
