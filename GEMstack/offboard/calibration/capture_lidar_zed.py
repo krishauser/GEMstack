@@ -70,7 +70,7 @@ def main(folder='data',start_index=1):
     rospy.init_node("capture_lidar_zed",disable_signals=True)
     lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
     camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
-    # depth_sub = rospy.Subscriber("/oak/stereo/image_raw/compressedDepth", Image, depth_callback)
+    depth_sub = rospy.Subscriber("/oak/stereo/image_raw/compressedDepth", Image, depth_callback)
     index = start_index
     print("Press any key to:")
     print("  store lidar point clouds as npz")
@@ -88,7 +88,7 @@ def main(folder='data',start_index=1):
                 #escape
                 break
             else:
-                if lidar_points is None or camera_image is None:
+                if lidar_points is None or camera_image is None :
                     print (lidar_points is None)
                     print (camera_image is None)
                     # print (depth_image is None)
