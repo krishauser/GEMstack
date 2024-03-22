@@ -57,20 +57,20 @@ def save_scan(lidar_fn,color_fn,depth_fn):
     pc = pc2_to_numpy(lidar_points,want_rgb=False)
     np.savez(lidar_fn,pc)
     cv2.imwrite(color_fn,bridge.imgmsg_to_cv2(camera_image))
-    dimage = bridge.imgmsg_to_cv2(depth_image)
-    dimage_non_nan = dimage[np.isfinite(dimage)]
-    print("Depth range",np.min(dimage_non_nan),np.max(dimage_non_nan))
-    dimage = np.nan_to_num(dimage,nan=0,posinf=0,neginf=0)
-    dimage = (dimage/4000*0xffff)
-    print("Depth pixel range",np.min(dimage),np.max(dimage))
-    dimage = dimage.astype(np.uint16)
-    cv2.imwrite(depth_fn,dimage)
+    # dimage = bridge.imgmsg_to_cv2(depth_image)
+    # dimage_non_nan = dimage[np.isfinite(dimage)]
+    # print("Depth range",np.min(dimage_non_nan),np.max(dimage_non_nan))
+    # dimage = np.nan_to_num(dimage,nan=0,posinf=0,neginf=0)
+    # dimage = (dimage/4000*0xffff)
+    # print("Depth pixel range",np.min(dimage),np.max(dimage))
+    # dimage = dimage.astype(np.uint16)
+    # cv2.imwrite(depth_fn,dimage)
 
 def main(folder='data',start_index=1):
     rospy.init_node("capture_lidar_zed",disable_signals=True)
-    lidar_sub = rospy.Subscriber("/lidar1/velodyne_points", PointCloud2, lidar_callback)
-    camera_sub = rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image, camera_callback)
-    depth_sub = rospy.Subscriber("/zed2/zed_node/depth/depth_registered", Image, depth_callback)
+    lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
+    camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
+    # depth_sub = rospy.Subscriber("/oak/stereo/image_raw/compressedDepth", Image, depth_callback)
     index = start_index
     print("Press any key to:")
     print("  store lidar point clouds as npz")
@@ -88,7 +88,10 @@ def main(folder='data',start_index=1):
                 #escape
                 break
             else:
-                if lidar_points is None or camera_image is None or depth_image is None:
+                if lidar_points is None or camera_image is None:
+                    print (lidar_points is None)
+                    print (camera_image is None)
+                    # print (depth_image is None)
                     print("Missing some messages?")
                 else:
                     files = [os.path.join(folder,'lidar{}.npz'.format(index)),
