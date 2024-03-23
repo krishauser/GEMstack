@@ -49,3 +49,23 @@ simulator:
 pedestrian_detection:
     model: !relative_path "../detection/yolov8n.pt"   #the !relative_path directive finds a file in a relative location to this file
     rate: 4.0
+
+longitudnal_planning: 
+    rate: 10.0
+    dt: 0.01
+    start_time: 0.0
+    start_position: 0.0
+    vehicle_control:
+        acceleration: 0.5
+        desired_speed: 1.0
+        deceleration: 2.0
+
+pedestrian_avoidance_planning:
+    rate: 10.0
+    margin_lat: 1.0
+    margin_long: 3.0
+    acceleration: 1.0
+    desired_speed: 2.0
+    deceleration: 1.0
+    
+    
