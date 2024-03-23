@@ -143,7 +143,6 @@ class PedestrianDetector(Component):
         #[:,:2]/np.stack([point_cloud_img[:,2]]*2, axis=1)
     
     def transform_lidar_world(self,point_cloud):
-        ### n*3=>n*3 , convert point clouds in lidar frame to world frame
         point_cloud_homo = np.concatenate((point_cloud, np.ones((point_cloud.shape[0], 1))),axis=1)
         point_cloud_world = np.dot(self.T_lidar, point_cloud_homo.T).T  
         return point_cloud_world[:,:3]
@@ -161,7 +160,7 @@ class PedestrianDetector(Component):
         representative = point_cloud_image_world[min_loc]
         pose = ObjectPose(t=0,x=representative[0],y=representative[1],z=representative[2],yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
         ##may need to find estimate size within the bounding box
-        dims = [w, h, 1.7]
+        dims = [1, 1, 1.7]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
         
     def detect_agents(self):
@@ -198,7 +197,7 @@ class PedestrianDetector(Component):
             for i in range(len(detected_agents)):
                 agent=detected_agents[i]
                 if self.detected_id[i] in self.previous_id:
-                    idx = np.where(self.previous_id == self.detected_id[i])[0][0]
+                    idx = np.where(np.array(self.previous_id) == self.detected_id[i])[0][0]
                     #x is forward direction
                     curr_pos=agent.pose.x+vehicle.v*t
                     #v=s/t
