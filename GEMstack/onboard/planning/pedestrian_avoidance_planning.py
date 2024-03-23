@@ -166,10 +166,18 @@ class PedestrianAvoidanceMotionPlanner(Component):
         print("Progress",route_with_lookahead.domain()[1])
 
         #choose whether to accelerate, brake, or keep at current velocity
-        if max_progress > 0 and curr_long>l_distance and curr_lat>margin_lat:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
-        else:
+        # if max_progress > 0 and curr_long>l_distance and curr_lat>margin_lat:
+        #     traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
+        # else:
+        #     traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+        # print("Stopped distance",traj.length())
+         if (curr_long <= l_distance + margin_long and \
+            curr_lat <= margin_lat) \
+            or max_progress <= 0:
+            
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+        else:
+            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         print("Stopped distance",traj.length())
 
         return traj 
