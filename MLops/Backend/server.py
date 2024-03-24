@@ -41,12 +41,6 @@ def get_models():
     return jsonify([model for model in models])
 
 
-@app.route('/datasets/')
-def get_datasets():
-    datasets = db.datasets.find()
-    return jsonify([dataset for dataset in datasets])
-
-
 @app.route('/models/<id>')
 def get_model(id):
     # To be implemented
@@ -65,6 +59,12 @@ def retrieve_model(id):
         return send_file(model['path'], attachment_filename=f"{id}.zip", as_attachment=True)
     else:
         return jsonify({"error": "Model not found or path missing"}), 404
+
+
+@app.route('/datasets/')
+def get_datasets():
+    datasets = db.datasets.find()
+    return jsonify([dataset for dataset in datasets])
 
 
 @app.route('/datasets/<id>')
