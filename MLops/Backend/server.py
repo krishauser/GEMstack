@@ -29,6 +29,7 @@ except ValueError as e:
     print(f"Error: {e}")
     exit(1)
 
+
 @app.route('/home')
 def home():
     return render_template('../Frontend/home.html')
