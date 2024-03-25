@@ -1,0 +1,31 @@
+gem@gem-nuvo:~/group6_project/GEMstack$ python3 main.py --variant=detector_only launch/pedestrian_avoidance.yaml
+**************************************************************
+Loading default settings from /home/gem/group6_project/GEMstack/GEMstack/knowledge/defaults/current.yaml
+**************************************************************
+Execution: APPYING VARIANT {'run': {'description': 'Run the pedestrian detection code and show a visualization', 'visualization': {'type': 'klampt_visualization.KlamptVisualization', 'args': {'rate': 20, 'save_as': None}}, 'drive': {'planning': {'trajectory_tracking': None}}}}
+Execution: variant detector_only defines key run.visualization which is not found in normal settings
+Execution: Importing gem_hardware from GEMstack.onboard.interface to get GEMHardwareInterface
+Execution: Importing execution from GEMstack.onboard.execution to get StandardExecutor
+Execution: Importing klampt_visualization from GEMstack.onboard.visualization to get KlamptVisualization
+WorldModel::LoadRobot: /home/gem/group6_project/GEMstack/GEMstack/knowledge/vehicle/model/gem_e4.urdf
+joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0URDFParser: Link size: 36
+URDFParser: Joint size: 31
+URDFParser: Done loading robot file /home/gem/group6_project/GEMstack/GEMstack/knowledge/vehicle/model/gem_e4.urdf
+Execution: Importing pedestrian_detection from GEMstack.onboard.perception to get PedestrianDetector
+[[     527.58           0      616.25           0]
+ [          0      527.58      359.22           0]
+ [          0           0           1           0]]
+Execution: Importing perception_normalization from GEMstack.onboard.perception to get StandardPerceptionNormalizer
+Execution: Importing route_planning from GEMstack.onboard.planning to get StaticRoutePlanner
+Execution: Importing pedestrian_avoidance_planning from GEMstack.onboard.planning to get PedestrianAvoidanceMotionPlanner
+Traceback (most recent call last):
+  File "main.py", line 30, in <module>
+    entrypoint.main()
+  File "/home/gem/group6_project/GEMstack/GEMstack/onboard/execution/entrypoint.py", line 121, in main
+    mission_executor.add_pipeline(name,perception_components,planning_components,other_components)
+  File "/home/gem/group6_project/GEMstack/GEMstack/onboard/execution/execution.py", line 420, in add_pipeline
+    output = validate_components(perception)
+  File "/home/gem/group6_project/GEMstack/GEMstack/onboard/execution/execution.py", line 164, in validate_components
+    assert provided_all or i in provided, "Component {} input {} is not provided by previous components".format(k,i)
+AssertionError: Component agent_detection input vehicle is not provided by previous components
+
