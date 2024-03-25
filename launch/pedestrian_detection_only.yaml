@@ -1,0 +1,48 @@
+description: "Run the pedestrian detection code from HW2"
+mode: hardware
+vehicle_interface: gem_hardware.GEMHardwareInterface
+mission_execution: StandardExecutor
+require_engaged: False
+# Recovery behavior after a component failure
+recovery: 
+    planning: 
+        trajectory_tracking : recovery.StopTrajectoryTracker
+# Driving behavior for the GEM vehicle.  Runs perception and planner but doesn't execute anything (no controller).
+drive: 
+    perception:
+        state_estimation : GNSSStateEstimator
+        agent_detection : pedestrian_detection.PedestrianDetector2D
+        perception_normalization : StandardPerceptionNormalizer
+    planning:
+        route_planning:
+            type: StaticRoutePlanner
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
+        motion_planning: RouteToTrajectoryPlanner
+        #note no trajectory_tracking item here
+log:
+    # Specify the top-level folder to save the log files.  Default is 'logs'
+    #folder : 'logs' 
+    # If prefix is specified, then the log folder will be named with the prefix followed by the date and time. Default no prefix
+    #prefix : 'fixed_route_'  
+    # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
+    #suffix : 'test3'  
+    # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
+    ros_topics : 
+    # Specify options to pass to rosbag record. Default is no options.
+    #rosbag_options : '--split --size=1024' 
+    # If True, then record all readings / commands of the vehicle interface. Default False
+    vehicle_interface : False
+    # Specify which components to record to agent_detection.json. Default records nothing
+    components : ['state_estimation','pedestrian_detection']
+    # Specify which components of state to record to state.json. Default records nothing 
+    #state: ['all']
+    # Specify the rate in Hz at which to record state to state.json. Default records at the pipeline's rate
+    #state_rate: 10
+replay:  # Add items here to set certain topics / inputs to be replayed from logs
+    # Specify which log folder to replay from
+    log: 
+    ros_topics : []
+    components : []
+
+#usually can keep this constant
+computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
