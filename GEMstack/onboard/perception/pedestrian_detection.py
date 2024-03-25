@@ -140,7 +140,6 @@ class PedestrianDetector(Component):
         point_cloud_homo = np.concatenate((point_cloud, np.ones((point_cloud.shape[0], 1))),axis=1)
         point_cloud_img = np.dot(self.T_lidar_to_zed,point_cloud_homo.T).T
         return point_cloud_img[:,:3]
-        #[:,:2]/np.stack([point_cloud_img[:,2]]*2, axis=1)
     
     def transform_lidar_world(self,point_cloud):
         point_cloud_homo = np.concatenate((point_cloud, np.ones((point_cloud.shape[0], 1))),axis=1)
@@ -155,14 +154,10 @@ class PedestrianDetector(Component):
         estimate of the pedestrian's pose and dimensions.
         """
         x,y,w,h = box
-        selected_idx = np.argsort(point_cloud_image_world[:,2])[min(point_cloud_image_world.shape[0], 20)]
-        depth = point_cloud_image_world[selected_idx][2]
-        
         center_diff = np.abs(point_cloud_image - np.array([[x, y]]))
         min_loc = np.argmin(np.linalg.norm(center_diff, axis=1))
         representative = point_cloud_image_world[min_loc]
-        pose = ObjectPose(t=0,x=representative[0],y=representative[1],z=depth,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-        ##may need to find estimate size within the bounding box
+        pose = ObjectPose(t=0,x=representative[0],y=representative[1],z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
         dims = [1, 1, 1.7]
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
         
