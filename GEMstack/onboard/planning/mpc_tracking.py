@@ -1,0 +1,127 @@
+from ...mathutils.control import PID
+from ...utils import settings
+from ...mathutils import transforms
+from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
+from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph
+from ...state.vehicle import VehicleState,ObjectFrameEnum
+from ...state.trajectory import Path,Trajectory,compute_headings
+from ...knowledge.vehicle.geometry import front2steer
+from ..interface.gem import GEMVehicleCommand
+from ..component import Component
+import numpy as np
+from casadi import *
+#Vehicle Param
+L = 1.75 # Wheelbase
+delta_max = 0.6108 # max steering angle, from gem_e2_geometry.yaml
+safety_margin = 0.1  
+dt = 0.2
+
+# Setup the MPC problem 
+def setup_mpc(N, dt, L, path_points, x):
+    # Constraints
+    delta_max = 0.6108
+    a_max = 1.0
+    a_min = -a_max  
+    v_max = 1.0
+
+
+    # Initialization
+    x0, y0, theta0, v0, delta0 = x
+    v0 = v0.clip(0, v_max) # TODO: clip to avoid constrain issues, should be handled more carefully
+
+    # MPC setup
+    opti = Opti()  
+
+    A = opti.variable(N)
+    Delta = opti.variable(N)
+    X = opti.variable(N+1)
+    Y = opti.variable(N+1)
+    theta = opti.variable(N+1)
+    V = opti.variable(N+1)
+
+    # Provide an initial guess
+    for i in range(N):
+        opti.set_initial(X[i+1], path_points[i,0])
+        opti.set_initial(Y[i+1], path_points[i,1])
+    opti.set_initial(theta, theta0)
+    opti.set_initial(V, v0)
+    opti.set_initial(Delta, delta0)
+    opti.set_initial(A, 0)
+
+    # Constraints
+    opti.subject_to([X[0] == x0, Y[0] == y0, theta[0] == theta0, V[0] == v0])
+    for j in range(N):
+        opti.subject_to(X[j+1] == X[j] + dt * V[j] * cos(theta[j]))
+        opti.subject_to(Y[j+1] == Y[j] + dt * V[j] * sin(theta[j]))
+        opti.subject_to(theta[j+1] == theta[j] + dt * V[j] / L * tan(Delta[j]))
+        opti.subject_to(V[j+1] == V[j] + dt * A[j])
+        opti.subject_to(a_min <= A[j])
+        opti.subject_to(A[j] <= a_max)
+        opti.subject_to(-delta_max <= Delta[j])
+        opti.subject_to(Delta[j] <= delta_max)
+        opti.subject_to(V[j] <= v_max)
+        
+
+    # Set up the optimization problem
+    objective = 0
+    for j in range(N):
+        objective += ((X[j+1] - path_points[j,0])**2 + (Y[j+1] - path_points[j,1])**2)
+    opti.minimize(objective)
+
+    # Set solver options for debugging
+    opti.solver('ipopt', {'ipopt': {'print_level': 0, 'tol': 1e-6}})
+    sol = opti.solve()
+
+    # Update to next state
+    a, delta = sol.value(A[0]), sol.value(Delta[0])
+    # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    # print(path_points)
+    # print(sol.value(X))
+    # print(sol.value(Y))
+    # print(sol.value(theta))
+    # print(sol.value(V))
+    # print(sol.value(A))
+    # print(sol.value(Delta))
+    # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    return a, delta
+
+class MPCTracker(Component):
+    def __init__(self,vehicle_interface=None, **args):
+        self.vehicle_interface = vehicle_interface
+        self.N = 10
+        self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
+
+    def rate(self):
+        return 10.0
+
+    def state_inputs(self):
+        return ['vehicle','trajectory']
+
+    def state_outputs(self):
+        return []
+
+    def update(self, vehicle : VehicleState, trajectory: Trajectory):
+
+        x_start, y_start, theta_start, v_start, wheel_angle_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v, vehicle.front_wheel_angle
+        path_points = []
+
+        closest_dist,closest_parameter = trajectory.closest_point([x_start, y_start])
+        for i in range(1,self.N+1):
+            position = trajectory.eval(closest_parameter+i*dt)
+            velocity = trajectory.eval_derivative(closest_parameter+i*dt)
+            yaw = np.arctan2(velocity[1],velocity[0])
+            velocity = np.linalg.norm(velocity)
+            path_points.append([position[0], position[1], yaw, velocity])
+        
+        path_points = np.array(path_points)
+        print([x_start, y_start, theta_start, v_start, wheel_angle_start])
+        print(path_points)
+
+        accel, wheel_angle = setup_mpc(self.N, dt, L, path_points, [x_start, y_start, theta_start, v_start, wheel_angle_start])
+        # print(accel, wheel_angle)
+        steering_angle = np.clip(front2steer(wheel_angle), self.steering_angle_range[0], self.steering_angle_range[1])
+        self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
+
+
+    def healthy(self):
+        return True
