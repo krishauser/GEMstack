@@ -14,12 +14,13 @@ from casadi import *
 L = 1.75 # Wheelbase
 delta_max = 0.6108 # max steering angle, from gem_e2_geometry.yaml
 safety_margin = 0.1  
-dt = 0.2
+dt = 0.5
 
 # Setup the MPC problem 
 def setup_mpc(N, dt, L, path_points, x):
     # Constraints
     delta_max = 0.6108
+    omega_max = 0.3 # TODO: What is a good value for this?
     a_max = 1.0
     a_min = -a_max  
     v_max = 1.0
@@ -32,12 +33,15 @@ def setup_mpc(N, dt, L, path_points, x):
     # MPC setup
     opti = Opti()  
 
+    # Control variables
     A = opti.variable(N)
-    Delta = opti.variable(N)
+    Omega = opti.variable(N)
+    # State variables
     X = opti.variable(N+1)
     Y = opti.variable(N+1)
     theta = opti.variable(N+1)
     V = opti.variable(N+1)
+    Delta = opti.variable(N+1)
 
     # Provide an initial guess
     for i in range(N):
@@ -46,17 +50,25 @@ def setup_mpc(N, dt, L, path_points, x):
     opti.set_initial(theta, theta0)
     opti.set_initial(V, v0)
     opti.set_initial(Delta, delta0)
+    # Initial control
     opti.set_initial(A, 0)
+    opti.set_initial(Omega, 0)
 
     # Constraints
-    opti.subject_to([X[0] == x0, Y[0] == y0, theta[0] == theta0, V[0] == v0])
+    opti.subject_to([X[0] == x0, Y[0] == y0, theta[0] == theta0, V[0] == v0, Delta[0] == delta0])
     for j in range(N):
+        # Dynamics
         opti.subject_to(X[j+1] == X[j] + dt * V[j] * cos(theta[j]))
         opti.subject_to(Y[j+1] == Y[j] + dt * V[j] * sin(theta[j]))
         opti.subject_to(theta[j+1] == theta[j] + dt * V[j] / L * tan(Delta[j]))
         opti.subject_to(V[j+1] == V[j] + dt * A[j])
+        opti.subject_to(Delta[j+1] == Delta[j] + dt * Omega[j])
+        # Control bounds
         opti.subject_to(a_min <= A[j])
         opti.subject_to(A[j] <= a_max)
+        opti.subject_to(-omega_max <= Omega[j])
+        opti.subject_to(Omega[j] <= omega_max)
+        # State bounds
         opti.subject_to(-delta_max <= Delta[j])
         opti.subject_to(Delta[j] <= delta_max)
         opti.subject_to(V[j] <= v_max)
@@ -65,6 +77,7 @@ def setup_mpc(N, dt, L, path_points, x):
     # Set up the optimization problem
     objective = 0
     for j in range(N):
+        # TODO: Add heading objective?
         objective += ((X[j+1] - path_points[j,0])**2 + (Y[j+1] - path_points[j,1])**2)
     opti.minimize(objective)
 
@@ -73,7 +86,7 @@ def setup_mpc(N, dt, L, path_points, x):
     sol = opti.solve()
 
     # Update to next state
-    a, delta = sol.value(A[0]), sol.value(Delta[0])
+    a, omega = sol.value(A[0]), sol.value(Omega[0])
     # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     # print(path_points)
     # print(sol.value(X))
@@ -83,7 +96,7 @@ def setup_mpc(N, dt, L, path_points, x):
     # print(sol.value(A))
     # print(sol.value(Delta))
     # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    return a, delta
+    return a, delta0 + dt*omega # TODO: What is a good way to update the steering angle?
 
 class MPCTracker(Component):
     def __init__(self,vehicle_interface=None, **args):
