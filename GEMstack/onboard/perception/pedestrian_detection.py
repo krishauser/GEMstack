@@ -114,21 +114,23 @@ class PedestrianDetector(Component):
         #                   [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
         #                   [ 0.         ,  0.        ,  0.        ,  1.        ]]
         
+        extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
+                     [-0.0675, -0.00499, -0.9977, -0.03123], 
+                     [0.99771, -0.00554, -0.06743, -0.7284],
+                     [0,       0 ,             0 ,      1]]
+
         # extrinsic_fn = 'GEMstack/knowledge/calibration/lidar2zed.txt'
-        extrinsic_fn = 'GEMstack/knowledge/calibration/zed2lidar.txt'
-        extrinsic = np.loadtxt(extrinsic_fn)
-        extrinsic = inv(extrinsic)
+        # extrinsic_fn = 'GEMstack/knowledge/calibration/zed2lidar.txt'
+        # extrinsic = np.loadtxt(extrinsic_fn)
+        # extrinsic = inv(extrinsic)
         
-        self.extrinsic = np.asarray(extrinsic)
+        self.extrinsic = np.array(extrinsic)
         intrinsic = [684.8333129882812, 0.0, 573.37109375, 0.0, 684.6096801757812, 363.700927734375, 0.0, 0.0, 1.0]
         # intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0]
         intrinsic = np.array(intrinsic).reshape((3, 3))
         self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
-        T_lidar2_Gem = [[ 0.9988692,  -0.04754282, 0.,       0.81915   ],
-                        [0.04754282,  0.9988692,    0.,          0.        ],
-                        [ 0.,          0.,          1.,          1.7272    ],
-                        [ 0.,          0.,          0.,          1.        ]]
+        T_lidar2_Gem = np.loadtxt("GEMstack/knowledge/calibration/lidar2vehicle.txt")
         self.T_lidar2_Gem = np.asarray(T_lidar2_Gem)
 
         # obtained by GEMstack/offboard/calibration/check_target_lidar_range.py
