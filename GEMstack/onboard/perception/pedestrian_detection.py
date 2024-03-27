@@ -202,10 +202,15 @@ class PedestrianDetector(Component):
         point cloud, and the calibrated camera / lidar poses to get a good
         estimate of the pedestrian's pose and dimensions.
         """
+        
+        print ('Detect a pedestrian!')
+        
         # get the idxs of point cloud that belongs to the agent
         x,y,w,h = box
         xmin, xmax = x - w/2, x + w/2
         ymin, ymax = y - h/2, y + h/2
+        
+        print ('box xywh:', box)
         
         # enlarge bbox in case inaccuracy calibration
         enlarge_factor = 3
@@ -247,12 +252,14 @@ class PedestrianDetector(Component):
         # Specify ObjectPose. Note that The pose's yaw, pitch, and roll are assumed to be 0 for simplicity.
         x, y, _ = closest_point_cloud
         pose = ObjectPose(t=0, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+        print ('pose xy:', x, y)
         
         # Specify AgentState.
         l = np.max(agent_world_pc[:, 0]) - np.min(agent_world_pc[:, 0])
         w = np.max(agent_world_pc[:, 1]) - np.min(agent_world_pc[:, 1])
         h = np.max(agent_world_pc[:, 2]) - np.min(agent_world_pc[:, 2])
         dims = (2, 2, 1.7) 
+        
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
         
