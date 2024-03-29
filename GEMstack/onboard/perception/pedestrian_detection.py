@@ -81,7 +81,7 @@ def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tupl
 
 class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
-    def __init__(self,vehicle_interface : GEMInterface):
+    def __init__(self,vehicle_interface : GEMInterface, extrinsic=None):
         self.vehicle_interface = vehicle_interface
         # self.detector = YOLO(settings.get('pedestrian_detection.model'))
         self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
@@ -114,10 +114,11 @@ class PedestrianDetector(Component):
         #                   [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
         #                   [ 0.         ,  0.        ,  0.        ,  1.        ]]
         
-        extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
-                     [-0.0675, -0.00499, -0.9977, -0.03123], 
-                     [0.99771, -0.00554, -0.06743, -0.7284],
-                     [0,       0 ,             0 ,      1]]
+        if extrinsic is None:
+            extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
+                        [-0.0675, -0.00499, -0.9977, -0.03123], 
+                        [0.99771, -0.00554, -0.06743, -0.7284],
+                        [0,       0 ,             0 ,      1]]
 
         # extrinsic_fn = 'GEMstack/knowledge/calibration/lidar2zed.txt'
         # extrinsic_fn = 'GEMstack/knowledge/calibration/zed2lidar.txt'
