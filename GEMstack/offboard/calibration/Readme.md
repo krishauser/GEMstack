@@ -24,7 +24,7 @@
 
 2. Use `lidar_camera_calibration.py` to find optimized parameters of extrinsic matrix based on corresponding feature points extracted in previous step.
 
-3. Verify the obtained extrinsic matrix. If it works, you can see point clouds well align with the image pixels on target object. Result will be saved in `save/lidar_to_image.png` <br>
+3. Verify the obtained extrinsic matrix. Change the extrinsic matrix variable in `testing/test_pedestrian_detection.py` then run the script. If it works, you can see point clouds well align with the image pixels on target object. Result will be saved in `save/lidar_to_image.png` <br>
     ```
     python testing/test_pedestrian_detection.py -t lidar_to_image
     ```
