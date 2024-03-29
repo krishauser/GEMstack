@@ -24,7 +24,7 @@ def setup_mpc(N, dt, L, path_points, x):
     omega_max = 0.2 # TODO: What is a good value for this?
     a_max = 1.0
     a_min = -a_max  
-    v_max = 1.0
+    v_max = 2.0
 
 
     # Initialization
@@ -154,8 +154,19 @@ class MPCTracker(Component):
             wheel_angle = 3.0 * wheel_angle
         wheel_angle = max(min(wheel_angle, self.max_d), self.min_d)
 
+        d_remain = sqrt((vehicle.pose.x - path_points[-1][0]) ** 2 + (vehicle.pose.y - path_points[-1][1]) ** 2)
+        print("remain distance: ", d_remain)
+        if 0.2< d_remain <= 1.0:
+            wheel_angle = 0
+            accel = -1.0
+        elif d_remain <= 0.2:
+            wheel_angle = 0
+            accel = 0.0
+
+
         steering_angle = np.clip(front2steer(wheel_angle), self.steering_angle_range[0], self.steering_angle_range[1])
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
+
 
 
     def healthy(self):
