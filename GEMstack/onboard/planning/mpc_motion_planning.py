@@ -34,6 +34,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
     opti = ca.Opti()  # Create an optimization problem
 
     # State
+    # TODO: Add second order dynamics for steering angle
     X = opti.variable(4, N+1)  # [x, y, theta, v]
     U = opti.variable(2, N)    # [a, delta]
 
@@ -53,6 +54,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
         opti.subject_to(X[3,k+1] == v_next)
 
         # Obstacle constraints
+        # TODO: Add soft constraints
         for obs in obstacles:
             obs_x, obs_y, obs_w, obs_l, obs_h = obs
             distance_squared = (X[0,k] - obs_x)**2 + (X[1,k] - obs_y)**2
