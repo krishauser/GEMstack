@@ -163,7 +163,6 @@ class MPCTracker(Component):
             wheel_angle = 0
             accel = 0.0
 
-        accel = 0
         steering_angle = np.clip(front2steer(wheel_angle), self.steering_angle_range[0], self.steering_angle_range[1])
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
 
