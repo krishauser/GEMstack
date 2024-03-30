@@ -3,12 +3,16 @@ from libraries.hybridtest import hybrid_a_star_planning
 import matplotlib.pyplot as plt
 import csv
 
+#start and end positions
+#the right is negative and left is positive
 start = [0, 0, 0]
-goal = [10, 10, np.pi/2]
-# ox = [0,0,0,1,1,1,2,2,2,13,13,13]
-# oy = [10,9,8,10,9,8,10,9,8,10,9,8]
-ox = [5]
-oy = [5]
+# goal = [10, 10, np.pi/2]
+goal = [5, 5, np.pi/2]
+# goal = [0, 0, np.pi/2]
+
+#obstacle list
+ox = [100]
+oy = [100]
 # Call the function
 path = hybrid_a_star_planning(start, goal, ox, oy)
 
