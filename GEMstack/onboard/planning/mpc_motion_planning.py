@@ -56,7 +56,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
         for obs in obstacles:
             obs_x, obs_y, obs_w, obs_l, obs_h = obs
             distance_squared = (X[0,k] - obs_x)**2 + (X[1,k] - obs_y)**2
-            opti.subject_to(distance_squared >= obs_w**2)
+            opti.subject_to(distance_squared >= obs_w**2 + obs_l**2)
 
 
     # Control costraints
@@ -84,7 +84,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
 class MPCTrajectoryPlanner(Component):
     def __init__(self,vehicle_interface=None, **args):
         self.vehicle_interface = vehicle_interface
-        self.N = 20
+        self.N = 10
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
 
     def rate(self):
