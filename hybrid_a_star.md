@@ -7,11 +7,11 @@
 # Running in Simulation
 
 * In the main GEMstack folder, run the command `source catkin_ws/devel/setup.bash`.
-* Now run `main.py variant=sim launch/hybrid_a_star_real.yaml`
+* Now run `main.py --variant=sim launch/hybrid_a_star.yaml`
 
 # Running on the actual vehicle
 
-*
+* To run on the actual vehicle, drop the variant, run `main.py launch/hybrid_a_star.yaml`
 
 # What needs to be done
 
