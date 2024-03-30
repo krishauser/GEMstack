@@ -81,7 +81,7 @@ def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tupl
 
 class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
-    def __init__(self,vehicle_interface : GEMInterface):
+    def __init__(self,vehicle_interface : GEMInterface, extrinsic=None):
         self.vehicle_interface = vehicle_interface
         # self.detector = YOLO(settings.get('pedestrian_detection.model'))
         self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
@@ -109,15 +109,11 @@ class PedestrianDetector(Component):
         self.previous_agents = {} 
         
         # init transformation parameters
-        # extrinsic = [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
-        #                   [-0.04834961 , -0.02051524, -0.99861977, -0.02062586],
-        #                   [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
-        #                   [ 0.         ,  0.        ,  0.        ,  1.        ]]
-        
-        extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
-                     [-0.0675, -0.00499, -0.9977, -0.03123], 
-                     [0.99771, -0.00554, -0.06743, -0.7284],
-                     [0,       0 ,             0 ,      1]]
+        if extrinsic is None:
+            extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
+                        [-0.0675, -0.00499, -0.9977, -0.03123], 
+                        [0.99771, -0.00554, -0.06743, -0.7284],
+                        [0,       0 ,             0 ,      1]]
 
         # extrinsic_fn = 'GEMstack/knowledge/calibration/lidar2zed.txt'
         # extrinsic_fn = 'GEMstack/knowledge/calibration/zed2lidar.txt'
@@ -125,8 +121,8 @@ class PedestrianDetector(Component):
         # extrinsic = inv(extrinsic)
         
         self.extrinsic = np.array(extrinsic)
-        intrinsic = [684.8333129882812, 0.0, 573.37109375, 0.0, 684.6096801757812, 363.700927734375, 0.0, 0.0, 1.0]
-        # intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0]
+        intrinsic = [684.8333129882812, 0.0, 573.37109375, 0.0, 684.6096801757812, 363.700927734375, 0.0, 0.0, 1.0] # e4
+        # intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0] #e2
         intrinsic = np.array(intrinsic).reshape((3, 3))
         self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
@@ -158,7 +154,7 @@ class PedestrianDetector(Component):
         #tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
         self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         #subscribe to the Zed CameraInfo topic
-        self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
+        self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
 
 
     def image_callback(self, image : cv2.Mat):
@@ -202,10 +198,15 @@ class PedestrianDetector(Component):
         point cloud, and the calibrated camera / lidar poses to get a good
         estimate of the pedestrian's pose and dimensions.
         """
+        
+        print ('Detect a pedestrian!')
+        
         # get the idxs of point cloud that belongs to the agent
         x,y,w,h = box
         xmin, xmax = x - w/2, x + w/2
         ymin, ymax = y - h/2, y + h/2
+        
+        print ('box xywh:', box)
         
         # enlarge bbox in case inaccuracy calibration
         enlarge_factor = 3
@@ -247,12 +248,14 @@ class PedestrianDetector(Component):
         # Specify ObjectPose. Note that The pose's yaw, pitch, and roll are assumed to be 0 for simplicity.
         x, y, _ = closest_point_cloud
         pose = ObjectPose(t=0, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+        print ('pose xy:', x, y)
         
         # Specify AgentState.
         l = np.max(agent_world_pc[:, 0]) - np.min(agent_world_pc[:, 0])
         w = np.max(agent_world_pc[:, 1]) - np.min(agent_world_pc[:, 1])
         h = np.max(agent_world_pc[:, 2]) - np.min(agent_world_pc[:, 2])
         dims = (2, 2, 1.7) 
+        
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
         
