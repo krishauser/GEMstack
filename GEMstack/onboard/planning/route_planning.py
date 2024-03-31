@@ -4,7 +4,7 @@ from ...utils import serialization
 from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph
 from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
-from .reeds_shepp import path_length, get_optimal_path, rad2deg
+from .reeds_shepp import path_length, get_optimal_path, eval_path, rad2deg
 import os
 import copy
 from time import time
@@ -89,6 +89,10 @@ class SearchNavigationRoutePlanner(Component):
         L = 1.75
         steer_max = np.pi/3
         turn_radius = L/np.tan(steer_max)
+        self.turn_radius = turn_radius
+
+        def sample_steer(N=3):
+            return np.random.uniform(-steer_max,steer_max,N)
         
         def sim(state,steer,f,dt=0.5):
             x, y, theta, _ = state
@@ -100,7 +104,7 @@ class SearchNavigationRoutePlanner(Component):
         
         def expand(state):
             next_states = []
-            for steer in [-steer_max,0,steer_max]:
+            for steer in sample_steer():
                 for f in [-1,1]: # -1 for backward, 1 for forward
                     next_state = sim(state,steer,f)
                     x, y, theta, _ = next_state
@@ -133,6 +137,7 @@ class SearchNavigationRoutePlanner(Component):
         self.distance = distance
 
         self.route = None
+        self.last_path = None
         self.LATERAL_DISTANCE_BUFFER = .5
         self.LONGITUDINAL_DISTANCE_BUFFER = .5
 
@@ -183,7 +188,13 @@ class SearchNavigationRoutePlanner(Component):
                     return False
             return True
         
-        if True: # always replan
+        def check_path(path):
+            for p in path:
+                if not check_constraints(p):
+                    return False
+            return True
+        
+        if self.last_path is None or not check_path(self.last_path): # replan when last route is not valid
             start = [*self.start[:3], 0]
             end = [*self.end[:3], 0]
             root = Node(start,0,heuristic=self.heuristic(start,end))
@@ -198,6 +209,23 @@ class SearchNavigationRoutePlanner(Component):
                 current = queue.get()
                 if self.distance(current.state,end) < 1.0:
                     break
+                elif self.distance(current.state,end) < 10.0:
+                    xs,ys,ths = current.state[:3]
+                    states = [xs/self.turn_radius,ys/self.turn_radius,ths]
+                    xe,ye,the = end[:3]
+                    statee = [xe/self.turn_radius,ye/self.turn_radius,the]
+                    ps = eval_path(get_optimal_path(states,statee), current.state[:3], radius=self.turn_radius, resolution=0.1)
+                    collision = False
+                    for p in ps:
+                        if not check_constraints(p):
+                            collision = True
+                            break
+                    if not collision:
+                        for p in ps:
+                            cost = self.cost(current.state,p) + current.cost
+                            child = Node(p,cost,heuristic=0.,parent=current)
+                            current = child
+                        break
                 for state in self.expand(current.state):
                     s = self.state2s(state)
                     if tuple(s) not in visited and check_constraints(state):
@@ -207,11 +235,15 @@ class SearchNavigationRoutePlanner(Component):
                         queue.put(child)
             
             route = []
+            last_path = []
             while current is not None:
                 route.append(current.state[:2])
+                last_path.append(current.state)
                 current = current.parent
             route = route[::-1]
+            last_path = last_path[::-1]
             self.route = Route(frame=ObjectFrameEnum.START,points=route)
+            self.last_path = last_path
         
         route = self.route
         

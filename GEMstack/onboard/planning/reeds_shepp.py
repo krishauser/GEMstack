@@ -1,4 +1,6 @@
 """
+Source: https://github.com/nathanlct/reeds-shepp-curves/blob/master/reeds_shepp.py
+
 Implementation of the optimal path formulas given in the following paper:
 
 OPTIMAL PATHS FOR A CAR THAT GOES BOTH FORWARDS AND BACKWARDS
@@ -158,7 +160,6 @@ def eval_path(path, start, radius=1, resolution=0.1):
     """
     points = []
     for e in path:
-        print(e.param, e.steering, e.gear)
         t = 0
         ps = []
         while t < e.param:
@@ -168,7 +169,7 @@ def eval_path(path, start, radius=1, resolution=0.1):
             xp = (x * math.cos(start[2]) - y * math.sin(start[2])) * radius + start[0]
             yp = (x * math.sin(start[2]) + y * math.cos(start[2])) * radius + start[1]
             thetap = M(theta + start[2])
-            ps.append((xp, yp, thetap))
+            ps.append((xp, yp, thetap, e.gear.value))
         start = ps[-1]
         points += ps
     return points
