@@ -10,11 +10,12 @@ from ..interface.gem import GEMVehicleCommand
 from ..component import Component
 import numpy as np
 from casadi import *
+import time
 #Vehicle Param
 L = 1.75 # Wheelbase
 delta_max = 0.6108 # max steering angle, from gem_e2_geometry.yaml
 safety_margin = 0.1  
-dt = 0.5
+dt = 1.75
 
 
 # Setup the MPC problem 
@@ -88,21 +89,21 @@ def setup_mpc(N, dt, L, path_points, x):
 
     # Update to next state
     a, omega = sol.value(A[0]), sol.value(Omega[0])
-    # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     # print(path_points)
     # print(sol.value(X))
     # print(sol.value(Y))
     # print(sol.value(theta))
-    # print(sol.value(V))
+    print("V: ", sol.value(V))
     # print(sol.value(A))
     # print(sol.value(Delta))
-    # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     return a, delta0 + dt*omega # TODO: What is a good way to update the steering angle?
 
 class MPCTracker(Component):
     def __init__(self,vehicle_interface=None, **args):
         self.vehicle_interface = vehicle_interface
-        self.N = 9
+        self.N = 8
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         self.max_a = 1.0
         self.min_a = -1.0
@@ -119,9 +120,9 @@ class MPCTracker(Component):
         return []
 
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
+        
         x_start, y_start, theta_start, v_start, wheel_angle_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v, vehicle.front_wheel_angle
         path_points = []
-
         closest_dist,closest_parameter = trajectory.closest_point([x_start, y_start])
         for i in range(1,self.N+1):
             position = trajectory.eval(closest_parameter+i*dt)
@@ -148,20 +149,22 @@ class MPCTracker(Component):
 
         
         yaw_error = desired_yaw - vehicle.pose.yaw
-        if 0.1 <= yaw_error < 0.25 : 
-            wheel_angle = 2.0 * wheel_angle
+        if yaw_error < 0.1:
+            wheel_angle = 0.5 * wheel_angle
+        elif 0.1 <= yaw_error < 0.25 : 
+            wheel_angle = 1.0 * wheel_angle
         elif yaw_error >= 0.25:
-            wheel_angle = 3.0 * wheel_angle
+            wheel_angle = 1.5 * wheel_angle
         wheel_angle = max(min(wheel_angle, self.max_d), self.min_d)
 
         d_remain = sqrt((vehicle.pose.x - path_points[-1][0]) ** 2 + (vehicle.pose.y - path_points[-1][1]) ** 2)
-        print("remain distance: ", d_remain)
-        if 0.2< d_remain <= 1.0:
-            wheel_angle = 0
-            accel = -1.0
-        elif d_remain <= 0.2:
-            wheel_angle = 0
-            accel = 0.0
+        # print("remain distance: ", d_remain)
+        # if 0.2< d_remain <= 1.0:
+        #     wheel_angle = 0
+        #     accel = -1.0
+        # elif d_remain <= 0.2:
+        #     wheel_angle = 0
+        #     accel = 0.0
 
         steering_angle = np.clip(front2steer(wheel_angle), self.steering_angle_range[0], self.steering_angle_range[1])
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
