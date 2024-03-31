@@ -1,6 +1,6 @@
 from typing import List, Tuple
 from ..component import Component
-from ...utils import serialization
+from ...utils import serialization, settings
 from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph
 from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
@@ -73,8 +73,12 @@ class SearchNavigationRoutePlanner(Component):
         y_bound = [min(self.start[1], self.end[1])-2, max(self.start[1], self.end[1])+3]
         theta_bound = [0, 2*np.pi]
 
-        resolution = 0.5
-        self.s_bound = (int((x_bound[1]-x_bound[0])/resolution), int((y_bound[1]-y_bound[0])/resolution), 16)
+        resolution = settings.get('planner.search_planner.resolution')
+        angle_resolution = settings.get('planner.search_planner.angle_resolution')
+        self.s_bound = (int((x_bound[1]-x_bound[0])/resolution), \
+                        int((y_bound[1]-y_bound[0])/resolution), \
+                        int(2*np.pi/angle_resolution))
+        
         self.s2state = lambda s: [x_bound[0] + s[0]*(x_bound[1]-x_bound[0])/self.s_bound[0], \
                                   y_bound[0] + s[1]*(y_bound[1]-y_bound[0])/self.s_bound[1], \
                                   theta_bound[0] + s[2]*(theta_bound[1]-theta_bound[0])/self.s_bound[2], \
@@ -85,16 +89,28 @@ class SearchNavigationRoutePlanner(Component):
                                       round((state[2]-theta_bound[0])/(theta_bound[1]-theta_bound[0])*self.s_bound[2])%self.s_bound[2], \
                                       state[3]]
         
-        v = 1.0
-        L = 1.75
-        steer_max = np.pi/3
+        self._rate = settings.get('planner.search_planner.rate')
+        
+        v = settings.get('planner.search_planner.velocity')
+        L = settings.get('vehicle.geometry.wheelbase')
+        steer_max = settings.get('planner.search_planner.max_steering_angle')
         turn_radius = L/np.tan(steer_max)
         self.turn_radius = turn_radius
 
-        def sample_steer(N=3):
+        N_controls = settings.get('planner.search_planner.N_sample_controls')
+        dt = settings.get('planner.search_planner.dt')
+
+        self.target_threshold = settings.get('planner.search_planner.target_threshold')
+        self.RS_threshold = settings.get('planner.search_planner.RS_threshold')
+        self.RS_resolution = settings.get('planner.search_planner.RS_resolution')
+
+        backward_cost_scale = settings.get('planner.search_planner.backward_cost_scale')
+        gear_cost = settings.get('planner.search_planner.gear_cost')
+
+        def sample_steer(N=N_controls):
             return np.random.uniform(-steer_max,steer_max,N)
         
-        def sim(state,steer,f,dt=0.5):
+        def sim(state,steer,f,dt=dt):
             x, y, theta, _ = state
             dtheta = v*np.tan(steer)/L
             x = x + f*np.cos(theta)*v*dt
@@ -120,14 +136,14 @@ class SearchNavigationRoutePlanner(Component):
             xe,ye,the = state2[:3]
             end = [xe/turn_radius,ye/turn_radius,the]
             h = path_length(get_optimal_path(start,end))*turn_radius
-            return h*2
+            return h
         self.heuristic = heuristic
 
         def cost(state1,state2):
-            scale = 1.2 if state2[3] < 0 else 1.0
+            scale = backward_cost_scale if state2[3] < 0 else 1.0
             c = np.linalg.norm(np.array(state1[:2])-np.array(state2[:2]))
             c = c*scale
-            c += 3 if state1[3]*state2[3] < 0 else 0
+            c += gear_cost if state1[3]*state2[3] < 0 else 0
             return c
         self.cost = cost
 
@@ -153,8 +169,7 @@ class SearchNavigationRoutePlanner(Component):
         return ['route']
 
     def rate(self):
-        # return 1.0
-        return 0.2
+        return self._rate
 
     # def update(self, vehicle : VehicleState, roadgraph : Tuple[Roadmap,Roadgraph]):
     #     # TODO: Figure out what is a Roadgraph
@@ -207,14 +222,15 @@ class SearchNavigationRoutePlanner(Component):
 
             while not queue.empty():
                 current = queue.get()
-                if self.distance(current.state,end) < 1.0:
+                if self.distance(current.state,end) < self.target_threshold:
                     break
-                elif self.distance(current.state,end) < 10.0:
+                elif self.distance(current.state,end) < self.RS_threshold:
                     xs,ys,ths = current.state[:3]
                     states = [xs/self.turn_radius,ys/self.turn_radius,ths]
                     xe,ye,the = end[:3]
                     statee = [xe/self.turn_radius,ye/self.turn_radius,the]
-                    ps = eval_path(get_optimal_path(states,statee), current.state[:3], radius=self.turn_radius, resolution=0.1)
+                    ps = eval_path(get_optimal_path(states,statee), current.state[:3], \
+                                   radius=self.turn_radius, resolution=self.RS_resolution)
                     collision = False
                     for p in ps:
                         if not check_constraints(p):
@@ -247,5 +263,4 @@ class SearchNavigationRoutePlanner(Component):
         
         route = self.route
         
-        # route = Route(frame=ObjectFrameEnum.START,points=[self.start[:2]])
         return route

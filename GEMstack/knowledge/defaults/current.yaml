@@ -20,6 +20,21 @@ control:
         pid_p: 1.0
         pid_i: 0.1
         pid_d: 0.0
+planner:
+    search_planner:
+        rate: 1.0
+        dt: 0.5
+        velocity: 1.0
+        max_steering_angle: 0.785
+        N_sample_controls: 3
+        resolution: 0.25
+        angle_resolution: 0.4
+        target_threshold: 1.0
+        RS_threshold: 10.0
+        RS_resolution: 0.1
+        gear_cost: 5.0
+        backward_cost_scale: 1.2
+
 
 #configure the simulator, if using
 simulator:
