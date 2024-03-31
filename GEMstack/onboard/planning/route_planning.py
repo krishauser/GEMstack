@@ -103,6 +103,7 @@ class SearchNavigationRoutePlanner(Component):
         self.target_threshold = settings.get('planner.search_planner.target_threshold')
         self.RS_threshold = settings.get('planner.search_planner.RS_threshold')
         self.RS_resolution = settings.get('planner.search_planner.RS_resolution')
+        self.RS_p = settings.get('planner.search_planner.RS_prob')
 
         backward_cost_scale = settings.get('planner.search_planner.backward_cost_scale')
         gear_cost = settings.get('planner.search_planner.gear_cost')
@@ -136,7 +137,7 @@ class SearchNavigationRoutePlanner(Component):
             xe,ye,the = state2[:3]
             end = [xe/turn_radius,ye/turn_radius,the]
             h = path_length(get_optimal_path(start,end))*turn_radius
-            return h
+            return h*2
         self.heuristic = heuristic
 
         def cost(state1,state2):
@@ -224,7 +225,7 @@ class SearchNavigationRoutePlanner(Component):
                 current = queue.get()
                 if self.distance(current.state,end) < self.target_threshold:
                     break
-                elif self.distance(current.state,end) < self.RS_threshold:
+                elif self.distance(current.state,end) < self.RS_threshold and np.random.uniform() < self.RS_p:
                     xs,ys,ths = current.state[:3]
                     states = [xs/self.turn_radius,ys/self.turn_radius,ths]
                     xe,ye,the = end[:3]
