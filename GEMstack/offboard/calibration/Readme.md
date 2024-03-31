@@ -15,7 +15,7 @@
 
     Note:
     - You can select points by `shift + click` in Open3D.
-    - Humongous ball will show up on the pixel just being clicked. You can reduce the ball size by `ctrl + shift + click`.
+    - Humongous ball will show up on the pixel just being clicked. You can reduce the ball size by pressing three buttons altogether `ctrl + shift + minus`.
     - After finish point selection, press `esc` to exit and save the selected point coordinate to file.
     <br>
 

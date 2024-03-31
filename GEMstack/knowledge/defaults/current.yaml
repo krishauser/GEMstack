@@ -38,6 +38,9 @@ pedestrian_detection:
     model: !relative_path "../../knowledge/detection/yolov8n.pt" 
     rate: 4.0
     pedestrian_class: 0
+    car_class: 2
+    stop_sign_class: 11
+    prediction_confidence: 0.8
 fake_pedestrian_detection:
   trigger_times:
     - start: 5.0
