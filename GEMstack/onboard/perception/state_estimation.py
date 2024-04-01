@@ -17,7 +17,7 @@ class GNSSStateEstimator(Component):
         self.vehicle_interface = vehicle_interface
         if 'gnss' not in vehicle_interface.sensors():
             raise RuntimeError("GNSS sensor not available")
-        vehicle_interface.subscribe_sensor('gnss',self.c,ObjectPose)
+        vehicle_interface.subscribe_sensor('gnss',self.gnss_callback,GNSSReading)
         self.gnss_pose = None
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
