@@ -47,6 +47,23 @@ class StaticRoutePlanner(Component):
 
     def update(self):
         return self.route
+
+class DummyRoutePlanner(Component):
+    """Reads a route from disk and returns it as the desired route."""
+    def __init__(self, start : List[float], end : List[float]):
+        self.route = Route(frame=ObjectFrameEnum.START,points=[start[:2],end[:2]])
+
+    def state_inputs(self):
+        return []
+
+    def state_outputs(self) -> List[str]:
+        return ['route']
+
+    def rate(self):
+        return 1.0
+
+    def update(self):
+        return self.route
     
 class Node:
     def __init__(self,state,cost,heuristic=0.,parent=None):
