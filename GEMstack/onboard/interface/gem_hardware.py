@@ -64,8 +64,8 @@ class GEMHardwareInterface(GEMInterface):
 
         # -------------------- PACMod setup --------------------
         # GEM vehicle enable
-        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
         self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
+        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
         self.pacmod_enable = False
 
         # GEM vehicle gear control, neutral, forward and reverse, publish once
