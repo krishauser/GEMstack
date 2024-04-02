@@ -30,11 +30,6 @@ except ValueError as e:
     exit(1)
 
 
-@app.route('/home')
-def home():
-    return render_template('../Frontend/home.html')
-
-
 @app.route('/models/')
 def get_models():
     models = db.models.find()
@@ -44,9 +39,9 @@ def get_models():
 @app.route('/models/<id>')
 def get_model(id):
     # To be implemented
-    model = db.models.find_one({'_id': ObjectId(id)})
+    model_info = db.models.find_one({'_id': ObjectId(id)})
     if model:
-        return jsonify(model)
+        return jsonify(model_info)
     else:
         return jsonify({"error": "Model not found"}), 404
 
@@ -56,7 +51,7 @@ def retrieve_model(id):
     # To be implemented
     model = db.models.find_one({'_id': ObjectId(id)})
     if model and 'path' in model:
-        return send_file(model['path'], attachment_filename=f"{id}.zip", as_attachment=True)
+        return send_file(model['path'], attachment_filename=id, as_attachment=True)
     else:
         return jsonify({"error": "Model not found or path missing"}), 404
 
