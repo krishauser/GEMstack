@@ -1,5 +1,5 @@
 # CARLA Installation 
-This project aims to use [CARLA](https://carla.org//) for simulation testing, here's the way to set-up and test CARLA on your local environment.
+This project aims to use [CARLA](https://carla.org//) __version 0.9.15__ for simulation testing, here's the way to set-up and test CARLA on your local environment.
 Requirements:
 - __OS__ : Linux - Ubuntu 20.04
 - __Hardware__ : GPU with 8 GB VGA Mem
@@ -35,18 +35,28 @@ To avoid such issues, you can use the following installation commands [source](h
 __Note__ : _This download and install can take several minutes_
 ```
 sudo apt-get -y install libomp5
+```
+```
 wget https://carla-releases.s3.us-east-005.backblazeb2.com/Linux/CARLA_0.9.15.tar.gz
-tar -xzvf CARLA_0.9.15.tar.gz -C /opt/carla-simulator/
+```
+```
+mkdir ~/carla-simulator
+tar -xzvf CARLA_0.9.15.tar.gz -C ~/carla-simulator/
+```
+```
 python -m pip install carla==0.9.15
-python -m pip install -r /opt/carla-simulator/PythonAPI/examples/requirements.txt
+```
+```
+python -m pip install -r ~/carla-simulator/PythonAPI/examples/requirements.txt
+```
+```
 pip install --user pygame numpy
 ```
 
 Post installation steps to install carla-client can be followed from the user-guide, for simplicity run these commands
 ```
-cd /opt/carla-simulator/PythonAPI/carla/dist
+cd ~/carla-simulator/PythonAPI/carla/dist
 ls -lart
-
 ```
 You should __see__ something like the following:
 ```
@@ -66,9 +76,57 @@ pip install carla-0.9.15-cp37-cp37m-manylinux_2_27_x86_64.whl
 
 Given that all the above commands run successfully, try to execute the following command
 ```
-sudo bash /opt/carla-simulator/CarlaUE4.sh 
+bash ~/carla-simulator/CarlaUE4.sh 
 ```
+__Developer's suggestion__
+The above script can give output that is limited by the compute's capacity. To get the best output when you perform tests, use the following args 
+
+```
+bash ~/carla-simulator/CarlaUE4.sh -prefernvidia -RenderOffScreen -quality-level=Low
+```
+(On a 6 year old _Nvidia GTX GeForce 1050 Ti_, you can observe 4-6x FPS improvement)
 
 __You must see a visualization output like [this](https://uillinoisedu-my.sharepoint.com/:v:/g/personal/qilong3_illinois_edu/EWqpObuKsexFtbSm0gy3H-cBcHbpr3fKoO1ZCe-pCYoXaw?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&e=2NhkWr)__
+
+## Inside CARLA
+If you want to start using CARLA to obtain LiDAR/Camera data for testing purposes, you can get most of the code/results by runnning __~/carla-simulator/PythonAPI/examples/manual_control.py__
+Use the following code to run this file
+```
+conda activate carla-test
+python ~/carla-simulator/PythonAPI/examples/manual_control.py
+```
+
+You'll see an output window where you'll drive a car manually.
+
+As a default, you'll see the __Town10_Opt map__. For the requirements of lot-parking, curb-side driving and road driving, __Town05_Opt__ map is well suited. In order to change the map, and get better results in CARLA simulation for this map, you can run the following python file with args:
+```
+python ~/carla-simulator/PythonAPI/util/config.py --map Town05_Opt --no-rendering --no-sync
+```
+<table>
+<tr>
+<td>
+--map map-name
+</td>
+<td> 
+changes your current map
+</td>
+</tr>
+<tr>
+<td>
+--no-rendering
+</td> 
+<td>
+pre-renders the entire map to improve output
+</td>
+</tr>
+<tr>
+<td>
+--no-sync
+</td> 
+<td>
+runs with unlimited sync latency to avoid segmentation fault errors
+</td>
+</tr>
+</table>
 
 __TBC__
