@@ -1,4 +1,12 @@
 {
-    "MONGO_URI": "",
-    "DATABASE_NAME": ""
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "UserModels",
+    "type": "object",
+    "properties": {
+        "ID": {"type": "integer"},
+        "ModelName": { "type": "string"},
+        "Address": { "type": "string", "format": "uri" },
+        "createdAt": {"type": "string", "format": "date-time" }
+    },
+    "required": ["ID", "ModelName", "Address", "createdAt"]
 }
