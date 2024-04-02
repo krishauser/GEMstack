@@ -20,7 +20,7 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # GEM PACMod Headers
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt, GlobalRpt
-
+import time
 # OpenCV and cv2 bridge
 import cv2
 import numpy as np
@@ -151,6 +151,7 @@ class GEMHardwareInterface(GEMInterface):
         return self.last_reading
 
     def subscribe_sensor(self, name, callback, type = None):
+        print(f"topc: {self.ros_sensor_topics[name]}!!!!!!!!!!!!!!!!!!!!!!!")
         if name == 'gnss':
             topic = self.ros_sensor_topics[name]
             if topic.endswith('inspva'):
@@ -183,13 +184,14 @@ class GEMHardwareInterface(GEMInterface):
                                     x=msg.longitude,
                                     y=msg.latitude,
                                     z=msg.height,
+                                    t=int(time.time()),
                                     yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
                                     roll=math.radians(msg.roll),
                                     pitch=math.radians(msg.pitch),
                                     )
                         speed = np.sqrt(msg.ve**2 + msg.vn**2)
                         callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
