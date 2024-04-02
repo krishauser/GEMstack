@@ -1,0 +1,31 @@
+Supported objects of YOLOv8:
+'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+
+get_model():
+Return Value:
+The YOLOv8 model
+
+get_object_id(name: string)
+Parameter:
+name - the object name that you want to detect
+Return Value:
+The corresponding object id that is used in YOLO
+
+object_detect_all(image: image)
+Parameter:
+image - the image to detect, YOLO supports various sources
+Return Value:
+The original image with bounding boxes around all the detected objects and their names
+
+object_detect_partial(image: image, class_id: int or List[int])
+Parameter:
+image - the image to detect, YOLO supports various sources
+class_id - an integer or list of integer of ids that corrspond to each object (retrieve id using get_object_id function)
+Return Value:
+The original image with bounding boxes around the target objects and their names
+
+pedestrian_detect(image: image)
+Parameter:
+image - the image to detect, YOLO supports various sources
+Return Value:
+The original image with bounding boxes around people
