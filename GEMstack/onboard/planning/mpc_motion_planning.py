@@ -14,10 +14,10 @@ import casadi as ca
 L = 1.75 # Wheelbase
 delta_max = np.pi/4 # max steering angle  
 safety_margin = 0.1  
-dt = 0.3
+dt = 0.5
 
 # Setup the MPC problem 
-def setup_mpc(N, dt, L, x0, y0, theta0, v0, delta0, x_goal, y_goal, theta_goal, v_goal, obstacles):
+def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, obstacles):
     """
     Setup and solve the MPC problem.
     Returns the first control inputs (v, delta) from the optimized trajectory.
@@ -36,43 +36,52 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, delta0, x_goal, y_goal, theta_goal, 
 
     # State
     # TODO: Add second order dynamics for steering angle
-    X = opti.variable(5, N+1)  # [x, y, theta, v, delta]
-    U = opti.variable(2, N)    # [a, omega]
+    X = opti.variable(4, N+1)  # [x, y, theta, v]
+    # X = opti.variable(5, N+1)  # [x, y, theta, v, delta]
+    U = opti.variable(2, N)    # [a, delta/omega]
 
     # Initial constraints
-    opti.subject_to(X[:,0] == [x0, y0, theta0, v0, delta0])
+    opti.subject_to(X[:,0] == [x0, y0, theta0, v0])
+    # opti.subject_to(X[:,0] == [x0, y0, theta0, v0, delta0])
 
     # Dynamics constraints
     for k in range(N):
         x_next = X[0,k] + X[3,k]*ca.cos(X[2,k])*dt
         y_next = X[1,k] + X[3,k]*ca.sin(X[2,k])*dt
-        theta_next = X[2,k] + X[3,k]/L*ca.tan(X[4,k])*dt
         v_next = X[3,k] + U[0,k]*dt
-        delta_next = X[4,k] + U[1,k]*dt
+        theta_next = X[2,k] + X[3,k]/L*ca.tan(U[1,k])*dt
+        # theta_next = X[2,k] + X[3,k]/L*ca.tan(X[4,k])*dt
+        # delta_next = X[4,k] + U[1,k]*dt
         
         opti.subject_to(X[0,k+1] == x_next)
         opti.subject_to(X[1,k+1] == y_next)
         opti.subject_to(X[2,k+1] == theta_next)
         opti.subject_to(X[3,k+1] == v_next)
-        opti.subject_to(X[4,k+1] == delta_next)
+        # opti.subject_to(X[4,k+1] == delta_next)
 
         # Obstacle constraints
         # TODO: Add soft constraints
+        penalty_scale = 200
+        obstacle_penalty = 0
         for obs in obstacles:
             obs_x, obs_y, obs_w, obs_l, obs_h = obs
             distance_squared = (X[0,k] - obs_x)**2 + (X[1,k] - obs_y)**2
-            opti.subject_to(distance_squared >= obs_w**2 + obs_l**2)
+            # opti.subject_to(distance_squared >= obs_w**2)
+            obstacle_penalty += penalty_scale / (distance_squared + 1)
 
 
     # Control costraints
     opti.subject_to(opti.bounded(a_min, U[0,:], a_max))
-    opti.subject_to(opti.bounded(omega_min, U[1,:], omega_max))
+    opti.subject_to(opti.bounded(delta_min, U[1,:], delta_max))
     opti.subject_to(opti.bounded(v_min, X[3,:], v_max))
-    opti.subject_to(opti.bounded(delta_min, X[4,:], delta_max))
+    # opti.subject_to(opti.bounded(omega_min, U[1,:], omega_max))
+    # opti.subject_to(opti.bounded(delta_min, X[4,:], delta_max))
     
 
     # objective
-    opti.minimize(ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]))
+    # objective = ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal])
+    objective = ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]) + obstacle_penalty
+    opti.minimize(objective)
 
     # Solver
     opts = {"ipopt.print_level": 0, "print_time": 0}
@@ -83,9 +92,10 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, delta0, x_goal, y_goal, theta_goal, 
     y_sol = sol.value(X[1,:])
     theta_sol = sol.value(X[2,:])
     v_sol = sol.value(X[3,:])[0]
-    delta_sol = sol.value(X[4,:])[0]
+    delta_sol = sol.value(U[1,:])[0]
     acc_sol = sol.value(U[0,:])[0]
-    omega_sol = sol.value(U[1,:])[0]
+    # delta_sol = sol.value(X[4,:])[0]
+    # omega_sol = sol.value(U[1,:])[0]
 
     return delta_sol, acc_sol
 
@@ -108,15 +118,17 @@ class MPCTrajectoryPlanner(Component):
         agents = state.agents
         vehicle = state.vehicle
         route = state.route
-        x_start, y_start, theta_start, v_start, delta_start= vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v,vehicle.front_wheel_angle
+        x_start, y_start, theta_start, v_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v
+        # x_start, y_start, theta_start, v_start, delta_start= vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v,vehicle.front_wheel_angle
         x_goal, y_goal, theta_goal, v_goal = *route.points[-1], 0., 0.
 
         agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
         agents = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
 
-
-        wheel_angle, accel = setup_mpc(self.N, dt, L, x_start, y_start, theta_start, v_start, delta_start,\
+        wheel_angle, accel = setup_mpc(self.N, dt, L, x_start, y_start, theta_start, v_start, \
                                               x_goal, y_goal, theta_goal, v_goal, agents)
+        # wheel_angle, accel = setup_mpc(self.N, dt, L, x_start, y_start, theta_start, v_start, delta_start,\
+        #                                       x_goal, y_goal, theta_goal, v_goal, agents)
         print(wheel_angle, accel)
         if np.sqrt((x_start - x_goal)**2 + (y_start - y_goal)**2) <= 0.1: # threshold for reaching the goal
             wheel_angle = 0
