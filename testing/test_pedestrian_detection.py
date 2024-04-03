@@ -28,7 +28,18 @@ import numpy as np
 import math
 import time
 
-OUTPUT_DIR = 'output'
+import argparse
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--test_target', '-t', type=str, required=True, 
+                    choices=['lidar_to_image', 'detect_agents', 'box_to_agent', 'update'])
+parser.add_argument('--output_dir', '-o', type=str, default='save')
+parser.add_argument('--src_dir', '-s', type=str, default='./data/step1')
+parser.add_argument('--data_idx', '-i', type=int, default=4)
+
+args = parser.parse_args()
+
+OUTPUT_DIR = args.output_dir
 
 def klampt_vis(zed_image, lidar_point_cloud, depth):
     
@@ -149,6 +160,8 @@ class TestHelper:
         detector = YOLO(yolo_path)
         detection_result = detector(self.zed_image,verbose=False)
         
+        bbox_image = self.zed_image.copy()
+        
         #TODO: create boxes from detection result
         pedestrian_boxes = []
         for box in detection_result[0].boxes: # only one image, so use index 0 of result
@@ -156,6 +169,17 @@ class TestHelper:
            if class_id == 0: # class 0 stands for pedestrian
                bbox = box.xywh[0].tolist()
                pedestrian_boxes.append(bbox)
+ 
+               # draw bbox
+               x,y,w,h = bbox
+               xmin, xmax = x - w/2, x + w/2
+               ymin, ymax = y - h/2, y + h/2
+               bbox_image = cv2.rectangle(bbox_image, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (0, 0, 255), 2) 
+        
+        pathlib.Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+        output_path = os.path.join(OUTPUT_DIR, 'bbox_image.png')
+        print ('Output image with bbox result:', output_path)
+        cv2.imwrite(output_path, bbox_image)
     
         # Only keep lidar point cloud that lies in roi area for agents
         point_cloud_lidar = filter_lidar_by_range(ped_detector.point_cloud, 
@@ -179,22 +203,33 @@ class TestHelper:
 
 
 if __name__=='__main__':
+    extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
+                 [-0.0675, -0.00499, -0.9977, -0.03123], 
+                 [0.99771, -0.00554, -0.06743, -0.7284],
+                 [0,       0 ,             0 ,      1]]
+    
     gem_interface = GEMInterface()
-    ped_detector = PedestrianDetector(gem_interface)
+    ped_detector = PedestrianDetector(gem_interface, extrinsic)
     
-    data_idx = 1
-    point_cloud = np.load(os.path.join(abs_path, f'../data/step1_rgb_image_stereo_depth/lidar{data_idx}.npz'))
-    point_cloud = point_cloud['arr_0']
-
-    zed_image = cv2.imread(os.path.join(abs_path, f'../data/step1_rgb_image_stereo_depth/color{data_idx}.png'))
-    depth = cv2.imread(os.path.join(abs_path, f'../data/step1_rgb_image_stereo_depth/depth{data_idx}.tif'), cv2.IMREAD_UNCHANGED)
+    # load data
+    lidar_fn = os.path.join(args.src_dir, f'lidar{args.data_idx}.npz')
+    image_fn = os.path.join(args.src_dir, f'color{args.data_idx}.png')
+    depth_fn = os.path.join(args.src_dir, f'depth{args.data_idx}.tif')
     
-    test_helper = TestHelper(ped_detector, point_cloud, zed_image, depth)
+    point_cloud = np.load(lidar_fn)['arr_0']
+    image = cv2.imread(image_fn)
+    depth = cv2.imread(depth_fn)
     
-    # test_helper.test_lidar_to_image()
-    # test_helper.test_detect_agents()
-    test_helper.test_box_to_agent()
-    # test_helper.test_update()
+    test_helper = TestHelper(ped_detector, point_cloud, image, depth)
+    
+    if args.test_target == 'lidar_to_image':
+        test_helper.test_lidar_to_image()
+    if args.test_target == 'detect_agents':
+        test_helper.test_detect_agents()
+    if args.test_target == 'box_to_agent':
+        test_helper.test_box_to_agent()
+    if args.test_target == 'update':
+        test_helper.test_update()
     
     print ('\nDone!')
     

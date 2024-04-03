@@ -81,7 +81,7 @@ def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tupl
 
 class PedestrianDetector(Component):
     """Detects and tracks pedestrians."""
-    def __init__(self,vehicle_interface : GEMInterface):
+    def __init__(self,vehicle_interface : GEMInterface, extrinsic=None):
         self.vehicle_interface = vehicle_interface
         # self.detector = YOLO(settings.get('pedestrian_detection.model'))
         self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
@@ -89,6 +89,8 @@ class PedestrianDetector(Component):
         self.camera_info = None
         self.zed_image = None
         self.last_person_boxes = []
+        self.last_car_boxes = [] # add car objects
+        self.last_stop_boxes = [] # add stop sign
         # self.lidar_translation = np.array(settings.get('vehicle.calibration.top_lidar.position'))
         # self.lidar_rotation = np.array(settings.get('vehicle.calibration.top_lidar.rotation'))
         # self.zed_translation = np.array(settings.get('vehicle.calibration.front_camera.rgb_position'))
@@ -109,15 +111,11 @@ class PedestrianDetector(Component):
         self.previous_agents = {} 
         
         # init transformation parameters
-        # extrinsic = [[ 0.35282628 , -0.9356864 ,  0.00213977, -1.42526548],
-        #                   [-0.04834961 , -0.02051524, -0.99861977, -0.02062586],
-        #                   [ 0.93443883 ,  0.35223584, -0.05247839, -0.15902421],
-        #                   [ 0.         ,  0.        ,  0.        ,  1.        ]]
-        
-        extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
-                     [-0.0675, -0.00499, -0.9977, -0.03123], 
-                     [0.99771, -0.00554, -0.06743, -0.7284],
-                     [0,       0 ,             0 ,      1]]
+        if extrinsic is None:
+            extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
+                        [-0.0675, -0.00499, -0.9977, -0.03123], 
+                        [0.99771, -0.00554, -0.06743, -0.7284],
+                        [0,       0 ,             0 ,      1]]
 
         # extrinsic_fn = 'GEMstack/knowledge/calibration/lidar2zed.txt'
         # extrinsic_fn = 'GEMstack/knowledge/calibration/zed2lidar.txt'
@@ -125,8 +123,8 @@ class PedestrianDetector(Component):
         # extrinsic = inv(extrinsic)
         
         self.extrinsic = np.array(extrinsic)
-        intrinsic = [684.8333129882812, 0.0, 573.37109375, 0.0, 684.6096801757812, 363.700927734375, 0.0, 0.0, 1.0]
-        # intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0]
+        intrinsic = [684.8333129882812, 0.0, 573.37109375, 0.0, 684.6096801757812, 363.700927734375, 0.0, 0.0, 1.0] # e4
+        # intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0] #e2
         intrinsic = np.array(intrinsic).reshape((3, 3))
         self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
@@ -158,7 +156,7 @@ class PedestrianDetector(Component):
         #tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
         self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         #subscribe to the Zed CameraInfo topic
-        self.camera_info_sub = rospy.Subscriber("/zed2/zed_node/rgb/camera_info", CameraInfo, self.camera_info_callback)
+        self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
 
 
     def image_callback(self, image : cv2.Mat):
@@ -258,7 +256,8 @@ class PedestrianDetector(Component):
         l = np.max(agent_world_pc[:, 0]) - np.min(agent_world_pc[:, 0])
         w = np.max(agent_world_pc[:, 1]) - np.min(agent_world_pc[:, 1])
         h = np.max(agent_world_pc[:, 2]) - np.min(agent_world_pc[:, 2])
-        dims = (2, 2, 1.7) 
+        # dims = (2, 2, 1.7)
+        dims = (w, h, l) 
         
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
@@ -268,11 +267,21 @@ class PedestrianDetector(Component):
         
         #TODO: create boxes from detection result
         pedestrian_boxes = []
+        car_boxes = [] # add car objects
+        stop_boxes = [] # add stop sign
         for box in detection_result[0].boxes: # only one image, so use index 0 of result
-           class_id = int(box.cls[0].item())
-           if class_id == 0: # class 0 stands for pedestrian
-               bbox = box.xywh[0].tolist()
-               pedestrian_boxes.append(bbox)
+            class_id = int(box.cls[0].item())
+            if class_id == 0: # class 0 stands for pedestrian
+                bbox = box.xywh[0].tolist()
+                pedestrian_boxes.append(bbox)
+            
+            if class_id == 2: # class 2 stands for car
+                bbox = box.xywh[0].tolist()
+                car_boxes.append(bbox)
+            
+            if class_id == 11: # class 11 stands for stop sign
+                bbox = box.xywh[0].tolist()
+                stop_boxes.append(bbox)
     
         # Only keep lidar point cloud that lies in roi area for agents
         point_cloud_lidar = filter_lidar_by_range(self.point_cloud, self.xrange, self.yrange)
@@ -286,6 +295,16 @@ class PedestrianDetector(Component):
         # Find agents
         detected_agents = []
         for i,b in enumerate(pedestrian_boxes):
+            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
+            if agent is not None:
+                detected_agents.append(agent)
+        
+        for i,b in enumerate(car_boxes):
+            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
+            if agent is not None:
+                detected_agents.append(agent)
+        
+        for i,b in enumerate(stop_boxes):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             if agent is not None:
                 detected_agents.append(agent)
