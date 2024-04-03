@@ -1,0 +1,9 @@
+{
+    "ID": A unique 4 digit keyword to identify an object.
+    "ModelName": "The name of the model in double quotes"
+    "Address": "The directory of the model/db"
+    "createdAt": the date-time the model was created in the format YYYY-MM-DDThh:mm:ss.sTZD
+    "Description": "A string that briefly describes what the object is about"
+}
+
+For the dataset collection/table, it's the same, except replace "ModelName" with "DatasetName".
