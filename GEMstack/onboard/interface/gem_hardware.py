@@ -20,7 +20,7 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # GEM PACMod Headers
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt, GlobalRpt
-
+import time
 # OpenCV and cv2 bridge
 import cv2
 import numpy as np
@@ -29,6 +29,7 @@ from ...utils import conversions
 @dataclass 
 class GNSSReading:
     pose : ObjectPose
+    speed : float
     status : str
 
 class GEMHardwareInterface(GEMInterface):
@@ -64,8 +65,8 @@ class GEMHardwareInterface(GEMInterface):
 
         # -------------------- PACMod setup --------------------
         # GEM vehicle enable
-        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
         self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
+        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
         self.pacmod_enable = False
 
         # GEM vehicle gear control, neutral, forward and reverse, publish once
@@ -150,6 +151,7 @@ class GEMHardwareInterface(GEMInterface):
         return self.last_reading
 
     def subscribe_sensor(self, name, callback, type = None):
+        print(f"topc: {self.ros_sensor_topics[name]}!!!!!!!!!!!!!!!!!!!!!!!")
         if name == 'gnss':
             topic = self.ros_sensor_topics[name]
             if topic.endswith('inspva'):
@@ -167,7 +169,8 @@ class GEMHardwareInterface(GEMInterface):
                                     roll=math.radians(inspva_msg.roll),
                                     pitch=math.radians(inspva_msg.pitch),
                                     )
-                        callback(GNSSReading(pose,inspva_msg.status))
+                        speed = np.sqrt(inspva_msg.east_velocity**2 + inspva_msg.north_velocity**2)
+                        callback(GNSSReading(pose,speed,inspva_msg.status))
                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
             else:
                 #assume it's septentrio
@@ -181,12 +184,14 @@ class GEMHardwareInterface(GEMInterface):
                                     x=msg.longitude,
                                     y=msg.latitude,
                                     z=msg.height,
+                                    t=int(time.time()),
                                     yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
                                     roll=math.radians(msg.roll),
                                     pitch=math.radians(msg.pitch),
                                     )
-                        callback(GNSSReading(pose,'error' if msg.error else 'ok'))
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+                        speed = np.sqrt(msg.ve**2 + msg.vn**2)
+                        callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
+                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
