@@ -41,7 +41,8 @@ components:
   - mission_execution:
       outputs: mission
   - route_planning:
-      inputs: [vehicle, roadgraph, mission]
+    #   inputs: [vehicle, roadgraph, mission]
+      inputs: all # For development, we can assume that all components are available
       outputs: route
   - driving_logic:
       inputs: all

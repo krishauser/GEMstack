@@ -9,11 +9,7 @@ from ...knowledge.vehicle.geometry import front2steer,steer2front
 from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
-from ..interface.gem_hardware import GNSSReading
-try:
-    from septentrio_gnss_driver.msg import INSNavGeod
-except ImportError:
-    pass
+
 class GNSSStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
     def __init__(self, vehicle_interface : GEMInterface):
@@ -28,11 +24,7 @@ class GNSSStateEstimator(Component):
         self.status = None
 
     # Get GNSS information
-    def gnss_callback(self, reading : GNSSReading):
-        #print(f"reading:{reading}")
-        self.gnss_pose = reading.pose
-        self.gnss_speed = reading.speed
-        self.status = reading.status
+
     
     def rate(self):
         return 10.0
