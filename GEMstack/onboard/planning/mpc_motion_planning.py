@@ -61,7 +61,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
 
         # Obstacle constraints
         # TODO: Add soft constraints
-        penalty_scale = 200
+        penalty_scale = 2000
         obstacle_penalty = 0
         for obs in obstacles:
             obs_x, obs_y, obs_w, obs_l, obs_h = obs
