@@ -1,10 +1,12 @@
-from flask import Flask, jsonify, send_file, render_template
+from flask import Flask, jsonify, send_file, render_template,request
+from werkzeug.utils import secure_filename
 from pymongo import MongoClient
 import json
 import os
 
 app = Flask(__name__)
-
+app.config['UPLOAD_FOLDER'] = '../model'
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024
 
 def load_config(file_path):
     if not os.path.exists(file_path):
@@ -133,7 +135,19 @@ def retrieve_dataset(id):
     else:
         return jsonify({"error": "Dataset not found or address missing"}), 404
 
+@app.route('/models/upload', methods=['POST'])
+def upload_model():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
 
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file:
+        filename = secure_filename(file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        return jsonify({'message': 'File uploaded successfully', 'filename': filename}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
