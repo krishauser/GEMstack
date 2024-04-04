@@ -10,11 +10,11 @@ const Models = new mongoose.Schema({
         type: String,
         required: true
     },
-    Address: {
+    Path: {
        type: String,
        required: true
     },
-    ReadME: {
+    Description: {
        type: String,
     }
 })
@@ -29,12 +29,12 @@ const Data = new mongoose.Schema({
         type: String,
         required: true
     },
-    Address: {
+    Path: {
        type: String,
        required: true
     },
-    ReadME: {
+    Description: {
        type: String,
     }
 })
-module.exports = mongoose.model("Models", Customer);
+module.exports = mongoose.model("Data", Customer);
