@@ -3,7 +3,6 @@
     "title": "UserModels",
     "type": "object",
     "properties": {
-        "_id": {"type": "integer","minimum": 1000, "maximum": 9999},
         "ModelName": { "type": "string"},
         "Path": { "type": "string", "format": "uri" },
         "createdAt": {"type": "string", "format": "date-time" },
