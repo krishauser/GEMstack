@@ -3,9 +3,9 @@
     "title": "UserModels",
     "type": "object",
     "properties": {
-        "ID": {"type": "integer","minimum": 1000, "maximum": 9999},
+        "_id": {"type": "integer","minimum": 1000, "maximum": 9999},
         "ModelName": { "type": "string"},
-        "Address": { "type": "string", "format": "uri" },
+        "Path": { "type": "string", "format": "uri" },
         "createdAt": {"type": "string", "format": "date-time" },
         "Description": {"type":  "string"}
     },
