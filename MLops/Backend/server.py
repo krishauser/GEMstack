@@ -5,22 +5,25 @@ import json
 import os
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = '../model'
+app.config['MODEL_UPLOAD_FOLDER'] = '../model'
+app.config['DATASET_UPLOAD_FOLDER'] = '../dataset'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024
+
 
 def load_config(file_path):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"The config file {file_path} does not exist.")
 
     with open(file_path) as config_file:
-        config = json.load(config_file)
+        config_json = json.load(config_file)
 
         # Validate necessary keys in the configuration
         required_keys = ['MONGO_URI', 'DATABASE_NAME']
-        if not all(key in config for key in required_keys):
+        if not all(key in config_json for key in required_keys):
             raise ValueError(f"Config file is missing required keys. Required keys: {required_keys}")
 
-        return config
+        return config_json
+
 
 try:
     config = load_config('config.json')
@@ -35,31 +38,54 @@ except ValueError as e:
 
 
 @app.route('/models/', methods=['GET'])
-def get_models():
+def list_all_models():
     models = db.Models.find({}, {'_id': 0, 'ID': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
     return jsonify(list(models))
 
 
-@app.route('/models/<int:id>', methods=['GET'])
-def get_model(id):
+@app.route('/models/upload', methods=['POST'])
+def upload_model():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file:
+        filename = secure_filename(file.filename)
+        path = os.path.join(app.config['MODEL_UPLOAD_FOLDER'], filename)
+        file.save(path)
+
+        data = request.json
+        model_name = data.get('ModelName')
+
+        # Check if the model with the same ModelName exists
+        existing_model = db.Models.find_one({'ModelName': model_name})
+
+        if existing_model:
+            db.Models.update_one({'ModelName': model_name}, {'$set': {
+                'Path': path,
+                'Description': data.get('Description', '')
+            }})
+            return jsonify({'message': 'Model updated successfully', 'filename': filename}), 200
+        else:
+            model = {
+                'ModelName': model_name,
+                'Path': path,
+                'Description': data.get('Description', '')
+            }
+            db.Models.insert_one(model)
+            return jsonify({'message': 'Model uploaded successfully', 'filename': filename}), 200
+
+
+@app.route('/models/<int:id>', methods=['GET'] )
+def list_model_info(id):
     model_info = db.Models.find_one({'ID': id}, {'_id': 0, 'ID': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
     if model_info:
         return jsonify(model_info)
     else:
         return jsonify({"error": "Model not found"}), 404
-
-
-@app.route('/models/<int:id>', methods=['POST'])
-def upload_model(id):
-    data = request.json
-    model = {
-        'ID': id,
-        'ModelName': data['ModelName'],
-        'Path': data['Path'],
-        'Description': data.get('Description', '')
-    }
-    db.Models.insert_one(model)
-    return jsonify({"message": "Model uploaded successfully"}), 201
 
 
 @app.route('/models/<int:id>', methods=['PUT'])
@@ -68,8 +94,6 @@ def update_model(id):
     update_data = {}
     if 'ModelName' in data and data['ModelName']:
         update_data['ModelName'] = data['ModelName']
-    if 'Path' in data and data['Path']:
-        update_data['Path'] = data['Path']
     if 'Description' in data:
         update_data['Description'] = data['Description']
     db.Models.update_one({'ID': id}, {'$set': update_data})
@@ -86,31 +110,56 @@ def retrieve_model(id):
 
 
 @app.route('/datasets/', methods=['GET'])
-def get_datasets():
+def list_all_datasets():
     datasets = db.Data.find({}, {'_id': 0, 'ID': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
     return jsonify(list(datasets))
 
 
+@app.route('/datasets/upload', methods=['POST'])
+def upload_dataset():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file:
+        filename = secure_filename(file.filename)
+        path = os.path.join(app.config['DATASET_UPLOAD_FOLDER'], filename)
+        file.save(path)
+
+        data = request.json
+        data_name = data.get('DataName')
+
+        # Check if the dataset with the same DataName exists
+        existing_dataset = db.Data.find_one({'DataName': data_name})
+
+        if existing_dataset:
+            # Update existing dataset
+            db.Data.update_one({'DataName': data_name}, {'$set': {
+                'Path': path,
+                'Description': data.get('Description', '')
+            }})
+            return jsonify({'message': 'Dataset updated successfully', 'filename': filename}), 200
+        else:
+            # Insert new dataset
+            dataset = {
+                'DataName': data_name,
+                'Path': path,
+                'Description': data.get('Description', '')
+            }
+            db.Data.insert_one(dataset)
+            return jsonify({'message': 'Dataset uploaded successfully', 'filename': filename}), 200
+
+
 @app.route('/datasets/<int:id>', methods=['GET'])
-def get_dataset(id):
+def list_dataset_info(id):
     dataset = db.Data.find_one({'ID': id}, {'_id': 0, 'ID': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
     if dataset:
         return jsonify(dataset)
     else:
         return jsonify({"error": "Dataset not found"}), 404
-
-
-@app.route('/datasets/<int:id>', methods=['POST'])
-def upload_dataset(id):
-    data = request.json
-    dataset = {
-        'ID': id,
-        'DataName': data['DataName'],
-        'Path': data['Path'],
-        'Description': data.get('Description', '')
-    }
-    db.Data.insert_one(dataset)
-    return jsonify({"message": "Dataset uploaded successfully"}), 201
 
 
 @app.route('/datasets/<int:id>', methods=['PUT'])
@@ -119,8 +168,6 @@ def update_dataset(id):
     update_data = {}
     if 'DataName' in data and data['DataName']:
         update_data['DataName'] = data['DataName']
-    if 'Path' in data and data['Path']:
-        update_data['Path'] = data['Path']
     if 'Description' in data:
         update_data['Description'] = data['Description']
     db.Data.update_one({'ID': id}, {'$set': update_data})
@@ -135,19 +182,6 @@ def retrieve_dataset(id):
     else:
         return jsonify({"error": "Dataset not found or address missing"}), 404
 
-@app.route('/models/upload', methods=['POST'])
-def upload_model():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-
-    if file:
-        filename = secure_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        return jsonify({'message': 'File uploaded successfully', 'filename': filename}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True)
