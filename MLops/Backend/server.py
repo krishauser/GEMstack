@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = '../model'
 app.config['MODEL_UPLOAD_FOLDER'] = '../model'
 app.config['DATASET_UPLOAD_FOLDER'] = '../dataset'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024
@@ -63,7 +62,7 @@ def upload_model():
 
     if file:
         filename = secure_filename(file.filename)
-        path = str(Path(app.config['UPLOAD_FOLDER']) / filename)
+        path = str(Path(app.config['MODEL_UPLOAD_FOLDER']) / filename)
         file.save(path)
 
         # Check if the model with the same ModelName exists
