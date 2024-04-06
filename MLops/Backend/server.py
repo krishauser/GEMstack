@@ -64,9 +64,11 @@ def upload_model():
         existing_model = db.Models.find_one({'ModelName': filename})
         if existing_model:
 
-            db.Models.update_one({'ModelName': filename}, {'$set': {
+            res = db.Models.update_one({'ModelName': filename}, {'$set': {
                 'Path': path
             }})
+            if res.modified_count == 0:
+                return jsonify({"error": "Not updated"}), 400
             return jsonify({'message': 'Model updated successfully', 'filename': filename}), 200
         else:
             model = {
@@ -94,7 +96,9 @@ def update_model(id):
     update_data = {}
     if 'Description' in data:
         update_data['Description'] = data['Description']
-    db.Models.update_one({'_id': ObjectId(id)}, {'$set': update_data})
+    res = db.Models.update_one({'_id': ObjectId(id)}, {'$set': update_data})
+    if res.modified_count == 0:
+        return jsonify({"error": "Not updated"}), 400
     return jsonify({"message": "Model updated successfully"})
 
 
@@ -132,9 +136,11 @@ def upload_dataset():
 
         if existing_dataset:
             # Update existing dataset
-            db.Data.update_one({'DataName': filename}, {'$set': {
+            res = db.Data.update_one({'DataName': filename}, {'$set': {
                 'Path': path
             }})
+            if res.modified_count == 0:
+                return jsonify({"error": "Not updated"}), 400
             return jsonify({'message': 'Dataset updated successfully', 'filename': filename}), 200
         else:
             # Insert new dataset
@@ -160,11 +166,11 @@ def list_dataset_info(id):
 def update_dataset(id):
     data = request.json
     update_data = {}
-    if 'DataName' in data and data['DataName']:
-        update_data['DataName'] = data['DataName']
     if 'Description' in data:
         update_data['Description'] = data['Description']
-    db.Data.update_one({'_id': ObjectId(id)}, {'$set': update_data})
+    res = db.Data.update_one({'_id': ObjectId(id)}, {'$set': update_data})
+    if res.modified_count == 0:
+        return jsonify({"error": "Not updated"}), 400
     return jsonify({"message": "Dataset updated successfully"})
 
 
