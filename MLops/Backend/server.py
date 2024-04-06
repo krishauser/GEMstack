@@ -43,7 +43,13 @@ except ValueError as e:
 @app.route('/models', methods=['GET'])
 def list_all_models():
     models = db.Models.find({}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
-    return jsonify(list(models))
+    models_list = [{
+        '_id': str(model['_id']),
+        'ModelName': model['ModelName'],
+        'Path': model['Path'],
+        'Description': model.get('Description', '')
+    } for model in models]
+    return jsonify(models_list)
 
 
 @app.route('/models/upload', methods=['POST'])
@@ -114,7 +120,13 @@ def retrieve_model(id):
 @app.route('/datasets', methods=['GET'])
 def list_all_datasets():
     datasets = db.Data.find({}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
-    return jsonify(list(datasets))
+    datasets_list = [{
+        '_id': str(dataset['_id']),
+        'DataName': dataset['DataName'],
+        'Path': dataset['Path'],
+        'Description': dataset.get('Description', '')
+    } for dataset in datasets]
+    return jsonify(datasets_list)
 
 
 @app.route('/datasets/upload', methods=['POST'])
