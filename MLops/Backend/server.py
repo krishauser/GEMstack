@@ -62,11 +62,10 @@ def upload_model():
 
         # Check if the model with the same ModelName exists
         existing_model = db.Models.find_one({'ModelName': filename})
-
         if existing_model:
+
             db.Models.update_one({'ModelName': filename}, {'$set': {
-                'Path': path,
-                'Description': ''
+                'Path': path
             }})
             return jsonify({'message': 'Model updated successfully', 'filename': filename}), 200
         else:
@@ -134,8 +133,7 @@ def upload_dataset():
         if existing_dataset:
             # Update existing dataset
             db.Data.update_one({'DataName': filename}, {'$set': {
-                'Path': path,
-                'Description': ''
+                'Path': path
             }})
             return jsonify({'message': 'Dataset updated successfully', 'filename': filename}), 200
         else:
