@@ -66,6 +66,8 @@ import glob
 import os
 import sys
 
+import std_msgs.msg
+
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
         sys.version_info.major,
@@ -229,6 +231,7 @@ class World(object):
         self.rgb = rospy.Publisher('carla/front/rgb', Image, queue_size=10)
         self.gnss = rospy.Publisher('carla/gnss', Inspva, queue_size=10)
         self.lidar = rospy.Publisher('carla/top_lidar', PointCloud2, queue_size=10)
+        self.depth = rospy.Publisher('/carla/front/depth', Image, queue_size=10)
         # watch out for restart method
         self.restart()
         self.world.on_tick(hud.on_world_tick)
@@ -311,8 +314,11 @@ class World(object):
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index, notify=False)
         self.camera_manager.set_fixed_rgb()
-        self.camera_manager.add_rgb_callback(self.publish_image_message)
+        self.camera_manager.set_fixed_lidar()
+        self.camera_manager.set_fixed_depth()
+        self.camera_manager.add_rgb_callback(self.publish_rgb_image_message)
         self.camera_manager.add_lidar_callback(self.publish_lidar_message)
+        self.camera_manager.add_depth_callback(self.publish_depth_image_message)
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
 
@@ -321,8 +327,12 @@ class World(object):
         else:
             self.world.wait_for_tick()
 
-    def publish_image_message(self, image):
+    def publish_rgb_image_message(self, image):
         self.rgb.publish(image)
+        pass
+
+    def publish_depth_image_message(self, image):
+        self.depth.publish(image)
         pass
 
     def publish_lidar_message(self, pc):
@@ -1113,7 +1123,7 @@ class RadarSensor(object):
         # points = np.reshape(points, (len(radar_data), 4))
 
         current_rot = radar_data.transform.rotation
-        value = {'yaw' : current_rot.yaw, 'pitch': current_rot.pitch, 'roll' : current_rot.roll}
+        value = {'pitch': current_rot.pitch, 'roll' : current_rot.roll}
         for cb in self.callbacks:
             cb(value)
         for detect in radar_data:
@@ -1156,6 +1166,7 @@ class CameraManager(object):
         self.sensor = None
         self.fixed_front_rgb_sensor = None
         self.fixed_top_lidar_sensor = None
+        self.fixed_front_depth_sensor = None
         self.surface = None
         self._parent = parent_actor
         self.hud = hud
@@ -1163,6 +1174,8 @@ class CameraManager(object):
         
         self.rgb_callbacks = []
         self.lidar_callbacks = []
+        self.depth_callbacks = []
+
         self.bridge = CvBridge() 
         
         bound_x = 0.5 + self._parent.bounding_box.extent.x
@@ -1186,8 +1199,14 @@ class CameraManager(object):
                 (carla.Transform(carla.Location(x=0, y=-2.5, z=-0.0), carla.Rotation(yaw=90.0)), Attachment.Rigid)]
 
         self.transform_index = 1
-        self.fixed_front_camera_info = ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}]
-        self.fixed_front_camera_transform = self._camera_transforms[self.transform_index]
+        self.fixed_front_rgb_info = ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}]
+        self.fixed_front_rgb_transform = self._camera_transforms[self.transform_index]
+        self.fixed_front_depth_info = ['sensor.camera.depth', cc.Depth, 'Camera Depth (Raw)', {}]
+        self.fixed_front_depth_transform = self._camera_transforms[self.transform_index]
+        self.fixed_top_lidar_info = ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)', {'range': '50'}]
+        self.fixed_top_lidar_transform = self._camera_transforms[self.transform_index]
+
+
         self.sensors = [
             ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}],
             ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)', {}],
@@ -1227,14 +1246,29 @@ class CameraManager(object):
                         self.lidar_range = float(attr_value)
 
             item.append(bp)
-        bp = bp_library.find(self.fixed_front_camera_info[0])
+
+        bp = bp_library.find(self.fixed_front_rgb_info[0])
         bp.set_attribute('image_size_x', str(hud.dim[0]))
         bp.set_attribute('image_size_y', str(hud.dim[1]))
         if bp.has_attribute('gamma'):
             bp.set_attribute('gamma', str(gamma_correction))
-        for attr_name, attr_value in item[3].items():
+        self.fixed_front_rgb_info.append(bp)
+
+        bp = bp_library.find(self.fixed_front_depth_info[0])
+        bp.set_attribute('image_size_x', str(hud.dim[0]))
+        bp.set_attribute('image_size_y', str(hud.dim[1]))
+        if bp.has_attribute('gamma'):
+            bp.set_attribute('gamma', str(gamma_correction))
+        self.fixed_front_depth_info.append(bp)
+
+        bp = bp_library.find(self.fixed_top_lidar_info[0])
+        self.lidar_range = 50
+        for attr_name, attr_value in self.fixed_top_lidar_info[3].items():
             bp.set_attribute(attr_name, attr_value)
-        self.fixed_front_camera_info.append(bp)
+            if attr_name == 'range':
+                self.lidar_range = float(attr_value)
+        self.fixed_top_lidar_info.append(bp)
+
         self.index = None
 
     def toggle_camera(self):
@@ -1248,6 +1282,10 @@ class CameraManager(object):
     def add_lidar_callback(self, callback):
         if (callback not in self.lidar_callbacks):
             self.lidar_callbacks.append(callback)
+    
+    def add_depth_callback(self, callback):
+        if (callback not in self.depth_callbacks):
+            self.depth_callbacks.append(callback)
         
     def set_sensor(self, index, notify=True, force_respawn=False):
         index = index % len(self.sensors)
@@ -1275,16 +1313,46 @@ class CameraManager(object):
         if self.fixed_front_rgb_sensor is not None:
             print('fixed sensor destroyed')
             self.fixed_front_rgb_sensor.destroy()
-        print(self.fixed_front_camera_transform[0])
+        print(self.fixed_front_rgb_transform[0])
         self.fixed_front_rgb_sensor = self._parent.get_world().spawn_actor(
-            self.fixed_front_camera_info[-1],
-            self.fixed_front_camera_transform[0],
+            self.fixed_front_rgb_info[-1],
+            self.fixed_front_rgb_transform[0],
             attach_to=self._parent,
-            attachment_type=self.fixed_front_camera_transform[1])
+            attachment_type=self.fixed_front_rgb_transform[1])
         # We need to pass the lambda a weak reference to self to avoid
         # circular reference.
         weak_self = weakref.ref(self)
-        self.fixed_front_rgb_sensor.listen(lambda image: CameraManager._parse_image(weak_self, image,callback=True, caller='sensor.camera.rgb'))
+        self.fixed_front_rgb_sensor.listen(lambda image: CameraManager._parse_image(weak_self, image,callback=True, caller=self.fixed_front_rgb_info[0]))
+    
+    def set_fixed_lidar(self):
+        if self.fixed_top_lidar_sensor is not None:
+            print('fixed sensor destroyed')
+            self.fixed_top_lidar_sensor.destroy()
+        print(self.fixed_top_lidar_transform[0])
+        self.fixed_top_lidar_sensor = self._parent.get_world().spawn_actor(
+            self.fixed_top_lidar_info[-1],
+            self.fixed_top_lidar_transform[0],
+            attach_to=self._parent,
+            attachment_type=self.fixed_top_lidar_transform[1])
+        # We need to pass the lambda a weak reference to self to avoid
+        # circular reference.
+        weak_self = weakref.ref(self)
+        self.fixed_top_lidar_sensor.listen(lambda image: CameraManager._parse_image(weak_self, image,callback=True, caller=self.fixed_top_lidar_info[0]))
+
+    def set_fixed_depth(self):
+        if self.fixed_front_depth_sensor is not None:
+            print('fixed sensor destroyed')
+            self.fixed_front_depth_sensor.destroy()
+        print(self.fixed_top_lidar_transform[0])
+        self.fixed_front_depth_sensor = self._parent.get_world().spawn_actor(
+            self.fixed_front_depth_info[-1],
+            self.fixed_front_depth_transform[0],
+            attach_to=self._parent,
+            attachment_type=self.fixed_front_depth_transform[1])
+        # We need to pass the lambda a weak reference to self to avoid
+        # circular reference.
+        weak_self = weakref.ref(self)
+        self.fixed_front_depth_sensor.listen(lambda image: CameraManager._parse_image(weak_self, image,callback=True, caller=self.fixed_front_depth_info[0]))
 
     def next_sensor(self):
         self.set_sensor(self.index + 1)
@@ -1302,51 +1370,55 @@ class CameraManager(object):
         self = weak_self()
         if not self:
             return
-        if self.sensors[self.index][0].startswith('sensor.lidar'):
-            points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
-            points = np.reshape(points, (int(points.shape[0] / 4), 4))
-            lidar_data = np.array(points[:, :2])
-            lidar_data *= min(self.hud.dim) / (2.0 * self.lidar_range)
-            lidar_data += (0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1])
-            lidar_data = np.fabs(lidar_data)  # pylint: disable=E1111
-            lidar_data = lidar_data.astype(np.int32)
-            lidar_data = np.reshape(lidar_data, (-1, 2))
-            lidar_img_size = (self.hud.dim[0], self.hud.dim[1], 3)
-            lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
-            lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            if (not callback):            
+        if not callback:
+            if self.sensors[self.index][0].startswith('sensor.lidar'):
+                points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
+                points = np.reshape(points, (int(points.shape[0] / 4), 4))
+                lidar_data = np.array(points[:, :2])
+                lidar_data *= min(self.hud.dim) / (2.0 * self.lidar_range)
+                lidar_data += (0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1])
+                lidar_data = np.fabs(lidar_data)  # pylint: disable=E1111
+                lidar_data = lidar_data.astype(np.int32)
+                lidar_data = np.reshape(lidar_data, (-1, 2))
+                lidar_img_size = (self.hud.dim[0], self.hud.dim[1], 3)
+                lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
+                lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
                 self.surface = pygame.surfarray.make_surface(lidar_img)
-        elif self.sensors[self.index][0].startswith('sensor.camera.dvs'):
-            # Example of converting the raw_data from a carla.DVSEventArray
-            # sensor into a NumPy array and using it as an image
-            dvs_events = np.frombuffer(image.raw_data, dtype=np.dtype([
-                ('x', np.uint16), ('y', np.uint16), ('t', np.int64), ('pol', np.bool)]))
-            dvs_img = np.zeros((image.height, image.width, 3), dtype=np.uint8)
-            # Blue is positive, red is negative
-            dvs_img[dvs_events[:]['y'], dvs_events[:]['x'], dvs_events[:]['pol'] * 2] = 255
-            if (not callback):            
+            elif self.sensors[self.index][0].startswith('sensor.camera.dvs'):
+                # Example of converting the raw_data from a carla.DVSEventArray
+                # sensor into a NumPy array and using it as an image
+                dvs_events = np.frombuffer(image.raw_data, dtype=np.dtype([
+                    ('x', np.uint16), ('y', np.uint16), ('t', np.int64), ('pol', np.bool)]))
+                dvs_img = np.zeros((image.height, image.width, 3), dtype=np.uint8)
+                # Blue is positive, red is negative
+                dvs_img[dvs_events[:]['y'], dvs_events[:]['x'], dvs_events[:]['pol'] * 2] = 255
                 self.surface = pygame.surfarray.make_surface(dvs_img.swapaxes(0, 1))
-        elif self.sensors[self.index][0].startswith('sensor.camera.optical_flow'):
-            image = image.get_color_coded_flow()
-            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            if (not callback):            
+            elif self.sensors[self.index][0].startswith('sensor.camera.optical_flow'):
+                image = image.get_color_coded_flow()
+                array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+                array = np.reshape(array, (image.height, image.width, 4))
+                array = array[:, :, :3]
+                array = array[:, :, ::-1]
                 self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-        else:
-            image.convert(self.sensors[self.index][1])
-            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            if (not callback):            
+            else:
+                image.convert(self.sensors[self.index][1])
+                array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+                array = np.reshape(array, (image.height, image.width, 4))
+                array = array[:, :, :3]
+                array = array[:, :, ::-1]
                 self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         
         if (callback and caller == 'sensor.camera.rgb') :
+            image.convert(self.fixed_front_rgb_info[1])
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
             for cb in self.rgb_callbacks:
+                cb(self.bridge.cv2_to_imgmsg(array))
+        elif (callback and caller == 'sensor.camera.depth') :
+            image.convert(self.fixed_front_depth_info[1])
+            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
+            array = np.reshape(array, (image.height, image.width, 4))
+            for cb in self.depth_callbacks:
                 cb(self.bridge.cv2_to_imgmsg(array))
         elif (callback and caller == 'sensor.lidar.ray_cast'):
             points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
@@ -1358,7 +1430,7 @@ class CameraManager(object):
             image.save_to_disk('_out/%08d' % image.frame)
     
     def lidar_points_to_pc2(self, pc):
-        header = std_msgs.Header(frame_id='/lidar', stamp=rospy.Time.now())
+        header = std_msgs.msg.Header(frame_id='lidar', stamp=rospy.Time.now())
         pc_array = np.zeros(len(pc), dtype=[
             ('x', np.float32),
             ('y', np.float32),
@@ -1524,3 +1596,4 @@ def main():
 if __name__ == '__main__':
 
     main()
+            

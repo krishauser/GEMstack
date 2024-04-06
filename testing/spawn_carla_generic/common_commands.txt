@@ -1,2 +1,4 @@
 export MESA_LOADER_DRIVER_OVERRIDE=i965
 sudo apt-get install ros-noetic-ros-numpy
+python config.py --map Town05_Opt --no-rendering --no-sync
+rosrun tf static_transform_publisher 0 0 0 0 0 0 map lidar 50
