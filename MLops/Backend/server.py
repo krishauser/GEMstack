@@ -5,6 +5,7 @@ import json
 import os
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = '../model'
 app.config['MODEL_UPLOAD_FOLDER'] = '../model'
 app.config['DATASET_UPLOAD_FOLDER'] = '../dataset'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024
@@ -37,7 +38,7 @@ except ValueError as e:
     exit(1)
 
 
-@app.route('/models/', methods=['GET'])
+@app.route('/models', methods=['GET'])
 def list_all_models():
     models = db.Models.find({}, {'_id': 0, 'ID': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
     return jsonify(list(models))
@@ -54,26 +55,23 @@ def upload_model():
 
     if file:
         filename = secure_filename(file.filename)
-        path = os.path.join(app.config['MODEL_UPLOAD_FOLDER'], filename)
+        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(path)
 
-        data = request.json
-        model_name = data.get('ModelName')
-
         # Check if the model with the same ModelName exists
-        existing_model = db.Models.find_one({'ModelName': model_name})
+        existing_model = db.Models.find_one({'ModelName': filename})
 
         if existing_model:
-            db.Models.update_one({'ModelName': model_name}, {'$set': {
+            db.Models.update_one({'ModelName': filename}, {'$set': {
                 'Path': path,
-                'Description': data.get('Description', '')
+                'Description': ''
             }})
             return jsonify({'message': 'Model updated successfully', 'filename': filename}), 200
         else:
             model = {
-                'ModelName': model_name,
+                'ModelName': filename,
                 'Path': path,
-                'Description': data.get('Description', '')
+                'Description': ''
             }
             db.Models.insert_one(model)
             return jsonify({'message': 'Model uploaded successfully', 'filename': filename}), 200
@@ -109,7 +107,7 @@ def retrieve_model(id):
         return jsonify({"error": "Model not found or address missing"}), 404
 
 
-@app.route('/datasets/', methods=['GET'])
+@app.route('/datasets', methods=['GET'])
 def list_all_datasets():
     datasets = db.Data.find({}, {'_id': 0, 'ID': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
     return jsonify(list(datasets))
@@ -129,25 +127,22 @@ def upload_dataset():
         path = os.path.join(app.config['DATASET_UPLOAD_FOLDER'], filename)
         file.save(path)
 
-        data = request.json
-        data_name = data.get('DataName')
-
         # Check if the dataset with the same DataName exists
-        existing_dataset = db.Data.find_one({'DataName': data_name})
+        existing_dataset = db.Data.find_one({'DataName': filename})
 
         if existing_dataset:
             # Update existing dataset
-            db.Data.update_one({'DataName': data_name}, {'$set': {
+            db.Data.update_one({'DataName': filename}, {'$set': {
                 'Path': path,
-                'Description': data.get('Description', '')
+                'Description': ''
             }})
             return jsonify({'message': 'Dataset updated successfully', 'filename': filename}), 200
         else:
             # Insert new dataset
             dataset = {
-                'DataName': data_name,
+                'DataName': filename,
                 'Path': path,
-                'Description': data.get('Description', '')
+                'Description': ''
             }
             db.Data.insert_one(dataset)
             return jsonify({'message': 'Dataset uploaded successfully', 'filename': filename}), 200
