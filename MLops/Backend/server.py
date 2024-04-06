@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, send_file, render_template,request
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
-from pymongo.objectid import ObjectId
+from bson.objectid import ObjectId
 import json
 import os
 from pathlib import Path
@@ -42,7 +42,7 @@ except ValueError as e:
 
 @app.route('/models', methods=['GET'])
 def list_all_models():
-    models = db.Models.find({}, {'_id': 0, 'ID': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
+    models = db.Models.find({}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
     return jsonify(list(models))
 
 
