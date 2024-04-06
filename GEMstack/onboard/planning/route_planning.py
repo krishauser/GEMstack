@@ -4,7 +4,7 @@ from ...utils import serialization, settings
 from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph
 from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
-from .reeds_shepp import path_length, get_optimal_path, eval_path, rad2deg
+from .reeds_shepp import path_length, get_optimal_path, eval_path, rad2deg, precompute
 import os
 import copy
 from time import time
@@ -153,7 +153,8 @@ class SearchNavigationRoutePlanner(Component):
             start = [xs/turn_radius,ys/turn_radius,ths]
             xe,ye,the = state2[:3]
             end = [xe/turn_radius,ye/turn_radius,the]
-            h = path_length(get_optimal_path(start,end))*turn_radius
+            h = precompute(start,end)*turn_radius
+            # h = path_length(get_optimal_path(start,end))*turn_radius
             return h*2
         self.heuristic = heuristic
 
@@ -269,14 +270,17 @@ class SearchNavigationRoutePlanner(Component):
                         queue.put(child)
             
             route = []
+            yaws = []
             last_path = []
             while current is not None:
                 route.append(current.state[:2])
+                yaws.append(current.state[2])
                 last_path.append(current.state)
                 current = current.parent
             route = route[::-1]
+            yaws = yaws[::-1]
             last_path = last_path[::-1]
-            self.route = Route(frame=ObjectFrameEnum.START,points=route)
+            self.route = Route(frame=ObjectFrameEnum.START,points=route,yaws=yaws)
             self.last_path = last_path
         
         route = self.route

@@ -35,6 +35,7 @@ planner:
         RS_prob: 0.1
         gear_cost: 5.0
         backward_cost_scale: 1.2
+        precomputed: !relative_path ../heuristics/reeds_shepp.npy
 
 
 #configure the simulator, if using

@@ -148,7 +148,7 @@ class GEMDoubleIntegratorSimulation:
         self.last_reading.steering_wheel_angle = 0.0
         self.last_reading.accelerator_pedal_position = 0.0
         self.last_reading.brake_pedal_position = 0.0
-        self.last_reading.gear = -1
+        self.last_reading.gear = 0
         self.last_reading.left_turn_signal = False
         self.last_reading.right_turn_signal = False
         self.last_reading.horn_on = False
