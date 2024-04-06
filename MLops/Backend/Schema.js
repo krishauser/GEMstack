@@ -10,10 +10,6 @@ const Models = new mongoose.Schema({
        type: String,
        required: true
     },
-    DateTime: {
-        type: Date,
-        default: Date.now
-    },
     Description: {
        type: String,
     }
@@ -28,10 +24,6 @@ const Data = new mongoose.Schema({
     Path: {
        type: String,
        required: true
-    },
-    DateTime: {
-        type: Date,
-        default: Date.now
     },
     Description: {
        type: String,

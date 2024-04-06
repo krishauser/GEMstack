@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, send_file, render_template,request
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
+from pymongo.objectid import ObjectId
 import json
 import os
 from pathlib import Path
@@ -56,7 +57,7 @@ def upload_model():
 
     if file:
         filename = secure_filename(file.filename)
-        path = Path(app.config['UPLOAD_FOLDER']) / filename
+        path = str(Path(app.config['UPLOAD_FOLDER']) / filename)
         file.save(path)
 
         # Check if the model with the same ModelName exists
@@ -80,7 +81,7 @@ def upload_model():
 
 @app.route('/models/<int:id>', methods=['GET'] )
 def list_model_info(id):
-    model_info = db.Models.find_one({'ID': id}, {'_id': 0, 'ID': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
+    model_info = db.Models.find_one({'_id': ObjectId(id)}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
     if model_info:
         return jsonify(model_info)
     else:
@@ -95,13 +96,13 @@ def update_model(id):
         update_data['ModelName'] = data['ModelName']
     if 'Description' in data:
         update_data['Description'] = data['Description']
-    db.Models.update_one({'ID': id}, {'$set': update_data})
+    db.Models.update_one({'_id': ObjectId(id)}, {'$set': update_data})
     return jsonify({"message": "Model updated successfully"})
 
 
 @app.route('/models/retrieval/<int:id>', methods=['GET'])
 def retrieve_model(id):
-    model = db.Models.find_one({'ID': id}, {'_id': 0, 'Path': 1})
+    model = db.Models.find_one({'_id': ObjectId(id)}, {'_id': 1, 'Path': 1})
     if model and 'Path' in model:
         return send_file(model['Path'], as_attachment=True)
     else:
@@ -110,7 +111,7 @@ def retrieve_model(id):
 
 @app.route('/datasets', methods=['GET'])
 def list_all_datasets():
-    datasets = db.Data.find({}, {'_id': 0, 'ID': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
+    datasets = db.Data.find({}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
     return jsonify(list(datasets))
 
 
@@ -125,7 +126,7 @@ def upload_dataset():
 
     if file:
         filename = secure_filename(file.filename)
-        path = Path(app.config['DATASET_UPLOAD_FOLDER']) / filename
+        path = str(Path(app.config['DATASET_UPLOAD_FOLDER']) / filename)
         file.save(path)
 
         # Check if the dataset with the same DataName exists
@@ -151,7 +152,7 @@ def upload_dataset():
 
 @app.route('/datasets/<int:id>', methods=['GET'])
 def list_dataset_info(id):
-    dataset = db.Data.find_one({'ID': id}, {'_id': 0, 'ID': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
+    dataset = db.Data.find_one({'_id': ObjectId(id)}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
     if dataset:
         return jsonify(dataset)
     else:
@@ -166,13 +167,13 @@ def update_dataset(id):
         update_data['DataName'] = data['DataName']
     if 'Description' in data:
         update_data['Description'] = data['Description']
-    db.Data.update_one({'ID': id}, {'$set': update_data})
+    db.Data.update_one({'_id': ObjectId(id)}, {'$set': update_data})
     return jsonify({"message": "Dataset updated successfully"})
 
 
 @app.route('/datasets/retrieval/<int:id>', methods=['GET'])
 def retrieve_dataset(id):
-    dataset = db.Data.find_one({'ID': id}, {'_id': 0, 'Path': 1})
+    dataset = db.Data.find_one({'_id': ObjectId(id)}, {'_id': 1, 'Path': 1})
     if dataset and 'Path' in dataset:
         return send_file(dataset['Path'], as_attachment=True)
     else:
