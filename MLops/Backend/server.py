@@ -79,7 +79,8 @@ def upload_model():
             return jsonify({'message': 'Model uploaded successfully', 'filename': filename}), 200
 
 
-@app.route('/models/<int:id>', methods=['GET'] )
+
+@app.route('/models/<id>', methods=['GET'] )
 def list_model_info(id):
     model_info = db.Models.find_one({'_id': ObjectId(id)}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
     if model_info:
@@ -88,19 +89,17 @@ def list_model_info(id):
         return jsonify({"error": "Model not found"}), 404
 
 
-@app.route('/models/<int:id>', methods=['PUT'])
+@app.route('/models/<id>', methods=['PUT'])
 def update_model(id):
     data = request.json
     update_data = {}
-    if 'ModelName' in data and data['ModelName']:
-        update_data['ModelName'] = data['ModelName']
     if 'Description' in data:
         update_data['Description'] = data['Description']
     db.Models.update_one({'_id': ObjectId(id)}, {'$set': update_data})
     return jsonify({"message": "Model updated successfully"})
 
 
-@app.route('/models/retrieval/<int:id>', methods=['GET'])
+@app.route('/models/retrieval/<id>', methods=['GET'])
 def retrieve_model(id):
     model = db.Models.find_one({'_id': ObjectId(id)}, {'_id': 1, 'Path': 1})
     if model and 'Path' in model:
@@ -150,7 +149,7 @@ def upload_dataset():
             return jsonify({'message': 'Dataset uploaded successfully', 'filename': filename}), 200
 
 
-@app.route('/datasets/<int:id>', methods=['GET'])
+@app.route('/datasets/<id>', methods=['GET'])
 def list_dataset_info(id):
     dataset = db.Data.find_one({'_id': ObjectId(id)}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
     if dataset:
@@ -159,7 +158,7 @@ def list_dataset_info(id):
         return jsonify({"error": "Dataset not found"}), 404
 
 
-@app.route('/datasets/<int:id>', methods=['PUT'])
+@app.route('/datasets/<id>', methods=['PUT'])
 def update_dataset(id):
     data = request.json
     update_data = {}
@@ -171,7 +170,7 @@ def update_dataset(id):
     return jsonify({"message": "Dataset updated successfully"})
 
 
-@app.route('/datasets/retrieval/<int:id>', methods=['GET'])
+@app.route('/datasets/retrieval/<id>', methods=['GET'])
 def retrieve_dataset(id):
     dataset = db.Data.find_one({'_id': ObjectId(id)}, {'_id': 1, 'Path': 1})
     if dataset and 'Path' in dataset:
