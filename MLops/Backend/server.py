@@ -56,7 +56,7 @@ def upload_model():
 
     if file:
         filename = secure_filename(file.filename)
-        path = Path(app.config['UPLOAD_FOLDER'], filename)
+        path = Path(app.config['UPLOAD_FOLDER']) / filename
         file.save(path)
 
         # Check if the model with the same ModelName exists
@@ -125,7 +125,7 @@ def upload_dataset():
 
     if file:
         filename = secure_filename(file.filename)
-        path = Path(app.config['DATASET_UPLOAD_FOLDER'], filename)
+        path = Path(app.config['DATASET_UPLOAD_FOLDER']) / filename
         file.save(path)
 
         # Check if the dataset with the same DataName exists
