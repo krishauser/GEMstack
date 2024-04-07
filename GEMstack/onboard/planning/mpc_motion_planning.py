@@ -29,6 +29,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
 
     a_min, a_max = -0.5, 0.5
     v_min, v_max = -1, 1
+    y_min, y_max = -2,2
 
     v0 = np.clip(v0, v_min, v_max) # TODO: clip to avoid constrain issues, should be handled more carefully
 
@@ -61,7 +62,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
 
         # Obstacle constraints
         # TODO: Add soft constraints
-        penalty_scale = 2000
+        penalty_scale = 800
         obstacle_penalty = 0
         for obs in obstacles:
             obs_x, obs_y, obs_w, obs_l, obs_h = obs
@@ -74,6 +75,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
     opti.subject_to(opti.bounded(a_min, U[0,:], a_max))
     opti.subject_to(opti.bounded(delta_min, U[1,:], delta_max))
     opti.subject_to(opti.bounded(v_min, X[3,:], v_max))
+    opti.subject_to(opti.bounded(y_min, X[2,:], y_max))
     # opti.subject_to(opti.bounded(omega_min, U[1,:], omega_max))
     # opti.subject_to(opti.bounded(delta_min, X[4,:], delta_max))
     
@@ -86,18 +88,35 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
     # Solver
     opts = {"ipopt.print_level": 0, "print_time": 0}
     opti.solver("ipopt", opts)
+    try: 
+        sol = opti.solve()
+        x_sol = sol.value(X[0,:])
+        y_sol = sol.value(X[1,:])
+        theta_sol = sol.value(X[2,:])
+        v_sol = sol.value(X[3,:])[0]
+        delta_sol = sol.value(U[1,:])[0]
+        acc_sol = sol.value(U[0,:])[0]
+        # delta_sol = sol.value(X[4,:])[0]
+        # omega_sol = sol.value(U[1,:])[0]
+        return delta_sol, acc_sol
+    except RuntimeError as e:  
+        if "Infeasible_Problem_Detected" in str(e):
+            return 0,0
 
-    sol = opti.solve()
-    x_sol = sol.value(X[0,:])
-    y_sol = sol.value(X[1,:])
-    theta_sol = sol.value(X[2,:])
-    v_sol = sol.value(X[3,:])[0]
-    delta_sol = sol.value(U[1,:])[0]
-    acc_sol = sol.value(U[0,:])[0]
-    # delta_sol = sol.value(X[4,:])[0]
-    # omega_sol = sol.value(U[1,:])[0]
+def find_closest_agent(agents, pose):
+    min_distance = float('inf')  
+    closest_agent = None 
 
-    return delta_sol, acc_sol
+    for agent in agents:
+        # Calculate distance between the agent's position and the car's position
+        distance = ((agent[0] - pose[0]) ** 2 + (agent[1] - pose[1]) ** 2) ** 0.5
+        # Update the closest agent if a closer one is found
+        if distance < min_distance:
+            min_distance = distance
+            closest_agent = agent
+
+    return min_distance
+   
 
 class MPCTrajectoryPlanner(Component):
     def __init__(self,vehicle_interface=None, **args):
@@ -133,6 +152,14 @@ class MPCTrajectoryPlanner(Component):
         if np.sqrt((x_start - x_goal)**2 + (y_start - y_goal)**2) <= 0.1: # threshold for reaching the goal
             wheel_angle = 0
             accel = 0
+        
+        collision_dis = find_closest_agent(agents, pose = [vehicle.pose.x, vehicle.pose.y])
+        if collision_dis <= 5:
+            accel = -0.5
+            if vehicle.v == 0:
+                accel = 0
+
+        print("collision distance: ", collision_dis)
         steering_angle = np.clip(front2steer(wheel_angle), self.steering_angle_range[0], self.steering_angle_range[1])
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
 
