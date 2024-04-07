@@ -85,11 +85,11 @@ def upload_model():
             return jsonify({'message': 'Model uploaded successfully', 'filename': filename}), 200
 
 
-
 @app.route('/models/<id>', methods=['GET'] )
 def list_model_info(id):
     model_info = db.Models.find_one({'_id': ObjectId(id)}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
     if model_info:
+        model_info['_id'] = str(model_info['_id'])
         return jsonify(model_info)
     else:
         return jsonify({"error": "Model not found"}), 404
@@ -168,6 +168,7 @@ def upload_dataset():
 def list_dataset_info(id):
     dataset = db.Data.find_one({'_id': ObjectId(id)}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
     if dataset:
+        dataset['_id'] = str(dataset['_id'])
         return jsonify(dataset)
     else:
         return jsonify({"error": "Dataset not found"}), 404
