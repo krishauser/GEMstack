@@ -89,5 +89,5 @@ Run `pip install -r requirements.txt`to install the required dependencies.
 - **Returns:** JSON response indicating the success or failure of the upload operation.
 
 # Running the Server
-Execute `python app.py` to run the Flask server.
+Execute `python server.py` to run the Flask server.
 The server will run in debug mode, enabling real-time debugging information in the console.
