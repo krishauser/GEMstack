@@ -1,8 +1,7 @@
 import requests
 import os
 from tqdm import tqdm
-
-from urllib.parse import unquote
+from urllib.parse import unquote, urljoin
 
 class APIClient:
     def __init__(self, base_url):
@@ -34,11 +33,38 @@ class APIClient:
             print(f"Failed to download the file. Status code: {response.status_code}")
 
     def upload_file(self, file_path):
-        with open(file_path, 'rb') as f:
-            files = {'file': f}
-            response = requests.post(f"{self.base_url}/files", files=files)
-            if response.status_code == 200:
-                return response.json()
-            else:
-                response.raise_for_status()
+        if not os.path.isfile(file_path):
+            print("File does not exist.")
+            return
+        
+        try:
+            with open(file_path, 'rb') as f:
+                files = {'file': f}
+                response = requests.post(f"{self.base_url}/files", files=files)
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    response.raise_for_status()
+        except requests.RequestException as e:
+            print(f"Request failed: {e}")
+
+    # def convert_rosbag(self, file_path):
+    #     if not os.path.isfile(file_path):
+    #         print("File does not exist.")
+    #         return
+        
+    #     try:
+    #         with open(file_path, 'rb') as f:
+    #             convert_url = urljoin(self.base_url, '/convert_rosbag')
+    #             files = {'file': (os.path.basename(file_path), f, 'application/octet-stream')}
+    #             response = requests.post(convert_url, files=files)
+                
+    #             if response.status_code == 200:
+    #                 print("File uploaded successfully, conversion started.")
+    #                 return response.json()
+    #             else:
+    #                 print(f"Failed to upload the file. Status code: {response.status_code}")
+    #                 response.raise_for_status()
+    #     except requests.RequestException as e:
+    #         print(f"Request failed: {e}")
                 
