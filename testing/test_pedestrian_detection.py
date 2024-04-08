@@ -14,6 +14,7 @@ import numpy as np
 import pathlib
 from ultralytics import YOLO
 import matplotlib.pyplot as plt
+import random
 
 # for klampt
 from klampt import vis
@@ -32,10 +33,11 @@ import argparse
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--test_target', '-t', type=str, required=True, 
-                    choices=['lidar_to_image', 'detect_agents', 'box_to_agent', 'update'])
+                    choices=['fuse', 'lidar_to_image', 'lidar_to_image_dbscan',
+                             'detect_agents', 'box_to_agent', 'update'])
 parser.add_argument('--output_dir', '-o', type=str, default='save')
-parser.add_argument('--src_dir', '-s', type=str, default='./data/step1')
-parser.add_argument('--data_idx', '-i', type=int, default=4)
+parser.add_argument('--src_dir', '-s', type=str, default='./data/gt')
+parser.add_argument('--data_idx', '-i', type=int, default=1)
 
 args = parser.parse_args()
 
@@ -114,13 +116,158 @@ def klampt_vis(zed_image, lidar_point_cloud, depth):
         time.sleep(0.02)
     vis.kill()
 
+import matplotlib.pyplot as plt
+from sklearn.cluster import DBSCAN
+
+colors = []
+colors += [(i, 0, 255) for i in range(100, 256, 25)]
+colors += [(i, 255, 0) for i in range(100, 256, 25)]
+colors += [(0, i, 255) for i in range(100, 256, 25)]
+colors += [(255, i, 0) for i in range(100, 256, 25)]
+colors += [(255, 0, i) for i in range(100, 256, 25)]
+colors += [(0, 255, i) for i in range(100, 256, 25)]
+seed = 19
+random.seed(seed)
+random.shuffle(colors)
+
+id2str = {
+    0: "pedestrian",
+    2: "car",
+    11: "stop sign"
+}
+    
+
 class TestHelper:
     def __init__(self, ped_detector, point_cloud, zed_image, depth):
         self.ped_detector = ped_detector
+        self.yolo_detector = ped_detector.detector
         self.point_cloud = point_cloud
         self.zed_image = zed_image
         self.depth = depth
+    
+    def test_fuse_lidar_image(self):
+        detection_result = self.yolo_detector(self.zed_image,verbose=False)
+        
+        #TODO: create boxes from detection result
+        boxes = []
+        target_ids = [0, 2, 11]
+        bbox_ids = []
+        for box in detection_result[0].boxes: # only one image, so use index 0 of result
+            class_id = int(box.cls[0].item())
+            if class_id in target_ids: # class 0 stands for pedestrian
+                bbox_ids.append(class_id)
+                bbox = box.xywh[0].tolist()
+                boxes.append(bbox)
+            
+        # Only keep lidar point cloud that lies in roi area for agents
+        filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
+                                                     self.ped_detector.xrange,
+                                                     self.ped_detector.yrange)
+        
+        epsilon = 0.09  # Epsilon parameter for DBSCAN
+        
+        # for epsilon in np.linspace(0.01, 0.2, 10):
+        # Perform DBSCAN clustering
+        min_samples = 5  # Minimum number of samples in a cluster
+        dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+        clusters = dbscan.fit_predict(filtered_point_cloud)
 
+        point_cloud_image = lidar_to_image(filtered_point_cloud, 
+                                        self.ped_detector.extrinsic, 
+                                        self.ped_detector.intrinsic)
+
+        vis = self.zed_image.copy()
+        for i in range(len(boxes)):
+            box = boxes[i]
+            id = bbox_ids[i]
+            print ("id:", id)
+            
+            x,y,w,h = box
+            xmin, xmax = x - w/2, x + w/2
+            ymin, ymax = y - h/2, y + h/2
+            
+            # Filter. Get the idxs of point cloud that belongs to the agent
+            idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
+                            (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
+            agent_image_pc = point_cloud_image[idxs]
+            agent_pc_3D = filtered_point_cloud[idxs]
+            agent_clusters = clusters[idxs]
+            
+            # draw bbox
+            color =  (255, 0, 255)
+            left_up = (int(x-w/2), int(y-h/2))
+            right_bottom = (int(x+w/2), int(y+h/2))
+            cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
+
+            # Get unique elements and their counts
+            unique_elements, counts = np.unique(agent_clusters, return_counts=True)
+            max_freq = np.max(counts)
+            label_cluster = unique_elements[counts == max_freq]
+            
+            # filter again
+            idxs = agent_clusters == label_cluster
+            agent_image_pc = agent_image_pc[idxs]
+            agent_clusters = agent_clusters[idxs]
+            agent_pc_3D = agent_pc_3D[idxs]
+            
+            # calulate depth
+            depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
+            
+            # draw
+            text = str(id2str[id])
+            text += f" | depth: {depth:.2f}"
+            text_size, baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
+            p1 = (left_up[0], left_up[1] - text_size[1])
+            cv2.rectangle(vis, (p1[0] - 2 // 2, p1[1] - 2 - baseline), (p1[0] + text_size[0], p1[1] + text_size[1]),
+                        color, -1)
+            cv2.putText(vis, text, (p1[0], p1[1] + baseline), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, 8)
+            
+            # draw point cloud
+            for proj_pt, cluster in zip(agent_image_pc, agent_clusters):
+                if cluster != label_cluster:
+                    continue
+                color = colors[cluster % len(colors)]
+                radius = 1
+                center = int(proj_pt[0]), int(proj_pt[1])
+                vis = cv2.circle(vis, center, radius, color, cv2.FILLED)
+            
+            
+        # output
+        pathlib.Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+        output_path = os.path.join(OUTPUT_DIR, f'fuse_{epsilon}_{args.data_idx}.png')
+        print ('Output lidar_to_image result:', output_path)
+        cv2.imwrite(output_path, vis)
+        
+    def test_lidar_to_image_dbscan(self):
+        print ('\nTest function lidar_to_image_dbscan()...')
+        filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
+                                                     self.ped_detector.xrange,
+                                                     self.ped_detector.yrange)
+        
+        epsilon = 0.09  # Epsilon parameter for DBSCAN
+        
+        # for epsilon in np.linspace(0.01, 0.2, 10):
+        # Perform DBSCAN clustering
+        min_samples = 5  # Minimum number of samples in a cluster
+        dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+        clusters = dbscan.fit_predict(filtered_point_cloud)
+
+        point_cloud_image = lidar_to_image(filtered_point_cloud, 
+                                        self.ped_detector.extrinsic, 
+                                        self.ped_detector.intrinsic)
+    
+        vis = self.zed_image.copy()
+        for proj_pt, cluster in zip(point_cloud_image, clusters):
+            color = colors[cluster % len(colors)]
+            radius = 1
+            center = int(proj_pt[0]), int(proj_pt[1])
+            vis = cv2.circle(vis, center, radius, color, cv2.FILLED)
+        
+        pathlib.Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
+        output_path = os.path.join(OUTPUT_DIR, f'lidar_to_image_{epsilon}.png')
+        print ('Output lidar_to_image result:', output_path)
+        cv2.imwrite(output_path, vis)
+        
     def test_lidar_to_image(self):
         print ('\nTest function lidar_to_image()...')
         filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
@@ -186,6 +333,13 @@ class TestHelper:
                                                   ped_detector.xrange, 
                                                   ped_detector.yrange)
         
+        
+        # Perform DBSCAN clustering
+        epsilon = 0.09  # Epsilon parameter for DBSCAN
+        min_samples = 5  # Minimum number of samples in a cluster
+        dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+        clusters = dbscan.fit_predict(point_cloud_lidar)
+
         # Tansfer lidar point cloud to camera frame
         point_cloud_image = lidar_to_image(point_cloud_lidar, ped_detector.extrinsic, ped_detector.intrinsic)
         
@@ -196,9 +350,9 @@ class TestHelper:
         detected_agents = []
         print ('Detected {} persons'.format(len(pedestrian_boxes)))
         for i,b in enumerate(pedestrian_boxes):
-            agent = ped_detector.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            plot_object('agent', agent)
-        klampt_vis(self.zed_image, point_cloud_lidar, self.depth)
+            agent = ped_detector.box_to_agent(b, point_cloud_image, point_cloud_image_world, clusters)
+        #     plot_object('agent', agent)
+        # klampt_vis(self.zed_image, point_cloud_lidar, self.depth)
           
 
 
@@ -222,8 +376,12 @@ if __name__=='__main__':
     
     test_helper = TestHelper(ped_detector, point_cloud, image, depth)
     
+    if args.test_target == 'fuse':
+        test_helper.test_fuse_lidar_image()
     if args.test_target == 'lidar_to_image':
         test_helper.test_lidar_to_image()
+    if args.test_target == 'lidar_to_image_dbscan':
+        test_helper.test_lidar_to_image_dbscan()
     if args.test_target == 'detect_agents':
         test_helper.test_detect_agents()
     if args.test_target == 'box_to_agent':

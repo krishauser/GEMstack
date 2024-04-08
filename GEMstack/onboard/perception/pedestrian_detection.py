@@ -15,6 +15,7 @@ import numpy as np
 from typing import Dict,Tuple, List
 import time
 from numpy.linalg import inv
+from sklearn.cluster import DBSCAN
 
 def Pmatrix(fx,fy,cx,cy):
     """Returns a projection matrix for a given set of camera intrinsics."""
@@ -89,8 +90,6 @@ class PedestrianDetector(Component):
         self.camera_info = None
         self.zed_image = None
         self.last_person_boxes = []
-        self.last_car_boxes = [] # add car objects
-        self.last_stop_boxes = [] # add stop sign
         # self.lidar_translation = np.array(settings.get('vehicle.calibration.top_lidar.position'))
         # self.lidar_rotation = np.array(settings.get('vehicle.calibration.top_lidar.rotation'))
         # self.zed_translation = np.array(settings.get('vehicle.calibration.front_camera.rgb_position'))
@@ -133,8 +132,8 @@ class PedestrianDetector(Component):
 
         # obtained by GEMstack/offboard/calibration/check_target_lidar_range.py
         # Hardcode the roi area for agents
-        self.xrange = (2.3959036, 5.8143473)
-        self.yrange = (-2.0247698, 4.0374074)
+        self.xrange = (2.3959036, 100)
+        self.yrange = (-200.0247698, 100.0374074)
         
     def rate(self):
         return 4.0
@@ -193,7 +192,7 @@ class PedestrianDetector(Component):
         self.last_agent_states = current_agent_states
         return current_agent_states
 
-    def box_to_agent(self, box, point_cloud_image, point_cloud_image_world):
+    def box_to_agent(self, box, point_cloud_image, point_cloud_image_world, clusters):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
 
         TODO: you need to use the image, the camera intrinsics, the lidar
@@ -208,32 +207,23 @@ class PedestrianDetector(Component):
         xmin, xmax = x - w/2, x + w/2
         ymin, ymax = y - h/2, y + h/2
         
-        print ('box xywh:', box)
+        # Filter. Get the idxs of point cloud that belongs to the agent
+        idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
+                        (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
+        agent_image_pc = point_cloud_image[idxs]
+        agent_pc_3D = point_cloud_image_world[idxs]
+        agent_clusters = clusters[idxs]
+
+        # Get unique elements and their counts
+        unique_elements, counts = np.unique(agent_clusters, return_counts=True)
+        max_freq = np.max(counts)
+        label_cluster = unique_elements[counts == max_freq]
         
-        # enlarge bbox in case inaccuracy calibration
-        enlarge_factor = 3
-        xmin *= enlarge_factor
-        xmax *= enlarge_factor
-        ymin *= enlarge_factor
-        ymax *= enlarge_factor
-
-        agent_world_pc = point_cloud_image_world
-
-        # idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
-        #                 (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
-        
-        # agent_image_pc = point_cloud_image[idxs]
-        # agent_world_pc = point_cloud_image_world[idxs]
-        # print ('# of agent_world_pc:', len(agent_world_pc))
-        # if len(agent_world_pc) == 0: # might FP bbox from YOLO
-        #     return None
-
-        # Find the point_cloud that is closest to the center of our bounding box
-        center_x = x + w / 2
-        center_y = y + h / 2
-        distances = np.linalg.norm(point_cloud_image - [center_x, center_y], axis=1)
-        closest_point_cloud_idx = np.argmin(distances)
-        closest_point_cloud = point_cloud_image_world[closest_point_cloud_idx]
+        # filter again
+        idxs = agent_clusters == label_cluster
+        agent_image_pc = agent_image_pc[idxs]
+        agent_clusters = agent_clusters[idxs]
+        agent_pc_3D = agent_pc_3D[idxs]
 
         #########################################################################################################
         # Definition of ObjectPose and dimensions:
@@ -248,43 +238,51 @@ class PedestrianDetector(Component):
         #########################################################################################################
         
         # Specify ObjectPose. Note that The pose's yaw, pitch, and roll are assumed to be 0 for simplicity.
-        x, y, _ = closest_point_cloud
-        pose = ObjectPose(t=0, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
-        print ('pose xy:', x, y)
+        
+        # calulate depth
+        depth_x = np.mean(agent_pc_3D[:, 0])
+        depth_y = np.mean(agent_pc_3D[:, 1])
+        depth = (depth_x ** 2 + depth_y ** 2) ** 0.5 # euclidean dist
+        print (f'depth_x: {depth_x}, depth_y: {depth_y}')
+        
+        # x, y, _ = closest_point_cloud
+        pose = ObjectPose(t=0, x=depth_x, y=depth_y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
         
         # Specify AgentState.
-        l = np.max(agent_world_pc[:, 0]) - np.min(agent_world_pc[:, 0])
-        w = np.max(agent_world_pc[:, 1]) - np.min(agent_world_pc[:, 1])
-        h = np.max(agent_world_pc[:, 2]) - np.min(agent_world_pc[:, 2])
+        l = np.max(agent_pc_3D[:, 0]) - np.min(agent_pc_3D[:, 0])
+        w = np.max(agent_pc_3D[:, 1]) - np.min(agent_pc_3D[:, 1])
+        h = np.max(agent_pc_3D[:, 2]) - np.min(agent_pc_3D[:, 2])
         # dims = (2, 2, 1.7)
-        dims = (w, h, l) 
+        dims = (l, w, h) 
         
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
-        
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
         
         #TODO: create boxes from detection result
-        pedestrian_boxes = []
-        car_boxes = [] # add car objects
-        stop_boxes = [] # add stop sign
+        boxes = []
+        # target_ids = [0, 2, 11]
+        target_ids = [0]
+        bbox_ids = []
         for box in detection_result[0].boxes: # only one image, so use index 0 of result
             class_id = int(box.cls[0].item())
-            if class_id == 0: # class 0 stands for pedestrian
+            if class_id in target_ids: 
+                bbox_ids.append(class_id)
                 bbox = box.xywh[0].tolist()
-                pedestrian_boxes.append(bbox)
-            
-            if class_id == 2: # class 2 stands for car
-                bbox = box.xywh[0].tolist()
-                car_boxes.append(bbox)
-            
-            if class_id == 11: # class 11 stands for stop sign
-                bbox = box.xywh[0].tolist()
-                stop_boxes.append(bbox)
+                boxes.append(bbox)
+        
     
         # Only keep lidar point cloud that lies in roi area for agents
         point_cloud_lidar = filter_lidar_by_range(self.point_cloud, self.xrange, self.yrange)
+        
+        
+        # Perform DBSCAN clustering
+        epsilon = 0.09  # Epsilon parameter for DBSCAN
+        min_samples = 5  # Minimum number of samples in a cluster
+        dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+        clusters = dbscan.fit_predict(point_cloud_lidar)
+
         
         # Tansfer lidar point cloud to camera frame
         point_cloud_image = lidar_to_image(point_cloud_lidar, self.extrinsic, self.intrinsic)
@@ -294,20 +292,11 @@ class PedestrianDetector(Component):
 
         # Find agents
         detected_agents = []
-        for i,b in enumerate(pedestrian_boxes):
-            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
+        for i,b in enumerate(boxes):
+            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world, clusters)
             if agent is not None:
                 detected_agents.append(agent)
         
-        for i,b in enumerate(car_boxes):
-            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            if agent is not None:
-                detected_agents.append(agent)
-        
-        for i,b in enumerate(stop_boxes):
-            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            if agent is not None:
-                detected_agents.append(agent)
         return detected_agents
         
     def estimate_velocity(self, prev_pose, current_pose) -> tuple:
