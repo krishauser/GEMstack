@@ -17,7 +17,7 @@ safety_margin = 0.1
 dt = 0.5
 
 # Setup the MPC problem 
-def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, obstacles):
+def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, agents):
     """
     Setup and solve the MPC problem.
     Returns the first control inputs (v, delta) from the optimized trajectory.
@@ -64,9 +64,11 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
         # TODO: Add soft constraints
         penalty_scale = 800
         obstacle_penalty = 0
-        for obs in obstacles:
-            obs_x, obs_y, obs_w, obs_l, obs_h = obs
-            distance_squared = (X[0,k] - obs_x)**2 + (X[1,k] - obs_y)**2
+        for agent in agents:
+            # TODO: Compute loss based on the front of the car
+            obs_x, obs_y, obs_w, obs_l, obs_h = agent.pose.x, agent.pose.y, *agent.dimensions
+            obs_vx, obs_vy, obs_vz = agent.velocity_local()
+            distance_squared = (X[0,k] - (obs_x + obs_vx*dt*k))**2 + (X[1,k] - (obs_y + obs_vy*dt*k))**2
             # opti.subject_to(distance_squared >= obs_w**2)
             obstacle_penalty += penalty_scale / (distance_squared + 1)
 
@@ -101,7 +103,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
         return delta_sol, acc_sol
     except RuntimeError as e:  
         if "Infeasible_Problem_Detected" in str(e):
-            return 0,0
+            return 0,0 # TODO: handle breaking
 
 def find_closest_agent(agents, pose):
     min_distance = float('inf')  
@@ -142,7 +144,8 @@ class MPCTrajectoryPlanner(Component):
         x_goal, y_goal, theta_goal, v_goal = *route.points[-1], 0., 0.
 
         agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
-        agents = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
+        obstacle = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
+
 
         wheel_angle, accel = setup_mpc(self.N, dt, L, x_start, y_start, theta_start, v_start, \
                                               x_goal, y_goal, theta_goal, v_goal, agents)
@@ -153,8 +156,8 @@ class MPCTrajectoryPlanner(Component):
             wheel_angle = 0
             accel = 0
         
-        collision_dis = find_closest_agent(agents, pose = [vehicle.pose.x, vehicle.pose.y])
-        if collision_dis <= 5:
+        collision_dis = find_closest_agent(obstacle, pose = [vehicle.pose.x, vehicle.pose.y])
+        if collision_dis <= 6:
             accel = -0.5
             if vehicle.v == 0:
                 accel = 0
