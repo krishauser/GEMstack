@@ -2,6 +2,8 @@ import requests
 import os
 from tqdm import tqdm
 from urllib.parse import unquote, urljoin
+import time
+import zipfile
 
 class APIClient:
     def __init__(self, base_url):
@@ -61,10 +63,46 @@ class APIClient:
                 
     #             if response.status_code == 200:
     #                 print("File uploaded successfully, conversion started.")
-    #                 return response.json()
+    #                 conversion_result = response.json()
+    #                 if 'result_url' in conversion_result:
+    #                     self.download_conversion_result(conversion_result['result_url'])
+    #                 elif 'job_id' in conversion_result:
+    #                     self.poll_and_download_result(conversion_result['job_id'])
+    #                 else:
+    #                     print("Conversion initiated, but no result URL or job ID was provided.")
     #             else:
     #                 print(f"Failed to upload the file. Status code: {response.status_code}")
     #                 response.raise_for_status()
     #     except requests.RequestException as e:
     #         print(f"Request failed: {e}")
+
+    # def poll_and_download_result(self, job_id):
+    #     result_url = urljoin(self.base_url, f'/conversion_result/{job_id}')
+    #     while True:
+    #         response = requests.get(result_url)
+    #         if response.status_code == 200:
+    #             result = response.json()
+    #             if result.get('status') == 'completed':
+    #                 self.download_conversion_result(result['download_url'])
+    #                 break
+    #             elif result.get('status') == 'failed':
+    #                 print("Conversion failed.")
+    #                 break
+    #         else:
+    #             print("Error polling the conversion result.")
+    #         time.sleep(10) 
+
+    # def download_conversion_result(self, result_url):
+    #     response = requests.get(result_url, stream=True)
+    #     if response.status_code == 200:
+    #         zip_path = os.path.join(self.save_directory, 'conversion_result.zip')
+    #         with open(zip_path, 'wb') as f:
+    #             for chunk in response.iter_content(chunk_size=128):
+    #                 f.write(chunk)
+    #         print("Conversion result downloaded. Extracting...")
+    #         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    #             zip_ref.extractall(self.save_directory)
+    #         print("Result extracted successfully.")
+    #     else:
+    #         print(f"Failed to download the conversion result. Status code: {response.status_code}")
                 
