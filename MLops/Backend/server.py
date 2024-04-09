@@ -1,4 +1,5 @@
 from flask import Flask, jsonify, send_file, render_template,request
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -7,6 +8,7 @@ import os
 from pathlib import Path
 
 app = Flask(__name__)
+CORS(app)
 app.config['MODEL_UPLOAD_FOLDER'] = '../model'
 app.config['DATASET_UPLOAD_FOLDER'] = '../dataset'
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024
