@@ -111,23 +111,16 @@ class PedestrianDetector(Component):
         
         # init transformation parameters
         if extrinsic is None:
-            extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
-                        [-0.0675, -0.00499, -0.9977, -0.03123], 
-                        [0.99771, -0.00554, -0.06743, -0.7284],
-                        [0,       0 ,             0 ,      1]]
-
-        # extrinsic_fn = 'GEMstack/knowledge/calibration/lidar2zed.txt'
-        # extrinsic_fn = 'GEMstack/knowledge/calibration/zed2lidar.txt'
-        # extrinsic = np.loadtxt(extrinsic_fn)
-        # extrinsic = inv(extrinsic)
-        
+            extrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_oak2lidar.txt")
         self.extrinsic = np.array(extrinsic)
-        intrinsic = [684.8333129882812, 0.0, 573.37109375, 0.0, 684.6096801757812, 363.700927734375, 0.0, 0.0, 1.0] # e4
+            
+        intrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_intrinsic.txt")
+        # intrinsic = [684.8333129882812, 0.0, 573.37109375, 0.0, 684.6096801757812, 363.700927734375, 0.0, 0.0, 1.0] # e4
+        # intrinsic = np.array(intrinsic).reshape((3, 3))
         # intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0] #e2
-        intrinsic = np.array(intrinsic).reshape((3, 3))
         self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
-        T_lidar2_Gem = np.loadtxt("GEMstack/knowledge/calibration/lidar2vehicle.txt")
+        T_lidar2_Gem = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt")
         self.T_lidar2_Gem = np.asarray(T_lidar2_Gem)
 
         # obtained by GEMstack/offboard/calibration/check_target_lidar_range.py
@@ -254,11 +247,13 @@ class PedestrianDetector(Component):
         h = np.max(agent_pc_3D[:, 2]) - np.min(agent_pc_3D[:, 2])
         # dims = (2, 2, 1.7)
         dims = (l, w, h) 
-        
+
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
+        cv2.imshow('frame', self.zed_image)
+        cv2.waitKey(1)
         
         #TODO: create boxes from detection result
         boxes = []
@@ -388,3 +383,4 @@ class PedestrianDetector(Component):
             CameraInfo = namedtuple('CameraInfo',['width','height','P'])
             #TODO: these are guessed parameters
             self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
+            
