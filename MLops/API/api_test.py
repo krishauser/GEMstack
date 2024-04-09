@@ -1,7 +1,11 @@
 from api import APIClient
+import os
 
-temp = 'http://e3e7-130-126-255-56.ngrok-free.app/models/test'
+id = '6611bfa1432e9a2516c1cf66'
+base_url = 'http://127.0.0.1:5000'
 
-client = APIClient('http://localhost:5000')  
+client = APIClient(base_url)  
 
-client.get_file(temp)# Replace with your server's URL
+wd = os.getcwd()
+
+client.dataset_upload(f"{wd}/yolov8n_test1.pt")
