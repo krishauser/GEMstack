@@ -12,7 +12,7 @@ import numpy as np
 from typing import Dict,Tuple, List
 import time
 from numpy.linalg import inv
-from sklearn.cluster import DBSCAN
+# from sklearn.cluster import DBSCAN
 import sys
 import os
 import cv2
@@ -27,6 +27,15 @@ import struct
 import ctypes
 import sensor_msgs.point_cloud2 as pc2
 import argparse
+
+from cv_bridge import CvBridge
+import numpy as np
+import os
+
+lidar_points = None
+camera_image = None
+depth_image = None
+bridge = CvBridge()
 
 colors = []
 colors += [(i, 0, 255) for i in range(100, 256, 25)]
@@ -109,8 +118,10 @@ class PedestrianDetector():
     """Detects and tracks pedestrians."""
     def __init__(self):
         yolo_path = os.path.join(abs_path, '../GEMstack/knowledge/detection/yolov8n.pt')
+
+
         self.detector = YOLO(yolo_path)
-        
+
         self.pedestrian_counter = 0
         self.last_agent_states = {}
         self.previous_agents = {} 
@@ -147,6 +158,8 @@ class PedestrianDetector():
             print(e)
 
         self.zed_image = cv_image
+        cv2.imwrite("test.png", self.zed_image)
+        exit(1)
 
     def lidar_callback(self, point_cloud):
         # self.point_cloud = point_cloud
@@ -157,12 +170,13 @@ class PedestrianDetector():
             return
         # if self.zed_image is None or self.point_cloud is None:
         #     return 
-        
+      
+
         vis = self.zed_image.copy()
         # vis_pc = self.point_cloud.copy()
         
         t1 = time.time()
-        detection_result = self.detector(self.zed_image,verbose=False)
+        detection_result = self.detector(vis,verbose=False)
         print ('detection time:', time.time() - t1)
         
         #TODO: create boxes from detection result
@@ -214,18 +228,27 @@ def main():
     #     print(f"{key} => {val}")
     #     params.append(param)
 
-    rospy.init_node('rgb_track_node', anonymous=True)
-    rate = rospy.Rate(30)  # Hz
+    # rospy.init_node('rgb_track_node', anonymous=True)
+    # rate = rospy.Rate(30)  # Hz
 
-    ped = PedestrianDetector()
+    # ped = PedestrianDetector()
 
-    try:
-        print ('\nStart navigation...')
-        while not rospy.is_shutdown():
-            rate.sleep()  # Wait a while before trying to get a new waypoints
-            ped.detect_agents()
-    except rospy.ROSInterruptException:
-        pass
+    # try:
+    #     print ('\nStart navigation...')
+    #     while not rospy.is_shutdown():
+    #         rate.sleep()  # Wait a while before trying to get a new waypoints
+    #         ped.detect_agents()
+    # except rospy.ROSInterruptException:
+    #     pass
+
+    img = cv2.imread('test.png')
+    yolo_path = os.path.join(abs_path, '../GEMstack/knowledge/detection/yolov8n.pt')
+    detector = YOLO(yolo_path)
+
+    for i in range(10): 
+        t1 = time.time()
+        detection_result = detector(img,verbose=False)
+        print (f'{i} detection time:', time.time() - t1)
 
 
 if __name__ == '__main__':
