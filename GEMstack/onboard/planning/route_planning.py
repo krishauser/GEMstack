@@ -11,6 +11,7 @@ from time import time
 from dataclasses import replace
 from queue import PriorityQueue
 import numpy as np
+import math
 
 
 class StaticRoutePlanner(Component):
@@ -175,6 +176,9 @@ class SearchNavigationRoutePlanner(Component):
         self.LATERAL_DISTANCE_BUFFER = .5
         self.LONGITUDINAL_DISTANCE_BUFFER = .5
 
+        # for replan debug
+        self.debug_counter = 0
+
 
         print("NavigationRoutePlanner: start",start)
         print("NavigationRoutePlanner: end",end)
@@ -226,8 +230,36 @@ class SearchNavigationRoutePlanner(Component):
                 if not check_constraints(p):
                     return False
             return True
+
+        # if perception algorithm change
+        ## TO DO: update state.end in perception algorithm
+        replan = False
+        print("TEST END: ", state.end)
+        self.debug_counter+=1
+        if self.end != state.end and self.debug_counter > 3:
+            replan = True
+
+            current_x, current_y, current_yaw = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw
+
+            # Transpose the end position to the original start frame
+            dx = state.end[0] - current_x
+            dy = state.end[1] - current_y
+
+            dx_rot = dx * math.cos(current_yaw) - dy * math.sin(current_yaw)
+            dy_rot = dx * math.sin(current_yaw) + dy * math.cos(current_yaw)
+
+            new_x = current_x + dx_rot
+            new_y = current_y + dy_rot
+            new_yaw = state.end[2] + (current_yaw - self.start[2])
+
+            state.end[0] = new_x
+            state.end[1] = new_y
+            state.end[2] = new_yaw
+
+            self.end = state.end
+            print("END AFTER TRANSPOASE: ", state.end)
         
-        if self.last_path is None or not check_path(self.last_path): # replan when last route is not valid
+        if replan or self.last_path is None or not check_path(self.last_path): # replan when last route is not valid
             start = [*self.start[:3], 0]
             end = [*self.end[:3], 0]
             root = Node(start,0,heuristic=self.heuristic(start,end))
@@ -280,5 +312,4 @@ class SearchNavigationRoutePlanner(Component):
             self.last_path = last_path
         
         route = self.route
-        
         return route
