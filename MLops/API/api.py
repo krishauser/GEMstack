@@ -7,7 +7,7 @@ import time
 import zipfile
 
 class APIClient:
-    def __init__(self, base_url):
+    def __init__(self, base_url='https://06e7-130-126-255-33.ngrok-free.app'):
         self.base_url = base_url
         self.save_directory = os.getcwd()
         
