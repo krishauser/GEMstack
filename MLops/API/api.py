@@ -216,3 +216,43 @@ class APIClient:
     #         print("Result extracted successfully.")
     #     else:
     #         print(f"Failed to download the conversion result. Status code: {response.status_code}")
+
+
+
+
+
+    # def upload_and_convert_rosbag(self, file_path):
+
+    #         if not os.path.isfile(file_path):
+    #             print("File does not exist.")
+    #             return
+
+    #         try:
+    #             with open(file_path, 'rb') as f:
+    #                 convert_url = urljoin(self.base_url, '/convert_rosbag')
+    #                 files = {'file': (os.path.basename(file_path), f, 'application/octet-stream')}
+    #                 response = requests.post(convert_url, files=files)
+
+    #                 if response.status_code == 200:
+    #                     print("File uploaded successfully, conversion started.")
+    #                     result_url = response.json().get('result_url')
+    #                     if result_url:
+    #                         self.download_conversion_result(result_url)
+    #                     else:
+    #                         print("Conversion initiated, but no result URL was provided.")
+    #                 else:
+    #                     print(f"Failed to upload the file. Status code: {response.status_code}")
+    #                     response.raise_for_status()
+    #         except requests.RequestException as e:
+    #             print(f"Request failed: {e}")
+
+    # def download_conversion_result(self, result_url):
+    #     response = requests.get(result_url, stream=True)
+    #     if response.status_code == 200:
+    #         zip_path = os.path.join(self.save_directory, 'conversion_result.zip')
+    #         with open(zip_path, 'wb') as f:
+    #             for chunk in response.iter_content(chunk_size=128):
+    #                 f.write(chunk)
+    #         print("Conversion result downloaded. Extracting...")
+    #     else:
+    #         print(f"Failed to download the conversion result. Status code: {response.status_code}")
