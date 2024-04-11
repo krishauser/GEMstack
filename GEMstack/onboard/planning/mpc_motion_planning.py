@@ -67,7 +67,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
         a_squared = 2.0  # control the x direction in the ellipse
         b_squared = 0.25  # control the y direction in the ellipse
         
-        penalty_scale_y = 4000  # Penalty for going out of y bounds
+        penalty_scale_y = 2000  # Penalty for going out of y bounds
         y_bounds_penalty = ca.sum1(ca.fmax(0, y_min - X[1,k])**2 + ca.fmax(0, X[1,k] - y_max)**2) * penalty_scale_y
 
         for agent in agents:
@@ -93,8 +93,10 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
    
 
     # objective
+    w_d = 3
+    w_y = 4
     # objective = ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal])
-    objective = ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]) + obstacle_penalty + y_bounds_penalty
+    objective = w_d * ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]) + obstacle_penalty + w_y * y_bounds_penalty
     opti.minimize(objective)
 
     # Solver
@@ -173,7 +175,11 @@ class MPCTrajectoryPlanner(Component):
             if vehicle.v == 0:
                 accel = 0
                 wheel_angle = 0
-    
+
+        # else:
+        #     accel = 0.25
+        #     wheel_angle = 0
+
         print("collision distance: ", collision_dis)
         steering_angle = np.clip(front2steer(wheel_angle), self.steering_angle_range[0], self.steering_angle_range[1])
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
