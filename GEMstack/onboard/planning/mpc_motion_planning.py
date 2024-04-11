@@ -29,7 +29,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
 
     a_min, a_max = -0.5, 0.5
     v_min, v_max = -1, 1
-    y_min, y_max = -2,2
+    y_min, y_max = -1,1
 
     v0 = np.clip(v0, v_min, v_max) # TODO: clip to avoid constrain issues, should be handled more carefully
 
@@ -64,27 +64,37 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
         # TODO: Add soft constraints
         penalty_scale = 800
         obstacle_penalty = 0
+        a_squared = 2.0  # control the x direction in the ellipse
+        b_squared = 0.25  # control the y direction in the ellipse
+        
+        penalty_scale_y = 4000  # Penalty for going out of y bounds
+        y_bounds_penalty = ca.sum1(ca.fmax(0, y_min - X[1,k])**2 + ca.fmax(0, X[1,k] - y_max)**2) * penalty_scale_y
+
         for agent in agents:
             # TODO: Compute loss based on the front of the car
             obs_x, obs_y, obs_w, obs_l, obs_h = agent.pose.x, agent.pose.y, *agent.dimensions
             obs_vx, obs_vy, obs_vz = agent.velocity_local()
-            distance_squared = (X[0,k] - (obs_x + obs_vx*dt*k))**2 + (X[1,k] - (obs_y + obs_vy*dt*k))**2
+            # distance_squared = (X[0,k] - (obs_x + obs_vx*dt*k))**2 + (X[1,k] - (obs_y + obs_vy*dt*k))**2
+            # distance_squared = (X[0,k] - obs_x)**2 + (X[1,k] - obs_y)**2
+            ellipse_distance = (X[0,k] - (obs_x + obs_vx*dt*k))**2 / a_squared + (X[1,k] - (obs_y + obs_vy*dt*k))**2 / b_squared
             # opti.subject_to(distance_squared >= obs_w**2)
-            obstacle_penalty += penalty_scale / (distance_squared + 1)
-
+            # obstacle_penalty += penalty_scale / (distance_squared + 1)
+            obstacle_penalty += penalty_scale / (ellipse_distance + 1)
+            
 
     # Control costraints
     opti.subject_to(opti.bounded(a_min, U[0,:], a_max))
     opti.subject_to(opti.bounded(delta_min, U[1,:], delta_max))
     opti.subject_to(opti.bounded(v_min, X[3,:], v_max))
-    opti.subject_to(opti.bounded(y_min, X[2,:], y_max))
+    # opti.subject_to(opti.bounded(y_min, X[2,:], y_max))
     # opti.subject_to(opti.bounded(omega_min, U[1,:], omega_max))
     # opti.subject_to(opti.bounded(delta_min, X[4,:], delta_max))
-    
+
+   
 
     # objective
     # objective = ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal])
-    objective = ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]) + obstacle_penalty
+    objective = ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]) + obstacle_penalty + y_bounds_penalty
     opti.minimize(objective)
 
     # Solver
@@ -146,22 +156,24 @@ class MPCTrajectoryPlanner(Component):
         agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
         obstacle = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
 
-
-        wheel_angle, accel = setup_mpc(self.N, dt, L, x_start, y_start, theta_start, v_start, \
-                                              x_goal, y_goal, theta_goal, v_goal, agents)
-        # wheel_angle, accel = setup_mpc(self.N, dt, L, x_start, y_start, theta_start, v_start, delta_start,\
-        #                                       x_goal, y_goal, theta_goal, v_goal, agents)
-        print(wheel_angle, accel)
-        if np.sqrt((x_start - x_goal)**2 + (y_start - y_goal)**2) <= 0.1: # threshold for reaching the goal
-            wheel_angle = 0
-            accel = 0
-        
         collision_dis = find_closest_agent(obstacle, pose = [vehicle.pose.x, vehicle.pose.y])
-        if collision_dis <= 6:
-            accel = -0.5
+        if collision_dis > 6:
+            wheel_angle, accel = setup_mpc(self.N, dt, L, x_start, y_start, theta_start, v_start, \
+                                                x_goal, y_goal, theta_goal, v_goal, agents)
+            # wheel_angle, accel = setup_mpc(self.N, dt, L, x_start, y_start, theta_start, v_start, delta_start,\
+            #                                       x_goal, y_goal, theta_goal, v_goal, agents)
+            print(wheel_angle, accel)
+            if np.sqrt((x_start - x_goal)**2 + (y_start - y_goal)**2) <= 0.1: # threshold for reaching the goal
+                wheel_angle = 0
+                accel = 0
+        
+        elif collision_dis <= 6:
+            accel = -1
+            wheel_angle = 0
             if vehicle.v == 0:
                 accel = 0
-
+                wheel_angle = 0
+    
         print("collision distance: ", collision_dis)
         steering_angle = np.clip(front2steer(wheel_angle), self.steering_angle_range[0], self.steering_angle_range[1])
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
