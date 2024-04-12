@@ -28,27 +28,28 @@ def get_types(bag_file):
 
 
 def convert(bag_file, video=False):
-    path = os.path.join(os.getcwd(), 'output')
+    file_name = os.path.splitext(os.path.basename(bag_file))[0]
+    path = os.path.join(os.getcwd(), file_name)
     os.makedirs(path, exist_ok=True)
 
     bag = rosbag.Bag(bag_file)
     topics = bag.get_type_and_topic_info().topics
     for topic in topics:
         if 'image' in topics[topic].msg_type.lower():
-            to_image(bag, topic)
+            to_image(bag, topic, file_name)
             if video:
-                to_video(bag, topic)
+                to_video(bag, topic, file_name)
         elif 'pointcloud' in topics[topic].msg_type.lower():
-            to_pointcloud(bag, topic)
+            to_pointcloud(bag, topic, file_name)
         elif 'gnss' in topics[topic].msg_type.lower():
-            to_gnss(bag, topic)
+            to_gnss(bag, topic, file_name)
 
     bag.close()
 
 
-def to_image(bag, topic):
+def to_image(bag, topic, file_name):
     bridge = CvBridge()
-    path = os.path.join(os.getcwd(), 'output/' + topic[1:].replace('/', '_') + '/images')
+    path = os.path.join(os.getcwd(), file_name + '/' + topic[1:].replace('/', '_') + '/images')
     os.makedirs(path, exist_ok=True)
 
     for _, msg, t in bag.read_messages(topics=[topic]):
@@ -56,9 +57,9 @@ def to_image(bag, topic):
         cv2.imwrite(os.path.join(path, str(t) + '.png'), cv_image)
 
 
-def to_video(bag, topic):
+def to_video(bag, topic, file_name):
     bridge = CvBridge()
-    path = os.path.join(os.getcwd(), 'output/' + topic[1:].replace('/', '_') + '/video')
+    path = os.path.join(os.getcwd(), file_name + '/' + topic[1:].replace('/', '_') + '/video')
     os.makedirs(path, exist_ok=True)
 
     images = []
@@ -76,8 +77,8 @@ def to_video(bag, topic):
     video_writer.release()
 
 
-def to_pointcloud(bag, topic):
-    path = os.path.join(os.getcwd(), 'output/' + topic[1:].replace('/', '_'))
+def to_pointcloud(bag, topic, file_name):
+    path = os.path.join(os.getcwd(), file_name + '/' + topic[1:].replace('/', '_'))
     os.makedirs(path, exist_ok=True)
 
     for _, msg, t in bag.read_messages(topics=[topic]):
@@ -86,8 +87,8 @@ def to_pointcloud(bag, topic):
         o3d.io.write_point_cloud(os.path.join(path, str(t) + '.pcd'), pcd)
 
 
-def to_gnss(bag, topic):
-    path = os.path.join(os.getcwd(), 'output/' + topic[1:].replace('/', '_'))
+def to_gnss(bag, topic, file_name):
+    path = os.path.join(os.getcwd(), file_name + '/' + topic[1:].replace('/', '_'))
     os.makedirs(path, exist_ok=True)
 
     gpx = gpxpy.gpx.GPX()
