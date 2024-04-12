@@ -6,6 +6,7 @@ from bson.objectid import ObjectId
 import json
 import os
 from pathlib import Path
+from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
@@ -67,21 +68,29 @@ def upload_model():
         path = str(Path(app.config['MODEL_UPLOAD_FOLDER']) / filename)
         file.save(path)
 
+        current_time = datetime.utcnow()
+
         # Check if the model with the same ModelName exists
         existing_model = db.Models.find_one({'ModelName': filename})
+
         if existing_model:
+            db.Models.update_one(
+                {'_id': existing_model['_id']},
+                {'$set': {'DateTime': current_time}}
+            )
             return jsonify({'message': 'Model updated successfully', 'filename': filename}), 200
         else:
             model = {
                 'ModelName': filename,
                 'Path': path,
-                'Description': ''
+                'Description': '',
+                'DateTime': current_time
             }
             db.Models.insert_one(model)
             return jsonify({'message': 'Model uploaded successfully', 'filename': filename}), 200
 
 
-@app.route('/models/<id>', methods=['GET'] )
+@app.route('/models/<id>', methods=['GET'])
 def list_model_info(id):
     model_info = db.Models.find_one({'_id': ObjectId(id)}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
     if model_info:
@@ -138,17 +147,24 @@ def upload_dataset():
         path = str(Path(app.config['DATASET_UPLOAD_FOLDER']) / filename)
         file.save(path)
 
+        current_time = datetime.utcnow()
+
         # Check if the dataset with the same DataName exists
         existing_dataset = db.Data.find_one({'DataName': filename})
 
         if existing_dataset:
+            # Update the existing dataset with the current time
+            db.Data.update_one(
+                {'_id': existing_dataset['_id']},
+                {'$set': {'DateTime': current_time}}
+            )
             return jsonify({'message': 'Dataset updated successfully', 'filename': filename}), 200
         else:
-            # Insert new dataset
             dataset = {
                 'DataName': filename,
                 'Path': path,
-                'Description': ''
+                'Description': '',
+                'DateTime': current_time
             }
             db.Data.insert_one(dataset)
             return jsonify({'message': 'Dataset uploaded successfully', 'filename': filename}), 200
@@ -168,11 +184,26 @@ def list_dataset_info(id):
 def update_dataset(id):
     data = request.json
     update_data = {}
+
+    # Check if 'Description' is in the request and add it to the update_data dictionary
     if 'Description' in data:
         update_data['Description'] = data['Description']
+
+    # Check if 'Topics' is in the request and add it to the update_data dictionary
+    if 'Topics' in data:
+        update_data['Topics'] = data['Topics']
+
+    # Check if 'Source' is in the request and add it to the update_data dictionary
+    if 'Source' in data:
+        update_data['Source'] = data['Source']
+
+    # Perform the update operation
     res = db.Data.update_one({'_id': ObjectId(id)}, {'$set': update_data})
+
+    # Check if the update was successful
     if res.modified_count == 0:
         return jsonify({"error": "Not updated"}), 400
+
     return jsonify({"message": "Dataset updated successfully"})
 
 
