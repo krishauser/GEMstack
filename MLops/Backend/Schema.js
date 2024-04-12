@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
-mongoose.connect("mongodb://localhost:27017/GEM_DB"); // Add the connection address here to either the local or network server point of MongoDB
 
-const Models = new mongoose.Schema({
+const ModelsSchema = new mongoose.Schema({
     ModelName: {
         type: String,
         required: true
@@ -12,11 +11,16 @@ const Models = new mongoose.Schema({
     },
     Description: {
        type: String,
+    },
+    DateTime: {
+        type: Date,
+        default: Date.now,
+        required: true
     }
-})
-module.exports = mongoose.model("Models", Models, "Models");
+});
+module.exports = mongoose.model("Models", ModelsSchema, "Models");
 
-const Data = new mongoose.Schema({
+const DataSchema = new mongoose.Schema({
     DataName: {
         type: String,
         required: true
@@ -27,6 +31,19 @@ const Data = new mongoose.Schema({
     },
     Description: {
        type: String,
+    },
+    DateTime: {
+        type: Date,
+        default: Date.now,
+        required: true
+    },
+    Topics: {
+        type: [String],
+        default: []
+    },
+    Source: {
+        type: String,
+        default: ""
     }
-})
-module.exports = mongoose.model("Data", Data, "Datasets");
+});
+module.exports = mongoose.model("Data", DataSchema, "Datasets");
