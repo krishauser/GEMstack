@@ -20,11 +20,11 @@ def get_topics(bag_file):
 def get_types(bag_file):
     bag = rosbag.Bag(bag_file)
     topics = bag.get_type_and_topic_info().topics
-    topic_lst = []
+    type_lst = []
     for topic in topics:
-        topic_lst.append(topics[topic].msg_type.lower())
+        type_lst.append(topics[topic].msg_type.lower())
     bag.close()
-    return topic_lst
+    return type_lst
 
 
 def convert(bag_file, video=False):
