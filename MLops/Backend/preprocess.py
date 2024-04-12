@@ -7,7 +7,7 @@ import numpy as np
 import gpxpy
 import gpxpy.gpx
 from datetime import datetime
-
+import zipfile
 
 def get_topics(bag_file):
     bag = rosbag.Bag(bag_file)
@@ -104,5 +104,37 @@ def to_gnss(bag, topic, file_name):
     with open(os.path.join(path, 'gnss.gpx'), 'w') as f:
         f.write(gpx.to_xml())
 
+def create_zip_for_topic(topic_folder):
+    # Get the list of subdirectories within the topic folder
+    subdirectories = [d for d in os.listdir(topic_folder) if os.path.isdir(os.path.join(topic_folder, d))]
+    print(subdirectories)
+    # Create a list to store the paths of the generated zip files
+    zip_file_paths = []
+
+    for subdirectory in subdirectories:
+        subdirectory_path = os.path.join(topic_folder, subdirectory)
+
+        # Check if the subdirectory is itself a dataset or contains further subdirectories
+        if any(os.path.isdir(os.path.join(subdirectory_path, item)) for item in os.listdir(subdirectory_path)):
+            # If it contains subdirectories, create a zip file for each subdirectory
+            for item in os.listdir(subdirectory_path):
+                item_path = os.path.join(subdirectory_path, item)
+                if os.path.isdir(item_path):
+                    zip_file_path = os.path.join(topic_folder, f"{subdirectory}@{item}.zip")
+                    with zipfile.ZipFile(zip_file_path, 'w') as zipf:
+                        for root, _, files in os.walk(item_path):
+                            for file in files:
+                                zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), item_path))
+                    zip_file_paths.append(zip_file_path)
+        else:
+            # If it's a direct dataset, create a zip file for the entire subdirectory
+            zip_file_path = os.path.join(topic_folder, f"{subdirectory}.zip")
+            with zipfile.ZipFile(zip_file_path, 'w') as zipf:
+                for root, _, files in os.walk(subdirectory_path):
+                    for file in files:
+                        zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), subdirectory_path))
+            zip_file_paths.append(zip_file_path)
+
+    return zip_file_paths
 
 #convert('vehicle_withLidarGNSS.bag', video=True)

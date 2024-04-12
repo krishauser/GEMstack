@@ -1,6 +1,0 @@
-numpy
-opencv-python
-bagpy
-cv-bridge
-open3d
-gpxpy
