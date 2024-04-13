@@ -87,6 +87,8 @@ from sensor_msgs.msg import Image
 from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import PointCloud2
 from novatel_gps_msgs.msg import Inspva
+from pacmod_msgs.msg import VehicleSpeedRpt
+from pacmod_msgs.msg import SystemRptFloat
 from ros_numpy import msgify # new import > sudo apt-get install ros-noetic-ros-numpy
 import std_msgs
 from cv_bridge import CvBridge
@@ -232,6 +234,8 @@ class World(object):
         self.gnss = rospy.Publisher('carla/gnss', Inspva, queue_size=10)
         self.lidar = rospy.Publisher('carla/top_lidar', PointCloud2, queue_size=10)
         self.depth = rospy.Publisher('/carla/front/depth', Image, queue_size=10)
+        self.speed = rospy.Publisher('/carla/parsed_tx/vehicle_speed_rpt', VehicleSpeedRpt, queue_size=10)
+        self.steer = rospy.Publisher('/carla/parsed_tx/steer_rpt', SystemRptFloat, queue_size=10)
         # watch out for restart method
         self.restart()
         self.world.on_tick(hud.on_world_tick)
@@ -320,6 +324,8 @@ class World(object):
         self.camera_manager.add_lidar_callback(self.publish_lidar_message)
         self.camera_manager.add_depth_callback(self.publish_depth_image_message)
         actor_type = get_actor_display_name(self.player)
+        self.hud.add_vehicle_speed_callback(self.publish_vehicle_speed)
+        self.hud.add_vehicle_steer_callback(self.publish_vehicle_steer)
         self.hud.notification(actor_type)
 
         if self.sync:
@@ -337,6 +343,18 @@ class World(object):
 
     def publish_lidar_message(self, pc):
         self.lidar.publish(pc)
+        pass
+
+    def publish_vehicle_speed(self, speed):
+        msg = VehicleSpeedRpt()
+        msg.vehicle_speed = speed
+        self.speed.publish(msg)
+        pass
+
+    def publish_vehicle_steer(self, steer):
+        msg = SystemRptFloat()
+        msg.output = steer
+        self.steer.publish(msg)
         pass
         
     def publish_gnss_message(self, value) :
@@ -744,7 +762,8 @@ class HUD(object):
         self._show_info = True
         self._info_text = []
         self._server_clock = pygame.time.Clock()
-
+        self.vehicle_speed_callbacks = []
+        self.vehicle_steer_callbacks = []
         self._show_ackermann_info = False
         self._ackermann_control = carla.VehicleAckermannControl()
 
@@ -821,7 +840,23 @@ class HUD(object):
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
+        
+        for cb in self.vehicle_speed_callbacks:
+            cb(3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))   
 
+        for cb in self.vehicle_steer_callbacks:
+            cb(c.steer)
+        
+
+
+    def add_vehicle_speed_callback(self, callback):
+        if (callback not in self.vehicle_speed_callbacks):
+            self.vehicle_speed_callbacks.append(callback)
+        
+    def add_vehicle_steer_callback(self, callback):
+        if (callback not in self.vehicle_steer_callbacks):
+            self.vehicle_steer_callbacks.append(callback)
+        
     def show_ackermann_info(self, enabled):
         self._show_ackermann_info = enabled
 
