@@ -150,6 +150,8 @@ def upload_dataset():
 
         current_time = datetime.utcnow()
 
+        inserted_id = None
+
         # Check if the dataset with the same DataName exists
         existing_dataset = db.Data.find_one({'DataName': filename})
 
@@ -159,7 +161,8 @@ def upload_dataset():
                 {'_id': existing_dataset['_id']},
                 {'$set': {'DateTime': current_time}}
             )
-            return jsonify({'message': 'Dataset updated successfully', 'filename': filename}), 200
+
+            inserted_id = existing_dataset['_id']
         else:
             dataset = {
                 'DataName': filename,
@@ -167,8 +170,12 @@ def upload_dataset():
                 'Description': '',
                 'DateTime': current_time
             }
-            db.Data.insert_one(dataset)
-            return jsonify({'message': 'Dataset uploaded successfully', 'filename': filename}), 200
+            res = db.Data.insert_one(dataset)
+            inserted_id = res['_id']
+
+        return jsonify({'message': 'Dataset uploaded successfully',
+                        'inserted_datasets_id': str(inserted_id),
+                        'filename': filename}), 200
 
 
 @app.route('/datasets/uploadBag', methods=['POST'])
