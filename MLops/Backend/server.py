@@ -191,11 +191,12 @@ def upload_bag():
             folder_name = os.path.splitext(os.path.basename(filename))[0]
             folder_path = str(Path(app.config['DATASET_UPLOAD_FOLDER']) / folder_name)
             path_list = preprocess.create_zip_for_topic(folder_path)
-            for item in path_list:
+            inserted_objects = []
+            for item_path in path_list:
                 current_time = datetime.utcnow()
-
+                item_name = filename.lower().replace('.bag', '') + "@" + os.path.basename(item_path)
                 # Check if the dataset with the same DataName exists
-                existing_dataset = db.Data.find_one({'DataName': os.path.basename(item)})
+                existing_dataset = db.Data.find_one({'DataName': item_name})
 
                 if existing_dataset:
                     # Update the existing dataset with the current time
@@ -203,14 +204,16 @@ def upload_bag():
                         {'_id': existing_dataset['_id']},
                         {'$set': {'DateTime': current_time}}
                     )
+                    inserted_objects.append([item_name,str(existing_dataset['_id'])])
                 else:
                     dataset = {
-                        'DataName': filename.lower().replace('.bag', '') + "@" + os.path.basename(item),
-                        'Path': item,
+                        'DataName': item_name,
+                        'Path': item_path,
                         'Description': '',
                         'DateTime': current_time
                     }
-                    db.Data.insert_one(dataset)
+                    res = db.Data.insert_one(dataset)
+                    inserted_objects.append([item_name,str(res.inserted_id)])
             existing_dataset = db.Data.find_one({'DataName': filename})
             if existing_dataset:
                 # Update the existing dataset with the current time
@@ -218,6 +221,7 @@ def upload_bag():
                     {'_id': existing_dataset['_id']},
                     {'$set': {'DateTime': current_time}}
                 )
+                inserted_objects.append([filename,str(existing_dataset['_id'])])
             else:
                 dataset = {
                     'DataName': filename,
@@ -225,8 +229,9 @@ def upload_bag():
                     'Description': '',
                     'DateTime': current_time
                 }
-                db.Data.insert_one(dataset)
-            return jsonify({'message': 'Dataset uploaded successfully', 'filename': filename}), 200
+                res = db.Data.insert_one(dataset)
+                inserted_objects.append([filename,str(res.inserted_id)])
+            return jsonify({'message': 'Dataset uploaded successfully', 'inserted_objects': inserted_objects}), 200
         else:
             # If it's not a .bag file, return an error
             return jsonify({'error': 'Uploaded file is not a .bag file'}), 400
