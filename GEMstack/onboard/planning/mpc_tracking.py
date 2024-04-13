@@ -14,16 +14,15 @@ import time
 #Vehicle Param
 L = 2.56  # Wheelbase, GEMe4
 safety_margin = 0.1  
-dt = 0.5
 
 
 # Setup the MPC problem 
-def setup_mpc(N, dt, L, path_points, x):
+def setup_mpc(N, dt, L, path_points, x, gear=0):
     # Constraints
     delta_max = 0.6108
     omega_max = 0.2 # TODO: What is a good value for this?
-    a_max = 1.0
-    a_min = -1.0 
+    a_max = 1.0 
+    a_min = -1.0
     v_max = 2.0
     v_min = -0.25
 
@@ -103,17 +102,20 @@ def setup_mpc(N, dt, L, path_points, x):
     # print(sol.value(Delta))
     # print(sol.value(Omega))
     # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-    return a, delta0 + dt*omega # TODO: What is a good way to update the steering angle?
+    return a, delta0 + 2.0*omega # TODO: What is a good way to update the steering angle?
 
 class MPCTracker(Component):
     def __init__(self,vehicle_interface=None, **args):
         self.vehicle_interface = vehicle_interface
-        self.N = 8
+        self.N = 4
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         self.max_a = 1.0
         self.min_a = -1.0
         self.max_d = 0.6108
         self.min_d = -0.6108
+        self.dt = 1.75
+        self.horizen_scale = 1.0
+
 
         self.last_progress = 0
 
@@ -133,8 +135,16 @@ class MPCTracker(Component):
         x_start, y_start, theta_start, v_start, wheel_angle_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v, vehicle.front_wheel_angle
         path_points = []
         closest_dist,closest_parameter = trajectory.closest_point([x_start, y_start])
-        self.last_progress = max(self.last_progress+0.01, closest_parameter)
-        closest_parameter = self.last_progress
+        closest_parameter = max(self.last_progress, closest_parameter)
+        ind, _ = trajectory.time_to_index(closest_parameter)
+        gear = trajectory.gear[ind]
+        # if closest_parameter - self.last_progress < 0.02:
+        #     self.horizen_scale *= 0.9
+        # else:
+        #     self.horizen_scale = 1.0
+        # self.horizen_scale = max(min(self.horizen_scale, 1.0), 0.1)
+        dt = self.dt * self.horizen_scale
+        self.last_progress = closest_parameter + 0.01
         for i in range(1,self.N+1):
             position = trajectory.eval(closest_parameter+i*dt)
             velocity = trajectory.eval_derivative(closest_parameter+i*dt)
@@ -143,10 +153,10 @@ class MPCTracker(Component):
             path_points.append([position[0], position[1], yaw, velocity])
         
         path_points = np.array(path_points)
-        print([x_start, y_start, theta_start, v_start, wheel_angle_start])
-        print(path_points)
+        # print([x_start, y_start, theta_start, v_start, wheel_angle_start])
+        # print(path_points)
 
-        accel, wheel_angle = setup_mpc(self.N, dt, L, path_points, [x_start, y_start, theta_start, v_start, wheel_angle_start])
+        accel, wheel_angle = setup_mpc(self.N, dt, L, path_points, [x_start, y_start, theta_start, v_start, wheel_angle_start], gear)
         # print(accel, wheel_angle)
         
         desired_yaw = np.arctan2(path_points[1][0],path_points[1][1])

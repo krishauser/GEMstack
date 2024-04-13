@@ -5,6 +5,7 @@ from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgra
 from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
 from .reeds_shepp import path_length, get_optimal_path, eval_path, rad2deg, precompute
+from .obstacle_heuristic import obstacle_heuristic
 import os
 import copy
 from time import time
@@ -89,6 +90,8 @@ class SearchNavigationRoutePlanner(Component):
         x_bound = [min(self.start[0], self.end[0])-2, max(self.start[0], self.end[0])+1]
         y_bound = [min(self.start[1], self.end[1])-2, max(self.start[1], self.end[1])+3]
         theta_bound = [0, 2*np.pi]
+        self.x_bound = x_bound
+        self.y_bound = y_bound
 
         resolution = settings.get('planner.search_planner.resolution')
         angle_resolution = settings.get('planner.search_planner.angle_resolution')
@@ -105,6 +108,11 @@ class SearchNavigationRoutePlanner(Component):
                                       round((state[1]-y_bound[0])/(y_bound[1]-y_bound[0])*self.s_bound[1]), \
                                       round((state[2]-theta_bound[0])/(theta_bound[1]-theta_bound[0])*self.s_bound[2])%self.s_bound[2], \
                                       state[3]]
+        
+        self.grid_resolution = 0.5      
+        self.grid_map = np.full((int((x_bound[1]-x_bound[0])/self.grid_resolution), \
+                                 int((y_bound[1]-y_bound[0])/self.grid_resolution)), \
+                                 np.inf)
         
         self._rate = settings.get('planner.search_planner.rate')
         
@@ -155,6 +163,8 @@ class SearchNavigationRoutePlanner(Component):
             end = [xe/turn_radius,ye/turn_radius,the]
             h = precompute(start,end)*turn_radius
             # h = path_length(get_optimal_path(start,end))*turn_radius
+            i, j = round((state1[0]-self.x_bound[0])/self.grid_resolution), round((state1[1]-self.y_bound[0])/self.grid_resolution)
+            h = max(self.grid_map[i,j]*self.grid_resolution,h)
             return h*2
         self.heuristic = heuristic
 
@@ -228,8 +238,19 @@ class SearchNavigationRoutePlanner(Component):
                     return False
             return True
         
-        if self.last_path is None or not check_path(self.last_path): # replan when last route is not valid
-            start = [*self.start[:3], 0]
+        replan = self.last_path is None or not check_path(self.last_path)
+        if replan: # replan when last route is not valid
+            # Compute grid map
+            for i in range(self.grid_map.shape[0]):
+                for j in range(self.grid_map.shape[1]):
+                    x, y = self.grid_resolution*i+self.x_bound[0], self.grid_resolution*j+self.y_bound[0]
+                    if not check_constraints([x,y,0,0]):
+                        self.grid_map[i,j] = -1
+            i = round((self.end[0]-self.x_bound[0])/self.grid_resolution)
+            j = round((self.end[1]-self.y_bound[0])/self.grid_resolution)
+            obstacle_heuristic(self.grid_map, [i,j])
+
+            start = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, 0]
             end = [*self.end[:3], 0]
             root = Node(start,0,heuristic=self.heuristic(start,end))
 
@@ -271,16 +292,19 @@ class SearchNavigationRoutePlanner(Component):
             
             route = []
             yaws = []
+            gear = []
             last_path = []
             while current is not None:
                 route.append(current.state[:2])
                 yaws.append(current.state[2])
+                gear.append(current.state[3])
                 last_path.append(current.state)
                 current = current.parent
             route = route[::-1]
             yaws = yaws[::-1]
+            gear = gear[::-1]
             last_path = last_path[::-1]
-            self.route = Route(frame=ObjectFrameEnum.START,points=route,yaws=yaws)
+            self.route = Route(frame=ObjectFrameEnum.START,points=route,yaws=yaws,gear=gear)
             self.last_path = last_path
         
         route = self.route

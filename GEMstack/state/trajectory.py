@@ -79,7 +79,7 @@ class Path:
                 times.append(times[-1] + d/speed)
         # check whether self has attribute yaws
         if hasattr(self, 'yaws'):
-            return Trajectory(frame=self.frame,points=points,times=times,yaws=self.yaws)
+            return Trajectory(frame=self.frame,points=points,times=times,yaws=self.yaws,gear=self.gear)
         return Trajectory(frame=self.frame,points=points,times=times)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
@@ -173,6 +173,7 @@ class Trajectory(Path):
     """A timed, piecewise linear path."""
     times : List[float]
     yaws : Optional[List[float]] = None
+    gear: Optional[List[int]] = None
 
     def domain(self) -> Tuple[float,float]:
         """Returns the time parameter domain"""
