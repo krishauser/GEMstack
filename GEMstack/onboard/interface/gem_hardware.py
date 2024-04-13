@@ -29,6 +29,7 @@ from ...utils import conversions
 @dataclass 
 class GNSSReading:
     pose : ObjectPose
+    speed : float
     status : str
 
 class GEMHardwareInterface(GEMInterface):
@@ -64,7 +65,6 @@ class GEMHardwareInterface(GEMInterface):
 
         # -------------------- PACMod setup --------------------
         # GEM vehicle enable
-        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
         self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
         self.pacmod_enable = False
 
@@ -106,6 +106,10 @@ class GEMHardwareInterface(GEMInterface):
         """
 
         #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
+        
+        #subscribers should go last because the callback might be called before the object is initialized
+        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
+
 
     def start(self):
         if settings.get('vehicle.enable_through_joystick',True):
@@ -167,7 +171,8 @@ class GEMHardwareInterface(GEMInterface):
                                     roll=math.radians(inspva_msg.roll),
                                     pitch=math.radians(inspva_msg.pitch),
                                     )
-                        callback(GNSSReading(pose,inspva_msg.status))
+                        speed = np.sqrt(inspva_msg.east_velocity**2 + inspva_msg.north_velocity**2)
+                        callback(GNSSReading(pose,speed,inspva_msg.status))
                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
             else:
                 #assume it's septentrio
@@ -185,7 +190,8 @@ class GEMHardwareInterface(GEMInterface):
                                     roll=math.radians(msg.roll),
                                     pitch=math.radians(msg.pitch),
                                     )
-                        callback(GNSSReading(pose,'error' if msg.error else 'ok'))
+                        speed = np.sqrt(msg.ve**2 + msg.vn**2)
+                        callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]

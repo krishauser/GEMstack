@@ -24,7 +24,7 @@ def setup_mpc(N, dt, L, path_points, x, gear=0):
     a_max = 1.0 
     a_min = -1.0
     v_max = 2.0
-    v_min = -0.25
+    v_min = -2.0
 
 
     # Initialization
@@ -135,7 +135,7 @@ class MPCTracker(Component):
         x_start, y_start, theta_start, v_start, wheel_angle_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v, vehicle.front_wheel_angle
         path_points = []
         closest_dist,closest_parameter = trajectory.closest_point([x_start, y_start])
-        closest_parameter = max(self.last_progress, closest_parameter)
+        # closest_parameter = max(self.last_progress, closest_parameter)
         ind, _ = trajectory.time_to_index(closest_parameter)
         gear = trajectory.gear[ind]
         # if closest_parameter - self.last_progress < 0.02:
@@ -144,7 +144,7 @@ class MPCTracker(Component):
         #     self.horizen_scale = 1.0
         # self.horizen_scale = max(min(self.horizen_scale, 1.0), 0.1)
         dt = self.dt * self.horizen_scale
-        self.last_progress = closest_parameter + 0.01
+        # self.last_progress = closest_parameter + 0.01
         for i in range(1,self.N+1):
             position = trajectory.eval(closest_parameter+i*dt)
             velocity = trajectory.eval_derivative(closest_parameter+i*dt)

@@ -85,7 +85,6 @@ class SearchNavigationRoutePlanner(Component):
     def __init__(self, start : List[float], end : List[float]):
         # start and end are [x, y, yaw, speed, steer] in the START frame
         self.start = start
-        self.start = [0.,0.,0.,0.,0.]
         self.end = end
         x_bound = [min(self.start[0], self.end[0])-2, max(self.start[0], self.end[0])+1]
         y_bound = [min(self.start[1], self.end[1])-2, max(self.start[1], self.end[1])+3]
@@ -233,12 +232,13 @@ class SearchNavigationRoutePlanner(Component):
             return True
         
         def check_path(path):
-            for p in path:
+            for p in path[::5]:
                 if not check_constraints(p):
                     return False
             return True
         
         replan = self.last_path is None or not check_path(self.last_path)
+        # replan = True
         if replan: # replan when last route is not valid
             # Compute grid map
             for i in range(self.grid_map.shape[0]):
