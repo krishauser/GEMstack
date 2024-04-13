@@ -37,10 +37,6 @@ const DataSchema = new mongoose.Schema({
         default: Date.now,
         required: true
     },
-    Topics: {
-        type: [String],
-        default: []
-    },
     Source: {
         type: String,
         default: ""

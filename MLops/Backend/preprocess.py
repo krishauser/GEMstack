@@ -9,6 +9,7 @@ import gpxpy.gpx
 from datetime import datetime
 import zipfile
 
+DATASET_UPLOAD_FOLDER = '../dataset'
 def get_topics(bag_file):
     bag = rosbag.Bag(bag_file)
     topics = bag.get_type_and_topic_info().topics
@@ -29,7 +30,7 @@ def get_types(bag_file):
 
 def convert(bag_file, video=False):
     file_name = os.path.splitext(os.path.basename(bag_file))[0]
-    path = os.path.join(os.getcwd(), file_name)
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name)
     os.makedirs(path, exist_ok=True)
 
     bag = rosbag.Bag(bag_file)
@@ -49,7 +50,7 @@ def convert(bag_file, video=False):
 
 def to_image(bag, topic, file_name):
     bridge = CvBridge()
-    path = os.path.join(os.getcwd(), file_name + '/' + topic[1:].replace('/', '_') + '/images')
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_') + '/images')
     os.makedirs(path, exist_ok=True)
 
     for _, msg, t in bag.read_messages(topics=[topic]):
@@ -59,7 +60,7 @@ def to_image(bag, topic, file_name):
 
 def to_video(bag, topic, file_name):
     bridge = CvBridge()
-    path = os.path.join(os.getcwd(), file_name + '/' + topic[1:].replace('/', '_') + '/video')
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_') + '/video')
     os.makedirs(path, exist_ok=True)
 
     images = []
@@ -78,7 +79,7 @@ def to_video(bag, topic, file_name):
 
 
 def to_pointcloud(bag, topic, file_name):
-    path = os.path.join(os.getcwd(), file_name + '/' + topic[1:].replace('/', '_'))
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_'))
     os.makedirs(path, exist_ok=True)
 
     for _, msg, t in bag.read_messages(topics=[topic]):
@@ -88,7 +89,7 @@ def to_pointcloud(bag, topic, file_name):
 
 
 def to_gnss(bag, topic, file_name):
-    path = os.path.join(os.getcwd(), file_name + '/' + topic[1:].replace('/', '_'))
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_'))
     os.makedirs(path, exist_ok=True)
 
     gpx = gpxpy.gpx.GPX()
@@ -107,7 +108,6 @@ def to_gnss(bag, topic, file_name):
 def create_zip_for_topic(topic_folder):
     # Get the list of subdirectories within the topic folder
     subdirectories = [d for d in os.listdir(topic_folder) if os.path.isdir(os.path.join(topic_folder, d))]
-    print(subdirectories)
     # Create a list to store the paths of the generated zip files
     zip_file_paths = []
 

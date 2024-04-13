@@ -1,6 +1,5 @@
+import preprocess
 from flask import Flask, jsonify, send_file, request
-import logging
-
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from pymongo import MongoClient
@@ -9,7 +8,6 @@ import json
 import os
 from pathlib import Path
 from datetime import datetime
-import preprocess
 
 app = Flask(__name__)
 CORS(app)
@@ -189,12 +187,15 @@ def upload_bag():
             path = str(Path(app.config['DATASET_UPLOAD_FOLDER']) / filename)
             file.save(path)
             preprocess.convert(path)
-            path_list = preprocess.create_zip_for_topic(path)
+
+            folder_name = os.path.splitext(os.path.basename(filename))[0]
+            folder_path = str(Path(app.config['DATASET_UPLOAD_FOLDER']) / folder_name)
+            path_list = preprocess.create_zip_for_topic(folder_path)
             for item in path_list:
                 current_time = datetime.utcnow()
 
                 # Check if the dataset with the same DataName exists
-                existing_dataset = db.Data.find_one({'DataName': filename})
+                existing_dataset = db.Data.find_one({'DataName': os.path.basename(item)})
 
                 if existing_dataset:
                     # Update the existing dataset with the current time
@@ -202,19 +203,34 @@ def upload_bag():
                         {'_id': existing_dataset['_id']},
                         {'$set': {'DateTime': current_time}}
                     )
-                    return jsonify({'message': 'Dataset updated successfully', 'filename': filename}), 200
                 else:
                     dataset = {
-                        'DataName': filename.lower().replace('.bag','') + "@" + os.path.basename(item),
-                        'Path': path,
+                        'DataName': filename.lower().replace('.bag', '') + "@" + os.path.basename(item),
+                        'Path': item,
                         'Description': '',
                         'DateTime': current_time
                     }
                     db.Data.insert_one(dataset)
-                    return jsonify({'message': 'Dataset uploaded successfully', 'filename': filename}), 200
+            existing_dataset = db.Data.find_one({'DataName': filename})
+            if existing_dataset:
+                # Update the existing dataset with the current time
+                db.Data.update_one(
+                    {'_id': existing_dataset['_id']},
+                    {'$set': {'DateTime': current_time}}
+                )
+            else:
+                dataset = {
+                    'DataName': filename,
+                    'Path': path,
+                    'Description': '',
+                    'DateTime': current_time
+                }
+                db.Data.insert_one(dataset)
+            return jsonify({'message': 'Dataset uploaded successfully', 'filename': filename}), 200
         else:
             # If it's not a .bag file, return an error
             return jsonify({'error': 'Uploaded file is not a .bag file'}), 400
+
 
 @app.route('/datasets/<id>', methods=['GET'])
 def list_dataset_info(id):
@@ -234,10 +250,6 @@ def update_dataset(id):
     # Check if 'Description' is in the request and add it to the update_data dictionary
     if 'Description' in data:
         update_data['Description'] = data['Description']
-
-    # Check if 'Topics' is in the request and add it to the update_data dictionary
-    if 'Topics' in data:
-        update_data['Topics'] = data['Topics']
 
     # Check if 'Source' is in the request and add it to the update_data dictionary
     if 'Source' in data:
@@ -263,5 +275,4 @@ def retrieve_dataset(id):
 
 
 if __name__ == '__main__':
-    logging.getLogger().setLevel(logging.DEBUG)
-    app.run(host='0.0.0.0', debug=True)
+    app.run(host='0.0.0.0', debug=True, use_reloader=False)
