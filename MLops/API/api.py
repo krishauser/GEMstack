@@ -2,9 +2,7 @@ import requests
 import os
 from tqdm import tqdm
 from pprint import pprint
-from urllib.parse import unquote, urljoin
-import time
-import zipfile
+from urllib.parse import unquote
 
 class APIClient:
     def __init__(self, base_url='https://06e7-130-126-255-33.ngrok-free.app'):
@@ -34,7 +32,7 @@ class APIClient:
         else:
             print(f"Failed to get model info. Status code: {response.status_code}")
             
-    def model_update_description(self, model_id, new_description):
+    def model_update(self, model_id, new_description):
         response = requests.put(f"{self.base_url}/models/{model_id}", json={"Description": new_description})
         if response.status_code == 200:
             print("Model description updated successfully")
@@ -109,10 +107,16 @@ class APIClient:
         else:
             print(f"Failed to get dataset info. Status code: {response.status_code}")
             
-    def dataset_update_description(self, dataset_id, new_description):
-        response = requests.put(f"{self.base_url}/datasets/{dataset_id}", json={"Description": new_description})
+    def dataset_update(self, dataset_id, new_description, new_source):
+
+        update_data = {
+            "Description": new_description,
+            "Source": new_source
+        }
+
+        response = requests.put(f"{self.base_url}/datasets/{dataset_id}", json=update_data)
         if response.status_code == 200:
-            print("Dataset description updated successfully")
+            print("Dataset updated successfully")
         elif response.status_code == 400:
             print(f"Error: {response.json()['error']}")
         else:
@@ -143,13 +147,50 @@ class APIClient:
         else:
             print(f"Failed to download the file. Status code: {response.status_code}")
 
-    def dataset_upload(self, file_path):
+    def dataset_upload(self, file_path, source=""):
         try:
             with open(file_path, 'rb') as f:
                 files = {'file': f}
                 response = requests.post(f"{self.base_url}/datasets/upload", files=files)
                 if response.status_code == 200:
-                    print(f"Message: {response.json()['message']}. Model name: {response.json()['filename']}")
+                    response_data = response.json()
+                    print(f"Message: {response_data['message']}. Dataset name: {response_data['filename']}")
+
+                    response = requests.put(
+                        f"{self.base_url}/datasets/{response_data['inserted_datasets_id']}", 
+                        json={"Source": source}
+                    )
+                    if response.status_code == 200:
+                        print("Dataset updated successfully")
+                elif response.status_code == 400:
+                    print(f"Error: {response.json()['error']}")
+                else:
+                    print(f"Failed to upload the file. Status code: {response.status_code}")
+        except FileNotFoundError:
+            print(f"File not found: {file_path}")
+        except PermissionError:
+            print(f"Permission denied: {file_path}")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+    
+    def dataset_uploadBag(self, file_path, source=""):
+        assert file_path.endswith('.bag'), "File must be a ROS bag file."
+        try:
+            with open(file_path, 'rb') as f:
+                files = {'file': f}
+                response = requests.post(f"{self.base_url}/datasets/uploadBag", files=files)
+                if response.status_code == 200:
+                    response_data = response.json()
+                    print(f"Message: {response_data['message']}.")
+
+                    for inserted in response_data['inserted_objects']:
+                        response = requests.put(
+                            f"{self.base_url}/datasets/{inserted[1]}", 
+                            json={"Source": source}
+                        )
+                        if response.status_code == 200:
+                            print("Dataset updated successfully")
+                            
                 elif response.status_code == 400:
                     print(f"Error: {response.json()['error']}")
                 else:
