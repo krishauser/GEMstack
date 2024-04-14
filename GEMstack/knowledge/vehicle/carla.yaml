@@ -1,0 +1,13 @@
+name: CARLA
+version: 9.15
+max_gear : 1
+num_wiper_settings : 1
+enable_through_joystick : false   
+max_command_rate : 10.0          #for hardware, max rate of commands to send to vehicle over Pacmod
+#using !include directives helps maintain reuse of common settings
+geometry: !include gem_e4_geometry.yaml
+dynamics: !include gem_e4_dynamics.yaml
+limits: !include gem_e2_slow_limits.yaml
+control_defaults: !include gem_e2_control_defaults.yaml
+calibration: !include ../calibration/gem_e4.yaml
+sensors: !include carla_generic_sensor_environment.yaml

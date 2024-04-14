@@ -2,6 +2,7 @@
 
 # Configure settings for the vehicle / vehicle model
 vehicle:  !include ../vehicle/gem_e4.yaml
+carla_vehicle: !include ../vehicle/carla.yaml
 
 #arguments for algorithm components here
 model_predictive_controller:
