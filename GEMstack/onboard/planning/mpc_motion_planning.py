@@ -17,7 +17,9 @@ safety_margin = 0.1
 dt = 0.5
 
 # Setup the MPC problem 
+
 def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, agents):
+
     """
     Setup and solve the MPC problem.
     Returns the first control inputs (v, delta) from the optimized trajectory.
@@ -30,6 +32,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
     a_min, a_max = -0.5, 0.5
     v_min, v_max = -1, 1
     y_min, y_max = -1,1
+
 
     v0 = np.clip(v0, v_min, v_max) # TODO: clip to avoid constrain issues, should be handled more carefully
 
@@ -62,6 +65,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
 
         # Obstacle constraints
         # TODO: Add soft constraints
+
         penalty_scale = 800
         obstacle_penalty = 0
         a_squared = 2.0  # control the x direction in the ellipse
@@ -82,10 +86,12 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
             obstacle_penalty += penalty_scale / (ellipse_distance + 1)
             
 
+
     # Control costraints
     opti.subject_to(opti.bounded(a_min, U[0,:], a_max))
     opti.subject_to(opti.bounded(delta_min, U[1,:], delta_max))
     opti.subject_to(opti.bounded(v_min, X[3,:], v_max))
+
     # opti.subject_to(opti.bounded(y_min, X[2,:], y_max))
     # opti.subject_to(opti.bounded(omega_min, U[1,:], omega_max))
     # opti.subject_to(opti.bounded(delta_min, X[4,:], delta_max))
@@ -97,6 +103,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
     w_y = 4
     # objective = ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal])
     objective = w_d * ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]) + obstacle_penalty + w_y * y_bounds_penalty
+
     opti.minimize(objective)
 
     # Solver
@@ -130,7 +137,7 @@ def find_closest_agent(agents, pose):
             closest_agent = agent
 
     return min_distance
-   
+ 
 
 class MPCTrajectoryPlanner(Component):
     def __init__(self,vehicle_interface=None, **args):
@@ -156,6 +163,7 @@ class MPCTrajectoryPlanner(Component):
         x_goal, y_goal, theta_goal, v_goal = *route.points[-1], 0., 0.
 
         agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
+
         obstacle = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
 
         collision_dis = find_closest_agent(obstacle, pose = [vehicle.pose.x, vehicle.pose.y])
@@ -181,9 +189,11 @@ class MPCTrajectoryPlanner(Component):
         #     wheel_angle = 0
 
         print("collision distance: ", collision_dis)
+
         steering_angle = np.clip(front2steer(wheel_angle), self.steering_angle_range[0], self.steering_angle_range[1])
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
 
 
     def healthy(self):
         return True
+

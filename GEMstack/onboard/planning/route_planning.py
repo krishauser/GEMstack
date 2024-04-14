@@ -4,14 +4,18 @@ from ...utils import serialization, settings
 from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph
 from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
+
 from .reeds_shepp import path_length, get_optimal_path, eval_path, rad2deg, precompute
 from .obstacle_heuristic import obstacle_heuristic
+
 import os
 import copy
 from time import time
 from dataclasses import replace
 from queue import PriorityQueue
 import numpy as np
+import math
+
 
 
 class StaticRoutePlanner(Component):
@@ -85,12 +89,15 @@ class SearchNavigationRoutePlanner(Component):
     def __init__(self, start : List[float], end : List[float]):
         # start and end are [x, y, yaw, speed, steer] in the START frame
         self.start = start
+
+
         self.end = end
         x_bound = [min(self.start[0], self.end[0])-2, max(self.start[0], self.end[0])+1]
         y_bound = [min(self.start[1], self.end[1])-2, max(self.start[1], self.end[1])+3]
         theta_bound = [0, 2*np.pi]
         self.x_bound = x_bound
         self.y_bound = y_bound
+
 
         resolution = settings.get('planner.search_planner.resolution')
         angle_resolution = settings.get('planner.search_planner.angle_resolution')
@@ -107,12 +114,13 @@ class SearchNavigationRoutePlanner(Component):
                                       round((state[1]-y_bound[0])/(y_bound[1]-y_bound[0])*self.s_bound[1]), \
                                       round((state[2]-theta_bound[0])/(theta_bound[1]-theta_bound[0])*self.s_bound[2])%self.s_bound[2], \
                                       state[3]]
-        
+
         self.grid_resolution = 0.5      
         self.grid_map = np.full((int((x_bound[1]-x_bound[0])/self.grid_resolution), \
                                  int((y_bound[1]-y_bound[0])/self.grid_resolution)), \
                                  np.inf)
         
+
         self._rate = settings.get('planner.search_planner.rate')
         
         v = settings.get('planner.search_planner.velocity')
@@ -164,6 +172,7 @@ class SearchNavigationRoutePlanner(Component):
             # h = path_length(get_optimal_path(start,end))*turn_radius
             i, j = round((state1[0]-self.x_bound[0])/self.grid_resolution), round((state1[1]-self.y_bound[0])/self.grid_resolution)
             h = max(self.grid_map[i,j]*self.grid_resolution,h)
+
             return h*2
         self.heuristic = heuristic
 
@@ -232,6 +241,7 @@ class SearchNavigationRoutePlanner(Component):
             return True
         
         def check_path(path):
+
             for p in path[::5]:
                 if not check_constraints(p):
                     return False
@@ -251,6 +261,7 @@ class SearchNavigationRoutePlanner(Component):
             obstacle_heuristic(self.grid_map, [i,j])
 
             start = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, 0]
+
             end = [*self.end[:3], 0]
             root = Node(start,0,heuristic=self.heuristic(start,end))
 
@@ -291,6 +302,7 @@ class SearchNavigationRoutePlanner(Component):
                         queue.put(child)
             
             route = []
+
             yaws = []
             gear = []
             last_path = []

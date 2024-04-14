@@ -470,6 +470,7 @@ def path12(x, y, phi):
 
     return path
 
+
 import numpy as np
 from ...utils import settings
 
@@ -502,5 +503,4 @@ def precompute(start, end):
     if x >= HS.shape[0] or y >= HS.shape[1]:
         return path_length(get_optimal_path(start, end))
     return HS[x, y, phi]
-
 
