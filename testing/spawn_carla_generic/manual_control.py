@@ -229,7 +229,7 @@ class World(object):
         self._actor_generation = args.generation
         self._gamma = args.gamma
         rospy.init_node('manual_control')
-        self.r = rospy.Rate(30) # 10hz
+        self.r = rospy.Rate(10) # 10hz
         self.rgb = rospy.Publisher('carla/front/rgb', Image, queue_size=10)
         self.gnss = rospy.Publisher('carla/gnss', Inspva, queue_size=10)
         self.lidar = rospy.Publisher('carla/top_lidar', PointCloud2, queue_size=10)
