@@ -181,6 +181,7 @@ class TestHelper:
             box = boxes[i]
             id = bbox_ids[i]
             print ("id:", id)
+            print (box)
             
             x,y,w,h = box
             xmin, xmax = x - w/2, x + w/2
@@ -244,7 +245,7 @@ class TestHelper:
                                                      self.ped_detector.xrange,
                                                      self.ped_detector.yrange)
         
-        epsilon = 0.09  # Epsilon parameter for DBSCAN
+        epsilon = 0.1  # Epsilon parameter for DBSCAN
         
         # for epsilon in np.linspace(0.01, 0.2, 10):
         # Perform DBSCAN clustering
@@ -335,7 +336,7 @@ class TestHelper:
         
         
         # Perform DBSCAN clustering
-        epsilon = 0.09  # Epsilon parameter for DBSCAN
+        epsilon = 0.1  # Epsilon parameter for DBSCAN
         min_samples = 5  # Minimum number of samples in a cluster
         dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
         clusters = dbscan.fit_predict(point_cloud_lidar)

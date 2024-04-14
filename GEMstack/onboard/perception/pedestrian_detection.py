@@ -89,52 +89,29 @@ class PedestrianDetector(Component):
         self.camera_info = None
         self.zed_image = None
         self.last_person_boxes = []
-        self.last_car_boxes = [] # add car objects
-        self.last_stop_boxes = [] # add stop sign
-        # self.lidar_translation = np.array(settings.get('vehicle.calibration.top_lidar.position'))
-        # self.lidar_rotation = np.array(settings.get('vehicle.calibration.top_lidar.rotation'))
-        # self.zed_translation = np.array(settings.get('vehicle.calibration.front_camera.rgb_position'))
-        # self.zed_rotation = np.array(settings.get('vehicle.calibration.front_camera.rotation'))
-        # self.T_lidar = np.eye(4)
-        # self.T_lidar[:3,:3] = self.lidar_rotation
-        # self.T_lidar[:3,3] = self.lidar_translation
-        # self.T_zed = np.eye(4)
-        # self.T_zed[:3,:3] = self.zed_rotation
-        # self.T_zed[:3,3] = self.zed_translation
-        # self.T_lidar_to_zed = np.linalg.inv(self.T_zed) @ self.T_lidar
+        
         self.point_cloud = None
         self.point_cloud_zed = None
-        assert(settings.get('vehicle.calibration.top_lidar.reference') == 'rear_axle_center')
-        assert(settings.get('vehicle.calibration.front_camera.reference') == 'rear_axle_center')
+        # assert(settings.get('vehicle.calibration.top_lidar.reference') == 'rear_axle_center')
+        # assert(settings.get('vehicle.calibration.front_camera.reference') == 'rear_axle_center')
         self.pedestrian_counter = 0
         self.last_agent_states = {}
         self.previous_agents = {} 
         
         # init transformation parameters
         if extrinsic is None:
-            extrinsic = [[-0.00519, -0.99997, 0.005352, 0.1627], 
-                        [-0.0675, -0.00499, -0.9977, -0.03123], 
-                        [0.99771, -0.00554, -0.06743, -0.7284],
-                        [0,       0 ,             0 ,      1]]
-
-        # extrinsic_fn = 'GEMstack/knowledge/calibration/lidar2zed.txt'
-        # extrinsic_fn = 'GEMstack/knowledge/calibration/zed2lidar.txt'
-        # extrinsic = np.loadtxt(extrinsic_fn)
-        # extrinsic = inv(extrinsic)
-        
+            extrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt")
         self.extrinsic = np.array(extrinsic)
-        intrinsic = [684.8333129882812, 0.0, 573.37109375, 0.0, 684.6096801757812, 363.700927734375, 0.0, 0.0, 1.0] # e4
-        # intrinsic = [527.5779418945312, 0.0, 616.2459716796875, 0.0, 527.5779418945312, 359.2155456542969, 0.0, 0.0, 1.0] #e2
-        intrinsic = np.array(intrinsic).reshape((3, 3))
+            
+        intrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_intrinsic.txt")
         self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
-        T_lidar2_Gem = np.loadtxt("GEMstack/knowledge/calibration/lidar2vehicle.txt")
+        T_lidar2_Gem = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt")
         self.T_lidar2_Gem = np.asarray(T_lidar2_Gem)
 
-        # obtained by GEMstack/offboard/calibration/check_target_lidar_range.py
         # Hardcode the roi area for agents
-        self.xrange = (2.3959036, 5.8143473)
-        self.yrange = (-2.0247698, 4.0374074)
+        self.xrange = (0, 100)
+        self.yrange = (-100, 100)
         
     def rate(self):
         return 4.0
