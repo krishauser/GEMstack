@@ -8,8 +8,11 @@ import gpxpy
 import gpxpy.gpx
 from datetime import datetime
 import zipfile
+import sensor_msgs.point_cloud2 as pc2
 
 DATASET_UPLOAD_FOLDER = '../dataset'
+
+
 def get_topics(bag_file):
     bag = rosbag.Bag(bag_file)
     topics = bag.get_type_and_topic_info().topics
@@ -28,7 +31,7 @@ def get_types(bag_file):
     return type_lst
 
 
-def convert(bag_file, video=False):
+def convert(bag_file, video=False, pcd=False):
     file_name = os.path.splitext(os.path.basename(bag_file))[0]
     path = os.path.join(DATASET_UPLOAD_FOLDER, file_name)
     os.makedirs(path, exist_ok=True)
@@ -41,9 +44,14 @@ def convert(bag_file, video=False):
             if video:
                 to_video(bag, topic, file_name)
         elif 'pointcloud' in topics[topic].msg_type.lower():
-            to_pointcloud(bag, topic, file_name)
+            if pcd:
+                to_pointcloud_pcd(bag, topic, file_name)
+            else:
+                to_pointcloud_bin(bag, topic, file_name)
         elif 'gnss' in topics[topic].msg_type.lower():
             to_gnss(bag, topic, file_name)
+        elif 'imu' in topics[topic].msg_type.lower():
+            to_imu(bag, topic, file_name)
 
     bag.close()
 
@@ -78,7 +86,7 @@ def to_video(bag, topic, file_name):
     video_writer.release()
 
 
-def to_pointcloud(bag, topic, file_name):
+def to_pointcloud_pcd(bag, topic, file_name):
     path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_'))
     os.makedirs(path, exist_ok=True)
 
@@ -86,6 +94,19 @@ def to_pointcloud(bag, topic, file_name):
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(np.frombuffer(msg.data, dtype=np.float32).reshape(-1, 3))
         o3d.io.write_point_cloud(os.path.join(path, str(t) + '.pcd'), pcd)
+
+
+def to_pointcloud_bin(bag, topic, file_name):
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_'))
+    os.makedirs(path, exist_ok=True)
+
+    for _, msg, t in bag.read_messages(topics=[topic]):
+        cloud_data = []
+        for point in pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=True):
+            cloud_data.append([point[0], point[1], point[2]])
+        cloud_data = np.array(cloud_data, dtype=np.float32)
+        with open(os.path.join(path, str(t) + '.bin'), 'wb') as f:
+            f.write(cloud_data.tobytes())
 
 
 def to_gnss(bag, topic, file_name):
@@ -104,6 +125,22 @@ def to_gnss(bag, topic, file_name):
 
     with open(os.path.join(path, 'gnss.gpx'), 'w') as f:
         f.write(gpx.to_xml())
+
+
+def to_imu(bag, topic, file_name):
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_'))
+    os.makedirs(path, exist_ok=True)
+
+    imu_data = [['time', 'orientation_x', 'orientation_y', 'orientation_z', 'orientation_w', 'angular_velocity_x',
+                 'angular_velocity_y', 'angular_velocity_z', 'linear_acceleration_x', 'linear_acceleration_y',
+                 'linear_acceleration_z']]
+    for _, msg, t in bag.read_messages(topics=[topic]):
+        imu_data.append([t.to_sec(), msg.orientation.x, msg.orientation.y, msg.orientation.z, msg.orientation.w,
+                         msg.angular_velocity.x, msg.angular_velocity.y, msg.angular_velocity.z,
+                         msg.linear_acceleration.x, msg.linear_acceleration.y, msg.linear_acceleration.z])
+
+    np.savetxt(os.path.join(path, 'imu.csv'), imu_data, delimiter=',', fmt='%s')
+
 
 def create_zip_for_topic(topic_folder):
     # Get the list of subdirectories within the topic folder
@@ -124,7 +161,8 @@ def create_zip_for_topic(topic_folder):
                     with zipfile.ZipFile(zip_file_path, 'w') as zipf:
                         for root, _, files in os.walk(item_path):
                             for file in files:
-                                zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), item_path))
+                                zipf.write(os.path.join(root, file),
+                                           os.path.relpath(os.path.join(root, file), item_path))
                     zip_file_paths.append(zip_file_path)
         else:
             # If it's a direct dataset, create a zip file for the entire subdirectory
@@ -132,9 +170,11 @@ def create_zip_for_topic(topic_folder):
             with zipfile.ZipFile(zip_file_path, 'w') as zipf:
                 for root, _, files in os.walk(subdirectory_path):
                     for file in files:
-                        zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), subdirectory_path))
+                        zipf.write(os.path.join(root, file),
+                                   os.path.relpath(os.path.join(root, file), subdirectory_path))
             zip_file_paths.append(zip_file_path)
 
     return zip_file_paths
 
-#convert('vehicle_withLidarGNSS.bag', video=True)
+
+#convert('test.bag', video=True)
