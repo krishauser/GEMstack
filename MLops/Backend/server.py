@@ -45,12 +45,13 @@ except ValueError as e:
 
 @app.route('/models', methods=['GET'])
 def list_all_models():
-    models = db.Models.find({}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
+    models = db.Models.find({}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1, 'Contains': 1})
     models_list = [{
         '_id': str(model['_id']),
         'ModelName': model['ModelName'],
         'Path': model['Path'],
-        'Description': model.get('Description', '')
+        'Description': model.get('Description', ''),
+        'Contains': model['Contains']
     } for model in models]
     return jsonify(models_list)
 
