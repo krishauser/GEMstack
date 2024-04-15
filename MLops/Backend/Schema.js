@@ -40,6 +40,10 @@ const DataSchema = new mongoose.Schema({
     Source: {
         type: String,
         default: ""
+    },
+    Contains: {
+        type: [String]
+        default: []
     }
 });
 module.exports = mongoose.model("Data", DataSchema, "Datasets");

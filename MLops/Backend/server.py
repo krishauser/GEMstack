@@ -226,7 +226,7 @@ def upload_bag():
                 # Update the existing dataset with the current time
                 db.Data.update_one(
                     {'_id': existing_dataset['_id']},
-                    {'$set': {'DateTime': current_time}}
+                    {'$set': {'DateTime': current_time, 'Contains': [i[1] for i in inserted_objects]}}
                 )
                 inserted_objects.append([filename,str(existing_dataset['_id'])])
             else:
@@ -234,7 +234,8 @@ def upload_bag():
                     'DataName': filename,
                     'Path': path,
                     'Description': '',
-                    'DateTime': current_time
+                    'DateTime': current_time,
+                    'Contains': [i[1] for i in inserted_objects]
                 }
                 res = db.Data.insert_one(dataset)
                 inserted_objects.append([filename,str(res.inserted_id)])
