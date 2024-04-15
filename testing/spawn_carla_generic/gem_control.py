@@ -333,14 +333,16 @@ class World(object):
         inspva_message.pitch = self.gnss_value['pitch'] if 'pitch' in self.gnss_value else 0.0
         inspva_message.azimuth = self.gnss_value['yaw'] if 'yaw' in self.gnss_value else 0.0
         inspva_message.roll = self.gnss_value['roll'] if 'roll' in self.gnss_value else 0.0
+        v = self.player.get_velocity()
+        velocity = 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)
         if (inspva_message.azimuth != 0.0) :
             angle = math.radians(inspva_message.azimuth)
             sin_theta = math.sin(angle)
             cos_theta = math.cos(angle)
-            inspva_message.east_velocity = self.player.get_velocity() * cos_theta
-            inspva_message.north_velocity = self.player.get_velocity() * sin_theta
+            inspva_message.east_velocity =velocity * cos_theta
+            inspva_message.north_velocity = velocity * sin_theta
         else:
-            inspva_message.north_velocity = self.player.get_velocity()
+            inspva_message.north_velocity = velocity
             inspva_message.east_velocity = 0.0
         self.gnss.publish(inspva_message)
 
@@ -1260,9 +1262,9 @@ def game_loop(args):
             if args.sync:
                 sim_world.tick()
             clock.tick_busy_loop(60)
-            key = pygame.event.get()
-            if (key == K_ESCAPE) or (key == K_q and pygame.key.get_mods() & KMOD_CTRL):
-                return
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYUP and ((event.key == K_ESCAPE) or (event.key == K_q and pygame.key.get_mods() & KMOD_CTRL))):
+                    return
             world.tick(clock)
             world.render(display)
             pygame.display.flip()
