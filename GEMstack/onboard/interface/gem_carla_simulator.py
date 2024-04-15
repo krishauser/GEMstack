@@ -1,7 +1,7 @@
 from .gem import *
 from ...utils import settings
 import math
-
+import time
 # ROS Headers
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
@@ -151,7 +151,7 @@ class GEMCarlaHardwareInterface(GEMInterface):
                                     yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
                                     roll=math.radians(inspva_msg.roll),
                                     pitch=math.radians(inspva_msg.pitch),
-                                    )
+                                    t = time.time())
                         speed = np.sqrt(inspva_msg.east_velocity**2 + inspva_msg.north_velocity**2)
                         callback(GNSSReading(pose,speed,inspva_msg.status))
                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
@@ -199,8 +199,8 @@ class GEMCarlaHardwareInterface(GEMInterface):
             else:
                 def callback_with_cv2(msg : Image):
                     #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
-                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
-                    callback(cv_image)
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="8UC4")
+                    callback(cv_image[:,:,:-1])
                 self.front_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
         elif name == 'front_depth':
             topic = self.ros_sensor_topics[name]
