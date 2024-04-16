@@ -46,6 +46,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--output_dir', '-o', type=str, default='output')
 parser.add_argument('--test_target', '-t', type=str, required=True, 
                     choices=['yolo_ros', 'yolo_only'])
+parser.add_argument('--vis', '-v', default=False, action='store_true')
 args = parser.parse_args()
 
 OUTPUT_DIR = args.output_dir
@@ -66,7 +67,11 @@ print ('topic subscribe:', topic)
 def ros_PointCloud2_to_numpy(pc2_msg, want_rgb = False):
     if pc2 is None:
         raise ImportError("ROS is not installed")
-    gen = pc2.read_points(pc2_msg, skip_nans=True)
+    start = time.time()
+
+    # rospy.loginfo('pc2_msg fields: %s', str(pc2_msg.fields))
+    gen = pc2.read_points(pc2_msg, skip_nans=True, field_names=['x', 'y', 'z'])
+    
     if want_rgb:
         xyzpack = np.array(list(gen),dtype=np.float32)
         if xyzpack.shape[1] != 4:
@@ -87,7 +92,10 @@ def ros_PointCloud2_to_numpy(pc2_msg, want_rgb = False):
             xyzrgb[i,3:] = (r,g,b)
         return xyzrgb
     else:
-        return np.array(list(gen),dtype=np.float32)[:,:3]
+        start = time.time()
+        res = np.array(list(gen),dtype=np.float32)[:,:3]
+        rospy.loginfo('to array time: %s', str(time.time() - start))
+        return res
 
 class PedestrianDetector():
     """Detects and tracks pedestrians."""
@@ -131,6 +139,10 @@ class PedestrianDetector():
         self.start_lidar_t = time.time()
     
     def camera_callback(self, image: Image):
+        end_camera_t = time.time()
+        print ('camera arrive window:', end_camera_t - self.start_camera_t)
+        self.start_camera_t = end_camera_t
+        
         try:
             # Convert a ROS image message into an OpenCV image
             cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
@@ -138,19 +150,15 @@ class PedestrianDetector():
             print(e)
 
         self.zed_image = cv_image
-        end_camera_t = time.time()
-        print ('camera arrive window:', end_camera_t - self.start_camera_t)
-        self.start_camera_t = end_camera_t
-        # cv2.imwrite("test.png", self.zed_image)
 
     def lidar_callback(self, point_cloud):
-        # self.point_cloud = point_cloud
-        self.point_cloud = ros_PointCloud2_to_numpy(point_cloud, want_rgb=False)
-        
         end_lidar_t = time.time()
-        print ('lidar arrive window:', end_lidar_t - self.start_lidar_t)
+        rospy.loginfo('lidar arrive window: %s', str(end_lidar_t - self.start_lidar_t))
         self.start_lidar_t = end_lidar_t
     
+        self.point_cloud = ros_PointCloud2_to_numpy(point_cloud, want_rgb=False)
+        # self.point_cloud = alternative_ros_PointCloud2_to_numpy(point_cloud)
+        
     def detect_agents(self):
         if self.zed_image is None:
             return
@@ -179,7 +187,7 @@ class PedestrianDetector():
         for i in range(len(boxes)):
             box = boxes[i]
             id = bbox_ids[i]
-            print ("id:", id)
+            # print ("id:", id)
             
             x,y,w,h = box
             xmin, xmax = x - w/2, x + w/2
@@ -191,10 +199,11 @@ class PedestrianDetector():
             right_bottom = (int(x+w/2), int(y+h/2))
             cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
             
-        # cv2.imshow('frame', vis)
-        # if cv2.waitKey(1) & 0xFF == ord("q"):
-        #     exit(1)
-    
+        if args.vis:
+            cv2.imshow('frame', vis)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                exit(1)
+        
 def main():
     args = parser.parse_args()
     print ('======= Initial arguments =======')

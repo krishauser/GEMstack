@@ -32,8 +32,7 @@ import message_filters
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--output_dir', '-o', type=str, default='save')
-parser.add_argument('--vehicle', '-v', type=str, default='e4', 
-                    choices=['e2', 'e4'])
+parser.add_argument('--vis', '-v', default=False, action='store_true')
 args = parser.parse_args()
 
 colors = []
@@ -73,7 +72,9 @@ print ('topic subscribe:', topic)
 def ros_PointCloud2_to_numpy(pc2_msg, want_rgb = False):
     if pc2 is None:
         raise ImportError("ROS is not installed")
-    gen = pc2.read_points(pc2_msg, skip_nans=True)
+    # gen = pc2.read_points(pc2_msg, skip_nans=True)
+    gen = pc2.read_points(pc2_msg, skip_nans=True, field_names=['x', 'y', 'z'])
+    
     if want_rgb:
         xyzpack = np.array(list(gen),dtype=np.float32)
         if xyzpack.shape[1] != 4:
@@ -146,8 +147,8 @@ class PedestrianDetector():
 
         # obtained by GEMstack/offboard/calibration/check_target_lidar_range.py
         # Hardcode the roi area for agents
-        self.xrange = (0, 100)
-        self.yrange = (-200.0247698, 100.0374074)
+        self.xrange = (0, 20)
+        self.yrange = (-10.0247698, 10.0374074)
         
         # subscribe
         
@@ -159,43 +160,50 @@ class PedestrianDetector():
         self.zed_image = None
         self.point_cloud = None
         self.index = 0
-        
-        # sync_sub1 = message_filters.Subscriber(lidar_topic, PointCloud2)
-        # sync_sub2 = message_filters.Subscriber(camera_topic, Image)
-        # ts = message_filters.TimeSynchronizer([sync_sub1, sync_sub2], 10)
-        # ts.registerCallback(self.callback)
     
-    def callback(self, data1, data2):
-        print ('Received messages')
-        # rospy.loginfo("Received messages: {} and {}".format(data1.data, data2.data))
-
+        self.start_camera_t = time.time()
+        self.start_lidar_t = time.time()
+    
     def camera_callback(self, image: Image):
-        try:
-            # Convert a ROS image message into an OpenCV image
-            cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
-        except CvBridgeError as e:
-            print(e)
+        end_camera_t = time.time()
+        self.start_camera_t = end_camera_t
+        
+        # try:
+        #     # Convert a ROS image message into an OpenCV image
+        #     cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+        # except CvBridgeError as e:
+        #     print(e)
 
-        print ('cv_image.shape:', cv_image.shape)
-        self.zed_image = cv_image
+        self.zed_image = image
 
     def lidar_callback(self, point_cloud):
-        # self.point_cloud = point_cloud
-        self.point_cloud = ros_PointCloud2_to_numpy(point_cloud, want_rgb=False)
-        print ('point_cloud.shape:', self.point_cloud.shape)
+        end_lidar_t = time.time()
+        self.start_lidar_t = end_lidar_t
+
+        self.point_cloud = point_cloud
+
+        # self.point_cloud = ros_PointCloud2_to_numpy(point_cloud, want_rgb=False)
     
-    def detect_agents(self):
+    def vis_lidar_by_clusters(self, vis, point_cloud_image, clusters):
+        for proj_pt, cluster in zip(point_cloud_image, clusters):
+            color = colors[cluster % len(colors)]
+            radius = 1
+            center = int(proj_pt[0]), int(proj_pt[1])
+            vis = cv2.circle(vis, center, radius, color, cv2.FILLED)
+        return vis    
+    
+    def detect_agents(self, img):
         if self.zed_image is None:
             return
         # if self.zed_image is None or self.point_cloud is None:
         #     return 
         
-        vis = self.zed_image.copy()
+        vis = img.copy()
         # vis_pc = self.point_cloud.copy()
         
         t1 = time.time()
-        detection_result = self.detector(self.zed_image,verbose=False)
-        print ('detection time:', time.time() - t1)
+        detection_result = self.detector(img,verbose=False)
+        rospy.loginfo('detection time: %s', str(time.time() - t1))
         
         #TODO: create boxes from detection result
         boxes = []
@@ -211,7 +219,7 @@ class PedestrianDetector():
         for i in range(len(boxes)):
             box = boxes[i]
             id = bbox_ids[i]
-            print ("id:", id)
+            # print ("id:", id)
             
             x,y,w,h = box
             xmin, xmax = x - w/2, x + w/2
@@ -242,29 +250,36 @@ class PedestrianDetector():
         if self.zed_image is None or self.point_cloud is None:
             return
         
-        print ('\nTest function lidar_to_image_dbscan()...')
-        filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
-                                                        self.xrange,
-                                                        self.yrange)
+        vis = self.bridge.imgmsg_to_cv2(self.zed_image, "bgr8")
         
-        epsilon = 0.1  # Epsilon parameter for DBSCAN
+        start_t = time.time()
+        pc = ros_PointCloud2_to_numpy(self.point_cloud, want_rgb=False)
+        rospy.loginfo('ros_PointCloud2_to_numpy time: %s', str(time.time() - start_t))
         
-        # for epsilon in np.linspace(0.01, 0.2, 10):
+        start_t = time.time()
+        filtered_point_cloud = filter_lidar_by_range(pc, self.xrange,self.yrange)
+        rospy.loginfo('filtered_point_cloud time: %s', str(time.time() - start_t))
+        
+        
+        start_t = time.time()
         # Perform DBSCAN clustering
+        epsilon = 0.1  # Epsilon parameter for DBSCAN
         min_samples = 5  # Minimum number of samples in a cluster
         dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
         clusters = dbscan.fit_predict(filtered_point_cloud)
+        rospy.loginfo('dbscan time: %s', str(time.time() - start_t))
 
+        start_t = time.time()
         point_cloud_image = lidar_to_image(filtered_point_cloud, 
                                         self.extrinsic, 
                                         self.intrinsic)
-
-        vis = self.detect_agents()
-        for proj_pt, cluster in zip(point_cloud_image, clusters):
-            color = colors[cluster % len(colors)]
-            radius = 1
-            center = int(proj_pt[0]), int(proj_pt[1])
-            vis = cv2.circle(vis, center, radius, color, cv2.FILLED)
+        rospy.loginfo('lidar_to_image time: %s', str(time.time() - start_t))
+        
+        vis = self.detect_agents(vis)
+        
+        start_t = time.time()
+        vis = self.vis_lidar_by_clusters(vis, point_cloud_image, clusters)
+        rospy.loginfo('vis_lidar time: %s', str(time.time() - start_t))
             
         cv2.imshow('frame', vis)
         if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -290,7 +305,7 @@ def main():
         while not rospy.is_shutdown():
             rate.sleep()  # Wait a while before trying to get a new waypoints
             # ped.detect_agents()
-            # ped.test_lidar_to_image_dbscan()
+            ped.test_lidar_to_image_dbscan()
     except rospy.ROSInterruptException:
         pass
 
