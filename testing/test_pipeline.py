@@ -166,20 +166,21 @@ class PedestrianDetector():
     
     def camera_callback(self, image: Image):
         end_camera_t = time.time()
+        rospy.loginfo('camera_callback:', end_camera_t - self.start_camera_t)
         self.start_camera_t = end_camera_t
-        
         # try:
         #     # Convert a ROS image message into an OpenCV image
         #     cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
         # except CvBridgeError as e:
-        #     print(e)
+        #     print(rospy.loginfo
 
         self.zed_image = image
 
     def lidar_callback(self, point_cloud):
         end_lidar_t = time.time()
+        rospy.loginfo('lidar_callback:', end_lidar_t - self.start_lidar_t)
         self.start_lidar_t = end_lidar_t
-
+        
         self.point_cloud = point_cloud
 
         # self.point_cloud = ros_PointCloud2_to_numpy(point_cloud, want_rgb=False)
@@ -232,19 +233,6 @@ class PedestrianDetector():
             cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
         
         return vis
-        # cv2.imshow('frame', vis)
-        # if cv2.waitKey(1) & 0xFF == ord("q"):
-        #     exit(1)
-        
-        
-        # pathlib.Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-        
-        # color_fn = os.path.join(OUTPUT_DIR,'color{}.png'.format(self.index))
-        # lidar_fn = os.path.join(OUTPUT_DIR,'lidar{}.npz'.format(self.index))
-        
-        # print ('Output result:', color_fn)
-        # cv2.imwrite(color_fn, vis)
-        # np.savez(lidar_fn, vis_pc)
     
     def test_lidar_to_image_dbscan(self):
         if self.zed_image is None or self.point_cloud is None:
@@ -275,7 +263,9 @@ class PedestrianDetector():
                                         self.intrinsic)
         rospy.loginfo('lidar_to_image time: %s', str(time.time() - start_t))
         
+        start_t = time.time()
         vis = self.detect_agents(vis)
+        rospy.loginfo('detect_agents time: %s', str(time.time() - start_t))
         
         start_t = time.time()
         vis = self.vis_lidar_by_clusters(vis, point_cloud_image, clusters)
