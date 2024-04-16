@@ -211,7 +211,8 @@ def plot_curve(name : str, curve : RoadgraphCurve, color=None, width=None):
     if width is not None:
         style['width'] = width
     for i,seg in enumerate(curve.segments):
-        vis.add(name+"_%d" % i,seg,**style)
+        seg_list = [list(s) for s in seg]
+        vis.add(name+"_%d" % i,seg_list,**style)
 
 def plot_lane(name : str, lane : RoadgraphLane, on_route=False):
     if lane.surface != RoadgraphSurfaceEnum.PAVEMENT:
@@ -224,14 +225,14 @@ def plot_lane(name : str, lane : RoadgraphLane, on_route=False):
         plot_curve(name+"_right", lane.right)
 
 def plot_region(name : str, region : RoadgraphRegion, color=None, width=None):
-    style = REGION_TO_STYLE.get(region.type,REGION_TO_STYLE[None])
-    points = region.outline()
-    pts = points + points[0]
+    style = REGION_TO_STYLE.get(region.type,None)
+    points = [list(p) for p in region.outline]
+    pts = points + [points[0]]
     if color is not None:
         style['color'] = color
     if width is not None:
         style['width'] = width
-    vis.add(name, [list(p) for p in pts], **style)
+    vis.add(name, pts, **style)
 
 def plot_roadgraph(roadgraph : Roadgraph, route : Route = None):
     #plot lanes
