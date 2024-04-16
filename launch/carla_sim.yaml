@@ -1,9 +1,9 @@
 description: "Run the pedestrian detection code from HW2 with real detection and fake simulation"
 mode: hardware
 vehicle_interface:
-    type: gem_carla_simulator.GEMCarlaHardwareInterface
-    # args:
-    #     scene: !relative_path '../scenes/xyhead_demo.yaml'
+    type: gem_carla_mixed.GEMCarlaSensorsWithSimMotionInterface
+    args:
+        scene: !relative_path '../scenes/xyhead_demo.yaml'
 mission_execution: StandardExecutor
 require_engaged: False
 
@@ -14,7 +14,7 @@ recovery:
 # Driving behavior for the GEM vehicle.  Runs real pedestrian perception, yield planner, and tracking controller goes to sim.
 drive: 
     perception:
-        state_estimation : FakeStateEstimator
+        state_estimation : GNSSStateEstimator
         agent_detection : pedestrian_detection.PedestrianDetector2D
         perception_normalization : StandardPerceptionNormalizer
     planning:
@@ -25,7 +25,7 @@ drive:
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
-            print: False
+            print: True
 
 #visualization methods
 # visualization:
