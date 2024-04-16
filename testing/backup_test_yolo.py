@@ -50,18 +50,6 @@ args = parser.parse_args()
 
 OUTPUT_DIR = args.output_dir
 
-TOPICS = {    
-    'e2': {    
-        'lidar': "/lidar1/velodyne_points", # 10Hz, shape: (25281, 3)
-        'camera': "/zed2/zed_node/rgb/image_rect_color" # 30Hz, shape: (720, 1280, 3)
-    },
-    'e4': {    
-        'lidar': "/ouster/points", # 10Hz, shape: (131072, 3)
-        'camera': "/oak/rgb/image_raw" # 10Hz, shape: (720, 1152, 3)
-    },
-}
-topic = TOPICS
-print ('topic subscribe:', topic)
 
 def ros_PointCloud2_to_numpy(pc2_msg, want_rgb = False):
     if pc2 is None:
@@ -119,16 +107,11 @@ class PedestrianDetector():
         
         # subscribe
         self.bridge = CvBridge()
-        self.e2_lidar_sub = rospy.Subscriber(topic['e2']['lidar'], PointCloud2, self.lidar_callback)
-        self.e2_camera_sub = rospy.Subscriber(topic['e2']['camera'], Image, self.camera_callback)
-        self.e4_lidar_sub = rospy.Subscriber(topic['e4']['lidar'], PointCloud2, self.lidar_callback)
-        self.e4_camera_sub = rospy.Subscriber(topic['e4']['camera'], Image, self.camera_callback)
-        
+        # self.lidar_sub = rospy.Subscriber("/ouster/points",  PointCloud2, self.lidar_callback)
+        self.camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, self.camera_callback)
         self.zed_image = None
         self.point_cloud = None
         self.index = 0
-        self.start_camera_t = time.time()
-        self.start_lidar_t = time.time()
     
     def camera_callback(self, image: Image):
         try:
@@ -138,18 +121,11 @@ class PedestrianDetector():
             print(e)
 
         self.zed_image = cv_image
-        end_camera_t = time.time()
-        print ('camera arrive window:', end_camera_t - self.start_camera_t)
-        self.start_camera_t = end_camera_t
         # cv2.imwrite("test.png", self.zed_image)
 
     def lidar_callback(self, point_cloud):
         # self.point_cloud = point_cloud
         self.point_cloud = ros_PointCloud2_to_numpy(point_cloud, want_rgb=False)
-        
-        end_lidar_t = time.time()
-        print ('lidar arrive window:', end_lidar_t - self.start_lidar_t)
-        self.start_lidar_t = end_lidar_t
     
     def detect_agents(self):
         if self.zed_image is None:
@@ -191,9 +167,9 @@ class PedestrianDetector():
             right_bottom = (int(x+w/2), int(y+h/2))
             cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
             
-        # cv2.imshow('frame', vis)
-        # if cv2.waitKey(1) & 0xFF == ord("q"):
-        #     exit(1)
+        cv2.imshow('frame', vis)
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            exit(1)
     
 def main():
     args = parser.parse_args()
