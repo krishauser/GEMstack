@@ -1,5 +1,5 @@
 from .gem import GEMInterface, GEMVehicleCommand, GEMVehicleReading
-from .gem_carla_simulator import GEMCarlaHardwareInterface
+from .gem_carla_interface import GEMCarlaHardwareInterface
 from .gem_simulator import GEMDoubleIntegratorSimulationInterface
 from typing import Callable, List
 
