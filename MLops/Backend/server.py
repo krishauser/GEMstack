@@ -45,13 +45,12 @@ except ValueError as e:
 
 @app.route('/models', methods=['GET'])
 def list_all_models():
-    models = db.Models.find({}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1, 'Contains': 1})
+    models = db.Models.find({}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
     models_list = [{
         '_id': str(model['_id']),
         'ModelName': model['ModelName'],
         'Path': model['Path'],
-        'Description': model.get('Description', ''),
-        'Contains': model['Contains']
+        'Description': model.get('Description', '')
     } for model in models]
     return jsonify(models_list)
 
@@ -125,12 +124,13 @@ def retrieve_model(id):
 
 @app.route('/datasets', methods=['GET'])
 def list_all_datasets():
-    datasets = db.Data.find({}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
+    datasets = db.Data.find({}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1, 'Contains': 1})
     datasets_list = [{
         '_id': str(dataset['_id']),
         'DataName': dataset['DataName'],
         'Path': dataset['Path'],
-        'Description': dataset.get('Description', '')
+        'Description': dataset.get('Description', ''),
+        'Contains': dataset.get('Contains', []),
     } for dataset in datasets]
     return jsonify(datasets_list)
 
@@ -248,7 +248,7 @@ def upload_bag():
 
 @app.route('/datasets/<id>', methods=['GET'])
 def list_dataset_info(id):
-    dataset = db.Data.find_one({'_id': ObjectId(id)}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1})
+    dataset = db.Data.find_one({'_id': ObjectId(id)}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1, 'Contains': 1})
     if dataset:
         dataset['_id'] = str(dataset['_id'])
         return jsonify(dataset)
