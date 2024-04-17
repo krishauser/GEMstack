@@ -27,7 +27,7 @@ import struct
 import ctypes
 import sensor_msgs.point_cloud2 as pc2
 import argparse
-from message_filters import Subscriber, TimeSynchronizer
+from message_filters import Subscriber, TimeSynchronizer, ApproximateTimeSynchronizer
 import message_filters
 
 parser = argparse.ArgumentParser()
@@ -97,6 +97,30 @@ def ros_PointCloud2_to_numpy(pc2_msg, want_rgb = False):
     else:
         return np.array(list(gen),dtype=np.float32)[:,:3]
     
+def pointcloud_downsample(pc2_msg, max_degree=120, min_degree=60):
+    if pc2 is None:
+        raise ImportError("ROS is not installed")
+    # gen = pc2.read_points(pc2_msg, skip_nans=True)
+    gen = pc2.read_points(pc2_msg, skip_nans=True, field_names=['x', 'y', 'z'])
+    
+    cnt = 0
+    angles = []
+    filtered_points = []
+    for point in gen:
+        pc_x, pc_y, pc_z = point[:3]
+        angle = np.arctan2(pc_y, pc_x) * (180 / np.pi)
+            
+        # Check if the angle is within the specified range
+        if pc_z < 0 and min_degree <= angle <= max_degree:
+            angles.append(angle)
+            cnt += 1
+    
+    print ('cnt:', cnt)
+    
+    # Create a new PointCloud2 message with the filtered points
+    downsample_cloud = pc2.create_cloud(pc2_msg.header, pc2_msg.fields, filtered_points)
+    return downsample_cloud
+    
 def lidar_to_image(point_cloud_lidar: np.ndarray, extrinsic : np.ndarray, intrinsic : np.ndarray):
     
     homo_point_cloud_lidar = np.hstack((point_cloud_lidar, np.ones((point_cloud_lidar.shape[0], 1)))) # (N, 4)
@@ -153,17 +177,19 @@ class PedestrianDetector():
         # subscribe
         
         self.bridge = CvBridge()
-        self.e2_lidar_sub = rospy.Subscriber(topic['e2']['lidar'], PointCloud2, self.lidar_callback)
-        self.e2_camera_sub = rospy.Subscriber(topic['e2']['camera'], Image, self.camera_callback)
+        # self.e2_lidar_sub = rospy.Subscriber(topic['e2']['lidar'], PointCloud2, self.lidar_callback)
+        # self.e2_camera_sub = rospy.Subscriber(topic['e2']['camera'], Image, self.camera_callback)
         self.e4_lidar_sub = rospy.Subscriber(topic['e4']['lidar'], PointCloud2, self.lidar_callback)
         self.e4_camera_sub = rospy.Subscriber(topic['e4']['camera'], Image, self.camera_callback)
         
+        self.lidar_downsample_pub = rospy.Publisher("/ouster/points_downsample", PointCloud2, queue_size=1)
+        
         # Define the subscribers (message filters)
-        sync_lidar_sub = Subscriber(topic['e4']['lidar'], PointCloud2)
-        sync_camera_sub = Subscriber(topic['e4']['camera'], Image)
+        sync_lidar_sub = message_filters.Subscriber('/ouster/points_downsample', PointCloud2)
+        sync_camera_sub = message_filters.Subscriber(topic['e4']['camera'], Image)
 
         # Synchronize messages based on their timestamps
-        ts = TimeSynchronizer([sync_lidar_sub, sync_camera_sub], 10)
+        ts = message_filters.ApproximateTimeSynchronizer([sync_lidar_sub, sync_camera_sub], 10, 0.1)
         ts.registerCallback(self.callback)
         
         self.zed_image = None
@@ -180,9 +206,9 @@ class PedestrianDetector():
         self.zed_image = image
         
     def camera_callback(self, image: Image):
-        end_camera_t = time.time()
-        rospy.loginfo('camera_callback:', end_camera_t - self.start_camera_t)
-        self.start_camera_t = end_camera_t
+        # end_camera_t = time.time()
+        # rospy.loginfo('camera_callback:', end_camera_t - self.start_camera_t)
+        # self.start_camera_t = end_camera_t
         # try:
         #     # Convert a ROS image message into an OpenCV image
         #     cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
@@ -192,11 +218,14 @@ class PedestrianDetector():
         self.zed_image = image
 
     def lidar_callback(self, point_cloud):
-        end_lidar_t = time.time()
-        rospy.loginfo('lidar_callback:', end_lidar_t - self.start_lidar_t)
-        self.start_lidar_t = end_lidar_t
+        # end_lidar_t = time.time()
+        # rospy.loginfo('lidar_callback:', end_lidar_t - self.start_lidar_t)
+        # self.start_lidar_t = end_lidar_t
         
-        self.point_cloud = point_cloud
+        downsample_cloud = pointcloud_downsample(point_cloud)
+        self.lidar_downsample_pub.publish(downsample_cloud)
+        
+        # self.point_cloud = point_cloud
 
         # self.point_cloud = ros_PointCloud2_to_numpy(point_cloud, want_rgb=False)
     
@@ -290,16 +319,9 @@ class PedestrianDetector():
         if cv2.waitKey(1) & 0xFF == ord("q"):
             exit(1)
 
-
-def main():
-    # args = parser.parse_args()
-    # print ('======= Initial arguments =======')
-    # params = []
-    # for key, val in vars(args).items():
-    #     param = f"--{key} {val}"
-    #     print(f"{key} => {val}")
-    #     params.append(param)
-
+if __name__ == '__main__':
+    # main(sys.argv)
+    
     rospy.init_node('rgb_track_node', anonymous=True)
     rate = rospy.Rate(30)  # Hz
 
@@ -310,7 +332,7 @@ def main():
         while not rospy.is_shutdown():
             rate.sleep()  # Wait a while before trying to get a new waypoints
             # ped.detect_agents()
-            ped.test_lidar_to_image_dbscan()
+            # ped.test_lidar_to_image_dbscan()
     except rospy.ROSInterruptException:
         pass
 
