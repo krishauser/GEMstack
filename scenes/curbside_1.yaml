@@ -1,0 +1,18 @@
+vehicle_state: [4.0, 5.0, 0.0, 0.0, 0.0]
+agents:
+  car1: 
+    type: car
+    position: [15.0, 2.0]
+    behavior: stationary
+  car2: 
+    type: car
+    position: [20.0, 2.0]
+    behavior: stationary
+  car3: 
+    type: car
+    position: [8.0, 2.0]
+    behavior: stationary
+  car4: 
+    type: car
+    position: [35.0, 2.0]
+    behavior: stationary
