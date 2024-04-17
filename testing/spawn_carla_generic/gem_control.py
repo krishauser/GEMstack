@@ -333,14 +333,16 @@ class World(object):
         inspva_message.pitch = self.gnss_value['pitch'] if 'pitch' in self.gnss_value else 0.0
         inspva_message.azimuth = self.gnss_value['yaw'] if 'yaw' in self.gnss_value else 0.0
         inspva_message.roll = self.gnss_value['roll'] if 'roll' in self.gnss_value else 0.0
+        v = self.player.get_velocity()
+        velocity = 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)
         if (inspva_message.azimuth != 0.0) :
             angle = math.radians(inspva_message.azimuth)
             sin_theta = math.sin(angle)
             cos_theta = math.cos(angle)
-            inspva_message.east_velocity = self.player.get_velocity() * cos_theta
-            inspva_message.north_velocity = self.player.get_velocity() * sin_theta
+            inspva_message.east_velocity =velocity * cos_theta
+            inspva_message.north_velocity = velocity * sin_theta
         else:
-            inspva_message.north_velocity = self.player.get_velocity()
+            inspva_message.north_velocity = velocity
             inspva_message.east_velocity = 0.0
         self.gnss.publish(inspva_message)
 
@@ -428,22 +430,41 @@ class GEMControl(object):
         world.player.set_autopilot(False, 8002)
         world.player.set_light_state(self._lights)
         self._steer_cache = 0.0
+        self.throttle = 0.0
+        self.brake = 0.0
+        self.state = "none"
         #rospy.Subscriber('/carla/as_rx/shift_cmd', PacmodCmd, self.gear_shift_callback) # TODO discuss necessity of gear shift input
         rospy.Subscriber('/carla/as_rx/brake_cmd', PacmodCmd, self.brake_callback)
         rospy.Subscriber('/carla/as_rx/accel_cmd', PacmodCmd, self.acceleration_callback)
-        rospy.Subscriber('/carla/as_rx/turn_cmd', PositionWithSpeed, self.turn_signal_callback)
-        rospy.Subscriber('/carla/as_rx/steer_cmd', PacmodCmd, self.steer_callback)
+        rospy.Subscriber('/carla/as_rx/turn_cmd', PacmodCmd, self.turn_signal_callback)
+        rospy.Subscriber('/carla/as_rx/steer_cmd', PositionWithSpeed, self.steer_callback)
+
+
+    def step_ahead(self):
+        if (self.state == "MOVE"):
+            self._control.throttle = self.throttle
+        if (self.state == "BRAKE"):
+            self._control.brake = self.brake
+        self.world.player.apply_control(self._control)
 
     def gear_shift_callback(self, message):
         self._control.gear 
         pass
 
     def acceleration_callback(self, message: PacmodCmd):
-        self._control.throttle = message.f64_cmd
+        # self._control.gear = 1
+        # print(self._control.gear)
+        v = self.world.player.get_velocity()
+        if (self._control.throttle < 0.1 and (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)) < 0.1):
+            self.throttle = 1
+        else:
+            self.throttle = message.f64_cmd
+        self.state = "MOVE"
         pass
 
     def brake_callback(self, message: PacmodCmd):
-        self._control.brake = message.f64_cmd
+        self.state = "BRAKE"
+        self.brake = message.f64_cmd
         pass
 
     def turn_signal_callback(self, message: PacmodCmd):
@@ -456,7 +477,8 @@ class GEMControl(object):
         elif (message.ui16_cmd == PacmodCmd.TURN_RIGHT):
             current_lights ^= carla.VehicleLightState.RightBlinker
         elif (message.ui16_cmd == PacmodCmd.TURN_NONE):
-            current_lights ^= carla.VehicleLightState
+            #print(current_lights, carla.VehicleLightState.NONE)
+            current_lights ^= carla.VehicleLightState.NONE
         
         if current_lights != self._lights: # Change the light state only if necessary
             self._lights = current_lights
@@ -464,6 +486,7 @@ class GEMControl(object):
 
     def steer_callback(self, message: PositionWithSpeed):
         self._control.steer = round(message.angular_position, 1)
+        self.world.player.apply_control(self._control)
         pass
 
 
@@ -1058,7 +1081,6 @@ class CameraManager(object):
             if self.sensor is not None:
                 self.sensor.destroy()
                 self.surface = None
-            print(self._camera_transforms[self.transform_index][0])
             self.sensor = self._parent.get_world().spawn_actor(
                 self.sensors[index][-1],
                 self._camera_transforms[self.transform_index][0],
@@ -1076,7 +1098,6 @@ class CameraManager(object):
         if self.fixed_front_rgb_sensor is not None:
             print('fixed sensor destroyed')
             self.fixed_front_rgb_sensor.destroy()
-        print(self.fixed_front_rgb_transform[0])
         self.fixed_front_rgb_sensor = self._parent.get_world().spawn_actor(
             self.fixed_front_rgb_info[-1],
             self.fixed_front_rgb_transform[0],
@@ -1091,7 +1112,6 @@ class CameraManager(object):
         if self.fixed_top_lidar_sensor is not None:
             print('fixed sensor destroyed')
             self.fixed_top_lidar_sensor.destroy()
-        print(self.fixed_top_lidar_transform[0])
         self.fixed_top_lidar_sensor = self._parent.get_world().spawn_actor(
             self.fixed_top_lidar_info[-1],
             self.fixed_top_lidar_transform[0],
@@ -1106,7 +1126,6 @@ class CameraManager(object):
         if self.fixed_front_depth_sensor is not None:
             print('fixed sensor destroyed')
             self.fixed_front_depth_sensor.destroy()
-        print(self.fixed_top_lidar_transform[0])
         self.fixed_front_depth_sensor = self._parent.get_world().spawn_actor(
             self.fixed_front_depth_info[-1],
             self.fixed_front_depth_transform[0],
@@ -1260,11 +1279,12 @@ def game_loop(args):
             if args.sync:
                 sim_world.tick()
             clock.tick_busy_loop(60)
-            key = pygame.event.get()
-            if (key == K_ESCAPE) or (key == K_q and pygame.key.get_mods() & KMOD_CTRL):
-                return
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYUP and ((event.key == K_ESCAPE) or (event.key == K_q and pygame.key.get_mods() & KMOD_CTRL))):
+                    return
             world.tick(clock)
             world.render(display)
+            controller.step_ahead()
             pygame.display.flip()
 
     finally:

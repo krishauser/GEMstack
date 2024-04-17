@@ -25,12 +25,8 @@ from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, Vehicl
 import cv2
 import numpy as np
 from ...utils import conversions
-
-@dataclass 
-class GNSSReading:
-    pose : ObjectPose
-    speed : float
-    status : str
+import time
+from .gnss_reading import GNSSReading
 
 class GEMHardwareInterface(GEMInterface):
     """Interface for connnecting to the physical GEM e2 vehicle."""
