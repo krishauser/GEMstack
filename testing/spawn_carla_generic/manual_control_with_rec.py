@@ -484,7 +484,7 @@ class KeyboardControl(object):
                         with open(filename_txt, 'w') as file:
                             file.write("weather_time: " + str(world._weather_index))
                         client.start_recorder(
-                            world.filename, True)
+                            world.filename)
 
                         world.recording_enabled = True
                         world.hud.notification("Recorder is ON")
