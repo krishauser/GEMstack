@@ -1,0 +1,215 @@
+WorldModel::LoadRobot: /home/gem/group6_project/GEMstack/GEMstack/knowledge/vehicle/model/gem_e4.urdf
+joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0URDFParser: Link size: 36
+URDFParser: Joint size: 31
+URDFParser: Done loading robot file /home/gem/group6_project/GEMstack/GEMstack/knowledge/vehicle/model/gem_e4.urdf
+**************************************************************
+Loading default settings from /home/gem/group6_project/GEMstack/GEMstack/knowledge/defaults/current.yaml
+**************************************************************
+Execution: APPYING VARIANT {'run': {'description': 'Run the pedestrian detection code and show a visualization', 'visualization': {'type': 'klampt_visualization.KlamptVisualization', 'args': {'rate': 20, 'save_as': None}}, 'drive': {'planning': {'trajectory_tracking': None}}}}
+Execution: variant detector_only defines key run.visualization which is not found in normal settings
+Execution: Importing gem_hardware from GEMstack.onboard.interface to get GEMHardwareInterface
+Execution: Importing execution from GEMstack.onboard.execution to get StandardExecutor
+Execution: Importing klampt_visualization from GEMstack.onboard.visualization to get KlamptVisualization
+Execution: Importing state_estimation from GEMstack.onboard.perception to get GNSSStateEstimator
+Execution: Importing pedestrian_detection from GEMstack.onboard.perception to get PedestrianDetector
+Execution: Importing perception_normalization from GEMstack.onboard.perception to get StandardPerceptionNormalizer
+Execution: Importing route_planning from GEMstack.onboard.planning to get StaticRoutePlanner
+Execution: Importing pedestrian_avoidance_planning from GEMstack.onboard.planning to get PedestrianAvoidanceMotionPlanner
+Execution: Component state_estimation uses implementation GNSSStateEstimator
+Execution: Component agent_detection uses implementation PedestrianDetector
+Execution: Component perception_normalization uses implementation StandardPerceptionNormalizer
+Execution: Component route_planning uses implementation StaticRoutePlanner
+Execution: Component motion_planning uses implementation PedestrianAvoidanceMotionPlanner
+Execution: Importing recovery from GEMstack.onboard.planning to get StopTrajectoryTracker
+Execution: Component trajectory_tracking uses implementation StopTrajectoryTracker
+Execution: Logging to logs/hw3_2024-04-10_14-36-05
+***  klampt.vis: using Qt5 as the visualization backend  ***
+QtBackend: initializing app as Klamp't visualization
+vis: creating GL window
+------ Component KlamptVisualization stdout ---------
+    ######### QGLWidget setProgram ###############
+    #########################################
+    klampt.vis: Making window 0
+    #########################################
+    ######### QGLWidget Initialize GL ###############
+-------------------------------------------
+Execution: Component KlamptVisualization is running behind, time 0.2031090259552002 overran dt 0.05 by 0.00805807113647461 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.7881393432617188e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detection time 16.380935192108154 , shape estimation and tracking time 3.933906555175781e-05
+-------------------------------------------
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0031244754791259766 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.2172927856445312e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [433.54345703125, 476.28399658203125, 70.00311279296875, 240.52456665039062]
+    pose xy: 6.6986584127598405 1.1746054240630268
+    Detection time 1.0802788734436035 , shape estimation and tracking time 1.52587890625e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.080444097518921 overran dt 0.25 by 16.047696828842163 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.003397703170776367 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.5020370483398438e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [337.37469482421875, 494.0581359863281, 115.97189331054688, 271.24786376953125]
+    pose xy: 6.339837459203244 1.6472834705824853
+    Detection time 0.8888530731201172 , shape estimation and tracking time 2.0742416381835938e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 0.8889591693878174 overran dt 0.25 by 0.5850949287414551 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0027649402618408203 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.384185791015625e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [332.6880798339844, 494.08319091796875, 104.17059326171875, 270.6108703613281]
+    pose xy: 6.409510551720739 1.741087876338601
+    Detection time 1.0416979789733887 , shape estimation and tracking time 2.5033950805664062e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.0418777465820312 overran dt 0.25 by 0.39269566535949707 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.002902984619140625 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.6927719116210938e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [420.545166015625, 479.8336486816406, 113.2552490234375, 245.08160400390625]
+    pose xy: 6.567774414967596 1.1100044341805577
+    Detection time 1.0607850551605225 , shape estimation and tracking time 2.4557113647460938e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.060943603515625 overran dt 0.25 by 0.5457639694213867 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0021011829376220703 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.4066696166992188e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [569.2456665039062, 476.9051818847656, 100.5623779296875, 234.98809814453125]
+    pose xy: 6.747713120191454 0.09361540902841092
+    Detection time 1.0118203163146973 , shape estimation and tracking time 1.52587890625e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.0119388103485107 overran dt 0.25 by 0.5639748573303223 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.004745006561279297 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.0728836059570312e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [669.2455444335938, 482.4854736328125, 108.1658935546875, 253.1282958984375]
+    pose xy: 6.627043737683058 -0.6596179408962727
+    Detection time 1.2579891681671143 , shape estimation and tracking time 5.888938903808594e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.2583651542663574 overran dt 0.25 by 0.5173428058624268 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0024666786193847656 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.2636184692382812e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [626.3834228515625, 501.4956359863281, 85.94622802734375, 270.53973388671875]
+    pose xy: 6.656154721420645 -0.28520792466747763
+    Detection time 1.042266845703125 , shape estimation and tracking time 3.147125244140625e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.0424385070800781 overran dt 0.25 by 0.7622420787811279 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.002322673797607422 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.52587890625e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [502.8365478515625, 521.2908935546875, 93.44082641601562, 322.66326904296875]
+    pose xy: 5.872191668509304 0.5777704516192078
+    Detection time 1.170743465423584 , shape estimation and tracking time 9.655952453613281e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.1711342334747314 overran dt 0.25 by 0.5457561016082764 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.010641336441040039 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.0967254638671875e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [337.693115234375, 539.5604248046875, 174.88479614257812, 347.8638000488281]
+    pose xy: 5.245344996863901 1.1919592593172192
+    Detection time 1.0408515930175781 , shape estimation and tracking time 2.8371810913085938e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.040980577468872 overran dt 0.25 by 0.682713508605957 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0020952224731445312 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.33514404296875e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [316.0869140625, 540.8397216796875, 155.70262145996094, 346.1750183105469]
+    pose xy: 6.398889032883643 1.7376022757387162
+    Detection time 1.148045539855957 , shape estimation and tracking time 2.9802322387695312e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.14823579788208 overran dt 0.25 by 0.5438549518585205 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0038979053497314453 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.3828277587890625e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [491.46484375, 536.5670166015625, 89.8909912109375, 346.87066650390625]
+    pose xy: 6.636464064025761 0.7049980988868475
+    Detection time 0.9981508255004883 , shape estimation and tracking time 1.7881393432617188e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 0.9982929229736328 overran dt 0.25 by 0.6533539295196533 s
+Execution: Component KlamptVisualization is running behind, time 0.05954933166503906 overran dt 0.05 by 1.053354024887085 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.3855438232421875e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [675.5099487304688, 547.0418701171875, 130.7098388671875, 338.0732116699219]
+    pose xy: 6.597179049038411 -0.8623176990237236
+    Detection time 0.8837275505065918 , shape estimation and tracking time 4.2438507080078125e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 0.8840889930725098 overran dt 0.25 by 0.5589489936828613 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.00402522087097168 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.3828277587890625e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [786.3812255859375, 538.4068603515625, 133.6451416015625, 359.5794677734375]
+    pose xy: 6.450754380781888 -1.6001547110598087
+    Detection time 1.132340431213379 , shape estimation and tracking time 2.193450927734375e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.1325311660766602 overran dt 0.25 by 0.3895266056060791 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0028619766235351562 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.8835067749023438e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [759.07666015625, 528.5249633789062, 93.31048583984375, 323.3201904296875]
+    pose xy: 5.593146542044163 -0.8470128713784217
+    Detection time 1.0586185455322266 , shape estimation and tracking time 4.00543212890625e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.058833360671997 overran dt 0.25 by 0.6364765167236328 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.002159595489501953 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.621246337890625e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [842.785400390625, 543.0134887695312, 140.02362060546875, 350.9752502441406]
+    pose xy: 6.415187195057392 -1.7327179133763313
+    Detection time 1.071392297744751 , shape estimation and tracking time 3.0040740966796875e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.0715408325195312 overran dt 0.25 by 0.561894416809082 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0029904842376708984 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.6689300537109375e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detect a pedestrian!
+    box xywh: [1062.6964111328125, 545.2232666015625, 178.150390625, 343.7832946777344]
+    pose xy: 4.5161825122455355 -1.3753351564861536
+    Detection time 1.0125880241394043 , shape estimation and tracking time 4.1484832763671875e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.0128300189971924 overran dt 0.25 by 0.5755331516265869 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0039637088775634766 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.3126602172851562e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detection time 1.1150057315826416 , shape estimation and tracking time 8.821487426757812e-06
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 1.1151187419891357 overran dt 0.25 by 0.5188479423522949 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0017406940460205078 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.3603439331054688e-05 by 0.1 s
+------ Component PedestrianDetector stdout ---------
+    Detection time 0.837444543838501 , shape estimation and tracking time 1.049041748046875e-05
+-------------------------------------------
+Execution: Component PedestrianDetector is running behind, time 0.8376386165618896 overran dt 0.25 by 0.6175806522369385 s
+Execution: 
