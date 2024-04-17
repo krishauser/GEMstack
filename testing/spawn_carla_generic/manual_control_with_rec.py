@@ -56,14 +56,13 @@ Use ARROWS or WASD keys for control.
 
 from __future__ import print_function
 
-# ==============================================================================
-# -- find carla module ---------------------------------------------------------
-# ==============================================================================
-
-
 import glob
 import os
 import sys
+
+# ==============================================================================
+# -- find carla module ---------------------------------------------------------
+# ==============================================================================
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -235,6 +234,7 @@ class World(object):
             carla.MapLayer.Walls,
             carla.MapLayer.All
         ]
+        self.filename = "/home/hb-station1/Documents/GEMstack/testing/spawn_carla_generic/recording.log"
 
     def restart(self):
         self.player_max_speed = 1.589
@@ -479,7 +479,13 @@ class KeyboardControl(object):
                         world.recording_enabled = False
                         world.hud.notification("Recorder is OFF")
                     else:
-                        client.start_recorder("manual_recording.rec")
+
+                        filename_txt = world.filename.replace("recording.log", "weather_time.txt")
+                        with open(filename_txt, 'w') as file:
+                            file.write("weather_time: " + str(world._weather_index))
+                        client.start_recorder(
+                            world.filename, True)
+
                         world.recording_enabled = True
                         world.hud.notification("Recorder is ON")
                 elif event.key == K_p and (pygame.key.get_mods() & KMOD_CTRL):
@@ -1258,8 +1264,6 @@ def game_loop(args):
         client = carla.Client(args.host, args.port)
         client.set_timeout(2000.0)
 
-        client.start_recorder("/home/hb-station1/Documents/GEMstack/testing/spawn_carla_generic/recording.log", True)
-
         sim_world = client.get_world()
         if args.sync:
             original_settings = sim_world.get_settings()
@@ -1307,7 +1311,7 @@ def game_loop(args):
         if original_settings:
             sim_world.apply_settings(original_settings)
 
-        client.stop_recorder()
+        # client.stop_recorder()
         if (world and world.recording_enabled):
             client.stop_recorder()
 
