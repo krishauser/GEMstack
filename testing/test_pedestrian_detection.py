@@ -176,6 +176,9 @@ class TestHelper:
                                         self.ped_detector.extrinsic, 
                                         self.ped_detector.intrinsic)
 
+        # Tansfer lidar point cloud to vehicle frame
+        pc_3D = lidar_to_vehicle(filtered_point_cloud, self.ped_detector.T_lidar2_Gem)
+
         vis = self.zed_image.copy()
         for i in range(len(boxes)):
             box = boxes[i]
@@ -191,7 +194,7 @@ class TestHelper:
             idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
                             (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
             agent_image_pc = point_cloud_image[idxs]
-            agent_pc_3D = filtered_point_cloud[idxs]
+            agent_pc_3D = pc_3D[idxs]
             agent_clusters = clusters[idxs]
             
             # draw bbox
@@ -213,6 +216,7 @@ class TestHelper:
             
             # calulate depth
             depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
+            print ('depth:', depth)
             
             # draw
             text = str(id2str[id])
@@ -265,7 +269,7 @@ class TestHelper:
             vis = cv2.circle(vis, center, radius, color, cv2.FILLED)
         
         pathlib.Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-        output_path = os.path.join(OUTPUT_DIR, f'lidar_to_image_{epsilon}.png')
+        output_path = os.path.join(OUTPUT_DIR, f'lidar_to_image_{epsilon}_{args.data_idx}.png')
         print ('Output lidar_to_image result:', output_path)
         cv2.imwrite(output_path, vis)
         
