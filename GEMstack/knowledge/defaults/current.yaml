@@ -35,6 +35,7 @@ planner:
         RS_prob: 0.1
         gear_cost: 10.0
         backward_cost_scale: 1.5
+        smooth_threshold: 0.5
         precomputed: !relative_path ../heuristics/reeds_shepp.npy
 
 

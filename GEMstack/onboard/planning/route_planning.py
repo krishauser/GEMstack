@@ -132,6 +132,8 @@ class SearchNavigationRoutePlanner(Component):
         backward_cost_scale = settings.get('planner.search_planner.backward_cost_scale')
         gear_cost = settings.get('planner.search_planner.gear_cost')
 
+        self.smooth_threshold = settings.get('planner.search_planner.smooth_threshold')
+
         def sample_steer(N=N_controls):
             return np.random.uniform(-steer_max,steer_max,N)
         
@@ -345,7 +347,7 @@ class SearchNavigationRoutePlanner(Component):
                 count = 5
                 while p is not None and count > 0:
                     # if p and c are close enough, set c's parent to p
-                    if self.distance(p.state,c.state) < 0.3:
+                    if self.distance(p.state,c.state) < self.smooth_threshold:
                         c.parent = p
                     count -= 1
                 c = c.parent
