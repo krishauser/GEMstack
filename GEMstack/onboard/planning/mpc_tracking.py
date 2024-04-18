@@ -135,7 +135,7 @@ class MPCTracker(Component):
         x_start, y_start, theta_start, v_start, wheel_angle_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v, vehicle.front_wheel_angle
         path_points = []
         closest_dist,closest_parameter = trajectory.closest_point([x_start, y_start])
-        # closest_parameter = max(self.last_progress, closest_parameter)
+        closest_parameter = max(self.last_progress, closest_parameter)
         ind, _ = trajectory.time_to_index(closest_parameter)
         gear = trajectory.gear[ind]
         # if closest_parameter - self.last_progress < 0.02:
@@ -144,7 +144,7 @@ class MPCTracker(Component):
         #     self.horizen_scale = 1.0
         # self.horizen_scale = max(min(self.horizen_scale, 1.0), 0.1)
         dt = self.dt * self.horizen_scale
-        # self.last_progress = closest_parameter + 0.01
+        self.last_progress = closest_parameter + 0.001
         for i in range(1,self.N+1):
             position = trajectory.eval(closest_parameter+i*dt)
             velocity = trajectory.eval_derivative(closest_parameter+i*dt)
@@ -159,24 +159,24 @@ class MPCTracker(Component):
         accel, wheel_angle = setup_mpc(self.N, dt, L, path_points, [x_start, y_start, theta_start, v_start, wheel_angle_start], gear)
         # print(accel, wheel_angle)
         
-        desired_yaw = np.arctan2(path_points[1][0],path_points[1][1])
-        if desired_yaw < 0.1:
-            accel = 1.2 * accel
-        elif 0.1 <= desired_yaw < 0.25:
-            accel = 0.6 * accel
-        elif desired_yaw >= 0.25:
-            accel = 0.4 * accel
-        accel = max(min(accel, self.max_a), self.min_a)
+        # desired_yaw = np.arctan2(path_points[1][0],path_points[1][1])
+        # if desired_yaw < 0.1:
+        #     accel = 1.2 * accel
+        # elif 0.1 <= desired_yaw < 0.25:
+        #     accel = 0.6 * accel
+        # elif desired_yaw >= 0.25:
+        #     accel = 0.4 * accel
+        # accel = max(min(accel, self.max_a), self.min_a)
 
         
-        yaw_error = desired_yaw - vehicle.pose.yaw
-        if yaw_error < 0.1:
-            wheel_angle = 0.5 * wheel_angle
-        elif 0.1 <= yaw_error < 0.25 : 
-            wheel_angle = 1.0 * wheel_angle
-        elif yaw_error >= 0.25:
-            wheel_angle = 1.5 * wheel_angle
-        wheel_angle = max(min(wheel_angle, self.max_d), self.min_d)
+        # yaw_error = desired_yaw - vehicle.pose.yaw
+        # if yaw_error < 0.1:
+        #     wheel_angle = 0.5 * wheel_angle
+        # elif 0.1 <= yaw_error < 0.25 : 
+        #     wheel_angle = 1.0 * wheel_angle
+        # elif yaw_error >= 0.25:
+        #     wheel_angle = 1.5 * wheel_angle
+        # wheel_angle = max(min(wheel_angle, self.max_d), self.min_d)
 
         d_remain = sqrt((vehicle.pose.x - path_points[-1][0]) ** 2 + (vehicle.pose.y - path_points[-1][1]) ** 2)
         # print("remain distance: ", d_remain)

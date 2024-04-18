@@ -252,9 +252,9 @@ class SearchNavigationRoutePlanner(Component):
         ############### ONLY FOR TESTING ################
         # add small displacement to the goal
         # in reality, the goal should come from the perception module
-        self.end = [17,17,3.14,0]
-        self.end[0] += np.random.uniform(-0.5,0.5)
-        self.end[1] += np.random.uniform(-0.5,0.5)
+        self.end = [15,17,0,0]
+        self.end[0] += np.random.uniform(-0.2,0.2)
+        self.end[1] += np.random.uniform(-0.2,0.2)
         self.end[2] += np.random.uniform(-0.2,0.2)
         ############### ONLY FOR TESTING ################
         if self.last_end is None:
@@ -281,6 +281,8 @@ class SearchNavigationRoutePlanner(Component):
 
         
         replan = self.last_path is None or not check_path(self.last_path)
+        if self.route and self.route.closest_point([vehicle.pose.x, vehicle.pose.y])[0] > 5.0:
+            replan = True
         # replan = True
         if replan: # replan when last route is not valid
             # Compute grid map

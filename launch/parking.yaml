@@ -16,7 +16,7 @@ drive:
     planning:
         route_planning:
             type: SearchNavigationRoutePlanner
-            args: {start: [0.,0.,0.,0.,0.], end: [17.,17.,3.14,0.,0.]}
+            args: {start: [0.,0.,0.,0.,0.], end: [15.,17.,0.,0.,0.]}
         motion_planning:
             type: RouteToTrajectoryPlanner
             # type: mpc_motion_planning.MPCTrajectoryPlanner
