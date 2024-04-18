@@ -337,6 +337,19 @@ class SearchNavigationRoutePlanner(Component):
 
             if self.distance(current.state,end) > self.target_threshold:
                 print("Failed to find a path")
+
+            # smooth the path
+            c = current
+            while c.parent is not None:
+                p = c.parent.parent
+                count = 5
+                while p is not None and count > 0:
+                    # if p and c are close enough, set c's parent to p
+                    if self.distance(p.state,c.state) < 0.3:
+                        c.parent = p
+                    count -= 1
+                c = c.parent
+
             
             route = []
             yaws = []
