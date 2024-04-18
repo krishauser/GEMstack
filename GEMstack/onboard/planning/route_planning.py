@@ -271,10 +271,10 @@ class SearchNavigationRoutePlanner(Component):
                 # linear blending
                 for i in range(len(self.last_path)-1, 0, -1):
                     delta_p = delta_end*(1-current_t/total_t)
+                    current_t += np.linalg.norm(np.array(self.last_path[i-1][:2])-np.array(self.last_path[i][:2]))
                     self.last_path[i][0] += delta_p[0]
                     self.last_path[i][1] += delta_p[1]
                     self.last_path[i][2] += delta_p[2]
-                    current_t += np.linalg.norm(np.array(self.last_path[i-1][:2])-np.array(self.last_path[i][:2]))
                 route = [i[:2] for i in self.last_path]
                 yaws = [i[2] for i in self.last_path]
                 gear = [i[3] for i in self.last_path]
