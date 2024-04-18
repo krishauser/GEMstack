@@ -31,7 +31,7 @@ def get_types(bag_file):
     return type_lst
 
 
-def convert(bag_file, video=False, pcd=False):
+def convert(bag_file, video=True, pcd=True):
     file_name = os.path.splitext(os.path.basename(bag_file))[0]
     path = os.path.join(DATASET_UPLOAD_FOLDER, file_name)
     os.makedirs(path, exist_ok=True)
@@ -46,8 +46,7 @@ def convert(bag_file, video=False, pcd=False):
         elif 'pointcloud' in topics[topic].msg_type.lower():
             if pcd:
                 to_pointcloud_pcd(bag, topic, file_name)
-            else:
-                to_pointcloud_bin(bag, topic, file_name)
+            to_pointcloud_bin(bag, topic, file_name)
         elif 'gnss' in topics[topic].msg_type.lower():
             to_gnss(bag, topic, file_name)
         elif 'imu' in topics[topic].msg_type.lower():
@@ -87,7 +86,7 @@ def to_video(bag, topic, file_name):
 
 
 def to_pointcloud_pcd(bag, topic, file_name):
-    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_'))
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_') + '/pcd')
     os.makedirs(path, exist_ok=True)
 
     for _, msg, t in bag.read_messages(topics=[topic]):
@@ -97,7 +96,7 @@ def to_pointcloud_pcd(bag, topic, file_name):
 
 
 def to_pointcloud_bin(bag, topic, file_name):
-    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_'))
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_') + '/bin')
     os.makedirs(path, exist_ok=True)
 
     for _, msg, t in bag.read_messages(topics=[topic]):
@@ -177,4 +176,4 @@ def create_zip_for_topic(topic_folder):
     return zip_file_paths
 
 
-#convert('test.bag', video=True)
+#convert('test.bag')
