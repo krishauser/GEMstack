@@ -29,19 +29,33 @@ def do_match(text):
             results.append((vehicle_id, line))
     return results
 
+
 def do_match_full(text, vehicle_id):
+    # Split the text into lines
+    lines = text.splitlines()
+
     # Dynamic pattern based on provided vehicle_id
-    pattern = rf"Id: {vehicle_id} Location.*$"
+    pattern = rf"Id: {vehicle_id} Location.*"
 
-    # Use re.findall to find all occurrences that match the pattern
-    matches = re.findall(pattern, text, re.MULTILINE)
-
-    # Print and return the results
+    # List to hold the results
     results = []
-    for line in matches:
-        print(f"Matching Line: {line.strip()}")
-        results.append(line)
+
+    # Iterate over lines with their indices for easy reference to previous lines
+    for index, line in enumerate(lines):
+        if re.search(pattern, line):
+            # Check if there's a line three places before and add it
+            if index >= 3:
+                previous_line = lines[index - 3]
+                if previous_line.startswith("Frame"):
+                    if (results and results[-1] != line) or results == []:
+                        # Match found, prepare to append this line and the line three before, if possible
+                        print(f"Matching Line: {line.strip()}")
+                        print(f"Line 3 places before: {previous_line.strip()}")
+
+                        results.append(previous_line)
+                        results.append(line)
     return results
+
 
 if __name__ == "__main__":
     vehicle_matches = do_match(sample_text)

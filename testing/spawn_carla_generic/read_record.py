@@ -39,6 +39,24 @@ with open(output_file_final_path, 'w') as file:
     file.write("\n")
     file.write(weather_time_data)
     file.write("\n")
-    for result in results:
-        file.write(result)
-        file.write("\n")
+    for i in range(len(results) // 2):
+        if i == len(results) // 2 - 1:
+            file.write(results[2 * i])
+            file.write("\n")
+            file.write(results[2 * i + 1])
+            break
+        current_frame = int(results[2 * i].split(' ')[1])
+        next_frame = int(results[2 * i + 2].split(' ')[1])
+        if next_frame > current_frame + 2: # 3 frames without displacement
+            current_time = float(results[2 * i].split(' ')[3])
+            next_time = float(results[2 * i + 2].split(' ')[3])
+            time_elapsed = next_time - current_time
+            file.write(results[2 * i])
+            file.write(f". Stopped time: {time_elapsed}s\n")
+            file.write(results[2 * i + 1])
+            file.write("\n")
+        else:
+            file.write(results[2 * i])
+            file.write("\n")
+            file.write(results[2 * i + 1])
+            file.write("\n")
