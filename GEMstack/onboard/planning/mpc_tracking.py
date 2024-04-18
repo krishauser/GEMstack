@@ -186,7 +186,7 @@ class MPCTracker(Component):
         # elif d_remain <= 0.2:
         #     wheel_angle = 0
         #     accel = 0.0
-        if time.time() - self.start_time < 5:
+        if time.time() - self.start_time < 5: # 5s for A* to find the path
             wheel_angle = 0
             accel = 0
 

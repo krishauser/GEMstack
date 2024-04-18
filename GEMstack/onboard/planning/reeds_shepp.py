@@ -169,7 +169,7 @@ def eval_path(path, start, radius=1, resolution=0.1):
             xp = (x * math.cos(start[2]) - y * math.sin(start[2])) * radius + start[0]
             yp = (x * math.sin(start[2]) + y * math.cos(start[2])) * radius + start[1]
             thetap = M(theta + start[2])
-            ps.append((xp, yp, thetap, e.gear.value))
+            ps.append([xp, yp, thetap, e.gear.value])
         start = ps[-1]
         points += ps
     return points

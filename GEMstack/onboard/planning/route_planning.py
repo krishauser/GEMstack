@@ -86,8 +86,8 @@ class SearchNavigationRoutePlanner(Component):
         # start and end are [x, y, yaw, speed, steer] in the START frame
         self.start = start
         self.end = end
-        x_bound = [min(self.start[0], self.end[0])-2, max(self.start[0], self.end[0])+1]
-        y_bound = [min(self.start[1], self.end[1])-2, max(self.start[1], self.end[1])+3]
+        x_bound = [min(self.start[0], self.end[0])-2, max(self.start[0], self.end[0])+2]
+        y_bound = [min(self.start[1], self.end[1])-2, max(self.start[1], self.end[1])+2]
         theta_bound = [0, 2*np.pi]
         self.x_bound = x_bound
         self.y_bound = y_bound
@@ -180,8 +180,19 @@ class SearchNavigationRoutePlanner(Component):
                 min(abs(state1[2]-state2[2])%(2*np.pi), 2*np.pi-abs(state1[2]-state2[2])%(2*np.pi))
         self.distance = distance
 
+        def rs_prob(state):
+            if distance(state,self.end) < 0.2*self.RS_threshold:
+                return 5*self.RS_p
+            if distance(state,self.end) < 0.5*self.RS_threshold:
+                return 2*self.RS_p
+            if distance(state,self.end) < self.RS_threshold:
+                return self.RS_p
+            return 0.0
+        self.rs_prob = rs_prob
+
         self.route = None
         self.last_path = None
+        self.last_end = None
         self.LATERAL_DISTANCE_BUFFER = .5
         self.LONGITUDINAL_DISTANCE_BUFFER = .5
 
@@ -237,6 +248,38 @@ class SearchNavigationRoutePlanner(Component):
                     return False
             return True
         
+        # blending to handle small changes in the goal
+        ############### ONLY FOR TESTING ################
+        # add small displacement to the goal
+        # in reality, the goal should come from the perception module
+        self.end = [17,17,3.14,0]
+        self.end[0] += np.random.uniform(-0.5,0.5)
+        self.end[1] += np.random.uniform(-0.5,0.5)
+        self.end[2] += np.random.uniform(-0.2,0.2)
+        ############### ONLY FOR TESTING ################
+        if self.last_end is None:
+            self.last_path = None
+        else:
+            delta_end = np.array(self.end[:3])-np.array(self.last_end[:3])
+            if np.linalg.norm(delta_end[:2]) + np.abs(delta_end[2]) > 3.0:
+                self.last_path = None
+            else:
+                total_t = self.route.length()
+                current_t = 0
+                # linear blending
+                for i in range(len(self.last_path)-1, 0, -1):
+                    delta_p = delta_end*(1-current_t/total_t)
+                    self.last_path[i][0] += delta_p[0]
+                    self.last_path[i][1] += delta_p[1]
+                    self.last_path[i][2] += delta_p[2]
+                    current_t += np.linalg.norm(np.array(self.last_path[i-1][:2])-np.array(self.last_path[i][:2]))
+                route = [i[:2] for i in self.last_path]
+                yaws = [i[2] for i in self.last_path]
+                gear = [i[3] for i in self.last_path]
+                self.route = Route(frame=ObjectFrameEnum.START,points=route,yaws=yaws,gear=gear)
+        self.last_end = copy.deepcopy(self.end)
+
+        
         replan = self.last_path is None or not check_path(self.last_path)
         # replan = True
         if replan: # replan when last route is not valid
@@ -264,7 +307,7 @@ class SearchNavigationRoutePlanner(Component):
                 current = queue.get()
                 if self.distance(current.state,end) < self.target_threshold:
                     break
-                elif self.distance(current.state,end) < self.RS_threshold and np.random.uniform() < self.RS_p:
+                elif np.random.uniform() < self.rs_prob(current.state):
                     xs,ys,ths = current.state[:3]
                     states = [xs/self.turn_radius,ys/self.turn_radius,ths]
                     xe,ye,the = end[:3]
@@ -289,6 +332,9 @@ class SearchNavigationRoutePlanner(Component):
                         cost = self.cost(current.state,state) + current.cost
                         child = Node(state,cost,heuristic=self.heuristic(state,end),parent=current)
                         queue.put(child)
+
+            if self.distance(current.state,end) > self.target_threshold:
+                print("Failed to find a path")
             
             route = []
             yaws = []
