@@ -158,7 +158,6 @@ def get_actor_blueprints(world, filter, generation):
             return []
     except Exception:
         print("   Warning! Actor Generation is not valid. No actor will be spawned.")
-        pass
     return []
 
 
