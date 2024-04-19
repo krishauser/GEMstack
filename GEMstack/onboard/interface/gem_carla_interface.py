@@ -1,13 +1,18 @@
-from .gem import *
+from .gem import GEMInterface
+from .gem import GEMVehicleCommand
+from .gem import GEMVehicleReading
+from .gem import ObjectFrameEnum
+from .gem import ObjectPose
+from .gem import List
 from ...utils import settings
 import math
 import time
 # ROS Headers
 import rospy
-from std_msgs.msg import String, Bool, Float32, Float64
+from std_msgs.msg import Bool
 from sensor_msgs.msg import Image,PointCloud2
 try:
-    from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
+    from novatel_gps_msgs.msg import Inspva
 except ImportError:
     pass
 try:
@@ -49,7 +54,6 @@ class GEMCarlaHardwareInterface(GEMInterface):
         
         self.speed_sub  = rospy.Subscriber("/carla/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
         self.steer_sub = rospy.Subscriber("/carla/parsed_tx/steer_rpt", SystemRptFloat, self.steer_callback)
-        #self.global_sub = rospy.Subscriber("/carla/parsed_tx/global_rpt", GlobalRpt, self.global_callback) # may be not needed for carla
         self.gnss_sub = None
         self.imu_sub = None
         self.front_radar_sub = None
@@ -61,7 +65,6 @@ class GEMCarlaHardwareInterface(GEMInterface):
 
         # -------------------- PACMod setup --------------------
         # GEM vehicle enable
-        # self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
         self.pacmod_enable = False
 
         # GEM vehicle gear control, neutral, forward and reverse, publish once
@@ -100,17 +103,12 @@ class GEMCarlaHardwareInterface(GEMInterface):
         /pacmod/as_rx/horn_cmd
         /pacmod/as_rx/wiper_cmd
         """
-
-        #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
         
         #subscribers should go last because the callback might be called before the object is initialized
-        # self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback) # may be not needed for carla
 
 
     def start(self):
-        if settings.get('vehicle.enable_through_joystick',True):
-            pass
-        else:
+        if not settings.get('vehicle.enable_through_joystick',True):
             print("ENABLING PACMOD")
             enable_cmd = Bool()
             enable_cmd.data = True
