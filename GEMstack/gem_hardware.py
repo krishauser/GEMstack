@@ -255,6 +255,17 @@ class GEMHardwareInterface(GEMInterface):
                     cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
                     callback(cv_image)
                 self.front_camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, callback_with_cv2)
+        elif name == 'fr_camera':
+            if type is not None and (type is not Image and type is not cv2.Mat):
+                raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front camera")
+            if type is None or type is Image:
+                self.front_camera_sub = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, callback)
+            else:
+                def callback_with_cv2(msg : Image):
+                    #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
+                    callback(cv_image)
+                self.front_camera_sub = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, callback_with_cv2)
         elif name == 'front_depth':
             if type is not None and (type is not Image and type is not cv2.Mat):
                 raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front depth")

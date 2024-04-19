@@ -79,7 +79,7 @@ def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tupl
                     (point_cloud[:, 1] > ymin) & (point_cloud[:, 1] < ymax) )
     return point_cloud[idxs]
 
-class PedestrianDetector(Component):
+class CornerDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface, extrinsic=None):
         self.vehicle_interface = vehicle_interface
@@ -87,7 +87,7 @@ class PedestrianDetector(Component):
         self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
         self.camera_info_sub = None
         self.camera_info = None
-        self.zed_image = None
+        self.corner_image = None
         self.last_person_boxes = []
         
         self.point_cloud = None
@@ -100,10 +100,10 @@ class PedestrianDetector(Component):
         
         # init transformation parameters
         if extrinsic is None:
-            extrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt")
+            extrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_lidar2fr.txt")
         self.extrinsic = np.array(extrinsic)
             
-        intrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_intrinsic.txt")
+        intrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_fr_intrinsic.txt")
         self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
         T_lidar2_Gem = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt")
@@ -123,13 +123,13 @@ class PedestrianDetector(Component):
         return ['agents']
     
     def test_set_data(self, zed_image, point_cloud, camera_info='dummy'):
-        self.zed_image = zed_image
+        self.corner_image = zed_image
         self.point_cloud = point_cloud
         self.camera_info = camera_info
 
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        self.vehicle_interface.subscribe_sensor('fr_camera',self.image_callback,cv2.Mat)
         #tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
         self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         #subscribe to the Zed CameraInfo topic
@@ -137,7 +137,7 @@ class PedestrianDetector(Component):
 
 
     def image_callback(self, image : cv2.Mat):
-        self.zed_image = image
+        self.corner_image = image
 
     def camera_info_callback(self, info : CameraInfo):
         self.camera_info = info
@@ -146,7 +146,7 @@ class PedestrianDetector(Component):
         self.point_cloud = point_cloud
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        if self.zed_image is None:
+        if self.corner_image is None:
             #no image data yet
             return {}
         if self.point_cloud is None:
@@ -240,7 +240,7 @@ class PedestrianDetector(Component):
 
         
     def detect_agents(self):
-        detection_result = self.detector(self.zed_image,verbose=False)
+        detection_result = self.detector(self.corner_image,verbose=False)
         
         #TODO: create boxes from detection result
         pedestrian_boxes = []
@@ -354,7 +354,7 @@ class PedestrianDetector(Component):
         prefix = ''
         if loc is not None:
             prefix = loc + '/'
-        cv2.imwrite(prefix+'zed_image.png',self.zed_image)
+        cv2.imwrite(prefix+'zed_image.png',self.corner_image)
         np.savez(prefix+'velodyne_point_cloud.npz',self.point_cloud)
         import pickle
         with open(prefix+'zed_camera_info.pkl','wb') as f:
@@ -364,7 +364,7 @@ class PedestrianDetector(Component):
         prefix = ''
         if loc is not None:
             prefix = loc + '/'
-        self.zed_image = cv2.imread(prefix+'zed_image.png')
+        self.corner_image = cv2.imread(prefix+'zed_image.png')
         self.point_cloud = np.load(prefix+'velodyne_point_cloud.npz')['arr_0']
         try:
             import pickle
