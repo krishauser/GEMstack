@@ -193,7 +193,8 @@ def get_actor_blueprints(world, filter, generation):
             return []
     except:
         print("   Warning! Actor Generation is not valid. No actor will be spawned.")
-        return []
+        pass
+    return []
 
 
 # ==============================================================================
@@ -1093,10 +1094,10 @@ class IMUSensor(object):
         # reference.
         weak_self = weakref.ref(self)
         self.sensor.listen(
-            lambda sensor_data: IMUSensor._IMU_callback(weak_self, sensor_data))
+            lambda sensor_data: IMUSensor._imu_callback(weak_self, sensor_data))
 
     @staticmethod
-    def _IMU_callback(weak_self, sensor_data):
+    def _imu_callback(weak_self, sensor_data):
         self = weak_self()
         if not self:
             return
@@ -1124,7 +1125,6 @@ class RadarSensor(object):
         self.callbacks = []
         self.ctr = 0 # remove later
         bound_x = 0.5 + self._parent.bounding_box.extent.x
-        bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
 
         self.velocity_range = 7.5 # m/s

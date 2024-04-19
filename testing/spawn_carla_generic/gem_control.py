@@ -158,7 +158,8 @@ def get_actor_blueprints(world, filter, generation):
             return []
     except:
         print("   Warning! Actor Generation is not valid. No actor will be spawned.")
-        return []
+        pass
+    return []
 
 
 # ==============================================================================
@@ -419,7 +420,6 @@ class GEMControl(object):
     """Class that handles keyboard input."""
     def __init__(self, world):
         self._control = carla.VehicleControl()
-        #self._ackermann_control = carla.VehicleAckermannControl()
         self._lights = carla.VehicleLightState.NONE
         self.world = world
         world.player.set_autopilot(False, 8002)
@@ -839,10 +839,10 @@ class IMUSensor(object):
         # reference.
         weak_self = weakref.ref(self)
         self.sensor.listen(
-            lambda sensor_data: IMUSensor._IMU_callback(weak_self, sensor_data))
+            lambda sensor_data: IMUSensor._imu_callback(weak_self, sensor_data))
 
     @staticmethod
-    def _IMU_callback(weak_self, sensor_data):
+    def _imu_callback(weak_self, sensor_data):
         self = weak_self()
         if not self:
             return
@@ -983,7 +983,7 @@ class CameraManager(object):
 
 
         self.sensors = [
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}],
+            [self.fixed_front_rgb_sensor_name, cc.Raw, 'Camera RGB', {}],
         ]
         world = self._parent.get_world()
         bp_library = world.get_blueprint_library()
