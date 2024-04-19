@@ -786,7 +786,7 @@ class HUD(object):
         collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
         max_col = max(1.0, max(collision))
         collision = [x / max_col for x in collision]
-        vehicles = world.world.get_actors().filter('vehicle.*')
+        vehicles = world.carla_world.get_actors().filter('vehicle.*')
         self._info_text = [
             'Server:  % 16.0f FPS' % self.server_fps,
             'Client:  % 16.0f FPS' % clock.get_fps(),
@@ -1200,6 +1200,7 @@ class CameraManager(object):
         self.fixed_front_depth_sensor_name = 'sensor.camera.depth'
         self.surface = None
         self._parent = parent_actor
+        self.gamma_correction = gamma_correction
         
         self.surface = None
         self._parent = parent_actor
@@ -1306,7 +1307,7 @@ class CameraManager(object):
         bp.set_attribute('image_size_y', str(self.hud.dim[1]))
         if bp.has_attribute('gamma'):
             bp.set_attribute('gamma', str(self.gamma_correction))
-        self.fixed_front_depth_info.append(bp)
+        sensor_info.append(bp)
 
     def toggle_camera(self):
         self.transform_index = (self.transform_index + 1) % len(self._camera_transforms)
