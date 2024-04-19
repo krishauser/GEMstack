@@ -234,7 +234,12 @@ class World(object):
         blueprint_list = get_actor_blueprints(self.world, self._actor_filter, self._actor_generation)
         if not blueprint_list:
             raise ValueError("Couldn't find any blueprints with the specified filters")
-        blueprint = random.choice(blueprint_list)
+        
+        blueprint = None
+        for car in blueprint_list:
+            if (car.id == "vehicle.mini.cooper_s_2021"):
+                blueprint = car
+
         blueprint.set_attribute('role_name', self.actor_role_name)
         if blueprint.has_attribute('terramechanics'):
             blueprint.set_attribute('terramechanics', 'true')
@@ -984,13 +989,18 @@ class CameraManager(object):
                 (carla.Transform(carla.Location(x=-4.0, z=2.0), carla.Rotation(pitch=6.0)), Attachment.SpringArmGhost),
                 (carla.Transform(carla.Location(x=0, y=-2.5, z=-0.0), carla.Rotation(yaw=90.0)), Attachment.Rigid)]
 
+# these values are hardcoded based on gem_e4 information
+        lidar_x_pos = 2.06
+        lidar_z_pos = 2.305
+        camera_x_pos = 1.33
+        camera_z_pos = 1.855
         self.transform_index = 1
         self.fixed_front_rgb_info = ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}]
-        self.fixed_front_rgb_transform = self._camera_transforms[self.transform_index]
+        self.fixed_front_rgb_transform = (carla.Transform(carla.Location(x=+camera_x_pos, y=+0.0*bound_y, z=camera_z_pos)), Attachment.Rigid)
         self.fixed_front_depth_info = ['sensor.camera.depth', cc.Depth, 'Camera Depth (Raw)', {}]
-        self.fixed_front_depth_transform = self._camera_transforms[self.transform_index]
+        self.fixed_front_depth_transform = (carla.Transform(carla.Location(x=camera_x_pos, y=+0.0*bound_y, z=camera_z_pos)), Attachment.Rigid)
         self.fixed_top_lidar_info = ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)', {'range': '50'}]
-        self.fixed_top_lidar_transform = self._camera_transforms[self.transform_index]
+        self.fixed_top_lidar_transform = (carla.Transform(carla.Location(x=lidar_x_pos, y=+0.0*bound_y, z=lidar_z_pos)), Attachment.Rigid)
 
 
         self.sensors = [
