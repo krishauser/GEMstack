@@ -59,7 +59,7 @@ def do_match_full(text, vehicle_id):
 
 if __name__ == "__main__":
     vehicle_matches = do_match(sample_text)
-    if vehicle_matches:
+    if len(vehicle_matches) > 0 and len(vehicle_matches[0]) > 0:
         # Assuming we want to further search based on the first vehicle ID found
         first_vehicle_id = vehicle_matches[0][0]
         do_match_full(sample_text, first_vehicle_id)
