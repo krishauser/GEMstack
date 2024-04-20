@@ -1,9 +1,5 @@
 import time
-import math
-import numpy as np
-import cv2
 import rospy
-import os
 import pathlib
 from ultralytics import YOLO
 import cv2
@@ -15,24 +11,21 @@ from numpy.linalg import inv
 from sklearn.cluster import DBSCAN
 import sys
 import os
-import cv2
 import random
 sys.path.append(os.getcwd())
 abs_path = os.path.abspath(os.path.dirname(__file__))
 from sensor_msgs.msg import Image,PointCloud2
 from cv_bridge import CvBridge, CvBridgeError
-import cv2
-import numpy as np
 import struct
 import ctypes
 import sensor_msgs.point_cloud2 as pc2
 import argparse
-from message_filters import Subscriber, TimeSynchronizer
 import message_filters
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--output_dir', '-o', type=str, default='save')
 parser.add_argument('--vis', '-v', default=False, action='store_true')
+parser.add_argument('--use_message_filter', '-m', default=False, action='store_true')
 args = parser.parse_args()
 
 colors = []
@@ -151,11 +144,24 @@ class PedestrianDetector():
         # subscribe
         
         self.bridge = CvBridge()
-        self.e4_lidar_sub = rospy.Subscriber(topic['e4']['lidar'], PointCloud2, self.lidar_callback)
-        self.e4_camera_sub = rospy.Subscriber(topic['e4']['camera'], Image, self.camera_callback)
+        
+        if args.use_message_filter:
+            image_sub = message_filters.Subscriber(topic['e4']['lidar'], Image)
+            lidar_sub = message_filters.Subscriber(topic['e4']['camera'], PointCloud2)
+            ts = message_filters.ApproximateTimeSynchronizer([image_sub, lidar_sub], 5, 1)
+            ts.registerCallback(self.sync_callback)
+        else:
+            self.e4_lidar_sub = rospy.Subscriber(topic['e4']['lidar'], PointCloud2, self.lidar_callback)
+            self.e4_camera_sub = rospy.Subscriber(topic['e4']['camera'], Image, self.camera_callback)
+            
         self.zed_image = None
         self.point_cloud = None
     
+    def sync_callback(self, image: Image, point_cloud: PointCloud2):
+        self.zed_image = image
+        self.point_cloud = point_cloud
+        self.test_lidar_to_image_dbscan()
+        
     def camera_callback(self, image: Image):
         self.zed_image = image
 
