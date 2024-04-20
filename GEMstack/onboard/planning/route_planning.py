@@ -92,8 +92,8 @@ class SearchNavigationRoutePlanner(Component):
         self.x_bound = x_bound
         self.y_bound = y_bound
 
-        resolution = settings.get('planner.search_planner.resolution')
-        angle_resolution = settings.get('planner.search_planner.angle_resolution')
+        resolution = settings.get('A_star_planner.search_planner.resolution')
+        angle_resolution = settings.get('A_star_planner.search_planner.angle_resolution')
         self.s_bound = (int((x_bound[1]-x_bound[0])/resolution), \
                         int((y_bound[1]-y_bound[0])/resolution), \
                         int(2*np.pi/angle_resolution))
@@ -113,26 +113,26 @@ class SearchNavigationRoutePlanner(Component):
                                  int((y_bound[1]-y_bound[0])/self.grid_resolution)), \
                                  np.inf)
         
-        self._rate = settings.get('planner.search_planner.rate')
+        self._rate = settings.get('A_star_planner.search_planner.rate')
         
-        v = settings.get('planner.search_planner.velocity')
+        v = settings.get('A_star_planner.search_planner.velocity')
         L = settings.get('vehicle.geometry.wheelbase')
-        steer_max = settings.get('planner.search_planner.max_steering_angle')
+        steer_max = settings.get('A_star_planner.search_planner.max_steering_angle')
         turn_radius = L/np.tan(steer_max)
         self.turn_radius = turn_radius
 
-        N_controls = settings.get('planner.search_planner.N_sample_controls')
-        dt = settings.get('planner.search_planner.dt')
+        N_controls = settings.get('A_star_planner.search_planner.N_sample_controls')
+        dt = settings.get('A_star_planner.search_planner.dt')
 
-        self.target_threshold = settings.get('planner.search_planner.target_threshold')
-        self.RS_threshold = settings.get('planner.search_planner.RS_threshold')
-        self.RS_resolution = settings.get('planner.search_planner.RS_resolution')
-        self.RS_p = settings.get('planner.search_planner.RS_prob')
+        self.target_threshold = settings.get('A_star_planner.search_planner.target_threshold')
+        self.RS_threshold = settings.get('A_star_planner.search_planner.RS_threshold')
+        self.RS_resolution = settings.get('A_star_planner.search_planner.RS_resolution')
+        self.RS_p = settings.get('A_star_planner.search_planner.RS_prob')
 
-        backward_cost_scale = settings.get('planner.search_planner.backward_cost_scale')
-        gear_cost = settings.get('planner.search_planner.gear_cost')
+        backward_cost_scale = settings.get('A_star_planner.search_planner.backward_cost_scale')
+        gear_cost = settings.get('A_star_planner.search_planner.gear_cost')
 
-        self.smooth_threshold = settings.get('planner.search_planner.smooth_threshold')
+        self.smooth_threshold = settings.get('A_star_planner.search_planner.smooth_threshold')
 
         def sample_steer(N=N_controls):
             return np.random.uniform(-steer_max,steer_max,N)

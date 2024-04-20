@@ -10,11 +10,26 @@ from ..interface.gem import GEMVehicleCommand
 from ..component import Component
 import numpy as np
 import casadi as ca
-#Vehicle Param
-L = 1.75 # Wheelbase
-delta_max = np.pi/4 # max steering angle  
-safety_margin = 0.1  
-dt = 0.5
+
+# Vehicle Param
+L = settings.get('vehicle.geometry.wheelbase') # Wheelbase
+DELTA_MIN = settings.get('MPC_planner.MPC_planner.delta_min')
+DELTA_MAX = settings.get('MPC_planner.MPC_planner.delta_max')
+A_MIN = settings.get('MPC_planner.MPC_planner.a_min')
+A_MAX = settings.get('MPC_planner.MPC_planner.a_max')
+V_MIN = settings.get('MPC_planner.MPC_planner.v_min')
+V_MAX = settings.get('MPC_planner.MPC_planner.v_max')
+
+# MPC Param
+OBSTACLE_PENALTY = settings.get('MPC_planner.MPC_planner.penalty.obstacle_penalty')
+LANE_BOUND_PENALTY = settings.get('MPC_planner.MPC_planner.penalty.lane_bond_penalty')
+A_SQUARED = settings.get('MPC_planner.MPC_planner.penalty.ellipse_a_squared')
+B_SQUARED = settings.get('MPC_planner.MPC_planner.penalty.ellipse_b_squared')
+
+WEIGHT_G = settings.get('MPC_planner.MPC_planner.weight.w_g')
+WEIGHT_O = settings.get('MPC_planner.MPC_planner.weight.w_o')
+WEIGHT_L = settings.get('MPC_planner.MPC_planner.weight.w_l')
+
 
 # Setup the MPC problem 
 def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, agents):
@@ -23,15 +38,13 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
     Returns the first control inputs (v, delta) from the optimized trajectory.
     """
 
-    # Steering angle and velocity limits
-    delta_min, delta_max = -np.pi/4, np.pi/4
-    omega_min, omega_max = -0.2, 0.2
+    # Steering angle, accl and velocity limits
+    delta_min, delta_max = DELTA_MIN, DELTA_MAX
+    a_min, a_max = A_MIN, A_MAX
+    v_min, v_max = V_MIN, V_MAX
+    lane_left, lane_rigth = -1,1
 
-    a_min, a_max = -0.5, 0.5
-    v_min, v_max = -1, 1
-    y_min, y_max = -1,1
-
-    v0 = np.clip(v0, v_min, v_max) # TODO: clip to avoid constrain issues, should be handled more carefully
+    v0 = np.clip(v0, v_min, v_max) 
 
     opti = ca.Opti()  # Create an optimization problem
 
@@ -57,13 +70,13 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
 
         # Obstacle constraints
         obstacle_penalty = 0
-        penalty_scale = 800
+        obstacle_penalty_scale = OBSTACLE_PENALTY
         
-        a_squared = 2  # control the x direction in the ellipse #2 for road driving
-        b_squared = 0.25  # control the y direction in the ellipse
+        a_squared = A_SQUARED # control the x direction in the ellipse obstacle penalty
+        b_squared = B_SQUARED # control the y direction in the ellipse obstacle penalty
         
-        penalty_scale_y = 2000  # Penalty for going out of lane bounds
-        y_bounds_penalty = ca.sum1(ca.fmax(0, y_min - X[1,k])**2 + ca.fmax(0, X[1,k] - y_max)**2) * penalty_scale_y
+        penalty_scale_lane = LANE_BOUND_PENALTY  # Penalty for going out of lane bounds
+        lane_bounds_penalty = ca.sum1(ca.fmax(0, lane_left - X[1,k])**2 + ca.fmax(0, X[1,k] - lane_rigth)**2) * penalty_scale_lane
 
         for agent in agents:
             obs_x, obs_y, obs_w, obs_l, obs_h = agent.pose.x, agent.pose.y, *agent.dimensions
@@ -73,7 +86,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
             # distance_squared = (X[0,k] - (obs_x + obs_vx*dt*k))**2 + (X[1,k] - (obs_y + obs_vy*dt*k))**2
             # obstacle_penalty += penalty_scale / (distance_squared + 1)
             ellipse_distance = (X[0,k] - (obs_x + obs_vx*dt*k))**2 / a_squared + (X[1,k] - (obs_y + obs_vy*dt*k))**2 / b_squared
-            obstacle_penalty += penalty_scale / (ellipse_distance + 1)
+            obstacle_penalty += obstacle_penalty_scale / (ellipse_distance + 1)
             
             # hard constraint
             # opti.subject_to(distance_squared >= obs_w**2)
@@ -84,11 +97,11 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
     opti.subject_to(opti.bounded(v_min, X[3,:], v_max))
 
     # objective
-    w_d = 3 # lane follw weight
-    w_o = 1 # obstacle avoidance weight
-    w_y = 4 # lane boundary weight
+    w_g = WEIGHT_G # goal follw weight
+    w_o = WEIGHT_O # obstacle avoidance weight
+    w_l = WEIGHT_L # lane boundary weight
    
-    objective = w_d * ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]) + obstacle_penalty + w_y * y_bounds_penalty
+    objective = w_g * ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]) + w_o * obstacle_penalty + w_l * lane_bounds_penalty
     opti.minimize(objective)
 
     # Solver
@@ -107,7 +120,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
         return delta_sol, acc_sol
     except RuntimeError as e:  
         if "Infeasible_Problem_Detected" in str(e):
-            return 0,0 # TODO: handle breaking
+            return 0,0 
 
 def find_closest_agent(agents, pose):
     min_distance = float('inf')  
@@ -127,12 +140,14 @@ def find_closest_agent(agents, pose):
 class MPCTrajectoryPlanner(Component):
     def __init__(self,vehicle_interface=None, **args):
         self.vehicle_interface = vehicle_interface
-        self.N = 10
+        self.N = settings.get('MPC_planner.MPC_planner.N')
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
-        self.safe_dist = 5.5
+        self.safe_dist = settings.get('MPC_planner.MPC_planner.safe_dist')
+        self.dt = settings.get('MPC_planner.MPC_planner.dt')
+        self._rate = settings.get('MPC_planner.MPC_planner.rate')
 
     def rate(self):
-        return 10.0
+        return self._rate
 
     def state_inputs(self):
         return ['all']
@@ -152,7 +167,7 @@ class MPCTrajectoryPlanner(Component):
 
         collision_dis = find_closest_agent(obstacle, pose = [vehicle.pose.x, vehicle.pose.y])
         if collision_dis > self.safe_dist:
-            wheel_angle, accel = setup_mpc(self.N, dt, L, x_start, y_start, theta_start, v_start, \
+            wheel_angle, accel = setup_mpc(self.N, self.dt, L, x_start, y_start, theta_start, v_start, \
                                                 x_goal, y_goal, theta_goal, v_goal, agents)
             # print(wheel_angle, accel)
             if np.sqrt((x_start - x_goal)**2 + (y_start - y_goal)**2 + (theta_start - theta_goal)**2) <= 0.1: # threshold for reaching the goal

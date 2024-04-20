@@ -21,7 +21,11 @@ control:
         pid_i: 0.1
         pid_d: 0.0
 
-planner:  !include A_star_planner.yaml
+A_star_planner:  
+    !include A_star_planner.yaml
+MPC_planner:
+    !include MPC_planner.yaml
+
 
 #configure the simulator, if using
 simulator:
