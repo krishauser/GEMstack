@@ -112,11 +112,13 @@ def lidar_to_vehicle(point_cloud_lidar: np.ndarray, T_lidar2_Gem: np.ndarray):
     point_cloud_image_world = pointcloud_trans[:, :3] # (N, 3)
     return point_cloud_image_world
 
-def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tuple[float, float]):
+def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tuple[float, float], zrange: Tuple[float, float]):
     xmin, xmax = xrange
     ymin, ymax = yrange
+    zmin, zmax = zrange
     idxs = np.where((point_cloud[:, 0] > xmin) & (point_cloud[:, 0] < xmax) &
-                    (point_cloud[:, 1] > ymin) & (point_cloud[:, 1] < ymax) )
+                    (point_cloud[:, 1] > ymin) & (point_cloud[:, 1] < ymax) &
+                     (point_cloud[:, 2] > zmin) & (point_cloud[:, 2] < zmax) )
     return point_cloud[idxs]
 
 class PedestrianDetector():
@@ -142,8 +144,9 @@ class PedestrianDetector():
 
         # obtained by GEMstack/offboard/calibration/check_target_lidar_range.py
         # Hardcode the roi area for agents
-        self.xrange = (0, 20)
-        self.yrange = (-10.0247698, 10.0374074)
+        self.xrange = (0, 10)
+        self.yrange = (-5.0247698, 5.0374074)
+        self.zrange = (-2.5, 0)
         
         # subscribe
         
@@ -271,7 +274,7 @@ class PedestrianDetector():
         rospy.loginfo('ros_PointCloud2_to_numpy time: %s', str(time.time() - start_t))
         
         start_t = time.time()
-        filtered_point_cloud = filter_lidar_by_range(pc, self.xrange,self.yrange)
+        filtered_point_cloud = filter_lidar_by_range(pc, self.xrange,self.yrange, self.zrange)
         rospy.loginfo('filtered_point_cloud time: %s', str(time.time() - start_t))
         
         
@@ -296,10 +299,7 @@ class PedestrianDetector():
             vis = self.track_agents(vis)
         rospy.loginfo('detect_agents time: %s', str(time.time() - start_t))
         
-        start_t = time.time()
-        vis = self.vis_lidar_by_clusters(vis, point_cloud_image, clusters)
-        rospy.loginfo('vis_lidar time: %s', str(time.time() - start_t))
-            
+
         cv2.imshow('frame', vis)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             exit(1)
