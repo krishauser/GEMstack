@@ -20,24 +20,8 @@ control:
         pid_p: 1.0
         pid_i: 0.1
         pid_d: 0.0
-planner:
-    search_planner:
-        rate: 1.0
-        dt: 0.8
-        velocity: 1.0
-        max_steering_angle: 0.6108
-        N_sample_controls: 5
-        resolution: 0.5
-        angle_resolution: 0.25
-        target_threshold: 1.0
-        RS_threshold: 12.0
-        RS_resolution: 0.2
-        RS_prob: 0.1
-        gear_cost: 10.0
-        backward_cost_scale: 1.5
-        smooth_threshold: 0.5
-        precomputed: !relative_path ../heuristics/reeds_shepp.npy
 
+planner:  !include A_star_planner.yaml
 
 #configure the simulator, if using
 simulator:
