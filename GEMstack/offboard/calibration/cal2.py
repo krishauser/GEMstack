@@ -3,11 +3,19 @@ import numpy as np
 import cv2
 from scipy.spatial.transform import Rotation as R
 
-# Define OAK camera intrinsic parameters
-focal_length_x = 684.83  # Focal length in pixels
-focal_length_y = 684.86
-principal_point_x = 573.37  # Principal point in pixels
-principal_point_y = 363.7
+# # Define OAK camera intrinsic parameters
+# focal_length_x = 684.83  # Focal length in pixels
+# focal_length_y = 684.86
+# principal_point_x = 573.37  # Principal point in pixels
+# principal_point_y = 363.7
+
+
+# # Define fr intrinsic parameters
+focal_length_x = 1163.6  # Focal length in pixels
+focal_length_y = 1162.7
+principal_point_x = 960.13  # Principal point in pixels
+principal_point_y = 553.15
+
 
 # Define OAK camera distortion coefficients (if available)
 
@@ -18,8 +26,8 @@ def euler_from_matrix(matrix):
 
 def calibrate(points2D=None, points3D=None):
     # Load corresponding points
-    camera_points = np.genfromtxt('image6.csv', delimiter=',', skip_header=1)
-    lidar_points = np.genfromtxt('pointcld6.csv', delimiter=',', skip_header=1)
+    camera_points = np.genfromtxt('save/image_fr_1.csv', delimiter=',', skip_header=1)
+    lidar_points = np.genfromtxt('save/lidar_fr_1.csv', delimiter=',', skip_header=1)
 
     # Extract 2D and 3D points
     points2D = camera_points[:, 0:2]
@@ -34,8 +42,9 @@ def calibrate(points2D=None, points3D=None):
     camera_matrix = np.array([[focal_length_x, 0, principal_point_x],
                               [0, focal_length_y, principal_point_y],
                               [0, 0, 1]])
-    dist_coeffs = np.array([0.908803403377533, 0.10777730494737625, -0.00011555181117728353, 0.00016320882423315197, 0.021386317908763885, 0.8666334748268127, 0.18107722699642181, 0.012254921719431877])
-
+    # dist_coeffs = np.array([0.908803403377533, 0.10777730494737625, -0.00011555181117728353, 0.00016320882423315197, 0.021386317908763885, 0.8666334748268127, 0.18107722699642181, 0.012254921719431877])
+    #fr distortion 
+    dist_coeffs = np.array([-0.2291, 0.06654, -0.002285, -0.000739, 0.00])
 
     # Estimate extrinsics
     success, rotation_vector, translation_vector, inliers = cv2.solvePnPRansac(points3D, 
