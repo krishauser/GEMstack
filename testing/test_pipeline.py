@@ -21,23 +21,27 @@ import ctypes
 import sensor_msgs.point_cloud2 as pc2
 import argparse
 import message_filters
+from ultralytics.utils.plotting import Annotator, colors
+from collections import defaultdict
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--test_target', '-t', type=str, default='detection', 
+                    choices=['detection', 'track'])
 parser.add_argument('--output_dir', '-o', type=str, default='save')
 parser.add_argument('--vis', '-v', default=False, action='store_true')
 parser.add_argument('--use_message_filter', '-m', default=False, action='store_true')
 args = parser.parse_args()
 
-colors = []
-colors += [(i, 0, 255) for i in range(100, 256, 25)]
-colors += [(i, 255, 0) for i in range(100, 256, 25)]
-colors += [(0, i, 255) for i in range(100, 256, 25)]
-colors += [(255, i, 0) for i in range(100, 256, 25)]
-colors += [(255, 0, i) for i in range(100, 256, 25)]
-colors += [(0, 255, i) for i in range(100, 256, 25)]
+pc_colors = []
+pc_colors += [(i, 0, 255) for i in range(100, 256, 25)]
+pc_colors += [(i, 255, 0) for i in range(100, 256, 25)]
+pc_colors += [(0, i, 255) for i in range(100, 256, 25)]
+pc_colors += [(255, i, 0) for i in range(100, 256, 25)]
+pc_colors += [(255, 0, i) for i in range(100, 256, 25)]
+pc_colors += [(0, 255, i) for i in range(100, 256, 25)]
 seed = 19
 random.seed(seed)
-random.shuffle(colors)
+random.shuffle(pc_colors)
 
 id2str = {
     0: "pedestrian",
@@ -156,6 +160,7 @@ class PedestrianDetector():
             
         self.zed_image = None
         self.point_cloud = None
+        self.track_history = defaultdict(lambda: [])
     
     def sync_callback(self, image: Image, point_cloud: PointCloud2):
         self.zed_image = image
@@ -171,10 +176,10 @@ class PedestrianDetector():
     
     def vis_lidar_by_clusters(self, vis, point_cloud_image, clusters):
         for proj_pt, cluster in zip(point_cloud_image, clusters):
-            color = colors[cluster % len(colors)]
+            color = pc_colors[cluster % len(pc_colors)]
             radius = 1
             center = int(proj_pt[0]), int(proj_pt[1])
-            vis = cv2.circle(vis, center, radius, color, cv2.FILLED)
+            cv2.circle(vis, center, radius, color, cv2.FILLED)
         return vis    
     
     def detect_agents(self, img):
@@ -218,6 +223,43 @@ class PedestrianDetector():
         
         return vis
     
+    def track_agents(self, frame):
+        results = self.detector.track(frame, persist=True, verbose=False)
+        boxes = results[0].boxes.xyxy.cpu()
+
+        names = self.detector.model.names
+        if results[0].boxes.id is not None:
+
+            # Extract prediction results
+            clss = results[0].boxes.cls.cpu().tolist()
+            track_ids = results[0].boxes.id.int().cpu().tolist()
+            confs = results[0].boxes.conf.float().cpu().tolist()
+
+            # Annotator Init
+            # annotated_frame = results[0].plot()
+            # frame = annotated_frame
+            
+            for box, cls, track_id in zip(boxes, clss, track_ids):
+                if int(cls) == 0:
+                    print ('detect a pedestrian')
+                    
+            """ custom visualization """
+            annotator = Annotator(frame, line_width=2)
+            annotator.box_label(box, color=colors(int(cls), True), label=names[int(cls)])
+
+            # Store tracking history
+            track = self.track_history[track_id]
+            track.append((int((box[0] + box[2]) / 2), int((box[1] + box[3]) / 2)))
+            if len(track) > 30:
+                track.pop(0)
+
+            # Plot tracks
+            points = np.array(track, dtype=np.int32).reshape((-1, 1, 2))
+            cv2.circle(frame, (track[-1]), 7, colors(int(cls), True), -1)
+            cv2.polylines(frame, [points], isClosed=False, color=colors(int(cls), True), thickness=2)
+        
+        return frame
+    
     def test_lidar_to_image_dbscan(self):
         if self.zed_image is None or self.point_cloud is None:
             return
@@ -248,7 +290,10 @@ class PedestrianDetector():
         rospy.loginfo('lidar_to_image time: %s', str(time.time() - start_t))
         
         start_t = time.time()
-        vis = self.detect_agents(vis)
+        if args.test_target == 'detection':
+            vis = self.detect_agents(vis)
+        elif args.test_target == 'track':
+            vis = self.track_agents(vis)
         rospy.loginfo('detect_agents time: %s', str(time.time() - start_t))
         
         start_t = time.time()
@@ -271,7 +316,6 @@ def main():
         print ('\nStart detection...')
         while not rospy.is_shutdown():
             rate.sleep()  # Wait a while before trying to get a new waypoints
-            # ped.detect_agents()
             ped.test_lidar_to_image_dbscan()
     except rospy.ROSInterruptException:
         pass
