@@ -17,6 +17,8 @@ except ImportError:
 
 from radar_msgs.msg import RadarTracks
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from nav_msgs.msg import Odometry
+from ...mathutils import transforms
 
 # GEM PACMod Headers
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt, GlobalRpt
@@ -28,6 +30,11 @@ from ...utils import conversions
 
 @dataclass 
 class GNSSReading:
+    pose : ObjectPose
+    status : str
+
+@dataclass 
+class VioslamReading:
     pose : ObjectPose
     status : str
 
@@ -178,6 +185,7 @@ class GEMHardwareInterface(GEMInterface):
                 else:
                     def callback_with_gnss_reading(msg: INSNavGeod):
                         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t = self.time(),
                                     x=msg.longitude,
                                     y=msg.latitude,
                                     z=msg.height,
@@ -227,6 +235,22 @@ class GEMHardwareInterface(GEMInterface):
                     cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="passthrough")
                     callback(cv_image)
                 self.front_depth_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+        elif name == 'Vioslam':
+            topic = self.ros_sensor_topics[name]
+            def callback_with_Vioslam_reading(msg : Odometry):
+                # position
+                x=msg.pose.pose.position.x
+                y=msg.pose.pose.position.x
+                z=msg.pose.pose.position.x
+                # orientation quaternion
+                xw = msg.pose.pose.orientation.x
+                yw = msg.pose.pose.orientation.y
+                zw = msg.pose.pose.orientation.z
+                w = msg.pose.pose.orientation.w
+                [roll, pitch, yaw] = transforms.quaternion_to_euler(xw, yw, zw, w)
+                pose = ObjectPose(ObjectFrameEnum.GLOBAL,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
+                callback(VioslamReading(pose,'error' if msg.error else 'ok'))
+            self.Vioslam_sub = rospy.Subscriber(topic, Odometry, callback_with_Vioslam_reading)
 
 
     # PACMod enable callback function

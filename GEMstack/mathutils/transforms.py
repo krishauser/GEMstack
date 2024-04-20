@@ -3,6 +3,7 @@ import numpy as np
 from klampt.math import vectorops as vo
 from klampt.math import so2
 from typing import Tuple
+from mathutils import alvinxy as axy
 
 def normalize_angle(angle : float) -> float:
     """Normalizes an angle to be in the range [0,2pi]"""
@@ -109,7 +110,6 @@ def lat_lon_to_xy(lat : float, lon : float, lat_reference : float, lon_reference
 
     Returns (x,y), where x is east in m, y is north in m.
     """
-    import alvinxy.alvinxy as axy 
     # convert GNSS waypoints into local fixed frame reprented in x and y
     east_x, north_y = axy.ll2xy(lat, lon, lat_reference, lon_reference)
     return east_x, north_y
@@ -119,7 +119,19 @@ def xy_to_lat_lon(x_east : float, y_north : float, lat_reference : float, lon_re
 
     Returns (lat,lon), where lat and lon are in degrees.
     """
-    import alvinxy.alvinxy as axy 
     # convert GNSS waypoints into local fixed frame reprented in x and y
     lat, lon = axy.xy2ll(x_east, y_north, lat_reference, lon_reference)
     return lat, lon
+
+def quaternion_to_euler(x : float, y : float, z : float, w : float):
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    roll = np.arctan2(t0, t1)
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    pitch = np.arcsin(t2)
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw = np.arctan2(t3, t4)
+    return [roll, pitch, yaw]

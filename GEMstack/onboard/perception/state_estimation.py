@@ -9,7 +9,7 @@ from ...knowledge.vehicle.geometry import front2steer,steer2front
 from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
-from ..interface.gem_hardware import GNSSReading
+from ..interface.gem_hardware import GNSSReading, VioslamReading
 
 class GNSSStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
@@ -17,7 +17,7 @@ class GNSSStateEstimator(Component):
         self.vehicle_interface = vehicle_interface
         if 'gnss' not in vehicle_interface.sensors():
             raise RuntimeError("GNSS sensor not available")
-        vehicle_interface.subscribe_sensor('gnss',self.c,ObjectPose)
+        vehicle_interface.subscribe_sensor('gnss',self.gnss_callback,ObjectPose)
         self.gnss_pose = None
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
@@ -51,6 +51,60 @@ class GNSSStateEstimator(Component):
         gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
         center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
         vehicle_pose_global = replace(self.gnss_pose,
+                                      t=self.vehicle_interface.time(),
+                                      x=center_xyhead[0],
+                                      y=center_xyhead[1],
+                                      yaw=center_xyhead[2])
+
+        readings = self.vehicle_interface.get_reading()
+        raw = readings.to_state(vehicle_pose_global)
+
+        #filtering speed
+        filt_vel     = self.speed_filter(raw.v)
+        raw.v = filt_vel
+        return raw
+    
+
+class VIOSlamEstimator(Component):
+    """Looks at the Vioslam reading to estimate the vehicle state"""
+    def __init__(self, vehicle_interface : GEMInterface):
+        self.vehicle_interface = vehicle_interface
+        if 'Vioslam' not in vehicle_interface.sensors():
+            raise RuntimeError("Vioslam sensor not available")
+        vehicle_interface.subscribe_sensor('Vioslam',self.vio_slam_callback,ObjectPose)
+        self.Vioslam_pose = None
+        self.location = settings.get('vehicle.calibration.gnss_location')[:2]
+        self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
+        self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
+        self.status = None
+
+    # Get vioslam information
+    def vio_slam_callback(self, reading : VioslamReading):
+        self.Vioslam_pose = reading.pose
+        self.status = reading.status
+    
+    def rate(self):
+        return 10.0
+    
+    def state_outputs(self) -> List[str]:
+        return ['vehicle']
+
+    def healthy(self):
+        return self.gnss_pose is not None
+
+    def update(self) -> VehicleState:
+        if self.Vioslam_pose is None:
+            return
+        #TODO: figure out what this status means
+        #print("INS status",self.status)
+
+        # vehicle gnss heading (yaw) in radians
+        # vehicle x, y position in fixed local frame, in meters
+        # reference point is located at the center of GNSS antennas
+        localxy = transforms.rotate2d(self.location,-self.yaw_offset)
+        gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
+        center_xyhead = self.self.Vioslam_pose.apply_xyhead(gnss_xyhead_inv)
+        vehicle_pose_global = replace(self.Vioslam_pose,
                                       t=self.vehicle_interface.time(),
                                       x=center_xyhead[0],
                                       y=center_xyhead[1],
