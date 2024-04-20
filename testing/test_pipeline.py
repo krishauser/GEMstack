@@ -54,7 +54,6 @@ id2str = {
 
 
 OUTPUT_DIR = args.output_dir
-
 TOPICS = {    
     'e2': {    
         'lidar': "/lidar1/velodyne_points", # 10Hz, shape: (25281, 3)
@@ -67,8 +66,7 @@ TOPICS = {
 }
 # topic = TOPICS[args.vehicle]
 topic = TOPICS
-print ('topic subscribe:', topic)
-        
+
 def ros_PointCloud2_to_numpy(pc2_msg, want_rgb = False):
     if pc2 is None:
         raise ImportError("ROS is not installed")
@@ -153,36 +151,16 @@ class PedestrianDetector():
         # subscribe
         
         self.bridge = CvBridge()
-        self.e2_lidar_sub = rospy.Subscriber(topic['e2']['lidar'], PointCloud2, self.lidar_callback)
-        self.e2_camera_sub = rospy.Subscriber(topic['e2']['camera'], Image, self.camera_callback)
         self.e4_lidar_sub = rospy.Subscriber(topic['e4']['lidar'], PointCloud2, self.lidar_callback)
         self.e4_camera_sub = rospy.Subscriber(topic['e4']['camera'], Image, self.camera_callback)
         self.zed_image = None
         self.point_cloud = None
-        self.index = 0
-    
-        self.start_camera_t = time.time()
-        self.start_lidar_t = time.time()
     
     def camera_callback(self, image: Image):
-        end_camera_t = time.time()
-        rospy.loginfo('camera_callback:', end_camera_t - self.start_camera_t)
-        self.start_camera_t = end_camera_t
-        # try:
-        #     # Convert a ROS image message into an OpenCV image
-        #     cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
-        # except CvBridgeError as e:
-        #     print(rospy.loginfo
-
         self.zed_image = image
 
     def lidar_callback(self, point_cloud):
-        end_lidar_t = time.time()
-        rospy.loginfo('lidar_callback:', end_lidar_t - self.start_lidar_t)
-        self.start_lidar_t = end_lidar_t
-        
         self.point_cloud = point_cloud
-
         # self.point_cloud = ros_PointCloud2_to_numpy(point_cloud, want_rgb=False)
     
     def vis_lidar_by_clusters(self, vis, point_cloud_image, clusters):
@@ -277,14 +255,7 @@ class PedestrianDetector():
 
 
 def main():
-    # args = parser.parse_args()
-    # print ('======= Initial arguments =======')
-    # params = []
-    # for key, val in vars(args).items():
-    #     param = f"--{key} {val}"
-    #     print(f"{key} => {val}")
-    #     params.append(param)
-
+   
     rospy.init_node('rgb_track_node', anonymous=True)
     rate = rospy.Rate(30)  # Hz
 
