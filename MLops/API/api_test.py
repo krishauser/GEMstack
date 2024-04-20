@@ -1,8 +1,3 @@
-from api import APIClient
-import os
+import mlops_api_gemstack as api
 
-client = APIClient(base_url='http://10.181.133.35:5000')  
-
-wd = os.getcwd()
-
-client.dataset_download('6615d9bb5d51d6cf4319c2f1')
+api.list_datasets_info()
