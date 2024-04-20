@@ -50,11 +50,10 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
 
     # State
     X = opti.variable(4, N+1)  # [x, y, theta, v]
-    U = opti.variable(2, N)    # [a, delta/omega]
+    U = opti.variable(2, N)    # [a, delta]
 
     # Initial constraints
     opti.subject_to(X[:,0] == [x0, y0, theta0, v0])
-    # opti.subject_to(X[:,0] == [x0, y0, theta0, v0, delta0])
 
     # Dynamics constraints
     for k in range(N):
@@ -96,11 +95,12 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
     opti.subject_to(opti.bounded(delta_min, U[1,:], delta_max))
     opti.subject_to(opti.bounded(v_min, X[3,:], v_max))
 
-    # objective
+    # weight
     w_g = WEIGHT_G # goal follw weight
     w_o = WEIGHT_O # obstacle avoidance weight
     w_l = WEIGHT_L # lane boundary weight
    
+    # objective
     objective = w_g * ca.sumsqr(X[0:4,-1] - [x_goal, y_goal, theta_goal, v_goal]) + w_o * obstacle_penalty + w_l * lane_bounds_penalty
     opti.minimize(objective)
 
@@ -175,7 +175,7 @@ class MPCTrajectoryPlanner(Component):
                 accel = 0
         
         elif collision_dis <= self.safe_dist:
-            accel = -1
+            accel = A_MIN
             wheel_angle = 0
             if vehicle.v == 0:
                 accel = 0
