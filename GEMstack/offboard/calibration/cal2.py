@@ -26,8 +26,8 @@ def euler_from_matrix(matrix):
 
 def calibrate(points2D=None, points3D=None):
     # Load corresponding points
-    camera_points = np.genfromtxt('save/image_fr_3.csv', delimiter=',', skip_header=1)
-    lidar_points = np.genfromtxt('save/lidar_fr_3.csv', delimiter=',', skip_header=1)
+    camera_points = np.genfromtxt('save/image_fr_1.csv', delimiter=',', skip_header=1)
+    lidar_points = np.genfromtxt('save/lidar_fr_1.csv', delimiter=',', skip_header=1)
 
     # Extract 2D and 3D points
     points2D = camera_points[:, 0:2]
