@@ -10,6 +10,9 @@ from datetime import datetime
 import zipfile
 import sensor_msgs.point_cloud2 as pc2
 
+import yaml
+import json
+
 DATASET_UPLOAD_FOLDER = '../dataset'
 
 
@@ -39,10 +42,10 @@ def convert(bag_file, video=True, pcd=True):
     bag = rosbag.Bag(bag_file)
     topics = bag.get_type_and_topic_info().topics
     for topic in topics:
-        if 'image' in topics[topic].msg_type.lower():
-            to_image(bag, topic, file_name)
+        if 'sensor_msgs/image' in topics[topic].msg_type.lower():
+            to_image_png(bag, topic, file_name)
             if video:
-                to_video(bag, topic, file_name)
+                to_video(bag, topic, file_name, False)
         elif 'pointcloud' in topics[topic].msg_type.lower():
             if pcd:
                 to_pointcloud_pcd(bag, topic, file_name)
@@ -51,11 +54,25 @@ def convert(bag_file, video=True, pcd=True):
             to_gnss(bag, topic, file_name)
         elif 'imu' in topics[topic].msg_type.lower():
             to_imu(bag, topic, file_name)
+        elif 'compressed' in topics[topic].msg_type.lower() and 'Depth' not in topic:
+            to_image_jpg(bag, topic, file_name)
+            if video:
+                to_video(bag, topic, file_name, True)
+        elif 'pacmod' in topics[topic].msg_type.lower():
+            to_json(bag, topic, file_name)
 
     bag.close()
 
+def to_image_jpg(bag, topic, file_name):
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_') + '/images')
+    os.makedirs(path, exist_ok=True)
 
-def to_image(bag, topic, file_name):
+    for _, msg, t in bag.read_messages(topics=[topic]):
+        with open(os.path.join(path, str(t) + '.jpg'), 'wb') as f:
+            f.write(msg.data)
+
+
+def to_image_png(bag, topic, file_name):
     bridge = CvBridge()
     path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_') + '/images')
     os.makedirs(path, exist_ok=True)
@@ -65,21 +82,28 @@ def to_image(bag, topic, file_name):
         cv2.imwrite(os.path.join(path, str(t) + '.png'), cv_image)
 
 
-def to_video(bag, topic, file_name):
+def to_video(bag, topic, file_name, compressed):
     bridge = CvBridge()
     path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_') + '/video')
     os.makedirs(path, exist_ok=True)
 
     images = []
+    timestamp = []
     for _, msg, t in bag.read_messages(topics=[topic]):
-        cv_image = bridge.imgmsg_to_cv2(msg, msg.encoding)
+        timestamp.append(t.to_sec())
+        if compressed:
+            np_arr = np.frombuffer(msg.data, np.uint8)
+            cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        else:
+            cv_image = bridge.imgmsg_to_cv2(msg, msg.encoding)
         images.append(cv_image)
 
+    fps = len(timestamp) / (timestamp[-1] - timestamp[0])
     image_shape = images[0].shape
     h, w = image_shape[0], image_shape[1]
     channel = 1 if len(image_shape) == 2 else image_shape[2]
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    video_writer = cv2.VideoWriter(os.path.join(path, 'video.mp4'), fourcc, 30, (w, h), isColor=channel > 1)
+    video_writer = cv2.VideoWriter(os.path.join(path, 'video.mp4'), fourcc, fps, (w, h), isColor=channel > 1)
     for image in images:
         video_writer.write(image)
     video_writer.release()
@@ -141,6 +165,16 @@ def to_imu(bag, topic, file_name):
     np.savetxt(os.path.join(path, 'imu.csv'), imu_data, delimiter=',', fmt='%s')
 
 
+def to_json(bag, topic, file_name):
+    path = os.path.join(DATASET_UPLOAD_FOLDER, file_name + '/' + topic[1:].replace('/', '_'))
+    os.makedirs(path, exist_ok=True)
+
+    for _, msg, t in bag.read_messages(topics=[topic]):
+        data = yaml.safe_load(str(msg))
+        with open(os.path.join(path, str(t) + '.json'), 'w') as f:
+            json.dump(data, f)
+
+
 def create_zip_for_topic(topic_folder):
     # Get the list of subdirectories within the topic folder
     subdirectories = [d for d in os.listdir(topic_folder) if os.path.isdir(os.path.join(topic_folder, d))]
@@ -174,6 +208,3 @@ def create_zip_for_topic(topic_folder):
             zip_file_paths.append(zip_file_path)
 
     return zip_file_paths
-
-
-#convert('test.bag')
