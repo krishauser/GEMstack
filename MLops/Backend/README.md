@@ -1,13 +1,8 @@
-# MLops Backend
+# MLOps Backend
 
-Run `pip install -r requirements.txt`to install the required dependencies.
+Run `pip install -r requirements.txt` to install the required dependencies.
 
 ## Introduction to API endpoints in Server
-
-### /home
-- **Description:** This endpoint serves the home page of the application.
-- **Method:** GET
-- **Returns:** Renders the HTML template for the home page.
 
 ### /models/
 - **Description:** This endpoint retrieves a list of all models information stored in the database.
@@ -70,7 +65,7 @@ Run `pip install -r requirements.txt`to install the required dependencies.
     - `Path`: Path to the dataset file.
     - `Description`: Description of the dataset.
 - **Returns:** JSON response indicating the success or failure of the update operation.
-- 
+
 ### /datasets/retrieval/`<id>`
 - **Description:** This endpoint allows downloading the dataset file of a specific dataset.
 - **Method:** GET
@@ -87,6 +82,13 @@ Run `pip install -r requirements.txt`to install the required dependencies.
     - `DataName`: Name of the dataset.
     - `Description`: Description of the dataset.
 - **Returns:** JSON response indicating the success or failure of the upload operation.
+
+### /datasets/uploadBag
+- **Description:** This endpoint allows uploading a ROS bag file. The file will be processed to extract and convert data, which is then stored and managed as part of the dataset.
+- **Method:** POST
+- **Parameters:** 
+  - `file`: The ROS bag file to upload.
+- **Returns:** JSON response including success message and details of datasets created from the uploaded file. Returns an error if the file is not a `.bag` file or if file processing fails.
 
 # Running the Server
 Execute `python server.py` to run the Flask server.
