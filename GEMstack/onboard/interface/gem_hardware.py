@@ -248,9 +248,10 @@ class GEMHardwareInterface(GEMInterface):
                 zw = msg.pose.pose.orientation.z
                 w = msg.pose.pose.orientation.w
                 [roll, pitch, yaw] = transforms.quaternion_to_euler(xw, yw, zw, w)
-                pose = ObjectPose(ObjectFrameEnum.START,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
-                global_pose = pose.to_frame(ObjectFrameEnum.GLOBAL, current_pose = pose, start_pose_abs = pose)
-                callback(VioslamReading(global_pose,'error' if msg.error else 'ok'))
+                global_pose = ObjectPose(ObjectFrameEnum.GLOBAL,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
+                # pose = ObjectPose(ObjectFrameEnum.START,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
+                # global_pose = pose.to_frame(ObjectFrameEnum.GLOBAL, current_pose = pose, start_pose_abs = pose)
+                callback(VioslamReading(global_pose,'ok'))
             self.Vioslam_sub = rospy.Subscriber(topic, Odometry, callback_with_Vioslam_reading)
 
 
