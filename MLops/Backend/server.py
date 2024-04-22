@@ -50,7 +50,8 @@ def list_all_models():
         '_id': str(model['_id']),
         'ModelName': model['ModelName'],
         'Path': model['Path'],
-        'Description': model.get('Description', '')
+        'Description': model.get('Description', ''),
+        'DateTime': model['DateTime'],
     } for model in models]
     return jsonify(models_list)
 
@@ -93,7 +94,7 @@ def upload_model():
 
 @app.route('/models/<id>', methods=['GET'])
 def list_model_info(id):
-    model_info = db.Models.find_one({'_id': ObjectId(id)}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1})
+    model_info = db.Models.find_one({'_id': ObjectId(id)}, {'_id': 1, 'ModelName': 1, 'Path': 1, 'Description': 1, 'DateTime': 1})
     if model_info:
         model_info['_id'] = str(model_info['_id'])
         return jsonify(model_info)

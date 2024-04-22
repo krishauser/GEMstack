@@ -1,13 +1,8 @@
-# MLops Backend
+# MLOps Backend
 
-Run `pip install -r requirements.txt`to install the required dependencies.
+Run `pip install -r requirements.txt` to install the required dependencies.
 
 ## Introduction to API endpoints in Server
-
-### /home
-- **Description:** This endpoint serves the home page of the application.
-- **Method:** GET
-- **Returns:** Renders the HTML template for the home page.
 
 ### /models/
 - **Description:** This endpoint retrieves a list of all models information stored in the database.
@@ -43,10 +38,7 @@ Run `pip install -r requirements.txt`to install the required dependencies.
 - **Method:** POST
 - **Parameters:** 
   - `file`: The model file to upload.
-  - JSON data containing:
-    - `ModelName`: Name of the model.
-    - `Description`: Description of the model.
-- **Returns:** JSON response indicating the success or failure of the upload operation.
+- **Returns:** JSON response indicating the success or failure of the upload operation, and the filename of the model.
 
 ### /datasets/
 - **Description:** This endpoint retrieves a list of all dataset information stored in the database.
@@ -70,7 +62,7 @@ Run `pip install -r requirements.txt`to install the required dependencies.
     - `Path`: Path to the dataset file.
     - `Description`: Description of the dataset.
 - **Returns:** JSON response indicating the success or failure of the update operation.
-- 
+
 ### /datasets/retrieval/`<id>`
 - **Description:** This endpoint allows downloading the dataset file of a specific dataset.
 - **Method:** GET
@@ -83,10 +75,14 @@ Run `pip install -r requirements.txt`to install the required dependencies.
 - **Method:** POST
 - **Parameters:** 
   - `file`: The dataset file to upload.
-  - JSON data containing:
-    - `DataName`: Name of the dataset.
-    - `Description`: Description of the dataset.
-- **Returns:** JSON response indicating the success or failure of the upload operation.
+- **Returns:** JSON response indicating the success or failure of the upload operation, the id and file name of the uploaded dataset.
+
+### /datasets/uploadBag
+- **Description:** This endpoint allows uploading a ROS bag file. The file will be processed to extract and convert data, which is then stored and managed as part of the dataset.
+- **Method:** POST
+- **Parameters:** 
+  - `file`: The ROS bag file to upload.
+- **Returns:** JSON response including success message and details(including id and file name) of datasets created from the uploaded bag file. Returns an error if the file is not a `.bag` file or if file processing fails.
 
 # Running the Server
 Execute `python server.py` to run the Flask server.
