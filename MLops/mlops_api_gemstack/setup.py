@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='mlops_api_gemstack',
-    version='0.1',
+    version='0.3.3',
     description='An API package connect to a MLops server relating to the GEMstack project.',
     author='Haoming Sun',
     author_email='ricardosun990122@gmail.com',

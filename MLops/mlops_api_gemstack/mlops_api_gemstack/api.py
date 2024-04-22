@@ -8,7 +8,7 @@ from tqdm import tqdm
 from pprint import pprint
 from urllib.parse import unquote
 
-base_url='https://highbayapi.Nico-nico-nii.com'
+base_url='http://10.195.159.3:5000'
 save_directory = os.getcwd()
 
 @click.group()
@@ -235,11 +235,33 @@ def dataset_uploadBag(file_path, source):
     except Exception as e:
         click.echo(f"An error occurred: {e}")
 
+def upload_bag(rosbag_file_name, source):
+    with open(rosbag_file_name, 'rb') as f:
+        files = {'file': f}
+        response = requests.post(f"{base_url}/datasets/uploadBag", files=files)
+        if response.status_code == 200:
+            response_data = response.json()
+            click.echo(f"Message: {response_data['message']}.")
+
+            for inserted in response_data['inserted_objects']:
+                response = requests.put(
+                    f"{base_url}/datasets/{inserted[1]}", 
+                    json={"Source": source}
+                )
+                if response.status_code == 200:
+                    click.echo("Dataset updated successfully")
+                    
+        elif response.status_code == 400:
+            click.echo(f"Error: {response.json()['error']}")
+        else:
+            click.echo(f"Failed to upload the file. Status code: {response.status_code}")
+
 @cli.command()
 @click.argument('topics_file', type=click.Path(exists=True))
 @click.argument('rosbag_file_name')
+@click.argument('source')
 @click.option('--delete_rosbag', is_flag=True, help='Keep the rosbag file after recording')
-def record_rosbag(topics_file, rosbag_file_name, delete_rosbag):
+def record_rosbag(topics_file, rosbag_file_name, source, delete_rosbag):
 
     with open(topics_file) as f:
         topics = [line.strip() for line in f.readlines()]
@@ -247,21 +269,24 @@ def record_rosbag(topics_file, rosbag_file_name, delete_rosbag):
     if not topics:
         print(f"No topics found in {topics_file}")
         exit(1)
+    
+    if not rosbag_file_name.endswith('.bag'):
+        rosbag_file_name += '.bag'
 
     topics = " ".join(topics)
 
     command = f"rosbag record {topics} -O {rosbag_file_name}"
-    # command = "ping 127.0.0.1 -t"
 
     process = subprocess.Popen(command, shell=True)
 
     def stop_recording(sig, frame):
         print("Stopping rosbag recording")
         process.terminate()
-        process.wait()
         print("Recording stopped")
+
         # send rosbag file through api
-        # Add to here
+        upload_bag(rosbag_file_name, source)
+       
         if delete_rosbag:
             print("Removing rosbag file")
             subprocess.run(f"rm {rosbag_file_name}", shell=True)
