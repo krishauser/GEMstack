@@ -82,125 +82,34 @@ class Node:
     
 class SearchNavigationRoutePlanner(Component):
     """Returns a straight line as the desired route."""
-    def __init__(self, start : List[float], end : List[float]):
+    def __init__(self):
         # start and end are [x, y, yaw, speed, steer] in the START frame
-        self.start = start
-        self.end = end
-        x_bound = [min(self.start[0], self.end[0])-2, max(self.start[0], self.end[0])+2]
-        y_bound = [min(self.start[1], self.end[1])-2, max(self.start[1], self.end[1])+2]
-        theta_bound = [0, 2*np.pi]
-        self.x_bound = x_bound
-        self.y_bound = y_bound
-
-        resolution = settings.get('A_star_planner.search_planner.resolution')
-        angle_resolution = settings.get('A_star_planner.search_planner.angle_resolution')
-        self.s_bound = (int((x_bound[1]-x_bound[0])/resolution), \
-                        int((y_bound[1]-y_bound[0])/resolution), \
-                        int(2*np.pi/angle_resolution))
-        
-        self.s2state = lambda s: [x_bound[0] + s[0]*(x_bound[1]-x_bound[0])/self.s_bound[0], \
-                                  y_bound[0] + s[1]*(y_bound[1]-y_bound[0])/self.s_bound[1], \
-                                  theta_bound[0] + s[2]*(theta_bound[1]-theta_bound[0])/self.s_bound[2], \
-                                  s[3]]
-        
-        self.state2s = lambda state: [round((state[0]-x_bound[0])/(x_bound[1]-x_bound[0])*self.s_bound[0]), \
-                                      round((state[1]-y_bound[0])/(y_bound[1]-y_bound[0])*self.s_bound[1]), \
-                                      round((state[2]-theta_bound[0])/(theta_bound[1]-theta_bound[0])*self.s_bound[2])%self.s_bound[2], \
-                                      state[3]]
-        
-        self.grid_resolution = 0.5      
-        self.grid_map = np.full((int((x_bound[1]-x_bound[0])/self.grid_resolution), \
-                                 int((y_bound[1]-y_bound[0])/self.grid_resolution)), \
-                                 np.inf)
-        
         self._rate = settings.get('A_star_planner.search_planner.rate')
         
-        v = settings.get('A_star_planner.search_planner.velocity')
-        L = settings.get('vehicle.geometry.wheelbase')
-        steer_max = settings.get('A_star_planner.search_planner.max_steering_angle')
-        turn_radius = L/np.tan(steer_max)
+        self.v = settings.get('A_star_planner.search_planner.velocity')
+        self.L = settings.get('vehicle.geometry.wheelbase')
+        self.steer_max = settings.get('A_star_planner.search_planner.max_steering_angle')
+        turn_radius = self.L/np.tan(self.steer_max)
         self.turn_radius = turn_radius
 
-        N_controls = settings.get('A_star_planner.search_planner.N_sample_controls')
-        dt = settings.get('A_star_planner.search_planner.dt')
+        self.N_controls = settings.get('A_star_planner.search_planner.N_sample_controls')
+        self.dt = settings.get('A_star_planner.search_planner.dt')
 
         self.target_threshold = settings.get('A_star_planner.search_planner.target_threshold')
         self.RS_threshold = settings.get('A_star_planner.search_planner.RS_threshold')
         self.RS_resolution = settings.get('A_star_planner.search_planner.RS_resolution')
         self.RS_p = settings.get('A_star_planner.search_planner.RS_prob')
 
-        backward_cost_scale = settings.get('A_star_planner.search_planner.backward_cost_scale')
-        gear_cost = settings.get('A_star_planner.search_planner.gear_cost')
+        self.backward_cost_scale = settings.get('A_star_planner.search_planner.backward_cost_scale')
+        self.gear_cost = settings.get('A_star_planner.search_planner.gear_cost')
 
         self.smooth_threshold = settings.get('A_star_planner.search_planner.smooth_threshold')
-
-        def sample_steer(N=N_controls):
-            return np.random.uniform(-steer_max,steer_max,N)
-        
-        def sim(state,steer,f,dt=dt):
-            x, y, theta, _ = state
-            dtheta = v*np.tan(steer)/L
-            x = x + f*np.cos(theta)*v*dt
-            y = y + f*np.sin(theta)*v*dt
-            theta = theta + dtheta*dt
-            return [x,y,theta,f]
-        
-        def expand(state):
-            next_states = []
-            for steer in sample_steer():
-                for f in [-1,1]: # -1 for backward, 1 for forward
-                    next_state = sim(state,steer,f)
-                    x, y, theta, _ = next_state
-                    if x < x_bound[0] or x > x_bound[1] or y < y_bound[0] or y > y_bound[1]:
-                        continue
-                    next_states.append(next_state)
-            return next_states
-        self.expand = expand
-
-        def heuristic(state1,state2,agents=[]):
-            xs,ys,ths = state1[:3]
-            start = [xs/turn_radius,ys/turn_radius,ths]
-            xe,ye,the = state2[:3]
-            end = [xe/turn_radius,ye/turn_radius,the]
-            h = precompute(start,end)*turn_radius
-            # h = path_length(get_optimal_path(start,end))*turn_radius
-            i, j = round((state1[0]-self.x_bound[0])/self.grid_resolution), round((state1[1]-self.y_bound[0])/self.grid_resolution)
-            h = max(self.grid_map[i,j]*self.grid_resolution,h)
-            return h*2
-        self.heuristic = heuristic
-
-        def cost(state1,state2):
-            scale = backward_cost_scale if state2[3] < 0 else 1.0
-            c = np.linalg.norm(np.array(state1[:2])-np.array(state2[:2]))
-            c = c*scale
-            c += gear_cost if state1[3]*state2[3] < 0 else 0
-            return c
-        self.cost = cost
-
-        def distance(state1,state2):
-            return np.linalg.norm(np.array(state1[:3])-np.array(state2[:3])) + \
-                min(abs(state1[2]-state2[2])%(2*np.pi), 2*np.pi-abs(state1[2]-state2[2])%(2*np.pi))
-        self.distance = distance
-
-        def rs_prob(state):
-            if distance(state,self.end) < 0.2*self.RS_threshold:
-                return 5*self.RS_p
-            if distance(state,self.end) < 0.5*self.RS_threshold:
-                return 2*self.RS_p
-            if distance(state,self.end) < self.RS_threshold:
-                return self.RS_p
-            return 0.0
-        self.rs_prob = rs_prob
 
         self.route = None
         self.last_path = None
         self.last_end = None
         self.LATERAL_DISTANCE_BUFFER = .5
         self.LONGITUDINAL_DISTANCE_BUFFER = .5
-
-
-        print("NavigationRoutePlanner: start",start)
-        print("NavigationRoutePlanner: end",end)
 
     def state_inputs(self):
         # return ['vehicle', 'roadgraph']
@@ -211,14 +120,6 @@ class SearchNavigationRoutePlanner(Component):
 
     def rate(self):
         return self._rate
-
-    # def update(self, vehicle : VehicleState, roadgraph : Tuple[Roadmap,Roadgraph]):
-    #     # TODO: Figure out what is a Roadgraph
-    #     roadmap, roadgraph = roadgraph
-
-    #     # TODO: make this a real route
-    #     route = Route(frame=ObjectFrameEnum.START,points=[self.start[:2],self.end[:2]])
-    #     return route
     
     def update(self, state : AllState):
         # We can use agents to detect collisions, just like hw3
@@ -226,7 +127,16 @@ class SearchNavigationRoutePlanner(Component):
         vehicle = copy.deepcopy(state.vehicle)
         agents = state.agents
         agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
-        # TODO: make this a real route
+
+        if True: # Currently only parking
+            parking_slot = state.parking_slot
+            parking_slot = parking_slot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+            start = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, 0]
+            end = [parking_slot.x, parking_slot.y, parking_slot.yaw, 0]
+        elif False: # Some other task
+            pass
+
+        self.setup_search(start, end)
 
         def check_constraints(state):
             s = self.state2s(state)
@@ -251,14 +161,6 @@ class SearchNavigationRoutePlanner(Component):
             return True
         
         # blending to handle small changes in the goal
-        ############### ONLY FOR TESTING ################
-        # add small displacement to the goal
-        # in reality, the goal should come from the perception module
-        self.end = [15,17,0,0]
-        self.end[0] += np.random.uniform(-0.2,0.2)
-        self.end[1] += np.random.uniform(-0.2,0.2)
-        self.end[2] += np.random.uniform(-0.2,0.2)
-        ############### ONLY FOR TESTING ################
         if self.last_end is None:
             self.last_path = None
         else:
@@ -352,7 +254,6 @@ class SearchNavigationRoutePlanner(Component):
                     count -= 1
                 c = c.parent
 
-            
             route = []
             yaws = []
             gear = []
@@ -373,3 +274,95 @@ class SearchNavigationRoutePlanner(Component):
         route = self.route
         
         return route
+    
+    def setup_search(self, start, end):
+        self.start = start
+        self.end = end
+        x_bound = [min(self.start[0], self.end[0])-2, max(self.start[0], self.end[0])+2]
+        y_bound = [min(self.start[1], self.end[1])-2, max(self.start[1], self.end[1])+2]
+        if self.last_path is not None:
+            for p in self.last_path:
+                x_bound = [min(x_bound[0], p[0]-2), max(x_bound[1], p[0]+2)]
+                y_bound = [min(y_bound[0], p[1]-2), max(y_bound[1], p[1]+2)]
+        theta_bound = [0, 2*np.pi]
+        self.x_bound = x_bound
+        self.y_bound = y_bound
+
+        resolution = settings.get('A_star_planner.search_planner.resolution')
+        angle_resolution = settings.get('A_star_planner.search_planner.angle_resolution')
+        self.s_bound = (int((x_bound[1]-x_bound[0])/resolution), \
+                        int((y_bound[1]-y_bound[0])/resolution), \
+                        int(2*np.pi/angle_resolution))
+        
+        self.s2state = lambda s: [x_bound[0] + s[0]*(x_bound[1]-x_bound[0])/self.s_bound[0], \
+                                  y_bound[0] + s[1]*(y_bound[1]-y_bound[0])/self.s_bound[1], \
+                                  theta_bound[0] + s[2]*(theta_bound[1]-theta_bound[0])/self.s_bound[2], \
+                                  s[3]]
+        
+        self.state2s = lambda state: [round((state[0]-x_bound[0])/(x_bound[1]-x_bound[0])*self.s_bound[0]), \
+                                      round((state[1]-y_bound[0])/(y_bound[1]-y_bound[0])*self.s_bound[1]), \
+                                      round((state[2]-theta_bound[0])/(theta_bound[1]-theta_bound[0])*self.s_bound[2])%self.s_bound[2], \
+                                      state[3]]
+        
+        self.grid_resolution = 0.5      
+        self.grid_map = np.full((int((x_bound[1]-x_bound[0])/self.grid_resolution), \
+                                 int((y_bound[1]-y_bound[0])/self.grid_resolution)), \
+                                 np.inf)
+        
+        def sample_steer(N=self.N_controls):
+            return np.random.uniform(-self.steer_max,self.steer_max,N)
+        
+        def sim(state,steer,f,dt=self.dt):
+            x, y, theta, _ = state
+            dtheta = self.v*np.tan(steer)/self.L
+            x = x + f*np.cos(theta)*self.v*dt
+            y = y + f*np.sin(theta)*self.v*dt
+            theta = theta + dtheta*dt
+            return [x,y,theta,f]
+        
+        def expand(state):
+            next_states = []
+            for steer in sample_steer():
+                for f in [-1,1]: # -1 for backward, 1 for forward
+                    next_state = sim(state,steer,f)
+                    x, y, theta, _ = next_state
+                    if x < x_bound[0] or x > x_bound[1] or y < y_bound[0] or y > y_bound[1]:
+                        continue
+                    next_states.append(next_state)
+            return next_states
+        self.expand = expand
+
+        def heuristic(state1,state2,agents=[]):
+            xs,ys,ths = state1[:3]
+            start = [xs/self.turn_radius,ys/self.turn_radius,ths]
+            xe,ye,the = state2[:3]
+            end = [xe/self.turn_radius,ye/self.turn_radius,the]
+            h = precompute(start,end)*self.turn_radius
+            # h = path_length(get_optimal_path(start,end))*self.turn_radius
+            i, j = round((state1[0]-self.x_bound[0])/self.grid_resolution), round((state1[1]-self.y_bound[0])/self.grid_resolution)
+            h = max(self.grid_map[i,j]*self.grid_resolution,h)
+            return h*2
+        self.heuristic = heuristic
+
+        def cost(state1,state2):
+            scale = self.backward_cost_scale if state2[3] < 0 else 1.0
+            c = np.linalg.norm(np.array(state1[:2])-np.array(state2[:2]))
+            c = c*scale
+            c += self.gear_cost if state1[3]*state2[3] < 0 else 0
+            return c
+        self.cost = cost
+
+        def distance(state1,state2):
+            return np.linalg.norm(np.array(state1[:3])-np.array(state2[:3])) + \
+                min(abs(state1[2]-state2[2])%(2*np.pi), 2*np.pi-abs(state1[2]-state2[2])%(2*np.pi))
+        self.distance = distance
+
+        def rs_prob(state):
+            if distance(state,self.end) < 0.2*self.RS_threshold:
+                return 5*self.RS_p
+            if distance(state,self.end) < 0.5*self.RS_threshold:
+                return 2*self.RS_p
+            if distance(state,self.end) < self.RS_threshold:
+                return self.RS_p
+            return 0.0
+        self.rs_prob = rs_prob
