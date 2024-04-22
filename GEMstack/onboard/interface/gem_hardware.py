@@ -194,7 +194,7 @@ class GEMHardwareInterface(GEMInterface):
                                     pitch=math.radians(msg.pitch),
                                     )
                         callback(GNSSReading(pose,'error' if msg.error else 'ok'))
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
@@ -240,16 +240,17 @@ class GEMHardwareInterface(GEMInterface):
             def callback_with_Vioslam_reading(msg : Odometry):
                 # position
                 x=msg.pose.pose.position.x
-                y=msg.pose.pose.position.x
-                z=msg.pose.pose.position.x
+                y=msg.pose.pose.position.y
+                z=msg.pose.pose.position.z
                 # orientation quaternion
                 xw = msg.pose.pose.orientation.x
                 yw = msg.pose.pose.orientation.y
                 zw = msg.pose.pose.orientation.z
                 w = msg.pose.pose.orientation.w
                 [roll, pitch, yaw] = transforms.quaternion_to_euler(xw, yw, zw, w)
-                pose = ObjectPose(ObjectFrameEnum.GLOBAL,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
-                callback(VioslamReading(pose,'error' if msg.error else 'ok'))
+                pose = ObjectPose(ObjectFrameEnum.START,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
+                global_pose = pose.to_frame(ObjectFrameEnum.GLOBAL, current_pose = pose, start_pose_abs = pose)
+                callback(VioslamReading(global_pose,'error' if msg.error else 'ok'))
             self.Vioslam_sub = rospy.Subscriber(topic, Odometry, callback_with_Vioslam_reading)
 
 

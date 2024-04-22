@@ -118,38 +118,7 @@ class GEMInterface:
         If type is not None, it should be the expected type of the message produced
         by the sensor callback.
         """
-        # if name == 'gnss':
-        #     topic = self.ros_sensor_topics[name]
-        #     #assume it's septentrio
-        #     def callback_with_gnss_reading(msg: INSNavGeod):
-        #         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-        #                     x=msg.longitude,
-        #                     y=msg.latitude,
-        #                     z=msg.height,
-        #                     yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
-        #                     roll=math.radians(msg.roll),
-        #                     pitch=math.radians(msg.pitch),
-        #                     )
-        #         callback(GNSSReading(pose,'error' if msg.error else 'ok'))
-        #     self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
-        
-        # if name == 'Vioslam':
-        #     topic = self.ros_sensor_topics[name]
-        #     def callback_with_Vioslam_reading(msg : Odometry):
-        #         # position
-        #         x=msg.pose.pose.position.x
-        #         y=msg.pose.pose.position.x
-        #         z=msg.pose.pose.position.x
-        #         # orientation quaternion
-        #         xw = msg.pose.pose.orientation.x
-        #         yw = msg.pose.pose.orientation.y
-        #         zw = msg.pose.pose.orientation.z
-        #         w = msg.pose.pose.orientation.w
-        #         [roll, pitch, yaw] = transforms.quaternion_to_euler(xw, yw, zw, w)
-        #         pose = ObjectPose(ObjectFrameEnum.GLOBAL,x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
-        #         callback(VioslamReading(pose,'error' if msg.error else 'ok'))
-        #     self.Vioslam_sub = rospy.Subscriber(topic, Odometry, callback_with_Vioslam_reading)
-
+        raise NotImplementedError()
 
     def hardware_faults(self) -> List[str]:
         """Returns a list of hardware faults, naming the failed component.

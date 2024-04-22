@@ -3,7 +3,7 @@ import numpy as np
 from klampt.math import vectorops as vo
 from klampt.math import so2
 from typing import Tuple
-from mathutils import alvinxy as axy
+from . import alvinxy as axy
 
 def normalize_angle(angle : float) -> float:
     """Normalizes an angle to be in the range [0,2pi]"""
