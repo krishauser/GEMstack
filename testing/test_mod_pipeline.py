@@ -142,10 +142,9 @@ class PedestrianDetector():
 
         # obtained by GEMstack/offboard/calibration/check_target_lidar_range.py
         # Hardcode the roi area for agents
-        self.xrange = (0, 10)
-        self.yrange = (-5.0247698, 5.0374074)
-        self.zrange = (-2.5, 0)
-
+        self.xrange = (0, 20)
+        self.yrange = (-10, 10)
+        self.zrange = (-3, 1)
         # subscribe
 
         self.bridge = CvBridge()
@@ -217,7 +216,54 @@ class PedestrianDetector():
         rospy.loginfo("Detection complete.")
         return vis
 
-    def track_agents(self, frame):
+    def vis_depth_estimation(self, vis, box, class_name, point_cloud_image, pc_3D, clusters):
+        x,y,w,h = box
+        xmin, xmax = x - w/2, x + w/2
+        ymin, ymax = y - h/2, y + h/2
+        
+        # Filter. Get the idxs of point cloud that belongs to the agent
+        idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
+                        (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
+        agent_image_pc = point_cloud_image[idxs]
+        agent_pc_3D = pc_3D[idxs]
+        agent_clusters = clusters[idxs]
+        
+        # Get unique elements and their counts
+        unique_elements, counts = np.unique(agent_clusters, return_counts=True)
+        max_freq = np.max(counts)
+        label_cluster = unique_elements[counts == max_freq]
+        
+        # filter again
+        idxs = agent_clusters == label_cluster
+        agent_image_pc = agent_image_pc[idxs]
+        agent_clusters = agent_clusters[idxs]
+        agent_pc_3D = agent_pc_3D[idxs]
+        
+        # calulate depth
+        depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
+        print ('depth:', depth)
+        
+        # # draw
+        # text = class_name
+        # text += f" | depth: {depth:.2f}"
+        # text_size, baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
+        # p1 = (left_up[0], left_up[1] - text_size[1])
+        # cv2.rectangle(vis, (p1[0] - 2 // 2, p1[1] - 2 - baseline), (p1[0] + text_size[0], p1[1] + text_size[1]),
+        #             color, -1)
+        # cv2.putText(vis, text, (p1[0], p1[1] + baseline), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, 8)
+        
+        # draw point cloud
+        for proj_pt, cluster in zip(agent_image_pc, agent_clusters):
+            if cluster != label_cluster:
+                continue
+            pc_color = pc_colors[cluster % len(pc_colors)]
+            radius = 1
+            center = int(proj_pt[0]), int(proj_pt[1])
+            cv2.circle(vis, center, radius, pc_color, cv2.FILLED)
+        
+        return depth
+    
+    def track_agents(self, frame, point_cloud_image, pc_3D, clusters):
         rospy.loginfo("Tracking agents...")
 
         results = self.detector.track(frame, persist=True, verbose=False)
@@ -237,21 +283,20 @@ class PedestrianDetector():
             for box, cls, track_id in zip(boxes, clss, track_ids):
                 if int(cls) in [0, 2, 11]:  # Check if class is pedestrian, car, or stop sign
                     class_name = names[int(cls)]
-
+                    box = box.numpy()
+                    label = f"{class_name} {class_counts[class_name]}"
+                    
                     # Increment count for the class
                     class_counts[class_name] += 1
-
+                
                     # Annotate with the class name and count
-                    label = f"{class_name} {class_counts[class_name]}"
+                    depth = self.vis_depth_estimation(frame, box, class_name, point_cloud_image, pc_3D, clusters)
+                    
+                    label = label + f" {depth:.2}"
                     annotator.box_label(box, color=colors(int(cls), True), label=label)
 
                     # Store the annotation count for the class
                     class_annotations[class_name] = class_counts[class_name]
-
-            # Store tracking history and plot tracks
-            for box, cls, track_id in zip(boxes, clss, track_ids):
-                if int(cls) in [0, 2, 11]:
-                    class_name = names[int(cls)]
 
                     track = self.track_history[track_id]
                     track.append((int((box[0] + box[2]) / 2), int((box[1] + box[3]) / 2)))
@@ -296,11 +341,14 @@ class PedestrianDetector():
         rospy.loginfo('lidar_to_image time: %s', str(time.time() - start_t))
         print('Lidar to image time:', str(time.time() - start_t))
 
+        # Tansfer lidar point cloud to vehicle frame
+        pc_3D = lidar_to_vehicle(filtered_point_cloud, self.T_lidar2_Gem)
+
         start_t = time.time()
         if args.test_target == 'detection':
             vis = self.detect_agents(vis)
         elif args.test_target == 'track':
-            vis = self.track_agents(vis)
+            vis = self.track_agents(vis, point_cloud_image, pc_3D, clusters)
         rospy.loginfo('detect_agents time: %s', str(time.time() - start_t))
         print('Detection time:', str(time.time() - start_t))
 
