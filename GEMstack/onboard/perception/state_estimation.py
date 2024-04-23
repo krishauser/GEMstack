@@ -9,7 +9,103 @@ from ...knowledge.vehicle.geometry import front2steer,steer2front
 from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
-from ..interface.gem_hardware import GNSSReading
+
+class IMUStateEstimator(Component):
+    def __init__(self, vehicle_interface = GEMInterface):
+        
+        self.vehicle_interface = vehicle_interface
+        vehicle_interface.subscribe_sensor('/septentrio_gnss/imu',self.imu_callback)
+        if 'gnss' in vehicle_interface.sensors():
+            vehicle_interface.subscribe_sensor('gnss',self.inspva_callback)
+        self.gnss_pose = None
+        self.location = settings.get('vehicle.calibration.gnss_location')[:2]
+        self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
+        self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
+        self.status = None
+        self.last_gnss = None
+
+    # Get GNSS information
+    def inspva_callback(self, inspva_msg):
+        self.gnss_pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t=self.vehicle_interface.time(),
+                                    x=inspva_msg.longitude,
+                                    y=inspva_msg.latitude,
+                                    z=inspva_msg.height,
+                                    yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
+                                    roll=math.radians(inspva_msg.roll),
+                                    pitch=math.radians(inspva_msg.pitch),
+                                    )
+        self.status = inspva_msg.status
+
+    def imu_callback(self, msg):
+        self.imu_ax = msg.linear_acceleration.x
+        self.imu_ay = msg.linear_acceleration.y
+        self.imu_az = msg.linear_acceleration.z
+        self.ang_vx = msg.angular_velocity.x
+        self.ang_vy = msg.angular_velocity.y
+        self.ang_vz = msg.angular_velocity.z
+
+    def rate(self):
+        return 10.0
+    
+    def garbage_value(self, pose):
+        if pose.x > 180 or pose.x < -180:
+            return True
+        elif pose.y > 90 or pose.y < 0:
+            return True
+        else:
+            return False
+        
+    def create_imu_pose(self):
+        time = self.vehicle_interface.time()
+        past_time = self.last_gnss.t
+        self.imu_pose = self.last_gnss
+        self.imu_pose.x += 0.5* self.imu_ax* (time - past_time)**2
+        self.imu_pose.y += 0.5* self.imu_ay* (time - past_time)**2
+        self.imu_pose.z += 0.5* self.imu_az* (time - past_time)**2
+        self.imu_pose.yaw += self.ang_vx* (time - past_time)
+        self.imu_pose.roll += self.ang_vy* (time - past_time)
+        self.imu_pose.pitch += self.ang_vz* (time - past_time)
+
+    def update(self) -> VehicleState:
+        if self.garbage_value(self.gnss_pose):
+            localxy = transforms.rotate2d(self.location,-self.yaw_offset)
+            imu_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
+            center_xyhead = self.imu_pose.apply_xyhead(imu_xyhead_inv)
+            vehicle_pose_global = replace(self.imu_pose,
+                                        t=self.vehicle_interface.time(), 
+                                        x=center_xyhead[0],
+                                        y=center_xyhead[1],
+                                        yaw=center_xyhead[2])
+
+            readings = self.vehicle_interface.get_reading()
+            raw = readings.to_state(vehicle_pose_global)
+
+            #filtering speed
+            filt_vel     = self.speed_filter(raw.v)
+            raw.v = filt_vel
+            self.last_gnss = self.imu_pose
+
+
+        else:
+            localxy = transforms.rotate2d(self.location,-self.yaw_offset)
+            gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
+            center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
+            vehicle_pose_global = replace(self.gnss_pose,
+                                        t=self.vehicle_interface.time(), 
+                                        x=center_xyhead[0],
+                                        y=center_xyhead[1],
+                                        yaw=center_xyhead[2])
+
+            readings = self.vehicle_interface.get_reading()
+            raw = readings.to_state(vehicle_pose_global)
+
+            #filtering speed
+            filt_vel     = self.speed_filter(raw.v)
+            raw.v = filt_vel
+            self.last_gnss = self.gnss_pose
+            return raw
+
 
 class GNSSStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
@@ -17,7 +113,7 @@ class GNSSStateEstimator(Component):
         self.vehicle_interface = vehicle_interface
         if 'gnss' not in vehicle_interface.sensors():
             raise RuntimeError("GNSS sensor not available")
-        vehicle_interface.subscribe_sensor('gnss',self.gnss_callback,GNSSReading)
+        vehicle_interface.subscribe_sensor('gnss',self.inspva_callback)
         self.gnss_pose = None
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
@@ -25,10 +121,17 @@ class GNSSStateEstimator(Component):
         self.status = None
 
     # Get GNSS information
-    def gnss_callback(self, reading : GNSSReading):
-        self.gnss_pose = reading.pose
-        self.gnss_speed = reading.speed
-        self.status = reading.status
+    def inspva_callback(self, inspva_msg):
+        self.gnss_pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t=self.vehicle_interface.time(),
+                                    x=inspva_msg.longitude,
+                                    y=inspva_msg.latitude,
+                                    z=inspva_msg.height,
+                                    yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
+                                    roll=math.radians(inspva_msg.roll),
+                                    pitch=math.radians(inspva_msg.pitch),
+                                    )
+        self.status = inspva_msg.status
     
     def rate(self):
         return 10.0
@@ -61,14 +164,14 @@ class GNSSStateEstimator(Component):
         raw = readings.to_state(vehicle_pose_global)
 
         #filtering speed
-        raw.v = self.gnss_speed
-        #filt_vel     = self.speed_filter(raw.v)
-        #raw.v = filt_vel
+        filt_vel     = self.speed_filter(raw.v)
+        raw.v = filt_vel
         return raw
         
 
 
 class OmniscientStateEstimator(Component):
+    """A state estimator used for the simulator which provides perfect state information"""
     def __init__(self, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
         if 'gnss' not in vehicle_interface.sensors():
@@ -91,3 +194,7 @@ class OmniscientStateEstimator(Component):
 
     def update(self) -> VehicleState:
         return self.vehicle_state
+    
+
+#alias, will be deprecated by end of February
+FakeStateEstimator = OmniscientStateEstimator
