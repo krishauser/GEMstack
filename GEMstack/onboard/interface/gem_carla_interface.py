@@ -1,13 +1,18 @@
-from .gem import *
+from .gem import GEMInterface
+from .gem import GEMVehicleCommand
+from .gem import GEMVehicleReading
+from .gem import ObjectFrameEnum
+from .gem import ObjectPose
+from .gem import List
 from ...utils import settings
 import math
-
+import time
 # ROS Headers
 import rospy
-from std_msgs.msg import String, Bool, Float32, Float64
+from std_msgs.msg import Bool
 from sensor_msgs.msg import Image,PointCloud2
 try:
-    from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
+    from novatel_gps_msgs.msg import Inspva
 except ImportError:
     pass
 try:
@@ -25,15 +30,15 @@ from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, Vehicl
 import cv2
 import numpy as np
 from ...utils import conversions
-import time
+
 from .gnss_reading import GNSSReading
 
-class GEMHardwareInterface(GEMInterface):
-    """Interface for connnecting to the physical GEM e2 vehicle."""
+class GEMCarlaHardwareInterface(GEMInterface):
+    """Interface for connnecting to the carla vehicle."""
     def __init__(self):
         GEMInterface.__init__(self)
-        self.max_send_rate = settings.get('vehicle.max_command_rate',10.0)
-        self.ros_sensor_topics = settings.get('vehicle.sensors.ros_topics')
+        self.max_send_rate = settings.get('carla_vehicle.max_command_rate',10.0)
+        self.ros_sensor_topics = settings.get('carla_vehicle.sensors.ros_topics')
         self.last_command_time = 0.0
         self.last_reading = GEMVehicleReading()
         self.last_reading.speed = 0.0
@@ -47,9 +52,8 @@ class GEMHardwareInterface(GEMInterface):
         self.last_reading.wiper_level = 0
         self.last_reading.headlights_on = False
         
-        self.speed_sub  = rospy.Subscriber("/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
-        self.steer_sub = rospy.Subscriber("/pacmod/parsed_tx/steer_rpt", SystemRptFloat, self.steer_callback)
-        self.global_sub = rospy.Subscriber("/pacmod/parsed_tx/global_rpt", GlobalRpt, self.global_callback)
+        self.speed_sub  = rospy.Subscriber("/carla/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
+        self.steer_sub = rospy.Subscriber("/carla/parsed_tx/steer_rpt", SystemRptFloat, self.steer_callback)
         self.gnss_sub = None
         self.imu_sub = None
         self.front_radar_sub = None
@@ -61,36 +65,35 @@ class GEMHardwareInterface(GEMInterface):
 
         # -------------------- PACMod setup --------------------
         # GEM vehicle enable
-        self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
         self.pacmod_enable = False
 
         # GEM vehicle gear control, neutral, forward and reverse, publish once
-        self.gear_pub = rospy.Publisher('/pacmod/as_rx/shift_cmd', PacmodCmd, queue_size=1)
+        self.gear_pub = rospy.Publisher('/carla/as_rx/shift_cmd', PacmodCmd, queue_size=1)
         self.gear_cmd = PacmodCmd()
         self.gear_cmd.enable = True
         self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_NEUTRAL 
 
         # GEM vehicle brake control
-        self.brake_pub = rospy.Publisher('/pacmod/as_rx/brake_cmd', PacmodCmd, queue_size=1)
+        self.brake_pub = rospy.Publisher('/carla/as_rx/brake_cmd', PacmodCmd, queue_size=1)
         self.brake_cmd = PacmodCmd()
         self.brake_cmd.enable = False
         self.brake_cmd.clear  = True
         self.brake_cmd.ignore = True
 
         # GEM vehicle forward motion control
-        self.accel_pub = rospy.Publisher('/pacmod/as_rx/accel_cmd', PacmodCmd, queue_size=1)
+        self.accel_pub = rospy.Publisher('/carla/as_rx/accel_cmd', PacmodCmd, queue_size=1)
         self.accel_cmd = PacmodCmd()
         self.accel_cmd.enable = False
         self.accel_cmd.clear  = True
         self.accel_cmd.ignore = True
 
         # GEM vehicle turn signal control
-        self.turn_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=1)
+        self.turn_pub = rospy.Publisher('/carla/as_rx/turn_cmd', PacmodCmd, queue_size=1)
         self.turn_cmd = PacmodCmd()
         self.turn_cmd.ui16_cmd = 1 # None
 
         # GEM vechile steering wheel control
-        self.steer_pub = rospy.Publisher('/pacmod/as_rx/steer_cmd', PositionWithSpeed, queue_size=1)
+        self.steer_pub = rospy.Publisher('/carla/as_rx/steer_cmd', PositionWithSpeed, queue_size=1)
         self.steer_cmd = PositionWithSpeed()
         self.steer_cmd.angular_position = 0.0 # radians, -: clockwise, +: counter-clockwise
         self.steer_cmd.angular_velocity_limit = 2.0 # radians/second
@@ -100,17 +103,12 @@ class GEMHardwareInterface(GEMInterface):
         /pacmod/as_rx/horn_cmd
         /pacmod/as_rx/wiper_cmd
         """
-
-        #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
         
         #subscribers should go last because the callback might be called before the object is initialized
-        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
 
 
     def start(self):
-        if settings.get('vehicle.enable_through_joystick',True):
-            pass
-        else:
+        if not settings.get('vehicle.enable_through_joystick',True):
             print("ENABLING PACMOD")
             enable_cmd = Bool()
             enable_cmd.data = True
@@ -126,25 +124,6 @@ class GEMHardwareInterface(GEMInterface):
 
     def steer_callback(self, msg):
         self.last_reading.steering_wheel_angle = msg.output
-    
-    def global_callback(self, msg):
-        self.faults = []
-        if msg.override_active:
-            self.faults.append("override_active")
-        if msg.config_fault_active:
-            self.faults.append("config_fault_active")
-        if msg.user_can_timeout:
-            self.faults.append("user_can_timeout")
-        if msg.user_can_read_errors:
-            self.faults.append("user_can_read_errors")
-        if msg.brake_can_timeout:
-            self.faults.append("brake_can_timeout")
-        if msg.steering_can_timeout:
-            self.faults.append("steering_can_timeout")
-        if msg.vehicle_can_timeout:
-            self.faults.append("vehicle_can_timeout")
-        if msg.subsystem_can_timeout:
-            self.faults.append("subsystem_can_timeout")
 
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading
@@ -152,7 +131,7 @@ class GEMHardwareInterface(GEMInterface):
     def subscribe_sensor(self, name, callback, type = None):
         if name == 'gnss':
             topic = self.ros_sensor_topics[name]
-            if topic.endswith('inspva'):
+            if topic.endswith('gnss'):
                 if type is not None and (type is not Inspva and type is not GNSSReading):
                     raise ValueError("GEMHardwareInterface GEM e2 only supports Inspva/GNSSReading for GNSS")
                 if type is Inspva:
@@ -166,7 +145,7 @@ class GEMHardwareInterface(GEMInterface):
                                     yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
                                     roll=math.radians(inspva_msg.roll),
                                     pitch=math.radians(inspva_msg.pitch),
-                                    )
+                                    t = time.time())
                         speed = np.sqrt(inspva_msg.east_velocity**2 + inspva_msg.north_velocity**2)
                         callback(GNSSReading(pose,speed,inspva_msg.status))
                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
@@ -201,10 +180,10 @@ class GEMHardwareInterface(GEMInterface):
                     points = conversions.ros_PointCloud2_to_numpy(msg, want_rgb=False)
                     callback(points)
                 self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback_with_numpy)
-        elif name == 'front_radar':
-            if type is not None and type is not RadarTracks:
-                raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
-            self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
+        # elif name == 'front_radar':
+        #     if type is not None and type is not RadarTracks:
+        #         raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
+        #     self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
         elif name == 'front_camera':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not Image and type is not cv2.Mat):
@@ -214,8 +193,8 @@ class GEMHardwareInterface(GEMInterface):
             else:
                 def callback_with_cv2(msg : Image):
                     #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
-                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
-                    callback(cv_image)
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="8UC4")
+                    callback(cv_image[:,:,:-1])
                 self.front_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
         elif name == 'front_depth':
             topic = self.ros_sensor_topics[name]

@@ -1,0 +1,5 @@
+ros_topics:
+  top_lidar: /carla/top_lidar
+  front_camera: /carla/front/rgb
+  front_depth: /carla/front/depth
+  gnss: /carla/gnss
