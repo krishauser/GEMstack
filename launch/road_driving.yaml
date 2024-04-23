@@ -13,10 +13,12 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
+        parking_slot_detection : ParkingSlotDetector
+
     planning:
-        route_planning:
-            type: DummyRoutePlanner
-            args: {start: [0.,0.,0.,0.,0.], end: [30.,0.,0.,0.,0.]}
+        # route_planning:
+            # type: DummyRoutePlanner
+            # args: {start: [0.,0.,0.,0.,0.], end: [30.,0.,0.,0.,0.]}
         motion_planning:
             # type: RouteToTrajectoryPlanner
             type: mpc_motion_planning.MPCTrajectoryPlanner

@@ -158,9 +158,11 @@ class MPCTrajectoryPlanner(Component):
     def update(self, state : AllState):
         agents = state.agents
         vehicle = state.vehicle
-        route = state.route
+        # route = state.route
+        parking_slot = state.parking_slot
+        goal = parking_slot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
         x_start, y_start, theta_start, v_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v
-        x_goal, y_goal, theta_goal, v_goal = *route.points[-1], 0., 0.
+        x_goal, y_goal, theta_goal, v_goal = goal.x, goal.y, 0., 0.
 
         agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
         obstacle = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
