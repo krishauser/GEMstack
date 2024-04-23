@@ -230,13 +230,29 @@ class PedestrianDetector():
 
             annotator = Annotator(frame, line_width=2)
 
+            # Initialize dictionaries to keep track of counts for each class
+            class_counts = defaultdict(int)
+            class_annotations = defaultdict(int)
+
             for box, cls, track_id in zip(boxes, clss, track_ids):
                 if int(cls) in [0, 2, 11]:  # Check if class is pedestrian, car, or stop sign
-                    annotator.box_label(box, color=colors(int(cls), True), label=names[int(cls)])
+                    class_name = names[int(cls)]
+
+                    # Increment count for the class
+                    class_counts[class_name] += 1
+
+                    # Annotate with the class name and count
+                    label = f"{class_name} {class_counts[class_name]}"
+                    annotator.box_label(box, color=colors(int(cls), True), label=label)
+
+                    # Store the annotation count for the class
+                    class_annotations[class_name] = class_counts[class_name]
 
             # Store tracking history and plot tracks
             for box, cls, track_id in zip(boxes, clss, track_ids):
                 if int(cls) in [0, 2, 11]:
+                    class_name = names[int(cls)]
+
                     track = self.track_history[track_id]
                     track.append((int((box[0] + box[2]) / 2), int((box[1] + box[3]) / 2)))
                     if len(track) > 30:
