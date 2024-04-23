@@ -1,8 +1,11 @@
 from setuptools import setup, find_packages
 
+with open('README.md', 'r') as f:
+    description = f.read()
+
 setup(
     name='mlops_api_gemstack',
-    version='0.3.3',
+    version='0.3.4',
     description='An API package connect to a MLops server relating to the GEMstack project.',
     author='Haoming Sun',
     author_email='ricardosun990122@gmail.com',
@@ -19,5 +22,7 @@ setup(
         'console_scripts': [
             'mlops=mlops_api_gemstack:cli'
         ]
-    }
+    },
+    long_description=description,
+    long_description_content_type='text/markdown',
 )
