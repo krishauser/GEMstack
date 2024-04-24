@@ -477,6 +477,7 @@ class KeyboardControl(object):
                     world.camera_manager.set_sensor(event.key - 1 - K_0 + index_ctrl)
 
 
+
                 elif event.key == K_r and not (pygame.key.get_mods() & KMOD_CTRL):
 
                     filename = world.filename.replace('.txt', '.json')  # Change file extension to .json
@@ -485,7 +486,7 @@ class KeyboardControl(object):
 
                         world.hud.notification("Starting to record data")
 
-                        # Data structure to hold all the metadata
+                        # Data structure to hold all the metadata and waypoints
 
                         metadata = {
 
@@ -497,7 +498,7 @@ class KeyboardControl(object):
 
                             "Traffic condition": "TODO",
 
-                            "Points to follow": []  # Preparing for storing points data
+                            "Waypoints": []  # List to store waypoints data
 
                         }
 
@@ -509,33 +510,36 @@ class KeyboardControl(object):
 
                         world.meta_recorded = True
 
+
                     else:
 
                         world.hud.notification("Recording data")
 
-                    # Record as in the tick
+                        # Record the current waypoint in the tick
 
-                    t = world.player.get_transform()
+                        t = world.player.get_transform()
 
-                    point_data = {
+                        waypoint_data = {
 
-                        'Location': '(% 5.1f, % 5.1f, % 5.1f)' % (t.location.x, t.location.y, t.location.z),
+                            'Location': (t.location.x, t.location.y, t.location.z),
 
-                        'Rotation': '(% 5.1f, % 5.1f, % 5.1f)' % (t.rotation.pitch, t.rotation.yaw, t.rotation.roll)
+                            'Rotation': (t.rotation.pitch, t.rotation.yaw, t.rotation.roll)
 
-                    }
+                        }
 
-                    # Open the existing JSON file to append the new point data
+                        # Open the existing JSON file to append the new waypoint data
 
-                    with open(filename, 'r+') as file:
+                        with open(filename, 'r+') as file:
 
-                        data = json.load(file)  # Load existing data
+                            data = json.load(file)  # Load existing data
 
-                        data['Points to follow'].append(point_data)  # Append new point
+                            data['Waypoints'].append(waypoint_data)  # Append new waypoint
 
-                        file.seek(0)  # Go back to the start of the file
+                            file.seek(0)  # Go back to the start of the file
 
-                        json.dump(data, file, indent=4)  # Re-write the modified data
+                            file.truncate()  # Clear the file content before writing
+
+                            json.dump(data, file, indent=4)  # Re-write the modified data
                 elif event.key == K_r and (pygame.key.get_mods() & KMOD_CTRL):
                     if (world.recording_enabled):
                         client.stop_recorder()
