@@ -1,0 +1,43 @@
+weather_time: 0
+Map:             Town10HD_Opt
+
+Speed:                28 km/h
+Compass:               90°  E
+Accelero: (  1.8, -0.0,  9.8)
+Gyroscop: (  0.0, -1.1,  0.0)
+Location:      ( 44.9,  24.8)
+GNSS:  (-0.000223,  0.000412)
+Height:                  -0 m
+
+Speed:                27 km/h
+Compass:               90°  E
+Accelero: (  5.0, -0.0,  9.9)
+Gyroscop: (  0.0, -1.7,  0.0)
+Location:      ( 68.5,  24.9)
+GNSS:  (-0.000223,  0.000624)
+Height:                  -0 m
+
+Speed:                 0 km/h
+Compass:               90°  E
+Accelero: ( -0.0,  0.0,  9.8)
+Gyroscop: (  0.0, -0.7,  0.0)
+Location:      ( 77.2,  24.9)
+GNSS:  (-0.000224,  0.000703)
+Height:                  -0 m
+
+Speed:                 0 km/h
+Compass:               90°  E
+Accelero: (  0.0, -0.0,  9.8)
+Gyroscop: (  0.0,  0.0,  0.0)
+Location:      ( 77.2,  24.9)
+GNSS:  (-0.000224,  0.000702)
+Height:                  -0 m
+
+Speed:                30 km/h
+Compass:                0°  N
+Accelero: ( -0.3,  0.0,  9.9)
+Gyroscop: (  0.1, -0.1, -0.2)
+Location:     ( 106.4, -13.0)
+GNSS:  ( 0.000125,  0.000956)
+Height:                  -0 m
+
