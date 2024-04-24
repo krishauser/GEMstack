@@ -4,7 +4,7 @@
 
 
     <!-- Choose visualization -->
-   <arg name="rviz" default="false" />
+   <arg name="rviz" default="true" />
    <arg name="rtabmap_viz" default="false" />
 
    <param name="use_sim_time" type="bool" value="true"/>
@@ -43,6 +43,9 @@
         <remap from="rgb/image" to="$(arg name)/rgb/image_raw"/>
         <remap from="rgb/camera_info" to="$(arg name)/rgb/camera_info"/>
         <remap from="depth/image" to="$(arg name)/stereo/image_raw"/>
+    </node>
+
+    <node name="" pkg="." type="main.py" output="screen" args="launch/vio_ped_avoidance.yaml">
     </node>
 
 </launch>

@@ -101,17 +101,29 @@ class VIOSlamEstimator(Component):
         # vehicle gnss heading (yaw) in radians
         # vehicle x, y position in fixed local frame, in meters
         # reference point is located at the center of GNSS antennas
-        localxy = transforms.rotate2d(self.location,-self.yaw_offset)
-        gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
-        center_xyhead = self.Vioslam_pose.apply_xyhead(gnss_xyhead_inv)
-        vehicle_pose_global = replace(self.Vioslam_pose,
-                                      t=self.vehicle_interface.time(),
-                                      x=center_xyhead[0],
-                                      y=center_xyhead[1],
-                                      yaw=center_xyhead[2])
+        if self.Vioslam_pose.frame == ObjectFrameEnum.GLOBAL:
+            localxy = transforms.rotate2d(self.location,-self.yaw_offset)
+            gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
+            center_xyhead = self.Vioslam_pose.apply_xyhead(gnss_xyhead_inv)
+            vehicle_pose_global = replace(self.Vioslam_pose,
+                                            t=self.vehicle_interface.time(),
+                                            x=center_xyhead[0],
+                                            y=center_xyhead[1],
+                                            yaw=center_xyhead[2])
         
-        print("pose and location = ", vehicle_pose_global.x, vehicle_pose_global.y, vehicle_pose_global.yaw)
-
+            print("GPS vehicle_pose_global = ", vehicle_pose_global.x, vehicle_pose_global.y, vehicle_pose_global.yaw)
+        else:
+            # localxy = transforms.rotate2d(self.location,-self.yaw_offset) ### not needed if odom frame is baselink?
+            # gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
+            # center_xyhead = self.Vioslam_pose.apply_xyhead(gnss_xyhead_inv)
+            # vehicle_pose_global = replace(self.Vioslam_pose,
+            #                                 t=self.vehicle_interface.time(),
+            #                                 x=center_xyhead[0],
+            #                                 y=center_xyhead[1],
+            #                                 yaw=center_xyhead[2])
+            vehicle_pose_global = self.Vioslam_pose
+            print("VIO!!!! vehicle_pose_global = ", vehicle_pose_global.x, vehicle_pose_global.y, vehicle_pose_global.yaw)
+        
         readings = self.vehicle_interface.get_reading()
         raw = readings.to_state(vehicle_pose_global)
 

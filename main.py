@@ -1,5 +1,14 @@
 from GEMstack.utils import settings,config
 import sys
+import subprocess
+
+def run_vio_rtabmap():
+    # Specify the path to your launch file
+    launch_file = "./launch/rgbdrtabmap.launch"
+    # Command to run roslaunch in a new terminal
+    command = f"x-terminal-emulator -e roslaunch {launch_file}"
+    # Execute the command
+    subprocess.Popen(command, shell=True)
 
 if __name__=='__main__':
     launch_file = None
@@ -27,4 +36,8 @@ if __name__=='__main__':
             settings.set('run.name',launch_file)
 
     from GEMstack.onboard.execution import entrypoint
+
+    run_vio_rtabmap()
+    
     entrypoint.main()
+
