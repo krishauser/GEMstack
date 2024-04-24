@@ -57,9 +57,9 @@ Use ARROWS or WASD keys for control.
 from __future__ import print_function
 
 import glob
+import json
 import os
 import sys
-import json
 
 # ==============================================================================
 # -- find carla module ---------------------------------------------------------
@@ -1463,4 +1463,8 @@ def main():
 
 
 if __name__ == '__main__':
+    # add args for user specified experiment name
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--description", default="TODO", type=str)
+    args = parser.parse_args()
     main()
