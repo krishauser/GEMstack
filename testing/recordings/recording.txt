@@ -1,0 +1,6 @@
+Weather and time: Clear Sunset
+Map:             Town10HD_Opt
+
+Location:(-109.9, -23.4,  -0.0)
+Rotation:( -0.0,  90.6,   0.0)
+
