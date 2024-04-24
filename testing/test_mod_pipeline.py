@@ -23,6 +23,7 @@ import argparse
 import message_filters
 from ultralytics.utils.plotting import Annotator, colors
 from collections import defaultdict
+from GEMstack.onboard.perception.pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--test_target', '-t', type=str, default='detection',
@@ -30,6 +31,7 @@ parser.add_argument('--test_target', '-t', type=str, default='detection',
 parser.add_argument('--output_dir', '-o', type=str, default='save')
 parser.add_argument('--vis', '-v', default=False, action='store_true')
 parser.add_argument('--use_message_filter', '-m', default=False, action='store_true')
+parser.add_argument('--do_cluster', '-c', default=False, action='store_true')
 args = parser.parse_args()
 
 pc_colors = []
@@ -161,6 +163,7 @@ class PedestrianDetector():
         self.zed_image = None
         self.point_cloud = None
         self.track_history = defaultdict(lambda: [])
+        self.coord_3d_handler = PixelWise3DLidarCoordHandler()
 
     def sync_callback(self, image: Image, point_cloud: PointCloud2):
         self.zed_image = image
@@ -263,11 +266,15 @@ class PedestrianDetector():
         
         return depth
     
-    def track_agents(self, frame, point_cloud_image, pc_3D, clusters):
+    def track_agents(self, frame, point_cloud_image, pc_3D, clusters=None):
         rospy.loginfo("Tracking agents...")
 
         results = self.detector.track(frame, persist=True, verbose=False)
         boxes = results[0].boxes.xyxy.cpu()
+
+        start_t = time.time()
+        coord_3d_map = self.coord_3d_handler.get3DCoord(frame, pc_3D)
+        rospy.loginfo('PixelWise3DLidarCoordHandler time: %s', str(time.time() - start_t))
 
         names = self.detector.model.names
         if results[0].boxes.id is not None:
@@ -282,17 +289,30 @@ class PedestrianDetector():
 
             for box, cls, track_id in zip(boxes, clss, track_ids):
                 if int(cls) in [0, 2, 11]:  # Check if class is pedestrian, car, or stop sign
+
                     class_name = names[int(cls)]
                     box = box.numpy()
                     label = f"{class_name} {class_counts[class_name]}"
+
+                    #            
+                    x,y,w,h = box
+                    xmin, xmax = x - w/2, x + w/2
+                    ymin, ymax = y - h/2, y + h/2
                     
+                    x_3d, y_3d, z_3d = coord_3d_map[int(y)][int(x)]
+                    label = label + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
+        #             print(
+        # f"Pixel coordinates: x={x}, y={y} | 3D xyz coord: x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f} (in meters)")
+
+
                     # Increment count for the class
                     class_counts[class_name] += 1
                 
                     # Annotate with the class name and count
-                    depth = self.vis_depth_estimation(frame, box, class_name, point_cloud_image, pc_3D, clusters)
+                    if clusters is not None:
+                        depth = self.vis_depth_estimation(frame, box, class_name, point_cloud_image, pc_3D, clusters)
+                        label = label + f" {depth:.2}"
                     
-                    label = label + f" {depth:.2}"
                     annotator.box_label(box, color=colors(int(cls), True), label=label)
 
                     # Store the annotation count for the class
@@ -325,14 +345,17 @@ class PedestrianDetector():
         rospy.loginfo('filtered_point_cloud time: %s', str(time.time() - start_t))
         print('Filtered point cloud time:', str(time.time() - start_t))
 
-        start_t = time.time()
-        # Perform DBSCAN clustering
-        epsilon = 0.1  # Epsilon parameter for DBSCAN
-        min_samples = 5  # Minimum number of samples in a cluster
-        dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
-        clusters = dbscan.fit_predict(filtered_point_cloud)
-        rospy.loginfo('dbscan time: %s', str(time.time() - start_t))
-        print('DBSCAN time:', str(time.time() - start_t))
+
+        clusters = None
+        if args.do_cluster:
+            start_t = time.time()
+            # Perform DBSCAN clustering
+            epsilon = 0.1  # Epsilon parameter for DBSCAN
+            min_samples = 5  # Minimum number of samples in a cluster
+            dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+            clusters = dbscan.fit_predict(filtered_point_cloud)
+            rospy.loginfo('dbscan time: %s', str(time.time() - start_t))
+            print('DBSCAN time:', str(time.time() - start_t))
 
         start_t = time.time()
         point_cloud_image = lidar_to_image(filtered_point_cloud,
@@ -350,8 +373,8 @@ class PedestrianDetector():
         elif args.test_target == 'track':
             vis = self.track_agents(vis, point_cloud_image, pc_3D, clusters)
         rospy.loginfo('detect_agents time: %s', str(time.time() - start_t))
-        print('Detection time:', str(time.time() - start_t))
-
+        print('Detection time:', str(time.time() - start_t))        
+        
         cv2.imshow('frame', vis)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             exit(1)
