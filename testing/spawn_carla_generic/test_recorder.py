@@ -476,38 +476,66 @@ class KeyboardControl(object):
                         index_ctrl = 9
                     world.camera_manager.set_sensor(event.key - 1 - K_0 + index_ctrl)
 
+
                 elif event.key == K_r and not (pygame.key.get_mods() & KMOD_CTRL):
-                    filename = world.filename
+
+                    filename = world.filename.replace('.txt', '.json')  # Change file extension to .json
+
                     if not world.meta_recorded:
+
                         world.hud.notification("Starting to record data")
+
+                        # Data structure to hold all the metadata
+
+                        metadata = {
+
+                            "Description": "TODO",
+
+                            "Map": world.map.name.split('/')[-1],
+
+                            "Weather and time": str(world._weather_presets[world._weather_index][1]),
+
+                            "Traffic condition": "TODO",
+
+                            "Points to follow": []  # Preparing for storing points data
+
+                        }
+
+                        # Writing metadata to a JSON file
+
                         with open(filename, 'w') as file:
-                            file.write("Description: TODO")
-                            file.write("\n")
-                            file.write('Map:     % 20s' % world.map.name.split('/')[-1])
-                            file.write("\n")
-                            file.write("Weather and time: " + str(world._weather_presets[world._weather_index][1]))
-                            file.write("\n")
-                            file.write("Traffic condition: TODO")
-                            file.write("\n")
+
+                            json.dump(metadata, file, indent=4)
+
                         world.meta_recorded = True
+
                     else:
+
                         world.hud.notification("Recording data")
 
-                    # record as in the tick
+                    # Record as in the tick
+
                     t = world.player.get_transform()
-                    info_text = [
-                        'Location:% 20s' % ('(% 5.1f, % 5.1f, % 5.1f)' % (t.location.x, t.location.y, t.location.z)),
-                        'Rotation:% 20s' % (
-                                '(% 5.1f, % 5.1f, % 5.1f)' % (t.rotation.pitch, t.rotation.yaw, t.rotation.roll)),
-                        '']
-                    with open(filename, 'a') as file:
-                        for line in info_text:
-                            file.write(line + '\n')
 
+                    point_data = {
 
-                    # file.write(str(world.player.get_transform().location) + "\n")
+                        'Location': '(% 5.1f, % 5.1f, % 5.1f)' % (t.location.x, t.location.y, t.location.z),
 
-                    # world.camera_manager.toggle_recording()
+                        'Rotation': '(% 5.1f, % 5.1f, % 5.1f)' % (t.rotation.pitch, t.rotation.yaw, t.rotation.roll)
+
+                    }
+
+                    # Open the existing JSON file to append the new point data
+
+                    with open(filename, 'r+') as file:
+
+                        data = json.load(file)  # Load existing data
+
+                        data['Points to follow'].append(point_data)  # Append new point
+
+                        file.seek(0)  # Go back to the start of the file
+
+                        json.dump(data, file, indent=4)  # Re-write the modified data
                 elif event.key == K_r and (pygame.key.get_mods() & KMOD_CTRL):
                     if (world.recording_enabled):
                         client.stop_recorder()
