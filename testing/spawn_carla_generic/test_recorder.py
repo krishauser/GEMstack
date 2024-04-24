@@ -235,6 +235,7 @@ class World(object):
             carla.MapLayer.All
         ]
         self.filename = "/home/hb-station1/Documents/GEMstack/testing/spawn_carla_generic/recording.log"
+        self.meta_recorded = False
 
     def restart(self):
         self.player_max_speed = 1.589
@@ -472,7 +473,39 @@ class KeyboardControl(object):
                         index_ctrl = 9
                     world.camera_manager.set_sensor(event.key - 1 - K_0 + index_ctrl)
                 elif event.key == K_r and not (pygame.key.get_mods() & KMOD_CTRL):
-                    world.camera_manager.toggle_recording()
+                    filename = world.filename.replace("recording.log", "recording_423.txt")
+                    if not world.meta_recorded:
+                        with open(filename, 'w') as file:
+                            file.write("weather_time: " + str(world._weather_index))
+                            file.write("\n")
+                        world.hud.notification("Recording starts")
+                        world.meta_recorded = True
+
+                    # record as in the tick
+                    v = world.player.get_velocity()
+                    t = world.player.get_transform()
+                    compass = world.imu_sensor.compass
+                    heading = 'N' if compass > 270.5 or compass < 89.5 else ''
+                    heading += 'S' if 90.5 < compass < 269.5 else ''
+                    heading += 'E' if 0.5 < compass < 179.5 else ''
+                    heading += 'W' if 180.5 < compass < 359.5 else ''
+                    info_text = [
+                        'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)),
+                        u'Compass:% 17.0f\N{DEGREE SIGN} % 2s' % (compass, heading),
+                        'Accelero: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.accelerometer),
+                        'Gyroscop: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.gyroscope),
+                        'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
+                        'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (world.gnss_sensor.lat, world.gnss_sensor.lon)),
+                        'Height:  % 18.0f m' % t.location.z,
+                        '']
+                    with open(filename, 'a') as file:
+                        for line in info_text:
+                            file.write(line + '\n')
+                    world.hud.notification("Recording data")
+
+                    # file.write(str(world.player.get_transform().location) + "\n")
+
+                    # world.camera_manager.toggle_recording()
                 elif event.key == K_r and (pygame.key.get_mods() & KMOD_CTRL):
                     if (world.recording_enabled):
                         client.stop_recorder()
