@@ -59,6 +59,7 @@ from __future__ import print_function
 import glob
 import os
 import sys
+import json
 
 # ==============================================================================
 # -- find carla module ---------------------------------------------------------
@@ -114,6 +115,7 @@ try:
     from pygame.locals import K_c
     from pygame.locals import K_d
     from pygame.locals import K_f
+    from pygame.locals import K_e
     from pygame.locals import K_g
     from pygame.locals import K_h
     from pygame.locals import K_i
@@ -234,7 +236,8 @@ class World(object):
             carla.MapLayer.Walls,
             carla.MapLayer.All
         ]
-        self.filename = "/home/hb-station1/Documents/GEMstack/testing/spawn_carla_generic/recording.log"
+        os.makedirs("../recordings", exist_ok=True)
+        self.filename = "../recordings/recording.txt"
         self.meta_recorded = False
 
     def restart(self):
@@ -472,36 +475,30 @@ class KeyboardControl(object):
                     if pygame.key.get_mods() & KMOD_CTRL:
                         index_ctrl = 9
                     world.camera_manager.set_sensor(event.key - 1 - K_0 + index_ctrl)
+
                 elif event.key == K_r and not (pygame.key.get_mods() & KMOD_CTRL):
-                    filename = world.filename.replace("recording.log", "recording_423.txt")
+                    filename = world.filename
                     if not world.meta_recorded:
                         world.hud.notification("Starting to record data")
                         with open(filename, 'w') as file:
-                            file.write("weather_time: " + str(world._weather_index))
+                            file.write("Description: TODO")
                             file.write("\n")
                             file.write('Map:     % 20s' % world.map.name.split('/')[-1])
                             file.write("\n")
+                            file.write("Weather and time: " + str(world._weather_presets[world._weather_index][1]))
+                            file.write("\n")
+                            file.write("Traffic condition: TODO")
                             file.write("\n")
                         world.meta_recorded = True
                     else:
                         world.hud.notification("Recording data")
 
                     # record as in the tick
-                    v = world.player.get_velocity()
                     t = world.player.get_transform()
-                    compass = world.imu_sensor.compass
-                    heading = 'N' if compass > 270.5 or compass < 89.5 else ''
-                    heading += 'S' if 90.5 < compass < 269.5 else ''
-                    heading += 'E' if 0.5 < compass < 179.5 else ''
-                    heading += 'W' if 180.5 < compass < 359.5 else ''
                     info_text = [
-                        'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)),
-                        u'Compass:% 17.0f\N{DEGREE SIGN} % 2s' % (compass, heading),
-                        'Accelero: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.accelerometer),
-                        'Gyroscop: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.gyroscope),
-                        'Location:% 20s' % ('(% 5.1f, % 5.1f)' % (t.location.x, t.location.y)),
-                        'GNSS:% 24s' % ('(% 2.6f, % 3.6f)' % (world.gnss_sensor.lat, world.gnss_sensor.lon)),
-                        'Height:  % 18.0f m' % t.location.z,
+                        'Location:% 20s' % ('(% 5.1f, % 5.1f, % 5.1f)' % (t.location.x, t.location.y, t.location.z)),
+                        'Rotation:% 20s' % (
+                                '(% 5.1f, % 5.1f, % 5.1f)' % (t.rotation.pitch, t.rotation.yaw, t.rotation.roll)),
                         '']
                     with open(filename, 'a') as file:
                         for line in info_text:
