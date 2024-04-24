@@ -185,7 +185,7 @@ class PedestrianDetector():
             cv2.circle(vis, center, radius, color, cv2.FILLED)
         return vis
 
-    def detect_agents(self, img):
+    def detect_agents(self, img, pc_3D):
         if self.zed_image is None:
             return
 
@@ -200,6 +200,10 @@ class PedestrianDetector():
         target_ids = [0, 2, 11]  # Target class IDs
         class_names = {0: "pedestrian", 2: "car", 11: "stop sign"}
 
+        start_t = time.time()
+        coord_3d_map = self.coord_3d_handler.get3DCoord(img, pc_3D)
+        rospy.loginfo('PixelWise3DLidarCoordHandler time: %s', str(time.time() - start_t))
+
         for box in detection_result[0].boxes:
             class_id = int(box.cls[0].item())
             if class_id in target_ids:
@@ -207,13 +211,19 @@ class PedestrianDetector():
                 x, y, w, h = bbox
                 xmin, xmax = x - w / 2, x + w / 2
                 ymin, ymax = y - h / 2, y + h / 2
-
+                
+                text = class_names[class_id]
+                if class_id == 0:
+                    print (f'pedestrian x: {x}, y: {y}')
+                    x_3d, y_3d, z_3d = coord_3d_map[int(y)][int(x)]
+                    text = text + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
+                    
                 # draw bbox
                 color = (255, 0, 255)
                 left_up = (int(x - w / 2), int(y - h / 2))
                 right_bottom = (int(x + w / 2), int(y + h / 2))
                 cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
-                cv2.putText(vis, class_names[class_id], (left_up[0], left_up[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                cv2.putText(vis, text, (left_up[0], left_up[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                             color, 2)
 
         rospy.loginfo("Detection complete.")
@@ -294,25 +304,36 @@ class PedestrianDetector():
                     box = box.numpy()
                     label = f"{class_name} {class_counts[class_name]}"
 
-                    #            
-                    x,y,w,h = box
-                    xmin, xmax = x - w/2, x + w/2
-                    ymin, ymax = y - h/2, y + h/2
-                    
-                    x_3d, y_3d, z_3d = coord_3d_map[int(y)][int(x)]
-                    label = label + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
-        #             print(
-        # f"Pixel coordinates: x={x}, y={y} | 3D xyz coord: x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f} (in meters)")
-
-
                     # Increment count for the class
                     class_counts[class_name] += 1
                 
+                    x1,y1,x2,y2 = box
+                    # xmin, xmax = x - w/2, x + w/2
+                    # ymin, ymax = y - h/2, y + h/2
+                    # cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (0, 0, 255), thickness=2)
+                    
+                    # draw bbox
+                    # color = (255, 0, 255)
+                    # left_up = (int(x - w / 2), int(y - h / 2))
+                    # right_bottom = (int(x + w / 2), int(y + h / 2))
+                    # cv2.rectangle(frame, left_up, right_bottom, color, thickness=2)
+                    # cv2.putText(frame, "", (left_up[0], left_up[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    #             color, 2)
+                    
                     # Annotate with the class name and count
                     if clusters is not None:
                         depth = self.vis_depth_estimation(frame, box, class_name, point_cloud_image, pc_3D, clusters)
                         label = label + f" {depth:.2}"
-                    
+                    else:
+                        center_x = (x1 + x2) / 2
+                        center_y = (y1 + y2) / 2
+                        if int(cls) == 0:
+                            print (f'pedestrian x: {center_x}, y: {center_y}')
+                        x_3d, y_3d, z_3d = coord_3d_map[int(center_y)][int(center_x)]
+                        label = label + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
+                        #             print(
+                        # f"Pixel coordinates: x={x}, y={y} | 3D xyz coord: x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f} (in meters)")
+
                     annotator.box_label(box, color=colors(int(cls), True), label=label)
 
                     # Store the annotation count for the class
@@ -336,42 +357,44 @@ class PedestrianDetector():
         vis = self.bridge.imgmsg_to_cv2(self.zed_image, "bgr8")
 
         start_t = time.time()
-        pc = ros_PointCloud2_to_numpy(self.point_cloud, want_rgb=False)
+        raw_point_cloud = ros_PointCloud2_to_numpy(self.point_cloud, want_rgb=False)
         rospy.loginfo('ros_PointCloud2_to_numpy time: %s', str(time.time() - start_t))
         print('ROS PointCloud2 to numpy time:', str(time.time() - start_t))
 
-        start_t = time.time()
-        filtered_point_cloud = filter_lidar_by_range(pc, self.xrange, self.yrange, self.zrange)
-        rospy.loginfo('filtered_point_cloud time: %s', str(time.time() - start_t))
-        print('Filtered point cloud time:', str(time.time() - start_t))
+        # start_t = time.time()
+        # filtered_point_cloud = filter_lidar_by_range(pc, self.xrange, self.yrange, self.zrange)
+        # rospy.loginfo('filtered_point_cloud time: %s', str(time.time() - start_t))
+        # print('Filtered point cloud time:', str(time.time() - start_t))
 
 
-        clusters = None
-        if args.do_cluster:
-            start_t = time.time()
-            # Perform DBSCAN clustering
-            epsilon = 0.1  # Epsilon parameter for DBSCAN
-            min_samples = 5  # Minimum number of samples in a cluster
-            dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
-            clusters = dbscan.fit_predict(filtered_point_cloud)
-            rospy.loginfo('dbscan time: %s', str(time.time() - start_t))
-            print('DBSCAN time:', str(time.time() - start_t))
+        # clusters = None
+        # if args.do_cluster:
+        #     start_t = time.time()
+        #     # Perform DBSCAN clustering
+        #     epsilon = 0.1  # Epsilon parameter for DBSCAN
+        #     min_samples = 5  # Minimum number of samples in a cluster
+        #     dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+        #     clusters = dbscan.fit_predict(filtered_point_cloud)
+        #     rospy.loginfo('dbscan time: %s', str(time.time() - start_t))
+        #     print('DBSCAN time:', str(time.time() - start_t))
 
-        start_t = time.time()
-        point_cloud_image = lidar_to_image(filtered_point_cloud,
-                                            self.extrinsic,
-                                            self.intrinsic)
-        rospy.loginfo('lidar_to_image time: %s', str(time.time() - start_t))
-        print('Lidar to image time:', str(time.time() - start_t))
+        # start_t = time.time()
+        # point_cloud_image = lidar_to_image(filtered_point_cloud,
+        #                                     self.extrinsic,
+        #                                     self.intrinsic)
+        # rospy.loginfo('lidar_to_image time: %s', str(time.time() - start_t))
+        # print('Lidar to image time:', str(time.time() - start_t))
 
-        # Tansfer lidar point cloud to vehicle frame
-        pc_3D = lidar_to_vehicle(filtered_point_cloud, self.T_lidar2_Gem)
+        # # Tansfer lidar point cloud to vehicle frame
+        # pc_3D = lidar_to_vehicle(filtered_point_cloud, self.T_lidar2_Gem)
+        point_cloud_image = None # dummy
+        clusters = None # dummy
 
         start_t = time.time()
         if args.test_target == 'detection':
-            vis = self.detect_agents(vis)
+            vis = self.detect_agents(vis, raw_point_cloud)
         elif args.test_target == 'track':
-            vis = self.track_agents(vis, point_cloud_image, pc_3D, clusters)
+            vis = self.track_agents(vis, point_cloud_image, raw_point_cloud, clusters)
         rospy.loginfo('detect_agents time: %s', str(time.time() - start_t))
         print('Detection time:', str(time.time() - start_t))        
         
