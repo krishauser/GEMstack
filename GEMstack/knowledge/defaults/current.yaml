@@ -32,3 +32,27 @@ simulator:
         #velocity_noise:
         #    constant: 0.04  #4cm/s noise
         #    linear: 0.02    #2% noise
+
+#magic constant in pedestrain detector
+pedestrian_detection:
+    model: !relative_path "../../knowledge/detection/yolov8n.pt" 
+    rate: 4.0
+    pedestrian_class: 0
+    car_class: 2
+    stop_sign_class: 11
+    prediction_confidence: 0.8
+fake_pedestrian_detection:
+  trigger_times:
+    - start: 5.0
+      end: 20.0
+    - start: 30.0
+      end: 35.0
+
+#magic constant in longitudinal planner
+longitudinal_planning:
+    delta_time: 0.05
+    vehicle_control:
+        acceleration: 0.5
+        desired_speed: 1.0
+        deceleration: 2.0
+    update_rate: 10.0

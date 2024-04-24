@@ -1,0 +1,246 @@
+WorldModel::LoadRobot: /home/gem/group6_project/GEMstack/GEMstack/knowledge/vehicle/model/gem_e4.urdf
+joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0joint limit: no lower, defaults to 0joint limit: no upper, , defaults to 0URDFParser: Link size: 36
+URDFParser: Joint size: 31
+URDFParser: Done loading robot file /home/gem/group6_project/GEMstack/GEMstack/knowledge/vehicle/model/gem_e4.urdf
+**************************************************************
+Loading default settings from /home/gem/group6_project/GEMstack/GEMstack/knowledge/defaults/current.yaml
+**************************************************************
+Execution: APPYING VARIANT {'run': {'description': 'Run the pedestrian detection code and show a visualization', 'visualization': {'type': 'klampt_visualization.KlamptVisualization', 'args': {'rate': 20, 'save_as': None}}, 'drive': {'planning': {'trajectory_tracking': None}}}}
+Execution: variant detector_only defines key run.visualization which is not found in normal settings
+Execution: Importing gem_hardware from GEMstack.onboard.interface to get GEMHardwareInterface
+Execution: Importing execution from GEMstack.onboard.execution to get StandardExecutor
+Execution: Importing klampt_visualization from GEMstack.onboard.visualization to get KlamptVisualization
+Execution: Importing state_estimation from GEMstack.onboard.perception to get GNSSStateEstimator
+Execution: Importing pedestrian_detection from GEMstack.onboard.perception to get PedestrianDetector
+Execution: Importing perception_normalization from GEMstack.onboard.perception to get StandardPerceptionNormalizer
+Execution: Importing route_planning from GEMstack.onboard.planning to get StaticRoutePlanner
+Execution: Importing pedestrian_avoidance_planning from GEMstack.onboard.planning to get PedestrianAvoidanceMotionPlanner
+Execution: Component state_estimation uses implementation GNSSStateEstimator
+Execution: Component agent_detection uses implementation PedestrianDetector
+Execution: Component perception_normalization uses implementation StandardPerceptionNormalizer
+Execution: Component route_planning uses implementation StaticRoutePlanner
+Execution: Component motion_planning uses implementation PedestrianAvoidanceMotionPlanner
+Execution: Importing recovery from GEMstack.onboard.planning to get StopTrajectoryTracker
+Execution: Component trajectory_tracking uses implementation StopTrajectoryTracker
+Execution: Logging to logs/hw3_2024-03-27_14-39-18
+***  klampt.vis: using Qt5 as the visualization backend  ***
+QtBackend: initializing app as Klamp't visualization
+vis: creating GL window
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.7418136596679688e-05 by 0.1 s
+######### QGLWidget setProgram ###############
+#########################################
+klampt.vis: Making window 0
+#########################################
+------ Component KlamptVisualization stdout ---------
+    ######### QGLWidget Initialize GL ###############
+-------------------------------------------
+Execution: Component KlamptVisualization is running behind, time 0.07052350044250488 overran dt 0.05 by 0.20473480224609375 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.814697265625e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0031049251556396484 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.170967102050781e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0020737648010253906 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.2874603271484375e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0023651123046875 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0016071796417236328 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.007197141647338867 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001401662826538086 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 5.459785461425781e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001961946487426758 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 5.698204040527344e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.009499073028564453 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.814697265625e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0018260478973388672 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0017461776733398438 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.314018249511719e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0015795230865478516 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001390695571899414 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.00997304916381836 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.004384756088256836 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.5497207641601562e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0016942024230957031 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 5.054473876953125e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0020096302032470703 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.1219253540039062e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.00606989860534668 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.005162954330444336 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.3855438232421875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.003258228302001953 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0023708343505859375 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.6464462280273438e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0017852783203125 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.266334533691406e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0017855167388916016 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.002716064453125e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0019371509552001953 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.33514404296875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0020787715911865234 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0036499500274658203 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.3603439331054688e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0016393661499023438 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.008717060089111328 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.3589859008789062e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0021982192993164062 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.52587890625e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001543283462524414 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0018591880798339844 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0027420520782470703 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.239776611328125e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0021619796752929688 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.409385681152344e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0017652511596679688 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.002079010009765625 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 0.0001437664031982422 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.007210254669189453 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.574920654296875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0019156932830810547 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.4543533325195312e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0019073486328125 by 0.05 s
+main executor: exceeded loop time budget 0.0500s on 40/130 iters, by 0.122780s on average
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0016434192657470703 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.2874603271484375e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.003031492233276367 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.0265579223632812e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0016787052154541016 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.012307167053222656 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.5735626220703125e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0016732215881347656 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0015239715576171875 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.3365020751953125e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0020737648010253906 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0013689994812011719 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0017566680908203125 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.5020370483398438e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0020744800567626953 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0022852420806884766 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.4781951904296875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001827239990234375 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0009658336639404297 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.4781951904296875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.009406328201293945 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0019876956939697266 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.3589859008789062e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0019164085388183594 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 6.389617919921875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.003544330596923828 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.007573843002319336 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001676321029663086 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.147125244140625e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.002889394760131836 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0012705326080322266 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.002716064453125e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001728057861328125 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0013723373413085938 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.4066696166992188e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0022423267364501953 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0025632381439208984 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.5272369384765625e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001468658447265625 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0013284683227539062 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.4781951904296875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0012819766998291016 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.1696090698242188e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0020313262939453125 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.6689300537109375e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0017392635345458984 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.7894973754882812e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.002071857452392578 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0029251575469970703 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.910064697265625e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.015743255615234375 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0012462139129638672 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.5735626220703125e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0014426708221435547 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 4.1484832763671875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.002746105194091797 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 8.821487426757812e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.00718998908996582 by 0.05 s
+main executor: exceeded loop time budget 0.0500s on 40/112 iters, by 0.110273s on average
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0012650489807128906 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.9325485229492188e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0018553733825683594 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0017049312591552734 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.4066696166992188e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0011093616485595703 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.8358230590820312e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.006302595138549805 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.4066696166992188e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001668691635131836 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0016281604766845703 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.3126602172851562e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.009516716003417969 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.00122833251953125 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 4.458427429199219e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001668691635131836 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.621246337890625e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0067594051361083984 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0014026165008544922 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0016362667083740234 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.811981201171875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.00837254524230957 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.0040740966796875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.014137983322143555 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.4781951904296875e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001462697982788086 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.002838134765625 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.09808349609375e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.004557371139526367 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0019421577453613281 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.5735626220703125e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0014986991882324219 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.8358230590820312e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0011298656463623047 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0041103363037109375 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0045468807220458984 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 2.5272369384765625e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.018529415130615234 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.409385681152344e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0013234615325927734 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0014395713806152344 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.314018249511719e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.009089946746826172 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.006338357925415039 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 3.0517578125e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.007222175598144531 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0016429424285888672 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.7642974853515625e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.003702402114868164 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0034902095794677734 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.9311904907226562e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.001039266586303711 by 0.05 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0039615631103515625 by 0.05 s
+Execution: Component GNSSStateEstimator is running behind (pushed back) overran dt 1.5497207641601562e-05 by 0.1 s
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0017232894897460938 by 0.05 s
+Execution: Waiting for sensors to be healthy...
+Execution: Component KlamptVisualization is running behind (pushed back) overran dt 0.0020856857299804688 by 0.05 s
+main executor: exceeded loop time budget 0.0500s on 40/117 iters, by 0.101747s on average
+Execution: 

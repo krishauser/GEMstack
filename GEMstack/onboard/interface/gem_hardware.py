@@ -15,7 +15,7 @@ try:
 except ImportError:
     pass
 
-from radar_msgs.msg import RadarTracks
+# from radar_msgs.msg import RadarTracks
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from nav_msgs.msg import Odometry
 from ...mathutils import transforms
@@ -203,6 +203,7 @@ class GEMHardwareInterface(GEMInterface):
                                     )
                         callback(GNSSReading(pose,'error' if msg.error else 'ok'))
                     self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
+                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
@@ -215,10 +216,10 @@ class GEMHardwareInterface(GEMInterface):
                     points = conversions.ros_PointCloud2_to_numpy(msg, want_rgb=False)
                     callback(points)
                 self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback_with_numpy)
-        elif name == 'front_radar':
-            if type is not None and type is not RadarTracks:
-                raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
-            self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
+        # elif name == 'front_radar':
+        #     if type is not None and type is not RadarTracks:
+        #         raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
+        #     self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
         elif name == 'front_camera':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not Image and type is not cv2.Mat):
