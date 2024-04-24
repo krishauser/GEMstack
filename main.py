@@ -37,7 +37,7 @@ if __name__=='__main__':
 
     from GEMstack.onboard.execution import entrypoint
 
-    run_vio_rtabmap()
+    # run_vio_rtabmap()
     
     entrypoint.main()
 

@@ -4,7 +4,7 @@
 
 
     <!-- Choose visualization -->
-   <arg name="rviz" default="true" />
+   <arg name="rviz" default="false" />
    <arg name="rtabmap_viz" default="false" />
 
    <param name="use_sim_time" type="bool" value="true"/>
