@@ -475,11 +475,16 @@ class KeyboardControl(object):
                 elif event.key == K_r and not (pygame.key.get_mods() & KMOD_CTRL):
                     filename = world.filename.replace("recording.log", "recording_423.txt")
                     if not world.meta_recorded:
+                        world.hud.notification("Starting to record data")
                         with open(filename, 'w') as file:
                             file.write("weather_time: " + str(world._weather_index))
                             file.write("\n")
-                        world.hud.notification("Recording starts")
+                            file.write('Map:     % 20s' % world.map.name.split('/')[-1])
+                            file.write("\n")
+                            file.write("\n")
                         world.meta_recorded = True
+                    else:
+                        world.hud.notification("Recording data")
 
                     # record as in the tick
                     v = world.player.get_velocity()
@@ -501,7 +506,7 @@ class KeyboardControl(object):
                     with open(filename, 'a') as file:
                         for line in info_text:
                             file.write(line + '\n')
-                    world.hud.notification("Recording data")
+
 
                     # file.write(str(world.player.get_transform().location) + "\n")
 
