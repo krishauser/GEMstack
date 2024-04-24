@@ -13,6 +13,8 @@ import os
 
 lidar_points = None
 camera_image = None
+fl_camera_image = None
+fr_camera_image = None
 depth_image = None
 bridge = CvBridge()
 
@@ -23,6 +25,15 @@ def lidar_callback(lidar : PointCloud2):
 def camera_callback(img : Image):
     global camera_image
     camera_image = img
+
+def fl_camera_callback(img : Image):
+    global fl_camera_image
+    fl_camera_image = img
+
+def fr_camera_callback(img : Image):
+    global fr_camera_image
+    fr_camera_image = img
+
 
 def depth_callback(img : Image):
     global depth_image
@@ -52,11 +63,13 @@ def pc2_to_numpy(pc2_msg, want_rgb = False):
     else:
         return np.array(list(gen),dtype=np.float32)[:,:3]
 
-def save_scan(lidar_fn,color_fn,depth_fn):
+def save_scan(lidar_fn,color_fn, fl_color_fn, fr_color_fn, depth_fn):
     print("Saving scan to",lidar_fn,color_fn,depth_fn)
     pc = pc2_to_numpy(lidar_points,want_rgb=False)
     np.savez(lidar_fn,pc)
     cv2.imwrite(color_fn,bridge.imgmsg_to_cv2(camera_image))
+    cv2.imwrite(fl_color_fn,bridge.imgmsg_to_cv2(fl_camera_image))
+    cv2.imwrite(fr_color_fn,bridge.imgmsg_to_cv2(fr_camera_image))
     dimage = bridge.imgmsg_to_cv2(depth_image)
     dimage_non_nan = dimage[np.isfinite(dimage)]
     print("Depth range",np.min(dimage_non_nan),np.max(dimage_non_nan))
@@ -70,6 +83,8 @@ def main(folder='data',start_index=1):
     rospy.init_node("capture_lidar_zed",disable_signals=True)
     lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
     camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
+    fl_camera_sub = rospy.Subscriber("/camera_fl/arena_camera_node/image_raw", Image, fl_camera_callback)
+    fr_camera_sub = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, fr_camera_callback)
     depth_sub = rospy.Subscriber("/oak/stereo/image_raw", Image, depth_callback)
     index = start_index
     print("Press any key to:")
@@ -96,6 +111,8 @@ def main(folder='data',start_index=1):
                 else:
                     files = [os.path.join(folder,'lidar{}.npz'.format(index)),
                         os.path.join(folder,'color{}.png'.format(index)),
+                        os.path.join(folder,'color_fl{}.png'.format(index)),
+                        os.path.join(folder,'color_fr{}.png'.format(index)),
                         os.path.join(folder,'depth{}.tif'.format(index))]
                     save_scan(*files)
                     index += 1
