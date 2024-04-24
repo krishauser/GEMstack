@@ -15,9 +15,9 @@ class PixelWise3DLidarCoordHandler:
                  extrinsic_fn="GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt",
                  intrinsic_fn="GEMstack/knowledge/calibration/gem_e4_intrinsic.txt",
                  lidar2vehicle_fn="GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt",
-                 xrange=(0, 15),
+                 xrange=(0, 20),
                  yrange=(-10, 10),
-                 zrange=(-2.5, 0)) -> None:
+                 zrange=(-3, 1)) -> None:
         
         self.extrinsic = np.loadtxt(extrinsic_fn)
         self.intrinsic = np.loadtxt(intrinsic_fn)
