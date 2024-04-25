@@ -15,7 +15,7 @@ class AgentEnum(Enum):
 
 
 class AgentAttributesFlag(Flag):
-    NONE = 0
+    DEFAULT = 0
     WAVING = auto()
 
 class AgentActivityEnum(Enum):
