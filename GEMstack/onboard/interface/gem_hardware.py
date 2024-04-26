@@ -5,7 +5,7 @@ import math
 # ROS Headers
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
-from sensor_msgs.msg import Image,PointCloud2
+from sensor_msgs.msg import Image,PointCloud2, Imu
 from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
 from radar_msgs.msg import RadarTracks
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
@@ -183,7 +183,7 @@ class GEMHardwareInterface(GEMInterface):
         elif name == "imu":
             if type is not None:
                 raise ValueError("GEMHardwareInterface only supports")
-            self.imu_sub = rospy.Subscriber("/septentrio_gnss/imu",Float64, callback)
+            self.imu_sub = rospy.Subscriber("/septentrio_gnss/imu",Imu, callback)
 
 
 

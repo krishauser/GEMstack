@@ -9,21 +9,27 @@ from ...knowledge.vehicle.geometry import front2steer,steer2front
 from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
-
+import rospy
+from std_msgs.msg import Float64
 class IMUStateEstimator(Component):
     def __init__(self, vehicle_interface = GEMInterface):
         
         self.vehicle_interface = vehicle_interface
         vehicle_interface.subscribe_sensor('/septentrio_gnss/imu',self.imu_callback)
+        self.imu_sub = rospy.Subscriber("/as_tx/vehicle_speed",Float64, self.vel_callback)
         if 'gnss' in vehicle_interface.sensors():
             vehicle_interface.subscribe_sensor('gnss',self.inspva_callback)
         self.gnss_pose = None
+        self.imu_pose = None
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
         self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
         self.status = None
-        self.last_gnss = None
-
+        self.last_pose = None
+        self.linear_vx = 0
+        self.linear_vy = 0
+        self.linear_vz = 0
+    
     # Get GNSS information
     def inspva_callback(self, inspva_msg):
         self.gnss_pose = ObjectPose(ObjectFrameEnum.GLOBAL,
@@ -36,6 +42,7 @@ class IMUStateEstimator(Component):
                                     pitch=math.radians(inspva_msg.pitch),
                                     )
         self.status = inspva_msg.status
+
 
     def imu_callback(self, msg):
         self.imu_ax = msg.linear_acceleration.x
@@ -59,32 +66,39 @@ class IMUStateEstimator(Component):
     def create_imu_pose(self):
         time = self.vehicle_interface.time()
         past_time = self.last_gnss.t
+       
         self.imu_pose = self.last_gnss
-        self.imu_pose.x += 0.5* self.imu_ax* (time - past_time)**2
-        self.imu_pose.y += 0.5* self.imu_ay* (time - past_time)**2
-        self.imu_pose.z += 0.5* self.imu_az* (time - past_time)**2
+        self.imu_pose.x += 0.5* self.imu_ax* (time - past_time)**2 + self.linear_vx* (time - past_time)
+        self.imu_pose.y += 0.5* self.imu_ay* (time - past_time)**2 + self.linear_vy* (time - past_time)
+        self.imu_pose.z += 0.5* self.imu_az* (time - past_time)**2 + self.linear_vz* (time - past_time)
         self.imu_pose.yaw += self.ang_vx* (time - past_time)
         self.imu_pose.roll += self.ang_vy* (time - past_time)
         self.imu_pose.pitch += self.ang_vz* (time - past_time)
+        self.velocity = self.vehicle_interface.
+        self.linear_vx += self.imu_ax* (time - past_time)
+        self.linear_vy += self.imu_ay* (time - past_time)
+        self.linear_vz += self.imu_az* (time - past_time) 
+        self.imu_pose.t = time
 
     def update(self) -> VehicleState:
         if self.garbage_value(self.gnss_pose):
-            localxy = transforms.rotate2d(self.location,-self.yaw_offset)
-            imu_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
-            center_xyhead = self.imu_pose.apply_xyhead(imu_xyhead_inv)
-            vehicle_pose_global = replace(self.imu_pose,
-                                        t=self.vehicle_interface.time(), 
-                                        x=center_xyhead[0],
-                                        y=center_xyhead[1],
-                                        yaw=center_xyhead[2])
+            self.create_imu_pose()
+            # localxy = transforms.rotate2d(self.location,-self.yaw_offset)
+            # imu_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
+            # center_xyhead = self.imu_pose.apply_xyhead(imu_xyhead_inv)
+            # vehicle_pose_global = replace(self.imu_pose,
+            #                             t=self.vehicle_interface.time(), 
+            #                             x=center_xyhead[0],
+            #                             y=center_xyhead[1],
+            #                             yaw=center_xyhead[2])
 
             readings = self.vehicle_interface.get_reading()
-            raw = readings.to_state(vehicle_pose_global)
+            raw = readings.to_state(self.imu_pose)
 
             #filtering speed
             filt_vel     = self.speed_filter(raw.v)
             raw.v = filt_vel
-            self.last_gnss = self.imu_pose
+            self.last_pose = self.imu_pose
 
 
         else:
@@ -103,7 +117,7 @@ class IMUStateEstimator(Component):
             #filtering speed
             filt_vel     = self.speed_filter(raw.v)
             raw.v = filt_vel
-            self.last_gnss = self.gnss_pose
+            self.last_pose = self.gnss_pose
             return raw
 
 
