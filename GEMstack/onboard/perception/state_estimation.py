@@ -74,7 +74,7 @@ class IMUStateEstimator(Component):
         self.imu_pose.yaw += self.ang_vx* (time - past_time)
         self.imu_pose.roll += self.ang_vy* (time - past_time)
         self.imu_pose.pitch += self.ang_vz* (time - past_time)
-        self.velocity = self.vehicle_interface.
+        # self.velocity = self.imu_ax* (time - past_time)
         self.linear_vx += self.imu_ax* (time - past_time)
         self.linear_vy += self.imu_ay* (time - past_time)
         self.linear_vz += self.imu_az* (time - past_time) 
@@ -93,6 +93,7 @@ class IMUStateEstimator(Component):
             #                             yaw=center_xyhead[2])
 
             readings = self.vehicle_interface.get_reading()
+            print(self.imu_pose.x)
             raw = readings.to_state(self.imu_pose)
 
             #filtering speed
