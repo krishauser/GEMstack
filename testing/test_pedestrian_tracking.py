@@ -45,7 +45,6 @@ class TestHelper:
             depth = cv2.imread(depth_fn)
             self.depth = depth
 
-            
             self.ped_detector.test_set_data(image, point_cloud)
 
             detected_agents, detection_result = self.ped_detector.detect_agents(test=True)

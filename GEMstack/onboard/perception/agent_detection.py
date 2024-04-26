@@ -110,8 +110,9 @@ class MultiObjectDetector(Component):
         self.T_lidar2_Gem = np.asarray(T_lidar2_Gem)
 
         # Hardcode the roi area for agents
-        self.xrange = (0, 100)
-        self.yrange = (-100, 100)
+        self.xrange = (0, 20)
+        self.yrange = (-10, 10)
+        self.zrange = (-3, 1)
     
     def rate(self):
         return 4.0
@@ -181,7 +182,7 @@ class MultiObjectDetector(Component):
         
         return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
-    def detect_agents(self):
+    def detect_agents(self, test=False):
         detection_result = self.detector(self.zed_image,verbose=False)
         
         #TODO: create boxes from detection result
@@ -198,7 +199,8 @@ class MultiObjectDetector(Component):
         # Only keep lidar point cloud that lies in roi area for agents
         filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
                                                   self.xrange, 
-                                                  self.yrange)
+                                                  self.yrange,
+                                                  self.zrange)
         
         epsilon = 0.09  # Epsilon parameter for DBSCAN
 
@@ -232,11 +234,6 @@ class MultiObjectDetector(Component):
             agent_image_pc = point_cloud_image[idxs]
             agent_pc_3D = pc_3D[idxs]
             agent_clusters = clusters[idxs]
-
-            # draw bbox
-            left_up = (int(x-w/2), int(y-h/2))
-            right_bottom = (int(x+w/2), int(y+h/2))
-            cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
 
             # Get unique elements and their counts
             unique_elements, counts = np.unique(agent_clusters, return_counts=True)
@@ -278,6 +275,10 @@ class MultiObjectDetector(Component):
                 if agent is not None:
                     detected_agents.append(agent)
 
+            # draw bbox
+            left_up = (int(x-w/2), int(y-h/2))
+            right_bottom = (int(x+w/2), int(y+h/2))
+            cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
             # draw
             text = str(id_dict[id])
             text += f" | depth: {depth:.2f}"
@@ -287,6 +288,8 @@ class MultiObjectDetector(Component):
                         color, -1)
             cv2.putText(vis, text, (p1[0], p1[1] + baseline), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, 8)
 
+        if test: # Behavior Prediction
+            return detected_agents, detection_result
         return detected_agents
 
     # def track_agents(self, detected_agents: List[AgentState]):
@@ -367,6 +370,14 @@ class MultiObjectTracker():
         self.kalman_tracker = KalmanTracker(config_file_path=kalman_config_file)
         self.tracking_results = {}
         self.current_frame = 0
+
+        # For Testing
+        self.test = test
+        if self.test:
+            self.detection_file_name = detection_file_name
+            self.write_all = write_all
+            f = open(self.detection_file_name, "w")
+            f.close()
 
     """Base class for top-level components in the execution stack."""
 

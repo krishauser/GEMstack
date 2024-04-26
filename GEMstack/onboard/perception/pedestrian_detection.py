@@ -241,7 +241,7 @@ class PedestrianDetector(Component):
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
         
-    def detect_agents(self):
+    def detect_agents(self, test=False):
         detection_result = self.detector(self.zed_image,verbose=False)
         
         #TODO: create boxes from detection result
@@ -287,6 +287,9 @@ class PedestrianDetector(Component):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             if agent is not None:
                 detected_agents.append(agent)
+                
+        if test: # Behavior Prediction
+            return detected_agents, detection_result
         return detected_agents
         
     def estimate_velocity(self, prev_pose, current_pose) -> tuple:
