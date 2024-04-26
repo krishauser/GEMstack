@@ -3,6 +3,7 @@ import numpy as np
 from klampt.math import vectorops as vo
 from klampt.math import so2
 from typing import Tuple
+from . import alvinxy as axy 
 
 def normalize_angle(angle : float) -> float:
     """Normalizes an angle to be in the range [0,2pi]"""
@@ -109,7 +110,7 @@ def lat_lon_to_xy(lat : float, lon : float, lat_reference : float, lon_reference
 
     Returns (x,y), where x is east in m, y is north in m.
     """
-    import alvinxy.alvinxy as axy 
+    # import alvinxy.alvinxy as axy 
     # convert GNSS waypoints into local fixed frame reprented in x and y
     east_x, north_y = axy.ll2xy(lat, lon, lat_reference, lon_reference)
     return east_x, north_y
@@ -119,7 +120,7 @@ def xy_to_lat_lon(x_east : float, y_north : float, lat_reference : float, lon_re
 
     Returns (lat,lon), where lat and lon are in degrees.
     """
-    import alvinxy.alvinxy as axy 
+    # import alvinxy.alvinxy as axy 
     # convert GNSS waypoints into local fixed frame reprented in x and y
     lat, lon = axy.xy2ll(x_east, y_north, lat_reference, lon_reference)
     return lat, lon
