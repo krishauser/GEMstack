@@ -88,8 +88,8 @@ class SearchNavigationRoutePlanner(Component):
         
         self.v = settings.get('A_star_planner.search_planner.velocity')
         self.L = settings.get('vehicle.geometry.wheelbase')
-        self.steer_max = settings.get('A_star_planner.search_planner.max_steering_angle')
-        turn_radius = self.L/np.tan(self.steer_max)
+        self.wheel_max = settings.get('A_star_planner.search_planner.max_wheel_angle')
+        turn_radius = self.L/np.tan(self.wheel_max)
         self.turn_radius = turn_radius
 
         self.N_controls = settings.get('A_star_planner.search_planner.N_sample_controls')
@@ -310,7 +310,7 @@ class SearchNavigationRoutePlanner(Component):
                                  np.inf)
         
         def sample_steer(N=self.N_controls):
-            return np.random.uniform(-self.steer_max,self.steer_max,N)
+            return np.random.uniform(-self.wheel_max,self.wheel_max,N)
         
         def sim(state,steer,f,dt=self.dt):
             x, y, theta, _ = state
