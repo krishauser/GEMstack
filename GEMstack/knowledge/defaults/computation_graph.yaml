@@ -24,8 +24,8 @@ components:
   - sign_detection: 
       inputs: [vehicle, roadgraph]
       outputs: roadgraph.signs
-  - parking_slot_detection: 
-      outputs: parking_slot
+  - parking_spot_detection: 
+      outputs: parking_spot
   - environment_detection:
       inputs: vehicle
       outputs: environment

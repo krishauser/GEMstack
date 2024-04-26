@@ -13,7 +13,7 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
-        parking_slot_detection : ParkingSlotDetector
+        parking_spot_detection : ParkingSpotDetector
     planning:
         route_planning:
             type: SearchNavigationRoutePlanner
