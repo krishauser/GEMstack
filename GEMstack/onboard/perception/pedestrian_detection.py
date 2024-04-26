@@ -120,7 +120,8 @@ class PedestrianDetector(Component):
         return ['vehicle']
     
     def state_outputs(self):
-        return ['agents']
+        # return ['agents']
+        return ["detected_agents"]
     
     def test_set_data(self, zed_image, point_cloud, camera_info='dummy'):
         self.zed_image = zed_image
@@ -162,13 +163,14 @@ class PedestrianDetector(Component):
         t1 = time.time()
         detected_agents = self.detect_agents()
 
-        t2 = time.time()
-        current_agent_states = self.track_agents(vehicle,detected_agents)
-        t3 = time.time()
-        print("Detection time",t2-t1,", shape estimation and tracking time",t3-t2)
+        # t2 = time.time()
+        # current_agent_states = self.track_agents(vehicle,detected_agents)
+        # t3 = time.time()
+        # print("Detection time",t2-t1,", shape estimation and tracking time",t3-t2)
 
-        self.last_agent_states = current_agent_states
-        return current_agent_states
+        # self.last_agent_states = current_agent_states
+        # return current_agent_states
+        return detected_agents
 
     def box_to_agent(self, box, point_cloud_image, point_cloud_image_world):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
