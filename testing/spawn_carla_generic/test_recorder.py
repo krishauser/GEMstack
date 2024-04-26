@@ -475,71 +475,54 @@ class KeyboardControl(object):
                     if pygame.key.get_mods() & KMOD_CTRL:
                         index_ctrl = 9
                     world.camera_manager.set_sensor(event.key - 1 - K_0 + index_ctrl)
-
-
-
                 elif event.key == K_r and not (pygame.key.get_mods() & KMOD_CTRL):
-
+                    waypoint = world.map.get_waypoint(world.player.get_location())
                     filename = world.filename.replace('.txt', '.json')  # Change file extension to .json
 
                     if not world.meta_recorded:
-
                         world.hud.notification("Starting to record data")
-
-                        # Data structure to hold all the metadata and waypoints
-
                         metadata = {
-
                             "Description": "TODO",
-
                             "Map": world.map.name.split('/')[-1],
-
                             "Weather and time": str(world._weather_presets[world._weather_index][1]),
-
                             "Traffic condition": "TODO",
-
                             "Waypoints": []  # List to store waypoints data
-
                         }
 
-                        # Writing metadata to a JSON file
-
                         with open(filename, 'w') as file:
-
                             json.dump(metadata, file, indent=4)
 
                         world.meta_recorded = True
 
-
                     else:
-
                         world.hud.notification("Recording data")
-
-                        # Record the current waypoint in the tick
-
-                        t = world.player.get_transform()
+                        t = waypoint.transform
 
                         waypoint_data = {
-
+                            'id': waypoint.id,
                             'Location': (t.location.x, t.location.y, t.location.z),
-
-                            'Rotation': (t.rotation.pitch, t.rotation.yaw, t.rotation.roll)
-
+                            'Rotation': (t.rotation.pitch, t.rotation.yaw, t.rotation.roll),
+                            'Road ID': waypoint.road_id,
+                            'Lane ID': waypoint.lane_id,
+                            'Section ID': waypoint.section_id,
+                            's': waypoint.s,
+                            'Is Junction': waypoint.is_junction,
+                            'Lane Width': waypoint.lane_width,
+                            'Lane Type': waypoint.lane_type.name,  # Assuming enum to str conversion
+                            'Lane Change': waypoint.lane_change.name,  # Assuming enum to str conversion
+                            'Right Lane Marking': waypoint.right_lane_marking.type.name,
+                            # Assuming enum to str conversion
+                            'Left Lane Marking': waypoint.left_lane_marking.type.name,
+                            # Assuming enum to str conversion
                         }
 
-                        # Open the existing JSON file to append the new waypoint data
-
                         with open(filename, 'r+') as file:
-
                             data = json.load(file)  # Load existing data
-
                             data['Waypoints'].append(waypoint_data)  # Append new waypoint
-
                             file.seek(0)  # Go back to the start of the file
-
                             file.truncate()  # Clear the file content before writing
-
                             json.dump(data, file, indent=4)  # Re-write the modified data
+
                 elif event.key == K_r and (pygame.key.get_mods() & KMOD_CTRL):
                     if (world.recording_enabled):
                         client.stop_recorder()
