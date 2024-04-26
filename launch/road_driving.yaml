@@ -13,8 +13,8 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
-        parking_slot_detection : ParkingSlotDetector
-
+        lane_following_detection : normal_road_detection.LaneGoalDetector
+        lane_boundary_detection : normal_road_detection.LaneBoundaryDetector
     planning:
         # route_planning:
             # type: DummyRoutePlanner

@@ -32,7 +32,7 @@ WEIGHT_L = settings.get('MPC_planner.MPC_planner.weight.w_l')
 
 
 # Setup the MPC problem 
-def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, agents):
+def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, agents, lane_bound = [-1,1]):
     """
     Setup and solve the MPC problem.
     Returns the first control inputs (v, delta) from the optimized trajectory.
@@ -42,7 +42,7 @@ def setup_mpc(N, dt, L, x0, y0, theta0, v0, x_goal, y_goal, theta_goal, v_goal, 
     delta_min, delta_max = DELTA_MIN, DELTA_MAX
     a_min, a_max = A_MIN, A_MAX
     v_min, v_max = V_MIN, V_MAX
-    lane_left, lane_rigth = -1,1
+    lane_left, lane_rigth = lane_bound
 
     v0 = np.clip(v0, v_min, v_max) 
 
@@ -159,10 +159,12 @@ class MPCTrajectoryPlanner(Component):
         agents = state.agents
         vehicle = state.vehicle
         # route = state.route
-        parking_slot = state.parking_slot
-        goal = parking_slot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+        lane_goal = state.lane_goal
+        goal = lane_goal.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
         x_start, y_start, theta_start, v_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v
         x_goal, y_goal, theta_goal, v_goal = goal.x, goal.y, 0., 0.
+
+        lane_bound = state.lane_bound
 
         agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
         obstacle = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
@@ -170,7 +172,7 @@ class MPCTrajectoryPlanner(Component):
         collision_dis = find_closest_agent(obstacle, pose = [vehicle.pose.x, vehicle.pose.y])
         if collision_dis > self.safe_dist:
             wheel_angle, accel = setup_mpc(self.N, self.dt, L, x_start, y_start, theta_start, v_start, \
-                                                x_goal, y_goal, theta_goal, v_goal, agents)
+                                                x_goal, y_goal, theta_goal, v_goal, agents, lane_bound)
             # print(wheel_angle, accel)
             if np.sqrt((x_start - x_goal)**2 + (y_start - y_goal)**2 + (theta_start - theta_goal)**2) <= 0.1: # threshold for reaching the goal
                 wheel_angle = 0
