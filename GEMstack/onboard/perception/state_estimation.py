@@ -104,13 +104,14 @@ class IMUStateEstimator(Component):
         self.linear_vy += self.imu_ay* (time - past_time)
         self.linear_vz += self.imu_az* (time - past_time) 
         self.imu_pose.t = time
-
+        print(self.imu_pose)
+        print(self.linear_vx, self.linear_vy, self.linear_vz)
     def update(self) -> VehicleState:
         if self.garbage_value(self.gnss_pose):
             self.create_imu_pose()
 
             readings = self.vehicle_interface.get_reading()
-            print('pose', self.imu_pose.x)
+            # print('pose', self.imu_pose.x)
             raw = readings.to_state(self.imu_pose)
 
             #filtering speed
