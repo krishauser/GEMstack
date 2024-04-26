@@ -31,7 +31,7 @@ class AllState(SceneState):
     trajectory : Optional[Trajectory] = None
 
     # added state
-    parking_slot : Optional[ObjectPose] = None
+    parking_spot : Optional[ObjectPose] = None
     
     # update times for perception items (time.time())
     vehicle_update_time : float = 0
