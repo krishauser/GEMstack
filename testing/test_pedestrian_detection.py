@@ -269,7 +269,7 @@ class TestHelper:
             vis = cv2.circle(vis, center, radius, color, cv2.FILLED)
         
         pathlib.Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
-        output_path = os.path.join(OUTPUT_DIR, f'lidar_to_image_{epsilon}_{args.data_idx}.png')
+        output_path = os.path.join(OUTPUT_DIR, f'lidar_to_image_dbscan_{epsilon}_{args.data_idx}.png')
         print ('Output lidar_to_image result:', output_path)
         cv2.imwrite(output_path, vis)
         

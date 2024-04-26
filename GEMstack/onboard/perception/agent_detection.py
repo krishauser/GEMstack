@@ -9,8 +9,8 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 from typing import Dict, Tuple, List
-from kalman_tracker import KalmanFilter, KalmanTracker
-from pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
+from GEMstack.onboard.perception.kalman_tracker import KalmanFilter, KalmanTracker
+from GEMstack.onboard.perception.pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
 try:
     from sensor_msgs.msg import CameraInfo
     from image_geometry import PinholeCameraModel
@@ -80,18 +80,19 @@ def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tupl
     zmin, zmax = zrange
     idxs = np.where((point_cloud[:, 0] > xmin) & (point_cloud[:, 0] < xmax) &
                     (point_cloud[:, 1] > ymin) & (point_cloud[:, 1] < ymax) &
-                     (point_cloud[:, 2] > zmin) & (point_cloud[:, 2] < zmax) )
+                    (point_cloud[:, 2] > zmin) & (point_cloud[:, 2] < zmax) )
     return point_cloud[idxs]
         
 class MultiObjectDetector(Component):
     """Utilize YOLOv8 to detect multi-objects in each frame"""
     def __init__(self,vehicle_interface : GEMInterface, extrinsic=None):
         self.vehicle_interface = vehicle_interface
+        self.kalman_tracker = KalmanTracker
         self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
-        self.pedestrian_counter = 0 # Maybe should use dictionary
+        self.pedestrian_counter = 0
         self.car_counter = 0
         self.stop_sign_counter = 0
         self.last_agent_states = {}
@@ -112,17 +113,20 @@ class MultiObjectDetector(Component):
         self.xrange = (0, 100)
         self.yrange = (-100, 100)
     
+    def rate(self):
+        return 4.0
+
+    def state_inputs(self):
+        return ['vehicle']
+
+    def state_outputs(self):
+        # return ['agents']
+        return ["detected_agents"]
+    
     def test_set_data(self, zed_image, point_cloud, camera_info='dummy'):
         self.zed_image = zed_image
         self.point_cloud = point_cloud
         self.camera_info = camera_info
-
-    def state_inputs(self):
-        return ['vehicle']
-    
-    def state_outputs(self):
-        # return ['agents']
-        return ["detected_agents"]
 
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
@@ -132,12 +136,14 @@ class MultiObjectDetector(Component):
         #subscribe to the Zed CameraInfo topic
         self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
 
-
     def image_callback(self, image : cv2.Mat):
         self.zed_image = image
 
     def camera_info_callback(self, info : CameraInfo):
         self.camera_info = info
+    
+    def lidar_callback(self, point_cloud: np.ndarray):
+        self.point_cloud = point_cloud
 
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         if self.zed_image is None:
@@ -151,10 +157,29 @@ class MultiObjectDetector(Component):
             return {}
 
         detected_agents = self.detect_agents()
-        # current_agent_states = self.track_agents(vehicle,detected_agents)
-        # self.last_agent_states = current_agent_states
-        # return current_agent_states
-        return detected_agents
+        current_agent_states = self.track_agents(vehicle, detected_agents) # Do Kalman Filter Tracking
+        self.last_agent_states = current_agent_states
+
+        return current_agent_states
+    
+    def box_to_agent(self, box, point_cloud_image, point_cloud_image_world, cls, depth):
+        """Creates a 3D agent state from an (x,y,w,h) bounding box.
+
+        TODO: you need to use the image, the camera intrinsics, the lidar
+        point cloud, and the calibrated camera / lidar poses to get a good
+        estimate of the pedestrian's pose and dimensions.
+        """
+        # get the idxs of point cloud that belongs to the agent
+        b_x, b_y, w, h = box
+
+        # Specify ObjectPose. Note that The pose's yaw, pitch, and roll are assumed to be 0 for simplicity.
+        pose = ObjectPose(t=0, x=depth, y=b_y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+
+        # Specify AgentState.
+        l = 1
+        dims = (w, l, h) 
+        
+        return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self):
         detection_result = self.detector(self.zed_image,verbose=False)
@@ -192,28 +217,14 @@ class MultiObjectDetector(Component):
 
         vis = self.zed_image.copy()
         detected_agents = []
-        for i in range(len(boxes)):
-            box = boxes[i]
-            id = boxes[i]
 
-            if id == 0:
-                color = (255, 0, 255)
-                self.pedestrian_counter += 1
-                print("Pedestrian")
-            if id == 2:
-                color = (0, 255, 255)
-                self.car_counter += 1
-                print("Vehicle")
-            if id == 11:
-                color = (150, 50, 255)
-                self.stop_sign_counter += 1
-                print("Stop Sign")
-            print(box)
+        for i,b in enumerate(boxes):
+            box = boxes[i]
+            id = bbox_ids[i]
 
             x, y, w, h = box
             xmin, xmax = x - w/2, x + w/2
             ymin, ymax = y - h/2, y + h/2
-            l = ymax - ymin
 
             # Filter. Get the idxs of point cloud that belongs to the agent
             idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
@@ -242,6 +253,31 @@ class MultiObjectDetector(Component):
             depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
             print ('depth:', depth)
 
+            if id == 0:
+                color = (255, 0, 255)
+                self.pedestrian_counter += 1
+                cls = AgentEnum.PEDESTRIAN
+                print("Pedestrian")
+                agent = self.box_to_agent(b, point_cloud_image, pc_3D, cls, depth)
+                if agent is not None:
+                    detected_agents.append(agent)
+            if id == 2:
+                color = (0, 255, 255)
+                self.car_counter += 1
+                cls = AgentEnum.CAR
+                print("Vehicle")
+                agent = self.box_to_agent(b, point_cloud_image, pc_3D, cls, depth)
+                if agent is not None:
+                    detected_agents.append(agent)
+            if id == 11:
+                color = (150, 50, 255)
+                self.stop_sign_counter += 1
+                cls = AgentEnum.STOP_SIGN
+                print("Stop Sign")
+                agent = self.box_to_agent(b, point_cloud_image, pc_3D, cls, depth)
+                if agent is not None:
+                    detected_agents.append(agent)
+
             # draw
             text = str(id_dict[id])
             text += f" | depth: {depth:.2f}"
@@ -250,17 +286,74 @@ class MultiObjectDetector(Component):
             cv2.rectangle(vis, (p1[0] - 2 // 2, p1[1] - 2 - baseline), (p1[0] + text_size[0], p1[1] + text_size[1]),
                         color, -1)
             cv2.putText(vis, text, (p1[0], p1[1] + baseline), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 255, 255), 1, 8)
-            
-            # draw point cloud
-            # for proj_pt, cluster in zip(agent_image_pc, agent_clusters):
-            #     if cluster != label_cluster:
-            #         continue
-            #     color = colors[cluster % len(colors)]
-            #     radius = 1
-            #     center = int(proj_pt[0]), int(proj_pt[1])
-            #     vis = cv2.circle(vis, center, radius, color, cv2.FILLED)
-            detected_agents.append([x, y, w, l])
+
         return detected_agents
+
+    # def track_agents(self, detected_agents: List[AgentState]):
+    #     """Given a list of detected agents, updates the state of the agents."""
+    #     detections = []
+    #     for agent in detected_agents:
+    #         if agent.type == AgentEnum.PEDESTRIAN:
+    #             x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
+    #             w, h, l = agent.dimensions
+    #             detections.append(np.array([x, y, w, l]))
+
+    #     kalman_agent_states, matches = self.kalman_tracker.update_objects_tracking(
+    #         detections
+    #     )
+    #     tracking_results = {}
+    #     for pid in kalman_agent_states:
+    #         ag_state = kalman_agent_states[pid]
+    #         tracking_results[pid] = AgentState(
+    #             pose=ObjectPose(
+    #                 t=0,
+    #                 x=ag_state[0],
+    #                 y=ag_state[1],
+    #                 z=0,
+    #                 yaw=0,
+    #                 pitch=0,
+    #                 roll=0,
+    #                 frame=ObjectFrameEnum.CURRENT,
+    #             ),
+    #             dimensions=(ag_state[2], ag_state[3], 1.5),
+    #             velocity=(ag_state[4], ag_state[5], 0),
+    #             type=AgentEnum.PEDESTRIAN,
+    #             activity=AgentActivityEnum.MOVING,
+    #             yaw_rate=0,
+    #             outline=None,
+    #         )
+    #     self.update_track_history(tracking_results)
+
+    #     if self.test:
+    #         return tracking_results, matches
+
+    def save_data(self, loc=None):
+        """This can be used for debugging.  See the provided test."""
+        prefix = ''
+        if loc is not None:
+            prefix = loc + '/'
+        cv2.imwrite(prefix+'zed_image.png',self.zed_image)
+        np.savez(prefix+'velodyne_point_cloud.npz',self.point_cloud)
+        import pickle
+        with open(prefix+'zed_camera_info.pkl','wb') as f:
+            pickle.dump(self.camera_info,f)
+
+    def load_data(self, loc=None):
+        prefix = ''
+        if loc is not None:
+            prefix = loc + '/'
+        self.zed_image = cv2.imread(prefix+'zed_image.png')
+        self.point_cloud = np.load(prefix+'velodyne_point_cloud.npz')['arr_0']
+        try:
+            import pickle
+            with open(prefix+'zed_camera_info.pkl','rb') as f:
+                self.camera_info = pickle.load(f)
+        except ModuleNotFoundError:
+            #ros not found?
+            from collections import namedtuple
+            CameraInfo = namedtuple('CameraInfo',['width','height','P'])
+            #TODO: these are guessed parameters
+            self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
 
 class MultiObjectTracker():
     """Using Kalman Filter to track objects"""
@@ -319,15 +412,15 @@ class MultiObjectTracker():
             self.debugger.debug_event(label)
 
     def track_agents(self, detected_agents: List[AgentState]):
-        """Given a list of detected agents, updates the state of the agents using a Kalman Tracker."""
+        """Given a list of detected agents, updates the state of the agents."""
         detections = []
         for agent in detected_agents:
             if agent.type == AgentEnum.PEDESTRIAN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
-                w, h, l = agent.dimensions
-                detections.append(np.array([x, y, w, l]))
+                w, l, h = agent.dimensions
+                detections.append(np.array([x, y, w, h]))
 
-        kalman_agent_states, matches = self.kalman_tracker.update_pedestrian_tracking(
+        kalman_agent_states, matches = self.kalman_tracker.update_objects_tracking(
             detections
         )
         tracking_results = {}
@@ -353,7 +446,6 @@ class MultiObjectTracker():
             )
         self.update_track_history(tracking_results)
 
-        
         if self.test:
             return tracking_results, matches
 
