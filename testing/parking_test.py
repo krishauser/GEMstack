@@ -1,3 +1,4 @@
+import os
 import rospy
 from sensor_msgs.msg import Image, PointCloud2
 from cv_bridge import CvBridge, CvBridgeError
@@ -10,12 +11,12 @@ sobel_kernel_size = 3
 sobel_min_threshold = 90
 conf_val = 0.85
 
-MODEL_WEIGHT_PATH = 'GEMstack/knowledge/detection/parking_spot_detection.pt'
+MODEL_WEIGHT_PATH = 'parking_spot_detection.pt'
 model = YOLO(MODEL_WEIGHT_PATH)
 bbox_id_counter = 1
 bridge = CvBridge()
 
-from GEMstack.onboard.perception.pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
+from pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
 
 # Initialize handler
 handler = PixelWise3DLidarCoordHandler()
@@ -65,7 +66,7 @@ def draw_equidistant_line(points, canvas):
     angle_between = abs(np.pi/2 - angle_red)  # Ensure the result is always positive
     print(f"Angle between the red and blue lines: {angle_between} radians")
 
-    return canvas
+    return canvas, angle_between
 
 
 def get_rotated_box_points(x, y, width, height, angle):
@@ -155,9 +156,6 @@ class ImageProcessorNode:
         # Get 3D coordinates
         coord_3d_map = handler.get3DCoord(cv_image, numpy_point_cloud)
 
-        # Print 3D coordinates
-        print(f"Sample 3D coordinate: {coord_3d_map[100][100]}")
-
         # Continue with your existing image processing operations
         canvas = cv_image.copy()
         bbox_info = empty_detect(cv_image)
@@ -185,14 +183,25 @@ class ImageProcessorNode:
             mask = (sobel_thresholded > 0)
             canvas[y_min:y_max, x_min:x_max][mask] = [0, 255, 0]  # Green mask on detected lines
 
-            canvas = draw_equidistant_line(points, canvas)
+            canvas,angle = draw_equidistant_line(points, canvas)
             canvas = draw_center_line(canvas)
 
-        try:
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(canvas, "bgr8"))
-        except CvBridgeError as e:
-            print("CvBridge Error during modified image publishing:", e)
+            # Get the midpoint of the red line
+            red_line_mid = get_midpoint(get_midpoint(points[0], points[2]), get_midpoint(points[1], points[3]))
 
+            # Check if the handler and coord_3d_map are already available
+            if handler and self.point_cloud is not None:
+                numpy_point_cloud = ros_PointCloud2_to_numpy(self.point_cloud)
+                coord_3d_map = handler.get3DCoord(cv_image, numpy_point_cloud)
+                if 0 <= red_line_mid[0] < coord_3d_map.shape[1] and 0 <= red_line_mid[1] < coord_3d_map.shape[0]:
+                    red_line_mid_3d = coord_3d_map[red_line_mid[1], red_line_mid[0]]
+                    [x_3d,y_3d,z_3d] = red_line_mid_3d
+                    print(f"3D coordinates of the red line's midpoint:[{x_3d},{y_3d},{angle}]")
+
+            try:
+                self.image_pub.publish(self.bridge.cv2_to_imgmsg(canvas, "bgr8"))
+            except CvBridgeError as e:
+                print("CvBridge Error during modified image publishing:", e)
 
 if __name__ == '__main__':
     rospy.init_node('image_processor', anonymous=True)
