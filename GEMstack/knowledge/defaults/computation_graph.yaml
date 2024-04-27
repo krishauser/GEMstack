@@ -10,7 +10,7 @@ components:
   - state_estimation: 
       outputs: vehicle
   - roadgraph_update:
-      inputs: vehicle
+      inputs: [vehicle]
       outputs: roadgraph
   - obstacle_detection:
       inputs: vehicle

@@ -41,6 +41,7 @@ REGION_TO_STYLE = {
     RoadgraphRegionEnum.PARKING_LOT : {'color':(0,0,1,0.5),'width':1,'pointSize':0},
     RoadgraphRegionEnum.CLOSED_COURSE : {'color':(1,0,0,0.5),'width':1,'pointSize':0},
     RoadgraphRegionEnum.VIRTUAL : {'color':(0,0,0,0.5),'width':1,'pointSize':0},
+    RoadgraphRegionEnum.CURB_SIDE : {'color':(0,0,1,0.5),'width':1,'pointSize':0},
 }
 
 def plot_pose(name : str, pose : ObjectPose, axis_len=0.1, label=True):

@@ -12,18 +12,16 @@ class AgentEnum(Enum):
     LARGE_TRUCK = 2
     PEDESTRIAN = 3
     BICYCLIST = 4
-
-
-class AgentAttributesFlag(Flag):
-    DEFAULT = 0
-    WAVING = auto()
-
+    
 class AgentActivityEnum(Enum):
     STOPPED = 0         # standing pedestrians, parked cars, etc. No need to predict motion.
     MOVING = 1          # standard motion.  Predictions will be used here
     FAST = 2            # indicates faster than usual motion, e.g., runners.
     UNDETERMINED = 3    # unknown activity
 
+class AgentAttributesFlag(Flag):
+    DEFAULT = 0
+    WAVING = auto()
 
 @dataclass
 @register
