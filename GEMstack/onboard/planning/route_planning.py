@@ -126,11 +126,11 @@ class SearchNavigationRoutePlanner(Component):
         # TODO: Shoule be replaced by the roadgraph to follow the GEMstack decision-making graph
         vehicle = copy.deepcopy(state.vehicle)
         agents = state.agents
-        agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
+        agents = [a.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
 
         if True: # Currently only parking
             parking_slot = state.parking_slot
-            parking_slot = parking_slot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+            parking_slot = parking_slot.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
             start = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, 0]
             end = [parking_slot.x, parking_slot.y, parking_slot.yaw, 0]
         elif False: # Some other task
@@ -305,8 +305,8 @@ class SearchNavigationRoutePlanner(Component):
                                       state[3]]
         
         self.grid_resolution = 0.5      
-        self.grid_map = np.full((int((x_bound[1]-x_bound[0])/self.grid_resolution), \
-                                 int((y_bound[1]-y_bound[0])/self.grid_resolution)), \
+        self.grid_map = np.full((int((x_bound[1]-x_bound[0])/self.grid_resolution)+1, \
+                                 int((y_bound[1]-y_bound[0])/self.grid_resolution)+1), \
                                  np.inf)
         
         def sample_steer(N=self.N_controls):

@@ -160,13 +160,13 @@ class MPCTrajectoryPlanner(Component):
         vehicle = state.vehicle
         # route = state.route
         lane_goal = state.lane_goal
-        goal = lane_goal.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+        goal = lane_goal.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
         x_start, y_start, theta_start, v_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v
         x_goal, y_goal, theta_goal, v_goal = goal.x, goal.y, 0., 0.
 
         lane_bound = state.lane_bound
 
-        agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
+        agents = [a.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
         obstacle = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
 
         collision_dis = find_closest_agent(obstacle, pose = [vehicle.pose.x, vehicle.pose.y])
