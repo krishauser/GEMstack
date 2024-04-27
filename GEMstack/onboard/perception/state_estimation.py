@@ -114,8 +114,8 @@ class VIOSlamEstimator(Component):
         
             print("GPS vehicle_pose_global = ", vehicle_pose_global.x, vehicle_pose_global.y, vehicle_pose_global.yaw)
         else:
-            vehicle_pose_start = self.Vioslam_pose
-            print("VIO vehicle_pose_start = ", vehicle_pose_start.x, vehicle_pose_start.y, vehicle_pose_start.yaw)
+            vehicle_pose_global = self.Vioslam_pose
+            print("VIO vehicle_pose_start = ", vehicle_pose_global.x, vehicle_pose_global.y, vehicle_pose_global.yaw)
         
         readings = self.vehicle_interface.get_reading()
         raw = readings.to_state(vehicle_pose_global)
