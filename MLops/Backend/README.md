@@ -109,6 +109,9 @@ This tool is designed to preprocess input ROS bags and store them on a file serv
 #### PacMod Topics:
 - **Conversion:** Convert to JSON files.
 
+### All the model files will be stored into GEMstack/MLops/model folder
+### All the dataset files will be stored into GEMstack/MLops/dataset folder
+
 # Running the Server
 Execute `python server.py` to run the Flask server.
 The server will run in debug mode, enabling real-time debugging information in the console.
