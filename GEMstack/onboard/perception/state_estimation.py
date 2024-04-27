@@ -151,19 +151,19 @@ class IMUStateEstimator(Component):
         # self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
         # self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
         # self.status = None
-        self.count = 0
-        self.cum_ax = 0
-        self.cum_ay = 0
-        self.cum_az = 0
-        self.avg_ax = 0
-        self.avg_ay = 0
-        self.avg_az = 0
-        self.cum_yaw = 0
-        self.cum_roll = 0
-        self.cum_pitch = 0
-        self.avg_yaw = 0
-        self.avg_row = 0
-        self.avg_pitch = 0
+        # self.count = 0
+        # self.cum_ax = 0
+        # self.cum_ay = 0
+        # self.cum_az = 0
+        # self.avg_ax = 0
+        # self.avg_ay = 0
+        # self.avg_az = 0
+        # self.cum_yaw = 0
+        # self.cum_roll = 0
+        # self.cum_pitch = 0
+        # self.avg_yaw = 0
+        # self.avg_row = 0
+        # self.avg_pitch = 0
     
     # Get GNSS information
     def inspva_callback(self, inspva_msg):
@@ -180,26 +180,26 @@ class IMUStateEstimator(Component):
 
 
     def imu_callback(self, msg):
-        self.imu_ax = msg.linear_acceleration.x
-        self.imu_ay = msg.linear_acceleration.y
-        self.imu_az = msg.linear_acceleration.z
-        self.ang_vx = msg.angular_velocity.x
-        self.ang_vy = msg.angular_velocity.y
-        self.ang_vz = msg.angular_velocity.z
-        self.count += 1
-        self.cum_ax += self.imu_ax
-        self.cum_ay += self.imu_ay
-        self.cum_az += self.imu_az
-        self.avg_ax = self.cum_ax / self.count
-        self.avg_ay = self.cum_ay / self.count
-        self.avg_az = self.cum_az / self.count
+        self.imu_ax = msg.linear_acceleration.x + 0.25602528980775924
+        self.imu_ay = msg.linear_acceleration.y - 0.2665333040447006
+        self.imu_az = msg.linear_acceleration.z - 10.090469021510753
+        self.ang_vx = msg.angular_velocity.x - 0.005326839442301427
+        self.ang_vy = msg.angular_velocity.y + 0.01301897087495651
+        self.ang_vz = msg.angular_velocity.z - 0.01122344313502048
+        # self.count += 1
+        # self.cum_ax += self.imu_ax
+        # self.cum_ay += self.imu_ay
+        # self.cum_az += self.imu_az
+        # self.avg_ax = self.cum_ax / self.count
+        # self.avg_ay = self.cum_ay / self.count
+        # self.avg_az = self.cum_az / self.count
 
-        self.cum_yaw += self.ang_vx
-        self.cum_roll += self.ang_vy
-        self.cum_pitch += self.ang_vz
-        self.avg_yaw = self.cum_yaw / self.count
-        self.avg_roll = self.cum_roll / self.count
-        self.avg_pitch = self.cum_pitch / self.count
+        # self.cum_yaw += self.ang_vx
+        # self.cum_roll += self.ang_vy
+        # self.cum_pitch += self.ang_vz
+        # self.avg_yaw = self.cum_yaw / self.count
+        # self.avg_roll = self.cum_roll / self.count
+        # self.avg_pitch = self.cum_pitch / self.count
 
     def rate(self):
         return 10.0
@@ -238,8 +238,8 @@ class IMUStateEstimator(Component):
         print(self.imu_pose)
         print('v', self.linear_vx, self.linear_vy, self.linear_vz)
         print('a', self.imu_ax, self.imu_ay, self.imu_az)
-        print('avg a', self.avg_ax, self.avg_ay, self.avg_az)
-        print('ang v', self.avg_yaw, self.avg_roll, self.avg_pitch)
+        # print('avg a', self.avg_ax, self.avg_ay, self.avg_az)
+        # print('ang v', self.avg_yaw, self.avg_roll, self.avg_pitch)
 
     def update(self) -> VehicleState:
         if self.garbage_value(self.gnss_pose):
