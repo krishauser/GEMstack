@@ -53,7 +53,7 @@ def convert(bag_file, video=True, pcd=True):
         elif 'gnss' in topics[topic].msg_type.lower():
             to_gnss(bag, topic, file_name)
         elif 'imu' in topics[topic].msg_type.lower():
-            to_imu(bag, topic, file_name)
+            to_json(bag, topic, file_name)
         elif 'compressed' in topics[topic].msg_type.lower() and 'Depth' not in topic:
             to_image_jpg(bag, topic, file_name)
             if video:
