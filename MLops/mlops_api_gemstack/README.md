@@ -12,6 +12,12 @@ You can install this package using pip:
 pip install mlops_api_gemstack
 ```
 
+If you have installed before, use force install to get the latest version.
+
+```bash
+pip install mlops_api_gemstack --force-reinstall
+```
+
 ## Introduction to Package CLI Command
 
 ```bash
@@ -111,9 +117,9 @@ mlops dataset-uploadbag FILE_PATH SOURCE
 ```bash
 mlops record-rosbag TOPICS_FILE ROSBAG_FILE_NAME SOURCE --delete_rosbag
 ```
-- **Description:** Uploading a new bag dataset to the server. If the dataset name existed, it will update an existing dataset.
+- **Description:** Record and uploading a new rosbag dataset to the server.
 - **Parameters:** 
-  - `TOPICS_FILE`: A text file containing the topics that want rosbag to record. One topic per line.
+  - `TOPICS_FILE`: A text file containing the topics that you want rosbag to record. One topic per line.
   - `ROSBAG_FILE_NAME`: The name you want the final rosbag file to have.
   - `SOURCE`: The source description of the bag dataset.
   - `--delete_rosbag`: A optional flag if you want to delete the rosbag after uploading.

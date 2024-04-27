@@ -5,7 +5,7 @@ with open('README.md', 'r') as f:
 
 setup(
     name='mlops_api_gemstack',
-    version='0.3.4',
+    version='0.4.1',
     description='An API package connect to a MLops server relating to the GEMstack project.',
     author='Haoming Sun',
     author_email='ricardosun990122@gmail.com',

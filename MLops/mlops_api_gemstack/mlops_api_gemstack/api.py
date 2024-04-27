@@ -1,9 +1,9 @@
+import time
 import requests
 import click
 import os
 import subprocess
 import signal
-import sys
 from tqdm import tqdm
 from pprint import pprint
 from urllib.parse import unquote
@@ -221,8 +221,6 @@ def dataset_uploadBag(file_path, source):
                         f"{base_url}/datasets/{inserted[1]}", 
                         json={"Source": source}
                     )
-                    if response.status_code == 200:
-                        click.echo("Dataset updated successfully")
                         
             elif response.status_code == 400:
                 click.echo(f"Error: {response.json()['error']}")
@@ -238,6 +236,7 @@ def dataset_uploadBag(file_path, source):
 def upload_bag(rosbag_file_name, source):
     with open(rosbag_file_name, 'rb') as f:
         files = {'file': f}
+        click.echo(f"Uploading {rosbag_file_name}. Please wait and do not kill the process. This may take a while.")
         response = requests.post(f"{base_url}/datasets/uploadBag", files=files)
         if response.status_code == 200:
             response_data = response.json()
@@ -248,8 +247,6 @@ def upload_bag(rosbag_file_name, source):
                     f"{base_url}/datasets/{inserted[1]}", 
                     json={"Source": source}
                 )
-                if response.status_code == 200:
-                    click.echo("Dataset updated successfully")
                     
         elif response.status_code == 400:
             click.echo(f"Error: {response.json()['error']}")
@@ -267,7 +264,7 @@ def record_rosbag(topics_file, rosbag_file_name, source, delete_rosbag):
         topics = [line.strip() for line in f.readlines()]
 
     if not topics:
-        print(f"No topics found in {topics_file}")
+        click.echo(f"No topics found in {topics_file}")
         exit(1)
     
     if not rosbag_file_name.endswith('.bag'):
@@ -284,8 +281,31 @@ def record_rosbag(topics_file, rosbag_file_name, source, delete_rosbag):
         process.terminate()
         print("Recording stopped")
 
+        pwd = os.getcwd()
+        path = os.path.join(pwd, rosbag_file_name)
+        print(f"Recording saved at: {path}")
+
+        time.sleep(2)
+
+        while (True):
+            try: 
+                response = requests.get(f"{base_url}")
+                if response.status_code == 404:
+                    break
+            except requests.ConnectionError:
+                print("No internet connection")
+            except requests.Timeout:
+                print("Request timed out")
+            except requests.RequestException as e:
+                print(f"An error occurred: {e}")
+            
+            print("Please check your internet connection")
+            print("Retrying in 5 seconds")
+            time.sleep(5)
+
         # send rosbag file through api
-        upload_bag(rosbag_file_name, source)
+        print("Uploading rosbag file")
+        upload_bag(path, source)
        
         if delete_rosbag:
             print("Removing rosbag file")
@@ -294,6 +314,6 @@ def record_rosbag(topics_file, rosbag_file_name, source, delete_rosbag):
 
     signal.signal(signal.SIGINT, stop_recording)
 
-    print("Recording rosbag. Press Ctrl+C to stop recording")
+    click.echo("Recording rosbag. Press Ctrl+C to stop recording")
 
     process.wait()
