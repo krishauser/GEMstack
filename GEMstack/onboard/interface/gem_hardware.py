@@ -184,7 +184,7 @@ class GEMHardwareInterface(GEMInterface):
             if type is not None:
                 raise ValueError("GEMHardwareInterface only supports")
             # self.imu_sub = rospy.Subscriber("/septentrio_gnss/imu",Imu, callback)
-            self.imu_sub = rospy.Subscriber("/ouster/imu",Imu, callback)
+            self.imu_sub = rospy.Subscriber("/septentrio_gnss/imu",Imu, callback)
 
 
 

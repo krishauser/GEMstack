@@ -181,8 +181,8 @@ class IMUStateEstimator(Component):
 
     def imu_callback(self, msg):
         self.imu_ax = msg.linear_acceleration.x + 0.25602528980775924
-        self.imu_ay = msg.linear_acceleration.y - 0.2665333040447006
-        self.imu_az = msg.linear_acceleration.z - 10.090469021510753
+        self.imu_ay = msg.linear_acceleration.y - 0.013
+        self.imu_az = msg.linear_acceleration.z - 9.77
         self.ang_vx = msg.angular_velocity.x - 0.005326839442301427
         self.ang_vy = msg.angular_velocity.y + 0.01301897087495651
         self.ang_vz = msg.angular_velocity.z - 0.01122344313502048
