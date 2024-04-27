@@ -131,6 +131,7 @@ def list_all_datasets():
         'DataName': dataset['DataName'],
         'Path': dataset['Path'],
         'Description': dataset.get('Description', ''),
+        'DateTime': dataset.get('DateTime', ''),
         'Contains': dataset.get('Contains', []),
     } for dataset in datasets]
     return jsonify(datasets_list)
