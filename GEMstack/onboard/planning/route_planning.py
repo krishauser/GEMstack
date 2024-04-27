@@ -4,7 +4,7 @@ from ...utils import serialization, settings
 from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph
 from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
-from .reeds_shepp import path_length, get_optimal_path, eval_path, rad2deg, precompute
+from .reeds_shepp_heuristic import path_length, get_optimal_path, eval_path, rad2deg, precompute
 from .obstacle_heuristic import obstacle_heuristic
 import os
 import copy

@@ -1,4 +1,6 @@
 import numpy as np
+import sys
+sys.path.append('../../onboard/planning/')
 from reeds_shepp import *
 from tqdm import tqdm
 
