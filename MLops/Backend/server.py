@@ -13,7 +13,7 @@ app = Flask(__name__)
 CORS(app)
 app.config['MODEL_UPLOAD_FOLDER'] = '../model'
 app.config['DATASET_UPLOAD_FOLDER'] = '../dataset'
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024 * 1024
 
 
 def load_config(file_path):
