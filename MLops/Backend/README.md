@@ -2,6 +2,7 @@
 
 Run `pip install -r requirements.txt` to install the required dependencies.
 
+## server.py  
 ## Introduction to API endpoints in Server
 
 ### /models/
@@ -83,6 +84,30 @@ Run `pip install -r requirements.txt` to install the required dependencies.
 - **Parameters:** 
   - `file`: The ROS bag file to upload.
 - **Returns:** JSON response including success message and details(including id and file name) of datasets created from the uploaded bag file. Returns an error if the file is not a `.bag` file or if file processing fails.
+
+
+## preprocess.py
+## ROS Bag Preprocessing Tool
+
+This tool is designed to preprocess input ROS bags and store them on a file server. It automates the conversion of various topic types from ROS bags into different formats suitable for further analysis or storage.
+
+### Supported Conversions
+
+#### OAK Front Camera Data:
+- **Raw data:** Convert to PNG images and MP4 video.
+- **Compressed images:** Convert to JPG images and MP4 video.
+
+#### Ouster Scan Point Cloud Data:
+- **Conversion:** Convert to PCD files and BIN files.
+
+#### Septentrio GNSS Data:
+- **Conversion:** Convert to GPX files.
+
+#### Septentrio IMU Data:
+- **Conversion:** Convert to JSON files.
+
+#### PacMod Topics:
+- **Conversion:** Convert to JSON files.
 
 # Running the Server
 Execute `python server.py` to run the Flask server.
