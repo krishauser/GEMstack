@@ -125,7 +125,7 @@ def retrieve_model(id):
 
 @app.route('/datasets', methods=['GET'])
 def list_all_datasets():
-    datasets = db.Data.find({}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1, 'Contains': 1})
+    datasets = db.Data.find({}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1, 'Contains': 1, 'DateTime': 1})
     datasets_list = [{
         '_id': str(dataset['_id']),
         'DataName': dataset['DataName'],
@@ -249,7 +249,7 @@ def upload_bag():
 
 @app.route('/datasets/<id>', methods=['GET'])
 def list_dataset_info(id):
-    dataset = db.Data.find_one({'_id': ObjectId(id)}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1, 'Contains': 1})
+    dataset = db.Data.find_one({'_id': ObjectId(id)}, {'_id': 1, 'DataName': 1, 'Path': 1, 'Description': 1, 'Contains': 1, 'DateTime': 1})
     if dataset:
         dataset['_id'] = str(dataset['_id'])
         return jsonify(dataset)
