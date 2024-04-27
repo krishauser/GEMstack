@@ -1,4 +1,0 @@
-requests
-tqdm
-pprintpp
-urllib3
