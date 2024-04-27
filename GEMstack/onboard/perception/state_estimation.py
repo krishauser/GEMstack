@@ -17,7 +17,6 @@ class GNSSStateEstimator(Component):
         self.vehicle_interface = vehicle_interface
         if 'gnss' not in vehicle_interface.sensors():
             raise RuntimeError("GNSS sensor not available")
-        vehicle_interface.subscribe_sensor('gnss', self.gnss_callback, GNSSReading)
         vehicle_interface.subscribe_sensor('gnss',self.gnss_callback,GNSSReading)
         self.gnss_pose = None
         self.location = settings.get('vehicle.calibration.gnss_location')[:2]
@@ -28,6 +27,7 @@ class GNSSStateEstimator(Component):
     # Get GNSS information
     def gnss_callback(self, reading : GNSSReading):
         self.gnss_pose = reading.pose
+        self.gnss_speed = reading.speed
         self.status = reading.status
     
     def rate(self):
@@ -61,8 +61,8 @@ class GNSSStateEstimator(Component):
         raw = readings.to_state(vehicle_pose_global)
 
         #filtering speed
-        filt_vel     = self.speed_filter(raw.v)
-        raw.v = filt_vel
+        # filt_vel     = self.speed_filter(raw.v)
+        raw.v = self.gnss_speed
         return raw
     
 
