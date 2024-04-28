@@ -56,5 +56,5 @@ components:
       inputs: all
       outputs: trajectory
   - trajectory_tracking:
-      inputs: [vehicle, trajectory]
+      inputs: [vehicle, trajectory, intent]
       outputs: 

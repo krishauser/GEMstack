@@ -6,13 +6,14 @@ from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
 from .reeds_shepp_heuristic import path_length, get_optimal_path, eval_path, rad2deg, precompute
 from .obstacle_heuristic import obstacle_heuristic
+from ...state.intent import VehicleIntent,VehicleIntentEnum
 import os
 import copy
 from time import time
 from dataclasses import replace
 from queue import PriorityQueue
 import numpy as np
-
+import math
 
 class StaticRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
@@ -78,6 +79,51 @@ class Node:
 
     def __lt__(self,other):
         return self.f() < other.f()
+    
+
+class PickupDropoffRoutePlanner(Component):
+    def __init__(self):
+        self.pullover_route = None
+        self.start_vehicle_pose = None
+
+    def create_pullover_trajectory(self, distance_forward, distance_right, steps=10):
+        res = []
+        for i in range(steps):
+            curr_forward = distance_forward * (i / (steps-1))
+            curr_right = (1 * math.cos((math.pi*curr_forward)/distance_forward) * distance_right)/2
+
+            res.append([curr_forward, curr_right])
+        return res
+
+    def state_inputs(self):
+        return ['all']
+
+    def state_outputs(self) -> List[str]:
+        return ['route']
+
+    def rate(self):
+        return 1.0
+
+    def update(self, state : AllState):
+        current_intent = state.intent.intent
+        route = Route(frame=ObjectFrameEnum.CURRENT,points=[[0,0],[0.0,0]])
+
+        if(current_intent is VehicleIntentEnum.DRIVING):
+            route = Route(frame=ObjectFrameEnum.CURRENT,points=[[0,0],[10,0]])
+
+        elif(current_intent is VehicleIntentEnum.PULL_OVER):
+            if(self.pullover_route is None):
+                #if state.start_vehicle_pose is None:
+                #    if state.vehicle != VehicleState.zero():
+                #        state.start_vehicle_pose = state.vehicle.pose
+
+                self.pullover_route = Route(frame=ObjectFrameEnum.CURRENT,points=self.create_pullover_trajectory(10, 4))
+                self.pullover_route = self.pullover_route.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
+            route = self.pullover_route
+    
+
+
+        return route
 
     
 class SearchNavigationRoutePlanner(Component):

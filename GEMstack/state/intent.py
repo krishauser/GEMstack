@@ -15,6 +15,10 @@ class VehicleIntentEnum(Enum):
     LEAVING_PARKING = 9        # normal driving, leaving a parking spot
     U_TURN = 10         # normal driving, executing U-turn outside of dedicated lane
 
+    PULL_OVER = 11      # normal driving, deciding to pull over to the curbside
+    PULL_OVER_PICKUP = 12     # normal driving, deciding to pull over to the curbside for a pickup
+    
+
 
 @dataclass
 @register
