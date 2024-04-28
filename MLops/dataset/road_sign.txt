@@ -1,3 +1,0 @@
-https://universe.roboflow.com/usmanchaudhry622-gmail-com/traffic-and-road-signs/dataset/1
-https://universe.roboflow.com/us-road-signs-projects/us-road-signs/dataset/72
-https://drive.google.com/drive/folders/1ryhb5_vqnzfu35OoJcFCJAkJltta5Dul
