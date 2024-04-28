@@ -1,137 +1,26 @@
 import os
 import rospy
-from sensor_msgs.msg import Image, PointCloud2
-from cv_bridge import CvBridge, CvBridgeError
-import sensor_msgs.point_cloud2 as pc2
 import cv2
 import numpy as np
+from sensor_msgs.msg import Image, PointCloud2
+from cv_bridge import CvBridge, CvBridgeError
 from ultralytics import YOLO
+from pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
+import sensor_msgs.point_cloud2 as pc2
 
 sobel_kernel_size = 3
 sobel_min_threshold = 90
 conf_val = 0.85
-
 MODEL_WEIGHT_PATH = 'parking_spot_detection.pt'
-model = YOLO(MODEL_WEIGHT_PATH)
-bbox_id_counter = 1
-bridge = CvBridge()
-
-from pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
-
-# Initialize handler
-handler = PixelWise3DLidarCoordHandler()
-
-def get_midpoint(p1, p2):
-    return ((p1[0] + p2[0]) // 2, (p1[1] + p2[1]) // 2)
-
-def draw_center_line(canvas):
-    height, width = canvas.shape[:2]  # Get the shape of the image
-    mid_x = width // 2  # Calculate the midpoint of width
-    mid_y = height // 2  # Calculate the midpoint of height
-        # Draw the middle line
-    cv2.line(canvas, (mid_x, 0), (mid_x, height), (255, 0, 0), 2)
-    return canvas
-
-# acute angle between midpoint box line and middle of the screen line
-def calculate_angle(point1, point2):
-    dx = point2[0] - point1[0]
-    dy = point2[1] - point1[1]
-    angle_radians = np.arctan2(dy, dx)
-    return angle_radians
-
-def draw_equidistant_line(points, canvas):
-    # Sort the points based on their y-values 
-    points = sorted(points, key=lambda x: x[1])
-
-    # Assume the first and last points after sorting belong to the longest lines
-    p1, p2 = points[0], points[2]  # top points of the box
-    p3, p4 = points[1], points[3]  # bottom points of the box
-
-    # Calculate midpoints
-    top_mid = get_midpoint(p1, p2)
-    bottom_mid = get_midpoint(p3, p4)
-
-    # Draw the red midpoint line
-    cv2.line(canvas, top_mid, bottom_mid, (0, 0, 255), 2)  
-
-    # Calculate the midpoint of the red line
-    red_line_midpoint = get_midpoint(top_mid, bottom_mid)
-
-    # Print the coordinate of the midpoint of the red line
-    print(f"Midpoint of the red line: {red_line_midpoint}")
-    
-    # Calculate the angle of the red line relative to the horizontal in radians
-    angle_red = calculate_angle(top_mid, bottom_mid)
-    # Compute the positive difference from π/2 radians (90 degrees in radians)
-    angle_between = abs(np.pi/2 - angle_red)  # Ensure the result is always positive
-    print(f"Angle between the red and blue lines: {angle_between} radians")
-
-    return canvas, angle_between
-
-
-def get_rotated_box_points(x, y, width, height, angle):
-    rectangle = np.array([[-width / 2, -height / 2], [width / 2, -height / 2],
-                          [width / 2, height / 2], [-width / 2, height / 2]])
-    rotation_matrix = np.array([[np.cos(angle), -np.sin(angle)],
-                                [np.sin(angle), np.cos(angle)]])
-    rotated_rectangle = np.dot(rectangle, rotation_matrix) + np.array([x, y])
-    return np.int0(rotated_rectangle)
-
-def empty_detect(img):
-    global model, bbox_id_counter
-    results = model(img)
-    for box, conf in zip(results[0].obb, results[0].obb.conf):
-        class_id = int(box.cls[0].item())
-        confidence = float(conf.item())
-        if class_id == 0 and confidence >= conf_val:
-            x, y, w, h, r = box.xywhr[0].tolist()
-            return (bbox_id_counter, x, y, w, h, r)
-    return None
-
-# sanity checking
-
-def perpendicular_distance(point, line_start, line_end):
-    # Calculate the distance of a point to a line defined by two points (line_start and line_end)
-    num = abs((line_end[1] - line_start[1]) * point[0] - (line_end[0] - line_start[0]) * point[1] + line_end[0] * line_start[1] - line_end[1] * line_start[0])
-    den = np.sqrt((line_end[1] - line_start[1])**2 + (line_end[0] - line_start[0])**2)
-    return num / den
-
-def ros_PointCloud2_to_numpy(pc2_msg, want_rgb=False):
-    if pc2 is None:
-        raise ImportError("ROS is not installed")
-    # gen = pc2.read_points(pc2_msg, skip_nans=True)
-    gen = pc2.read_points(pc2_msg, skip_nans=True, field_names=['x', 'y', 'z'])
-
-    if want_rgb:
-        xyzpack = np.array(list(gen), dtype=np.float32)
-        if xyzpack.shape[1] != 4:
-            raise ValueError(
-                "PointCloud2 does not have points with color data.")
-        xyzrgb = np.empty((xyzpack.shape[0], 6))
-        xyzrgb[:, :3] = xyzpack[:, :3]
-        for i, x in enumerate(xyzpack):
-            rgb = x[3]
-            # cast float32 to int so that bitwise operations are possible
-            s = struct.pack('>f', rgb)
-            i = struct.unpack('>l', s)[0]
-            # you can get back the float value by the inverse operations
-            pack = ctypes.c_uint32(i).value
-            r = (pack & 0x00FF0000) >> 16
-            g = (pack & 0x0000FF00) >> 8
-            b = (pack & 0x000000FF)
-            # r,g,b values in the 0-255 range
-            xyzrgb[i, 3:] = (r, g, b)
-        return xyzrgb
-    else:
-        return np.array(list(gen), dtype=np.float32)[:, :3]
 
 class ImageProcessorNode:
     def __init__(self):
         self.bridge = CvBridge()
+        self.model = YOLO(MODEL_WEIGHT_PATH)
+        self.handler = PixelWise3DLidarCoordHandler()
         self.image_pub = rospy.Publisher("/oak/rgb/modified_image", Image, queue_size=10)
         self.image_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, self.image_callback)
         self.lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.lidar_callback)
-        self.image = None
         self.point_cloud = None
 
     def lidar_callback(self, point_cloud):
@@ -147,61 +36,124 @@ class ImageProcessorNode:
         if self.point_cloud is None:
             return  # Wait until the point cloud is available
 
-        try:
-            numpy_point_cloud = ros_PointCloud2_to_numpy(self.point_cloud)  # Convert PointCloud2 to numpy array
-        except Exception as e:
-            print(f"PointCloud conversion error: {e}")
-            return
+        self.process_image(cv_image)
 
-        # Get 3D coordinates
-        coord_3d_map = handler.get3DCoord(cv_image, numpy_point_cloud)
-
-        # Continue with your existing image processing operations
+    def process_image(self, cv_image):
         canvas = cv_image.copy()
-        bbox_info = empty_detect(cv_image)
+        bbox_info = self.detect_empty(cv_image)
         if bbox_info:
-            id, x, y, w, h, r = bbox_info
-            points = get_rotated_box_points(x, y, w, h, -r)
+            self.apply_detections(canvas, bbox_info)
 
-            buffer = 20
-            x_min, y_min = np.min(points, axis=0)
-            x_max, y_max = np.max(points, axis=0)
-            x_min = max(x_min - buffer, 0)
-            y_min = max(y_min - buffer, 0)
-            x_max = min(x_max + buffer, cv_image.shape[1])
-            y_max = min(y_max + buffer, cv_image.shape[0])
-            cropped_image = cv_image[y_min:y_max, x_min:x_max]
+        try:
+            self.image_pub.publish(self.bridge.cv2_to_imgmsg(canvas, "bgr8"))
+        except CvBridgeError as e:
+            print("CvBridge Error during modified image publishing:", e)
 
-            gray = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2GRAY)
-            sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=sobel_kernel_size)
-            sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=sobel_kernel_size)
-            sobel = cv2.magnitude(sobelx, sobely)
+    def ros_PointCloud2_to_numpy(self, pc2_msg, want_rgb=False):
+        if pc2 is None:
+            raise ImportError("ROS is not installed")
+        # gen = pc2.read_points(pc2_msg, skip_nans=True)
+        gen = pc2.read_points(pc2_msg, skip_nans=True, field_names=['x', 'y', 'z'])
 
-            _, sobel_thresholded = cv2.threshold(sobel, sobel_min_threshold, 255, cv2.THRESH_BINARY)
+        if want_rgb:
+            xyzpack = np.array(list(gen), dtype=np.float32)
+            if xyzpack.shape[1] != 4:
+                raise ValueError(
+                    "PointCloud2 does not have points with color data.")
+            xyzrgb = np.empty((xyzpack.shape[0], 6))
+            xyzrgb[:, :3] = xyzpack[:, :3]
+            for i, x in enumerate(xyzpack):
+                rgb = x[3]
+                # cast float32 to int so that bitwise operations are possible
+                s = struct.pack('>f', rgb)
+                i = struct.unpack('>l', s)[0]
+                # you can get back the float value by the inverse operations
+                pack = ctypes.c_uint32(i).value
+                r = (pack & 0x00FF0000) >> 16
+                g = (pack & 0x0000FF00) >> 8
+                b = (pack & 0x000000FF)
+                # r,g,b values in the 0-255 range
+                xyzrgb[i, 3:] = (r, g, b)
+            return xyzrgb
+        else:
+            return np.array(list(gen), dtype=np.float32)[:, :3]
 
-            # Apply the green mask on detected lines in the original image within the bounding box
-            mask = (sobel_thresholded > 0)
-            canvas[y_min:y_max, x_min:x_max][mask] = [0, 255, 0]  # Green mask on detected lines
+    def detect_empty(self, img):
+        results = self.model(img)
+        for box, conf in zip(results[0].obb, results[0].obb.conf):
+            class_id, confidence = int(box.cls[0].item()), float(conf.item())
+            if class_id == 0 and confidence >= conf_val:
+                x, y, w, h, r = box.xywhr[0].tolist()
+                return (x, y, w, h, r)
+        return None
 
-            canvas,angle = draw_equidistant_line(points, canvas)
-            canvas = draw_center_line(canvas)
+    def apply_detections(self, canvas, bbox_info):
+        x, y, w, h, r = bbox_info
+        points = self.get_rotated_box_points(x, y, w, h, -r)
+        self.highlight_region(canvas, points)
+        self.draw_lines_and_calculate_angles(canvas, points)
 
-            # Get the midpoint of the red line
-            red_line_mid = get_midpoint(get_midpoint(points[0], points[2]), get_midpoint(points[1], points[3]))
+    def get_rotated_box_points(self, x, y, width, height, angle):
+        rectangle = np.array([[-width / 2, -height / 2], [width / 2, -height / 2],
+                              [width / 2, height / 2], [-width / 2, height / 2]])
+        rotation_matrix = np.array([[np.cos(angle), -np.sin(angle)],
+                                    [np.sin(angle), np.cos(angle)]])
+        rotated_rectangle = np.dot(rectangle, rotation_matrix) + np.array([x, y])
+        return np.int0(rotated_rectangle)
 
-            # Check if the handler and coord_3d_map are already available
-            if handler and self.point_cloud is not None:
-                numpy_point_cloud = ros_PointCloud2_to_numpy(self.point_cloud)
-                coord_3d_map = handler.get3DCoord(cv_image, numpy_point_cloud)
-                if 0 <= red_line_mid[0] < coord_3d_map.shape[1] and 0 <= red_line_mid[1] < coord_3d_map.shape[0]:
-                    red_line_mid_3d = coord_3d_map[red_line_mid[1], red_line_mid[0]]
-                    [x_3d,y_3d,z_3d] = red_line_mid_3d
-                    print(f"3D coordinates of the red line's midpoint:[{x_3d},{y_3d},{angle}]")
+    def highlight_region(self, canvas, points):
+        buffer = 20
+        x_min, y_min = np.min(points, axis=0)
+        x_max, y_max = np.max(points, axis=0)
+        x_min = max(x_min - buffer, 0)
+        y_min = max(y_min - buffer, 0)
+        x_max = min(x_max + buffer, canvas.shape[1])
+        y_max = min(y_max + buffer, canvas.shape[0])
+        cropped_image = canvas[y_min:y_max, x_min:x_max]
+        gray = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2GRAY)
+        sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=sobel_kernel_size)
+        sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=sobel_kernel_size)
+        sobel = cv2.magnitude(sobelx, sobely)
+        _, sobel_thresholded = cv2.threshold(sobel, sobel_min_threshold, 255, cv2.THRESH_BINARY)
+        mask = (sobel_thresholded > 0)
+        canvas[y_min:y_max, x_min:x_max][mask] = [0, 255, 0]  # Green mask on detected lines
 
-            try:
-                self.image_pub.publish(self.bridge.cv2_to_imgmsg(canvas, "bgr8"))
-            except CvBridgeError as e:
-                print("CvBridge Error during modified image publishing:", e)
+    def draw_lines_and_calculate_angles(self, canvas, points):
+        # Sort points to determine top and bottom midpoints
+        points = sorted(points, key=lambda x: x[1])
+        p1, p2 = points[0], points[2]  # Top points of the box
+        p3, p4 = points[1], points[3]  # Bottom points of the box
+        
+        # Calculate midpoints of the top and bottom line segments
+        top_mid = ((p1[0] + p2[0]) // 2, (p1[1] + p2[1]) // 2)
+        bottom_mid = ((p3[0] + p4[0]) // 2, (p3[1] + p4[1]) // 2)
+        
+        # Draw the red line between midpoints
+        cv2.line(canvas, top_mid, bottom_mid, (0, 0, 255), 2)
+        
+        # Calculate the midpoint of the red line
+        red_line_mid = ((top_mid[0] + bottom_mid[0]) // 2, (top_mid[1] + bottom_mid[1]) // 2)
+        print(f"Midpoint of the red line: {red_line_mid}")
+        
+        # Draw the center blue line
+        mid_x = canvas.shape[1] // 2
+        cv2.line(canvas, (mid_x, 0), (mid_x, canvas.shape[0]), (255, 0, 0), 2)
+        
+        # Calculate angle of the red line relative to the vertical center line
+        dx = top_mid[0] - bottom_mid[0]
+        dy = top_mid[1] - bottom_mid[1]
+        angle_radians = np.arctan2(dy, dx)
+        angle_from_vertical = abs(np.pi / 2 - angle_radians)
+        
+        # Use handler to get 3D coordinates of the red line midpoint
+        if self.point_cloud:
+            numpy_point_cloud = self.ros_PointCloud2_to_numpy(self.point_cloud)
+            coord_3d_map = self.handler.get3DCoord(canvas, numpy_point_cloud)
+            if 0 <= red_line_mid[0] < coord_3d_map.shape[1] and 0 <= red_line_mid[1] < coord_3d_map.shape[0]:
+                red_line_mid_3d = coord_3d_map[red_line_mid[1], red_line_mid[0]]
+                print(f"3D coordinates of the red line's midpoint: [{red_line_mid_3d[0]}, {red_line_mid_3d[1]}, {angle_from_vertical}]")
+
+        return canvas
 
 if __name__ == '__main__':
     rospy.init_node('image_processor', anonymous=True)
