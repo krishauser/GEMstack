@@ -6,13 +6,15 @@ from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
 from .reeds_shepp_heuristic import path_length, get_optimal_path, eval_path, rad2deg, precompute
 from .obstacle_heuristic import obstacle_heuristic
+from ...state.intent import VehicleIntent,VehicleIntentEnum
 import os
 import copy
 from time import time
 from dataclasses import replace
 from queue import PriorityQueue
 import numpy as np
-
+import math
+from ...state.physical_object import ObjectFrameEnum, convert_point
 
 class StaticRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
@@ -78,6 +80,69 @@ class Node:
 
     def __lt__(self,other):
         return self.f() < other.f()
+    
+
+class PickupDropoffRoutePlanner(Component):
+    def __init__(self):
+        self.pullover_route = None
+        self.start_vehicle_pose = None
+
+    def state_inputs(self):
+        return ['all']
+
+    def state_outputs(self) -> List[str]:
+        return ['route']
+
+    def rate(self):
+        return 1.0
+
+    def update(self, state : AllState):
+        current_intent = state.intent.intent
+        route = Route(frame=ObjectFrameEnum.CURRENT,points=[[0.0,0]])
+
+        if(current_intent is VehicleIntentEnum.DRIVING):
+            route = Route(frame=ObjectFrameEnum.CURRENT,points=[[0,0],[10,0]])
+
+        elif(current_intent is VehicleIntentEnum.PULL_OVER):
+
+            # TODO: An option should be added to use the A* planner here. 
+
+            if(self.pullover_route is None):
+                intent_current_frame = state.intent.to_frame(ObjectFrameEnum.CURRENT, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
+                pts = self.create_pullover_trajectory_from_endpoint(intent_current_frame.pullover_target[0], intent_current_frame.pullover_target[1])
+                p_route = Route(frame=ObjectFrameEnum.CURRENT,points=pts)
+                self.pullover_route  = p_route.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
+            route = self.pullover_route
+
+        return route
+
+    def create_pullover_trajectory(self, distance_forward, distance_right, steps=20, drive_length=4, parking_length=4):
+        res = []
+        for i in range(int(steps+1)):
+            u = i / steps
+            res.append([u * drive_length, 0])
+
+        for i in range(steps+1):
+            curr_forward = distance_forward * (i / (steps))
+            curr_right = (-1 * math.cos((math.pi*curr_forward)/distance_forward) * distance_right)/2
+            curr_right = curr_right + (distance_right/2)
+
+            res.append([curr_forward + drive_length, curr_right])
+
+        last_res = res[-1]
+        for i in range(int(steps+1)):
+            u = i / steps
+            res.append([last_res[0]+(u*parking_length), last_res[1]])
+        
+        return res
+    
+    def create_pullover_trajectory_from_endpoint(self, endpoint_forward, endpoint_right):
+        distance_forward = 4
+        distance_right = endpoint_right
+        parking_length = 2
+        drive_length = endpoint_forward - (distance_forward + parking_length)
+        return self.create_pullover_trajectory(distance_forward=distance_forward, distance_right=distance_right,\
+                                                drive_length=drive_length, parking_length=parking_length)
 
     
 class SearchNavigationRoutePlanner(Component):
