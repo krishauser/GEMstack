@@ -4,7 +4,6 @@ from ...mathutils import transforms
 from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
 from ...state.vehicle import VehicleState,ObjectFrameEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
-from ...state.intent import VehicleIntent,VehicleIntentEnum
 from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
 from ..component import Component
@@ -215,4 +214,3 @@ class PurePursuitTrajectoryTracker(Component):
     
     def healthy(self):
         return self.pure_pursuit.path is not None
-        
