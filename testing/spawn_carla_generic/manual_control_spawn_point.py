@@ -237,7 +237,7 @@ class World(object):
             carla.MapLayer.All
         ]
         os.makedirs("../recordings", exist_ok=True)
-        self.filename = "../recordings/recording.txt"
+        self.filename = "../recordings/recording_2.txt"
         self.meta_recorded = False
 
     def restart(self):
@@ -278,15 +278,26 @@ class World(object):
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         while self.player is None:
-            if not self.map.get_spawn_points():
-                print('There are no spawn points available in your map/town.')
-                print('Please add some Vehicle Spawn Point to your UE4 scene.')
-                sys.exit(1)
-            spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            # Read spawn points from the JSON file
+            with open('../recordings/recording.json', 'r') as file:
+                data = json.load(file)
+                first_waypoint = data['Waypoints'][0]['Waypoint']
+                location = first_waypoint['Location']
+                rotation = first_waypoint['Rotation']
+                spawn_location = carla.Location(x=location[0], y=location[1], z=location[2]+2)
+                spawn_rotation = carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2])
+                spawn_point = carla.Transform(spawn_location, spawn_rotation)
+
+            # Try to spawn the player at the read spawn point
             self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
-            self.show_vehicle_telemetry = False
+            if self.player is None:
+                print("Failed to spawn the vehicle at the specified spawn point.")
+                continue  # or handle the failure case appropriately
+
+            # Assuming you have a method to modify vehicle physics
             self.modify_vehicle_physics(self.player)
+
+            self.show_vehicle_telemetry = False
         # Set up the sensors.
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
@@ -494,11 +505,11 @@ class KeyboardControl(object):
 
                         world.meta_recorded = True
 
+                    else:
+                        world.hud.notification("Recording data")
+                        t = waypoint.transform
 
-                    world.hud.notification("Recording data")
-                    t = waypoint.transform
-
-                    waypoint_data = {
+                        waypoint_data = {
                             'Mode': mode,  # Add your mode value here,
                             'Waypoint': {
                                 'id': waypoint.id,
@@ -520,7 +531,7 @@ class KeyboardControl(object):
 
                         }
 
-                    with open(filename, 'r+') as file:
+                        with open(filename, 'r+') as file:
                             data = json.load(file)  # Load existing data
                             data['Waypoints'].append(waypoint_data)  # Append new waypoint
                             file.seek(0)  # Go back to the start of the file

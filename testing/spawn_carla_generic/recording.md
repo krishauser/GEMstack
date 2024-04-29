@@ -13,3 +13,8 @@ Frame 2 at 0.0162233 seconds. Stopped time: 1.2001066999999999s
   Id: 191 Location: (5554.23, 13046, 0.0272141) Rotation: (0, 0, -179.68)
 Frame 80 at 1.21633 seconds
   Id: 191 Location: (5554.23, 13046, 0.0236549) Rotation: (0, 0, -179.68)
+
+---
+
+Run tes_recorder.py to record to file ../recordigns/recording.json
+Run manual_contraol_spawn_point.py to spawn a car at the location in the recording file.
