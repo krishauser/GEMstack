@@ -16,9 +16,9 @@ drive:
         roadgraph_update: 
             type: StaticRoadgraphUpdater
             args: [!relative_path "../GEMstack/knowledge/roadmaps/curbside_scenario_1.json", True]
+    planning:
         driving_logic:
             type: DrivingLogicIntent
-    planning:
         route_planning:
             type: PickupDropoffRoutePlanner
             #args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv']
