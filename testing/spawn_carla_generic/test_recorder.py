@@ -397,7 +397,7 @@ class KeyboardControl(object):
         self._steer_cache = 0.0
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
-    def parse_events(self, client, world, clock, sync_mode):
+    def parse_events(self, client, world, clock, sync_mode, mode=''):
         if isinstance(self._control, carla.VehicleControl):
             current_lights = self._lights
         for event in pygame.event.get():
@@ -482,7 +482,7 @@ class KeyboardControl(object):
                     if not world.meta_recorded:
                         world.hud.notification("Starting to record data")
                         metadata = {
-                            "Description": "TODO",
+                            "Description/Mode": mode,
                             "Map": world.map.name.split('/')[-1],
                             "Weather and time": str(world._weather_presets[world._weather_index][1]),
                             "Traffic condition": "TODO",
@@ -499,21 +499,25 @@ class KeyboardControl(object):
                         t = waypoint.transform
 
                         waypoint_data = {
-                            'id': waypoint.id,
-                            'Location': (t.location.x, t.location.y, t.location.z),
-                            'Rotation': (t.rotation.pitch, t.rotation.yaw, t.rotation.roll),
-                            'Road ID': waypoint.road_id,
-                            'Lane ID': waypoint.lane_id,
-                            'Section ID': waypoint.section_id,
-                            's': waypoint.s,
-                            'Is Junction': waypoint.is_junction,
-                            'Lane Width': waypoint.lane_width,
-                            'Lane Type': waypoint.lane_type.name,  # Assuming enum to str conversion
-                            'Lane Change': waypoint.lane_change.name,  # Assuming enum to str conversion
-                            'Right Lane Marking': waypoint.right_lane_marking.type.name,
-                            # Assuming enum to str conversion
-                            'Left Lane Marking': waypoint.left_lane_marking.type.name,
-                            # Assuming enum to str conversion
+                            'Mode': mode,  # Add your mode value here,
+                            'Waypoint': {
+                                'id': waypoint.id,
+                                'Location': (t.location.x, t.location.y, t.location.z),
+                                'Rotation': (t.rotation.pitch, t.rotation.yaw, t.rotation.roll),
+                                'Road ID': waypoint.road_id,
+                                'Lane ID': waypoint.lane_id,
+                                'Section ID': waypoint.section_id,
+                                's': waypoint.s,
+                                'Is Junction': waypoint.is_junction,
+                                'Lane Width': waypoint.lane_width,
+                                'Lane Type': waypoint.lane_type.name,  # Assuming enum to str conversion
+                                'Lane Change': waypoint.lane_change.name,  # Assuming enum to str conversion
+                                'Right Lane Marking': waypoint.right_lane_marking.type.name,
+                                # Assuming enum to str conversion
+                                'Left Lane Marking': waypoint.left_lane_marking.type.name,
+                                # Assuming enum to str conversion
+                            },
+
                         }
 
                         with open(filename, 'r+') as file:
@@ -1352,7 +1356,7 @@ def game_loop(args):
             if args.sync:
                 sim_world.tick()
             clock.tick_busy_loop(60)
-            if controller.parse_events(client, world, clock, args.sync):
+            if controller.parse_events(client, world, clock, args.sync, args.mode):
                 return
             world.tick(clock)
             world.render(display)
@@ -1430,6 +1434,8 @@ def main():
         '--sync',
         action='store_true',
         help='Activate synchronous mode execution')
+    argparser.add_argument("--mode", default="TODO", type=str)
+
     args = argparser.parse_args()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
@@ -1452,6 +1458,6 @@ def main():
 if __name__ == '__main__':
     # add args for user specified experiment name
     parser = argparse.ArgumentParser()
-    parser.add_argument("--description", default="TODO", type=str)
+    parser.add_argument("--mode", default="TODO", type=str)
     args = parser.parse_args()
     main()
