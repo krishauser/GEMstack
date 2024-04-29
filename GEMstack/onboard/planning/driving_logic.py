@@ -34,7 +34,7 @@ class DrivingLogicIntent(Component):
         return ['intent']
 
     def rate(self):
-        return 0.5
+        return 2.0
 
     def update(self, all_state):
         

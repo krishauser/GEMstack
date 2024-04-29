@@ -98,7 +98,7 @@ class PickupDropoffRoutePlanner(Component):
 
     def update(self, state : AllState):
         current_intent = state.intent.intent
-        route = Route(frame=ObjectFrameEnum.CURRENT,points=[[0,0],[0.0,0]])
+        route = Route(frame=ObjectFrameEnum.CURRENT,points=[[0.0,0]])
 
         if(current_intent is VehicleIntentEnum.DRIVING):
             route = Route(frame=ObjectFrameEnum.CURRENT,points=[[0,0],[10,0]])

@@ -200,23 +200,18 @@ class PurePursuitTrajectoryTracker(Component):
         return 50.0
 
     def state_inputs(self):
-        return ['vehicle','trajectory', 'intent']
+        return ['vehicle','trajectory']
 
     def state_outputs(self):
         return []
 
-    def update(self, vehicle : VehicleState, trajectory: Trajectory, intent: VehicleIntent):
-
-        if(intent.intent is VehicleIntentEnum.IDLE):
-            if(vehicle.v > 0.0):
-                self.vehicle_interface.send_command(self.vehicle_interface.simple_command(-1.0, 0.0, vehicle))
-        else: 
-            self.pure_pursuit.set_path(trajectory)
-            accel,wheel_angle = self.pure_pursuit.compute(vehicle, self)
-            #print("Desired wheel angle",wheel_angle)
-            steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
-            #print("Desired steering angle",steering_angle)
-            self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
+    def update(self, vehicle : VehicleState, trajectory: Trajectory):
+        self.pure_pursuit.set_path(trajectory)
+        accel,wheel_angle = self.pure_pursuit.compute(vehicle, self)
+        #print("Desired wheel angle",wheel_angle)
+        steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
+        #print("Desired steering angle",steering_angle)
+        self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
     
     def healthy(self):
         return self.pure_pursuit.path is not None
