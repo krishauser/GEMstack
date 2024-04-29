@@ -29,6 +29,13 @@ class AllState(SceneState):
     intent : VehicleIntent = field(default_factory=VehicleIntent)
     route : Optional[Route] = None
     trajectory : Optional[Trajectory] = None
+
+    # added state
+    # for parking
+    parking_slot : Optional[ObjectPose] = None
+    # for normal road driving
+    lane_goal: Optional[ObjectPose] = None
+    lane_bound: Optional[List[float]] = None
     
     # update times for perception items (time.time())
     vehicle_update_time : float = 0
