@@ -5,6 +5,7 @@ from klampt import Geometry3D, GeometricPrimitive, TriangleMesh
 import numpy as np
 from . import settings
 from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,AgentEnum,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
+from ..state.intent import VehicleIntent, VehicleIntentEnum
 
 OBJECT_COLORS = {
     AgentEnum.CAR : (1,1,0,1),
@@ -251,6 +252,25 @@ def plot_roadgraph(roadgraph : Roadgraph, route : Route = None):
     for k,o in roadgraph.static_obstacles.items():
         plot_object(k,o)
 
+def plot_intent(intent: VehicleIntent):
+    if intent.intent == VehicleIntentEnum.DRIVING:
+        vis.addText("intent","Driving",position=(1,1),color=(0,1,0,1))
+    elif intent.intent == VehicleIntentEnum.PULL_OVER:
+        vis.addText("intent","Pulling over",position=(1,1),color=(1,0,0,1))
+
+        style = {'color':(0.5,1,0.5,0.5),'width':5,'pointSize':1}
+        points = [[intent.pullover_target[0]+1.0,intent.pullover_target[1] + 1.0],
+                  [intent.pullover_target[0]-1.0,intent.pullover_target[1] + 1.0],
+                  [intent.pullover_target[0]-1.0,intent.pullover_target[1] - 1.0],
+                  [intent.pullover_target[0]+1.0,intent.pullover_target[1] - 1.0]]
+        pts = points + [points[0]]
+        vis.add("Intent_pullover_target", pts, **style)
+
+    elif intent.intent == VehicleIntentEnum.IDLE:
+        vis.addText("intent","Idle",position=(1,1),color=(0,0,1,1))
+    else:
+        vis.addText("intent","Unknown",position=(1,1),color=(0,0,0,1))
+
 def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = None, title = None, show=True):
     for i in list(vis.scene().items.keys()):
         if not i.startswith("vehicle"):
@@ -271,6 +291,10 @@ def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = No
     plot_roadgraph(scene.roadgraph,scene.route)
     #plot vehicle and objects
     plot_vehicle(scene.vehicle, vehicle_model)
+
+    # Plot intent
+    plot_intent(scene.intent)
+
     for k,a in scene.agents.items():
         plot_object(k,a,type=a.type)
     for k,o in scene.obstacles.items():

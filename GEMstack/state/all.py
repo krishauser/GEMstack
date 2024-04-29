@@ -64,6 +64,7 @@ class AllState(SceneState):
         spose = self.start_vehicle_pose
         scene_to_frame = SceneState.to_frame(self,frame,current_pose=self.vehicle.pose,start_pose_abs=spose)
         new_intents = None if self.agent_intents is None else dict((k,v.to_frame(frame,current_pose=self.vehicle.pose,start_pose_abs=spose)) for k,v in self.agent_intents.items())
+        new_intent = None if self.intent is None else self.intent.to_frame(frame,current_pose=self.vehicle.pose,start_pose_abs=spose)
         new_route = None if self.route is None else self.route.to_frame(frame,current_pose=self.vehicle.pose,start_pose_abs=spose)
         new_trajectory = None if self.trajectory is None else self.trajectory.to_frame(frame,current_pose=self.vehicle.pose,start_pose_abs=spose)
-        return replace(scene_to_frame, agent_intents = new_intents, route = new_route, trajectory = new_trajectory)
+        return replace(scene_to_frame, agent_intents = new_intents, route = new_route, trajectory = new_trajectory, intent=new_intent)

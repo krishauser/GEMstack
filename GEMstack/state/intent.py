@@ -1,6 +1,9 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from ..utils.serialization import register
 from enum import Enum
+from .physical_object import ObjectFrameEnum, convert_point
+from dataclasses import dataclass, replace, field, asdict
 
 class VehicleIntentEnum(Enum):
     IDLE = 0            # stopped, parked, or waiting
@@ -25,3 +28,9 @@ class VehicleIntentEnum(Enum):
 class VehicleIntent:
     intent : VehicleIntentEnum = VehicleIntentEnum.IDLE
     entity : str = ''    # a scene entity referred to by the X_SIGN, LANE_CHANGE_X, MERGING, and XPARKING intents
+
+    frame : ObjectFrameEnum = None
+    pullover_target : list = None # a target location for the intent, e.g., for pullover
+
+    def to_frame(self, frame: ObjectFrameEnum, current_pose = None, start_pose_abs = None) -> VehicleIntent:
+        return replace(self, pullover_target=convert_point(self.pullover_target, self.frame, frame, current_pose, start_pose_abs) if self.pullover_target is not None else None)
