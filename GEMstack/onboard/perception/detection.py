@@ -9,7 +9,6 @@ from ultralytics import YOLO
 import cv2
 import numpy as np
 from typing import Dict
-import multiprocessing
 import copy
 import time
 
@@ -55,33 +54,18 @@ class Detector(Component):
         agent_detector = AgentDetector(vehicle, self.camera_image, self.lidar_point_cloud)
         sign_detector = SignDetector(vehicle, self.camera_image, self.lidar_point_cloud)
 
-        mp_dict = multiprocessing.Manager().dict() # to get states from the detection modules
-
-        def run_agent_detection():
-            mp_dict['agents'] = agent_detector.detect_agents()
-
-        def run_sign_detection():
-            mp_dict['signs'] = sign_detector.detect_signs()
-
-        p1 = multiprocessing.Process(target=run_agent_detection)
-        p2 = multiprocessing.Process(target=run_sign_detection)
-
         t1 = time.time()
 
-        # start the detection processes
-        p1.start()
-        p2.start()
-
-        # wait for them complete
-        p1.join()
-        p2.join()
+        agent_states = agent_detector.detect_agents()
 
         t2 = time.time()
 
-        print('Detection time:', t2 - t1)
+        sign_states = sign_detector.detect_signs()
 
-        self.object_states = mp_dict['agents'] + mp_dict['signs']
+        t3 = time.time()
+        print('Detection times: {0:.6f}, {1:.6f}'.format(t2 - t1, t3 - t2))
 
-        # incorporate agent tracking for demo?
+        # TODO: call agent tracking function here?
 
+        self.object_states = agent_states + sign_states
         return self.object_states

@@ -7,6 +7,7 @@ from .pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
 
 from ultralytics import YOLO
 import numpy as np
+import math
 
 
 class ObjectDetector():
@@ -22,7 +23,9 @@ class ObjectDetector():
         """Creates a PhysicalObject from a (x,y,w,h) bounding box."""
 
         x, y, w, h = bbox_xywh
-        # print('Bbox: [{.2f}, {.2f}, {.2f}, {.2f}]'.format(x,y,w,h))
+        x = round(bbox_xywh[0])
+        y = round(bbox_xywh[1])
+        # print('Bbox: [{0}, {1}, {2:.3f}, {3:.3f}]'.format(x, y, w, h))
 
         # Obtain 3d world coordinates for all pixels in the image
         handler = PixelWise3DLidarCoordHandler()
@@ -30,8 +33,8 @@ class ObjectDetector():
 
         # Filter points in bbox
         points = []
-        for i in range(x - w/2, x + w/2 + 1):
-            for j in range(y - h/2, y + h/2 + 1):
+        for i in range(x - math.ceil(w/2), x + math.ceil(w/2) + 1):
+            for j in range(y - math.ceil(h/2), y + math.ceil(h/2) + 1):
                 # if 3d coord is (0,0,0) ==> pixel is too close to the car (no lidar data available)
                 if any(all_points[j][i]):
                     points.append(all_points[j][i])
@@ -48,7 +51,7 @@ class ObjectDetector():
         pose = ObjectPose(t=0, x=center[0], y=center[1], z=center[2] - dimensions[2]/2, 
                           yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
         
-        return PhysicalObject(pose=pose, dimensions=tuple(dimensions))
+        return PhysicalObject(pose=pose, dimensions=tuple(dimensions), outline=None)
 
     def detect_objects(self, class_ids):
         detection_result = self.detector(self.camera_image, classes=class_ids, verbose=False)

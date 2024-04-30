@@ -30,7 +30,7 @@ class AgentDetector(ObjectDetector):
         }
         return AgentState(pose=detected_object.pose, dimensions=detected_object.dimensions, outline=None, 
                           type=type_dict[str(int(bbox_cls))], activity=AgentActivityEnum.STOPPED, 
-                          velocity=(0,0,0), yaw_rate=0)
+                          velocity=(0,0,0), yaw_rate=0, attributes=None)
 
     def detect_agents(self):
         yolo_class_ids = [
