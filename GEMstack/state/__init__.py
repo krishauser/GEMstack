@@ -24,7 +24,7 @@ from .trajectory import Path,Trajectory
 from .vehicle import VehicleState,VehicleGearEnum
 from .roadgraph import Roadgraph, RoadgraphLane, RoadgraphCurve, RoadgraphRegion, RoadgraphCurveEnum, RoadgraphLaneEnum, RoadgraphRegionEnum, RoadgraphSurfaceEnum, RoadgraphConnectionEnum
 from .obstacle import Obstacle, ObstacleMaterialEnum
-from .sign import Sign, SignEnum, SignalLightEnum, SignState
+from .sign import Sign, SignEnum, SignalLightEnum, SignalLightState, SignState
 from .roadmap import Roadmap
 from .agent import AgentState, AgentEnum, AgentActivityEnum, AgentAttributesFlag
 from .scene import SceneState

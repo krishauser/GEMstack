@@ -1,4 +1,4 @@
-from ...state import AllState,VehicleState,ObjectPose,SignState,SignEnum,SignalLightEnum,SignalLightEnum,SignalLightState,Sign
+from ...state import AllState,VehicleState,ObjectPose,SignState,SignEnum,SignalLightEnum,SignalLightState,Sign
 from ...utils import settings
 from ...mathutils import collisions
 from ..interface.gem import GEMInterface
