@@ -28,11 +28,6 @@ import cv2
 import numpy as np
 from ...utils import conversions
 
-BASE_LON = -88
-BASE_LAT = 40
-GARBAGE_THRESH = 3 #degrees
-
-
 @dataclass 
 class GNSSReading:
     pose : ObjectPose
@@ -247,43 +242,21 @@ class GEMHardwareInterface(GEMInterface):
                     callback(cv_image)
                 self.front_depth_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
         elif name == 'Vioslam':
-            #### check for gps garbage values
-            def callback_gnss_garb(msg: INSNavGeod):
-                lon, lat =math.degrees(msg.longitude), math.degrees(msg.latitude)
-                if abs(lon-BASE_LON)>GARBAGE_THRESH or abs(lat-BASE_LAT)>GARBAGE_THRESH:
-                    self.gps_trash = True
-                else: self.gps_trash = False
-            self.gnss_garb_sub = rospy.Subscriber('/septentrio_gnss/insnavgeod', INSNavGeod, callback_gnss_garb)
-
-            if self.gps_trash: # use vio
-                topic = self.ros_sensor_topics[name]
-                def callback_with_Vioslam_reading(msg : Odometry):
-                    # position
-                    x=msg.pose.pose.position.x
-                    y=msg.pose.pose.position.y
-                    z=msg.pose.pose.position.z
-                    # orientation quaternion
-                    xw = msg.pose.pose.orientation.x
-                    yw = msg.pose.pose.orientation.y
-                    zw = msg.pose.pose.orientation.z
-                    w = msg.pose.pose.orientation.w
-                    [roll, pitch, yaw] = transforms.quaternion_to_euler(xw, yw, zw, w)
-                    start_pose = ObjectPose(ObjectFrameEnum.START,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
-                    callback(VioslamReading(start_pose,'ok'))
-                self.Vioslam_sub = rospy.Subscriber(topic, Odometry, callback_with_Vioslam_reading)
-            else: #use gps
-                def callback_with_gnss_reading(msg: INSNavGeod):
-                    pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-                                t = self.time(),
-                                x=msg.longitude,
-                                y=msg.latitude,
-                                z=msg.height,
-                                yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
-                                roll=math.radians(msg.roll),
-                                pitch=math.radians(msg.pitch),
-                                )
-                    callback(VioslamReading(pose,'error' if msg.error else 'ok'))
-                self.gnss_sub = rospy.Subscriber('/septentrio_gnss/insnavgeod', INSNavGeod, callback_with_gnss_reading)
+            topic = self.ros_sensor_topics[name]
+            def callback_with_Vioslam_reading(msg : Odometry):
+                # position
+                x=msg.pose.pose.position.x
+                y=msg.pose.pose.position.y
+                z=msg.pose.pose.position.z
+                # orientation quaternion
+                xw = msg.pose.pose.orientation.x
+                yw = msg.pose.pose.orientation.y
+                zw = msg.pose.pose.orientation.z
+                w = msg.pose.pose.orientation.w
+                [roll, pitch, yaw] = transforms.quaternion_to_euler(xw, yw, zw, w)
+                start_pose = ObjectPose(ObjectFrameEnum.START,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
+                callback(VioslamReading(start_pose,'ok'))
+            self.Vioslam_sub = rospy.Subscriber(topic, Odometry, callback_with_Vioslam_reading)
 
 
     # PACMod enable callback function
