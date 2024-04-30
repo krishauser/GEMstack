@@ -132,13 +132,13 @@ class PedestrianDetector():
         self.previous_agents = {}
 
         # init transformation parameters
-        extrinsic = np.loadtxt("../GEMstack/GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt")
+        extrinsic = np.loadtxt("../GEMstack/GEMstack/knowledge/calibration/gem_e4_lidar2oak_latest.txt")
 
         self.extrinsic = np.array(extrinsic)
         intrinsic = np.loadtxt("../GEMstack/GEMstack/knowledge/calibration/gem_e4_intrinsic.txt")
         self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
-        lidar2vehicle_path = os.path.join(abs_path, '../GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt')
+        lidar2vehicle_path = os.path.join(abs_path, '../GEMstack/knowledge/calibration/gem_e4_lidar2vehicle_latest.txt')
         T_lidar2_Gem = np.loadtxt(lidar2vehicle_path)
         self.T_lidar2_Gem = np.asarray(T_lidar2_Gem)
 
@@ -185,49 +185,86 @@ class PedestrianDetector():
             cv2.circle(vis, center, radius, color, cv2.FILLED)
         return vis
 
-    def detect_agents(self, img, pc_3D):
+    def detect_agents(self, frame, pc_3D):
         if self.zed_image is None:
             return
 
         rospy.loginfo("Detecting agents...")
 
-        vis = img.copy()
-
         t1 = time.time()
-        detection_result = self.detector(img, verbose=False)
+        results = self.detector(frame, verbose=False)
         rospy.loginfo('Detection time: %s', str(time.time() - t1))
 
         target_ids = [0, 2, 11]  # Target class IDs
         class_names = {0: "pedestrian", 2: "car", 11: "stop sign"}
 
         start_t = time.time()
-        coord_3d_map = self.coord_3d_handler.get3DCoord(img, pc_3D)
+        coord_3d_map = self.coord_3d_handler.get3DCoord(frame, pc_3D)
         rospy.loginfo('PixelWise3DLidarCoordHandler time: %s', str(time.time() - start_t))
 
-        for box in detection_result[0].boxes:
-            class_id = int(box.cls[0].item())
-            if class_id in target_ids:
-                bbox = box.xywh[0].tolist()
-                x, y, w, h = bbox
-                xmin, xmax = x - w / 2, x + w / 2
-                ymin, ymax = y - h / 2, y + h / 2
+        annotator = Annotator(frame, line_width=2)
+        detect_ids = [0]
+        boxes = results[0].boxes.xyxy.cpu()
+        clss = results[0].boxes.cls.cpu().tolist()
+        for box, class_id in zip(boxes, clss):
+            print ("box:", box)
+            # class_id = int(box.cls[0].item())
+            if class_id not in detect_ids:
+                continue
+            
+            class_name = class_names[int(class_id)]
+            color = colors(int(class_id), True)
+            class_name = class_names[int(class_id)]
+            label = f"{class_name} "
+            
+            x1,y1,x2,y2 = box
+            center_x = (x1 + x2) / 2
+            center_y = (y1 + y2) / 2
+            
+            width = x2 - x1
+            height = y2 - y1
+            x1s = int(x1 + width // 4)
+            x2s = int(x1 + width // 4 * 3)
+            y1s = int(y1 + height // 4)
+            y2s = int(y1 + height // 4 * 3)
+            
+            cv2.rectangle(frame, (x1s, y1s), (x2s, y2s), (0, 255, 0), thickness=2)
+            
+            small_coord_3d_map = coord_3d_map[y1s:y2s, x1s:x2s]
+            coord_3d = [0, 0, 0]
+            for i in range(3): # channels
+                coord_3d[i] = np.median(small_coord_3d_map[:, :, i])
+            
+            x_3d, y_3d, z_3d = coord_3d
+            
+            # x_3d, y_3d, z_3d = coord_3d_map[int(center_y)][int(center_x)]
+            label = label + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
+            annotator.box_label(box, color=color, label=label)
+
+        # for box in detection_result[0].boxes:
+        #     class_id = int(box.cls[0].item())
+        #     if class_id in target_ids:
+        #         bbox = box.xywh[0].tolist()
+        #         x, y, w, h = bbox
+        #         xmin, xmax = x - w / 2, x + w / 2
+        #         ymin, ymax = y - h / 2, y + h / 2
                 
-                text = class_names[class_id]
-                if class_id == 0:
-                    print (f'pedestrian x: {x}, y: {y}')
-                    x_3d, y_3d, z_3d = coord_3d_map[int(y)][int(x)]
-                    text = text + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
+        #         text = class_names[class_id]
+        #         if class_id == 0:
+        #             print (f'pedestrian x: {x}, y: {y}')
+        #             x_3d, y_3d, z_3d = coord_3d_map[int(y)][int(x)]
+        #             text = text + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
                     
-                # draw bbox
-                color = (255, 0, 255)
-                left_up = (int(x - w / 2), int(y - h / 2))
-                right_bottom = (int(x + w / 2), int(y + h / 2))
-                cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
-                cv2.putText(vis, text, (left_up[0], left_up[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                            color, 2)
+        #         # draw bbox
+        #         color = (255, 0, 255)
+        #         left_up = (int(x - w / 2), int(y - h / 2))
+        #         right_bottom = (int(x + w / 2), int(y + h / 2))
+        #         cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
+        #         cv2.putText(vis, text, (left_up[0], left_up[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+        #                     color, 2)
 
         rospy.loginfo("Detection complete.")
-        return vis
+        # return vis
 
     def vis_depth_estimation(self, vis, box, class_name, point_cloud_image, pc_3D, clusters):
         x,y,w,h = box
@@ -392,7 +429,7 @@ class PedestrianDetector():
 
         start_t = time.time()
         if args.test_target == 'detection':
-            vis = self.detect_agents(vis, raw_point_cloud)
+            self.detect_agents(vis, raw_point_cloud)
         elif args.test_target == 'track':
             vis = self.track_agents(vis, point_cloud_image, raw_point_cloud, clusters)
         rospy.loginfo('detect_agents time: %s', str(time.time() - start_t))

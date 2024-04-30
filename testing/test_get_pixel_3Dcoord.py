@@ -18,9 +18,10 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--src_dir', '-s', type=str, default='./data/gt')
 parser.add_argument('--test_target', '-t', type=str, default='frame',
-                    choices=['frame', 'rosbag', 'test_conv'])
+                    choices=['frame',  'rosbag', 'test_conv'])
 parser.add_argument('--data_idx', '-i', type=int, default=3)
 parser.add_argument('--kernel_size', '-k', type=int, default=5)
+parser.add_argument('--vis_lidar', '-v', default=False, action='store_true')
 args = parser.parse_args()
 
 coord_3d_map = None
@@ -148,6 +149,30 @@ def ros_PointCloud2_to_numpy(pc2_msg, want_rgb=False):
     else:
         return np.array(list(gen), dtype=np.float32)[:, :3]
 
+from sklearn.cluster import DBSCAN
+def vis_dbscan(point_cloud_image, vis, epsilon = 0.1, min_samples = 5):
+    colors = []
+    colors += [(i, 0, 255) for i in range(100, 256, 25)]
+    colors += [(i, 255, 0) for i in range(100, 256, 25)]
+    colors += [(0, i, 255) for i in range(100, 256, 25)]
+    colors += [(255, i, 0) for i in range(100, 256, 25)]
+    colors += [(255, 0, i) for i in range(100, 256, 25)]
+    colors += [(0, 255, i) for i in range(100, 256, 25)]
+    seed = 19
+    random.seed(seed)
+    random.shuffle(colors)
+
+    # for epsilon in np.linspace(0.01, 0.2, 10):
+    # Perform DBSCAN clustering
+    dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+    clusters = dbscan.fit_predict(filtered_point_cloud)
+
+    for proj_pt, cluster in zip(point_cloud_image, clusters):
+        color = colors[cluster % len(colors)]
+        radius = 1
+        center = int(proj_pt[0]), int(proj_pt[1])
+        cv2.circle(vis, center, radius, color, cv2.FILLED)
+
 
 if __name__ == '__main__':
 
@@ -168,12 +193,22 @@ if __name__ == '__main__':
         # init handler
         handler = PixelWise3DLidarCoordHandler(args.kernel_size)
         coord_3d_map = handler.get3DCoord(image, point_cloud)
+        
+        if args.vis_lidar:
+            # get point_cloud_image
+            handler.filter_lidar_by_range(point_cloud)
+            filtered_point_cloud = handler.filter_lidar_by_range(point_cloud)
+            point_cloud_image = handler.lidar_to_image(filtered_point_cloud)
 
+            vis_dbscan(point_cloud_image, image)
+            
         # check pixel 3D coords in interactive mode
         cv2.namedWindow('Image')
         cv2.setMouseCallback('Image', mouse_callback)
         while True:
-            cv2.imshow('Image', image)
+            vis = image.copy()
+            cv2.circle(vis, center=(mouse_x, mouse_y), radius=5, color=(0, 0, 255), thickness=cv2.FILLED)
+            cv2.imshow('Image', vis)
 
             # Break the loop if 'q' is pressed
             if cv2.waitKey(1) & 0xFF == ord('q'):
