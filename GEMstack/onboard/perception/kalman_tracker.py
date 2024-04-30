@@ -9,8 +9,8 @@ CONFIG FILE/PRARAMETERS for KalmanTracker:
 (some examples for configs are provided/set as defaults. )
 
 MUST PROVIDE:
-1: dim_x = the dimensions for state. We define it as [depth, y, w, h]
-2: dim_z = the dimensions for measurement. We define it as [depth, y, w, h, vel_x, vel_y]
+1: dim_x = the dimensions for state. We define it as [depth, y, w, h, vel_x, vel_y]
+2: dim_z = the dimensions for measurement. We define it as [depth, y, w, h]
 3: F = state transition matrix. Must be shape (dim_x, dim_x)
 4: H = measurement matrix. Must be shape (dim_z, dim_x)
 5: P = Covariance matrix for initial observation. Represents uncertainty of initial state.

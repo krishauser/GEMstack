@@ -8,7 +8,7 @@ import numpy as np
 CONFIG FILE for Kalman filter
 
 MUST PROVIDE:
-1: dim_x = the dimensions for state)
+1: dim_x = the dimensions for state
 
 2: dim_z = the dimensions for measurement
 
@@ -40,7 +40,7 @@ MUST PROVIDE:
 '''
 
 
-# state is vector with [x,y,l,w,vel_x, vel_y]
+# state is vector with [x,y,l,w,vel_x,vel_y]
 dim_x = 6
 # measurements (sensor observations/bounding boxes) are just [x,y,l,w]
 dim_z = 4
