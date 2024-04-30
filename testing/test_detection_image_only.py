@@ -1,8 +1,9 @@
 """
 Python program for object detection (pedestrians, vehicles, road signs, traffic signals).
 
-Usage: For a brief description of the arguments, run 
-        python3 object_detector.py -h
+Usage: For a brief description of the arguments, run
+            python3 testing/test_detection_image_only.py -h
+       from the main GEMstack folder
 """
 
 import argparse
@@ -91,7 +92,8 @@ if __name__ == '__main__':
     if os.path.isfile(args.path):
         paths = [args.path]  
     else:
-        paths = [os.path.join(args.path, f) for f in os.listdir(args.path)]
+        exts = ['.jpg', '.jpeg', '.png', '.webp']
+        paths = [os.path.join(args.path, f) for f in os.listdir(args.path) if any(ext in f for ext in exts)]
 
     if args.detector == '2':
         detector = sign_detector
