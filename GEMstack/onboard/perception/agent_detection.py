@@ -10,7 +10,7 @@ import numpy as np
 from ultralytics import YOLO
 from typing import Dict, Tuple, List
 from GEMstack.onboard.perception.kalman_tracker import KalmanFilter, KalmanTracker
-from GEMstack.onboard.perception.pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
+# from GEMstack.onboard.perception.pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
 try:
     from sensor_msgs.msg import CameraInfo, PointCloud2
     from image_geometry import PinholeCameraModel
@@ -162,7 +162,7 @@ class MultiObjectDetector(Component):
 
         return detected_agents
     
-    def box_to_agent(self, box, point_cloud_image, point_cloud_image_world, cls, depth):
+    def box_to_agent(self, box, cls, depth):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
 
         TODO: you need to use the image, the camera intrinsics, the lidar
@@ -387,55 +387,55 @@ class MultiObjectTracker():
 
     def track_agents(self, detected_agents: List[AgentState]):
         """Given a list of detected agents, updates the state of the agents."""
-        print("===================================================================")
+        print("============================================================")
         print("Start Tracking...")
         detections = []
+        cls = []
         for agent in detected_agents:
             if agent.type == AgentEnum.PEDESTRIAN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
                 l, w, h= agent.dimensions
-                cls = AgentEnum.PEDESTRIAN
-                detections.append(np.array([x, y, l, w]))
+                cls.append(AgentEnum.PEDESTRIAN)
+                detections.append(np.array([x, y, l, w])) # Top down bounding box
 
             if agent.type == AgentEnum.CAR:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
                 l, w, h = agent.dimensions
-                cls = AgentEnum.CAR
+                cls.append(AgentEnum.CAR)
                 detections.append(np.array([x, y, l, w]))
 
             if agent.type == AgentEnum.STOP_SIGN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
                 l, w, h = agent.dimensions
-                cls = AgentEnum.STOP_SIGN
+                cls.append(AgentEnum.STOP_SIGN)
                 detections.append(np.array([x, y, l, w]))          
 
         kalman_agent_states, matches = self.kalman_tracker.update_objects_tracking(
             detections
         )
-
         # print("Kalman Agent States: ", kalman_agent_states)
         tracking_results = {}
-        for pid in kalman_agent_states:
+        for i, pid in enumerate(kalman_agent_states):
             ag_state = kalman_agent_states[pid]
+            # print("Ag_state:", ag_state)
             tracking_results[pid] = AgentState(
                 pose=ObjectPose(
-                    t=0,
-                    x=ag_state[0],
-                    y=ag_state[1],
+                    t=0, 
+                    x=ag_state[0], 
+                    y=ag_state[1], 
                     z=0,
-                    yaw=0,
-                    pitch=0,
-                    roll=0,
-                    frame=ObjectFrameEnum.CURRENT,
-                ),
-                dimensions=(ag_state[2], ag_state[3], 1.5),
+                    yaw=0, 
+                    pitch=0, 
+                    roll=0, 
+                    frame=ObjectFrameEnum.CURRENT,),
+                dimensions=(ag_state[2], ag_state[3], 1.5), 
                 velocity=(ag_state[4], ag_state[5], 0),
-                type=cls,
+                type=AgentEnum.PEDESTRIAN, 
                 activity=AgentActivityEnum.MOVING,
-                yaw_rate=0,
+                yaw_rate=0, 
                 outline=None,
-            )
-            # print("Tracking Result: ", tracking_results)
+            )  
+        # print("Tracking Result: ", tracking_results)
         self.update_track_history(tracking_results)
 
         if self.test:
@@ -447,7 +447,6 @@ class MultiObjectTracker():
         for pid in sorted(ag_dict):
             curr_agent = ag_dict[pid]
             curr_pose = curr_agent.pose
-            # 11.0 5.0 Pedestrian -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 -1.59 -1.0 0.93 -1.0
             agent_frame_data = f"{float(self.current_frame)} {float(pid)} Pedestrian -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 -1.0 {curr_pose.x} -1.0 {curr_pose.y} -1.0\n"
             if self.current_frame in self.tracking_results:
                 self.tracking_results[self.current_frame].append(agent_frame_data)
