@@ -12,16 +12,31 @@ class PixelWise3DLidarCoordHandler:
 
     def __init__(self,
                  kernel_size=5,
-                 extrinsic_fn="GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt",
+                 lidar2camera_fn="GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt",
                  intrinsic_fn="GEMstack/knowledge/calibration/gem_e4_intrinsic.txt",
                  lidar2vehicle_fn="GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt",
+                 lidar2oak_mat=None,
+                 lidar2vehicle_mat=None,
+                 intrinsic_mat=None,
                  xrange=(0, 20),
                  yrange=(-10, 10),
                  zrange=(-3, 1)) -> None:
         
-        self.extrinsic = np.loadtxt(extrinsic_fn)
-        self.intrinsic = np.loadtxt(intrinsic_fn)
-        self.T_lidar2_Gem = np.loadtxt(lidar2vehicle_fn)
+        if lidar2oak_mat is not None:
+            self.T_lidar2camera = lidar2oak_mat
+        else:
+            self.T_lidar2camera = np.loadtxt(lidar2camera_fn)
+        
+        if lidar2vehicle_mat is not None:
+            self.T_lidar2vehicle = lidar2vehicle_mat
+        else:    
+            self.T_lidar2vehicle = np.loadtxt(lidar2vehicle_fn)
+        
+        if intrinsic_mat is not None:
+            self.intrinsic = intrinsic_mat
+        else:    
+            self.intrinsic = np.loadtxt(intrinsic_fn)
+            
         self.intrinsic = np.concatenate(
             [self.intrinsic, np.zeros((3, 1))], axis=1)
         
@@ -64,20 +79,20 @@ class PixelWise3DLidarCoordHandler:
         interpolate_3D_map = cv2.merge(channels)
         return interpolate_3D_map
 
-    def filter_lidar_by_range(self, point_cloud, xrange: Tuple[float, float], yrange: Tuple[float, float], zrange: Tuple[float, float]):
-        xmin, xmax = xrange
-        ymin, ymax = yrange
-        zmin, zmax = zrange
+    def filter_lidar_by_range(self, point_cloud):
+        xmin, xmax = self.xrange
+        ymin, ymax = self.yrange
+        zmin, zmax = self.zrange
         idxs = np.where((point_cloud[:, 0] > xmin) & (point_cloud[:, 0] < xmax) &
                         (point_cloud[:, 1] > ymin) & (point_cloud[:, 1] < ymax) &
                         (point_cloud[:, 2] > zmin) & (point_cloud[:, 2] < zmax))
         return point_cloud[idxs]
 
-    def lidar_to_image(self, point_cloud_lidar: np.ndarray, extrinsic: np.ndarray, intrinsic: np.ndarray):
+    def lidar_to_image(self, point_cloud_lidar: np.ndarray):
 
         homo_point_cloud_lidar = np.hstack(
             (point_cloud_lidar, np.ones((point_cloud_lidar.shape[0], 1))))  # (N, 4)
-        pointcloud_pixel = (intrinsic @ extrinsic @
+        pointcloud_pixel = (self.intrinsic @ self.T_lidar2camera @
                             (homo_point_cloud_lidar).T)  # (3, N)
         pointcloud_pixel = pointcloud_pixel.T  # (N, 3)
 
@@ -87,24 +102,20 @@ class PixelWise3DLidarCoordHandler:
         point_cloud_image = pointcloud_pixel[:, :2]  # (N, 2)
         return point_cloud_image
 
-    def lidar_to_vehicle(self, point_cloud_lidar: np.ndarray, T_lidar2_Gem: np.ndarray):
+    def lidar_to_vehicle(self, point_cloud_lidar: np.ndarray):
         ones = np.ones((point_cloud_lidar.shape[0], 1))
         pcd_homogeneous = np.hstack((point_cloud_lidar, ones))  # (N, 4)
-        pointcloud_trans = np.dot(T_lidar2_Gem, pcd_homogeneous.T)  # (4, N)
+        pointcloud_trans = np.dot(self.T_lidar2vehicle, pcd_homogeneous.T)  # (4, N)
         pointcloud_trans = pointcloud_trans.T  # (N, 4)
         point_cloud_image_world = pointcloud_trans[:, :3]  # (N, 3)
         return point_cloud_image_world
 
     def get3DCoord(self, image, point_cloud):
-        filtered_point_cloud = self.filter_lidar_by_range(
-            point_cloud, self.xrange, self.yrange, self.zrange)
+        filtered_point_cloud = self.filter_lidar_by_range(point_cloud)
 
-        point_cloud_3D = self.lidar_to_vehicle(
-            filtered_point_cloud, self.T_lidar2_Gem)
+        point_cloud_3D = self.lidar_to_vehicle(filtered_point_cloud)
 
-        point_cloud_image = self.lidar_to_image(filtered_point_cloud,
-                                                self.extrinsic,
-                                                self.intrinsic)
+        point_cloud_image = self.lidar_to_image(filtered_point_cloud)
 
         # Keep only the lidar points whose projected coordinates lie within the boundary of images
         height, width = image.shape[:2]
