@@ -256,7 +256,7 @@ class MultiObjectDetector(Component):
                 self.pedestrian_counter += 1
                 cls = AgentEnum.PEDESTRIAN
                 print("Pedestrian Depth:", depth)
-                agent = self.box_to_agent(b, point_cloud_image, pc_3D, cls, depth)
+                agent = self.box_to_agent(b, cls, depth)
                 if agent is not None:
                     detected_agents.append(agent)
             if id == 2:
@@ -264,7 +264,7 @@ class MultiObjectDetector(Component):
                 self.car_counter += 1
                 cls = AgentEnum.CAR
                 print("Vehicle Depth:", depth)
-                agent = self.box_to_agent(b, point_cloud_image, pc_3D, cls, depth)
+                agent = self.box_to_agent(b, cls, depth)
                 if agent is not None:
                     detected_agents.append(agent)
             if id == 11:
@@ -272,7 +272,7 @@ class MultiObjectDetector(Component):
                 self.stop_sign_counter += 1
                 cls = AgentEnum.STOP_SIGN
                 print("Stop Sign Depth:", depth)
-                agent = self.box_to_agent(b, point_cloud_image, pc_3D, cls, depth)
+                agent = self.box_to_agent(b, cls, depth)
                 if agent is not None:
                     detected_agents.append(agent)
 
@@ -387,55 +387,66 @@ class MultiObjectTracker():
 
     def track_agents(self, detected_agents: List[AgentState]):
         """Given a list of detected agents, updates the state of the agents."""
-        print("============================================================")
-        print("Start Tracking...")
         detections = []
-        cls = []
         for agent in detected_agents:
             if agent.type == AgentEnum.PEDESTRIAN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
                 l, w, h= agent.dimensions
-                cls.append(AgentEnum.PEDESTRIAN)
+                cls = 0
                 detections.append(np.array([x, y, l, w])) # Top down bounding box
 
             if agent.type == AgentEnum.CAR:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
                 l, w, h = agent.dimensions
-                cls.append(AgentEnum.CAR)
-                detections.append(np.array([x, y, l, w]))
+                cls = 2
+                detections.append(np.array([x, y, l, w])) # Top down bounding box
 
             if agent.type == AgentEnum.STOP_SIGN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
                 l, w, h = agent.dimensions
-                cls.append(AgentEnum.STOP_SIGN)
-                detections.append(np.array([x, y, l, w]))          
+                cls = 11
+                detections.append(np.array([x, y, l, w])) # Top down bounding box      
 
-        kalman_agent_states, matches = self.kalman_tracker.update_objects_tracking(
-            detections
-        )
+        kalman_agent_states, matches = self.kalman_tracker.update_objects_tracking(detections)
+
         # print("Kalman Agent States: ", kalman_agent_states)
         tracking_results = {}
         for i, pid in enumerate(kalman_agent_states):
             ag_state = kalman_agent_states[pid]
-            # print("Ag_state:", ag_state)
-            tracking_results[pid] = AgentState(
-                pose=ObjectPose(
-                    t=0, 
-                    x=ag_state[0], 
-                    y=ag_state[1], 
-                    z=0,
-                    yaw=0, 
-                    pitch=0, 
-                    roll=0, 
-                    frame=ObjectFrameEnum.CURRENT,),
-                dimensions=(ag_state[2], ag_state[3], 1.5), 
-                velocity=(ag_state[4], ag_state[5], 0),
-                type=AgentEnum.PEDESTRIAN, 
-                activity=AgentActivityEnum.MOVING,
-                yaw_rate=0, 
-                outline=None,
-            )  
-        # print("Tracking Result: ", tracking_results)
+            if cls == 0:
+                print(f"Ped_ag_state:{i}", ag_state)
+                tracking_results[pid] = AgentState(
+                    pose=ObjectPose(
+                        t=0, x=ag_state[0], y=ag_state[1], z=0,
+                        yaw=0, pitch=0, roll=0, 
+                        frame=ObjectFrameEnum.CURRENT,),
+                    dimensions=(ag_state[2], ag_state[3], 1.5), velocity=(ag_state[4], ag_state[5], 0),
+                    type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING,
+                    yaw_rate=0, outline=None,
+                )  
+            if cls == 2:
+                print("Car_ag_state:", ag_state)
+                tracking_results[pid] = AgentState(
+                    pose=ObjectPose(
+                        t=0, x=ag_state[0], y=ag_state[1], z=0,
+                        yaw=0, pitch=0, roll=0, 
+                        frame=ObjectFrameEnum.CURRENT,),
+                    dimensions=(ag_state[2], ag_state[3], 1.5), velocity=(ag_state[4], ag_state[5], 0),
+                    type=AgentEnum.CAR, activity=AgentActivityEnum.MOVING,
+                    yaw_rate=0, outline=None,
+                ) 
+            if cls == 11:
+                print("Sign_ag_state:", ag_state)
+                tracking_results[pid] = AgentState(
+                    pose=ObjectPose(
+                        t=0, x=ag_state[0], y=ag_state[1], z=0,
+                        yaw=0, pitch=0, roll=0, 
+                        frame=ObjectFrameEnum.CURRENT,),
+                    dimensions=(ag_state[2], ag_state[3], 1.5), velocity=(ag_state[4], ag_state[5], 0),
+                    type=AgentEnum.STOP_SIGN, activity=AgentActivityEnum.MOVING,
+                    yaw_rate=0, outline=None,
+                )   
+
         self.update_track_history(tracking_results)
 
         if self.test:

@@ -288,8 +288,10 @@ class PedestrianDetector():
 
         results = self.detector.track(frame, persist=True, verbose=False)
         boxes = results[0].boxes.xyxy.cpu()
-        
-        detected_agents = []
+
+        detected_ped = []
+        detected_car = []
+        detected_sign = []
         start_t = time.time()
         coord_3d_map = self.coord_3d_handler.get3DCoord(frame, pc_3D)
         rospy.loginfo('PixelWise3DLidarCoordHandler time: %s', str(time.time() - start_t))
@@ -308,7 +310,6 @@ class PedestrianDetector():
 
             for box, cls, track_id in zip(boxes, clss, track_ids):
                 if int(cls) in [0, 2, 11]:  # Check if class is pedestrian, car, or stop sign
-                    print("Class:", cls, "ID:", track_id, "Box:", box)
                     class_name = names[int(cls)]
                     box = box.numpy()
                     label = f"{class_name} {class_counts[class_name]}"
@@ -326,7 +327,7 @@ class PedestrianDetector():
                         center_x = (x1 + x2) / 2
                         center_y = (y1 + y2) / 2
                         if int(cls) == 0:
-                            print (f'pedestrian x: {center_x}, y: {center_y}')
+                            print (f'pedestrian {class_counts[class_name]} x: {center_x}, y: {center_y}')
                         x_3d, y_3d, z_3d = coord_3d_map[int(center_y)][int(center_x)]
                         depth = x_3d
                         label = label + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
@@ -342,32 +343,38 @@ class PedestrianDetector():
                     if cls == 0:
                         color = (255, 0, 255)
                         agent_type = AgentEnum.PEDESTRIAN
-                        print("Pedestrian Depth:", depth)
+                        print(f"Pedestrian {class_counts[class_name]} Depth:", depth)
                         agent = self.MOD.box_to_agent(box, agent_type, depth)
                         if agent is not None:
-                            detected_agents.append(agent)
+                            detected_ped.append(agent) # Pedestrian tracking info => type:AgentState
+                        print(f"{class_name} {class_counts[class_name]}",self.MOT.track_agents(detected_ped))  
+                        print("============================================================") 
+
                     if cls == 2:
                         color = (0, 255, 255)
                         agent_type = AgentEnum.CAR
                         print("Vehicle Depth:", depth)
                         agent = self.MOD.box_to_agent(box, agent_type, depth)
                         if agent is not None:
-                            detected_agents.append(agent)
+                            detected_car.append(agent) # Vehicle tracking info => type:AgentState
+                        print(f"{class_name} {class_counts[class_name]}",self.MOT.track_agents(detected_car))
+                        print("============================================================") 
+
                     if cls == 11:
                         color = (150, 50, 255)
                         agent_type = AgentEnum.STOP_SIGN
                         print("Stop Sign Depth:", depth)
                         agent = self.MOD.box_to_agent(box, agent_type, depth)
                         if agent is not None:
-                            detected_agents.append(agent)
+                            detected_sign.append(agent) # Stop sign tracking info => type:AgentState
+                        print(f"{class_name} {class_counts[class_name]}",self.MOT.track_agents(detected_sign))
+                        print("============================================================") 
 
                     if len(track) > 30:
                         track.pop(0)
                     points = np.array(track, dtype=np.int32).reshape((-1, 1, 2))
                     cv2.circle(frame, (track[-1]), 7, colors(int(cls), True), -1)
                     cv2.polylines(frame, [points], isClosed=False, color=colors(int(cls), True), thickness=2)
-            print("Detected Agents: ", detected_agents)
-            print("????: ",self.MOT.track_agents(detected_agents))
 
         rospy.loginfo("Tracking complete.")
         return frame
