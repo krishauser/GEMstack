@@ -59,34 +59,51 @@ class TestHelper:
             depth = cv2.imread(depth_fn)
             self.depth = depth
 
-            
             self.ped_detector.test_set_data(image, point_cloud)
 
             detected_agents, detection_result = self.ped_detector.detect_agents(test=True)
-            
-            detected_pedestrians = [x for x in detected_agents if x.type==AgentEnum.PEDESTRIAN]
-            
+
+            detected_pedestrians = [x for x in detected_agents if x.type==AgentEnum.PEDESTRIAN or x.type==AgentEnum.CAR or x.type==AgentEnum.STOP_SIGN]
+
             tracking_results, matches = self.ped_tracker.track_agents(detected_agents)
-            
+            print("Matches: ", matches)
             # Write recent frames to file or state variable
             self.ped_tracker.output_tracking_results()
             
             rev_matches = {v:k for k,v in matches.items()}
 
-            
+            cls_id = [0, 2, 11] # 0:pedestrian, 2:vehicle, 11:stop sign
             bbox_image = image.copy()
             
             #TODO: create boxes from detection result
-            pedestrian_boxes = []
+            boxes = []
             detected_ped_id = 0
+            detected_car_id = 0
+            detected_sign_id = 0
             for box in detection_result[0].boxes: # only one image, so use index 0 of result
                 class_id = int(box.cls[0].item())
-                if class_id == 0: # class 0 stands for pedestrian
+                if class_id in cls_id: # class 0 stands for pedestrian
                     bbox = box.xywh[0].tolist()
-                    pedestrian_boxes.append(bbox)
+                    boxes.append(bbox)
+                    if class_id == 0:
+                        print("Class ID:", class_id, "| Object: Pedestrian")
+                        cls = "Pedestrian"
+                        id = rev_matches[detected_ped_id]
+                        detected_ped_id += 1
+                    if class_id == 2:
+                        print("Class ID:", class_id, "| Object: Vehicle")
+                        cls = "Vehicle"
+                        id = rev_matches[detected_car_id]
+                        detected_car_id += 1
+                    if class_id == 11:
+                        print("Class ID:", class_id, "| Object: Stop Sign")
+                        cls = "Stop Sign"
+                        id = rev_matches[detected_sign_id]
+                        detected_sign_id += 1
 
-                    pid = rev_matches[detected_ped_id]
-                    ag_state = tracking_results[pid]
+                    
+                    print("id: ", id)
+                    ag_state = tracking_results[id]
         
                     # draw bbox
                     x,y,w,h = bbox
@@ -94,18 +111,16 @@ class TestHelper:
                     ymin, ymax = y - h/2, y + h/2
                     
                     # What our program measured before kalman
-                    m = detected_pedestrians[detected_ped_id]
+                    # m = detected_pedestrians[detected_ped_id]
                     
                     bbox_image = cv2.rectangle(bbox_image, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (0, 0, 255), 2) 
                     bbox_image = cv2.putText(
                         img = bbox_image,
-                        # text = f"PID:{pid}, XY:{round(ag_state.pose.x, 2)},{round(ag_state.pose.y, 2)}, VELXY:{round(ag_state.velocity[0], 2)},{round(ag_state.velocity[1], 2)}",
-                        text = f"PID:{pid}, XY:{round(ag_state.pose.x, 2)},{round(ag_state.pose.y, 2)}, mXY:{round(m.pose.x, 2)},{round(m.pose.y, 2)}",
-
-                        org = (int(xmin) - 300, int(ymax)-10),
+                        text = f"Class:{cls}, id:{id}, X:{round(ag_state.pose.x, 2)} | Y:{round(ag_state.pose.y, 2)}",
+                        org = (int(xmin), int(ymin)-10),
                         fontFace = cv2.FONT_HERSHEY_SIMPLEX,
-                        fontScale = 0.5,
-                        color = (0, 0, 255),
+                        fontScale = 0.7,
+                        color = (255, 0, 255),
                         thickness = 2
                     )
                     detected_ped_id += 1

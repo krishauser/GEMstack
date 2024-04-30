@@ -12,7 +12,7 @@ from typing import Dict, Tuple, List
 from GEMstack.onboard.perception.kalman_tracker import KalmanFilter, KalmanTracker
 from GEMstack.onboard.perception.pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
 try:
-    from sensor_msgs.msg import CameraInfo
+    from sensor_msgs.msg import CameraInfo, PointCloud2
     from image_geometry import PinholeCameraModel
     import rospy
 except ImportError:
@@ -136,6 +136,7 @@ class MultiObjectDetector(Component):
         self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         #subscribe to the Zed CameraInfo topic
         self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
+        self.point_cloud_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.lidar_callback)
 
     def image_callback(self, image : cv2.Mat):
         self.zed_image = image
@@ -158,10 +159,8 @@ class MultiObjectDetector(Component):
             return {}
 
         detected_agents = self.detect_agents()
-        current_agent_states = self.track_agents(vehicle, detected_agents) # Do Kalman Filter Tracking
-        self.last_agent_states = current_agent_states
 
-        return current_agent_states
+        return detected_agents
     
     def box_to_agent(self, box, point_cloud_image, point_cloud_image_world, cls, depth):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
@@ -178,11 +177,12 @@ class MultiObjectDetector(Component):
 
         # Specify AgentState.
         l = 1
-        dims = (w, l, h) 
+        dims = (l, w, h) 
         
         return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self, test=False):
+        print("Start Detecting...")
         detection_result = self.detector(self.zed_image,verbose=False)
         
         #TODO: create boxes from detection result
@@ -237,6 +237,8 @@ class MultiObjectDetector(Component):
 
             # Get unique elements and their counts
             unique_elements, counts = np.unique(agent_clusters, return_counts=True)
+            if len(counts) == 0:
+                continue
             max_freq = np.max(counts)
             label_cluster = unique_elements[counts == max_freq]
             
@@ -290,44 +292,6 @@ class MultiObjectDetector(Component):
         if test: # Behavior Prediction
             return detected_agents, detection_result
         return detected_agents
-
-    # def track_agents(self, detected_agents: List[AgentState]):
-    #     """Given a list of detected agents, updates the state of the agents."""
-    #     detections = []
-    #     for agent in detected_agents:
-    #         if agent.type == AgentEnum.PEDESTRIAN:
-    #             x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
-    #             w, h, l = agent.dimensions
-    #             detections.append(np.array([x, y, w, l]))
-
-    #     kalman_agent_states, matches = self.kalman_tracker.update_objects_tracking(
-    #         detections
-    #     )
-    #     tracking_results = {}
-    #     for pid in kalman_agent_states:
-    #         ag_state = kalman_agent_states[pid]
-    #         tracking_results[pid] = AgentState(
-    #             pose=ObjectPose(
-    #                 t=0,
-    #                 x=ag_state[0],
-    #                 y=ag_state[1],
-    #                 z=0,
-    #                 yaw=0,
-    #                 pitch=0,
-    #                 roll=0,
-    #                 frame=ObjectFrameEnum.CURRENT,
-    #             ),
-    #             dimensions=(ag_state[2], ag_state[3], 1.5),
-    #             velocity=(ag_state[4], ag_state[5], 0),
-    #             type=AgentEnum.PEDESTRIAN,
-    #             activity=AgentActivityEnum.MOVING,
-    #             yaw_rate=0,
-    #             outline=None,
-    #         )
-    #     self.update_track_history(tracking_results)
-
-    #     if self.test:
-    #         return tracking_results, matches
 
     def save_data(self, loc=None):
         """This can be used for debugging.  See the provided test."""
@@ -424,31 +388,32 @@ class MultiObjectTracker():
     def track_agents(self, detected_agents: List[AgentState]):
         """Given a list of detected agents, updates the state of the agents."""
         print("===================================================================")
+        print("Start Tracking...")
         detections = []
         for agent in detected_agents:
             if agent.type == AgentEnum.PEDESTRIAN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
-                w, l, h = agent.dimensions
+                l, w, h= agent.dimensions
                 cls = AgentEnum.PEDESTRIAN
-                detections.append(np.array([x, y, w, h]))
+                detections.append(np.array([x, y, l, w]))
 
             if agent.type == AgentEnum.CAR:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
-                w, l, h = agent.dimensions
+                l, w, h = agent.dimensions
                 cls = AgentEnum.CAR
-                detections.append(np.array([x, y, w, h]))
+                detections.append(np.array([x, y, l, w]))
 
             if agent.type == AgentEnum.STOP_SIGN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
-                w, l, h = agent.dimensions
+                l, w, h = agent.dimensions
                 cls = AgentEnum.STOP_SIGN
-                detections.append(np.array([x, y, w, h]))          
+                detections.append(np.array([x, y, l, w]))          
 
         kalman_agent_states, matches = self.kalman_tracker.update_objects_tracking(
             detections
         )
-        print("Kalman Agent States: ", kalman_agent_states)
-        print("Doing the Tracking")
+
+        # print("Kalman Agent States: ", kalman_agent_states)
         tracking_results = {}
         for pid in kalman_agent_states:
             ag_state = kalman_agent_states[pid]
