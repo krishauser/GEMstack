@@ -120,7 +120,8 @@ class PedestrianDetector(Component):
         return ['vehicle']
     
     def state_outputs(self):
-        return ['agents']
+        # return ['agents']
+        return ["detected_agents"]
     
     def test_set_data(self, zed_image, point_cloud, camera_info='dummy'):
         self.zed_image = zed_image
@@ -162,13 +163,14 @@ class PedestrianDetector(Component):
         t1 = time.time()
         detected_agents = self.detect_agents()
 
-        t2 = time.time()
-        current_agent_states = self.track_agents(vehicle,detected_agents)
-        t3 = time.time()
-        print("Detection time",t2-t1,", shape estimation and tracking time",t3-t2)
+        # t2 = time.time()
+        # current_agent_states = self.track_agents(vehicle,detected_agents)
+        # t3 = time.time()
+        # print("Detection time",t2-t1,", shape estimation and tracking time",t3-t2)
 
-        self.last_agent_states = current_agent_states
-        return current_agent_states
+        # self.last_agent_states = current_agent_states
+        # return current_agent_states
+        return detected_agents
 
     def box_to_agent(self, box, point_cloud_image, point_cloud_image_world):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
@@ -239,7 +241,7 @@ class PedestrianDetector(Component):
         return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
         
-    def detect_agents(self):
+    def detect_agents(self, test=False):
         detection_result = self.detector(self.zed_image,verbose=False)
         
         #TODO: create boxes from detection result
@@ -285,6 +287,9 @@ class PedestrianDetector(Component):
             agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
             if agent is not None:
                 detected_agents.append(agent)
+                
+        if test: # Behavior Prediction
+            return detected_agents, detection_result
         return detected_agents
         
     def estimate_velocity(self, prev_pose, current_pose) -> tuple:
