@@ -11,7 +11,7 @@ import sensor_msgs.point_cloud2 as pc2
 sobel_kernel_size = 3
 sobel_min_threshold = 90
 conf_val = 0.85
-MODEL_WEIGHT_PATH = 'parking_spot_detection.pt'
+MODEL_WEIGHT_PATH = '../../knowledge/detection/parking_spot_detection.pt'
 
 class ImageProcessorNode:
     def __init__(self):
