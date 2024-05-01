@@ -90,7 +90,7 @@ class ImageProcessorNode:
     def apply_detections(self, canvas, bbox_info):
         x, y, w, h, r = bbox_info
         points = self.get_rotated_box_points(x, y, w, h, -r)
-        self.highlight_region(canvas, points)
+        self.green_lines(canvas, points)
         self.draw_lines_and_calculate_angles(canvas, points)
 
     def get_rotated_box_points(self, x, y, width, height, angle):
@@ -101,19 +101,25 @@ class ImageProcessorNode:
         rotated_rectangle = np.dot(rectangle, rotation_matrix) + np.array([x, y])
         return np.int0(rotated_rectangle)
 
-    def highlight_region(self, canvas, points):
+    def green_lines(self, canvas, points):
         # Convert box corners to lines for more straightforward calculation
-        top_line = np.array([points[0], points[1]])
-        bottom_line = np.array([points[3], points[2]])
+        left_lines = np.array([points[3], points[2]])
+        right_lines = np.array([points[0], points[1]])
         
         # Extend lines for visual clarity
-        cv2.line(canvas, tuple(top_line[0]), tuple(top_line[1]), (0, 255, 0), 2)
-        cv2.line(canvas, tuple(bottom_line[0]), tuple(bottom_line[1]), (0, 255, 0), 2)
+        cv2.line(canvas, tuple(right_lines[0]), tuple(right_lines[1]), (0, 255, 0), 2)
+        cv2.line(canvas, tuple(left_lines[0]), tuple(left_lines[1]), (0, 255, 255), 2)
+
+        # cv2.circle(canvas, tuple(points[0]), 5, (255, 0, 0), -1)  # Blue - Top right
+        # cv2.circle(canvas, tuple(points[1]), 5, (0, 0, 255), -1)  # Red - bottom right
+        # cv2.circle(canvas, tuple(points[2]), 5, (0, 255, 0), -1)  # Green - Bottom left
+        # cv2.circle(canvas, tuple(points[3]), 5, (255, 0, 255), -1)  # Magenta - top left
+
 
     def draw_lines_and_calculate_angles(self, canvas, points):
         # Simplify points usage by directly using them in order
-        top_mid = ((points[0][0] + points[1][0]) // 2, (points[0][1] + points[1][1]) // 2)
-        bottom_mid = ((points[3][0] + points[2][0]) // 2, (points[3][1] + points[2][1]) // 2)
+        top_mid = ((points[3][0] + points[0][0]) // 2, (points[3][1] + points[0][1]) // 2)
+        bottom_mid = ((points[2][0] + points[1][0]) // 2, (points[2][1] + points[1][1]) // 2)
 
         # Draw the red line between the midpoints of the top and bottom lines
         cv2.line(canvas, top_mid, bottom_mid, (0, 0, 255), 2)
