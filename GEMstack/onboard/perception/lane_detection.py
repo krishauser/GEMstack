@@ -3,7 +3,7 @@ import cv2
 import math
 
 horizon = 0.4 # fraction of the image considered (= height of trapezium)
-min_angle = np.pi / 10 # min angle subtended by a line in order to be considered as part of a lane marking
+min_angle = np.pi / 6 # min angle subtended by a line in order to be considered as part of a lane marking
 
 class LaneDetector():
     """Class to detect lane markings."""

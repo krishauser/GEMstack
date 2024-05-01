@@ -29,7 +29,7 @@ class Detector(Component):
         return ['vehicle']
     
     def state_outputs(self):
-        return ['detected_agents']
+        return ['agents']
     
     def initialize(self):
         # use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
