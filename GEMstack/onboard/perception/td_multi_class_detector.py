@@ -116,23 +116,23 @@ class TDMultiClassDetector(Component):
         self.point_cloud = point_cloud
         self.camera_info = camera_info
 
-    # def initialize(self):
-    #     print("INITIALIZE PED DETECT")
-    #     # tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-    #     self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
-    #     # tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
-    #     self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
-    #     # subscribe to the Zed CameraInfo topic
-    #     self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
+    def initialize(self):
+        print("INITIALIZE PED DETECT")
+        # tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        # tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
+        self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
+        # subscribe to the Zed CameraInfo topic
+        self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
 
-    # def image_callback(self, image : cv2.Mat):
-    #     self.zed_image = image
+    def image_callback(self, image : cv2.Mat):
+        self.zed_image = image
 
-    # def camera_info_callback(self, info : CameraInfo):
-    #     self.camera_info = info
+    def camera_info_callback(self, info : CameraInfo):
+        self.camera_info = info
 
-    # def lidar_callback(self, point_cloud: np.ndarray):
-    #     self.point_cloud = point_cloud
+    def lidar_callback(self, point_cloud: np.ndarray):
+        self.point_cloud = point_cloud
 
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         print("0PED DETECT UPDATE", self.zed_image is None, self.point_cloud is None, self.camera_info is  None)
