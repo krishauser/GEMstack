@@ -17,10 +17,7 @@ components:
       outputs: obstacles
   - agent_detection:
       inputs: vehicle
-      outputs: detected_agents
-  - agent_tracking:
-      inputs: detected_agents
-      outputs: tracking_frames
+      outputs: agents
   - lane_detection:
       inputs: [vehicle, roadgraph]
       outputs: vehicle_lane
