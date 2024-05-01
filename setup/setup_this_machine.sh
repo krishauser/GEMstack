@@ -1,6 +1,7 @@
 #!/bin/bash
 sudo apt update
 sudo apt-get install git python3 python3-pip wget zstd
+sudo apt-get install ros-noetic-geographic-msgs
 source /opt/ros/noetic/setup.bash
 
 #install Zed SDK
@@ -18,6 +19,7 @@ git clone https://github.com/krishauser/POLARIS_GEM_e2.git
 git clone https://github.com/astuff/pacmod2.git
 git clone https://github.com/astuff/astuff_sensor_msgs.git
 git clone https://github.com/ros-perception/radar_msgs.git
+git clone https://github.com/bsb808/geonav_transform.git 
 cd radar_msgs; git checkout noetic; cd ..
 
 cd ..   #back to catkin_ws
