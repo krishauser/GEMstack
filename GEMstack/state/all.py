@@ -10,7 +10,9 @@ from .mission import MissionObjective
 from .route import Route
 from .trajectory import Trajectory
 from .predicates import PredicateValues
-from typing import Dict,List,Optional
+from typing import Dict,List,Optional,Union
+from .agent import AgentState
+from .sign import Sign
 
 @dataclass
 @register
@@ -31,6 +33,8 @@ class AllState(SceneState):
     trajectory : Optional[Trajectory] = None
 
     # added state
+    # for object detection (agents, signs)
+    detected_agents : List[Union[AgentState, Sign]] = None
     # for parking
     parking_slot : Optional[ObjectPose] = None
     # for normal road driving
