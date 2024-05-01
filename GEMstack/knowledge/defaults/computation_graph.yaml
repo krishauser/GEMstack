@@ -24,6 +24,12 @@ components:
   - sign_detection: 
       inputs: [vehicle, roadgraph]
       outputs: roadgraph.signs
+  - parking_slot_detection: 
+      outputs: parking_slot
+  - lane_following_detection: 
+      outputs: lane_goal
+  - lane_boundary_detection: 
+      outputs: lane_bound
   - environment_detection:
       inputs: vehicle
       outputs: environment
@@ -41,7 +47,7 @@ components:
   - mission_execution:
       outputs: mission
   - route_planning:
-      inputs: [vehicle, roadgraph, mission]
+      inputs: all # For development, we can assume that all components are available
       outputs: route
   - driving_logic:
       inputs: all

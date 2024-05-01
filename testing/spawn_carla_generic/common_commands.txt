@@ -1,0 +1,13 @@
+# If you face libGL error on running manual_control.py, run the following command first
+export MESA_LOADER_DRIVER_OVERRIDE=i965
+
+# After entering carla-test conda env, if you face library import issues for ros_numpy, run the following command
+sudo apt-get install ros-noetic-ros-numpy
+
+# Run the following command for Town map 5 (It has city, highway, curb side and parking-lot locations)
+python config.py --map Town05_Opt --no-rendering --no-sync
+
+# While visualizing pointcloud on rviz, if you see Status: error, in a separate terminal, run the following command, and re-add point-cloud viz.
+rosrun tf static_transform_publisher 0 0 0 0 0 0 map lidar 50
+
+# To get prettier lidar viz on rviz, in it's conf under display, play around with decay and size.

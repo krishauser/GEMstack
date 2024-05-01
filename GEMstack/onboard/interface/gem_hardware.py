@@ -27,17 +27,9 @@ from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, Vehicl
 import cv2
 import numpy as np
 from ...utils import conversions
-
-@dataclass 
-class GNSSReading:
-    pose : ObjectPose
-    speed : float
-    status : str
-
-@dataclass 
-class VioslamReading:
-    pose : ObjectPose
-    status : str
+import time
+from .gnss_reading import GNSSReading
+from .vioslamreading import VioslamReading
 
 class GEMHardwareInterface(GEMInterface):
     """Interface for connnecting to the physical GEM e2 vehicle."""
@@ -75,7 +67,6 @@ class GEMHardwareInterface(GEMInterface):
 
         # -------------------- PACMod setup --------------------
         # GEM vehicle enable
-        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
         self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
         self.pacmod_enable = False
 
@@ -117,6 +108,10 @@ class GEMHardwareInterface(GEMInterface):
         """
 
         #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
+        
+        #subscribers should go last because the callback might be called before the object is initialized
+        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
+
 
     def start(self):
         if settings.get('vehicle.enable_through_joystick',True):
@@ -200,7 +195,7 @@ class GEMHardwareInterface(GEMInterface):
                                     )
                         speed = np.sqrt(msg.ve**2 + msg.vn**2)
                         callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
-                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
+                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):

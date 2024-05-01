@@ -112,8 +112,9 @@ class VIOSlamEstimator(Component):
         raw = readings.to_state(self.Vioslam_pose)
 
         #filtering speed
-        filt_vel     = self.speed_filter(raw.v)
-        raw.v = filt_vel
+        raw.v = self.gnss_speed
+        #filt_vel     = self.speed_filter(raw.v)
+        #raw.v = filt_vel
         return raw
         
 

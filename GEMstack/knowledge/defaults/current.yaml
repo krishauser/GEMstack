@@ -2,6 +2,7 @@
 
 # Configure settings for the vehicle / vehicle model
 vehicle:  !include ../vehicle/gem_e4.yaml
+carla_vehicle: !include ../vehicle/carla.yaml
 
 #arguments for algorithm components here
 model_predictive_controller:
@@ -20,6 +21,11 @@ control:
         pid_p: 1.0
         pid_i: 0.1
         pid_d: 0.0
+
+A_star_planner:  
+    !include A_star_planner.yaml
+MPC_planner:
+    !include MPC_planner.yaml
 
 #configure the simulator, if using
 simulator:

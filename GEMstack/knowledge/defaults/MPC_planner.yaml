@@ -1,0 +1,20 @@
+MPC_planner:
+  delta_min: -0.785 # wheel angle lower bound
+  delta_max: 0.785 # wheel angle upper bound
+  a_min: -0.5 # acceleration lower bound
+  a_max: 0.5 # acceleration upper bound
+  v_min: -1 # velocity lower bound
+  v_max: 1 # velocity upper bound
+  penalty:
+    obstacle_penalty: 800 # penalty scale of approaching obstacles
+    lane_bond_penalty: 2000 # penalty scale of crossing lane bound
+    ellipse_a_squared: 2 # control the x direction in the ellipse obstacle penalty
+    ellipse_b_squared: 0.25 # control the y direction in the ellipse obstacle penalty
+  weight:
+    w_g: 3 # objective weight of reaching goal
+    w_o: 1 # objective weight of avoiding obstacles
+    w_l: 4 # objective weight of avoiding crossing the lanes
+  N: 10 # length of MPC prediction window
+  dt: 0.5 # timestep
+  safe_dist: 5.5 # distance threshold before braking
+  rate: 10 # rate

@@ -49,6 +49,7 @@ class RoadgraphRegionEnum(Enum):
     CLOSED_COURSE = 1       # open space, can drive anywhere
     PARKING_LOT = 2         # parking lot, should drive at low speed
     INTERSECTION = 3        # intersection, should not stop in middle
+    CURB_SIDE = 4           # region along the curb, i.e.., areas to pull over. 
     
 
 class RoadgraphConnectionEnum(Enum):

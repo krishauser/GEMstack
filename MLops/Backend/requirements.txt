@@ -1,0 +1,10 @@
+Flask==3.0.2
+pymongo==4.6.2
+ngrok
+flask_cors
+numpy
+opencv-python
+bagpy
+cv-bridge
+open3d
+gpxpy
