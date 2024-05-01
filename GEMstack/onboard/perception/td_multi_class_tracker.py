@@ -27,7 +27,7 @@ from .kalman_tracker import KalmanTracker  # Behavior Prediction Team
 class TDMultiClassTracker(Component):
     def __init__(
         self,
-        kalman_config_files=["GEMstack/onboard/perception/2D_bounding_box_config.py"],
+        kalman_config_files=["GEMstack/knowledge/prediction/2D_bounding_box_config.py"],
         kalman_classes = [AgentEnum.PEDESTRIAN],
         detection_file_name="GEMstack/onboard/prediction/tracking_results.txt",
         test=False,
