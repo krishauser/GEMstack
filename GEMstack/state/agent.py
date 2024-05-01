@@ -11,6 +11,7 @@ class AgentEnum(Enum):
     LARGE_TRUCK = 2
     PEDESTRIAN = 3
     BICYCLIST = 4
+    STOP_SIGN = 5 # New
 
 
 class AgentActivityEnum(Enum):
