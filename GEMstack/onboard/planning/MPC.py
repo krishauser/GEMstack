@@ -63,16 +63,22 @@ class MPC(object):
         v_next = states[3] + controls[0] * self.dt
         return ca.vertcat(x_next, y_next, theta_next, v_next)
 
-    def get_cost_function(self, states, controls, ref_trajectory):
+    def get_cost_function(self, states, controls, ref_trajectory, start_time):
         # Implement the cost function using CasADi
-        print(ref_trajectory)
         cost = 0
-        t = ref_trajectory.times[0]
+        t = start_time
         i = 0
-        while t < ref_trajectory.times[0] + self.horizon:
-            print(t)
-            v_x = ref_trajectory.eval_derivative(t)[0]
-            v_y = ref_trajectory.eval_derivative(t)[1]
+        index_from_time = ref_trajectory.time_to_index(t)[0]
+        while i < self.timesteps:
+            index_from_time = ref_trajectory.time_to_index(t)[0]
+
+            v_x = 0
+            v_y = 0
+            if index_from_time + 1 >= len(ref_trajectory.points):
+                break
+            else:
+                v_x = ref_trajectory.eval_derivative(t)[0]
+                v_y = ref_trajectory.eval_derivative(t)[1]
             ref_v = np.sqrt(v_x ** 2 + v_y ** 2)
 
             # penalizes x and y deviations
@@ -92,6 +98,7 @@ class MPC(object):
                     self.R[3] * (controls[1, i] - controls[1, i - 1]) ** 2
             t += self.dt
             i += 1
+            # index_from_time += 1
         return cost
 
     def compute(self, state: VehicleState, component: Component = None):
@@ -121,15 +128,15 @@ class MPC(object):
 
         des_parameter = closest_parameter + self.look_ahead + self.look_ahead_scale * state.v
         print("Desired parameter: " + str(des_parameter),"distance to path",closest_dist)
-        print(self.path.parameter_to_time(des_parameter))
+        # print(self.path.parameter_to_time(des_parameter))
 
         # Slice a range of trajectory given the horizon value
-        # ref_trajectory = self.path
-        ref_trajectory = self.path.trim(des_parameter, min(des_parameter + self.timesteps, self.path.times[-1]))
+        
+        ref_trajectory = self.path
         ref_trajectory = compute_headings(ref_trajectory)
-        # print("CURRENT STATE: ", current_state)
         # print("REF TRAJECTORY: ", ref_trajectory)
-        # print("LEN OF REF: ", len(ref_trajectory.times))
+        # print("ref trajectory points: ", len(ref_trajectory.points))
+        # print("ref trajectory times: ", len(ref_trajectory.times))
 
         # Set up the optimization problem
         opti = ca.Opti()
@@ -154,22 +161,17 @@ class MPC(object):
             opti.subject_to(opti.bounded(self.min_wheel_angle, u_vars[1, t], self.max_wheel_angle))
             
         # Set the objective function
-        obj = self.get_cost_function(x_vars, u_vars, ref_trajectory)
+        obj = self.get_cost_function(x_vars, u_vars, ref_trajectory, des_parameter)
         opti.minimize(obj)
 
         options = {'ipopt': {
             'tol': 1e-8,
             'max_iter': 5000,
-            # 'linear_solver': 'MA57',  # Assuming you have it available
-            # 'derivative_test': 'none',  # Turn off for performance
-            # 'nlp_scaling_method': 'none',
-            # 'constr_viol_tol': 1e-6
-            # 'warm_start_init_point': 'no',  # Use 'yes' for warm starts
-            # 'print_level': 1
         }}
 
 
         # Set up the solver
+        # opti.solver('ipopt')
         opti.solver('ipopt', options)
 
         # Solve the optimization problem
@@ -216,4 +218,4 @@ class MPCController(Component):
 
     def healthy(self):
         return self.MPC.path is not None
-    
+        
