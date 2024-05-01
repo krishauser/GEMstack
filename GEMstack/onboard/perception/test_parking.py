@@ -19,7 +19,7 @@ class ImageProcessorNode:
         self.model = YOLO(MODEL_WEIGHT_PATH)
         self.handler = PixelWise3DLidarCoordHandler()
         self.image_pub = rospy.Publisher("/oak/rgb/modified_image", Image, queue_size=10)
-        self.image_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, self.image_callback)
+        self.image_sub = rospy.Subscriber("/oak/right/image_raw", Image, self.image_callback)
         self.lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.lidar_callback)
         self.point_cloud = None
 
@@ -33,8 +33,8 @@ class ImageProcessorNode:
             print("CvBridge Error:", e)
             return
 
-        if self.point_cloud is None:
-            return  # Wait until the point cloud is available
+        # if self.point_cloud is None:
+        #     return  # Wait until the point cloud is available
 
         self.process_image(cv_image)
 
@@ -102,56 +102,44 @@ class ImageProcessorNode:
         return np.int0(rotated_rectangle)
 
     def highlight_region(self, canvas, points):
-        buffer = 20
-        x_min, y_min = np.min(points, axis=0)
-        x_max, y_max = np.max(points, axis=0)
-        x_min = max(x_min - buffer, 0)
-        y_min = max(y_min - buffer, 0)
-        x_max = min(x_max + buffer, canvas.shape[1])
-        y_max = min(y_max + buffer, canvas.shape[0])
-        cropped_image = canvas[y_min:y_max, x_min:x_max]
-        gray = cv2.cvtColor(cropped_image, cv2.COLOR_BGR2GRAY)
-        sobelx = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=sobel_kernel_size)
-        sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=sobel_kernel_size)
-        sobel = cv2.magnitude(sobelx, sobely)
-        _, sobel_thresholded = cv2.threshold(sobel, sobel_min_threshold, 255, cv2.THRESH_BINARY)
-        mask = (sobel_thresholded > 0)
-        canvas[y_min:y_max, x_min:x_max][mask] = [0, 255, 0]  # Green mask on detected lines
+        # Convert box corners to lines for more straightforward calculation
+        top_line = np.array([points[0], points[1]])
+        bottom_line = np.array([points[3], points[2]])
+        
+        # Extend lines for visual clarity
+        cv2.line(canvas, tuple(top_line[0]), tuple(top_line[1]), (0, 255, 0), 2)
+        cv2.line(canvas, tuple(bottom_line[0]), tuple(bottom_line[1]), (0, 255, 0), 2)
 
     def draw_lines_and_calculate_angles(self, canvas, points):
-        # Sort points to determine top and bottom midpoints
-        points = sorted(points, key=lambda x: x[1])
-        p1, p2 = points[0], points[2]  # Top points of the box
-        p3, p4 = points[1], points[3]  # Bottom points of the box
-        
-        # Calculate midpoints of the top and bottom line segments
-        top_mid = ((p1[0] + p2[0]) // 2, (p1[1] + p2[1]) // 2)
-        bottom_mid = ((p3[0] + p4[0]) // 2, (p3[1] + p4[1]) // 2)
-        
-        # Draw the red line between midpoints
+        # Simplify points usage by directly using them in order
+        top_mid = ((points[0][0] + points[1][0]) // 2, (points[0][1] + points[1][1]) // 2)
+        bottom_mid = ((points[3][0] + points[2][0]) // 2, (points[3][1] + points[2][1]) // 2)
+
+        # Draw the red line between the midpoints of the top and bottom lines
         cv2.line(canvas, top_mid, bottom_mid, (0, 0, 255), 2)
-        
-        # Calculate the midpoint of the red line
+
+        # Calculate the midpoint of the red line and the angle from the vertical center line
         red_line_mid = ((top_mid[0] + bottom_mid[0]) // 2, (top_mid[1] + bottom_mid[1]) // 2)
-        print(f"Midpoint of the red line: {red_line_mid}")
-        
-        # Draw the center blue line
         mid_x = canvas.shape[1] // 2
-        cv2.line(canvas, (mid_x, 0), (mid_x, canvas.shape[0]), (255, 0, 0), 2)
-        
-        # Calculate angle of the red line relative to the vertical center line
         dx = top_mid[0] - bottom_mid[0]
         dy = top_mid[1] - bottom_mid[1]
         angle_radians = np.arctan2(dy, dx)
         angle_from_vertical = abs(np.pi / 2 - angle_radians)
-        
-        # Use handler to get 3D coordinates of the red line midpoint
-        if self.point_cloud:
-            numpy_point_cloud = self.ros_PointCloud2_to_numpy(self.point_cloud)
-            coord_3d_map = self.handler.get3DCoord(canvas, numpy_point_cloud)
-            if 0 <= red_line_mid[0] < coord_3d_map.shape[1] and 0 <= red_line_mid[1] < coord_3d_map.shape[0]:
-                red_line_mid_3d = coord_3d_map[red_line_mid[1], red_line_mid[0]]
-                print(f"3D coordinates of the red line's midpoint: [{red_line_mid_3d[0]}, {red_line_mid_3d[1]}, {angle_from_vertical}]")
+
+        # Draw the center blue line and print the angle
+        cv2.line(canvas, (mid_x, 0), (mid_x, canvas.shape[0]), (255, 0, 0), 2)
+
+        # Calculate angle of the red line relative to the vertical center line
+        angle_radians = np.arctan2(dy, dx)
+        angle_from_vertical = abs(np.pi / 2 - angle_radians)
+
+        # # Use handler to get 3D coordinates of the red line midpoint
+        # if self.point_cloud:
+        #     numpy_point_cloud = self.ros_PointCloud2_to_numpy(self.point_cloud)
+        #     coord_3d_map = self.handler.get3DCoord(canvas, numpy_point_cloud)
+        #     if 0 <= red_line_mid[0] < coord_3d_map.shape[1] and 0 <= red_line_mid[1] < coord_3d_map.shape[0]:
+        #         red_line_mid_3d = coord_3d_map[red_line_mid[1], red_line_mid[0]]
+        #         print(f"3D coordinates of the red line's midpoint: [{red_line_mid_3d[0]}, {red_line_mid_3d[1]}, {angle_from_vertical}]")
 
         return canvas
 
