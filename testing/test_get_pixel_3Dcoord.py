@@ -1,4 +1,12 @@
-# needed to import GEMstack from top level directory
+""" 
+    Usage for static frame:
+        $ python testing/test_get_pixel_3Dcoord.py -t frame
+        
+    Usage for rosbag:
+        $ python testing/test_get_pixel_3Dcoord.py -t rosbag 
+        $ rosbag play -l <rosbag_path>
+"""
+
 import sys
 import os
 import cv2
@@ -108,6 +116,10 @@ def test_conv_2D():
     num_elements_mat[num_elements_mat == 0] = 1  # avoid divide by zero
     interpolation_result = result / num_elements_mat
 
+    # naive blending
+    mask = image > 0
+    blend_result = image * mask + interpolation_result * (1 - mask)
+    
     print("Image:")
     print(image)
     print("\nKernel:")
@@ -118,6 +130,8 @@ def test_conv_2D():
     print(num_elements_mat)
     print("\n Interpolation Result:")
     print(interpolation_result)
+    print("\n Blend Result:")
+    print(blend_result)
 
 
 def ros_PointCloud2_to_numpy(pc2_msg, want_rgb=False):
