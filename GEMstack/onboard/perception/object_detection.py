@@ -88,20 +88,20 @@ class ObjectDetector():
         
         return detected_objects, bbox_classes
     
-    def deduplication(self, obj : PhysicalObject, prev_states):
-        """ For dedupliction:
-        - Check if object was detected before using the previous states.
-        - If seen before, 
-            return the dict key corresponding to the previous object matching the current one. 
-        """
+    # def deduplication(self, obj : PhysicalObject, prev_states):
+    #     """ For dedupliction:
+    #     - Check if object was detected before using the previous states.
+    #     - If seen before, 
+    #         return the dict key corresponding to the previous object matching the current one. 
+    #     """
         
-        polygon = obj.polygon_parent()
+    #     polygon = obj.polygon_parent()
 
-        for key in prev_states:
-            prev_obj = prev_states[key]
-            prev_polygon = prev_obj.polygon_parent()
+    #     for key in prev_states:
+    #         prev_obj = prev_states[key]
+    #         prev_polygon = prev_obj.polygon_parent()
 
-            if collisions.polygon_intersects_polygon_2d(polygon, prev_polygon):
-                return key
+    #         if collisions.polygon_intersects_polygon_2d(polygon, prev_polygon):
+    #             return key
         
-        return None
+    #     return None

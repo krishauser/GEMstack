@@ -12,7 +12,7 @@ import copy
 
 
 class AgentDetector(ObjectDetector):
-    """Detects and tracks other agents."""
+    """Detects other agents (pedestrians + vehicles)."""
 
     def __init__(self, vehicle : VehicleState, camera_image, lidar_point_cloud):
         detector = YOLO(settings.get('perception.agent_detection.model'))
@@ -48,38 +48,38 @@ class AgentDetector(ObjectDetector):
         
         return detected_agents
     
-    def track_agents(self, detected_agents, prev_states, counter, rate):
-        """ Given a list of detected agents, updates the state of the agents.
-        - Keep track of which agents were detected before.
-        - For each agent, assign appropriate ids and estimate velocities.
-        """
-        dt = 1 / rate # time between updates
+    # def track_agents(self, detected_agents, prev_states, counter, rate):
+    #     """ Given a list of detected agents, updates the state of the agents.
+    #     - Keep track of which agents were detected before.
+    #     - For each agent, assign appropriate ids and estimate velocities.
+    #     """
+    #     dt = 1 / rate # time between updates
 
-        states = {}
+    #     states = {}
 
-        for agent in detected_agents:
-            prev_key = super().deduplication(agent, prev_states)
+    #     for agent in detected_agents:
+    #         prev_key = super().deduplication(agent, prev_states)
 
-            if prev_key is None: # new agent
-                # velocity of a new agent is 0 by default
-                states['agent_' + str(counter)] = agent
-                counter += 1
-            else:
-                prev_agent = self.prev_states[prev_key]
-                prev_pose = prev_agent.pose
+    #         if prev_key is None: # new agent
+    #             # velocity of a new agent is 0 by default
+    #             states['agent_' + str(counter)] = agent
+    #             counter += 1
+    #         else:
+    #             prev_agent = self.prev_states[prev_key]
+    #             prev_pose = prev_agent.pose
 
-                # absolute vel = vel w.r.t vehicle + vehicle velocity 
-                v_x = (agent.pose.x - prev_pose.x) / dt + self.vehicle.v
-                v_y = (agent.pose.y - prev_pose.y) / dt
-                v_z = (agent.pose.z - prev_pose.z) / dt
+    #             # absolute vel = vel w.r.t vehicle + vehicle velocity 
+    #             v_x = (agent.pose.x - prev_pose.x) / dt + self.vehicle.v
+    #             v_y = (agent.pose.y - prev_pose.y) / dt
+    #             v_z = (agent.pose.z - prev_pose.z) / dt
 
-                if any([v_x, v_y, v_z]):
-                    agent.activity = AgentActivityEnum.MOVING
-                    agent.velocity = (v_x, v_y, v_z)
+    #             if any([v_x, v_y, v_z]):
+    #                 agent.activity = AgentActivityEnum.MOVING
+    #                 agent.velocity = (v_x, v_y, v_z)
             
-                states[prev_key] = agent            
+    #             states[prev_key] = agent            
         
-        return states, counter
+    #     return states, counter
 
 
 class OmniscientAgentDetector(Component):
