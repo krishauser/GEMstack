@@ -1,4 +1,4 @@
-from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
+from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum,SignEnum, SignState, Sign
 from ..interface.gem import GEMInterface
 from ..component import Component
 from typing import Dict
@@ -178,8 +178,13 @@ class MultiObjectDetector(Component):
         # Specify AgentState.
         l = 1
         dims = (l, w, h) 
-        
-        return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+
+        if cls == SignEnum.STOP_SIGN:
+            state=SignState(signal_state=None, left_turn_signal_state = None, right_turn_signal_state = None,
+                            crossing_gate_state = None)
+            return Sign(pose=pose, dimensions=dims, outline=None, type=cls, entities=["intersection"], speed=0, state=state)
+        else:
+            return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self, test=False):
         print("Start Detecting...")
@@ -270,7 +275,7 @@ class MultiObjectDetector(Component):
             if id == 11:
                 color = (150, 50, 255)
                 self.stop_sign_counter += 1
-                cls = AgentEnum.STOP_SIGN
+                cls = SignEnum.STOP_SIGN
                 print("Stop Sign Depth:", depth)
                 agent = self.box_to_agent(b, cls, depth)
                 if agent is not None:
@@ -401,7 +406,7 @@ class MultiObjectTracker():
                 cls = 2
                 detections.append(np.array([x, y, l, w])) # Top down bounding box
 
-            if agent.type == AgentEnum.STOP_SIGN:
+            if agent.type == SignEnum.STOP_SIGN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
                 l, w, h = agent.dimensions
                 cls = 11
@@ -428,6 +433,7 @@ class MultiObjectTracker():
                 return velocity
             if cls == 2:
                 print("Car_ag_state:", ag_state)
+                velocity = ((ag_state[4])**2 + (ag_state[5])**2)**0.5
                 tracking_results[pid] = AgentState(
                     pose=ObjectPose(
                         t=0, x=ag_state[0], y=ag_state[1], z=0,
@@ -440,13 +446,14 @@ class MultiObjectTracker():
                 return velocity
             if cls == 11:
                 print("Sign_ag_state:", ag_state)
+                velocity = ((ag_state[4])**2 + (ag_state[5])**2)**0.5
                 tracking_results[pid] = AgentState(
                     pose=ObjectPose(
                         t=0, x=ag_state[0], y=ag_state[1], z=0,
                         yaw=0, pitch=0, roll=0, 
                         frame=ObjectFrameEnum.CURRENT,),
                     dimensions=(ag_state[2], ag_state[3], 1.5), velocity=(ag_state[4], ag_state[5], 0),
-                    type=AgentEnum.STOP_SIGN, activity=AgentActivityEnum.MOVING,
+                    type=SignEnum.STOP_SIGN, activity=AgentActivityEnum.MOVING,
                     yaw_rate=0, outline=None,
                 )   
                 return velocity
@@ -508,7 +515,4 @@ class MultiObjectTracker():
                         tracking_frames.append(dummy_frame)
 
         return tracking_frames
-    
-
-    
     
