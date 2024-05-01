@@ -66,7 +66,7 @@ class GNSSStateEstimator(Component):
         raw.v = self.gnss_speed
         return raw
     
-import rospy
+
 class VIOSlamEstimator(Component):
     """Looks at the Vioslam reading to estimate the vehicle state"""
     def __init__(self, vehicle_interface : GEMInterface):

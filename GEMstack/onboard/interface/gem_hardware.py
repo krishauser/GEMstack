@@ -28,8 +28,9 @@ import cv2
 import numpy as np
 from ...utils import conversions
 import time
+
 from .gnss_reading import GNSSReading
-from .vioslamreading import VioslamReading
+from .vioslam_reading import VioslamReading
 
 class GEMHardwareInterface(GEMInterface):
     """Interface for connnecting to the physical GEM e2 vehicle."""
