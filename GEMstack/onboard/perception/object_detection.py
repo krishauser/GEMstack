@@ -4,11 +4,12 @@ from ...mathutils import collisions
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
+from .point_cloud_manipulation import transform_point_cloud
 
-from ultralytics import YOLO
 import numpy as np
 import math
 
+pcd_manip_v = 2 # version 2 uses the PixelWise3DLidarCoordHandler
 
 class ObjectDetector():
     def __init__(self, vehicle : VehicleState, camera_image, lidar_point_cloud, detector):
@@ -27,21 +28,41 @@ class ObjectDetector():
         y = round(bbox_xywh[1])
         # print('Bbox: [{0}, {1}, {2:.3f}, {3:.3f}]'.format(x, y, w, h))
 
-        # Obtain 3d world coordinates for all pixels in the image
-        handler = PixelWise3DLidarCoordHandler()
-        all_points = handler.get3DCoord(self.camera_image, self.lidar_point_cloud) # img ht x img width x 3
+        if pcd_manip_v == 1:
+            """
+            Uses the image, the camera intrinsics, the lidar point cloud, 
+            and the calibrated camera / lidar poses to get a good estimate 
+            of the object's pose (in vehicle frame) and dimensions.
+            """
 
-        # Filter points in bbox
-        points = []
-        for i in range(x - math.ceil(w/2), x + math.ceil(w/2) + 1):
-            for j in range(y - math.ceil(h/2), y + math.ceil(h/2) + 1):
-                # if 3d coord is (0,0,0) ==> pixel is too close to the car (no lidar data available)
-                if any(all_points[j][i]):
-                    points.append(all_points[j][i])
+            # Obtain point clouds in image frame and vehicle frame
+            pcd_image_pixels, pcd_vehicle_frame = transform_point_cloud(
+                self.lidar_point_cloud, self.camera_image.shape[0], self.camera_image.shape[1]
+            )
 
-        if not points: # no lidar data available for object 
-            return None
+            # tolerance for calibration-related errors
+            tolerance = settings.get('perception.object_detection.tolerance_factor') 
+            indices = [i for i in range(len(pcd_image_pixels)) if 
+                        (x - tolerance * w/2) <= pcd_image_pixels[i][0] <= (x + tolerance * w/2) and 
+                        (y - tolerance * h/2) <= pcd_image_pixels[i][1] <= (y + tolerance * h/2)]
+            points = [pcd_vehicle_frame[idx] for idx in indices]   # in vehicle frame
 
+        else:
+            # Obtain 3d world coordinates for all pixels in the image
+            handler = PixelWise3DLidarCoordHandler()
+            all_points = handler.get3DCoord(self.camera_image, self.lidar_point_cloud) # img ht x img width x 3
+
+            # Filter points in bbox
+            points = []
+            for i in range(x - math.ceil(w/2), x + math.ceil(w/2)):
+                for j in range(y - math.ceil(h/2), y + math.ceil(h/2)):
+                    # if 3d coord is (0,0,0) ==> pixel is too close to the car (no lidar data available)
+                    if any(all_points[j][i]):
+                        points.append(all_points[j][i])
+
+            if not points: # no lidar data available for object 
+                return None
+        
         # Estimate center and dimensions
         center = np.mean(points, axis=0)
         dimensions = np.max(points, axis=0) - np.min(points, axis=0)
