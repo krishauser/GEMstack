@@ -211,13 +211,12 @@ class IMUStateEstimator(Component):
         return self.gnss_pose is not None
     
     def garbage_value(self, pose):
-        # if pose.x > 180 or pose.x < -180:
-        #     return True
-        # elif pose.y > 90 or pose.y < 0:
-        #     return True
-        # else:
-        #     return False
-        return True
+        if pose.x > 180 or pose.x < -180:
+            return True
+        elif pose.y > 90 or pose.y < 0:
+            return True
+        else:
+            return False
         
     def create_imu_pose(self):
         time = self.vehicle_interface.time()
