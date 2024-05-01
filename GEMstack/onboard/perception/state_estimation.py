@@ -40,15 +40,16 @@ class IMUStateEstimator(Component):
     # Get IMU information
     def imu_callback(self, reading):
         #read the accleration and angular velocity here
-        self.linear_acceleration.x = reading.linear_acceleration.x
-        self.linear_acceleration.y = reading.linear_acceleration.y
-        self.linear_acceleration.z = reading.linear_acceleration.z
-        self.angular_velocity.x = reading.angular_velocity.x
-        self.angular_velocity.y = reading.angular_velocity.y
-        self.angular_velocity.z = reading.angular_velocity.z
+        self.dx = reading.linear_acceleration.x
+        self.dy = reading.linear_acceleration.y
+        self.dz = reading.linear_acceleration.z
+        # self.angular_velocity.x = reading.angular_velocity.x
+        # self.angular_velocity.y = reading.angular_velocity.y
+        # self.angular_velocity.z = reading.angular_velocity.z
+        print('imu reading', self.dx, self.dy, self.dz)
 
-        self.angular_vel = reading.pose
-        self.status = reading.status
+        # self.angular_vel = reading.pose
+        # self.status = reading.status
     
     def rate(self):
         return 40.0 #Up to 50Hz
@@ -178,6 +179,15 @@ class EKSStateEstimator(Component):
         vehicle_interface.subscribe_sensor('gnss',self.gnss_callback,GNSSReading)
 
         #TODO, add IMU_callback
+        if 'imu' not in vehicle_interface.sensors():
+            #Add holonomic constraint and IMU estimation
+            #TODO, test if this is for physically uninstalled gnss condition
+            #Or indoor unfixed satellite?
+            #Note the Septentrio IMU would work indoor, even when GNSS signal isn't available
+            raise RuntimeError("IMU sensor not available")
+        
+        #add gnss_callback
+        vehicle_interface.subscribe_sensor('imu',self.imu_callback)
 
         self.gnss_pose = None
         #set initial gnss location and yaw
@@ -191,6 +201,15 @@ class EKSStateEstimator(Component):
     def gnss_callback(self, reading : GNSSReading):
         self.gnss_pose = reading.pose
         self.status = reading.status
+
+    def imu_callback(self, reading):
+        self.ax = reading.linear_acceleration.x
+        self.ay = reading.linear_acceleration.y
+        self.az = reading.linear_acceleration.z
+        self.wx = reading.angular_velocity.x
+        self.wy = reading.angular_velocity.y
+        self.wz = reading.angular_velocity.z
+        # print('imu reading', self.dx, self.dy, self.dz)
     
     def rate(self):
         return 10.0 #acturally up to 50 Hz
@@ -200,6 +219,7 @@ class EKSStateEstimator(Component):
 
     def healthy(self):
         return self.gnss_pose is not None
+        #TODO, add for IMU check
 
     def update(self) -> VehicleState:
         if self.gnss_pose is None:
@@ -228,9 +248,16 @@ class EKSStateEstimator(Component):
         #Radian to meters update here
         self.initialize_converter(-1.540009687915658, 0.6997620706897224)
         self.to_cartesian(vehicle_pose_global.x, vehicle_pose_global.y, vehicle_pose_global.yaw)
+        print('GNSS meters X Y yaw', self.dx, self.dy, self.dyaw)
+        print('IMU X Y Z', self.ax, self.ay, self.az)
+        #     ------ Component EKSStateEstimator stdout ---------
+        # pose X Y yaw -1.5400053487834038 0.699761474151534 2.792526766781833
+        # GNSS pose X Y yaw -1.5400053487834038 0.699761474151534 2.792526766781833
+        # GNSS meters X Y yaw 21.14800191590322 -3.8005447980655354 2.792526766781833
+        # IMU X Y Z -0.403025 0.109025 9.6744375
         
         #call ekf function here
-        ekf()
+        # ekf()
 
 
         readings = self.vehicle_interface.get_reading()
@@ -247,6 +274,7 @@ class EKSStateEstimator(Component):
     #Input: GNSS in meters, IMU
     #Output: Fused location in meters
     def ekf(self):
+        pass
 
     def initialize_converter(self, init_lon, init_lat):
         """ Store initial longitude and latitude converted to degrees """
