@@ -415,6 +415,7 @@ class MultiObjectTracker():
             ag_state = kalman_agent_states[pid]
             if cls == 0:
                 print(f"Ped_ag_state:{i}", ag_state)
+                velocity = ((ag_state[4])**2 + (ag_state[5])**2)**0.5
                 tracking_results[pid] = AgentState(
                     pose=ObjectPose(
                         t=0, x=ag_state[0], y=ag_state[1], z=0,
@@ -424,6 +425,7 @@ class MultiObjectTracker():
                     type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING,
                     yaw_rate=0, outline=None,
                 )  
+                return velocity
             if cls == 2:
                 print("Car_ag_state:", ag_state)
                 tracking_results[pid] = AgentState(
@@ -435,6 +437,7 @@ class MultiObjectTracker():
                     type=AgentEnum.CAR, activity=AgentActivityEnum.MOVING,
                     yaw_rate=0, outline=None,
                 ) 
+                return velocity
             if cls == 11:
                 print("Sign_ag_state:", ag_state)
                 tracking_results[pid] = AgentState(
@@ -446,9 +449,10 @@ class MultiObjectTracker():
                     type=AgentEnum.STOP_SIGN, activity=AgentActivityEnum.MOVING,
                     yaw_rate=0, outline=None,
                 )   
+                return velocity
 
         self.update_track_history(tracking_results)
-
+        
         if self.test:
             return tracking_results, matches
 
@@ -466,7 +470,7 @@ class MultiObjectTracker():
         # Do not keep more than 8 frames
         if not self.write_all:
             # Remove 8th oldest frame
-            self.tracking_results.pop(self.current_frame - 8, None)
+            self.tracking_results.pop(self.current_frame - 10, None)
         
         self.current_frame += 1
 

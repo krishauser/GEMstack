@@ -347,7 +347,8 @@ class PedestrianDetector():
                         agent = self.MOD.box_to_agent(box, agent_type, depth)
                         if agent is not None:
                             detected_ped.append(agent) # Pedestrian tracking info => type:AgentState
-                        print(f"{class_name} {class_counts[class_name]}",self.MOT.track_agents(detected_ped))  
+                        vel = self.MOT.track_agents(detected_ped)
+                        print(f"{class_name}{class_counts[class_name]} Velocity:", vel)  
                         print("============================================================") 
 
                     if cls == 2:
@@ -357,7 +358,8 @@ class PedestrianDetector():
                         agent = self.MOD.box_to_agent(box, agent_type, depth)
                         if agent is not None:
                             detected_car.append(agent) # Vehicle tracking info => type:AgentState
-                        print(f"{class_name} {class_counts[class_name]}",self.MOT.track_agents(detected_car))
+                        vel = self.MOT.track_agents(detected_car)
+                        print(f"{class_name}{class_counts[class_name]} Velocity:", vel)
                         print("============================================================") 
 
                     if cls == 11:
@@ -367,7 +369,8 @@ class PedestrianDetector():
                         agent = self.MOD.box_to_agent(box, agent_type, depth)
                         if agent is not None:
                             detected_sign.append(agent) # Stop sign tracking info => type:AgentState
-                        print(f"{class_name} {class_counts[class_name]}",self.MOT.track_agents(detected_sign))
+                        vel = self.MOT.track_agents(detected_sign)
+                        print(f"{class_name}{class_counts[class_name]} Velocity:", vel)
                         print("============================================================") 
 
                     if len(track) > 30:
