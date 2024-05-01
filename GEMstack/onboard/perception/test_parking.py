@@ -10,13 +10,14 @@ import sensor_msgs.point_cloud2 as pc2
 
 sobel_kernel_size = 3
 sobel_min_threshold = 90
-conf_val = 0.85
+conf_val = 0.80
 MODEL_WEIGHT_PATH = '../../knowledge/detection/parking_spot_detection.pt'
 
 class ImageProcessorNode:
     def __init__(self):
         self.bridge = CvBridge()
         self.model = YOLO(MODEL_WEIGHT_PATH)
+        self.last_bbox_info = None
         self.handler = PixelWise3DLidarCoordHandler()
         self.image_pub = rospy.Publisher("/oak/rgb/modified_image", Image, queue_size=10)
         self.image_sub = rospy.Subscriber("/oak/right/image_raw", Image, self.image_callback)
@@ -84,14 +85,33 @@ class ImageProcessorNode:
             class_id, confidence = int(box.cls[0].item()), float(conf.item())
             if class_id == 0 and confidence >= conf_val:
                 x, y, w, h, r = box.xywhr[0].tolist()
-                return (x, y, w, h, r)
+                if self.last_bbox_info:
+                    last_x, last_y, last_w, last_h, last_r = self.last_bbox_info
+                    # Calculate angle difference and normalize it
+                    angle_diff = (r - last_r + np.pi) % (2 * np.pi) - np.pi
+                    
+                    # Check if the rotation is approximately +/- 90 degrees
+                    if abs(abs(angle_diff) - np.pi/2) < np.pi/18:  # 10 degrees tolerance
+                        # Swap width and height, adjust rotation
+                        x = last_y
+                        y = last_w
+                        w = last_h
+                        h = last_x
+
+                        r = last_r + np.sign(angle_diff) * np.pi/2
+
+                self.last_bbox_info = (x, y, w, h, r)
+                return (x, y, w, h, r)            
         return None
 
     def apply_detections(self, canvas, bbox_info):
+        if bbox_info is None:
+            return canvas
         x, y, w, h, r = bbox_info
         points = self.get_rotated_box_points(x, y, w, h, -r)
         self.green_lines(canvas, points)
-        self.draw_lines_and_calculate_angles(canvas, points)
+        self.middle_line_3d_coords(canvas, points)
+        return canvas
 
     def get_rotated_box_points(self, x, y, width, height, angle):
         rectangle = np.array([[-width / 2, -height / 2], [width / 2, -height / 2],
@@ -116,7 +136,7 @@ class ImageProcessorNode:
         # cv2.circle(canvas, tuple(points[3]), 5, (255, 0, 255), -1)  # Magenta - top left
 
 
-    def draw_lines_and_calculate_angles(self, canvas, points):
+    def middle_line_3d_coords(self, canvas, points):
         # Simplify points usage by directly using them in order
         top_mid = ((points[3][0] + points[0][0]) // 2, (points[3][1] + points[0][1]) // 2)
         bottom_mid = ((points[2][0] + points[1][0]) // 2, (points[2][1] + points[1][1]) // 2)
