@@ -23,8 +23,8 @@ import numpy as np
 from typing import Dict, List
 from .kalman_tracker import KalmanTracker  # Behavior Prediction Team
 
-
-class PedestrianTracker(Component):
+# TOP DOWN 2D BOUNDING BOX TRACKER FOR MULTIPLE OBJECTS/AGENTS
+class TDMultiClassTracker(Component):
     def __init__(
         self,
         kalman_config_files=["GEMstack/onboard/perception/2D_bounding_box_config.py"],
@@ -32,8 +32,10 @@ class PedestrianTracker(Component):
         detection_file_name="GEMstack/onboard/prediction/tracking_results.txt",
         test=False,
         write_all=False,
-        write_limit=8
+        write_limit=8,
+        velocity_threshold=0.1
     ):
+        self.velocity_threshold = velocity_threshold ** 2
         self.kalman_trackers = [KalmanTracker(config_file_path=kalman_config_file) for kalman_config_file in kalman_config_files]
         self.kalman_classes = kalman_classes
         self.tracking_results = {ag_class:{} for ag_class in kalman_classes}
@@ -116,6 +118,10 @@ class PedestrianTracker(Component):
             tracking_results = {}
             for pid in kalman_agent_states:
                 ag_state = kalman_agent_states[pid]
+                curr_activity = AgentActivityEnum.MOVING
+                v2 = (ag_state[4] ** 2 +  ag_state[5] ** 2)
+                if (v2 <= self.velocity_threshold):
+                    curr_activity = AgentActivityEnum.STOPPED
                 tracking_results[pid] = AgentState(
                     pose=ObjectPose(
                         t=0,
@@ -129,8 +135,8 @@ class PedestrianTracker(Component):
                     ),
                     dimensions=(ag_state[2], ag_state[3], 1.5),
                     velocity=(ag_state[4], ag_state[5], 0),
-                    type=AgentEnum.PEDESTRIAN,
-                    activity=AgentActivityEnum.MOVING,
+                    type=self.kalman_classes[i],
+                    activity=curr_activity,
                     yaw_rate=0,
                     outline=None,
                 )
@@ -171,7 +177,7 @@ class PedestrianTracker(Component):
             for pid,ag_state in pedestrian_frames[frame].items():
                 # if the velocity of the pedestrians are more than 0,
                 # then add the pedestrian to the set of non-stationary pedestrians
-                if ag_state.velocity[0]**2 + ag_state.velocity[1]**2 > epsilon**2:
+                if ag_state.activity == AgentActivityEnum.STOPPED:
                     non_stat_peds.add(pid)
                 else: # ped velocity is 0   
                     # if this frame is the first time a pedestrian shows up, it's not stationary

@@ -5,8 +5,8 @@ import cv2
 sys.path.append(os.getcwd())
 abs_path = os.path.abspath(os.path.dirname(__file__))
 
-from GEMstack.onboard.perception.agent_detection import MultiObjectDetector
-from GEMstack.onboard.perception.pedestrian_tracking import PedestrianTracker
+from GEMstack.onboard.perception.td_multi_class_detector import TDMultiClassDetector
+from GEMstack.onboard.perception.td_multi_class_tracker import TDMultiClassTracker
 from GEMstack.onboard.interface.gem import GEMInterface
 
 
@@ -57,7 +57,7 @@ class TestHelper:
             tracking_results, matches = self.ped_tracker.track_agents(detected_agents)
             
             # Write recent frames to file or state variable
-            self.ped_tracker.output_tracking_results()
+            # self.ped_tracker.output_tracking_results()
             
             rev_matches = {v:k for k,v in matches.items()}
 
@@ -113,10 +113,10 @@ if __name__=='__main__':
                  [0,       0 ,             0 ,      1]]
 
     gem_interface = GEMInterface()
-    ped_detector = MultiObjectDetector(gem_interface) #, extrinsic)
+    ped_detector = TDMultiClassDetector(gem_interface) #, extrinsic)
     
     # Create PedTracker
-    ped_tracker = PedestrianTracker(
+    ped_tracker = TDMultiClassTracker(
         test=True,
         write_all=(args.write_all > 0),
         detection_file_name=args.tracking_data
