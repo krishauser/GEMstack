@@ -1,4 +1,4 @@
-from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum,SignEnum, SignState
+from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum,SignEnum, SignState, Sign
 from ..interface.gem import GEMInterface
 from ..component import Component
 from typing import Dict
@@ -180,9 +180,12 @@ class MultiObjectDetector(Component):
         dims = (l, w, h) 
 
         if cls == SignEnum.STOP_SIGN:
-            return (pose, dims, SignEnum.STOP_SIGN, SignState(signal_state=None, left_turn_signal_state=None, right_turn_signal_state=None, crossing_gate_state=None))
+            state=SignState(signal_state=None, left_turn_signal_state = None, right_turn_signal_state = None,
+                            crossing_gate_state = None)
+            return Sign(pose=pose, dimensions=dims, outline=None, type=cls, entities=["intersection"], speed=0, state=state)
         
-        return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+        else:
+            return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
     def detect_agents(self, test=False):
         print("Start Detecting...")
@@ -431,6 +434,7 @@ class MultiObjectTracker():
                 return velocity
             if cls == 2:
                 print("Car_ag_state:", ag_state)
+                velocity = ((ag_state[4])**2 + (ag_state[5])**2)**0.5
                 tracking_results[pid] = AgentState(
                     pose=ObjectPose(
                         t=0, x=ag_state[0], y=ag_state[1], z=0,
@@ -443,6 +447,7 @@ class MultiObjectTracker():
                 return velocity
             if cls == 11:
                 print("Sign_ag_state:", ag_state)
+                velocity = ((ag_state[4])**2 + (ag_state[5])**2)**0.5
                 tracking_results[pid] = AgentState(
                     pose=ObjectPose(
                         t=0, x=ag_state[0], y=ag_state[1], z=0,

@@ -24,6 +24,7 @@ import message_filters
 from ultralytics.utils.plotting import Annotator, colors
 from collections import defaultdict
 from GEMstack.onboard.perception.agent_detection import MultiObjectDetector, MultiObjectTracker
+from GEMstack.onboard.perception.pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
 from GEMstack.onboard.interface.gem import GEMInterface
 from GEMstack.state.vehicle import VehicleState
 from GEMstack.state.physical_object import ObjectFrameEnum, ObjectPose
