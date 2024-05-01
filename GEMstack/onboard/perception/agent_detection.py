@@ -1,4 +1,4 @@
-from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
+from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum,SignEnum, SignState
 from ..interface.gem import GEMInterface
 from ..component import Component
 from typing import Dict
@@ -178,6 +178,9 @@ class MultiObjectDetector(Component):
         # Specify AgentState.
         l = 1
         dims = (l, w, h) 
+
+        if cls == SignEnum.STOP_SIGN:
+            return (pose, dims, SignEnum.STOP_SIGN, SignState(signal_state=None, left_turn_signal_state=None, right_turn_signal_state=None, crossing_gate_state=None))
         
         return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
@@ -270,7 +273,7 @@ class MultiObjectDetector(Component):
             if id == 11:
                 color = (150, 50, 255)
                 self.stop_sign_counter += 1
-                cls = AgentEnum.STOP_SIGN
+                cls = SignEnum.STOP_SIGN
                 print("Stop Sign Depth:", depth)
                 agent = self.box_to_agent(b, cls, depth)
                 if agent is not None:
@@ -401,7 +404,7 @@ class MultiObjectTracker():
                 cls = 2
                 detections.append(np.array([x, y, l, w])) # Top down bounding box
 
-            if agent.type == AgentEnum.STOP_SIGN:
+            if agent.type == SignEnum.STOP_SIGN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
                 l, w, h = agent.dimensions
                 cls = 11
@@ -446,7 +449,7 @@ class MultiObjectTracker():
                         yaw=0, pitch=0, roll=0, 
                         frame=ObjectFrameEnum.CURRENT,),
                     dimensions=(ag_state[2], ag_state[3], 1.5), velocity=(ag_state[4], ag_state[5], 0),
-                    type=AgentEnum.STOP_SIGN, activity=AgentActivityEnum.MOVING,
+                    type=SignEnum.STOP_SIGN, activity=AgentActivityEnum.MOVING,
                     yaw_rate=0, outline=None,
                 )   
                 return velocity

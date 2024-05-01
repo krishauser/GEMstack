@@ -28,6 +28,7 @@ from GEMstack.onboard.interface.gem import GEMInterface
 from GEMstack.state.vehicle import VehicleState
 from GEMstack.state.physical_object import ObjectFrameEnum, ObjectPose
 from GEMstack.state.agent import AgentActivityEnum, AgentEnum, AgentState
+from GEMstack.state.sign import SignEnum, SignState
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--test_target', '-t', type=str, default='detection',
@@ -363,7 +364,7 @@ class PedestrianDetector():
 
                     if cls == 11:
                         color = (150, 50, 255)
-                        agent_type = AgentEnum.STOP_SIGN
+                        agent_type = SignEnum.STOP_SIGN
                         print("Stop Sign Depth:", depth)
                         agent = self.MOD.box_to_agent(box, agent_type, depth)
                         if agent is not None:
