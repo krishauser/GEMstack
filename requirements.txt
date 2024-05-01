@@ -7,4 +7,3 @@ shapely
 klampt
 pyyaml
 dacite
-filterpy
