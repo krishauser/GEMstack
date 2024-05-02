@@ -16,21 +16,21 @@ drive:
         state_estimation : VIOSlamEstimator
         agent_detection : agent_detection.MultiObjectDetector
         perception_normalization : StandardPerceptionNormalizer
-    planning:
-        route_planning:
-            type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
-        motion_planning: motion_planning.RouteToTrajectoryPlanner
-        trajectory_tracking:
-            type: pure_pursuit.PurePursuitTrajectoryTracker
-            print: True
+    # planning:
+    #     route_planning:
+    #         type: StaticRoutePlanner
+    #         args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
+    #     motion_planning: motion_planning.RouteToTrajectoryPlanner
+    #     trajectory_tracking:
+    #         type: pure_pursuit.PurePursuitTrajectoryTracker
+    #         print: True
 
 
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 
     # If prefix is specified, then the log folder will be named with the prefix followed by the date and time. Default no prefix
-    prefix : 'hw3_'  
+    prefix : 'final_'  
     # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
     #suffix : 'test3'  
     # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
