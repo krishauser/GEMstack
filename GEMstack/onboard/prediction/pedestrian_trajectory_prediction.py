@@ -173,14 +173,6 @@ class PedestrianTrajPrediction(Component):
     def initialize(self):
         print("Initializing PedestrianTrajPrediction")
         pass
-
-        ## todo: removing
-    # May not need this if motion planning can just get the velocities themselves
-    def estimate_velocity(self, past_values):
-        # estimate velocity from past few frames
-        self.cur_time = time.time()
-        
-        pass
     
     # Changing signature of model since we changed the output format of AgentFormer to return the actual tensor
     def convert_data_from_model_output(self, sample_model_3D, valid_id, frame) -> List[Dict[int,List[AgentState]]]:
