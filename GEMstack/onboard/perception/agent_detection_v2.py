@@ -5,7 +5,7 @@ from ..component import Component
 from .object_detection import ObjectDetector
 
 from ultralytics import YOLO
-from typing import Dict
+from typing import Dict, List
 import threading
 import copy
 import cv2
@@ -25,8 +25,6 @@ class AgentDetector(Component):
         self.detector = YOLO(settings.get('perception.agent_detection.model'))
         
         self.object_detector = None
-
-        self.agent_states = {}
 
     def rate(self):
         return settings.get('perception.agent_detection.rate')
@@ -50,7 +48,7 @@ class AgentDetector(Component):
     def lidar_callback(self, point_cloud: np.ndarray):
         self.lidar_point_cloud = point_cloud
     
-    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
+    def update(self, vehicle : VehicleState) -> List[AgentState]:
         if self.camera_image is None or self.lidar_point_cloud is None:
             return {}   # no image data or lidar data yet
         
@@ -124,6 +122,6 @@ class OmniscientAgentDetector(Component):
         with self.lock:
             self.agents.append(agent)
 
-    def update(self) -> Dict[str,AgentState]:
+    def update(self) -> List[AgentState]:
         with self.lock:
             return copy.deepcopy(self.agents)
