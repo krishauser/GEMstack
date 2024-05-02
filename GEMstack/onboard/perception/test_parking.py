@@ -134,7 +134,7 @@ class ImageProcessorNode:
 
         # Draw the red line between the new midpoints
         cv2.line(canvas, top_mid, bottom_mid, (0, 0, 255), 2)
-
+        angle_new = np.pi/2 - angle
         # Find the midpoint of red line
         line_mid = ((top_mid[0] + bottom_mid[0]) // 2, (top_mid[1] + bottom_mid[1]) // 2)
 
@@ -144,7 +144,7 @@ class ImageProcessorNode:
             coord_3d_map = self.handler.get3DCoord(canvas, numpy_point_cloud)
             if 0 <= line_mid[0] < coord_3d_map.shape[1] and 0 <= line_mid[1] < coord_3d_map.shape[0]:
                 red_line_mid_3d = coord_3d_map[line_mid[1], line_mid[0]]
-                print(f"3D coordinates of the red line's midpoint: [{red_line_mid_3d[0]}, {red_line_mid_3d[1]}, {angle}]")
+                print(f"3D coordinates of the red line's midpoint: [{red_line_mid_3d[0]}, {red_line_mid_3d[1]}, {angle_new}]")
         return canvas
 
 if __name__ == '__main__':

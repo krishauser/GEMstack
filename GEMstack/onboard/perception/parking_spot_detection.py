@@ -36,8 +36,8 @@ class ParkingSpotDetector(Component):
         # DETECT PARKING SPOTS HERE
 
         # Some test code
-        x, y = 15.0, 17.0
-        yaw = 0.0
+        x, y = 14.768, -6.092
+        yaw = -1.1
         # simulate noise
         x += np.random.normal(0, 0.1)
         y += np.random.normal(0, 0.1)

@@ -129,10 +129,10 @@ class SearchNavigationRoutePlanner(Component):
         agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
 
         if True: # Currently only parking
-            parking_slot = state.parking_slot
-            parking_slot = parking_slot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+            parking_spot = state.parking_spot
+            parking_spot = parking_spot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
             start = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, 0]
-            end = [parking_slot.x, parking_slot.y, parking_slot.yaw, 0]
+            end = [parking_spot.x, parking_spot.y, parking_spot.yaw, 0]
         elif False: # Some other task
             pass
 

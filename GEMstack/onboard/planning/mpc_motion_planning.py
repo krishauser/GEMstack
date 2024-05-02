@@ -159,8 +159,8 @@ class MPCTrajectoryPlanner(Component):
         agents = state.agents
         vehicle = state.vehicle
         # route = state.route
-        parking_slot = state.parking_slot
-        goal = parking_slot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+        parking_spot = state.parking_spot
+        goal = parking_spot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
         x_start, y_start, theta_start, v_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v
         x_goal, y_goal, theta_goal, v_goal = goal.x, goal.y, 0., 0.
 
