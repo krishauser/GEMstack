@@ -25,11 +25,9 @@ control:
         pid_d: 0.0
 
 perception:
-    rate: 5.0
-    object_detection:
-        tolerance_factor: 1  # to make agent detection tolerant to errors in calibration
     agent_detection:
         model: !relative_path '../detection/yolov9c.pt'
+        rate: 5.0
     sign_detection:
         model: !relative_path '../detection/sign_model.pt'
     
