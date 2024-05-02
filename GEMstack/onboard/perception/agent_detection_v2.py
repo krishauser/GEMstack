@@ -10,7 +10,7 @@ import threading
 import copy
 import cv2
 import numpy as np
-import time
+import timeit
 
 
 class AgentDetector(Component):
@@ -29,13 +29,13 @@ class AgentDetector(Component):
         self.agent_states = {}
 
     def rate(self):
-        return settings.get('perception.rate')
+        return settings.get('perception.agent_detection.rate')
     
     def state_inputs(self):
         return ['vehicle']
     
     def state_outputs(self):
-        return ['agents']
+        return ['detected_agents']
 
     def initialize(self):
         # use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
@@ -59,7 +59,13 @@ class AgentDetector(Component):
 
         self.object_detector = ObjectDetector(vehicle, self.camera_image, self.lidar_point_cloud, self.detector)
 
+        t1 = timeit.default_timer()
+
         detected_agents = self.detect_agents()
+        
+        t2 = timeit.default_timer()
+        print('Agent detection time: {:.6f} s'.format(t2 - t1))
+
         return detected_agents
 
     def object_to_agent(self, detected_object, bbox_cls):
@@ -77,6 +83,8 @@ class AgentDetector(Component):
                           velocity=(0,0,0), yaw_rate=0, attributes=None)
 
     def detect_agents(self):
+        """Creates a list of AgentState objects."""
+
         yolo_class_ids = [
             0,  # person
             1,  # bicycle
@@ -91,31 +99,3 @@ class AgentDetector(Component):
             detected_agents.append(agent)
         
         return detected_agents
-
-
-class OmniscientAgentDetector(Component):
-    """Obtains agent detections from a simulator"""
-    def __init__(self,vehicle_interface : GEMInterface):
-        self.vehicle_interface = vehicle_interface
-        self.agents = {}
-        self.lock = threading.Lock()
-
-    def rate(self):
-        return 4.0
-    
-    def state_inputs(self):
-        return []
-    
-    def state_outputs(self):
-        return ['agents']
-
-    def initialize(self):
-        self.vehicle_interface.subscribe_sensor('agent_detector',self.agent_callback, AgentState)
-    
-    def agent_callback(self, name : str, agent : AgentState):
-        with self.lock:
-            self.agents[name] = agent
-
-    def update(self) -> Dict[str,AgentState]:
-        with self.lock:
-            return copy.deepcopy(self.agents)

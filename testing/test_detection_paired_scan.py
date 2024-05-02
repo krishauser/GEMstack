@@ -21,10 +21,10 @@ import cv2
 
 from GEMstack.onboard.interface.gem import GEMInterface
 from GEMstack.state import AgentState, Route, SceneState, Path, ObjectFrameEnum
-from GEMstack.onboard.perception.detection import Detector
+from GEMstack.onboard.perception.agent_detection_v2 import AgentDetector
 
 def run_detection_paired_scan(data_folder, idx):
-    detector = Detector(None)
+    detector = AgentDetector(None)
     
     lidar_path = os.path.join(data_folder, 'lidar{}.npz'.format(idx))
     rgb_path = os.path.join(data_folder, 'color{}.png'.format(idx)) 

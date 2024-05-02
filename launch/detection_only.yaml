@@ -12,7 +12,7 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : detection.Detector
+        agent_detection : agent_detection_v2.AgentDetector
         perception_normalization : StandardPerceptionNormalizer
 
 visualization: !include "klampt_visualization.yaml"
