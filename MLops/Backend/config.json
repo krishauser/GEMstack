@@ -1,0 +1,4 @@
+{
+    "MONGO_URI": "mongodb+srv://testuser:thePassword@cluster0.6yerx6q.mongodb.net/?retryWrites=true&w=majority",
+    "DATABASE_NAME": "GEM_MLOps"
+}

@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-
+import warnings
 
 class PixelWise3DLidarCoordHandler:
     """ Provide pixelwise 3D lidar coordinate relative to the vehicle frame.
@@ -14,29 +14,49 @@ class PixelWise3DLidarCoordHandler:
 
     def __init__(self,
                  kernel_size=5,
-                 lidar2camera_fn="GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt",
-                 intrinsic_fn="GEMstack/knowledge/calibration/gem_e4_intrinsic.txt",
+                 lidar2cam_fc_fn="GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt",
+                 lidar2cam_fl_fn="GEMstack/knowledge/calibration/gem_e4_lidar2cam_fl.txt",
+                 lidar2cam_fr_fn="GEMstack/knowledge/calibration/gem_e4_lidar2cam_fr.txt",
+                 lidar2cam_rl_fn="GEMstack/knowledge/calibration/gem_e4_lidar2cam_rl.txt",
+                 lidar2cam_rr_fn="GEMstack/knowledge/calibration/gem_e4_lidar2cam_rr.txt",
                  lidar2vehicle_fn="GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt",
+                 intrinsic_fc_fn="GEMstack/knowledge/calibration/gem_e4_intrinsic.txt",
+                 intrinsic_corner_fn="GEMstack/knowledge/calibration/gem_e4_intrinsic_corner.txt",
                  xrange=(0, 20),
                  yrange=(-10, 10),
                  zrange=(-3, 1)) -> None:
         """ 
             Args:
                 kernel_size: kernel size for interpolation
-                lidar2camera_fn: filename of lidar to camera transformation matrix
-                intrinsic_fn: filename of camera intrinsic matrix
+                
+                lidar2cam_fc_fn: filename of lidar to front-center camera transformation matrix
+                lidar2cam_fl_fn: filename of lidar to front-left camera transformation matrix
+                lidar2cam_fr_fn: filename of lidar to front-right camera transformation matrix
+                lidar2cam_rl_fn: filename of lidar to rear-left camera transformation matrix
+                lidar2cam_rr_fn: filename of lidar to rear-right camera transformation matrix
                 lidar2vehicle_fn: filename of lidar to vehicle rear_axle transformation matrix
+                intrinsic_fc_fn: filename of front-center camera intrinsic matrix
+                intrinsic_corner_fn: filename of corner camera intrinsic matrix
+                
                 xrange: predefined x range for computation. Range values are using lidar frame in meters.
                 yrange: predefined y range for computation. Range values are using lidar frame in meters.
                 zrange: predefined z range for computation. Range values are using lidar frame in meters.
         """
-        self.T_lidar2camera = np.loadtxt(lidar2camera_fn)
-        self.T_lidar2vehicle = np.loadtxt(lidar2vehicle_fn)
-        self.intrinsic = np.loadtxt(intrinsic_fn)
-            
-        self.intrinsic = np.concatenate(
-            [self.intrinsic, np.zeros((3, 1))], axis=1)
         
+        # Only load lidar2cam matrices that exist
+        self.T_lidar2cam_dict = {}
+        cam_names = ["front_center", "front_left", "front_right", "rear_left", "rear_right"]
+        cam_extrinsic_fns = [lidar2cam_fc_fn, lidar2cam_fl_fn, lidar2cam_fr_fn, lidar2cam_rl_fn, lidar2cam_rr_fn]
+        cam_intrinsic_fns = [intrinsic_fc_fn, intrinsic_corner_fn, intrinsic_corner_fn, intrinsic_corner_fn, intrinsic_corner_fn]
+        for name, extrinsic_fn, intrinsic_fn in zip(cam_names, cam_extrinsic_fns, cam_intrinsic_fns):
+            self.T_lidar2cam_dict[name] = {}
+            try:
+                self.T_lidar2cam_dict[name]["extrinsic"] = np.loadtxt(extrinsic_fn)
+                self.T_lidar2cam_dict[name]["intrinsic"] = np.loadtxt(intrinsic_fn)
+            except:
+                warnings.warn(f"{name} camera does not have corresponding extrinsic or intrinsic matrices")
+            
+        self.T_lidar2vehicle = np.loadtxt(lidar2vehicle_fn)
         self.kernel_size = kernel_size
 
         # For saving computation resource, only process lidar points within predefined range.
@@ -85,11 +105,13 @@ class PixelWise3DLidarCoordHandler:
                         (point_cloud[:, 2] > zmin) & (point_cloud[:, 2] < zmax))
         return point_cloud[idxs]
 
-    def lidar_to_image(self, point_cloud_lidar: np.ndarray):
+    def lidar_to_image(self, point_cloud_lidar: np.ndarray, T_lidar2cam: np.ndarray, cam_intrinsic: np.ndarray):
 
         homo_point_cloud_lidar = np.hstack(
             (point_cloud_lidar, np.ones((point_cloud_lidar.shape[0], 1))))  # (N, 4)
-        pointcloud_pixel = (self.intrinsic @ self.T_lidar2camera @
+        cam_intrinsic = np.concatenate([cam_intrinsic, np.zeros((3, 1))], axis=1)
+        
+        pointcloud_pixel = (cam_intrinsic @ T_lidar2cam @
                             (homo_point_cloud_lidar).T)  # (3, N)
         pointcloud_pixel = pointcloud_pixel.T  # (N, 3)
 
@@ -107,7 +129,7 @@ class PixelWise3DLidarCoordHandler:
         point_cloud_image_world = pointcloud_trans[:, :3]  # (N, 3)
         return point_cloud_image_world
 
-    def get3DCoord(self, image: np.ndarray, point_cloud: np.ndarray):
+    def get3DCoord(self, image: np.ndarray, point_cloud: np.ndarray, which_camera="front_center"):
         """ 
             Return:
                 blend_3D_map: containing pixelwise 3D lidar coordinate in vehicle frame with
@@ -117,11 +139,15 @@ class PixelWise3DLidarCoordHandler:
                 if 3d coord of particular pixel == (0, 0, 0), it means we cannot get lidar 3D coord 
                 even after interpolation. Users should ignore that particular pixel for subsequent tasks.
         """
+        assert which_camera in (self.T_lidar2cam_dict.keys()) # sanity check
+        
         filtered_point_cloud = self.filter_lidar_by_range(point_cloud)
 
         point_cloud_3D = self.lidar_to_vehicle(filtered_point_cloud)
 
-        point_cloud_image = self.lidar_to_image(filtered_point_cloud)
+        point_cloud_image = self.lidar_to_image(filtered_point_cloud,
+                                                self.T_lidar2cam_dict[which_camera]['extrinsic'],
+                                                self.T_lidar2cam_dict[which_camera]['intrinsic'])
 
         # Keep only the lidar points whose projected coordinates lie within the boundary of images
         height, width = image.shape[:2]

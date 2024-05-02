@@ -5,6 +5,7 @@ from klampt import Geometry3D, GeometricPrimitive, TriangleMesh
 import numpy as np
 from . import settings
 from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,AgentEnum,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
+from ..state.intent import VehicleIntent, VehicleIntentEnum
 
 OBJECT_COLORS = {
     AgentEnum.CAR : (1,1,0,1),
@@ -41,6 +42,7 @@ REGION_TO_STYLE = {
     RoadgraphRegionEnum.PARKING_LOT : {'color':(0,0,1,0.5),'width':1,'pointSize':0},
     RoadgraphRegionEnum.CLOSED_COURSE : {'color':(1,0,0,0.5),'width':1,'pointSize':0},
     RoadgraphRegionEnum.VIRTUAL : {'color':(0,0,0,0.5),'width':1,'pointSize':0},
+    RoadgraphRegionEnum.CURB_SIDE : {'color':(0,0,1,0.5),'width':1,'pointSize':0},
 }
 
 def plot_pose(name : str, pose : ObjectPose, axis_len=0.1, label=True):
@@ -211,7 +213,8 @@ def plot_curve(name : str, curve : RoadgraphCurve, color=None, width=None):
     if width is not None:
         style['width'] = width
     for i,seg in enumerate(curve.segments):
-        vis.add(name+"_%d" % i,seg,**style)
+        seg_list = [list(s) for s in seg]
+        vis.add(name+"_%d" % i,seg_list,**style)
 
 def plot_lane(name : str, lane : RoadgraphLane, on_route=False):
     if lane.surface != RoadgraphSurfaceEnum.PAVEMENT:
@@ -224,14 +227,14 @@ def plot_lane(name : str, lane : RoadgraphLane, on_route=False):
         plot_curve(name+"_right", lane.right)
 
 def plot_region(name : str, region : RoadgraphRegion, color=None, width=None):
-    style = REGION_TO_STYLE.get(region.type,REGION_TO_STYLE[None])
-    points = region.outline()
-    pts = points + points[0]
+    style = REGION_TO_STYLE.get(region.type,None)
+    points = [list(p) for p in region.outline]
+    pts = points + [points[0]]
     if color is not None:
         style['color'] = color
     if width is not None:
         style['width'] = width
-    vis.add(name, [list(p) for p in pts], **style)
+    vis.add(name, pts, **style)
 
 def plot_roadgraph(roadgraph : Roadgraph, route : Route = None):
     #plot lanes
@@ -248,6 +251,25 @@ def plot_roadgraph(roadgraph : Roadgraph, route : Route = None):
     #plot 
     for k,o in roadgraph.static_obstacles.items():
         plot_object(k,o)
+
+def plot_intent(intent: VehicleIntent):
+    if intent.intent == VehicleIntentEnum.DRIVING:
+        vis.addText("intent","Driving",position=(1,1),color=(0,1,0,1))
+    elif intent.intent == VehicleIntentEnum.PULL_OVER:
+        vis.addText("intent","Pulling over",position=(1,1),color=(1,0,0,1))
+
+        style = {'color':(0.5,1,0.5,0.5),'width':5,'pointSize':1}
+        points = [[intent.pullover_target[0]+1.0,intent.pullover_target[1] + 1.0],
+                  [intent.pullover_target[0]-1.0,intent.pullover_target[1] + 1.0],
+                  [intent.pullover_target[0]-1.0,intent.pullover_target[1] - 1.0],
+                  [intent.pullover_target[0]+1.0,intent.pullover_target[1] - 1.0]]
+        pts = points + [points[0]]
+        vis.add("Intent_pullover_target", pts, **style)
+
+    elif intent.intent == VehicleIntentEnum.IDLE:
+        vis.addText("intent","Idle",position=(1,1),color=(0,0,1,1))
+    else:
+        vis.addText("intent","Unknown",position=(1,1),color=(0,0,0,1))
 
 def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = None, title = None, show=True):
     for i in list(vis.scene().items.keys()):
@@ -269,6 +291,10 @@ def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = No
     plot_roadgraph(scene.roadgraph,scene.route)
     #plot vehicle and objects
     plot_vehicle(scene.vehicle, vehicle_model)
+
+    # Plot intent
+    plot_intent(scene.intent)
+
     for k,a in scene.agents.items():
         plot_object(k,a,type=a.type)
     for k,o in scene.obstacles.items():

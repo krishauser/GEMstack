@@ -10,7 +10,7 @@ __all__ = ['PhysicalObject','ObjectPose','ObjectFrameEnum',
            'Roadmap',
            'Obstacle',
            'Sign',
-           'AgentState','AgentEnum','AgentActivityEnum',
+           'AgentState','AgentEnum','AgentActivityEnum', 'AgentAttributesFlag',
            'SceneState',
            'VehicleIntent','VehicleIntentEnum',
            'AgentIntent',
@@ -26,7 +26,7 @@ from .roadgraph import Roadgraph, RoadgraphLane, RoadgraphCurve, RoadgraphRegion
 from .obstacle import Obstacle, ObstacleMaterialEnum
 from .sign import Sign, SignEnum, SignalLightEnum, SignState
 from .roadmap import Roadmap
-from .agent import AgentState, AgentEnum, AgentActivityEnum
+from .agent import AgentState, AgentEnum, AgentActivityEnum, AgentAttributesFlag
 from .scene import SceneState
 from .intent import VehicleIntent, VehicleIntentEnum
 from .agent_intent import AgentIntent

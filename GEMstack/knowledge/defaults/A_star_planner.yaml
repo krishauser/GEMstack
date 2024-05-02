@@ -1,0 +1,16 @@
+search_planner:
+    rate: 1.0 # Rate to run A*
+    dt: 0.8 # Timestep
+    velocity: 1.0 # Velocity of the car at each timestep
+    max_wheel_angle: 0.6108
+    N_sample_controls: 5 # Explored paths for each timestep
+    resolution: 0.5 # Grid resolution
+    angle_resolution: 0.25 # Angle resolution
+    target_threshold: 1.0 # Terminate condition threshold
+    RS_threshold: 12.0 # Below the threshold, will try Reeds-shepp path to reach the goal
+    RS_resolution: 0.2 # Resolution of the generated Reeds-shepp path
+    RS_prob: 0.1 # Probability to generate Reeds-shepp path
+    gear_cost: 10.0 # Extra cost for changing gear
+    backward_cost_scale: 1.5 # Scale the cost for going backward
+    smooth_threshold: 0.5 # Path smoothing threshold
+    precomputed: !relative_path ../heuristics/reeds_shepp.npy # Stores the shortest kinomatically feasible path to a set of three dimensional goal states from a start position(in this case 0,0,0)
