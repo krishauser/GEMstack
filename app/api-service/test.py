@@ -8,6 +8,12 @@ from GEMstack.state.physical_object import _get_frame_chain
 from GEMstack.mathutils import transforms
 import math
 import time
+from dotenv import load_dotenv
+
+# Load the environment variables from the .env file
+load_dotenv()
+api_key = os.getenv('GOOGLE_MAPS_API_KEY')
+
 def find_place_coordinates(place_name):
     # Search for places based on the input name
     places_result = gmaps.places(query=place_name)
@@ -27,15 +33,15 @@ def find_place_coordinates(place_name):
             # Transform the current pose to the car frame (START frame)
             current_pose_car = current_pose_global.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose_global)
             # Return the coordinates in the car frame as JSON
-            return {'x': current_pose_car.x, 'y': current_pose_car.y, 'yaw': current_pose_car.yaw}
-            # # Return the coordinates as a dictionary
-            # return {'lat': lat, 'lng': lng}
+            return {'global':{'lat': lat, 'lng': lng},
+                    'car_frame':{'x': current_pose_car.x, 'y': current_pose_car.y, 'yaw': current_pose_car.yaw}}
         else:
             return None
     else:
         return None
+    
 if __name__ == "__main__":
-    gmaps = googlemaps.Client(key='REPLACE_WITH_YOUR_API_KEY')
+    gmaps = googlemaps.Client(key=api_key)
     # Define the start pose of the car in the global frame
     start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), y=40.09286250064475, x=-88.23565755734872, yaw=math.radians(90.0))
     place_name = "Highbay"
@@ -44,6 +50,7 @@ if __name__ == "__main__":
         print(f"Coordinates for the best-matched place: {coordinates}")
     else:
         print(f"No coordinates found for '{place_name}'")
+        
     # Geocoding an address
     # geocode_result = gmaps.geocode('201 St Marys Rd, Champaign, IL')
     # print(geocode_result)
