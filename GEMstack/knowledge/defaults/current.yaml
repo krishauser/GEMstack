@@ -30,6 +30,7 @@ perception:
         rate: 5.0
     sign_detection:
         model: !relative_path '../detection/sign_model.pt'
+        rate: 5.0
     
 A_star_planner:  
     !include A_star_planner.yaml
