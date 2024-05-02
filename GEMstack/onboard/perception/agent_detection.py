@@ -331,7 +331,7 @@ class MultiObjectDetector(Component):
             #TODO: these are guessed parameters
             self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
 
-class MultiObjectTracker():
+class MultiObjectTracker(Component):
     """Using Kalman Filter to track objects"""
     def __init__(
         self,
@@ -360,11 +360,11 @@ class MultiObjectTracker():
 
     def state_inputs(self) -> List[str]:
         """Returns the list of AllState inputs this component requires."""
-        return ["detected_agents"]
+        return ["vehicle"]
 
     def state_outputs(self) -> List[str]:
         """Returns the list of AllState outputs this component generates."""
-        return ["tracking_frames"]
+        return ["agents"]
 
     def healthy(self):
         """Returns True if the element is in a stable state."""

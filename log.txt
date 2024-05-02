@@ -1,0 +1,134 @@
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component MultiObjectTracker stdout ---------
+    Execution: Exception in component MultiObjectTracker: 'VehicleState' object is not iterable
+    Execution: Traceback (most recent call last):
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/execution/execution.py", line 283, in _do_update
+        res = self.c.update(*args)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 385, in update
+        self.track_agents(detected_agents=detected_agents)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 401, in track_agents
+        for agent in detected_agents:
+    TypeError: 'VehicleState' object is not iterable
+    
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+Execution: Waiting for sensors to be healthy...
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component MultiObjectTracker stdout ---------
+    Execution: Exception in component MultiObjectTracker: 'VehicleState' object is not iterable
+    Execution: Traceback (most recent call last):
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/execution/execution.py", line 283, in _do_update
+        res = self.c.update(*args)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 385, in update
+        self.track_agents(detected_agents=detected_agents)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 401, in track_agents
+        for agent in detected_agents:
+    TypeError: 'VehicleState' object is not iterable
+    
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component MultiObjectTracker stdout ---------
+    Execution: Exception in component MultiObjectTracker: 'VehicleState' object is not iterable
+    Execution: Traceback (most recent call last):
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/execution/execution.py", line 283, in _do_update
+        res = self.c.update(*args)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 385, in update
+        self.track_agents(detected_agents=detected_agents)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 401, in track_agents
+        for agent in detected_agents:
+    TypeError: 'VehicleState' object is not iterable
+    
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component MultiObjectTracker stdout ---------
+    Execution: Exception in component MultiObjectTracker: 'VehicleState' object is not iterable
+    Execution: Traceback (most recent call last):
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/execution/execution.py", line 283, in _do_update
+        res = self.c.update(*args)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 385, in update
+        self.track_agents(detected_agents=detected_agents)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 401, in track_agents
+        for agent in detected_agents:
+    TypeError: 'VehicleState' object is not iterable
+    
+-------------------------------------------
+Execution: Waiting for sensors to be healthy...
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component MultiObjectTracker stdout ---------
+    Execution: Exception in component MultiObjectTracker: 'VehicleState' object is not iterable
+    Execution: Traceback (most recent call last):
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/execution/execution.py", line 283, in _do_update
+        res = self.c.update(*args)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 385, in update
+        self.track_agents(detected_agents=detected_agents)
+      File "/home/gem/group6_project/GEMstack/GEMstack/onboard/perception/agent_detection.py", line 401, in track_agents
+        for agent in detected_agents:
+    TypeError: 'VehicleState' object is not iterable
+    
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+------ Component GNSSStateEstimator stdout ---------
+    pose X Y yaw -19999999999.999996 -19999999999.999992 2.792526766781833
+-------------------------------------------
+^CExecution: Could not validate sensors, stopping components and exiting
+Visualization thread closing and cleaning up Qt...
+######### QGLWidget close ###############
+Execution: Done with execution loop
+Execution: ---------------- DONE ----------------
+
