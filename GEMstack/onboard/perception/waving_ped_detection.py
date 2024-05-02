@@ -68,7 +68,7 @@ def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tupl
                     (point_cloud[:, 1] > ymin) & (point_cloud[:, 1] < ymax) )
     return point_cloud[idxs]
 
-class TDMultiClassDetector(Component):
+class WavingDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface, extrinsic=None):
         # State Estimation
