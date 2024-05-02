@@ -91,6 +91,7 @@ class KalmanTracker:
         # Predict the next state for each pedestrian using past state
         predicted_states = {}
         for class_id, kalman_filter in self.kalman_filters.items():
+            # print("Kalman Filter:", kalman_filter)
             kalman_filter.predict()
             # kalman_filter.x now stores the prediction for the future state.
             predicted_states[class_id] = kalman_filter.x
@@ -122,6 +123,9 @@ class KalmanTracker:
         tracked_pedestrians = {
             class_id: kalman_filter.x for class_id, kalman_filter in self.kalman_filters.items()
         }
+        # print("Predicted State:", predicted_states)
+        # print("><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>")
+        # print("Tracked Pedestrians:", tracked_pedestrians)
         return tracked_pedestrians, matches
     
     ### HELPER FUNCTIONS

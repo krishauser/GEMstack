@@ -153,7 +153,7 @@ class PedestrianDetector():
         self.MOD = MultiObjectDetector(gem_interface, extrinsic)
         self.MOT = MultiObjectTracker(
             test=True,
-            write_all=0,
+            write_all=False,
             detection_file_name='GEMstack/onboard/prediction/written_frames.txt'
         )
 
@@ -207,14 +207,13 @@ class PedestrianDetector():
         rospy.loginfo("Detecting agents...")
 
         vis = img.copy()
-
         t1 = time.time()
         detection_result = self.detector(img, verbose=False)
 
         rospy.loginfo('Detection time: %s', str(time.time() - t1))
 
         target_ids = [0, 2, 11]  # Target class IDs
-        class_names = {0: "pedestrian", 2: "car", 11: "stop sign"}
+        class_names = {0: "Pedestrian", 2: "Car", 11: "Stop Sign"}
 
         start_t = time.time()
         coord_3d_map = self.coord_3d_handler.get3DCoord(img, pc_3D)
@@ -345,35 +344,37 @@ class PedestrianDetector():
                         color = (255, 0, 255)
                         agent_type = AgentEnum.PEDESTRIAN
                         print(f"Pedestrian {class_counts[class_name]} Depth:", depth)
-                        agent = self.MOD.box_to_agent(box, agent_type, depth)
+                        agent = self.MOD.box_to_agent(box, agent_type, y_3d, depth)
                         if agent is not None:
                             detected_ped.append(agent) # Pedestrian tracking info => type:AgentState
-                        vel = self.MOT.track_agents(detected_ped)
+                        vel, pred_x, pred_y = self.MOT.track_agents(detected_ped)
+                        print("Pred_x:", pred_x)
                         print(f"{class_name}{class_counts[class_name]} Velocity:", vel)  
-                        print("============================================================") 
+                        print("><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>")
 
                     if cls == 2:
                         color = (0, 255, 255)
                         agent_type = AgentEnum.CAR
                         print("Vehicle Depth:", depth)
-                        agent = self.MOD.box_to_agent(box, agent_type, depth)
+                        agent = self.MOD.box_to_agent(box, agent_type, y_3d, depth)
                         if agent is not None:
                             detected_car.append(agent) # Vehicle tracking info => type:AgentState
-                        vel = self.MOT.track_agents(detected_car)
+                        vel, pred_x, pred_y = self.MOT.track_agents(detected_car)
                         print(f"{class_name}{class_counts[class_name]} Velocity:", vel)
-                        print("============================================================") 
+                        print("><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>")
 
                     if cls == 11:
                         color = (150, 50, 255)
                         agent_type = SignEnum.STOP_SIGN
                         print("Stop Sign Depth:", depth)
-                        agent = self.MOD.box_to_agent(box, agent_type, depth)
+                        agent = self.MOD.box_to_agent(box, agent_type, y_3d, depth)
                         if agent is not None:
                             detected_sign.append(agent) # Stop sign tracking info => type:AgentState
-                        vel = self.MOT.track_agents(detected_sign)
+                        vel, pred_x, pred_y = self.MOT.track_agents(detected_sign)
+                        print("Pred_x:", pred_x)
                         print(f"{class_name}{class_counts[class_name]} Velocity:", vel)
-                        print("============================================================") 
-
+                        print("><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>")
+                    
                     if len(track) > 30:
                         track.pop(0)
                     points = np.array(track, dtype=np.int32).reshape((-1, 1, 2))
