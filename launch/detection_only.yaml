@@ -12,11 +12,12 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
+        perception_normalization : StandardPerceptionNormalizer
+        roadgraph_update:
+            type: StaticRoadgraphUpdater
+            args: [!relative_path "../GEMstack/knowledge/roadmaps/lane_example.json"]
         agent_detection : agent_detection_v2.AgentDetector
         sign_detection: sign_detection.SignDetector
-        perception_normalization : StandardPerceptionNormalizer
-
-visualization: !include "klampt_visualization.yaml"
 
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
