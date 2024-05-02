@@ -1,4 +1,4 @@
-from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
+from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum,SignEnum, SignState, Sign
 from ..interface.gem import GEMInterface
 from ..component import Component
 from typing import Dict
@@ -162,7 +162,7 @@ class MultiObjectDetector(Component):
 
         return detected_agents
     
-    def box_to_agent(self, box, cls, depth):
+    def box_to_agent(self, box, cls, y_3d, depth):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
 
         TODO: you need to use the image, the camera intrinsics, the lidar
@@ -173,21 +173,30 @@ class MultiObjectDetector(Component):
         b_x, b_y, w, h = box
 
         # Specify ObjectPose. Note that The pose's yaw, pitch, and roll are assumed to be 0 for simplicity.
-        pose = ObjectPose(t=0, x=depth, y=b_y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+        pose = ObjectPose(t=0, x=depth, y=y_3d, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
 
         # Specify AgentState.
         l = 1
         dims = (l, w, h) 
-        
-        return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
-    def detect_agents(self, test=False):
+        if cls == SignEnum.STOP_SIGN:
+            state=SignState(signal_state=None, left_turn_signal_state = None, right_turn_signal_state = None,
+                            crossing_gate_state = None)
+            return Sign(pose=pose, dimensions=dims, outline=None, type=cls, entities=["intersection"], speed=0, state=state)
+        else:
+            return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+
+    def detect_agents(self, img, pc_3D):
         print("Start Detecting...")
+        if self.zed_image is None:
+            return
         detection_result = self.detector(self.zed_image,verbose=False)
-        
+        height, width, channels = img.shape
+
         #TODO: create boxes from detection result
         boxes = []
         target_ids = [0, 2, 11] # 0 for pedestrian, 2 for car, 11 for stop sign
+        class_names = {0: "Pedestrian", 2: "Car", 11: "Stop Sign"}
         bbox_ids = []
         for box in detection_result[0].boxes: # only one image, so use index 0 of result
             class_id = int(box.cls[0].item())
@@ -250,13 +259,13 @@ class MultiObjectDetector(Component):
 
             # calulate depth average
             depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
-
+            y_3d = y - (width/2)
             if id == 0:
                 color = (255, 0, 255)
                 self.pedestrian_counter += 1
                 cls = AgentEnum.PEDESTRIAN
                 print("Pedestrian Depth:", depth)
-                agent = self.box_to_agent(b, cls, depth)
+                agent = self.box_to_agent(b, cls, y_3d, depth)
                 if agent is not None:
                     detected_agents.append(agent)
             if id == 2:
@@ -264,15 +273,15 @@ class MultiObjectDetector(Component):
                 self.car_counter += 1
                 cls = AgentEnum.CAR
                 print("Vehicle Depth:", depth)
-                agent = self.box_to_agent(b, cls, depth)
+                agent = self.box_to_agent(b, cls, y_3d, depth)
                 if agent is not None:
                     detected_agents.append(agent)
             if id == 11:
                 color = (150, 50, 255)
                 self.stop_sign_counter += 1
-                cls = AgentEnum.STOP_SIGN
+                cls = SignEnum.STOP_SIGN
                 print("Stop Sign Depth:", depth)
-                agent = self.box_to_agent(b, cls, depth)
+                agent = self.box_to_agent(b, cls, y_3d, depth)
                 if agent is not None:
                     detected_agents.append(agent)
 
@@ -291,6 +300,7 @@ class MultiObjectDetector(Component):
 
         if test: # Behavior Prediction
             return detected_agents, detection_result
+        
         return detected_agents
 
     def save_data(self, loc=None):
@@ -401,7 +411,7 @@ class MultiObjectTracker():
                 cls = 2
                 detections.append(np.array([x, y, l, w])) # Top down bounding box
 
-            if agent.type == AgentEnum.STOP_SIGN:
+            if agent.type == SignEnum.STOP_SIGN:
                 x, y, z = agent.pose.x, agent.pose.y, agent.pose.z
                 l, w, h = agent.dimensions
                 cls = 11
@@ -414,7 +424,8 @@ class MultiObjectTracker():
         for i, pid in enumerate(kalman_agent_states):
             ag_state = kalman_agent_states[pid]
             if cls == 0:
-                print(f"Ped_ag_state:{i}", ag_state)
+                print(f"Pedestrian future state:{i}", ag_state)
+                velocity = ((ag_state[4])**2 + (ag_state[5])**2)**0.5
                 tracking_results[pid] = AgentState(
                     pose=ObjectPose(
                         t=0, x=ag_state[0], y=ag_state[1], z=0,
@@ -424,8 +435,10 @@ class MultiObjectTracker():
                     type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING,
                     yaw_rate=0, outline=None,
                 )  
+                return velocity, ag_state[0], ag_state[1]
             if cls == 2:
-                print("Car_ag_state:", ag_state)
+                print("Car future state:", ag_state)
+                velocity = ((ag_state[4])**2 + (ag_state[5])**2)**0.5
                 tracking_results[pid] = AgentState(
                     pose=ObjectPose(
                         t=0, x=ag_state[0], y=ag_state[1], z=0,
@@ -435,20 +448,23 @@ class MultiObjectTracker():
                     type=AgentEnum.CAR, activity=AgentActivityEnum.MOVING,
                     yaw_rate=0, outline=None,
                 ) 
+                return velocity, ag_state[0], ag_state[1]
             if cls == 11:
-                print("Sign_ag_state:", ag_state)
+                print("Stop Sign future state:", ag_state)
+                velocity = ((ag_state[4])**2 + (ag_state[5])**2)**0.5
                 tracking_results[pid] = AgentState(
                     pose=ObjectPose(
                         t=0, x=ag_state[0], y=ag_state[1], z=0,
                         yaw=0, pitch=0, roll=0, 
                         frame=ObjectFrameEnum.CURRENT,),
                     dimensions=(ag_state[2], ag_state[3], 1.5), velocity=(ag_state[4], ag_state[5], 0),
-                    type=AgentEnum.STOP_SIGN, activity=AgentActivityEnum.MOVING,
+                    type=SignEnum.STOP_SIGN, activity=AgentActivityEnum.MOVING,
                     yaw_rate=0, outline=None,
                 )   
+                return velocity, ag_state[0], ag_state[1]
 
         self.update_track_history(tracking_results)
-
+        
         if self.test:
             return tracking_results, matches
 
@@ -466,7 +482,7 @@ class MultiObjectTracker():
         # Do not keep more than 8 frames
         if not self.write_all:
             # Remove 8th oldest frame
-            self.tracking_results.pop(self.current_frame - 8, None)
+            self.tracking_results.pop(self.current_frame - 10, None)
         
         self.current_frame += 1
 

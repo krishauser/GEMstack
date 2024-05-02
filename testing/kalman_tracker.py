@@ -9,8 +9,8 @@ CONFIG FILE/PRARAMETERS for KalmanTracker:
 (some examples for configs are provided/set as defaults. )
 
 MUST PROVIDE:
-1: dim_x = the dimensions for state. We define it as [depth, y, w, h, vel_x, vel_y]
-2: dim_z = the dimensions for measurement. We define it as [depth, y, w, h]
+1: dim_x = the dimensions for state
+2: dim_z = the dimensions for measurement
 3: F = state transition matrix. Must be shape (dim_x, dim_x)
 4: H = measurement matrix. Must be shape (dim_z, dim_x)
 5: P = Covariance matrix for initial observation. Represents uncertainty of initial state.
@@ -43,6 +43,7 @@ class KalmanTracker:
             state[0:dim_z] = measurement
             return state
         
+
         if config_file_path is not None:
             spec = importlib.util.spec_from_file_location("config", config_file_path)
             config = importlib.util.module_from_spec(spec)
@@ -70,9 +71,9 @@ class KalmanTracker:
             self.dim_x = dim_x
             self.dim_z = dim_z
             self.F = np.array([[1, 0, 1, 0], 
-                               [0, 1, 0, 1], 
-                               [0, 0, 1, 0], 
-                               [0, 0, 0, 1]]) if F is None else F
+                                [0, 1, 0, 1], 
+                                [0, 0, 1, 0], 
+                                [0, 0, 0, 1]]) if F is None else F
             self.H = np.array([[1, 0, 0, 0], 
                                [0, 1, 0, 0]]) if H is None else H
             self.P = np.eye(dim_x) * 100 if P is None else P
@@ -86,60 +87,56 @@ class KalmanTracker:
     
     # Must be called in loop to continuously update all tracked objects
     # bounding_boxes are just the list of measurements/observations/sensor readings
-    def update_objects_tracking(self, bounding_boxes):
+    def update_pedestrian_tracking(self, bounding_boxes):
     
         # Predict the next state for each pedestrian using past state
         predicted_states = {}
-        for class_id, kalman_filter in self.kalman_filters.items():
-            # print("Kalman Filter:", kalman_filter)
+        for pedestrian_id, kalman_filter in self.kalman_filters.items():
             kalman_filter.predict()
             # kalman_filter.x now stores the prediction for the future state.
-            predicted_states[class_id] = kalman_filter.x
+            predicted_states[pedestrian_id] = kalman_filter.x
         
         # Match observed bounding boxes with predicted future states
-        cost_matrix, class_id_list = self.compute_cost_matrix(predicted_states, bounding_boxes)
-        matches = self.compute_matching(cost_matrix, class_id_list)
+        cost_matrix, pedestrian_id_list = self.compute_cost_matrix(predicted_states, bounding_boxes)
+        matches = self.compute_matching(cost_matrix, pedestrian_id_list)
         
         # Update matched pedestrians
         matched_pedestrians = set()
         matched_bboxes = set()
-        for class_id, bbox_idx in matches.items():
-            self.kalman_filters[class_id].update(bounding_boxes[bbox_idx])
-            self.kalman_filters[class_id].time_since_update = 0
-            matched_pedestrians.add(class_id)
+        for pedestrian_id, bbox_idx in matches.items():
+            self.kalman_filters[pedestrian_id].update(bounding_boxes[bbox_idx])
+            self.kalman_filters[pedestrian_id].time_since_update = 0
+            matched_pedestrians.add(pedestrian_id)
             matched_bboxes.add(bbox_idx)
             
         # For unmatched Kalman filters, increase time since last update by 1
-        for class_id in (set(self.kalman_filters.keys()) - matched_pedestrians):
-            self.kalman_filters[class_id].time_since_update += 1
+        for pedestrian_id in (set(self.kalman_filters.keys()) - matched_pedestrians):
+            self.kalman_filters[pedestrian_id].time_since_update += 1
         self.delete_old_tracks()
         
         # For unmatched bboxes, create a new kalman filter
         for col_idx in (set(range(len(bounding_boxes))) - matched_bboxes):
-            class_id = self.generate_new_class_id()
-            self.kalman_filters[class_id] = self.create_kalman_filter(bounding_boxes[col_idx])
-            matches[class_id]= col_idx
+            pedestrian_id = self.generate_new_pedestrian_id()
+            self.kalman_filters[pedestrian_id] = self.create_kalman_filter(bounding_boxes[col_idx])
+            matches[pedestrian_id]= col_idx
         # Return the tracked pedestrians (mapping pedestrian ID to state)
         tracked_pedestrians = {
-            class_id: kalman_filter.x for class_id, kalman_filter in self.kalman_filters.items()
+            pedestrian_id: kalman_filter.x for pedestrian_id, kalman_filter in self.kalman_filters.items()
         }
-        # print("Predicted State:", predicted_states)
-        # print("><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>")
-        # print("Tracked Pedestrians:", tracked_pedestrians)
         return tracked_pedestrians, matches
     
     ### HELPER FUNCTIONS
-    def generate_new_class_id(self):
+    def generate_new_pedestrian_id(self):
         self.max_id += 1
         return str(self.max_id)
 
     def delete_old_tracks(self):
         to_delete = []
-        for class_id, kalman_filter in self.kalman_filters.items():
+        for pedestrian_id, kalman_filter in self.kalman_filters.items():
             if kalman_filter.time_since_update > self.max_age:
-                to_delete.append(class_id)
-        for class_id in to_delete:
-            del self.kalman_filters[class_id]
+                to_delete.append(pedestrian_id)
+        for pedestrian_id in to_delete:
+            del self.kalman_filters[pedestrian_id]
             
     def compute_cost_matrix(self,predicted_states, bounding_boxes):
         cost_matrix = np.zeros((len(predicted_states), len(bounding_boxes)))
