@@ -216,6 +216,7 @@ class PedestrianTrajPrediction(Component):
     # past_agent_states.shape: [num_frames_in_model * (peds_in_frame for frame in frames), 17]
     def update(self, past_agent_states) -> Dict[AgentEnum, Dict[int, Dict[int, AgentState]]]:
         data = copy.deepcopy(past_agent_states)
+        self.cur_time = time.time()
         # flip the x- and y-coordinates for each pedestrian in each frame
 
         if data is None or data == []: 
