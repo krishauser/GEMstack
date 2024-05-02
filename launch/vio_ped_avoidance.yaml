@@ -14,13 +14,13 @@ recovery:
 drive: 
     perception:
         state_estimation : VIOSlamEstimator
-        agent_detection : pedestrian_detection.PedestrianDetector
+        agent_detection : agent_detection.MultiObjectDetector
         perception_normalization : StandardPerceptionNormalizer
     planning:
         route_planning:
             type: StaticRoutePlanner
             args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
-        motion_planning: pedestrian_avoidance_planning.PedestrianAvoidanceMotionPlanner
+        motion_planning: motion_planning.RouteToTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
             print: True
