@@ -10,7 +10,7 @@ import sensor_msgs.point_cloud2 as pc2
 
 sobel_kernel_size = 3
 sobel_min_threshold = 90
-conf_val = 0.80
+conf_val = 0.835
 MODEL_WEIGHT_PATH = '../../knowledge/detection/parking_spot_detection.pt'
 
 class ImageProcessorNode:
@@ -85,22 +85,6 @@ class ImageProcessorNode:
             class_id, confidence = int(box.cls[0].item()), float(conf.item())
             if class_id == 0 and confidence >= conf_val:
                 x, y, w, h, r = box.xywhr[0].tolist()
-                if self.last_bbox_info:
-                    last_x, last_y, last_w, last_h, last_r = self.last_bbox_info
-                    # Calculate angle difference and normalize it
-                    angle_diff = (r - last_r + np.pi) % (2 * np.pi) - np.pi
-                    
-                    # Check if the rotation is approximately +/- 90 degrees
-                    if abs(abs(angle_diff) - np.pi/2) < np.pi/18:  # 10 degrees tolerance
-                        # Swap width and height, adjust rotation
-                        x = last_h
-                        y = last_x
-                        w = last_y
-                        h = last_w
-
-                        r = last_r + np.sign(angle_diff) * np.pi/2
-
-                self.last_bbox_info = (x, y, w, h, r)
                 return (x, y, w, h, r)            
         return None
 
@@ -109,8 +93,8 @@ class ImageProcessorNode:
             return canvas
         x, y, w, h, r = bbox_info
         points = self.get_rotated_box_points(x, y, w, h, -r)
-        self.green_lines(canvas, points)
-        self.middle_line_3d_coords(canvas, points)
+        self.green_lines(canvas, points,r)
+        self.middle_line_3d_coords(canvas, points,r)
         return canvas
 
     def get_rotated_box_points(self, x, y, width, height, angle):
@@ -121,43 +105,47 @@ class ImageProcessorNode:
         rotated_rectangle = np.dot(rectangle, rotation_matrix) + np.array([x, y])
         return np.int0(rotated_rectangle)
 
-    def green_lines(self, canvas, points):
-        # Convert box corners to lines for more straightforward calculation
-        left_lines = np.array([points[3], points[2]])
-        right_lines = np.array([points[0], points[1]])
-        
+    def green_lines(self, canvas, points, angle):
+        angle_threshold = np.pi / 4  # 45 degrees threshold
+
+        if abs(angle) > angle_threshold:
+            # Use right and left lines
+            left_lines = np.array([points[3], points[2]])
+            right_lines = np.array([points[0], points[1]])
+        else:
+            # Use top and bottom lines
+            left_lines = np.array([points[0], points[3]])
+            right_lines = np.array([points[1], points[2]])
+
         # Extend lines for visual clarity
         cv2.line(canvas, tuple(right_lines[0]), tuple(right_lines[1]), (0, 255, 0), 2)
         cv2.line(canvas, tuple(left_lines[0]), tuple(left_lines[1]), (0, 255, 255), 2)
 
-        cv2.circle(canvas, tuple(points[0]), 5, (255, 0, 0), -1)  # Blue - Top right
-        cv2.circle(canvas, tuple(points[1]), 5, (0, 0, 255), -1)  # Red - bottom right
-        cv2.circle(canvas, tuple(points[2]), 5, (0, 255, 0), -1)  # Green - Bottom left
-        cv2.circle(canvas, tuple(points[3]), 5, (255, 0, 255), -1)  # Magenta - top left
+        # Draw corners for reference
+        # cv2.circle(canvas, tuple(points[0]), 5, (255, 0, 0), -1)  # Blue - Top right
+        # cv2.circle(canvas, tuple(points[1]), 5, (0, 0, 255), -1)  # Red - bottom right
+        # cv2.circle(canvas, tuple(points[2]), 5, (0, 255, 0), -1)  # Green - Bottom left
+        # cv2.circle(canvas, tuple(points[3]), 5, (255, 0, 255), -1)  # Magenta - top left
 
 
-    def middle_line_3d_coords(self, canvas, points):
-        # Simplify points usage by directly using them in order
-        top_mid = ((points[3][0] + points[0][0]) // 2, (points[3][1] + points[0][1]) // 2)
-        bottom_mid = ((points[2][0] + points[1][0]) // 2, (points[2][1] + points[1][1]) // 2)
+    def middle_line_3d_coords(self, canvas, points, angle):
+        angle_threshold = np.pi / 4  # 45 degrees threshold
 
-        # Draw the red line between the midpoints of the top and bottom lines
+        if abs(angle) > angle_threshold:
+            # Calculate mid points of left and right lines
+            top_mid = ((points[3][0] + points[0][0]) // 2, (points[3][1] + points[0][1]) // 2)
+            bottom_mid = ((points[2][0] + points[1][0]) // 2, (points[2][1] + points[1][1]) // 2)
+        else:
+            # Calculate mid points of top and bottom lines
+            top_mid = ((points[0][0] + points[1][0]) // 2, (points[0][1] + points[1][1]) // 2)
+            bottom_mid = ((points[3][0] + points[2][0]) // 2, (points[3][1] + points[2][1]) // 2)
+
+        # Draw the red line between the new midpoints
         cv2.line(canvas, top_mid, bottom_mid, (0, 0, 255), 2)
 
-        # Calculate the midpoint of the red line and the angle from the vertical center line
-        red_line_mid = ((top_mid[0] + bottom_mid[0]) // 2, (top_mid[1] + bottom_mid[1]) // 2)
-        mid_x = canvas.shape[1] // 2
-        dx = top_mid[0] - bottom_mid[0]
-        dy = top_mid[1] - bottom_mid[1]
-        angle_radians = np.arctan2(dy, dx)
-        angle_from_vertical = abs(np.pi / 2 - angle_radians)
-
-        # Draw the center blue line and print the angle
-        cv2.line(canvas, (mid_x, 0), (mid_x, canvas.shape[0]), (255, 0, 0), 2)
-
         # Calculate angle of the red line relative to the vertical center line
-        angle_radians = np.arctan2(dy, dx)
-        angle_from_vertical = abs(np.pi / 2 - angle_radians)
+        # angle_radians = np.arctan2(dy, dx)
+        # angle_from_vertical = abs(np.pi / 2 - angle_radians)
 
         # # Use handler to get 3D coordinates of the red line midpoint
         # if self.point_cloud:
