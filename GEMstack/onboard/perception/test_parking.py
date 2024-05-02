@@ -93,10 +93,10 @@ class ImageProcessorNode:
                     # Check if the rotation is approximately +/- 90 degrees
                     if abs(abs(angle_diff) - np.pi/2) < np.pi/18:  # 10 degrees tolerance
                         # Swap width and height, adjust rotation
-                        x = last_y
-                        y = last_w
-                        w = last_h
-                        h = last_x
+                        x = last_h
+                        y = last_x
+                        w = last_y
+                        h = last_w
 
                         r = last_r + np.sign(angle_diff) * np.pi/2
 
@@ -130,10 +130,10 @@ class ImageProcessorNode:
         cv2.line(canvas, tuple(right_lines[0]), tuple(right_lines[1]), (0, 255, 0), 2)
         cv2.line(canvas, tuple(left_lines[0]), tuple(left_lines[1]), (0, 255, 255), 2)
 
-        # cv2.circle(canvas, tuple(points[0]), 5, (255, 0, 0), -1)  # Blue - Top right
-        # cv2.circle(canvas, tuple(points[1]), 5, (0, 0, 255), -1)  # Red - bottom right
-        # cv2.circle(canvas, tuple(points[2]), 5, (0, 255, 0), -1)  # Green - Bottom left
-        # cv2.circle(canvas, tuple(points[3]), 5, (255, 0, 255), -1)  # Magenta - top left
+        cv2.circle(canvas, tuple(points[0]), 5, (255, 0, 0), -1)  # Blue - Top right
+        cv2.circle(canvas, tuple(points[1]), 5, (0, 0, 255), -1)  # Red - bottom right
+        cv2.circle(canvas, tuple(points[2]), 5, (0, 255, 0), -1)  # Green - Bottom left
+        cv2.circle(canvas, tuple(points[3]), 5, (255, 0, 255), -1)  # Magenta - top left
 
 
     def middle_line_3d_coords(self, canvas, points):
