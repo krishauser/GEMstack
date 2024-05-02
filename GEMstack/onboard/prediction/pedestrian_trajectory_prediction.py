@@ -117,7 +117,6 @@ class PedestrianTrajPrediction(Component):
         print(f'loading model from checkpoint: {cp_path}')
         model_cp = torch.load(cp_path, map_location='cpu')
         model.load_state_dict(model_cp['model_dict'], strict=False)
-        #model = model_dict[self.config.model_name](self.config)
         return model
 
     # Run the model on the data
