@@ -35,7 +35,6 @@ PEDESTRIAN_DIMS = (1, 1, 1.7)
 class PedestrianTrajPrediction(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
-        print("initializing trajpredict CONSTRUCTOR")
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.config = Config(CONFIG_FILE)
         self.model = self.load_model()
@@ -44,27 +43,20 @@ class PedestrianTrajPrediction(Component):
     # Do NOT use until we get our model workinggnikrow
     # dict of pedestrian types
     # each is {agentenum.pedestrian/whatever: {framenum: {ped id:state}}}
-    # TODO ANANYA MAKE SURE THIS ALWAYS RETURNS A NP ARRAY
     def convert_data_to_model_input(self, past_agent_states : Dict[AgentEnum, Dict[int, Dict[int, AgentState]]]) -> np.ndarray:
         # get tracked frames for pedestrian agents
         pedestrian_agent_states = past_agent_states[AgentEnum.PEDESTRIAN]
         if len(pedestrian_agent_states) == 0:
-            return []
-
+            return np.array([])
 
         # get the 8 most recent frames(highest frame number) from the past_agent_states
         past_agent_states = []
-
-
-        print(len(past_agent_states), len(pedestrian_agent_states))
 
         # sort pedestrian agent states by frame number
         for frame in sorted(pedestrian_agent_states.keys(), reverse=True)[:NUM_PREV_FRAMES+1]:
             past_agent_states.append(pedestrian_agent_states[frame])
         # reverse past_agent_states so that the most recent frame is first
-        past_agent_states = past_agent_states[::-1]
-        # past_agent_states = [{ped_id: state}] * # of frames 
-
+        past_agent_states = past_agent_states[::-1] # past_agent_states = [{ped_id: state}] * # of frames 
 
         # takes in list of dictionaries corresponding to past 8 frames
         past_frames = []
@@ -93,10 +85,10 @@ class PedestrianTrajPrediction(Component):
                 
                 past_frames.append(row)
                 
-
         if len(valid_pids) == 0:
-            return []
+            return np.array([])
 
+        # create dummy frames for the next frames
         for frame in range(NUM_PREV_FRAMES + 1, NUM_PREV_FRAMES + 1 + NUM_FUTURE_FRAMES):
             for rpid in valid_pids:
                 # create length 17 aray of -1
@@ -110,11 +102,8 @@ class PedestrianTrajPrediction(Component):
                 row[-2] = x
                 past_frames.append(row)
 
-
         past_frames = np.array(past_frames).astype(str)
         past_frames[:,2] = "Pedestrian"
-
-        np.savetxt("test_input_data.txt", past_frames, delimiter=" ", fmt="%s")
 
         return past_frames
 
@@ -134,23 +123,13 @@ class PedestrianTrajPrediction(Component):
     # Run the model on the data
     def run_model(self, data):
         assert len(data) != None, "Model can't run on empty data"
+
         split = 'test'
         generator = data_generator(self.config, gt_data=data, split=split, phase='testing')
         sample_motion_3D, valid_id, frame = self.run_model_on_data(generator) # [samples, num_agents, future_frames, 2]
         sample_motion_3D = sample_motion_3D[self.config.best_samples]
-        # write to file or return  
-        # select the
-        # flush the output to stdout
+        
         sys.stdout.flush()
-        # print "READY"
-        print("RAN MODEL !!!!!", flush=True)
-        print(f"ids are {valid_id}", flush=True)
-        print(sample_motion_3D.shape)
-
-        # # load in gt_results from real_results.pt
-        # gt_results = torch.load('real_results.pt')
-        # # check if the two tensors are equal
-        # print("the results match the expected results", torch.equal(sample_motion_3D, gt_results))
         
         return sample_motion_3D, valid_id, frame
     
@@ -164,7 +143,7 @@ class PedestrianTrajPrediction(Component):
     def run_model_on_data(self, generator): 
         data = generator()
         if data is None:
-            print("DATA IS NONE AAA")
+            print("Data is None, not running model.")
             return [], [], -1 
 
         seq_name, frame = data['seq'], data['frame']
@@ -176,7 +155,6 @@ class PedestrianTrajPrediction(Component):
         sample_motion_3D = sample_motion_3D * self.config.traj_scale
     
         return sample_motion_3D, data['valid_id'], frame
-        print("end of run model on data, not returning anything")
         
 
     def rate(self):
@@ -194,9 +172,10 @@ class PedestrianTrajPrediction(Component):
         self.camera_info = camera_info
 
     def initialize(self):
-        print("initializing trajpredict")
+        print("Initializing PedestrianTrajPrediction")
         pass
 
+        ## todo: removing
     # May not need this if motion planning can just get the velocities themselves
     def estimate_velocity(self, past_values):
         # estimate velocity from past few frames
@@ -208,10 +187,9 @@ class PedestrianTrajPrediction(Component):
     def convert_data_from_model_output(self, sample_model_3D, valid_id, frame) -> List[Dict[int,List[AgentState]]]:
         agent_list = []
         # sample_model_3D: 3 x ped_id x 12 x 2
-        iterations = 0
-        print(sample_model_3D.shape, "SAMPLE MODEL 3D SHAPE")
+        
         for traj in range(sample_model_3D.shape[0]):
-            starttime = time.time()
+            
             # Create the dictionary of pedestrian-future AgentState lists for the current trajectory
             agent_dict = defaultdict(list) # Key: Pedestrian ID | Value: List of AgentStates for each future frame
             for ped_idx in range(sample_model_3D.shape[1]):
@@ -227,21 +205,16 @@ class PedestrianTrajPrediction(Component):
 
                     # create an AgentState object
                     pose = ObjectPose(t=frame_time, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.START)
-
-                    print("ped idx:", ped_id, "framenum", future_frame_id, "pose xy: ", x, y)
-
+                    
                     # dimensions of a pedestrian (not accurate)
                     dims = PEDESTRIAN_DIMS
                     # velocity = esimate velocity from past few frames
                     # velocity = self.estimate_velocity(past few frames)
                     agent_state = AgentState(pose=pose, dimensions=dims, outline=None, type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
                     agent_dict[ped_id].append(agent_state)
-                    iterations += 1
-                print("single pedestrian time", time.time()-starttime)
+                                        
             agent_list.append(agent_dict)
-            print(starttime-time.time(), "iteration", traj)
 
-        print(iterations, "iterations of innermost loop")
         return agent_dict
             
 
@@ -251,40 +224,25 @@ class PedestrianTrajPrediction(Component):
     # Assuming that past_agent_states is actually a numpy array instead of just a list of strings
     # past_agent_states.shape: [num_frames_in_model * (peds_in_frame for frame in frames), 17]
     def update(self, past_agent_states) -> Dict[AgentEnum, Dict[int, Dict[int, AgentState]]]:
-        # print("input to trajpredict, ", len(past_agent_states.items()))
-
         data = copy.deepcopy(past_agent_states)
-        self.cur_time = time.time()
         # flip the x- and y-coordinates for each pedestrian in each frame
 
         if data is None or data == []: 
-            print("NO INPUT TO trajpredict")
+            print("No input to the model. Not running model. ")
             return []
 
         model_input = self.convert_data_to_model_input(data)
 
-        print(time.time() - self.cur_time, "COMPUTED MODEL INPUT")
-
         if len(model_input) == 0 or model_input.shape == (0, ):
-            print("no pedestrians found, no need to run model. ")
+            print("No pedestrians found. Not running model. ")
             return []
-
-        print("input to model:")
-        for m in model_input:
-            print(m)
 
         # run the traj prediction model on data
         sample_model_3D, valid_ids, frame = self.run_model(model_input)
-        print(time.time() - self.cur_time, "RAN MODEL")
-
-        # output frame 7/2.5 -> time  + cur_time = detection_time
 
         # convert data to AgentState objects make sure to convert the frames to time(which will add to the AgentPose object)
         agent_list = self.convert_data_from_model_output(sample_model_3D, valid_ids, frame)
-        print(time.time() - self.cur_time, "CONVERT DATA")
         
-        # print("agent list", len(agent_list))
-        # return data
         return agent_list
         
     def cleanup(self):
