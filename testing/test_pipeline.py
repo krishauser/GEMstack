@@ -23,10 +23,11 @@ import argparse
 import message_filters
 from ultralytics.utils.plotting import Annotator, colors
 from collections import defaultdict
+from kalman_tracker import KalmanTracker
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--test_target', '-t', type=str, default='detection', 
-                    choices=['detection', 'track'])
+                    choices=['detection', 'ultrlytic_track', 'kalman_track'])
 parser.add_argument('--output_dir', '-o', type=str, default='save')
 parser.add_argument('--vis', '-v', default=False, action='store_true')
 parser.add_argument('--use_message_filter', '-m', default=False, action='store_true')
@@ -141,6 +142,9 @@ class PedestrianDetector():
         lidar2vehicle_path = os.path.join(abs_path, '../GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt')
         T_lidar2_Gem = np.loadtxt(lidar2vehicle_path)
         self.T_lidar2_Gem = np.asarray(T_lidar2_Gem)
+        
+        tracker_config = './temp_config.py'
+        self.kalman_tracker = KalmanTracker(config_file_path=tracker_config)
 
         # obtained by GEMstack/offboard/calibration/check_target_lidar_range.py
         # Hardcode the roi area for agents
@@ -208,7 +212,7 @@ class PedestrianDetector():
                 bbox_ids.append(class_id)
                 bbox = box.xywh[0].tolist()
                 boxes.append(bbox)
-            
+        
         for i in range(len(boxes)):
             box = boxes[i]
             id = bbox_ids[i]
@@ -226,7 +230,7 @@ class PedestrianDetector():
         
         return vis
     
-    def track_agents(self, frame):
+    def track_agents_ultralytics(self, frame):
         results = self.detector.track(frame, persist=True, verbose=False)
         boxes = results[0].boxes.xyxy.cpu()
 
@@ -263,6 +267,48 @@ class PedestrianDetector():
         
         return frame
     
+    def track_agents_kalman(self, img):
+        vis = img.copy()
+        # vis_pc = self.point_cloud.copy()
+        
+        t1 = time.time()
+        detection_result = self.detector(img,verbose=False)
+        rospy.loginfo('detection time: %s', str(time.time() - t1))
+        
+        #TODO: create boxes from detection result
+        boxes = []
+        target_ids = [0, 2, 11]
+        bbox_ids = []
+        for box in detection_result[0].boxes: # only one image, so use index 0 of result
+            class_id = int(box.cls[0].item())
+            if class_id in target_ids: # class 0 stands for pedestrian
+                bbox_ids.append(class_id)
+                bbox = box.xywh[0].tolist()
+                boxes.append(bbox)
+        
+        kalman_agent_states, matches = self.kalman_tracker.update_pedestrian_tracking(boxes)
+        names = self.detector.model.names
+        for pid in kalman_agent_states:
+            ag_state = kalman_agent_states[pid]
+            x, y, w, h = ag_state[:4]
+            
+            cls = bbox_ids[0]
+            annotator = Annotator(vis, line_width=2)
+            annotator.box_label(box, color=colors(int(cls), True), label=names[int(cls)])
+    
+            # # x,y,w,h = box
+            # xmin, xmax = x - w/2, x + w/2
+            # ymin, ymax = y - h/2, y + h/2
+            
+            # # draw bbox
+            # color =  (255, 0, 255)
+            # left_up = (int(x-w/2), int(y-h/2))
+            # right_bottom = (int(x+w/2), int(y+h/2))
+            # cv2.rectangle(vis, left_up, right_bottom, color, thickness=2)
+        
+        return vis
+        
+    
     def test_lidar_to_image_dbscan(self):
         if self.zed_image is None or self.point_cloud is None:
             return
@@ -295,10 +341,13 @@ class PedestrianDetector():
         start_t = time.time()
         if args.test_target == 'detection':
             vis = self.detect_agents(vis)
-        elif args.test_target == 'track':
-            vis = self.track_agents(vis)
+        elif args.test_target == 'ultrlytic_track':
+            vis = self.track_agents_ultralytics(vis)
+        elif args.test_target == 'kalman_track':
+            vis = self.track_agents_kalman(vis)
         rospy.loginfo('detect_agents time: %s', str(time.time() - start_t))
         
+        self.vis_lidar_by_clusters(vis, point_cloud_image, clusters)
 
         cv2.imshow('frame', vis)
         if cv2.waitKey(1) & 0xFF == ord("q"):

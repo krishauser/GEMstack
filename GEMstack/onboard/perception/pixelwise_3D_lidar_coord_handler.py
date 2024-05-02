@@ -1,41 +1,38 @@
-import sys
-import os
 import cv2
-import argparse
-import random
 import numpy as np
-from typing import Dict, Tuple, List
 
 
 class PixelWise3DLidarCoordHandler:
-    """ Get pixelwise 3D lidar coordinate relative to the vehicle """
+    """ Provide pixelwise 3D lidar coordinate relative to the vehicle frame.
+        
+        Since lidar points are sparse after being projected onto the image frame, 
+        we have to do interpolation. This ensures that most image pixels have corresponding 3D coordinates.
+        
+        Algo overview pic:
+        https://github-production-user-asset-6210df.s3.amazonaws.com/22386566/327139371-20dfddd8-be83-418d-8c9a-d921a74895c5.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20240501%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20240501T135905Z&X-Amz-Expires=300&X-Amz-Signature=b423d6fab8a5ece53df0ab70bf07d8c399c76c1513fa1123d8e2d6c3d61c4c36&X-Amz-SignedHeaders=host&actor_id=22386566&key_id=0&repo_id=732167109
+    """
 
     def __init__(self,
                  kernel_size=5,
                  lidar2camera_fn="GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt",
                  intrinsic_fn="GEMstack/knowledge/calibration/gem_e4_intrinsic.txt",
                  lidar2vehicle_fn="GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt",
-                 lidar2oak_mat=None,
-                 lidar2vehicle_mat=None,
-                 intrinsic_mat=None,
                  xrange=(0, 20),
                  yrange=(-10, 10),
                  zrange=(-3, 1)) -> None:
-        
-        if lidar2oak_mat is not None:
-            self.T_lidar2camera = lidar2oak_mat
-        else:
-            self.T_lidar2camera = np.loadtxt(lidar2camera_fn)
-        
-        if lidar2vehicle_mat is not None:
-            self.T_lidar2vehicle = lidar2vehicle_mat
-        else:    
-            self.T_lidar2vehicle = np.loadtxt(lidar2vehicle_fn)
-        
-        if intrinsic_mat is not None:
-            self.intrinsic = intrinsic_mat
-        else:    
-            self.intrinsic = np.loadtxt(intrinsic_fn)
+        """ 
+            Args:
+                kernel_size: kernel size for interpolation
+                lidar2camera_fn: filename of lidar to camera transformation matrix
+                intrinsic_fn: filename of camera intrinsic matrix
+                lidar2vehicle_fn: filename of lidar to vehicle rear_axle transformation matrix
+                xrange: predefined x range for computation. Range values are using lidar frame in meters.
+                yrange: predefined y range for computation. Range values are using lidar frame in meters.
+                zrange: predefined z range for computation. Range values are using lidar frame in meters.
+        """
+        self.T_lidar2camera = np.loadtxt(lidar2camera_fn)
+        self.T_lidar2vehicle = np.loadtxt(lidar2vehicle_fn)
+        self.intrinsic = np.loadtxt(intrinsic_fn)
             
         self.intrinsic = np.concatenate(
             [self.intrinsic, np.zeros((3, 1))], axis=1)
@@ -48,7 +45,7 @@ class PixelWise3DLidarCoordHandler:
         self.yrange = yrange
         self.zrange = zrange
 
-    def interpolate(self, coord_3d_map):
+    def interpolate(self, coord_3d_map: np.ndarray):
         def interpolate_single_channel(image, kernel):
             """ helper function """
             kernel = cv2.flip(kernel, flipCode=-1)
@@ -79,7 +76,7 @@ class PixelWise3DLidarCoordHandler:
         interpolate_3D_map = cv2.merge(channels)
         return interpolate_3D_map
 
-    def filter_lidar_by_range(self, point_cloud):
+    def filter_lidar_by_range(self, point_cloud: np.ndarray):
         xmin, xmax = self.xrange
         ymin, ymax = self.yrange
         zmin, zmax = self.zrange
@@ -110,7 +107,16 @@ class PixelWise3DLidarCoordHandler:
         point_cloud_image_world = pointcloud_trans[:, :3]  # (N, 3)
         return point_cloud_image_world
 
-    def get3DCoord(self, image, point_cloud):
+    def get3DCoord(self, image: np.ndarray, point_cloud: np.ndarray):
+        """ 
+            Return:
+                blend_3D_map: containing pixelwise 3D lidar coordinate in vehicle frame with
+                    dimensions (H x W x 3), where H and W correspond to the height and width of the image, respectively.
+        
+            Note:
+                if 3d coord of particular pixel == (0, 0, 0), it means we cannot get lidar 3D coord 
+                even after interpolation. Users should ignore that particular pixel for subsequent tasks.
+        """
         filtered_point_cloud = self.filter_lidar_by_range(point_cloud)
 
         point_cloud_3D = self.lidar_to_vehicle(filtered_point_cloud)
@@ -133,4 +139,8 @@ class PixelWise3DLidarCoordHandler:
         # interpolate
         interpolate_3D_map = self.interpolate(coord_3d_map)
 
-        return interpolate_3D_map
+        # naive blending
+        mask = coord_3d_map > 0
+        blend_3D_map = coord_3d_map * mask + interpolate_3D_map * (1 - mask)
+        
+        return blend_3D_map

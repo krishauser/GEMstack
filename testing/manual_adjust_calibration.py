@@ -128,6 +128,9 @@ if __name__ == '__main__':
     lidar2oak_mat = adjust_matrix(lidar2oak_mat, degrees, translation)
     print ('lidar2oak_mat:')
     print (lidar2oak_mat)
+    lidar2cam_fc_fn = "GEMstack/knowledge/calibration/gem_e4_lidar2oak_tmp.txt"
+    np.savetxt(lidar2cam_fc_fn, lidar2oak_mat)
+    print ('save')
     
     # load lidar2vehicle matrix
     lidar2vehicle_mat = np.loadtxt(args.lidar2vehicle_fn)
@@ -136,7 +139,11 @@ if __name__ == '__main__':
     lidar2vehicle_mat = adjust_matrix(lidar2vehicle_mat, degrees, translation)
     print ('lidar2vehicle_mat:')
     print (lidar2vehicle_mat)
+    lidar2vehicle_fn = "GEMstack/knowledge/calibration/gem_e4_lidar2vehicle_tmp.txt"
+    np.savetxt(lidar2vehicle_fn, lidar2vehicle_mat)
     
+    intrinsic_fc_fn="GEMstack/knowledge/calibration/gem_e4_intrinsic.txt"
+    intrinsic_mat = np.loadtxt(intrinsic_fc_fn)
     
     # load data
     lidar_fn = os.path.join(args.src_dir, f'lidar{args.data_idx}.npz')
@@ -149,8 +156,8 @@ if __name__ == '__main__':
 
     # init handler
     handler = PixelWise3DLidarCoordHandler(args.kernel_size, 
-                                           lidar2oak_mat=lidar2oak_mat,
-                                           lidar2vehicle_mat=lidar2vehicle_mat)
+                                           lidar2cam_fc_fn=lidar2cam_fc_fn,
+                                           lidar2vehicle_fn=lidar2vehicle_fn)
     coord_3d_map = handler.get3DCoord(image, point_cloud)
     
     # track agents
@@ -170,7 +177,7 @@ if __name__ == '__main__':
     # get point_cloud_image
     handler.filter_lidar_by_range(point_cloud)
     filtered_point_cloud = handler.filter_lidar_by_range(point_cloud)
-    point_cloud_image = handler.lidar_to_image(filtered_point_cloud)
+    point_cloud_image = handler.lidar_to_image(filtered_point_cloud, lidar2oak_mat, intrinsic_mat)
 
     vis_dbscan(point_cloud_image, image)
     
