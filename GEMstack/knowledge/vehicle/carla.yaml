@@ -9,5 +9,5 @@ geometry: !include gem_e4_geometry.yaml
 dynamics: !include gem_e4_dynamics.yaml
 limits: !include gem_e2_slow_limits.yaml
 control_defaults: !include gem_e2_control_defaults.yaml
-calibration: !include ../calibration/gem_e4.yaml
+calibration: !include ../calibration/gem_carla.yaml
 sensors: !include carla_generic_sensor_environment.yaml
