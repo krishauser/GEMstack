@@ -1,13 +1,16 @@
 from __future__ import annotations
 from ..utils.serialization import register
+from ..mathutils.transforms import point_segment_distance
 from .physical_object import ObjectFrameEnum, convert_point
 from .obstacle import Obstacle
 from .sign import Sign
+from .vehicle import VehicleState
 from enum import Enum
 from collections import defaultdict
 from dataclasses import dataclass, replace, field, asdict
 import itertools
 from typing import List,Tuple,Any,Optional,Dict
+import numpy as np
 
 
 class RoadgraphCurveEnum(Enum):
@@ -49,6 +52,7 @@ class RoadgraphRegionEnum(Enum):
     CLOSED_COURSE = 1       # open space, can drive anywhere
     PARKING_LOT = 2         # parking lot, should drive at low speed
     INTERSECTION = 3        # intersection, should not stop in middle
+    CURB_SIDE = 4           # region along the curb, i.e.., areas to pull over. 
     
 
 class RoadgraphConnectionEnum(Enum):
@@ -267,6 +271,46 @@ class Roadgraph:
             newconnections.append(newc)
         return replace(self, frame = frame, curves = newcurves, lanes = newlanes, regions = newregions, signs = newsigns, static_obstacles = newstatic_obstacles, connections=newconnections)
 
+    def get_current_lane(self, state : VehicleState):
+        vehicle_point = (state.pose.x, state.pose.y, state.pose.z if state.pose.z is not None else 0)
+
+        closest_lane = None
+        smallest_dist = float('inf')
+        
+        for lane_label in self.lanes:
+            lane = self.lanes[lane_label]
+
+            if lane.center is None:
+                # compute the center line if it's not provided
+                left = lane.left.segments
+                right = lane.right.segments
+
+                center = []
+                for l_seg, r_seg in zip(left, right):
+                    center_seg = []
+                    for lp, rp in zip(l_seg, r_seg):
+                        this_point = ((lp[0] + rp[0]) / 2, (lp[1] + rp[1]) / 2, (lp[2] + rp[2]) / 2)
+                        center_seg.append(this_point)
+                    center.append(center_seg)
+                
+                lane.center = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY, segments=center, crossable=True)
+
+            else: 
+                center = lane.center.segments
+
+            for seg in center:
+                for i in range(len(seg)-1):
+                    dist, _ = point_segment_distance(vehicle_point, seg[i], seg[i+1])
+
+                    if dist < smallest_dist:
+                        smallest_dist = dist
+                        closest_lane = lane_label
+                        break
+                    
+                if closest_lane == lane_label:
+                    break
+
+        return closest_lane
 
 
 class RoadgraphNetwork(Roadgraph):

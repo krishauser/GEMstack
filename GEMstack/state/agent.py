@@ -4,6 +4,7 @@ from ..utils.serialization import register
 from .physical_object import ObjectFrameEnum,ObjectPose,PhysicalObject,convert_vector
 from enum import Enum
 from typing import Tuple
+from enum import Flag, auto
 
 class AgentEnum(Enum):
     CAR = 0
@@ -12,6 +13,10 @@ class AgentEnum(Enum):
     PEDESTRIAN = 3
     BICYCLIST = 4
 
+
+class AgentAttributesFlag(Flag):
+    DEFAULT = 0
+    WAVING = auto()
 
 class AgentActivityEnum(Enum):
     STOPPED = 0         # standing pedestrians, parked cars, etc. No need to predict motion.
@@ -27,6 +32,7 @@ class AgentState(PhysicalObject):
     activity : AgentActivityEnum
     velocity : Tuple[float,float,float]     #estimated velocity in x,y,z, m/s and in agent's local frame
     yaw_rate : float                        #estimated yaw rate, in radians/s
+    attributes: AgentAttributesFlag
 
     def velocity_local(self) -> Tuple[float,float,float]:
         """Returns velocity in m/s in the agent's local frame."""
