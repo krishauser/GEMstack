@@ -22,6 +22,7 @@ class ImageProcessorNode:
         self.image_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, self.image_callback)
         self.lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.lidar_callback)
         self.point_cloud = None
+        self.goal_poses = []
 
     def lidar_callback(self, point_cloud):
         self.point_cloud = point_cloud
@@ -48,35 +49,6 @@ class ImageProcessorNode:
             self.image_pub.publish(self.bridge.cv2_to_imgmsg(canvas, "bgr8"))
         except CvBridgeError as e:
             print("CvBridge Error during modified image publishing:", e)
-
-    def ros_PointCloud2_to_numpy(self, pc2_msg, want_rgb=False):
-        if pc2 is None:
-            raise ImportError("ROS is not installed")
-        # gen = pc2.read_points(pc2_msg, skip_nans=True)
-        gen = pc2.read_points(pc2_msg, skip_nans=True, field_names=['x', 'y', 'z'])
-
-        if want_rgb:
-            xyzpack = np.array(list(gen), dtype=np.float32)
-            if xyzpack.shape[1] != 4:
-                raise ValueError(
-                    "PointCloud2 does not have points with color data.")
-            xyzrgb = np.empty((xyzpack.shape[0], 6))
-            xyzrgb[:, :3] = xyzpack[:, :3]
-            for i, x in enumerate(xyzpack):
-                rgb = x[3]
-                # cast float32 to int so that bitwise operations are possible
-                s = struct.pack('>f', rgb)
-                i = struct.unpack('>l', s)[0]
-                # you can get back the float value by the inverse operations
-                pack = ctypes.c_uint32(i).value
-                r = (pack & 0x00FF0000) >> 16
-                g = (pack & 0x0000FF00) >> 8
-                b = (pack & 0x000000FF)
-                # r,g,b values in the 0-255 range
-                xyzrgb[i, 3:] = (r, g, b)
-            return xyzrgb
-        else:
-            return np.array(list(gen), dtype=np.float32)[:, :3]
 
     def detect_empty(self, img):
         results = self.model(img)
@@ -140,11 +112,15 @@ class ImageProcessorNode:
 
         # Use handler to get 3D coordinates of the red line midpoint
         if self.point_cloud:
-            numpy_point_cloud = self.ros_PointCloud2_to_numpy(self.point_cloud)
+            numpy_point_cloud = self.handler.ros_PointCloud2_to_numpy(self.point_cloud)
             coord_3d_map = self.handler.get3DCoord(canvas, numpy_point_cloud)
             if 0 <= line_mid[0] < coord_3d_map.shape[1] and 0 <= line_mid[1] < coord_3d_map.shape[0]:
                 red_line_mid_3d = coord_3d_map[line_mid[1], line_mid[0]]
-                print(f"3D coordinates of the red line's midpoint: [{red_line_mid_3d[0]}, {red_line_mid_3d[1]}, {angle_new}]")
+                x = red_line_mid_3d[0]
+                y = red_line_mid_3d[1]
+                yaw = angle_new
+                print(f"3D coordinates of the red line's midpoint: [{x}, {y}, {yaw}]")
+                self.goal_poses.append([x,y,yaw])
         return canvas
 
 if __name__ == '__main__':

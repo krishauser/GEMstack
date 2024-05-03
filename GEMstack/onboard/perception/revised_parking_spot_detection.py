@@ -7,7 +7,13 @@ import copy
 import cv2
 import numpy as np
 from ultralytics import YOLO  # Assuming appropriate relative path or installed package
-from pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler  # Adjust import path as necessary
+from pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
+import sensor_msgs.point_cloud2 as pc2
+
+sobel_kernel_size = 3
+sobel_min_threshold = 90
+conf_val = 0.835
+MODEL_WEIGHT_PATH = '../../knowledge/detection/parking_spot_detection.pt'
 
 # Template for a parking spot detector
 class ParkingSpotDetector(Component):
@@ -44,14 +50,12 @@ class ParkingSpotDetector(Component):
         if bbox_info:
             canvas = self.front_image.copy()
             self.apply_detections(canvas, bbox_info)
-            # Additional processing can be done here if needed
 
-        # Calculate parking spot pose from detected data
-        x, y, yaw = 15.0, 17.0, 0.0
-        # simulate noise
-        x += np.random.normal(0, 0.1)
-        y += np.random.normal(0, 0.1)
-        yaw += np.random.normal(0, 0.1)
+        # Add code from working script here
+        
+        x = 
+        y = 
+        yaw = 
         return ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.CURRENT)
 
     def detect_empty(self, img):

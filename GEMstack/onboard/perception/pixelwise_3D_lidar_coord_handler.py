@@ -3,8 +3,11 @@ import os
 import cv2
 import argparse
 import random
+import struct
+import ctypes
 import numpy as np
 from typing import Dict, Tuple, List
+import sensor_msgs.point_cloud2 as pc2
 
 
 class PixelWise3DLidarCoordHandler:
@@ -123,3 +126,32 @@ class PixelWise3DLidarCoordHandler:
         interpolate_3D_map = self.interpolate(coord_3d_map)
 
         return interpolate_3D_map
+    
+    def ros_PointCloud2_to_numpy(self, pc2_msg, want_rgb=False):
+        if pc2 is None:
+            raise ImportError("ROS is not installed")
+        # gen = pc2.read_points(pc2_msg, skip_nans=True)
+        gen = pc2.read_points(pc2_msg, skip_nans=True, field_names=['x', 'y', 'z'])
+
+        if want_rgb:
+            xyzpack = np.array(list(gen), dtype=np.float32)
+            if xyzpack.shape[1] != 4:
+                raise ValueError(
+                    "PointCloud2 does not have points with color data.")
+            xyzrgb = np.empty((xyzpack.shape[0], 6))
+            xyzrgb[:, :3] = xyzpack[:, :3]
+            for i, x in enumerate(xyzpack):
+                rgb = x[3]
+                # cast float32 to int so that bitwise operations are possible
+                s = struct.pack('>f', rgb)
+                i = struct.unpack('>l', s)[0]
+                # you can get back the float value by the inverse operations
+                pack = ctypes.c_uint32(i).value
+                r = (pack & 0x00FF0000) >> 16
+                g = (pack & 0x0000FF00) >> 8
+                b = (pack & 0x000000FF)
+                # r,g,b values in the 0-255 range
+                xyzrgb[i, 3:] = (r, g, b)
+            return xyzrgb
+        else:
+            return np.array(list(gen), dtype=np.float32)[:, :3]
