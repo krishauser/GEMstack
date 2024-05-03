@@ -353,7 +353,7 @@ class MPCTrajectoryPlanner(Component):
 
             lane_bound = state.lane_bound
 
-            agents = [a.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose) for a in agents]
+            agents = [a.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
             obstacle = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
 
             collision_dis = find_closest_agent(obstacle, pose = [vehicle.pose.x, vehicle.pose.y])
@@ -381,9 +381,8 @@ class MPCTrajectoryPlanner(Component):
             vehicle = state.vehicle.to_frame(ObjectFrameEnum.ABSOLUTE_CARTESIAN, start_pose_abs=state.start_vehicle_pose)
             x_start, y_start, theta_start, v_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v
 
-            agents = [a.to_frame(ObjectFrameEnum.ABSOLUTE_CARTESIAN, start_pose_abs=state.start_vehicle_pose) for a in state.detected_agents]
+            agents = [a.to_frame(ObjectFrameEnum.ABSOLUTE_CARTESIAN, start_pose_abs=state.start_vehicle_pose) for a in state.agents.values()]
             agents = [[a.type, a.pose.x, a.pose.y, a.velocity[0], a.velocity[1], *a.dimensions] for a in agents]
-            print("num agents:", len(agents))
 
             # Get the current lane segment
             curr_lane = state.roadgraph.get_current_lane(state.vehicle)
