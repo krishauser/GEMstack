@@ -23,7 +23,7 @@ components:
       outputs: tracking_frames
   - lane_detection:
       inputs: [vehicle, roadgraph]
-      outputs: vehicle_lane
+      outputs: roadgraph
   - sign_detection: 
       inputs: [vehicle, roadgraph]
       outputs: roadgraph.signs

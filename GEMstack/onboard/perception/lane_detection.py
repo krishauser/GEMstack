@@ -1,22 +1,77 @@
+from ...state import VehicleState,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphSurfaceEnum,RoadgraphCurve,RoadgraphCurveEnum
+from ...utils import settings
+from ..interface.gem import GEMInterface
+from ..component import Component
+from .pixelwise_3D_lidar_coord_handler import PixelWise3DLidarCoordHandler
+
 import numpy as np
 import cv2
 import math
+import timeit
+import copy
 
 horizon = 0.4 # fraction of the image considered (= height of trapezium)
 min_angle = np.pi / 6 # min angle subtended by a line in order to be considered as part of a lane marking
 
-class LaneDetector():
+class LaneDetector(Component):
     """Class to detect lane markings."""
 
-    def __init__(self, image):
-        self.image = image
-        self.height, self.width, _ = self.image.shape
+    def __init__(self, vehicle_interface : GEMInterface):
+        self.vehicle_interface = vehicle_interface
+
+        self.camera_image = None
+        self.height, self.width = None, None
+        self.lidar_point_cloud = None
 
         self.left_pts = []
         self.right_pts = []
 
         self.left_poly = None # polynomial
         self.right_poly = None
+
+    def rate(self):
+        return settings.get('perception.lane_detection.rate')
+    
+    def state_inputs(self):
+        return ['vehicle', 'roadgraph']
+    
+    def state_outputs(self):
+        return ['roadgraph']
+
+    def initialize(self):
+        # use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
+        self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
+    
+        # use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
+        self.vehicle_interface.subscribe_sensor('top_lidar', self.lidar_callback, np.ndarray)
+
+    def image_callback(self, image : cv2.Mat):
+        self.camera_image = image
+        self.height, self.width, _ = image.shape
+
+    def lidar_callback(self, point_cloud: np.ndarray):
+        self.lidar_point_cloud = point_cloud
+
+    def update(self, roadgraph : Roadgraph) -> Roadgraph:
+        if self.camera_image is None:
+            return {}   # no image data yet
+        
+        # debugging
+        # self.save_data()
+        
+        t1 = timeit.default_timer()
+
+        detected_lane = self.detect_lanes()
+
+        t2 = timeit.default_timer()
+        print('Detection time: {:.6f} s'.format(t2 - t1))
+
+        r = copy.deepcopy(roadgraph)
+
+        if detected_lane:
+            r.lanes = {'lane0' : detected_lane}
+        
+        return r # updated roadgraph
 
     def region_of_interest(self, image):
         vertices = [
@@ -56,35 +111,43 @@ class LaneDetector():
         right_coeffs = np.polyfit([p[1] for p in self.right_pts], [p[0] for p in self.right_pts], deg=1)
         self.right_poly = np.poly1d(right_coeffs)
 
-    def left_right_poly_to_lane(self):
+    def polys_to_roadgraph_lane(self):
         if not self.left_poly or not self.right_poly:
             return
 
-        y_min = self.height * (1 - horizon)
+        # Obtain 3d world coordinates for all pixels in the image
+        handler = PixelWise3DLidarCoordHandler()
+        all_points = handler.get3DCoord(self.camera_image, self.lidar_point_cloud) # img ht x img width x 3
+
+        y_min = int(self.height * (1 - horizon))
         y_max = self.height
         
         # update y_max if the lane lines extend beyond the image
         if self.left_poly(y_max) < 0 or self.right_poly(y_max) > self.width:
             y_max = min(self.left_poly.roots, (self.right_poly - self.width).roots)
+
+        centerline = []
+        for j in range(y_max - 1, y_min - 1, -int((y_max - y_min) / 10)):
+            i = int((self.left_poly(j) + self.right_poly(j)) / 2)
+            if any(all_points[j][i]):
+                centerline.append(all_points[j][i])
+
+        centerline_segments = []
+        for i, j in zip(centerline[:-1], centerline[1:]):
+            centerline_segments.append([tuple(i), tuple(j)])
+
+        roadgraph_curve = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY,
+                                         segments=centerline_segments,
+                                         crossable=True)
         
-        get_pt = lambda p, y : (int(p(y)), int(y)) if not isinstance(p, list) else (int((p[0](y) + p[1](y)) / 2), int(y))
-
-        left_near_pt = get_pt(self.left_poly, y_max)
-        left_far_pt = get_pt(self.left_poly, y_min)
-
-        right_near_pt = get_pt(self.right_poly, y_max)
-        right_far_pt = get_pt(self.right_poly, y_min)
-
-        center_near_pt = get_pt([self.left_poly, self.right_poly], y_max)
-        center_far_pt = get_pt([self.left_poly, self.right_poly], y_min)
-
-        # TODO: use pixel to 3d coord handler to obtain the coordinates of these pts w.r.t vehicle
-
-        return [[left_near_pt, left_far_pt], [right_near_pt, right_far_pt], [center_near_pt, center_far_pt]]
+        return RoadgraphLane(type=RoadgraphLaneEnum.LANE,
+                             surface=RoadgraphSurfaceEnum.PAVEMENT,
+                             route_name='',
+                             center=roadgraph_curve)
 
     def detect_lanes(self):
         # convert color space
-        lab_image = cv2.cvtColor(self.image, cv2.COLOR_RGB2LAB)
+        lab_image = cv2.cvtColor(self.camera_image, cv2.COLOR_RGB2LAB)
 
         # canny edge detection
         edge_image = cv2.Canny(lab_image, 255/3, 255)
@@ -100,5 +163,5 @@ class LaneDetector():
         self.separate_lines(detected_lines)
         self.compute_polys() 
 
-        lane = self.left_right_poly_to_lane()
+        lane = self.polys_to_roadgraph_lane()
         return lane
