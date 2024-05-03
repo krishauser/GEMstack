@@ -12,10 +12,9 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : td_multi_class_detector.TDMultiClassDetector
+        multi_class_detection : td_multi_class_detector.TDMultiClassDetector
         agent_tracking : td_multi_class_tracker.TDMultiClassTracker
         perception_normalization : StandardPerceptionNormalizer
-    prediction:
         agent_prediction : pedestrian_trajectory_prediction.PedestrianTrajPrediction
 
 log:

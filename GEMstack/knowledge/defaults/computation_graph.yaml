@@ -17,6 +17,9 @@ components:
       outputs: obstacles
   - agent_detection:
       inputs: vehicle
+      outputs: agents
+  - multi_class_detection:
+      inputs: vehicle
       outputs: detected_agents
   - agent_tracking:
       inputs: detected_agents
