@@ -5,12 +5,13 @@ from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
 from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph
 from ...state.vehicle import VehicleState,ObjectFrameEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
-from ...state.agent import AgentEnum
+from ...state.agent import AgentEnum, AgentState
 from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
 from ..component import Component
 import numpy as np
 import casadi as ca
+from typing import List
 
 class MPC:
     def __init__(self):
@@ -352,7 +353,7 @@ class MPCTrajectoryPlanner(Component):
 
             lane_bound = state.lane_bound
 
-            agents = [a.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
+            agents = [a.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose) for a in agents]
             obstacle = [[a.pose.x, a.pose.y, *a.dimensions] for a in agents]
 
             collision_dis = find_closest_agent(obstacle, pose = [vehicle.pose.x, vehicle.pose.y])
@@ -380,8 +381,9 @@ class MPCTrajectoryPlanner(Component):
             vehicle = state.vehicle.to_frame(ObjectFrameEnum.ABSOLUTE_CARTESIAN, start_pose_abs=state.start_vehicle_pose)
             x_start, y_start, theta_start, v_start = vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, vehicle.v
 
-            agents = [a.to_frame(ObjectFrameEnum.ABSOLUTE_CARTESIAN, start_pose_abs=state.start_vehicle_pose) for a in state.agents.values()]
+            agents = [a.to_frame(ObjectFrameEnum.ABSOLUTE_CARTESIAN, start_pose_abs=state.start_vehicle_pose) for a in state.detected_agents]
             agents = [[a.type, a.pose.x, a.pose.y, a.velocity[0], a.velocity[1], *a.dimensions] for a in agents]
+            print("num agents:", len(agents))
 
             # Get the current lane segment
             curr_lane = state.roadgraph.get_current_lane(state.vehicle)
