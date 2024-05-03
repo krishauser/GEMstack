@@ -56,14 +56,13 @@ Use ARROWS or WASD keys for control.
 
 from __future__ import print_function
 
-# ==============================================================================
-# -- find carla module ---------------------------------------------------------
-# ==============================================================================
-
-
 import glob
 import os
 import sys
+
+# ==============================================================================
+# -- find carla module ---------------------------------------------------------
+# ==============================================================================
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -179,7 +178,7 @@ def get_actor_blueprints(world, filter, generation):
         else:
             print("   Warning! Actor Generation is not valid. No actor will be spawned.")
             return []
-    except:
+    except Exception:
         print("   Warning! Actor Generation is not valid. No actor will be spawned.")
         return []
 
@@ -191,11 +190,11 @@ def get_actor_blueprints(world, filter, generation):
 
 class World(object):
     def __init__(self, carla_world, hud, args):
-        self.world = carla_world
+        self.carla_world = carla_world
         self.sync = args.sync
         self.actor_role_name = args.rolename
         try:
-            self.map = self.world.get_map()
+            self.map = self.carla_world.get_map()
         except RuntimeError as error:
             print('RuntimeError: {}'.format(error))
             print('  The server could not send the OpenDRIVE (.xodr) file:')
@@ -215,7 +214,7 @@ class World(object):
         self._actor_generation = args.generation
         self._gamma = args.gamma
         self.restart()
-        self.world.on_tick(hud.on_world_tick)
+        self.carla_world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
         self.recording_start = 0
         self.constant_velocity_enabled = False
@@ -235,6 +234,7 @@ class World(object):
             carla.MapLayer.Walls,
             carla.MapLayer.All
         ]
+        self.filename = "/home/hb-station1/Documents/GEMstack/testing/spawn_carla_generic/recording.log"
 
     def restart(self):
         self.player_max_speed = 1.589
@@ -243,7 +243,7 @@ class World(object):
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
         # Get a random blueprint.
-        blueprint_list = get_actor_blueprints(self.world, self._actor_filter, self._actor_generation)
+        blueprint_list = get_actor_blueprints(self.carla_world, self._actor_filter, self._actor_generation)
         if not blueprint_list:
             raise ValueError("Couldn't find any blueprints with the specified filters")
         blueprint = random.choice(blueprint_list)
@@ -270,7 +270,7 @@ class World(object):
             spawn_point.rotation.roll = 0.0
             spawn_point.rotation.pitch = 0.0
             self.destroy()
-            self.player = self.world.try_spawn_actor(blueprint, spawn_point)
+            self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         while self.player is None:
@@ -280,7 +280,7 @@ class World(object):
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
             spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
-            self.player = self.world.try_spawn_actor(blueprint, spawn_point)
+            self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         # Set up the sensors.
@@ -295,9 +295,9 @@ class World(object):
         self.hud.notification(actor_type)
 
         if self.sync:
-            self.world.tick()
+            self.carla_world.tick()
         else:
-            self.world.wait_for_tick()
+            self.carla_world.wait_for_tick()
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -316,10 +316,10 @@ class World(object):
         selected = self.map_layer_names[self.current_map_layer]
         if unload:
             self.hud.notification('Unloading map layer: %s' % selected)
-            self.world.unload_map_layer(selected)
+            self.carla_world.unload_map_layer(selected)
         else:
             self.hud.notification('Loading map layer: %s' % selected)
-            self.world.load_map_layer(selected)
+            self.carla_world.load_map_layer(selected)
 
     def toggle_radar(self):
         if self.radar_sensor is None:
@@ -479,7 +479,13 @@ class KeyboardControl(object):
                         world.recording_enabled = False
                         world.hud.notification("Recorder is OFF")
                     else:
-                        client.start_recorder("manual_recording.rec")
+
+                        filename_txt = world.filename.replace("recording.log", "weather_time.txt")
+                        with open(filename_txt, 'w') as file:
+                            file.write("weather_time: " + str(world._weather_index))
+                        client.start_recorder(
+                            world.filename)
+
                         world.recording_enabled = True
                         world.hud.notification("Recorder is ON")
                 elif event.key == K_p and (pygame.key.get_mods() & KMOD_CTRL):
@@ -708,7 +714,7 @@ class HUD(object):
         collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
         max_col = max(1.0, max(collision))
         collision = [x / max_col for x in collision]
-        vehicles = world.world.get_actors().filter('vehicle.*')
+        vehicles = world.carla_world.get_actors().filter('vehicle.*')
         self._info_text = [
             'Server:  % 16.0f FPS' % self.server_fps,
             'Client:  % 16.0f FPS' % clock.get_fps(),
@@ -993,10 +999,10 @@ class IMUSensor(object):
         # reference.
         weak_self = weakref.ref(self)
         self.sensor.listen(
-            lambda sensor_data: IMUSensor._IMU_callback(weak_self, sensor_data))
+            lambda sensor_data: IMUSensor._imu_callback(weak_self, sensor_data))
 
     @staticmethod
-    def _IMU_callback(weak_self, sensor_data):
+    def _imu_callback(weak_self, sensor_data):
         self = weak_self()
         if not self:
             return
@@ -1022,7 +1028,6 @@ class RadarSensor(object):
         self.sensor = None
         self._parent = parent_actor
         bound_x = 0.5 + self._parent.bounding_box.extent.x
-        bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
 
         self.velocity_range = 7.5  # m/s
@@ -1040,10 +1045,10 @@ class RadarSensor(object):
         # We need a weak reference to self to avoid circular reference.
         weak_self = weakref.ref(self)
         self.sensor.listen(
-            lambda radar_data: RadarSensor._Radar_callback(weak_self, radar_data))
+            lambda radar_data: RadarSensor._radar_callback(weak_self, radar_data))
 
     @staticmethod
-    def _Radar_callback(weak_self, radar_data):
+    def _radar_callback(weak_self, radar_data):
         self = weak_self()
         if not self:
             return
@@ -1092,6 +1097,9 @@ class CameraManager(object):
         self._parent = parent_actor
         self.hud = hud
         self.recording = False
+        self.fixed_front_rgb_sensor_name = 'sensor.camera.rgb'
+        self.fixed_top_lidar_sensor_name = 'sensor.lidar.ray_cast'
+        self.fixed_front_depth_sensor_name = 'sensor.camera.depth'
         bound_x = 0.5 + self._parent.bounding_box.extent.x
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
@@ -1120,19 +1128,19 @@ class CameraManager(object):
 
         self.transform_index = 1
         self.sensors = [
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}],
-            ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)', {}],
-            ['sensor.camera.depth', cc.Depth, 'Camera Depth (Gray Scale)', {}],
-            ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)', {}],
+            [self.fixed_front_rgb_sensor_name, cc.Raw, 'Camera RGB', {}],
+            [self.fixed_front_depth_sensor_name, cc.Raw, 'Camera Depth (Raw)', {}],
+            [self.fixed_front_depth_sensor_name, cc.Depth, 'Camera Depth (Gray Scale)', {}],
+            [self.fixed_front_depth_sensor_name, cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)', {}],
             ['sensor.camera.semantic_segmentation', cc.Raw, 'Camera Semantic Segmentation (Raw)', {}],
             ['sensor.camera.semantic_segmentation', cc.CityScapesPalette,
              'Camera Semantic Segmentation (CityScapes Palette)', {}],
             ['sensor.camera.instance_segmentation', cc.CityScapesPalette,
              'Camera Instance Segmentation (CityScapes Palette)', {}],
             ['sensor.camera.instance_segmentation', cc.Raw, 'Camera Instance Segmentation (Raw)', {}],
-            ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)', {'range': '50'}],
+            [self.fixed_top_lidar_sensor_name, None, 'Lidar (Ray-Cast)', {'range': '50'}],
             ['sensor.camera.dvs', cc.Raw, 'Dynamic Vision Sensor', {}],
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB Distorted',
+            [self.fixed_front_rgb_sensor_name, cc.Raw, 'Camera RGB Distorted',
              {'lens_circle_multiplier': '3.0',
               'lens_circle_falloff': '3.0',
               'chromatic_aberration_intensity': '0.5',
@@ -1220,7 +1228,7 @@ class CameraManager(object):
             # Example of converting the raw_data from a carla.DVSEventArray
             # sensor into a NumPy array and using it as an image
             dvs_events = np.frombuffer(image.raw_data, dtype=np.dtype([
-                ('x', np.uint16), ('y', np.uint16), ('t', np.int64), ('pol', np.bool)]))
+                ('x', np.uint16), ('y', np.uint16), ('t', np.int64), ('pol', bool)]))
             dvs_img = np.zeros((image.height, image.width, 3), dtype=np.uint8)
             # Blue is positive, red is negative
             dvs_img[dvs_events[:]['y'], dvs_events[:]['x'], dvs_events[:]['pol'] * 2] = 255
@@ -1257,8 +1265,6 @@ def game_loop(args):
     try:
         client = carla.Client(args.host, args.port)
         client.set_timeout(2000.0)
-
-        client.start_recorder("/home/hb-station1/Documents/GEMstack/testing/spawn_carla_generic/recording.log", True)
 
         sim_world = client.get_world()
         if args.sync:
@@ -1307,7 +1313,7 @@ def game_loop(args):
         if original_settings:
             sim_world.apply_settings(original_settings)
 
-        client.stop_recorder()
+        # client.stop_recorder()
         if (world and world.recording_enabled):
             client.stop_recorder()
 

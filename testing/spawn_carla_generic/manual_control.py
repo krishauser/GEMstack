@@ -84,7 +84,6 @@ except IndexError:
 
 import carla
 from sensor_msgs.msg import Image
-from sensor_msgs.msg import CameraInfo
 from sensor_msgs.msg import PointCloud2
 from novatel_gps_msgs.msg import Inspva
 from pacmod_msgs.msg import VehicleSpeedRpt
@@ -192,9 +191,9 @@ def get_actor_blueprints(world, filter, generation):
         else:
             print("   Warning! Actor Generation is not valid. No actor will be spawned.")
             return []
-    except:
+    except Exception:
         print("   Warning! Actor Generation is not valid. No actor will be spawned.")
-        return []
+    return []
 
 
 # ==============================================================================
@@ -204,11 +203,11 @@ def get_actor_blueprints(world, filter, generation):
 
 class World(object):
     def __init__(self, carla_world, hud, args):
-        self.world = carla_world
+        self.carla_world = carla_world
         self.sync = args.sync
         self.actor_role_name = args.rolename
         try:
-            self.map = self.world.get_map()
+            self.map = self.carla_world.get_map()
         except RuntimeError as error:
             print('RuntimeError: {}'.format(error))
             print('  The server could not send the OpenDRIVE (.xodr) file:')
@@ -238,7 +237,7 @@ class World(object):
         self.steer = rospy.Publisher('/carla/parsed_tx/steer_rpt', SystemRptFloat, queue_size=10)
         # watch out for restart method
         self.restart()
-        self.world.on_tick(hud.on_world_tick)
+        self.carla_world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
         self.recording_start = 0
         self.constant_velocity_enabled = False
@@ -266,10 +265,15 @@ class World(object):
         cam_index = self.camera_manager.index if self.camera_manager is not None else 0
         cam_pos_index = self.camera_manager.transform_index if self.camera_manager is not None else 0
         # Get a random blueprint.
-        blueprint_list = get_actor_blueprints(self.world, self._actor_filter, self._actor_generation)
+        blueprint_list = get_actor_blueprints(self.carla_world, self._actor_filter, self._actor_generation)
         if not blueprint_list:
             raise ValueError("Couldn't find any blueprints with the specified filters")
-        blueprint = random.choice(blueprint_list)
+    
+        blueprint = None
+        for car in blueprint_list:
+            if (car.id == "vehicle.mini.cooper_s_2021"):
+                blueprint = car
+
         blueprint.set_attribute('role_name', self.actor_role_name)
         if blueprint.has_attribute('terramechanics'):
             blueprint.set_attribute('terramechanics', 'true')
@@ -293,7 +297,7 @@ class World(object):
             spawn_point.rotation.roll = 0.0
             spawn_point.rotation.pitch = 0.0
             self.destroy()
-            self.player = self.world.try_spawn_actor(blueprint, spawn_point)
+            self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         while self.player is None:
@@ -303,7 +307,7 @@ class World(object):
                 sys.exit(1)
             spawn_points = self.map.get_spawn_points()
             spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
-            self.player = self.world.try_spawn_actor(blueprint, spawn_point)
+            self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         # Set up the sensors.
@@ -329,33 +333,28 @@ class World(object):
         self.hud.notification(actor_type)
 
         if self.sync:
-            self.world.tick()
+            self.carla_world.tick()
         else:
-            self.world.wait_for_tick()
+            self.carla_world.wait_for_tick()
 
     def publish_rgb_image_message(self, image):
         self.rgb.publish(image)
-        pass
 
     def publish_depth_image_message(self, image):
         self.depth.publish(image)
-        pass
 
     def publish_lidar_message(self, pc):
         self.lidar.publish(pc)
-        pass
 
     def publish_vehicle_speed(self, speed):
         msg = VehicleSpeedRpt()
         msg.vehicle_speed = speed
         self.speed.publish(msg)
-        pass
 
     def publish_vehicle_steer(self, steer):
         msg = SystemRptFloat()
         msg.output = steer
         self.steer.publish(msg)
-        pass
         
     def publish_gnss_message(self, value) :
         for x in value:
@@ -368,15 +367,13 @@ class World(object):
         inspva_message.pitch = self.gnss_value['pitch'] if 'pitch' in self.gnss_value else 0.0
         inspva_message.azimuth = self.gnss_value['yaw'] if 'yaw' in self.gnss_value else 0.0
         inspva_message.roll = self.gnss_value['roll'] if 'roll' in self.gnss_value else 0.0
-        if (inspva_message.azimuth != 0.0) :
-            angle = math.radians(inspva_message.azimuth)
-            sin_theta = math.sin(angle)
-            cos_theta = math.cos(angle)
-            inspva_message.east_velocity = self.player.get_velocity() * cos_theta
-            inspva_message.north_velocity = self.player.get_velocity() * sin_theta
-        else:
-            inspva_message.north_velocity = self.player.get_velocity()
-            inspva_message.east_velocity = 0.0
+        v = self.player.get_velocity()
+        velocity = 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)
+        angle = math.radians(inspva_message.azimuth)
+        sin_theta = math.sin(angle)
+        cos_theta = math.cos(angle)
+        inspva_message.east_velocity =velocity * cos_theta
+        inspva_message.north_velocity = velocity * sin_theta
         self.gnss.publish(inspva_message)
 
     def next_weather(self, reverse=False):
@@ -396,10 +393,10 @@ class World(object):
         selected = self.map_layer_names[self.current_map_layer]
         if unload:
             self.hud.notification('Unloading map layer: %s' % selected)
-            self.world.unload_map_layer(selected)
+            self.carla_world.unload_map_layer(selected)
         else:
             self.hud.notification('Loading map layer: %s' % selected)
-            self.world.load_map_layer(selected)
+            self.carla_world.load_map_layer(selected)
 
     def toggle_radar(self):
         if self.radar_sensor is None:
@@ -789,7 +786,7 @@ class HUD(object):
         collision = [colhist[x + self.frame - 200] for x in range(0, 200)]
         max_col = max(1.0, max(collision))
         collision = [x / max_col for x in collision]
-        vehicles = world.world.get_actors().filter('vehicle.*')
+        vehicles = world.carla_world.get_actors().filter('vehicle.*')
         self._info_text = [
             'Server:  % 16.0f FPS' % self.server_fps,
             'Client:  % 16.0f FPS' % clock.get_fps(),
@@ -1096,10 +1093,10 @@ class IMUSensor(object):
         # reference.
         weak_self = weakref.ref(self)
         self.sensor.listen(
-            lambda sensor_data: IMUSensor._IMU_callback(weak_self, sensor_data))
+            lambda sensor_data: IMUSensor._imu_callback(weak_self, sensor_data))
 
     @staticmethod
-    def _IMU_callback(weak_self, sensor_data):
+    def _imu_callback(weak_self, sensor_data):
         self = weak_self()
         if not self:
             return
@@ -1127,7 +1124,6 @@ class RadarSensor(object):
         self.callbacks = []
         self.ctr = 0 # remove later
         bound_x = 0.5 + self._parent.bounding_box.extent.x
-        bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
 
         self.velocity_range = 7.5 # m/s
@@ -1145,17 +1141,14 @@ class RadarSensor(object):
         # We need a weak reference to self to avoid circular reference.
         weak_self = weakref.ref(self)
         self.sensor.listen(
-            lambda radar_data: RadarSensor._Radar_callback(weak_self, radar_data))
+            lambda radar_data: RadarSensor._radar_callback(weak_self, radar_data))
 
     @staticmethod
-    def _Radar_callback(weak_self, radar_data):
+    def _radar_callback(weak_self, radar_data):
         self = weak_self()
         if not self:
             return
         self.ctr += 1
-        # To get a numpy [[vel, altitude, azimuth, depth],...[,,,]]:
-        # points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
-        # points = np.reshape(points, (len(radar_data), 4))
 
         current_rot = radar_data.transform.rotation
         value = {'pitch': current_rot.pitch, 'roll' : current_rot.roll}
@@ -1200,8 +1193,15 @@ class CameraManager(object):
     def __init__(self, parent_actor, hud, gamma_correction):
         self.sensor = None
         self.fixed_front_rgb_sensor = None
+        self.fixed_front_rgb_sensor_name = 'sensor.camera.rgb'
         self.fixed_top_lidar_sensor = None
+        self.fixed_top_lidar_sensor_name = 'sensor.lidar.ray_cast'
         self.fixed_front_depth_sensor = None
+        self.fixed_front_depth_sensor_name = 'sensor.camera.depth'
+        self.surface = None
+        self._parent = parent_actor
+        self.gamma_correction = gamma_correction
+        
         self.surface = None
         self._parent = parent_actor
         self.hud = hud
@@ -1212,48 +1212,52 @@ class CameraManager(object):
         self.depth_callbacks = []
 
         self.bridge = CvBridge() 
-        
         bound_x = 0.5 + self._parent.bounding_box.extent.x
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
-        Attachment = carla.AttachmentType
+        attachment = carla.AttachmentType
 
         if not self._parent.type_id.startswith("walker.pedestrian"):
             self._camera_transforms = [
-                (carla.Transform(carla.Location(x=-2.0*bound_x, y=+0.0*bound_y, z=2.0*bound_z), carla.Rotation(pitch=8.0)), Attachment.SpringArmGhost),
-                (carla.Transform(carla.Location(x=+0.8*bound_x, y=+0.0*bound_y, z=1.3*bound_z)), Attachment.Rigid),
-                (carla.Transform(carla.Location(x=+1.9*bound_x, y=+1.0*bound_y, z=1.2*bound_z)), Attachment.SpringArmGhost),
-                (carla.Transform(carla.Location(x=-2.8*bound_x, y=+0.0*bound_y, z=4.6*bound_z), carla.Rotation(pitch=6.0)), Attachment.SpringArmGhost),
-                (carla.Transform(carla.Location(x=-1.0, y=-1.0*bound_y, z=0.4*bound_z)), Attachment.Rigid)]
+                (carla.Transform(carla.Location(x=-2.0*bound_x, y=+0.0*bound_y, z=2.0*bound_z), carla.Rotation(pitch=8.0)), attachment.SpringArmGhost),
+                (carla.Transform(carla.Location(x=+0.8*bound_x, y=+0.0*bound_y, z=1.3*bound_z)), attachment.Rigid),
+                (carla.Transform(carla.Location(x=+1.9*bound_x, y=+1.0*bound_y, z=1.2*bound_z)), attachment.SpringArmGhost),
+                (carla.Transform(carla.Location(x=-2.8*bound_x, y=+0.0*bound_y, z=4.6*bound_z), carla.Rotation(pitch=6.0)), attachment.SpringArmGhost),
+                (carla.Transform(carla.Location(x=-1.0, y=-1.0*bound_y, z=0.4*bound_z)), attachment.Rigid)]
         else:
             self._camera_transforms = [
-                (carla.Transform(carla.Location(x=-2.5, z=0.0), carla.Rotation(pitch=-8.0)), Attachment.SpringArmGhost),
-                (carla.Transform(carla.Location(x=1.6, z=1.7)), Attachment.Rigid),
-                (carla.Transform(carla.Location(x=2.5, y=0.5, z=0.0), carla.Rotation(pitch=-8.0)), Attachment.SpringArmGhost),
-                (carla.Transform(carla.Location(x=-4.0, z=2.0), carla.Rotation(pitch=6.0)), Attachment.SpringArmGhost),
-                (carla.Transform(carla.Location(x=0, y=-2.5, z=-0.0), carla.Rotation(yaw=90.0)), Attachment.Rigid)]
+                (carla.Transform(carla.Location(x=-2.5, z=0.0), carla.Rotation(pitch=-8.0)), attachment.SpringArmGhost),
+                (carla.Transform(carla.Location(x=1.6, z=1.7)), attachment.Rigid),
+                (carla.Transform(carla.Location(x=2.5, y=0.5, z=0.0), carla.Rotation(pitch=-8.0)), attachment.SpringArmGhost),
+                (carla.Transform(carla.Location(x=-4.0, z=2.0), carla.Rotation(pitch=6.0)), attachment.SpringArmGhost),
+                (carla.Transform(carla.Location(x=0, y=-2.5, z=-0.0), carla.Rotation(yaw=90.0)), attachment.Rigid)]
 
+        # these values are hardcoded based on gem_e4 information
+        lidar_x_pos = 2.06
+        lidar_z_pos = 2.305
+        camera_x_pos = 1.33
+        camera_z_pos = 1.855
         self.transform_index = 1
-        self.fixed_front_rgb_info = ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}]
-        self.fixed_front_rgb_transform = self._camera_transforms[self.transform_index]
-        self.fixed_front_depth_info = ['sensor.camera.depth', cc.Depth, 'Camera Depth (Raw)', {}]
-        self.fixed_front_depth_transform = self._camera_transforms[self.transform_index]
-        self.fixed_top_lidar_info = ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)', {'range': '50'}]
-        self.fixed_top_lidar_transform = self._camera_transforms[self.transform_index]
+        self.fixed_front_rgb_info = [self.fixed_front_rgb_sensor_name, cc.Raw, 'Camera RGB', {}]
+        self.fixed_front_rgb_transform = (carla.Transform(carla.Location(x=+camera_x_pos, y=+0.0*bound_y, z=camera_z_pos)), attachment.Rigid)
+        self.fixed_front_depth_info = [self.fixed_front_depth_sensor_name, cc.Depth, 'Camera Depth (Raw)', {}]
+        self.fixed_front_depth_transform = (carla.Transform(carla.Location(x=camera_x_pos, y=+0.0*bound_y, z=camera_z_pos)), attachment.Rigid)
+        self.fixed_top_lidar_info = [self.fixed_top_lidar_sensor_name, None, 'Lidar (Ray-Cast)', {'range': '50'}]
+        self.fixed_top_lidar_transform = (carla.Transform(carla.Location(x=lidar_x_pos, y=+0.0*bound_y, z=lidar_z_pos)), attachment.Rigid)
 
 
         self.sensors = [
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}],
-            ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)', {}],
-            ['sensor.camera.depth', cc.Depth, 'Camera Depth (Gray Scale)', {}],
-            ['sensor.camera.depth', cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)', {}],
+            [self.fixed_front_rgb_sensor_name, cc.Raw, 'Camera RGB', {}],
+            [self.fixed_front_depth_sensor_name, cc.Raw, 'Camera Depth (Raw)', {}],
+            [self.fixed_front_depth_sensor_name, cc.Depth, 'Camera Depth (Gray Scale)', {}],
+            [self.fixed_front_depth_sensor_name, cc.LogarithmicDepth, 'Camera Depth (Logarithmic Gray Scale)', {}],
             ['sensor.camera.semantic_segmentation', cc.Raw, 'Camera Semantic Segmentation (Raw)', {}],
             ['sensor.camera.semantic_segmentation', cc.CityScapesPalette, 'Camera Semantic Segmentation (CityScapes Palette)', {}],
             ['sensor.camera.instance_segmentation', cc.CityScapesPalette, 'Camera Instance Segmentation (CityScapes Palette)', {}],
             ['sensor.camera.instance_segmentation', cc.Raw, 'Camera Instance Segmentation (Raw)', {}],
-            ['sensor.lidar.ray_cast', None, 'Lidar (Ray-Cast)', {'range': '50'}],
+            [self.fixed_top_lidar_sensor_name, None, 'Lidar (Ray-Cast)', {'range': '50'}],
             ['sensor.camera.dvs', cc.Raw, 'Dynamic Vision Sensor', {}],
-            ['sensor.camera.rgb', cc.Raw, 'Camera RGB Distorted',
+            [self.fixed_front_rgb_sensor_name, cc.Raw, 'Camera RGB Distorted',
                 {'lens_circle_multiplier': '3.0',
                 'lens_circle_falloff': '3.0',
                 'chromatic_aberration_intensity': '0.5',
@@ -1282,19 +1286,8 @@ class CameraManager(object):
 
             item.append(bp)
 
-        bp = bp_library.find(self.fixed_front_rgb_info[0])
-        bp.set_attribute('image_size_x', str(hud.dim[0]))
-        bp.set_attribute('image_size_y', str(hud.dim[1]))
-        if bp.has_attribute('gamma'):
-            bp.set_attribute('gamma', str(gamma_correction))
-        self.fixed_front_rgb_info.append(bp)
-
-        bp = bp_library.find(self.fixed_front_depth_info[0])
-        bp.set_attribute('image_size_x', str(hud.dim[0]))
-        bp.set_attribute('image_size_y', str(hud.dim[1]))
-        if bp.has_attribute('gamma'):
-            bp.set_attribute('gamma', str(gamma_correction))
-        self.fixed_front_depth_info.append(bp)
+        self.assign_agent_from_blue_print(self.fixed_front_rgb_info)
+        self.assign_agent_from_blue_print(self.fixed_front_depth_info)
 
         bp = bp_library.find(self.fixed_top_lidar_info[0])
         self.lidar_range = 50
@@ -1305,6 +1298,16 @@ class CameraManager(object):
         self.fixed_top_lidar_info.append(bp)
 
         self.index = None
+
+    def assign_agent_from_blue_print(self, sensor_info):
+        world = self._parent.get_world()
+        bp_library = world.get_blueprint_library()
+        bp = bp_library.find(sensor_info[0])
+        bp.set_attribute('image_size_x', str(self.hud.dim[0]))
+        bp.set_attribute('image_size_y', str(self.hud.dim[1]))
+        if bp.has_attribute('gamma'):
+            bp.set_attribute('gamma', str(self.gamma_correction))
+        sensor_info.append(bp)
 
     def toggle_camera(self):
         self.transform_index = (self.transform_index + 1) % len(self._camera_transforms)
@@ -1330,7 +1333,6 @@ class CameraManager(object):
             if self.sensor is not None:
                 self.sensor.destroy()
                 self.surface = None
-            print(self._camera_transforms[self.transform_index][0])
             self.sensor = self._parent.get_world().spawn_actor(
                 self.sensors[index][-1],
                 self._camera_transforms[self.transform_index][0],
@@ -1346,9 +1348,7 @@ class CameraManager(object):
 
     def set_fixed_rgb(self):
         if self.fixed_front_rgb_sensor is not None:
-            print('fixed sensor destroyed')
             self.fixed_front_rgb_sensor.destroy()
-        print(self.fixed_front_rgb_transform[0])
         self.fixed_front_rgb_sensor = self._parent.get_world().spawn_actor(
             self.fixed_front_rgb_info[-1],
             self.fixed_front_rgb_transform[0],
@@ -1361,9 +1361,7 @@ class CameraManager(object):
     
     def set_fixed_lidar(self):
         if self.fixed_top_lidar_sensor is not None:
-            print('fixed sensor destroyed')
             self.fixed_top_lidar_sensor.destroy()
-        print(self.fixed_top_lidar_transform[0])
         self.fixed_top_lidar_sensor = self._parent.get_world().spawn_actor(
             self.fixed_top_lidar_info[-1],
             self.fixed_top_lidar_transform[0],
@@ -1376,9 +1374,7 @@ class CameraManager(object):
 
     def set_fixed_depth(self):
         if self.fixed_front_depth_sensor is not None:
-            print('fixed sensor destroyed')
             self.fixed_front_depth_sensor.destroy()
-        print(self.fixed_top_lidar_transform[0])
         self.fixed_front_depth_sensor = self._parent.get_world().spawn_actor(
             self.fixed_front_depth_info[-1],
             self.fixed_front_depth_transform[0],
@@ -1423,7 +1419,7 @@ class CameraManager(object):
                 # Example of converting the raw_data from a carla.DVSEventArray
                 # sensor into a NumPy array and using it as an image
                 dvs_events = np.frombuffer(image.raw_data, dtype=np.dtype([
-                    ('x', np.uint16), ('y', np.uint16), ('t', np.int64), ('pol', np.bool)]))
+                    ('x', np.uint16), ('y', np.uint16), ('t', np.int64), ('pol', bool)]))
                 dvs_img = np.zeros((image.height, image.width, 3), dtype=np.uint8)
                 # Blue is positive, red is negative
                 dvs_img[dvs_events[:]['y'], dvs_events[:]['x'], dvs_events[:]['pol'] * 2] = 255
@@ -1443,19 +1439,19 @@ class CameraManager(object):
                 array = array[:, :, ::-1]
                 self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         
-        if (callback and caller == 'sensor.camera.rgb') :
+        if (callback and caller == self.fixed_front_rgb_sensor_name) :
             image.convert(self.fixed_front_rgb_info[1])
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
             for cb in self.rgb_callbacks:
                 cb(self.bridge.cv2_to_imgmsg(array))
-        elif (callback and caller == 'sensor.camera.depth') :
+        elif (callback and caller == self.fixed_front_depth_sensor_name) :
             image.convert(self.fixed_front_depth_info[1])
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
             for cb in self.depth_callbacks:
                 cb(self.bridge.cv2_to_imgmsg(array))
-        elif (callback and caller == 'sensor.lidar.ray_cast'):
+        elif (callback and caller == self.fixed_top_lidar_sensor_name):
             points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
             points = np.reshape(points, (int(points.shape[0] / 4), 4))
             for cb in self.lidar_callbacks:

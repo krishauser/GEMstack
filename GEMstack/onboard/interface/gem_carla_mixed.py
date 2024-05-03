@@ -42,4 +42,3 @@ class GEMCarlaSensorsWithSimMotionInterface(GEMInterface):
 
     def hardware_faults(self) -> List[str]:
         return self.real.hardware_faults() + self.sim.hardware_faults()
-

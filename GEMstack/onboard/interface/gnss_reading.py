@@ -1,4 +1,5 @@
-from .gem import *
+from .gem import ObjectPose
+from .gem import dataclass
 
 @dataclass 
 class GNSSReading:
