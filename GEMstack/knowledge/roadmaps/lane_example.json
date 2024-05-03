@@ -1,0 +1,56 @@
+{
+    "type": "Roadgraph",
+    "data": {
+        "frame": 3,
+        "curves": {},
+        "lanes": {
+            "lane1": {
+                "type": 0,
+                "surface": 0,
+                "route_name": "route name",
+                "left":{
+                    "type":0,
+                    "segments": [
+                        [
+                            [
+                                0.0,
+                                7.5,
+                                0.0
+                            ],
+                            [
+                                100.0,
+                                7.5,
+                                0.0
+                            ]
+                        ]
+                    ],
+                    "crossable": false
+                },
+                "right":{
+                    "type":0,
+                    "segments": [
+                        [
+                            [
+                                0.0,
+                                2.5,
+                                0.0
+                            ],
+                            [
+                                100.0,
+                                2.5,
+                                0.0
+                            ]
+                        ]
+                    ],
+                    "crossable": false
+                }	
+            }
+        },
+        "regions": {},
+        "signs": {},
+        "static_obstacles": {},
+        "connections": []
+    }
+}
+
+
