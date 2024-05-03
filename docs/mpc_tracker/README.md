@@ -25,3 +25,10 @@ motion_planning:
     args: [1.0]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
 ```
 
+## Simulation
+To launch a simple trajectory following example, run the following command
+```
+python3 main.py --variant=sim launch/fixed_route.yaml
+```
+
+
