@@ -12,9 +12,16 @@ import cv2
 import numpy as np
 import timeit
 
+agent_dict = {
+    '0': AgentEnum.PEDESTRIAN,
+    '1': AgentEnum.BICYCLIST,
+    '2': AgentEnum.CAR,
+    '7': lambda z : AgentEnum.MEDIUM_TRUCK if z <= 2.0 else AgentEnum.LARGE_TRUCK
+}
+
 
 class AgentDetector(Component):
-    """Detects other agents (pedestrians + vehicles)."""
+    """Detects other agents (pedestrians and vehicles)."""
 
     def __init__(self, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
@@ -33,7 +40,7 @@ class AgentDetector(Component):
         return ['vehicle']
     
     def state_outputs(self):
-        return ['detected_agents']
+        return ['agents']
 
     def initialize(self):
         # use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
@@ -48,7 +55,7 @@ class AgentDetector(Component):
     def lidar_callback(self, point_cloud: np.ndarray):
         self.lidar_point_cloud = point_cloud
     
-    def update(self, vehicle : VehicleState) -> List[AgentState]:
+    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         if self.camera_image is None or self.lidar_point_cloud is None:
             return {}   # no image data or lidar data yet
         
@@ -59,51 +66,50 @@ class AgentDetector(Component):
 
         t1 = timeit.default_timer()
 
-        detected_agents = self.detect_agents()
+        detected_agents, names = self.detect_agents()
         
         t2 = timeit.default_timer()
         print('Agent detection time: {:.6f} s'.format(t2 - t1))
 
-        return detected_agents
+        return dict(zip(names, detected_agents))
 
     def object_to_agent(self, detected_object, bbox_cls):
         """Creates a 3D agent state from a PhysicalObject."""
+        
+        dims = detected_object.dimensions
+        type = agent_dict[str(bbox_cls)]
+        if bbox_cls == 7:
+            type = type(dims[2])
 
         # set agent type based on class id
-        type_dict = {
-            '0': AgentEnum.PEDESTRIAN,
-            '1': AgentEnum.BICYCLIST,
-            '2': AgentEnum.CAR,
-            '7': AgentEnum.MEDIUM_TRUCK if detected_object.dimensions[2] <= 2.0 else AgentEnum.LARGE_TRUCK
-        }
-        return AgentState(pose=detected_object.pose, dimensions=detected_object.dimensions, outline=None, 
-                          type=type_dict[str(int(bbox_cls))], activity=AgentActivityEnum.STOPPED, 
-                          velocity=(0,0,0), yaw_rate=0, attributes=None)
+        agent = AgentState(pose=detected_object.pose, dimensions=dims, outline=None, 
+                           type=type, activity=AgentActivityEnum.STOPPED, 
+                           velocity=(0,0,0), yaw_rate=0, attributes=None)
+
+        return agent, AgentEnum(type).name
 
     def detect_agents(self):
         """Creates a list of AgentState objects."""
-
-        yolo_class_ids = [
-            0,  # person
-            1,  # bicycle
-            2,  # car
-            7   # truck
-        ]
+        yolo_class_ids = list(map(int, agent_dict.keys()))
         detected_objects, bbox_classes = self.object_detector.detect_objects(yolo_class_ids)
 
         detected_agents = []
+        names = []
         for i in range(len(detected_objects)):
-            agent = self.object_to_agent(detected_objects[i], bbox_classes[i])
+            cls = int(bbox_classes[i])
+
+            agent, name = self.object_to_agent(detected_objects[i], cls)
             detected_agents.append(agent)
-        
-        return detected_agents
+            names.append(name)
+
+        return detected_agents, names
 
 
 class OmniscientAgentDetector(Component):
     """Obtains agent detections from a simulator"""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.agents = []
+        self.agents = {}
         self.lock = threading.Lock()
 
     def rate(self):
@@ -113,15 +119,15 @@ class OmniscientAgentDetector(Component):
         return []
 
     def state_outputs(self):
-        return ['detected_agents']
+        return ['agents']
 
     def initialize(self):
         self.vehicle_interface.subscribe_sensor('agent_detector',self.agent_callback, AgentState)
 
     def agent_callback(self, name : str, agent : AgentState):
         with self.lock:
-            self.agents.append(agent)
+            self.agents[name] = agent
 
-    def update(self) -> List[AgentState]:
+    def update(self) -> Dict[str,AgentState]:
         with self.lock:
             return copy.deepcopy(self.agents)
