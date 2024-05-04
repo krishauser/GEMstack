@@ -1,4 +1,4 @@
-from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
+from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum,AgentAttributesFlag
 from ...utils import settings
 from ...mathutils import transforms
 from ..interface.gem import GEMInterface
@@ -118,10 +118,6 @@ class WavingDetector(Component):
     def state_outputs(self):
         return ['detected_agents']
 
-    def test_set_data(self, zed_image, point_cloud, camera_info='dummy'):
-        self.zed_image = zed_image
-        self.point_cloud = point_cloud
-        self.camera_info = camera_info
 
     # def initialize(self):
     #     print("INITIALIZE PED DETECT")
@@ -141,7 +137,7 @@ class WavingDetector(Component):
     # def lidar_callback(self, point_cloud: np.ndarray):
     #     self.point_cloud = point_cloud
 
-    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
+    def update(self, vehicle : VehicleState, detected_agents : List[AgentState]):
         print("0PED DETECT UPDATE", self.zed_image is None, self.point_cloud is None, self.camera_info is  None)
         if self.zed_image is None:
             # no image data yet
@@ -155,13 +151,26 @@ class WavingDetector(Component):
             # no camera info yet
             print("camera")
             return {}
-
-        detected_agents = self.detect_agents()  # TODO: to ask SE to output detected_agents only
-
-
+        pose_array, flag_array=self.form_agent_info(detected_agents)
+        print("Updating with detected, ", detected_agents)
+        #add flag to them
+        detected_agents = self.update_waving_agents(detected_agents,pose_array, flag_array) 
         print("Pedestrian Detection detected agents: ", detected_agents)
         return detected_agents
 ###
+
+    def form_agent_info(self, detected_agents):
+        pose_array=[]
+        flag_array=[]
+        for agent in detected_agents:
+            pose=[agent.pose.x,agent.pose.y,agent.pose.z]
+            pose_array.append(pose)
+            flag=agent.attributes.value
+            flag_array.append(flag)
+        pose_array=np.array(pose_array)
+        flag_array=np.array(flag_array)
+        return pose_array, flag_array
+
     def cal_angle(self,elbow,wrist):
         x1=elbow[0]
         y1=elbow[1]
@@ -315,7 +324,7 @@ class WavingDetector(Component):
             cv2.circle(img, (kpt_i[4][0], kpt_i[4][1]), radius=3, color=(255, 0, 0), thickness=-1)
         return curr_ped,img
 
-    def box_to_agent(self, box, point_cloud_image, point_cloud_image_world):
+    def box_to_pose(self, box, point_cloud_image, point_cloud_image_world):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
         """
 
@@ -345,19 +354,24 @@ class WavingDetector(Component):
         closest_point_cloud = point_cloud_image_world[closest_point_cloud_idx]
 
         x, y, _ = closest_point_cloud
-        pose = ObjectPose(t=0, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+        #pose = ObjectPose(t=0, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
 
         # Specify AgentState.
-        l = np.max(agent_world_pc[:, 0]) - np.min(agent_world_pc[:, 0])
-        w = np.max(agent_world_pc[:, 1]) - np.min(agent_world_pc[:, 1])
-        h = np.max(agent_world_pc[:, 2]) - np.min(agent_world_pc[:, 2])
-
-        dims = (w, h, l) 
-
-        return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+        # l = np.max(agent_world_pc[:, 0]) - np.min(agent_world_pc[:, 0])
+        # w = np.max(agent_world_pc[:, 1]) - np.min(agent_world_pc[:, 1])
+        # h = np.max(agent_world_pc[:, 2]) - np.min(agent_world_pc[:, 2])
+        
+        # dims = (w, h, l) 
+        pose=np.array([x,y,0])
+        return pose
+        #return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0,attributes=AgentAttributesFlag.WAVING)
+    def closest_point(self, points, target):
+        distances = np.linalg.norm(points - target, axis=1)
+        closest_index = np.argmin(distances)
+        return closest_index
 
     # Behavior Prediction added test argument to return matchings
-    def detect_agents(self, test=False):
+    def update_waving_agents(self, detected_agents : List[AgentState], pose_array, flag_array):
         results = self.model.track(self.zed_image,verbose=False)
         boxes = results[0].boxes
         #print('boxes  ',len(boxes))
@@ -383,22 +397,15 @@ class WavingDetector(Component):
         print('curr_ped  ',curr_ped)
         print('count_frame  ',self.count_frame)
 
+
         self.count_frame = {key: value for key, value in self.count_frame.items() if value[1] != 0}
         waving_dict = {key: value for key, value in self.count_frame.items() if value[0] > self.no_for_confirm}
-        waving_ped = list(waving_dict.keys())
+        waving_ped_key = list(waving_dict.keys())
+        waving_ped_bb = [value[2] for value in waving_dict.values()]
+
         self.prev_ped=curr_ped
 
-
-        for box in detection_result[0].boxes: # only one image, so use index 0 of result
-            class_id = int(box.cls[0].item())
-            if class_id == 0: # class 0 stands for pedestrian
-                bbox = box.xywh[0].tolist()
-                pedestrian_boxes.append(bbox)
-
-            if class_id == 2: # class 2 stands for car
-                bbox = box.xywh[0].tolist()
-                car_boxes.append(bbox)
-
+#if in the frame but not wave??
 
         # Only keep lidar point cloud that lies in roi area for agents
         point_cloud_lidar = filter_lidar_by_range(self.point_cloud, self.xrange, self.yrange)
@@ -409,26 +416,22 @@ class WavingDetector(Component):
         # Tansfer lidar point cloud to vehicle frame
         point_cloud_image_world = lidar_to_vehicle(point_cloud_lidar, self.T_lidar2_Gem)
         
-        
+        pred_waving_indices = np.nonzero(flag_array)[0]
+        idx_array=[]
+        #change to waving
+        for i,b in enumerate(waving_ped_bb):
+            pose = self.box_to_pose(b, point_cloud_image, point_cloud_image_world)
+            idx=self.closest_point(pose_array, pose)
+            detected_agents[idx].attributes=AgentAttributesFlag.WAVING
+            idx_array.append(idx)
+        #change from waving in the previous frame to not waving
+        idx_array=np.array(idx_array)
+        mask = np.isin(pred_waving_indices, idx_array)
+        not_waving_indices = pred_waving_indices[~mask]
+        for ind in not_waving_indices:
+            detected_agents[ind].attributes=AgentAttributesFlag.DEFAULT
 
-        # Find agents
-        detected_agents = []
-        for i,b in enumerate(pedestrian_boxes):
-            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            agent.type = AgentEnum.PEDESTRIAN
-            if agent is not None:
-                detected_agents.append(agent)
-
-        for i,b in enumerate(car_boxes):
-            agent = self.box_to_agent(b, point_cloud_image, point_cloud_image_world)
-            agent.type = AgentEnum.CAR
-            if agent is not None:
-                detected_agents.append(agent)
-
-        
-        if test: # Behavior Prediction
-            return detected_agents, detection_result 
         return detected_agents
 
 
-    
+
