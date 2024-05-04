@@ -50,7 +50,7 @@ class SignDetector(Component):
         return ['vehicle', 'roadgraph']
     
     def state_outputs(self):
-        return ['roadgraph.signs']
+        return ['detected_signs']
 
     def initialize(self):
         # use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
@@ -84,21 +84,21 @@ class SignDetector(Component):
         return dict(zip(names, detected_signs))
     
     def object_to_sign(self, detected_object, bbox_cls):
-        sign = Sign(pose=detected_object.pose, dimensions=detected_object.dimensions, outline=None, 
-                    type=sign_dict[bbox_cls], entities=[])
-        
-        name = SignEnum(sign.type).name
+        type = sign_dict[bbox_cls]
 
-        return sign, name
+        sign = Sign(pose=detected_object.pose, dimensions=detected_object.dimensions, outline=None, 
+                    type=type, entities=[])
+
+        return sign, SignEnum(type).name
 
     def object_to_signal(self, detected_object, bbox_cls):
-        signal_state = SignalLightState(state=signal_dict[bbox_cls], duration=1/self.rate()) # actual duration?
+        type = signal_dict[bbox_cls]
+
+        signal_state = SignalLightState(state=type, duration=1/self.rate())
         sign = Sign(pose=detected_object.pose, dimensions=detected_object.dimensions, outline=None, 
                     type=SignEnum.STOP_LIGHT, entities=[], state=SignState(signal_state=signal_state))
         
-        name = SignalLightEnum(sign.state.signal_state.state).name
-
-        return sign, name
+        return sign, SignalLightEnum(type).name
 
     def detect_signs(self):
         class_ids = list(sign_dict.keys()) + list(signal_dict.keys())
@@ -137,7 +137,7 @@ class OmniscientSignDetector(Component):
         return ['vehicle', 'roadgraph']
     
     def state_outputs(self):
-        return ['roadgraph.signs']
+        return ['detected_signs']
 
     def initialize(self):
         self.vehicle_interface.subscribe_sensor('sign_detector',self.sign_callback, Sign)
