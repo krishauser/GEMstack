@@ -1,12 +1,9 @@
 """
 Program for testing the detection components.
 
-Args:
-    [folder]: path to the folder containing the paired scans
-    [n]: scan number (eg: color[n].png, lidar[n].npz)
-
-Usage: From the main GEMstack folder, run
-            python3 testing/test_detection_paired_scan.py [folder] [n]
+Usage: For a brief description of the arguments needed, run
+            python3 testing/test_detection.py -h
+       from the main GEMstack folder
 """
 
 #needed to import GEMstack from top level directory
@@ -15,8 +12,10 @@ import os
 sys.path.append(os.getcwd())
 
 import argparse
+from ultralytics import YOLO
 import numpy as np
 import cv2
+import timeit
 
 from GEMstack.onboard.interface.gem import GEMInterface
 from GEMstack.state import AgentState, Route, SceneState, Path, ObjectFrameEnum, SignEnum, Roadgraph
@@ -24,45 +23,89 @@ from GEMstack.onboard.perception.agent_detection_v2 import AgentDetector
 from GEMstack.onboard.perception.sign_detection import SignDetector
 from GEMstack.onboard.perception.lane_detection import LaneDetector
 
-def run_agent_detection_image_only():
-    pass
+agent_dict = dict([
+    (0, 'PEDESTRIAN'),
+    (1, 'BICYCLIST'),
+    (2, 'CAR'),
+    (7, 'TRUCK')
+])
 
-def run_agent_detection_paired_scan(lidar_path, rgb_path):
-    print('\nRunning agent detector...')
+sign_signal_dict = dict([
+    (3, 'NO_LEFT_TURN'),
+    (4, 'NO_RIGHT_TURN'),
+    (5, 'NO_U_TURN'),
+    (7, 'GREEN'),
+    (9, 'NO_PARKING'),
+    (11, 'PEDESTRIAN_CROSSING'),
+    (13, 'RAILROAD_CROSSING'),
+    (14, 'RED'),
+    (15, 'STOP_SIGN'),
+    (20, 'YELLOW')
+])
 
-    agent_detector = AgentDetector(None)
-    agent_detector.camera_image = cv2.imread(rgb_path)
-    agent_detector.lidar_point_cloud = np.load(lidar_path)['arr_0']
 
-    agent_states = agent_detector.update(None)
+def detect(img, rel_path, class_ids):
+    model = YOLO(os.path.join(os.path.dirname(os.path.realpath(__file__)), rel_path))
+    return model(img, classes=class_ids, verbose=False)
 
-    print('Detected {} agents'.format(len(agent_states)))
-    for i in range(len(agent_states)):
-        print('Agent {}:'.format(i+1))
-        s = agent_states[i]
-        print('- type:', s.type)
-        print('- position: ({0:.3f}, {1:.3f}, {2:.3f})'.format(s.pose.x, s.pose.y, s.pose.z))
-        print('- dimensions: ({0:.3f}, {1:.3f}, {2:.3f})'.format(s.dimensions[0], s.dimensions[1], s.dimensions[2]))
 
-def run_sign_detection_image_only():
-    pass
+def plot_detection_bboxes(image, bboxes, obj_types):
+    for i in range(len(bboxes)):
+        x,y,w,h = bboxes[i]
 
-def run_sign_detection_paired_scan(lidar_path, rgb_path):
-    print('\nRunning sign detector...')
+        check = lambda val : not isinstance(val, (int, float))
+        if check(x) or check(y) or check(w) or check(h):
+            print('WARNING: make sure to return Python numbers rather than PyTorch Tensors')
+        
+        print('Corner: ({:.3f},{:.3f}), Size: ({:.3f},{:.3f})'.format(x, y, w, h))
 
-    sign_detector = SignDetector(None)
-    sign_detector.camera_image = cv2.imread(rgb_path)
-    sign_detector.lidar_point_cloud = np.load(lidar_path)['arr_0']
+        top_left = (int(x-w/2), int(y-h/2))
+        bottom_right = (int(x+w/2), int(y+h/2))
+        color = (255, 0, 255)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.4
+        cv2.rectangle(image, top_left, bottom_right, color, thickness=2)
+        cv2.putText(image, obj_types[i], tuple(np.subtract(top_left, (0, 10))), font, font_scale, color, thickness=1)
+    
+    cv2.imshow('Results', image)
+    cv2.waitKey(0)
 
-    signs = sign_detector.update(None, None)
 
-    print('Detected {} signs'.format(len(signs)))
-    for i, type in enumerate(signs):
-        print('Sign {}:'.format(i+1))
-        print('- type:', type)
-        s = signs[type]
-        print('- position: ({0:.3f}, {1:.3f}, {2:.3f})'.format(s.pose.x, s.pose.y, s.pose.z))
-        print('- dimensions: ({0:.3f}, {1:.3f}, {2:.3f})'.format(s.dimensions[0], s.dimensions[1], s.dimensions[2]))
+def run_agent_detection_image_only(rgb_path):
+    print('\nRunning agent detector on image...')
+
+    image = cv2.imread(rgb_path)
+
+    t1 = timeit.default_timer()
+    results = detect(image, '../GEMstack/knowledge/detection/yolov9c.pt', list(agent_dict.keys()))
+    t2 = timeit.default_timer()
+
+    bboxes = results[0].boxes.xywh.tolist()
+    types = [agent_dict[int(cls)] for cls in results[0].boxes.cls.tolist()]
+    
+    print('Detected', len(bboxes), 'objects')
+    print('Time: {:.9f} seconds'.format(t2-t1))
+    
+    plot_detection_bboxes(image, bboxes, types)
+
+
+def run_sign_detection_image_only(rgb_path):
+    print('\nRunning sign detector on image...')
+
+    image = cv2.imread(rgb_path)
+
+    t1 = timeit.default_timer()
+    results = detect(image, '../GEMstack/knowledge/detection/sign_model.pt', list(sign_signal_dict.keys()))
+    t2 = timeit.default_timer()
+
+    bboxes = results[0].boxes.xywh.tolist()
+    types = [sign_signal_dict[int(cls)] for cls in results[0].boxes.cls.tolist()]
+    
+    print('Detected', len(bboxes), 'objects')
+    print('Time: {:.9f} seconds'.format(t2-t1))
+    
+    plot_detection_bboxes(image, bboxes, types)
+
 
 def plot_lane_detection_result(image, lane_lines):
     if lane_lines is None:
@@ -81,8 +124,9 @@ def plot_lane_detection_result(image, lane_lines):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+
 def run_lane_detection_image_only(rgb_path):
-    print('\nRunning lane detector...')
+    print('\nRunning lane detector on image...')
 
     image = cv2.imread(rgb_path)
     height, width, _ = image.shape
@@ -118,18 +162,6 @@ def run_lane_detection_image_only(rgb_path):
                                        [right_near_pt, right_far_pt], 
                                        [center_near_pt, center_far_pt]])
 
-def run_lane_detection_paired_scan(lidar_path, rgb_path):
-    print('\nRunning lane detector...')
-
-    image = cv2.imread(rgb_path)
-
-    lane_detector = LaneDetector(None)
-    lane_detector.camera_image = image
-    lane_detector.height, lane_detector.width, _ = image.shape
-    lane_detector.lidar_point_cloud = np.load(lidar_path)['arr_0']
-
-    roadgraph = lane_detector.update(Roadgraph.zero())
-    print(roadgraph)
 
 def test_detection_image_only(rgb_path, detectors):
     fns = set()
@@ -148,6 +180,55 @@ def test_detection_image_only(rgb_path, detectors):
 
     for fn in fns:
         fn(rgb_path)
+
+
+def run_agent_detection_paired_scan(lidar_path, rgb_path):
+    print('\nRunning agent detector on paired scan...')
+
+    agent_detector = AgentDetector(None)
+    agent_detector.camera_image = cv2.imread(rgb_path)
+    agent_detector.lidar_point_cloud = np.load(lidar_path)['arr_0']
+
+    agents = agent_detector.update(None)
+
+    print('Detected {} agents'.format(len(agents)))
+    for key, agent in agents.items():
+        print(key)
+        print('- type:', agent.type)
+        print('- position: ({0:.3f}, {1:.3f}, {2:.3f})'.format(agent.pose.x, agent.pose.y, agent.pose.z))
+        print('- dimensions: ({0:.3f}, {1:.3f}, {2:.3f})'.format(agent.dimensions[0], agent.dimensions[1], agent.dimensions[2]))
+
+
+def run_sign_detection_paired_scan(lidar_path, rgb_path):
+    print('\nRunning sign detector on paired scan...')
+
+    sign_detector = SignDetector(None)
+    sign_detector.camera_image = cv2.imread(rgb_path)
+    sign_detector.lidar_point_cloud = np.load(lidar_path)['arr_0']
+
+    signs = sign_detector.update(None, None)
+
+    print('Detected {} signs'.format(len(signs)))
+    for key, sign in signs.items():
+        print(key)
+        print('- type:', sign.type)
+        print('- position: ({0:.3f}, {1:.3f}, {2:.3f})'.format(sign.pose.x, sign.pose.y, sign.pose.z))
+        print('- dimensions: ({0:.3f}, {1:.3f}, {2:.3f})'.format(sign.dimensions[0], sign.dimensions[1], sign.dimensions[2]))
+
+
+def run_lane_detection_paired_scan(lidar_path, rgb_path):
+    print('\nRunning lane detector on paired scan...')
+
+    image = cv2.imread(rgb_path)
+
+    lane_detector = LaneDetector(None)
+    lane_detector.camera_image = image
+    lane_detector.height, lane_detector.width, _ = image.shape
+    lane_detector.lidar_point_cloud = np.load(lidar_path)['arr_0']
+
+    roadgraph = lane_detector.update(Roadgraph.zero())
+    print(roadgraph)
+
 
 def test_detection_paired_scan(data_folder, idx, detectors):
     lidar_path = os.path.join(data_folder, 'lidar{}.npz'.format(idx))
@@ -170,6 +251,7 @@ def test_detection_paired_scan(data_folder, idx, detectors):
 
     for fn in fns:
         fn(lidar_path, rgb_path)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Detect objects of interest in a paired scan or image(s)', formatter_class=argparse.RawTextHelpFormatter)
