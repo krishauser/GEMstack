@@ -405,8 +405,6 @@ class WavingDetector(Component):
 
         self.prev_ped=curr_ped
 
-#if in the frame but not wave??
-
         # Only keep lidar point cloud that lies in roi area for agents
         point_cloud_lidar = filter_lidar_by_range(self.point_cloud, self.xrange, self.yrange)
 
