@@ -82,6 +82,9 @@ import carla
 
 from carla import ColorConverter as cc
 
+
+from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
+
 import argparse
 import collections
 import datetime
@@ -523,6 +526,7 @@ class KeyboardControl(object):
                     with open(filename, 'r+') as file:
                             data = json.load(file)  # Load existing data
                             data['Waypoints'].append(waypoint_data)  # Append new waypoint
+                            save_route(data['Waypoints'],world)
                             file.seek(0)  # Go back to the start of the file
                             file.truncate()  # Clear the file content before writing
                             json.dump(data, file, indent=4)  # Re-write the modified data
@@ -1304,6 +1308,26 @@ class CameraManager(object):
         if self.recording:
             image.save_to_disk('_out/%08d' % image.frame)
 
+def save_route(waypoints, world):
+    csv_file_path = 'recording_route.csv'
+    agent = BasicAgent(world.player, 30)
+    agent.follow_speed_limits(True)
+    total_route = []
+    intermediate_points = []
+    for i in range(len(waypoints)-1):
+        start = waypoints[i]["Location"]
+        end = waypoints[i+1]["Location"]
+        rot = waypoints[i]["Rotation"]
+        startL = carla.Location(x=start[0],y=start[1],z=start[2])
+        endL = carla.Location(x=end[0],y=end[1],z=end[2])
+        startT = carla.Rotation(pitch=rot[0],yaw=rot[1],roll=rot[2])
+        route = agent._global_planner.trace_route(startL,endL)
+        intermediate_points.extend(agent._global_planner.trace_route(startL,endL))
+    for point in intermediate_points:
+        total_route.append([round(point[0].transform.location.x,3), round(point[0].transform.location.y,3), round(point[0].transform.rotation.yaw,3)])
+    with open(csv_file_path, 'w',newline='') as csvfile:
+        csv_writer = csv.writer(csvfile,delimiter=',')
+        csv_writer.writerows(total_route)
 
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------

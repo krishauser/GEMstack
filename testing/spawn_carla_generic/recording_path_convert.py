@@ -601,11 +601,17 @@ class CameraManager(object):
         bound_z = 0.5 + self._parent.bounding_box.extent.z
         attachment = carla.AttachmentType
         self._camera_transforms = [
-            (carla.Transform(carla.Location(x=-2.0*bound_x, y=+0.0*bound_y, z=2.0*bound_z), carla.Rotation(pitch=8.0)), attachment.SpringArmGhost),
+            (carla.Transform(carla.Location(x=0.0, y=+0.0*bound_y, z=240), carla.Rotation(pitch=8.0)), attachment.SpringArmGhost),
             (carla.Transform(carla.Location(x=+0.8*bound_x, y=+0.0*bound_y, z=1.3*bound_z)), attachment.Rigid),
             (carla.Transform(carla.Location(x=+1.9*bound_x, y=+1.0*bound_y, z=1.2*bound_z)), attachment.SpringArmGhost),
             (carla.Transform(carla.Location(x=-2.8*bound_x, y=+0.0*bound_y, z=4.6*bound_z), carla.Rotation(pitch=6.0)), attachment.SpringArmGhost),
             (carla.Transform(carla.Location(x=-1.0, y=-1.0*bound_y, z=0.4*bound_z)), attachment.Rigid)]
+        #self._camera_transforms = [
+        #        (carla.Transform(carla.Location(x=-2.5, z=0.0), carla.Rotation(pitch=-8.0)), attachment.SpringArmGhost),
+        #        (carla.Transform(carla.Location(x=1.6, z=1.7)), attachment.Rigid),
+        #        (carla.Transform(carla.Location(x=2.5, y=0.5, z=0.0), carla.Rotation(pitch=-8.0)), attachment.SpringArmGhost),
+        #        (carla.Transform(carla.Location(x=-4.0, z=2.0), carla.Rotation(pitch=6.0)), attachment.SpringArmGhost),
+        #        (carla.Transform(carla.Location(x=0, y=-2.5, z=-0.0), carla.Rotation(yaw=90.0)), attachment.Rigid)]
 
         self.transform_index = 1
         self.sensors = [
@@ -703,6 +709,21 @@ class CameraManager(object):
 # -- Game Loop ---------------------------------------------------------
 # ==============================================================================
 
+def draw_waypoints(world, waypoints, z=0.5):
+    """
+    Draw a list of waypoints at a certain height given in z.
+
+        :param world: carla.world object
+        :param waypoints: list or iterable container with the waypoints to draw
+        :param z: height in meters
+    """
+    for wpt in waypoints:
+        wpt_t = wpt[0].transform
+        begin = wpt_t.location + carla.Location(z=z)
+        angle = math.radians(wpt_t.rotation.yaw)
+        end = begin + carla.Location(x=math.cos(angle), y=math.sin(angle))
+        world.debug.draw_line(begin, end, thickness=3, color=carla.Color(1, 0, 0), life_time=60, persistent_lines = False)
+
 
 def game_loop(args):
     """
@@ -750,7 +771,7 @@ def game_loop(args):
             agent.follow_speed_limits(True)
         elif args.agent == "Behavior":
             agent = BehaviorAgent(world.player, behavior=args.behavior)
-
+        
         # Set the agent destination
         #spawn_points = world.map.get_spawn_points()
         #destination = random.choice(spawn_points).location
@@ -770,19 +791,29 @@ def game_loop(args):
         rotations = [eval(l['Rotation']) for l in data['Points to follow']]
         #print(locations)  # Output: John
         total_route = []
+        wpts = []
         for i in range(len(locations)-1):
-            print(locations[i])
+            print(rotations[i])
             startL = carla.Location(x=locations[i][0],y=locations[i][1],z=locations[i][2])
             endL = carla.Location(x=locations[i+1][0],y=locations[i+1][1],z=locations[i+1][2])
             startT = carla.Rotation(pitch=rotations[i][0],yaw=rotations[i][1],roll=rotations[i][2])
             world.player.set_transform(carla.Transform(startL,startT))
-            agent.set_destination(end_location = endL, start_location=startL)
-            route = agent._local_planner._waypoints_queue
+            #agent.set_destination(end_location = endL, start_location=startL)
+            route = agent._global_planner.trace_route(startL,endL)
+            print(route)
+            #route = agent._local_planner._waypoints_queue
+            wpts.extend(agent._global_planner.trace_route(startL,endL))
+            draw_waypoints(world.world, route)
             #route = agent._global_planner.trace_route(start,end)
             #print(route[0][0].transform.location)
-            routeLocs = [l[0].transform.location for l in route]
-            routeXYZ = [[round(r.x,3),round(r.y,3),round(r.z,3)] for r in routeLocs]
-            total_route.extend(routeXYZ)
+            #routeLocs = [l[0].transform.location for l in route]
+            #routeXYZ = [[round(r.x,3),round(r.y,3),round(r2.z,3)] for r in routeLocs]
+            #total_route.extend(routeXYZ)
+        #print(len(wpts))
+        #draw_waypoints(world.world, wpts[4])
+        print(wpts)
+        for i in wpts:
+            total_route.append([round(i[0].transform.location.x,3), round(i[0].transform.location.y,3), round(i[0].transform.rotation.yaw,3)])
         with open(csv_file_path, 'w',newline='') as csvfile:
         # Create a CSV writer object
             csv_writer = csv.writer(csvfile,delimiter=',')
@@ -794,7 +825,10 @@ def game_loop(args):
         #print(spawn_points)
         #print(destination)
         #print(carla.Location(x=locations[0][0],y=locations[0][1],z=locations[0][2]), carla.Location(x=locations[1][0],y=locations[1][1],z=locations[1][2]))[0][0].Location)
-
+        spectator = world.world.get_spectator()
+        transform = world.player.get_transform()
+        spectator.set_transform(carla.Transform(transform.location + carla.Location(z=10),
+        carla.Rotation(pitch=-90)))
         while True:
             clock.tick()
             if args.sync:
