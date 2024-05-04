@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+
+<!-- Configuration file for launching rtabmap to perform visual odometry, build a map 
+of the scene and get localization information from through SLAM 
+
+Package in this file will be run when the main (entrypoint) is run with the variant ......-->
+
+<launch>
+    <arg name="name" default="oak" />
+
+
+    <!-- Choose visualization -->
+   <arg name="rviz" default="false" />
+   <arg name="rtabmap_viz" default="false" />
+
+   <param name="use_sim_time" type="bool" value="true"/>
+
+    <node type="rgbd_odometry" name="rgbd_odometry" pkg="rtabmap_odom">
+        <remap from="rgb/image" to="$(arg name)/rgb/image_raw"/>
+        <remap from="rgb/camera_info" to="$(arg name)/rgb/camera_info"/>
+        <remap from="depth/image" to="$(arg name)/stereo/image_raw"/>
+        <param name="frame_id" type="string" value="$(arg name)"/>
+        <remap from="imu"                    to="/oak/imu/data"/>
+
+        <rosparam param="subscribe_depth">True</rosparam>
+        <rosparam param="approx_sync">True</rosparam>
+        <rosparam param="approx_sync_max_interval">0.02</rosparam>
+        
+    </node>
+
+    <node type="rtabmap" name="rtabmap" pkg="rtabmap_slam" output="screen" args="--delete_db_on_start">
+        <remap from="rgb/image" to="$(arg name)/rgb/image_raw"/>
+        <remap from="rgb/camera_info" to="$(arg name)/rgb/camera_info"/>
+        <remap from="depth/image" to="$(arg name)/stereo/image_raw"/>
+        <rosparam param="Rtabmap/DetectionRate">3.5</rosparam>
+        <param name="frame_id" type="string" value="$(arg name)"/>
+
+
+    </node>
+
+    <!-- Visualisation RTAB-Map -->
+      <node if="$(arg rtabmap_viz)" pkg="rtabmap_viz" type="rtabmap_viz" name="rtabmap_viz" args="-d $(find rtabmap_demos)/launch/config/rgbd_gui.ini" output="screen">
+        <remap from="rgb/image" to="$(arg name)/rgb/image_raw"/>
+        <remap from="rgb/camera_info" to="$(arg name)/rgb/camera_info"/>
+        <remap from="depth/image" to="$(arg name)/stereo/image_raw"/>
+      </node>
+
+    <node if="$(arg rviz)" pkg="rviz" type="rviz" name="rviz" args="-d $(find rtabmap_demos)/launch/config/demo_rgbd_mapping.rviz">
+        <remap from="rgb/image" to="$(arg name)/rgb/image_raw"/>
+        <remap from="rgb/camera_info" to="$(arg name)/rgb/camera_info"/>
+        <remap from="depth/image" to="$(arg name)/stereo/image_raw"/>
+    </node>
+
+    <node name="" pkg="." type="main.py" output="screen" args="launch/vio_ped_avoidance.yaml">
+    </node>
+
+</launch>
