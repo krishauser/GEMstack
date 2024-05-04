@@ -18,7 +18,7 @@ import cv2
 import timeit
 
 from GEMstack.onboard.interface.gem import GEMInterface
-from GEMstack.state import AgentState, Route, SceneState, Path, ObjectFrameEnum, SignEnum, Roadgraph
+from GEMstack.state import RoadgraphLaneEnum,RoadgraphSurfaceEnum,RoadgraphCurveEnum
 from GEMstack.onboard.perception.agent_detection_v2 import AgentDetector
 from GEMstack.onboard.perception.sign_detection import SignDetector
 from GEMstack.onboard.perception.lane_detection import LaneDetector
@@ -226,8 +226,17 @@ def run_lane_detection_paired_scan(lidar_path, rgb_path):
     lane_detector.height, lane_detector.width, _ = image.shape
     lane_detector.lidar_point_cloud = np.load(lidar_path)['arr_0']
 
-    roadgraph = lane_detector.update(Roadgraph.zero())
-    print(roadgraph)
+    lane = lane_detector.update()
+    
+    print(RoadgraphLaneEnum(lane.type).name)
+    print('- surface:', RoadgraphSurfaceEnum(lane.surface).name)
+    print('- center:')
+    print('  - type:', RoadgraphCurveEnum(lane.center.type).name)
+    print('  - segments (in CURRENT frame):')
+    for i, s in enumerate(lane.center.segments):
+        print('    {0}. ({1:.3f}, {2:.3f}, {3:.3f}), ({4:.3f}, {5:.3f}, {6:.3f})'.format(
+            i+1, s[0][0], s[0][1], s[0][2], s[1][0], s[1][1], s[1][2]
+        ))
 
 
 def test_detection_paired_scan(data_folder, idx, detectors):

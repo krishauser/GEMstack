@@ -9,7 +9,6 @@ import numpy as np
 import cv2
 import math
 import timeit
-import copy
 
 horizon = 0.4 # fraction of the image considered (= height of trapezium)
 min_angle = np.pi / 6 # min angle subtended by a line in order to be considered as part of a lane marking
@@ -29,10 +28,10 @@ class LaneDetector(Component):
         return settings.get('perception.lane_detection.rate')
     
     def state_inputs(self):
-        return ['vehicle', 'roadgraph']
+        return []
     
     def state_outputs(self):
-        return ['roadgraph']
+        return ['detected_lane']
 
     def initialize(self):
         # use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
@@ -48,9 +47,9 @@ class LaneDetector(Component):
     def lidar_callback(self, point_cloud: np.ndarray):
         self.lidar_point_cloud = point_cloud
 
-    def update(self, roadgraph : Roadgraph) -> Roadgraph:
+    def update(self) -> RoadgraphLane:
         if self.camera_image is None:
-            return {}   # no image data yet
+            return None   # no image data yet
         
         # debugging
         # self.save_data()
@@ -62,13 +61,7 @@ class LaneDetector(Component):
         t2 = timeit.default_timer()
         print('Detection time: {:.6f} s'.format(t2 - t1))
 
-        r = copy.deepcopy(roadgraph)
-
-        if left_poly and right_poly:
-            # update roadgraph
-            r.lanes = {'lane0' : self.polys_to_roadgraph_lane(left_poly, right_poly)}
-        
-        return r 
+        return self.polys_to_roadgraph_lane(left_poly, right_poly) 
 
     def region_of_interest(self, image):
         vertices = [
