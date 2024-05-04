@@ -6,7 +6,8 @@ from ..component import Component
 from ultralytics import YOLO
 import cv2
 try:
-    from sensor_msgs.msg import CameraInfo
+    from sensor_msgs.msg import CameraInfo, PointCloud2
+
     from image_geometry import PinholeCameraModel
     import rospy
 except ImportError:
@@ -15,31 +16,8 @@ import numpy as np
 from typing import Dict,Tuple, List
 import time
 from numpy.linalg import inv
+from sklearn.cluster import DBSCAN
 
-
-def Pmatrix(fx,fy,cx,cy):
-    """Returns a projection matrix for a given set of camera intrinsics."""
-    return np.array([[fx,0,cx,0],
-                     [0,fy,cy,0],
-                     [0,0,1,0]])
-
-def project_point_cloud(point_cloud : np.ndarray, P : np.ndarray, xrange : Tuple[int,int], yrange : Tuple[int,int]) -> Tuple[np.ndarray,np.ndarray]:
-    """Projects a point cloud into a 2D image using a camera intrinsic projection matrix P.
-    
-    Returns:
-        - point_cloud_image: an Nx2 array of (u,v) visible image coordinates
-        - image_indices: an array of N indices of visible points into the original point cloud
-    """
-
-    pc_with_ids = np.hstack((point_cloud,np.arange(len(point_cloud)).reshape(-1,1)))
-    pc_fwd = pc_with_ids[pc_with_ids[:,2] > 0]
-    pxform = pc_fwd[:,:3].dot(P[:3,:3].T) + P[:3,3]
-    uv = (pxform[:,0:2].T/pxform[:,2]).T
-    inds = np.logical_and(np.logical_and(uv[:,0] >= xrange[0],uv[:,0] < xrange[1]),
-                    np.logical_and(uv[:,1] >= yrange[0],uv[:,1] < yrange[1]))
-    point_cloud_image = uv[inds]
-    image_indices = pc_fwd[inds,3].astype(int)
-    return point_cloud_image, image_indices
 
 def lidar_to_image(point_cloud_lidar: np.ndarray, extrinsic : np.ndarray, intrinsic : np.ndarray):
     
@@ -61,38 +39,29 @@ def lidar_to_vehicle(point_cloud_lidar: np.ndarray, T_lidar2_Gem: np.ndarray):
     point_cloud_image_world = pointcloud_trans[:, :3] # (N, 3)
     return point_cloud_image_world
 
-def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tuple[float, float]):
+def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tuple[float, float], zrange: Tuple[float, float]):
     xmin, xmax = xrange
     ymin, ymax = yrange
+    zmin, zmax = zrange
     idxs = np.where((point_cloud[:, 0] > xmin) & (point_cloud[:, 0] < xmax) &
-                    (point_cloud[:, 1] > ymin) & (point_cloud[:, 1] < ymax) )
+                    (point_cloud[:, 1] > ymin) & (point_cloud[:, 1] < ymax) &
+                    (point_cloud[:, 2] > zmin) & (point_cloud[:, 2] < zmax) )
     return point_cloud[idxs]
 
 class WavingDetector(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface, extrinsic=None):
-        # State Estimation
         self.vehicle_interface = vehicle_interface
-
-        #self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt')
         self.model = YOLO('GEMstack/knowledge/detection/yolov8m-pose.pt')
-
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
-
-
-
         self.point_cloud = None
         self.point_cloud_zed = None
-        assert(settings.get('vehicle.calibration.top_lidar.reference') == 'rear_axle_center')
-        assert(settings.get('vehicle.calibration.front_camera.reference') == 'rear_axle_center')
 
-        
         if extrinsic is None:
             extrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt")
         self.extrinsic = np.array(extrinsic)
-            
         intrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_intrinsic.txt")
         self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
@@ -100,10 +69,11 @@ class WavingDetector(Component):
         self.T_lidar2_Gem = np.asarray(T_lidar2_Gem)
 
         # Hardcode the roi area for agents
-        self.xrange = (1, 20)
+        self.xrange = (0, 20)
         self.yrange = (-10, 10)
+        self.zrange = (-3, 1)
 
-###
+        # Parameters for waving detection
         self.no_for_discard=20
         self.no_for_confirm=20
         self.parallel_range=20
@@ -119,7 +89,7 @@ class WavingDetector(Component):
         self.count_frame={}
 
     def rate(self):
-        return 2.5
+        return 4.0
 
     def state_inputs(self):
         return ['vehicle','detected_agents']
@@ -128,25 +98,25 @@ class WavingDetector(Component):
         return ['detected_agents']
 
 
-    # def initialize(self):
-    #     print("INITIALIZE PED DETECT")
-    #     # tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-    #     self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
-    #     # tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
-    #     self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
-    #     # subscribe to the Zed CameraInfo topic
-    #     self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
+    def initialize(self):
+        #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        #tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
+        self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
+        #subscribe to the Zed CameraInfo topic
+        self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
+        self.point_cloud_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.lidar_callback)
 
-    # def image_callback(self, image : cv2.Mat):
-    #     self.zed_image = image
+    def image_callback(self, image : cv2.Mat):
+        self.zed_image = image
 
-    # def camera_info_callback(self, info : CameraInfo):
-    #     self.camera_info = info
+    def camera_info_callback(self, info : CameraInfo):
+        self.camera_info = info
+    
+    def lidar_callback(self, point_cloud: np.ndarray):
+        self.point_cloud = point_cloud
 
-    # def lidar_callback(self, point_cloud: np.ndarray):
-    #     self.point_cloud = point_cloud
-
-    def update(self, vehicle : VehicleState, detected_agents : List[AgentState]):
+    def update(self, detected_agents : List[AgentState]):
         print("--Waving Detection", self.zed_image is None, self.point_cloud is None, self.camera_info is  None)
         if self.zed_image is None:
             # no image data yet
@@ -337,66 +307,29 @@ class WavingDetector(Component):
                     cv2.circle(img, (kpt_i[4][0], kpt_i[4][1]), radius=3, color=(255, 0, 0), thickness=-1)
                 
         return curr_ped,img
-
-    def box_to_pose(self, box, point_cloud_image, point_cloud_image_world):
-        """Creates a 3D agent state from an (x,y,w,h) bounding box.
-        """
-
-        # print ('Detect a pedestrian!')
-
-        # get the idxs of point cloud that belongs to the agent
-        x,y,w,h = box
-        xmin, xmax = x - w/2, x + w/2
-        ymin, ymax = y - h/2, y + h/2
-
-
-        # enlarge bbox in case inaccuracy calibration
-        enlarge_factor = 3
-        xmin *= enlarge_factor
-        xmax *= enlarge_factor
-        ymin *= enlarge_factor
-        ymax *= enlarge_factor
-
-        agent_world_pc = point_cloud_image_world
-
-
-        # Find the point_cloud that is closest to the center of our bounding box
-        center_x = x + w / 2
-        center_y = y + h / 2
-        distances = np.linalg.norm(point_cloud_image - [center_x, center_y], axis=1)
-        closest_point_cloud_idx = np.argmin(distances)
-        closest_point_cloud = point_cloud_image_world[closest_point_cloud_idx]
-
-        x, y, _ = closest_point_cloud
-        #pose = ObjectPose(t=0, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
-
-        # Specify AgentState.
-        # l = np.max(agent_world_pc[:, 0]) - np.min(agent_world_pc[:, 0])
-        # w = np.max(agent_world_pc[:, 1]) - np.min(agent_world_pc[:, 1])
-        # h = np.max(agent_world_pc[:, 2]) - np.min(agent_world_pc[:, 2])
         
-        # dims = (w, h, l) 
-        pose=np.array([x,y,0])
-        return pose
-        #return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0,attributes=AgentAttributesFlag.WAVING)
     def closest_point(self, points, target):
         distances = np.linalg.norm(points - target, axis=1)
         closest_index = np.argmin(distances)
         return closest_index
 
-    # Behavior Prediction added test argument to return matchings
+#based on agent_detection.py
     def update_waving_agents(self, detected_agents : List[AgentState], pose_array, flag_array):
         results = self.model.track(self.zed_image,verbose=False)
         boxes = results[0].boxes
         #print('boxes  ',len(boxes))
         kpt=results[0].keypoints
         curr_ped={}
+        img=self.zed_image
+        height, width, channels = img.shape
 
         # TODO: create boxes from detection result
 
         if len(boxes)!=0:
-            curr_ped,img=self.waving_detection(boxes,kpt,self.zed_image)
-
+            curr_ped,img=self.waving_detection(boxes,kpt,img)
+        cv2.imshow("Keypoints of waving ped", img)
+        if cv2.waitKey(1) == ord('q'):
+            break
         dict_no_keys = set(self.count_frame.keys()) - set(curr_ped.keys())    
         for idx in dict_no_keys:
             self.count_frame[idx][1]-=1
@@ -420,25 +353,69 @@ class WavingDetector(Component):
         self.prev_ped=curr_ped
 
         # Only keep lidar point cloud that lies in roi area for agents
-        point_cloud_lidar = filter_lidar_by_range(self.point_cloud, self.xrange, self.yrange)
-
-        # Tansfer lidar point cloud to camera frame
-        point_cloud_image = lidar_to_image(point_cloud_lidar, self.extrinsic, self.intrinsic)
-
-        # Tansfer lidar point cloud to vehicle frame
-        point_cloud_image_world = lidar_to_vehicle(point_cloud_lidar, self.T_lidar2_Gem)
+        filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
+                                                  self.xrange, 
+                                                  self.yrange,
+                                                  self.zrange)
         
-        pred_waving_indices = np.nonzero(flag_array)[0]
-        idx_array=[]
+        epsilon = 0.09  # Epsilon parameter for DBSCAN
+
+        # Perform DBSCAN clustering
+        min_samples = 5  # Minimum number of samples in a cluster
+        dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+        clusters = dbscan.fit_predict(filtered_point_cloud)
+        
+        # Tansfer lidar point cloud to camera frame
+        point_cloud_image = lidar_to_image(filtered_point_cloud, 
+                                           self.extrinsic, 
+                                           self.intrinsic)
+        
+        # Tansfer lidar point cloud to vehicle frame
+        pc_3D = lidar_to_vehicle(filtered_point_cloud, self.T_lidar2_Gem)
+
+
         #change to waving
+        pred_waving_indices = np.nonzero(flag_array)[0]
+        cur_waving_indices=[]
         for i,b in enumerate(waving_ped_bb):
-            pose = self.box_to_pose(b, point_cloud_image, point_cloud_image_world)
+            box = boxes[i]
+            #id = bbox_ids[i]
+
+            x, y, w, h = box
+            xmin, xmax = x - w/2, x + w/2
+            ymin, ymax = y - h/2, y + h/2
+
+            # Filter. Get the idxs of point cloud that belongs to the agent
+            idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
+                            (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
+            agent_image_pc = point_cloud_image[idxs]
+            agent_pc_3D = pc_3D[idxs]
+            agent_clusters = clusters[idxs]
+
+            # Get unique elements and their counts
+            unique_elements, counts = np.unique(agent_clusters, return_counts=True)
+            if len(counts) == 0:
+                continue
+            max_freq = np.max(counts)
+            label_cluster = unique_elements[counts == max_freq]
+            
+            # filter again
+            idxs = agent_clusters == label_cluster
+            agent_image_pc = agent_image_pc[idxs]
+            agent_clusters = agent_clusters[idxs]
+            agent_pc_3D = agent_pc_3D[idxs]
+
+            # calulate depth average
+            depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
+            y_3d = y - (width/2)
+            pose=np.array([depth,y_3d,0])
             idx=self.closest_point(pose_array, pose)
             detected_agents[idx].attributes=AgentAttributesFlag.WAVING
-            idx_array.append(idx)
+            cur_waving_indices.append(idx)
+        
         #change from waving in the previous frame to not waving
-        idx_array=np.array(idx_array)
-        mask = np.isin(pred_waving_indices, idx_array)
+        cur_waving_indices=np.array(cur_waving_indices)
+        mask = np.isin(pred_waving_indices, cur_waving_indices)
         not_waving_indices = pred_waving_indices[~mask]
         for ind in not_waving_indices:
             detected_agents[ind].attributes=AgentAttributesFlag.DEFAULT
