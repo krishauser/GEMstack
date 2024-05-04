@@ -36,7 +36,8 @@ class PedestrianTrajPrediction(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         print("initializing trajpredict CONSTRUCTOR")
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        # Inferencing somehow takes 1 extra second on CPU
+        self.device = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.config = Config(CONFIG_FILE)
         self.model = self.load_model()
         self.frame_rate = 2.5
@@ -157,7 +158,10 @@ class PedestrianTrajPrediction(Component):
     def get_model_prediction(self, data):
         sample_k = self.config.sample_k
         self.model.set_data(data)
+        self.initial = time.time()
+        # This takes 8 seconds
         sample_motion_3D, data = self.model.inference(mode='infer', sample_num=sample_k, need_weights=False)
+        print("Time taken to run model.inference: ", time.time() - self.initial)
         sample_motion_3D = sample_motion_3D.transpose(0, 1).contiguous()
         return sample_motion_3D
     
