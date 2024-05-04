@@ -106,6 +106,15 @@ class WavingDetector(Component):
 ###
         self.no_for_discard=20
         self.no_for_confirm=20
+        self.parallel_range=20
+        self.lh_elbow_range_1=0
+        self.lh_elbow_range_2=145
+        self.rh_elbow_range_1=35
+        self.rh_elbow_range_2=180
+        self.lh_shoulder_range_1=90
+        self.lh_shoulder_range_2=310
+        self.rh_shoulder_range_1=90
+        self.rh_shoulder_range_2=230
         self.prev_ped={}
         self.count_frame={}
 
@@ -138,7 +147,7 @@ class WavingDetector(Component):
     #     self.point_cloud = point_cloud
 
     def update(self, vehicle : VehicleState, detected_agents : List[AgentState]):
-        print("0PED DETECT UPDATE", self.zed_image is None, self.point_cloud is None, self.camera_info is  None)
+        print("--Waving Detection", self.zed_image is None, self.point_cloud is None, self.camera_info is  None)
         if self.zed_image is None:
             # no image data yet
             print("zed")
@@ -152,10 +161,9 @@ class WavingDetector(Component):
             print("camera")
             return {}
         pose_array, flag_array=self.form_agent_info(detected_agents)
-        print("Updating with detected, ", detected_agents)
         #add flag to them
         detected_agents = self.update_waving_agents(detected_agents,pose_array, flag_array) 
-        print("Pedestrian Detection detected agents: ", detected_agents)
+        print("Update waving flag: ", detected_agents)
         return detected_agents
 ###
 
@@ -185,13 +193,25 @@ class WavingDetector(Component):
             angle_deg=360+angle_deg 
         #print(angle_deg)
         return angle_deg
+    
+    def check_parallel(self, lh_elbow_angle,rh_elbow_angle):
+        if lh_elbow_angle is not None and rh_elbow_angle is not None:
+            neg_lh_elbow_angle=float('inf')
+            neg_rh_elbow_angle=float('inf')
+
+            if lh_elbow_angle>=360-self.parallel_range:
+                neg_lh_elbow_angle=-360+lh_elbow_angle
+            if rh_elbow_angle>=360-self.parallel_range:
+                neg_rh_elbow_angle=-360+rh_elbow_angle
+            if np.abs(lh_elbow_angle-rh_elbow_angle)<=self.parallel_range or np.abs(lh_elbow_angle-neg_rh_elbow_angle)<=self.parallel_range or np.abs(neg_lh_elbow_angle-rh_elbow_angle)<=self.parallel_range or np.abs(neg_lh_elbow_angle-neg_rh_elbow_angle)<=self.parallel_range:
+                return True
+        return False
 ###    
     def waving_detection(self,boxes,kpt,img):
         curr_ped={}
         for i in range(len(boxes)):
             lh_waving_flag=False
             rh_waving_flag=False
-            waving_flag=False
 
             lh_using_phone=False  
             rh_using_phone=False
@@ -248,19 +268,19 @@ class WavingDetector(Component):
                     if lh_elbow!=[0,0] and lh_wrist!=[0,0]:
                         lh_elbow_angle=self.cal_angle(lh_elbow,lh_wrist)
                         lh_el="lh_el "+str(int(lh_elbow_angle))
-                        cv2.putText(img, lh_el, org1, font, fontScale, color, thickness)
+                        #cv2.putText(img, lh_el, org1, font, fontScale, color, thickness)
                         #print('lh_elbow_angle  ',lh_elbow_angle)
                     if lh_shoulder!=[0,0] and lh_elbow!=[0,0]:
                         lh_shoulder_angle=self.cal_angle(lh_shoulder,lh_elbow)
                         #print('lh_shoulder_angle  ',lh_shoulder_angle)
 
                         lh_sh="lh_sl "+str(int(lh_shoulder_angle))
-                        cv2.putText(img, lh_sh, org2, font, fontScale, color, thickness)
+                        #cv2.putText(img, lh_sh, org2, font, fontScale, color, thickness)
                     if lh_elbow_angle is not None and lh_shoulder_angle is not None:
-                        if lh_shoulder_angle<=90 or lh_shoulder_angle>=310:
-                            if np.abs(lh_shoulder_angle-lh_elbow_angle)<=20 or (lh_elbow_angle>=0 and lh_elbow_angle<=145):
+                        if lh_shoulder_angle<=self.lh_shoulder_range_1 or lh_shoulder_angle>=self.lh_shoulder_range_2:
+                            if self.check_parallel(lh_shoulder_angle, lh_elbow_angle) or (lh_elbow_angle>=self.lh_elbow_range_1 and lh_elbow_angle<=self.lh_elbow_range_2):
                                 lh_waving_flag=True
-            ####
+
                 if rh_wrist!=[0,0] and rh_ear!=[0,0] and lh_eye!=[0,0] and rh_eye!=[0,0]:
                     dist=np.linalg.norm(np.array(rh_wrist) - np.array(rh_ear))
                     eye_ref=np.linalg.norm(np.array(lh_eye) - np.array(rh_eye))
@@ -274,54 +294,48 @@ class WavingDetector(Component):
                 if not rh_using_phone:
                     if rh_elbow!=[0,0] and rh_wrist!=[0,0]:
                         rh_elbow_angle=self.cal_angle(rh_elbow,rh_wrist)
-                        print('rh_elbow_angle  ',rh_elbow_angle)
+                        #print('rh_elbow_angle  ',rh_elbow_angle)
                         rh_el="rh_el "+str(int(rh_elbow_angle))
                         #cv2.putText(img, rh_el, org1, font, fontScale, color, thickness)
                     if rh_shoulder!=[0,0] and rh_elbow!=[0,0]:
                         rh_shoulder_angle=self.cal_angle(rh_shoulder,rh_elbow)
-                        print('rh_shoulder_angle  ',rh_shoulder_angle)
+                        #print('rh_shoulder_angle  ',rh_shoulder_angle)
                         rh_sh="rh_sh "+str(int(rh_shoulder_angle))
                         #cv2.putText(img, rh_sh, org2, font, fontScale, color, thickness)
                     if rh_elbow_angle is not None and rh_shoulder_angle is not None:
-                        if rh_shoulder_angle>=90 and rh_shoulder_angle<=230:
-                            if np.abs(rh_shoulder_angle-rh_elbow_angle)<=20 or (rh_elbow_angle>=35 and rh_elbow_angle<=180):
+                        if rh_shoulder_angle>=self.rh_shoulder_range_1 and rh_shoulder_angle<=self.rh_shoulder_range_2:
+                            if self.check_parallel(rh_shoulder_angle, rh_elbow_angle) or (rh_elbow_angle>=self.rh_elbow_range_1 and rh_elbow_angle<=self.rh_elbow_range_2):
                                 rh_waving_flag=True
-                dd="lh "+str(lh_waving_flag)
-                cv2.putText(img, dd, org2, font, fontScale, color, thickness)
-                ph="rh "+str(rh_waving_flag)
-                cv2.putText(img, ph, org, font, fontScale, color, thickness)
+                #dd="lh "+str(lh_waving_flag)
+                #cv2.putText(img, dd, org2, font, fontScale, color, thickness)
+                #ph="rh "+str(rh_waving_flag)
+                #cv2.putText(img, ph, org, font, fontScale, color, thickness)
                 
-                if lh_elbow_angle is not None and rh_elbow_angle is not None and np.abs(lh_elbow_angle-rh_elbow_angle)<=20:
-                    # ="lh "+str(int(np.abs(lh_elbow_angle-rh_elbow_angle)))dd
-                    # cv2.putText(img, dd, org1, font, fontScale, color, thickness)
-                    # ph="rh "+str(rh_waving_flag)
-                    # cv2.putText(img, ph, org2, font, fontScale, color, thickness)
-                    print('   case1   ')
-                    waving_flag=False
-                elif lh_waving_flag or rh_waving_flag:
-                    waving_flag=True
-                    print('   case2   ')
+                forearm_parallel_flag=self.check_parallel(lh_elbow_angle,rh_elbow_angle)
+
+                if (lh_waving_flag or rh_waving_flag) and not forearm_parallel_flag:
+                    #print('   case2   ')
                     #no_of_waving+=1
-                    print('---------waving--------  ')
+                    #print('---------waving--------  ')
 
                     curr_ped[id]=boxes[i].xyxy[0].numpy().tolist()
-                else: 
-                    print('   case3   ')    
-                
-            if kpt_i[5][0]!=0 and kpt_i[7][0]!=0:
-                cv2.line(img, (kpt_i[5][0],kpt_i[5][1]), (kpt_i[7][0],kpt_i[7][1]), (0, 255, 0), 2)
-            if kpt_i[6][0]!=0 and kpt_i[8][0]!=0:
-                cv2.line(img, (kpt_i[6][0],kpt_i[6][1]), (kpt_i[8][0],kpt_i[8][1]), (0, 255, 0), 2)
-            if kpt_i[7][0]!=0 and kpt_i[9][0]!=0:
-                cv2.line(img, (kpt_i[7][0],kpt_i[7][1]), (kpt_i[9][0],kpt_i[9][1]), (0, 255, 0), 2)
-            if kpt_i[8][0]!=0 and kpt_i[10][0]!=0:
-                cv2.line(img, (kpt_i[8][0],kpt_i[8][1]), (kpt_i[10][0],kpt_i[10][1]), (0, 255, 0), 2)
 
-            cv2.circle(img, (kpt_i[0][0], kpt_i[0][1]), radius=3, color=(0, 0, 255), thickness=-1)
-            cv2.circle(img, (kpt_i[1][0], kpt_i[1][1]), radius=3, color=(0, 255, 0), thickness=-1)
-            cv2.circle(img, (kpt_i[2][0], kpt_i[2][1]), radius=3, color=(0, 255, 0), thickness=-1)
-            cv2.circle(img, (kpt_i[3][0], kpt_i[3][1]), radius=3, color=(255, 0, 0), thickness=-1)
-            cv2.circle(img, (kpt_i[4][0], kpt_i[4][1]), radius=3, color=(255, 0, 0), thickness=-1)
+                    #show only waving ped
+                    if kpt_i[5][0]!=0 and kpt_i[7][0]!=0:
+                        cv2.line(img, (kpt_i[5][0],kpt_i[5][1]), (kpt_i[7][0],kpt_i[7][1]), (0, 255, 0), 2)
+                    if kpt_i[6][0]!=0 and kpt_i[8][0]!=0:
+                        cv2.line(img, (kpt_i[6][0],kpt_i[6][1]), (kpt_i[8][0],kpt_i[8][1]), (0, 255, 0), 2)
+                    if kpt_i[7][0]!=0 and kpt_i[9][0]!=0:
+                        cv2.line(img, (kpt_i[7][0],kpt_i[7][1]), (kpt_i[9][0],kpt_i[9][1]), (0, 255, 0), 2)
+                    if kpt_i[8][0]!=0 and kpt_i[10][0]!=0:
+                        cv2.line(img, (kpt_i[8][0],kpt_i[8][1]), (kpt_i[10][0],kpt_i[10][1]), (0, 255, 0), 2)
+
+                    cv2.circle(img, (kpt_i[0][0], kpt_i[0][1]), radius=3, color=(0, 0, 255), thickness=-1)
+                    cv2.circle(img, (kpt_i[1][0], kpt_i[1][1]), radius=3, color=(0, 255, 0), thickness=-1)
+                    cv2.circle(img, (kpt_i[2][0], kpt_i[2][1]), radius=3, color=(0, 255, 0), thickness=-1)
+                    cv2.circle(img, (kpt_i[3][0], kpt_i[3][1]), radius=3, color=(255, 0, 0), thickness=-1)
+                    cv2.circle(img, (kpt_i[4][0], kpt_i[4][1]), radius=3, color=(255, 0, 0), thickness=-1)
+                
         return curr_ped,img
 
     def box_to_pose(self, box, point_cloud_image, point_cloud_image_world):
