@@ -1,0 +1,10 @@
+vehicle_state: [4.0, 5.0, 0.0, 0.0, 0.0]
+agents:
+  car1: 
+    type: car
+    position: [30.0, 2.0]
+    behavior: stationary
+  person1:
+    type: pedestrian
+    position: [30.0, 0.0]
+    behavior: stationary

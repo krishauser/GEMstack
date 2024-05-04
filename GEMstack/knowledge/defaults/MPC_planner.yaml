@@ -16,5 +16,5 @@ MPC_planner:
     w_l: 4 # objective weight of avoiding crossing the lanes
   horizon_steps: 2 # length of MPC prediction window
   dt: 0.1 # timestep
-  safe_dist: 3.0 # distance threshold before braking
+  safe_dist: 6.0 # distance threshold before braking
   rate: 10 # rate

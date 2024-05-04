@@ -148,9 +148,9 @@ def find_closest_agent(agents, pose):
 
 class MPC_ACC_LKA(object):
     def __init__(self):
-        self.horizon_steps = settings.get('MPC_Planner.MPC_Planner.horizon_steps', 2)
-        self.dt = settings.get('MPC_Planner.MPC_Planner.dt', 0.1) # s
-        self.rate = settings.get('MPC_Planner.MPC_Planner.rate', 10.0) # Hz
+        self.horizon_steps = settings.get('MPC_planner.MPC_planner.horizon_steps', 10)
+        self.dt = settings.get('MPC_planner.MPC_planner.dt', 0.1) # s
+        self.rate = settings.get('MPC_planner.MPC_planner.rate', 10.0) # Hz
 
         self.wheelbase  = settings.get('vehicle.geometry.wheelbase') # m
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')] # radians
@@ -160,10 +160,10 @@ class MPC_ACC_LKA(object):
         self.max_accel = settings.get('vehicle.limits.max_acceleration') # m/s^2
         self.max_decel = settings.get('vehicle.limits.max_deceleration') # m/s^2
 
-        self.min_follow_dist = settings.get('MPC_Planner.MPC_Planner.min_follow_dist', 5.0) # meters
-        self.min_obst_dist = settings.get('MPC_Planner.MPC_Planner.safe_dist', 3.0) # meters
-        self.time_headway = settings.get('MPC_Planner.MPC_Planner.time_headway', 5.0) # seconds
-        self.follow_degree_range = settings.get('MPC_Planner.MPC_Planner.follow_degree_range', 10.0) # degrees
+        self.min_follow_dist = settings.get('MPC_planner.MPC_planner.min_follow_dist', 6.0) # meters
+        self.min_obst_dist = settings.get('MPC_planner.MPC_planner.safe_dist', 3.0) # meters
+        self.time_headway = settings.get('MPC_planner.MPC_planner.time_headway', 5.0) # seconds
+        self.follow_degree_range = settings.get('MPC_planner.MPC_planner.follow_degree_range', 10.0) # degrees
         self.front_relevance_dist = settings.get('model_predictive_controller.front_relevance_dist', 50.0) # meters
 
         self.lane_penalty_constant = settings.get('model_predictive_controller.lane_penalty_constant', 1)

@@ -6,12 +6,14 @@ from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgra
 from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
 from ...state.intent import VehicleIntent,VehicleIntentEnum
+from ...state import AgentEnum
 import os
 import copy
 from time import time
 from dataclasses import replace
 from queue import PriorityQueue
 import numpy as np
+from shapely.geometry import Point
 
 
 class DrivingLogicIntent(Component):
@@ -137,37 +139,42 @@ class DrivingLogicIntent(Component):
                 
         
         # Find point furthest from all vehicles
-        points_with_distances = []
+        points_with_distances = {}
+
         for point in empty_points:
             min_dist = float('inf')
             for agent_s in state.agents.values():
-                agent = agent_s.to_frame(state.roadgraph.frame, state.vehicle.pose, state.start_vehicle_pose)
-                for agent_point in agent.polygon_parent():
-                    dist = vector_dist(point, agent_point)
-                    if(dist < min_dist):
-                        min_dist = dist
-            
-            #for  in curb_side.outline:
-            dist = vector_dist(point, midline_start)
-            if(dist < min_dist):
-                min_dist = dist
+                if agent_s.type == AgentEnum.PEDESTRIAN:
+                    agent = agent_s.to_frame(state.roadgraph.frame, state.vehicle.pose, state.start_vehicle_pose)
+                    for agent_point in agent.polygon_parent():
+                        dist = vector_dist(point, agent_point)
+                        if(dist < min_dist):
+                            min_dist = dist
 
-            dist = vector_dist(point, midline_end)
-            if(dist < min_dist):
-                min_dist = dist
-            
-            
-            points_with_distances.append((point, min_dist))
-        
-        # Get point with max distance
-        max_point = None
-        max_dist = 0
-        for point, dist in points_with_distances:
-            if(dist > max_dist):
-                max_dist = dist
-                max_point = point
+            if min_dist not in points_with_distances:
+                points_with_distances[min_dist] = [point]
+            else:
+                points_with_distances[min_dist].append(point)
 
-        return max_point, state.roadgraph.frame
+        sorted_points_with_distances = {key: points_with_distances[key] for key in sorted(points_with_distances)}
+
+        xbounds,_,_ = settings.get('vehicle.geometry.bounds')
+        step_bound = int(xbounds[1] * 2)
+
+        # Get point closest to waving pedestrian and avoid obstacles
+        for points in list(sorted_points_with_distances.items()):
+            for point in points[1]:
+                intersects = False
+                for agent_s in state.agents.values():
+                    agent = agent_s.to_frame(state.roadgraph.frame, state.vehicle.pose, state.start_vehicle_pose)
+                    for i in range(-step_bound, step_bound):
+                        if(collisions.point_in_polygon_2d([point[0] + i, point[1]], agent.polygon_parent())):
+                            intersects = True
+                            break
+                if not intersects:
+                    return point, state.roadgraph.frame
+                else:
+                    continue
 
 
 

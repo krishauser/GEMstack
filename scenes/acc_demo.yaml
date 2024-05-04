@@ -4,17 +4,5 @@ agents:
     type: car
     position: [20.0, 5.0]
     nominal_velocity: 0.75
-    target: [75.0,5.0]
-    behavior: target
-  car2:
-    type: car
-    position: [10.0, 10.0]
-    nominal_velocity: 2.0
-    target: [75.0,10.0]
-    behavior: target
-  car3:
-    type: car
-    position: [0.0, 10.0]
-    nominal_velocity: 1.5
-    target: [65.0,10.0]
+    target: [50.0,5.0]
     behavior: target
