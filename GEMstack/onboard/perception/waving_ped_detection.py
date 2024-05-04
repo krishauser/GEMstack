@@ -113,7 +113,7 @@ class WavingDetector(Component):
         return 2.5
 
     def state_inputs(self):
-        return ['vehicle']
+        return ['vehicle','detected_agents']
 
     def state_outputs(self):
         return ['detected_agents']
