@@ -161,6 +161,7 @@ class PedestrianTrajPrediction(Component):
         sample_motion_3D = sample_motion_3D.transpose(0, 1).contiguous()
         return sample_motion_3D
     
+    # Takes 7-9 seconds (SLOW)
     def run_model_on_data(self, generator): 
         data = generator()
         if data is None:
@@ -209,17 +210,17 @@ class PedestrianTrajPrediction(Component):
         agent_list = []
         # sample_model_3D: 3 x ped_id x 12 x 2
         iterations = 0
-        print(sample_model_3D.shape, "SAMPLE MODEL 3D SHAPE")
         for traj in range(sample_model_3D.shape[0]):
-            starttime = time.time()
+            # starttime = time.time()
             # Create the dictionary of pedestrian-future AgentState lists for the current trajectory
             agent_dict = defaultdict(list) # Key: Pedestrian ID | Value: List of AgentStates for each future frame
             for ped_idx in range(sample_model_3D.shape[1]):
                 for future_frame_id in range(sample_model_3D.shape[2]):
                     ped_id = valid_id[ped_idx]
                     # flip the x- and y-coordinates back to normal
-                    x = sample_model_3D[traj][ped_idx][future_frame_id][1]
-                    y = sample_model_3D[traj][ped_idx][future_frame_id][0]
+                    # x = sample_model_3D[traj][ped_idx][future_frame_id][1]
+                    # y = sample_model_3D[traj][ped_idx][future_frame_id][0]
+                    y, x = sample_model_3D[traj][ped_idx][future_frame_id]
 
                     # convert the frame_id to time
                     frame_id = frame + future_frame_id + 1
@@ -228,8 +229,6 @@ class PedestrianTrajPrediction(Component):
                     # create an AgentState object
                     pose = ObjectPose(t=frame_time, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.START)
 
-                    print("ped idx:", ped_id, "framenum", future_frame_id, "pose xy: ", x, y)
-
                     # dimensions of a pedestrian (not accurate)
                     dims = PEDESTRIAN_DIMS
                     # velocity = esimate velocity from past few frames
@@ -237,12 +236,13 @@ class PedestrianTrajPrediction(Component):
                     agent_state = AgentState(pose=pose, dimensions=dims, outline=None, type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
                     agent_dict[ped_id].append(agent_state)
                     iterations += 1
-                print("single pedestrian time", time.time()-starttime)
+                # print("single pedestrian time", time.time()-starttime)
             agent_list.append(agent_dict)
-            print(starttime-time.time(), "iteration", traj)
+            # print(starttime-time.time(), "iteration", traj)
 
-        print(iterations, "iterations of innermost loop")
-        return agent_dict
+        # print(time.time() - starttime, "line 245")
+        # print(iterations, "iterations of innermost loop")
+        return agent_list
             
 
     # takes in the agent states of the past 8 frames and returns the predicted trajectories of the agents in the next 12 frames
@@ -263,25 +263,26 @@ class PedestrianTrajPrediction(Component):
 
         model_input = self.convert_data_to_model_input(data)
 
-        print(time.time() - self.cur_time, "COMPUTED MODEL INPUT")
+        # print(time.time() - self.cur_time, "COMPUTED MODEL INPUT")
 
         if len(model_input) == 0 or model_input.shape == (0, ):
             print("no pedestrians found, no need to run model. ")
             return []
 
-        print("input to model:")
-        for m in model_input:
-            print(m)
+        # print("input to model:")
+        # for m in model_input:
+        #     print(m)
 
         # run the traj prediction model on data
         sample_model_3D, valid_ids, frame = self.run_model(model_input)
-        print(time.time() - self.cur_time, "RAN MODEL")
+        model_finish = time.time()
+        print(model_finish - self.cur_time, "RAN MODEL")
 
         # output frame 7/2.5 -> time  + cur_time = detection_time
 
         # convert data to AgentState objects make sure to convert the frames to time(which will add to the AgentPose object)
         agent_list = self.convert_data_from_model_output(sample_model_3D, valid_ids, frame)
-        print(time.time() - self.cur_time, "CONVERT DATA")
+        print(time.time() - model_finish, "CONVERT DATA")
         
         # print("agent list", len(agent_list))
         # return data
