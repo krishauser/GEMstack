@@ -131,7 +131,7 @@ class OmniscientSignDetector(Component):
         self.lock = threading.Lock()
 
     def rate(self):
-        return 4.0
+        return settings.get('perception.sign_detection.rate')
     
     def state_inputs(self):
         return ['vehicle', 'roadgraph']
