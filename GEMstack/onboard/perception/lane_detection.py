@@ -144,14 +144,10 @@ class LaneDetector(Component):
         for j in range(y_max - 1, y_min - 1, -int((y_max - y_min) / 10)):
             i = int((left_poly(j) + right_poly(j)) / 2)
             if any(all_points[j][i]):
-                centerline.append(all_points[j][i])
-
-        centerline_segments = []
-        for i, j in zip(centerline[:-1], centerline[1:]):
-            centerline_segments.append([tuple(i), tuple(j)])
+                centerline.append(tuple(all_points[j][i]))
 
         roadgraph_curve = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY,
-                                         segments=centerline_segments,
+                                         segments=[centerline],
                                          crossable=True)
         
         return RoadgraphLane(type=RoadgraphLaneEnum.LANE,

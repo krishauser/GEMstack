@@ -232,11 +232,9 @@ def run_lane_detection_paired_scan(lidar_path, rgb_path):
     print('- surface:', RoadgraphSurfaceEnum(lane.surface).name)
     print('- center:')
     print('  - type:', RoadgraphCurveEnum(lane.center.type).name)
-    print('  - segments (in CURRENT frame):')
-    for i, s in enumerate(lane.center.segments):
-        print('    {0}. ({1:.3f}, {2:.3f}, {3:.3f}), ({4:.3f}, {5:.3f}, {6:.3f})'.format(
-            i+1, s[0][0], s[0][1], s[0][2], s[1][0], s[1][1], s[1][2]
-        ))
+    print('  - polyline (in CURRENT frame):')
+    for i, pt in enumerate(lane.center.segments[0]):
+        print('    {0}. ({1:.3f}, {2:.3f}, {3:.3f})'.format(i+1, pt[0], pt[1], pt[2]))
 
 
 def test_detection_paired_scan(data_folder, idx, detectors):
