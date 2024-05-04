@@ -135,7 +135,7 @@ class MultiObjectDetector(Component):
 
         return detected_agents
     
-    def box_to_agent(self, box, point_cloud_image, point_cloud_image_world, cls, depth):
+    def box_to_agent(self, box, cls, depth):
         """Creates a 3D agent state from an (x,y,w,h) bounding box.
 
         TODO: you need to use the image, the camera intrinsics, the lidar
@@ -146,7 +146,7 @@ class MultiObjectDetector(Component):
         b_x, b_y, w, h = box
 
         # Specify ObjectPose. Note that The pose's yaw, pitch, and roll are assumed to be 0 for simplicity.
-        pose = ObjectPose(t=0, x=depth, y=b_y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+        pose = ObjectPose(t=0, x=b_x, y=b_y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
 
         # Specify AgentState.
         l = 1
@@ -192,7 +192,7 @@ class MultiObjectDetector(Component):
         vis = self.zed_image.copy()
         detected_agents = []
         print(len(boxes))
-        for i,b in enumerate(boxes):
+        for i,box in enumerate(boxes):
             box = boxes[i]
             id = bbox_ids[i]
 
@@ -222,14 +222,19 @@ class MultiObjectDetector(Component):
             agent_pc_3D = agent_pc_3D[idxs]
 
             # calulate depth average
-            depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
-
+            depth = np.mean((agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
+            x_new = np.mean(agent_pc_3D[:, 0])
+            y_new = np.mean(agent_pc_3D[:, 1])
+            l = np.max(agent_pc_3D[:, 0]) - np.min(agent_pc_3D[:, 0])
+            w = np.max(agent_pc_3D[:, 1]) - np.min(agent_pc_3D[:, 1])
+            h = np.max(agent_pc_3D[:, 2]) - np.min(agent_pc_3D[:, 2])
+            b = x_new, y_new, w, h
             if id == 0:
                 color = (255, 0, 255)
                 self.pedestrian_counter += 1
                 cls = AgentEnum.PEDESTRIAN
                 print("Pedestrian Depth:", depth)
-                agent = self.box_to_agent(b, point_cloud_image, pc_3D, cls, depth)
+                agent = self.box_to_agent(b, cls, depth)
                 if agent is not None:
                     detected_agents.append(agent)
             if id == 2:
