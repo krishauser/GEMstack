@@ -1,14 +1,5 @@
 from GEMstack.utils import settings,config
 import sys
-import subprocess
-
-def run_vio_rtabmap():
-    # Specify the path to your rtabmap launch file
-    launch_file = "./launch/rgbdrtabmap.launch"
-    # Command to run roslaunch in a new terminal
-    command = f"x-terminal-emulator -e roslaunch {launch_file}"
-    # Execute the command
-    subprocess.Popen(command, shell=True)
 
 if __name__=='__main__':
     launch_file = None
@@ -34,12 +25,6 @@ if __name__=='__main__':
         settings.set('run',run_config)
         if settings.get('run.name',None) is None:
             settings.set('run.name',launch_file)
-    
-    #if one runs main.py with argument '--estimator=vio' rtabmap will launch packages needed for vio
-    #make sure to specfiy "state_estimation : VIOSlamEstimator" field in your launch yaml file to use 
-    #Viostateesimator instead of GPS
-    if '--estimator=vio' in sys.argv:
-        run_vio_rtabmap()
 
     from GEMstack.onboard.execution import entrypoint
     entrypoint.main()

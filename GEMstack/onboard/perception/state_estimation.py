@@ -17,6 +17,7 @@ from ...mathutils import transforms
 from ..interface.vioslam_reading import VioslamReading
 import rospy
 import numpy as np
+import subprocess
 
 class GNSSStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
@@ -86,6 +87,8 @@ class VIOSlamEstimator(Component):
         self.status = None
 
         self.Vioslam_sub = rospy.Subscriber("/Odom", Odometry, self.callback_with_Vioslam_reading)
+        self.launch_file = "./launch/rgbdrtabmap.launch" # Specify the path to your rtabmap launch file
+        self.run_vio_rtabmap()
 
     def vio_slam_callback(self, reading : VioslamReading):
         self.Vioslam_pose = reading.pose
@@ -105,6 +108,12 @@ class VIOSlamEstimator(Component):
         [roll, pitch, yaw] = transforms.quaternion_to_euler(xw, yw, zw, w)
         start_pose = ObjectPose(ObjectFrameEnum.START,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
         self.vio_slam_callback(VioslamReading(start_pose,'ok'))
+    
+    def run_vio_rtabmap(self):
+        # Command to run roslaunch in a new terminal
+        command = f"x-terminal-emulator -e roslaunch {self.launch_file}"
+        # Execute the command
+        subprocess.Popen(command, shell=True)
 
     def rate(self):
         return 10.0
@@ -138,7 +147,6 @@ class VIOSlamEstimator(Component):
         #raw.v = filt_vel
         return raw
         
-
 
 class OmniscientStateEstimator(Component):
     """A state estimator used for the simulator which provides perfect state information"""
