@@ -183,7 +183,6 @@ class MPC_ACC_LKA(object):
         Adaptive cruise control: identify a vehicle in front of the car and aim to a
         minimum distance plus a constant time headway behind that vehicle.
         """
-        print("MIN DIST", self.min_obst_dist)
 
         # Clip velocity to avoid constraint issues
         # In the future, this should be handled more carefully
