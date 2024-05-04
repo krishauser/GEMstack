@@ -4,7 +4,7 @@ import math
 
 # ROS Headers
 import rospy
-from std_msgs.msg import String, Bool, Float32, Float64
+from std_msgs.msg import String, Bool, Float32, Float64, Imu
 from sensor_msgs.msg import Image,PointCloud2
 try:
     from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
@@ -229,6 +229,8 @@ class GEMHardwareInterface(GEMInterface):
                     cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="passthrough")
                     callback(cv_image)
                 self.front_depth_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+        elif name == 'imu':
+            self.imu_sub = rospy.Subscriber("/septentrio_gnss/imu",Imu, callback)
 
 
     # PACMod enable callback function

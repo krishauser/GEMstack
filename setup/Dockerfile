@@ -23,16 +23,16 @@ RUN rosdep update
 
 
 # install Zed SDK
-RUN wget https://download.stereolabs.com/zedsdk/4.0/cu118/ubuntu20 -O zed_sdk.run
-RUN chmod +x zed_sdk.run
-RUN ./zed_sdk.run -- silent
+#RUN wget https://download.stereolabs.com/zedsdk/4.0/cu118/ubuntu20 -O zed_sdk.run
+#RUN chmod +x zed_sdk.run
+#RUN ./zed_sdk.run -- silent
 
 # create ROS Catkin workspace
 RUN mkdir -p /catkin_ws/src
 
 # install ROS dependencies and packages
 RUN cd /catkin_ws/src && git clone https://github.com/krishauser/POLARIS_GEM_e2.git
-RUN cd /catkin_ws/src && git clone --recurse-submodules https://github.com/stereolabs/zed-ros-wrapper.git
+#RUN cd /catkin_ws/src && git clone --recurse-submodules https://github.com/stereolabs/zed-ros-wrapper.git
 RUN cd /catkin_ws/src && git clone https://github.com/astuff/pacmod2.git
    #for some reason the ibeo messages don't work?
 RUN cd /catkin_ws/src && git clone https://github.com/astuff/astuff_sensor_msgs.git && rm -rf astuff_sensor_msgs/ibeo_msgs
