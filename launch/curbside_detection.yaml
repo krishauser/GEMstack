@@ -14,7 +14,6 @@ drive:
         state_estimation : GNSSStateEstimator
         curb_detection : CurbSegmentor
         perception_normalization : StandardPerceptionNormalizer
-        waving_detection : WavingDetector
 
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
