@@ -31,4 +31,6 @@ To launch a simple trajectory following example, run the following command
 python3 main.py --variant=sim launch/fixed_route.yaml
 ```
 
+## Evaluation
+One can evaluate the performance of this MPC tracker, as well as any other controllers using this stand-alone script in ```utils/controller_evaluator.py```. It takes as inputs the actual and a reference trajectory and should be fairly straightforward to use.
 
