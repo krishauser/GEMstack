@@ -32,6 +32,7 @@ class AgentDetector(Component):
         self.detector = YOLO(settings.get('perception.agent_detection.model'))
         
         self.object_detector = None
+        self.counter = np.zeros(5, dtype=int)
 
     def rate(self):
         return settings.get('perception.agent_detection.rate')
@@ -86,7 +87,7 @@ class AgentDetector(Component):
                            type=type, activity=AgentActivityEnum.STOPPED, 
                            velocity=(0,0,0), yaw_rate=0, attributes=None)
 
-        return agent, AgentEnum(type).name
+        return agent, type
 
     def detect_agents(self):
         """Creates a list of AgentState objects."""
@@ -98,9 +99,12 @@ class AgentDetector(Component):
         for i in range(len(detected_objects)):
             cls = int(bbox_classes[i])
 
-            agent, name = self.object_to_agent(detected_objects[i], cls)
+            agent, type = self.object_to_agent(detected_objects[i], cls)
             detected_agents.append(agent)
-            names.append(name)
+
+            c_idx = list(agent_dict.values()).index(type)
+            self.counter[c_idx] += 1
+            names.append(AgentEnum(type).name.lower() + str(self.counter[c_idx]))
 
         return detected_agents, names
 

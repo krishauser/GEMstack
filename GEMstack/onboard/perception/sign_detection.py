@@ -42,6 +42,7 @@ class SignDetector(Component):
         self.detector = YOLO(settings.get('perception.sign_detection.model'))
         
         self.object_detector = None
+        self.counter = np.zeros(len(sign_dict) + len(signal_dict), dtype=int)
 
     def rate(self):
         return settings.get('perception.sign_detection.rate')
@@ -89,7 +90,7 @@ class SignDetector(Component):
         sign = Sign(pose=detected_object.pose, dimensions=detected_object.dimensions, outline=None, 
                     type=type, entities=[])
 
-        return sign, SignEnum(type).name
+        return sign, type
 
     def object_to_signal(self, detected_object, bbox_cls):
         type = signal_dict[bbox_cls]
@@ -98,7 +99,7 @@ class SignDetector(Component):
         sign = Sign(pose=detected_object.pose, dimensions=detected_object.dimensions, outline=None, 
                     type=SignEnum.STOP_LIGHT, entities=[], state=SignState(signal_state=signal_state))
         
-        return sign, SignalLightEnum(type).name
+        return sign, type
 
     def detect_signs(self):
         class_ids = list(sign_dict.keys()) + list(signal_dict.keys())
@@ -110,15 +111,20 @@ class SignDetector(Component):
             cls = int(bbox_classes[i])
             
             if cls in list(sign_dict.keys()): # road sign
-                sign, name = self.object_to_sign(detected_objects[i], cls)
-
+                sign, type = self.object_to_sign(detected_objects[i], cls)
                 detected_signs.append(sign)
-                names.append(name)
-            else: # traffic signal
-                signal, name = self.object_to_signal(detected_objects[i], cls)
 
+                c_idx = list(sign_dict.values()).index(type)
+                self.counter[c_idx] += 1
+                names.append(SignEnum(type).name.lower() + str(self.counter[c_idx]))
+            
+            else: # traffic signal
+                signal, type = self.object_to_signal(detected_objects[i], cls)
                 detected_signs.append(signal)
-                names.append(name)
+
+                c_idx = list(signal_dict.values()).index(type) + len(sign_dict)
+                self.counter[c_idx] += 1
+                names.append(SignalLightEnum(type).name.lower() + str(self.counter[c_idx]))
         
         return detected_signs, names
 

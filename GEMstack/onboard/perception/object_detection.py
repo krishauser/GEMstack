@@ -46,7 +46,7 @@ class ObjectDetector():
             points = [pcd_vehicle_frame[idx] for idx in indices]   # in vehicle frame
             
             # Spatial clustering
-            model = DBSCAN(eps=0.2, min_samples=5)
+            model = DBSCAN(eps=0.1, min_samples=5)
             cluster_ids = model.fit_predict(points)
 
             unique_cluster_ids, cluster_sizes = np.unique(cluster_ids, return_counts=True)
