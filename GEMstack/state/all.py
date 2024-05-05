@@ -13,7 +13,6 @@ from .predicates import PredicateValues
 from typing import Dict,List,Optional
 from .agent import AgentState
 from .agent import AgentEnum
-from .sign import Sign
 from .roadgraph import RoadgraphLane
 
 @dataclass
@@ -60,7 +59,6 @@ class AllState(SceneState):
     trajectory_update_time : float = 0
     
     # detection and tracking items
-    detected_signs : Dict[str,Sign] = None
     detected_agents : List[AgentState] = None
     tracking_frames : Dict[AgentEnum, Dict[int, Dict[int, AgentState]]] = None
     predicted_trajectories : List[Dict[List[AgentState]]] = None
