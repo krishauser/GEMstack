@@ -15,7 +15,7 @@ try:
 except ImportError:
     pass
 
-from radar_msgs.msg import RadarTracks
+# from radar_msgs.msg import RadarTracks
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # GEM PACMod Headers
@@ -29,7 +29,6 @@ from ...utils import conversions
 @dataclass 
 class GNSSReading:
     pose : ObjectPose
-    speed : float
     status : str
 
 class GEMHardwareInterface(GEMInterface):
@@ -65,6 +64,7 @@ class GEMHardwareInterface(GEMInterface):
 
         # -------------------- PACMod setup --------------------
         # GEM vehicle enable
+        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
         self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
         self.pacmod_enable = False
 
@@ -106,10 +106,6 @@ class GEMHardwareInterface(GEMInterface):
         """
 
         #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
-        
-        #subscribers should go last because the callback might be called before the object is initialized
-        self.enable_sub = rospy.Subscriber('/pacmod/as_tx/enable', Bool, self.pacmod_enable_callback)
-
 
     def start(self):
         if settings.get('vehicle.enable_through_joystick',True):
@@ -155,86 +151,126 @@ class GEMHardwareInterface(GEMInterface):
 
     def subscribe_sensor(self, name, callback, type = None):
         if name == 'gnss':
-            topic = self.ros_sensor_topics[name]
-            if topic.endswith('inspva'):
-                if type is not None and (type is not Inspva and type is not GNSSReading):
-                    raise ValueError("GEMHardwareInterface GEM e2 only supports Inspva/GNSSReading for GNSS")
-                if type is Inspva:
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback)
-                else:
-                    def callback_with_gnss_reading(inspva_msg: Inspva):
-                        pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-                                    x=inspva_msg.longitude,
-                                    y=inspva_msg.latitude,
-                                    z=inspva_msg.height,
-                                    yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
-                                    roll=math.radians(inspva_msg.roll),
-                                    pitch=math.radians(inspva_msg.pitch),
-                                    )
-                        speed = np.sqrt(inspva_msg.east_velocity**2 + inspva_msg.north_velocity**2)
-                        callback(GNSSReading(pose,speed,inspva_msg.status))
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
-            else:
-                #assume it's septentrio
-                if type is not None and (type is not INSNavGeod and type is not GNSSReading):
-                    raise ValueError("GEMHardwareInterface GEM e4 only supports INSNavGeod/GNSSReading for GNSS")
-                if type is INSNavGeod:
-                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback)
-                else:
-                    def callback_with_gnss_reading(msg: INSNavGeod):
-                        pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-                                    x=msg.longitude,
-                                    y=msg.latitude,
-                                    z=msg.height,
-                                    yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
-                                    roll=math.radians(msg.roll),
-                                    pitch=math.radians(msg.pitch),
-                                    )
-                        speed = np.sqrt(msg.ve**2 + msg.vn**2)
-                        callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+            pass
+            # topic = self.ros_sensor_topics[name]
+            # if topic.endswith('inspva'):
+            #     if type is not None and (type is not Inspva and type is not GNSSReading):
+            #         raise ValueError("GEMHardwareInterface GEM e2 only supports Inspva/GNSSReading for GNSS")
+            #     if type is Inspva:
+            #         self.gnss_sub = rospy.Subscriber(topic, Inspva, callback)
+            #     else:
+            #         def callback_with_gnss_reading(inspva_msg: Inspva):
+            #             pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+            #                         x=inspva_msg.longitude,
+            #                         y=inspva_msg.latitude,
+            #                         z=inspva_msg.height,
+            #                         yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
+            #                         roll=math.radians(inspva_msg.roll),
+            #                         pitch=math.radians(inspva_msg.pitch),
+            #                         )
+            #             callback(GNSSReading(pose,inspva_msg.status))
+            #         self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+            # else:
+            #     #assume it's septentrio
+            #     if type is not None and (type is not INSNavGeod and type is not GNSSReading):
+            #         raise ValueError("GEMHardwareInterface GEM e4 only supports INSNavGeod/GNSSReading for GNSS")
+            #     if type is INSNavGeod:
+            #         self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback)
+            #     else:
+            #         def callback_with_gnss_reading(msg: INSNavGeod):
+            #             pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+            #                         x=msg.longitude,
+            #                         y=msg.latitude,
+            #                         z=msg.height,
+            #                         yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
+            #                         roll=math.radians(msg.roll),
+            #                         pitch=math.radians(msg.pitch),
+            #                         )
+            #             callback(GNSSReading(pose,'error' if msg.error else 'ok'))
+            #         self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+        # elif name == 'top_lidar':
+        #     topic = self.ros_sensor_topics[name]
+        #     if type is not None and (type is not PointCloud2 and type is not np.ndarray):
+        #         raise ValueError("GEMHardwareInterface only supports PointCloud2 or numpy array for top lidar")
+        #     if type is None or type is PointCloud2:
+        #         self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback)
+        #     else:
+        #         def callback_with_numpy(msg : Image):
+        #             #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
+        #             points = conversions.ros_PointCloud2_to_numpy(msg, want_rgb=False)
+        #             callback(points)
+        #         self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback_with_numpy)
+        # # elif name == 'front_radar':
+        # #     if type is not None and type is not RadarTracks:
+        # #         raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
+        # #     self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
+        # elif name == 'front_camera':
+        #     topic = self.ros_sensor_topics[name]
+        #     if type is not None and (type is not Image and type is not cv2.Mat):
+        #         raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front camera")
+        #     if type is None or type is Image:
+        #         self.front_camera_sub = rospy.Subscriber(topic, Image, callback)
+        #     else:
+        #         def callback_with_cv2(msg : Image):
+        #             #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
+        #             cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
+        #             callback(cv_image)
+        #         self.front_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+        # elif name == 'front_depth':
+        #     topic = self.ros_sensor_topics[name]
+        #     if type is not None and (type is not Image and type is not cv2.Mat):
+        #         raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front depth")
+        #     if type is None or type is Image:
+        #         self.front_depth_sub = rospy.Subscriber(topic, Image, callback)
+        #     else:
+        #         def callback_with_cv2(msg : Image):
+        #             #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
+        #             cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="passthrough")
+        #             callback(cv_image)
+        #         self.front_depth_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+
         elif name == 'top_lidar':
-            topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
                 raise ValueError("GEMHardwareInterface only supports PointCloud2 or numpy array for top lidar")
             if type is None or type is PointCloud2:
-                self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback)
+                self.top_lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, callback)
             else:
                 def callback_with_numpy(msg : Image):
                     #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
                     points = conversions.ros_PointCloud2_to_numpy(msg, want_rgb=False)
                     callback(points)
-                self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback_with_numpy)
-        elif name == 'front_radar':
-            if type is not None and type is not RadarTracks:
-                raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
-            self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
+                self.top_lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, callback_with_numpy)
+        # elif name == 'front_radar':
+        #     if type is not None and type is not RadarTracks:
+        #         raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
+        #     self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
         elif name == 'front_camera':
-            topic = self.ros_sensor_topics[name]
             if type is not None and (type is not Image and type is not cv2.Mat):
                 raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front camera")
             if type is None or type is Image:
-                self.front_camera_sub = rospy.Subscriber(topic, Image, callback)
+                self.front_camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, callback)
             else:
                 def callback_with_cv2(msg : Image):
                     #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
                     cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
                     callback(cv_image)
-                self.front_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
-        elif name == 'front_depth':
-            topic = self.ros_sensor_topics[name]
+                self.front_camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, callback_with_cv2)
+        elif name == 'fr_camera':
             if type is not None and (type is not Image and type is not cv2.Mat):
-                raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front depth")
+                raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front camera")
             if type is None or type is Image:
-                self.front_depth_sub = rospy.Subscriber(topic, Image, callback)
+                self.front_camera_sub = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, callback)
             else:
                 def callback_with_cv2(msg : Image):
                     #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
-                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="passthrough")
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
                     callback(cv_image)
-                self.front_depth_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
-
-
+                self.front_camera_sub = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, callback_with_cv2)
+        elif name == 'front_depth':
+            if type is not None and (type is not Image and type is not cv2.Mat):
+                raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front depth")
+            if type is None or type is Image:
+                self.front_depth_sub = rospy.Subscriber("/oak/stereo/image_raw", Image, callback)
     # PACMod enable callback function
     def pacmod_enable_callback(self, msg):
         if self.pacmod_enable == False and msg.data == True:

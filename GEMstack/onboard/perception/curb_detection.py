@@ -19,7 +19,7 @@ except ImportError:
     pass
 
 class CurbSegmentor(Component):
-    def __init__(self,vehicle_interface : GEMInterface):
+    def __init__(self,vehicle_interface : GEMInterface, extrinsic= None):
         self.print_image = False
         self.vehicle_interface = vehicle_interface
         #self.agents = {}
