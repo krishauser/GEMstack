@@ -61,7 +61,7 @@ class CurbSegmentor(Component):
         return ['vehicle']
     
     def state_outputs(self):
-        return ['road_graphs']
+        return ['roadgraph']
 
     def initialize(self):
         # tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
