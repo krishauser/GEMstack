@@ -1,16 +1,12 @@
-"""NOTE: Required packages
-	overpass
-"""
-
 import overpass
 from dataclasses import dataclass
 
 @dataclass
 class RoadProperties:
 	"""Class for keeping track of name, speed limit, number of lanes."""
-	name: str = None
-	max_speed: float = None
-	lanes: int = None
+	name : str = None
+	max_speed : float = None
+	lanes : int = None
 
 class RoadPropertiesHandler:
 	"""Finds road properties based on the current latitude and longitude."""
