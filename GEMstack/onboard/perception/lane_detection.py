@@ -1,4 +1,4 @@
-from ...state import VehicleState,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphSurfaceEnum,RoadgraphCurve,RoadgraphCurveEnum
+from ...state import RoadgraphLane,RoadgraphLaneEnum,RoadgraphSurfaceEnum,RoadgraphCurve,RoadgraphCurveEnum
 from ...utils import settings
 from ..interface.gem import GEMInterface
 from ..component import Component
@@ -78,7 +78,7 @@ class LaneDetector(Component):
 
     def separate_lines(self, detected_lines): # separate lines into 2 categories based on slope
         if detected_lines is None:
-            return None, None
+            return [], []
 
         left_pts = []
         right_pts = []
