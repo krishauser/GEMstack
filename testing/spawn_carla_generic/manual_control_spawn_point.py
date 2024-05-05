@@ -505,11 +505,11 @@ class KeyboardControl(object):
 
                         world.meta_recorded = True
 
-                    else:
-                        world.hud.notification("Recording data")
-                        t = waypoint.transform
 
-                        waypoint_data = {
+                    world.hud.notification("Recording data")
+                    t = waypoint.transform
+
+                    waypoint_data = {
                             'Mode': mode,  # Add your mode value here,
                             'Waypoint': {
                                 'id': waypoint.id,
@@ -531,7 +531,7 @@ class KeyboardControl(object):
 
                         }
 
-                        with open(filename, 'r+') as file:
+                    with open(filename, 'r+') as file:
                             data = json.load(file)  # Load existing data
                             data['Waypoints'].append(waypoint_data)  # Append new waypoint
                             file.seek(0)  # Go back to the start of the file

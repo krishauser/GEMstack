@@ -73,17 +73,20 @@ try:
 except IndexError:
     pass
 
+sys.path.append('~/carla-simulator/PythonAPI')
+
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
 
 
 import carla
+import csv
 
 from carla import ColorConverter as cc
 
-
-from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
+from agents.navigation.basic_agent import BasicAgent
+# from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 
 import argparse
 import collections
@@ -240,7 +243,7 @@ class World(object):
             carla.MapLayer.All
         ]
         os.makedirs("../recordings", exist_ok=True)
-        self.filename = "../recordings/recording.txt"
+        self.filename = "../recordings/recording_3.txt"
         self.meta_recorded = False
 
     def restart(self):
@@ -281,15 +284,26 @@ class World(object):
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         while self.player is None:
-            if not self.map.get_spawn_points():
-                print('There are no spawn points available in your map/town.')
-                print('Please add some Vehicle Spawn Point to your UE4 scene.')
-                sys.exit(1)
-            spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            # Read spawn points from the JSON file
+            with open('../recordings/recording.json', 'r') as file:
+                data = json.load(file)
+                first_waypoint = data['Waypoints'][0]['Waypoint']
+                location = first_waypoint['Location']
+                rotation = first_waypoint['Rotation']
+                spawn_location = carla.Location(x=location[0], y=location[1], z=location[2]+2)
+                spawn_rotation = carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2])
+                spawn_point = carla.Transform(spawn_location, spawn_rotation)
+
+            # Try to spawn the player at the read spawn point
             self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
-            self.show_vehicle_telemetry = False
+            if self.player is None:
+                print("Failed to spawn the vehicle at the specified spawn point.")
+                continue  # or handle the failure case appropriately
+
+            # Assuming you have a method to modify vehicle physics
             self.modify_vehicle_physics(self.player)
+
+            self.show_vehicle_telemetry = False
         # Set up the sensors.
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
@@ -1315,9 +1329,9 @@ def save_route(waypoints, world):
     total_route = []
     intermediate_points = []
     for i in range(len(waypoints)-1):
-        start = waypoints[i]["Location"]
-        end = waypoints[i+1]["Location"]
-        rot = waypoints[i]["Rotation"]
+        start = waypoints[i]["Waypoint"]["Location"]
+        end = waypoints[i + 1]["Waypoint"]["Location"]
+        rot = waypoints[i]["Waypoint"]["Rotation"]
         startL = carla.Location(x=start[0],y=start[1],z=start[2])
         endL = carla.Location(x=end[0],y=end[1],z=end[2])
         startT = carla.Rotation(pitch=rot[0],yaw=rot[1],roll=rot[2])
