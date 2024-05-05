@@ -134,7 +134,7 @@ class OmniscientSignDetector(Component):
         return settings.get('perception.sign_detection.rate')
     
     def state_inputs(self):
-        return ['vehicle', 'roadgraph']
+        return []
     
     def state_outputs(self):
         return ['detected_signs']

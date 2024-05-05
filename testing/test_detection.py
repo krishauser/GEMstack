@@ -19,7 +19,7 @@ import timeit
 
 from GEMstack.onboard.interface.gem import GEMInterface
 from GEMstack.state import RoadgraphLaneEnum,RoadgraphSurfaceEnum,RoadgraphCurveEnum
-from GEMstack.onboard.perception.agent_detection_v2 import AgentDetector
+from GEMstack.onboard.perception.road_agent_detection import AgentDetector
 from GEMstack.onboard.perception.sign_detection import SignDetector
 from GEMstack.onboard.perception.lane_detection import LaneDetector
 
