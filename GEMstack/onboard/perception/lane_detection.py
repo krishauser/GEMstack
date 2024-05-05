@@ -78,7 +78,7 @@ class LaneDetector(Component):
 
     def separate_lines(self, detected_lines): # separate lines into 2 categories based on slope
         if detected_lines is None:
-            return
+            return None, None
 
         left_pts = []
         right_pts = []
@@ -98,7 +98,7 @@ class LaneDetector(Component):
 
     def compute_polys(self, left_pts, right_pts):
         if len(left_pts) == 0 or len(right_pts) == 0:
-            return
+            return None, None
 
         left_coeffs = np.polyfit([p[1] for p in left_pts], [p[0] for p in left_pts], deg=1)
         right_coeffs = np.polyfit([p[1] for p in right_pts], [p[0] for p in right_pts], deg=1)
@@ -126,6 +126,9 @@ class LaneDetector(Component):
         return left_poly, right_poly
 
     def polys_to_roadgraph_lane(self, left_poly, right_poly):
+        if not left_poly or not right_poly:
+            return None
+
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', category=UserWarning)
             
