@@ -15,9 +15,9 @@ class PixelWise3DLidarCoordHandler:
 
     def __init__(self,
                  kernel_size=5,
-                 extrinsic_fn="../../knowledge/calibration/gem_e4_lidar2oak.txt",
-                 intrinsic_fn="../../knowledge/calibration/gem_e4_intrinsic.txt",
-                 lidar2vehicle_fn="../../knowledge/calibration/gem_e4_lidar2vehicle.txt",
+                 extrinsic_fn="GEMstack/knowledge/calibration/gem_e4_lidar2oak.txt",
+                 intrinsic_fn = "GEMstack/knowledge/calibration/gem_e4_intrinsic.txt",
+                 lidar2vehicle_fn="GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt",
                  xrange=(0, 20),
                  yrange=(-10, 10),
                  zrange=(-3, 1)) -> None:
