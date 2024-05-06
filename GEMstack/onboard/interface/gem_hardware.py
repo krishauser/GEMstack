@@ -180,8 +180,8 @@ class GEMHardwareInterface(GEMInterface):
                     def callback_with_gnss_reading(msg: INSNavGeod):
                         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
                                     t=self.time(),
-                                    x=msg.longitude,
-                                    y=msg.latitude,
+                                    x=math.degrees(msg.longitude),
+                                    y=math.degrees(msg.latitude),
                                     z=msg.height,
                                     yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
                                     roll=math.radians(msg.roll),
