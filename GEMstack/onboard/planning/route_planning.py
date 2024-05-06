@@ -129,10 +129,13 @@ class SearchNavigationRoutePlanner(Component):
         agents = [a.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) for a in agents.values()]
 
         if True: # Currently only parking
-            parking_spot = state.parking_spot
-            parking_spot = parking_spot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
-            start = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, 0]
-            end = [parking_spot.x, parking_spot.y, parking_spot.yaw, 0]
+            if state.parking_spot is not None:
+                parking_spot = state.parking_spot
+                parking_spot = parking_spot.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+                start = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw, 0]
+                end = [parking_spot.x, parking_spot.y, parking_spot.yaw, 0]
+            else:
+                return Route(frame=ObjectFrameEnum.START,points=[[vehicle.pose.x, vehicle.pose.y], [vehicle.pose.x, vehicle.pose.y]])
         elif False: # Some other task
             pass
 
