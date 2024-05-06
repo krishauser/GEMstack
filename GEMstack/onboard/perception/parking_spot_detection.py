@@ -1,5 +1,5 @@
 from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
 from ..interface.gem import GEMInterface
 from ..component import Component
 from typing import Dict
@@ -27,7 +27,12 @@ class ParkingSpotDetector(Component):
         self.euclidean = None
         self.dist_thresh = None
         self.front_image = None
-        self.parking_spot = None
+        self.point_cloud = None
+
+        self.x = 14.768, 
+        self.y = -6.092
+        self.yaw = -1.1
+        self.parking_spot = ObjectPose(t=0, x=self.x, y=self.y, yaw=self.yaw, frame=ObjectFrameEnum.START)
 
     def rate(self):
         return 0.25
@@ -38,7 +43,7 @@ class ParkingSpotDetector(Component):
     def initialize(self):
         # Subscribe to necessary sensors
         self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
-        self.vehicle_interface.subscribe_sensor('lidar', self.lidar_callback, 'PointCloud2')
+        self.vehicle_interface.subscribe_sensor('top_lidar', self.lidar_callback, PointCloud2)
 
     def image_callback(self, image: cv2.Mat):
         self.front_image = image
@@ -67,9 +72,13 @@ class ParkingSpotDetector(Component):
 
     def parking_spot_detection(self):
         if self.front_image is None or self.point_cloud is None:
+            print("camera or sensors not working")
+            print(f"front image = {self.front_image}")
+            print(f"point cloud = {self.point_cloud}")
             return None # Just return without doing anything if data is not ready
 
         if self.euclidean is not None and self.euclidean < self.dist_thresh:
+            print(f"euclidean = {self.euclidean} is less than threshold")
             return None # Do nothing if the object is out of range
 
         bbox_info = self.detect_empty(self.front_image)
@@ -78,6 +87,7 @@ class ParkingSpotDetector(Component):
 
         canvas = self.front_image.copy()
         [x,y,yaw] = self.get_parking_spot(canvas, bbox_info)
+        print(f"x = {x}, y = {y}, yaw = {yaw}")
 
         if x and y and yaw:
             self.euclidean = np.sqrt(x**2 + y**2)
@@ -171,6 +181,8 @@ class ParkingSpotDetector(Component):
         x, y = 14.768, -6.092
         yaw = -1.1
         if self.parking_spot is None:
-            return ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.CURRENT)
+            print("Fixed Route")
+            return ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.START)
         else:
+            print("Our code")
             return self.parking_spot
