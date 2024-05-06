@@ -95,7 +95,7 @@ def unpack_pickle(filepath:str)->List[dict]:
 
         # unpack tracking_frames
         tracking_frames = {}
-        for frame, d_frame in tracking_frames[AgentEnum.PEDESTRIAN]:
+        for frame, d_frame in d['tracking_frames'][AgentEnum.PEDESTRIAN]:
             tracking_frames[AgentEnum.PEDESTRIAN][frame] = {}
             for id, agent in d_frame.items():
                 new_agent = agent.to_dict()
