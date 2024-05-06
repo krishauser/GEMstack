@@ -57,7 +57,7 @@ Make sure you are running this command in a terminal where the ROS environment i
 
 ## Simulation
 
-This script runs on the simulation from ECE484, please refer to [ECE484](https://publish.illinois.edu/safe-autonomy/assignments-spring-2024/) for details.
+This script runs on the simulation from ECE484 by default. Please refer to [ECE484](https://publish.illinois.edu/safe-autonomy/assignments-spring-2024/) for details.
 
 
 ## Notes
