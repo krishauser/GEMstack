@@ -4,11 +4,6 @@
 vehicle:  !include ../vehicle/gem_e4.yaml
 carla_vehicle: !include ../vehicle/carla.yaml
 
-calibration:
-    intrinsic: !relative_path '../calibration/gem_e4_intrinsic.txt'
-    lidar_to_camera: !relative_path '../calibration/gem_e4_lidar2oak.txt'
-    lidar_to_vehicle: !relative_path '../calibration/gem_e4_lidar2vehicle.txt'
-
 #arguments for algorithm components here
 model_predictive_controller:
     dt: 0.1
