@@ -15,11 +15,13 @@ class ImageProcessorNode:
         self.handler = PixelWise3DLidarCoordHandler()
         self.grey_thresh = 180
         self.conf_thresh = 0.83
+        self.dist_thresh = 8
         self.pub = rospy.Publisher("/annotated_lines", Image, queue_size=10)
         self.image_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, self.image_callback)
         self.lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.lidar_callback)
         self.point_cloud = None
         self.image = None
+        self.euclidean= None
     
     def lidar_callback(self, point_cloud):
         self.point_cloud = point_cloud
@@ -55,6 +57,8 @@ class ImageProcessorNode:
         gray = cv2.cvtColor(aligned_img, cv2.COLOR_BGR2GRAY)
         _, thresholded = cv2.threshold(gray, self.grey_thresh, 255, cv2.THRESH_BINARY)
         lines = cv2.HoughLinesP(thresholded, 1, np.pi/180, threshold=50, minLineLength=40, maxLineGap=5)
+        midpoint = None
+        angle = None
 
         if lines is not None:
             lines = [line[0] for line in lines]
@@ -96,26 +100,59 @@ class ImageProcessorNode:
                         mid_y2 = (line1[3] + line2[3]) // 2
                         midpoint = ((x + mid_x1 + x + mid_x2) // 2, (y + mid_y1 + y + mid_y2) // 2)
 
+                        angle = np.arctan2(mid_y2 - mid_y1, mid_x2 - mid_x1) - np.pi / 2
+                        angle = angle if angle >= 0 else angle + np.pi
+
                         cv2.line(img, (x + mid_x1, y + mid_y1), (x + mid_x2, y + mid_y2), (0, 0, 255), 4)
                         for x1, y1, x2, y2 in avg_lines:
                             cv2.line(img, (x + x1, y + y1), (x + x2, y + y2), (0, 255, 0), 4)
 
-            return img
+            return (midpoint, angle), img
+        return None, img
 
     def image_callback(self, img_msg):
         try:
             cv_image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
+            self.image = cv_image  # Update the image attribute here
         except CvBridgeError as e:
-            print(e)
+            # Optionally handle or log the error
             return
+
+        # Check if already close enough to the goal pose
+        if self.euclidean is not None and self.euclidean < self.dist_thresh:
+            # Publish the raw image without modifications
+            try:
+                ros_image = self.bridge.cv2_to_imgmsg(cv_image, "bgr8")
+                self.pub.publish(ros_image)
+            except CvBridgeError as e:
+                print(e)
+            return  # Stop further processing as we are close enough
+
         bbox_info = self.detect_empty(cv_image)
         if bbox_info:
-            cv_image = self.isolate_and_draw_lines(cv_image, bbox_info)
+            coords_pixel, cv_image = self.isolate_and_draw_lines(cv_image, bbox_info)
+            if coords_pixel and coords_pixel[0] is not None and coords_pixel[1] is not None:
+                coords = self.get_goal_pose(coords_pixel[0])
+                if coords:
+                    self.euclidean = np.sqrt((coords[0])**2 + (coords[1])**2)
+                    print("Middle point : ", coords)
+                    print("Angle : ", coords_pixel[1])
         try:
             ros_image = self.bridge.cv2_to_imgmsg(cv_image, "bgr8")
             self.pub.publish(ros_image)
         except CvBridgeError as e:
             print(e)
+
+    def get_goal_pose(self, coords_pixel):
+        if self.point_cloud and coords_pixel:
+            numpy_point_cloud = self.handler.ros_PointCloud2_to_numpy(self.point_cloud)
+            coord_3d_map = self.handler.get3DCoord(self.image, numpy_point_cloud)
+            (x, y) = coords_pixel
+            if 0 <= int(x) < coord_3d_map.shape[1] and 0 <= int(y) < coord_3d_map.shape[0]:
+                red_line_mid_3d = coord_3d_map[y, x]
+                if red_line_mid_3d[0] != 0 and red_line_mid_3d[1] != 0:
+                    return [red_line_mid_3d[0], red_line_mid_3d[1]]
+        return None
 
     def run(self):
         rospy.init_node('image_processor', anonymous=True)
