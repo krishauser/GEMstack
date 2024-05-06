@@ -10,7 +10,7 @@
                 "id": 16986071686178303034,
                 "Location": [
                     99.34940338134766,
-                    2.429959297180176,
+                    2.429978370666504,
                     0.0
                 ],
                 "Rotation": [
@@ -21,7 +21,7 @@
                 "Road ID": 565,
                 "Lane ID": 2,
                 "Section ID": 0,
-                "s": 39.712764873504604,
+                "s": 39.71274484634396,
                 "Is Junction": true,
                 "Lane Width": 3.5,
                 "Lane Type": "Driving",
@@ -33,10 +33,10 @@
         {
             "Mode": "TODO",
             "Waypoint": {
-                "id": 17073293139241161441,
+                "id": 16986071686178303034,
                 "Location": [
-                    99.05426025390625,
-                    45.706600189208984,
+                    99.34940338134766,
+                    2.429978370666504,
                     0.0
                 ],
                 "Rotation": [
@@ -44,16 +44,16 @@
                     90.3907470703125,
                     0.0
                 ],
-                "Road ID": 2,
+                "Road ID": 565,
                 "Lane ID": 2,
                 "Section ID": 0,
-                "s": 7.5151162910461355,
-                "Is Junction": false,
+                "s": 39.71274484634396,
+                "Is Junction": true,
                 "Lane Width": 3.5,
                 "Lane Type": "Driving",
                 "Lane Change": "Left",
-                "Right Lane Marking": "Solid",
-                "Left Lane Marking": "Broken"
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
             }
         }
     ]
