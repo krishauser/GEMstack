@@ -4,7 +4,7 @@ from klampt.model.trajectory import Trajectory
 from klampt import Geometry3D, GeometricPrimitive, TriangleMesh
 import numpy as np
 from . import settings
-from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,AgentEnum,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
+from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,AgentEnum,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState,SignalLightEnum
 from ..state.intent import VehicleIntent, VehicleIntentEnum
 
 OBJECT_COLORS = {
@@ -13,6 +13,9 @@ OBJECT_COLORS = {
     AgentEnum.BICYCLIST : (0,0,1,1),
     AgentEnum.MEDIUM_TRUCK : (1,0,1,1),
     AgentEnum.LARGE_TRUCK : (0,1,1,1),
+    SignalLightEnum.RED : (1,0,0,1),
+    SignalLightEnum.YELLOW : (1,1,0,1),
+    SignalLightEnum.GREEN : (0,1,0,1),
     None: (0.7,0.7,0.7,1),
 }
 
@@ -297,6 +300,8 @@ def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = No
 
     for k,a in scene.agents.items():
         plot_object(k,a,type=a.type)
+    for k,s in scene.detected_signs.items():
+        plot_object(k,s,type=s.state.signal_state.state)
     for k,o in scene.obstacles.items():
         plot_object(k,o)
     if title is None:
