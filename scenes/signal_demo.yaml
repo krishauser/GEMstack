@@ -1,0 +1,15 @@
+vehicle_state: [0, 0, 0, 0, 0]
+
+detected_signs:
+  signal1:
+    state: red
+    position: [20, 2]
+    duration: [10, 5, 2] # red, green, yellow
+  signal2:
+    state: green
+    position: [20, 0]
+    duration: [8, 6, 4]
+  signal3:
+    state: yellow
+    position: [20, -2]
+    duration: [9, 7, 3]
