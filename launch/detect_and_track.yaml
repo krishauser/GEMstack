@@ -16,6 +16,7 @@ drive:
         agent_tracking : td_multi_class_tracker.TDMultiClassTracker
         perception_normalization : StandardPerceptionNormalizer
         agent_prediction : pedestrian_trajectory_prediction.PedestrianTrajPrediction
+        recording : recoording_component.Recording
 
 
 log:
