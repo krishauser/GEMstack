@@ -20,7 +20,7 @@ except ImportError:
 
 class CurbSegmentor(Component):
     def __init__(self,vehicle_interface : GEMInterface, extrinsic= None):
-        self.print_image = False
+        self.print_image = True
         self.vehicle_interface = vehicle_interface
         #self.agents = {}
         #self.lock = threading.Lock()
@@ -80,26 +80,31 @@ class CurbSegmentor(Component):
     def lidar_callback(self, point_cloud: np.ndarray):
         self.point_cloud = point_cloud
 
-    def update(self) -> Dict[str,AgentState]:
+    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
 
         #print(frame_number)
         frame = self.zed_image
         downsampled = cv2.resize(frame, (self.width, self.height))
-        # Perform inference on the frame
-        result = self.inferencer(downsampled, return_datasamples=True)
-        seg = result.pred_sem_seg.data.squeeze().cpu().numpy()
-        seg = cv2.convertScaleAbs(seg)
-        seg_curb = (seg==9).astype(np.uint8)
-        if self.print_image:
-            downsampled = self.print_curb(seg_curb,downsampled)
-            # Display the original and processed images
-            cv2.imshow('Curb detector', downsampled)
+        cv2.imshow('Curb detector', downsampled)
+        cv2.waitKey(1)
+        # # Perform inference on the frame
+        # result = self.inferencer(downsampled, return_datasamples=True)
+        # seg = result.pred_sem_seg.data.squeeze().cpu().numpy()
+        # seg = cv2.convertScaleAbs(seg)
+        # seg_curb = (seg==9).astype(np.uint8)
+        # print("reached----------------------")
+        # if self.print_image:
+        #     downsampled = self.print_curb(seg_curb,downsampled)
+        #     # Display the original and processed images
+        #     cv2.imshow('Curb detector', downsampled)
+        #     cv2.waitKey(0)
+        #     print("reached----------------------")
 
         #TODO Use coordinates of corners to grab 3D Bounding boxes 
         #TODO Incorperate Roadgraph creation here
         #TODO return Roadgraphs
 
-    def print_curb(curb, downsampled):
+    def print_curb(self, curb, downsampled):
         curb = cv2.GaussianBlur(curb, (5,5), 0)
         kernel = np.ones((9, 9 ), np.uint8)  # Define a 3x3 kernel for erosion and dilation
         eroded_image = cv2.erode(curb*255, kernel, iterations=1)
