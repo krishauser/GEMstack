@@ -50,10 +50,15 @@ Usage
 To run the script, navigate to the script's directory and execute:
 
 ```bash
-python llm_hvi.py
+python hvi.py
 ```
 
 Make sure you are running this command in a terminal where the ROS environment is sourced, and the ROS master is active.
+
+## Simulation
+
+This script runs on the simulation from ECE484, please refer to [ECE484](https://publish.illinois.edu/safe-autonomy/assignments-spring-2024/) for details.
+
 
 ## Notes
 
