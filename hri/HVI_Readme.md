@@ -6,6 +6,8 @@ Files in src show an example of this interface of modifying the parameters of th
 
 The output of the LLM will be published to a rostopic to control the vehicle.
 
+![Pipeline of the HVI system](./src/figure/HVI_pipeline.png)
+
 ## Features
 
 - **Voice Recording**: Records voice using the microphone.
