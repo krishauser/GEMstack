@@ -8,7 +8,7 @@ from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
 from ..component import Component
 import numpy as np
-from casadi import *
+from casadi import Opti, cos, sin, tan
 import time
 
 class MPC(object):
@@ -166,8 +166,7 @@ class MPC(object):
             desired_parameter = self.closest_parameter+i*self.dt
             if ref_trajectory.yaws is None:
                 position = ref_trajectory.eval(desired_parameter)[:2]
-                yaw = ref_trajectory.eval(desired_parameter)[2]
-                
+                yaw = ref_trajectory.eval(desired_parameter)[2]                
             else: 
                 position = ref_trajectory.eval(desired_parameter)
                 yaw = ref_trajectory.eval_yaw(desired_parameter)
@@ -176,7 +175,7 @@ class MPC(object):
                 velocity = 0
             else:   
                 velocity = ref_trajectory.eval_derivative(desired_parameter)
-            # velocity = trajectory.eval_derivative(desired_parameter)
+
             velocity = np.linalg.norm(velocity)
             path_points.append([position[0], position[1], yaw, velocity])
      
@@ -211,8 +210,6 @@ class MPCTrajectoryTracker(Component):
             self.MPC.set_path_with_angles()
             self.set_once = 0
         accel, wheel_angle = self.MPC.compute(vehicle)
-        # print("acceleration: ", accel)
-        # print("wheel_angle", wheel_angle)
         
         if time.time() - self.start_time < 5: # 5s for A* to find the path
             wheel_angle = 0
