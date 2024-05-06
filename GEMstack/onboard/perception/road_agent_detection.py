@@ -78,16 +78,16 @@ class AgentDetector(Component):
         """Creates a 3D agent state from a PhysicalObject."""
         
         dims = detected_object.dimensions
-        type = agent_dict[str(bbox_cls)]
+        agent_type = agent_dict[str(bbox_cls)]
         if bbox_cls == 7:
-            type = type(dims[2])
+            agent_type = type(dims[2])
 
         # set agent type based on class id
         agent = AgentState(pose=detected_object.pose, dimensions=dims, outline=None, 
-                           type=type, activity=AgentActivityEnum.STOPPED, 
+                           type=agent_type, activity=AgentActivityEnum.STOPPED, 
                            velocity=(0,0,0), yaw_rate=0, attributes=None)
 
-        return agent, type
+        return agent, agent_type
 
     def detect_agents(self):
         """Creates a list of AgentState objects."""
@@ -99,12 +99,12 @@ class AgentDetector(Component):
         for i in range(len(detected_objects)):
             cls = int(bbox_classes[i])
 
-            agent, type = self.object_to_agent(detected_objects[i], cls)
+            agent, agent_type = self.object_to_agent(detected_objects[i], cls)
             detected_agents.append(agent)
 
-            c_idx = list(agent_dict.values()).index(type)
+            c_idx = list(agent_dict.values()).index(agent_type)
             self.counter[c_idx] += 1
-            names.append(AgentEnum(type).name.lower() + str(self.counter[c_idx]))
+            names.append(AgentEnum(agent_type).name.lower() + str(self.counter[c_idx]))
 
         return detected_agents, names
 
