@@ -77,21 +77,17 @@ class ParkingSpotDetector(Component):
             return None # Do nothing if no empty parking spot is detected
 
         canvas = self.front_image.copy()
-        goal_pose = self.get_parking_spot(canvas, bbox_info)
-        if not goal_pose:
-            return None # Do nothing if goal pose calculation fails
+        [x,y,yaw] = self.get_parking_spot(canvas, bbox_info)
 
-        x, y, yaw = goal_pose
-        self.euclidean = np.sqrt(x**2 + y**2)
-        self.parking_spot = ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.CURRENT)
-        return self.parking_spot
-    
+        if x and y and yaw:
+            self.euclidean = np.sqrt(x**2 + y**2)
+            self.parking_spot = ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.CURRENT)
+
     def get_parking_spot(self, img, bbox):
-        (midpoint, angle, img) = self.isolate_and_draw_lines(img, bbox)
-        coords_3d = self.get_goal_pose(midpoint)
-        x,y = coords_3d
+        [midpoint, angle, img] = self.isolate_and_draw_lines(img, bbox)
+        [x,y] = self.get_goal_pose(midpoint)
 
-        return (x,y,angle)
+        return [x,y,angle]
 
     def isolate_and_draw_lines(self, img, bbox_info):
         if bbox_info is None:
@@ -156,8 +152,8 @@ class ParkingSpotDetector(Component):
                         for x1, y1, x2, y2 in avg_lines:
                             cv2.line(img, (x + x1, y + y1), (x + x2, y + y2), (0, 255, 0), 4)
 
-            return (midpoint, angle, img)
-        return (None, None, img)
+            return [midpoint, angle, img]
+        return [None, None, img]
     
     def get_goal_pose(self, coords_pixel):
         if self.point_cloud and coords_pixel:
@@ -171,10 +167,10 @@ class ParkingSpotDetector(Component):
         return None
 
     def update(self):
-        parking_spot = self.parking_spot_detection()  # Attempt to detect and update parking spot
+        self.parking_spot_detection()  # Attempt to detect and update parking spot
         x, y = 14.768, -6.092
         yaw = -1.1
-        if parking_spot is None:
+        if self.parking_spot is None:
             return ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.CURRENT)
         else:
-            return copy.deepcopy(parking_spot)
+            return self.parking_spot
