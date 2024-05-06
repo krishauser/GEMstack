@@ -12,7 +12,7 @@ max_accelerator_power:  #Watts.  Power at max accelerator pedal, by gear
   - 10000.0
 max_accelerator_power_reverse: 10000.0 #Watts.  Power (backwards) in reverse gear
 
-acceleration_model : kris_v1
+acceleration_model : group8_v1
 accelerator_active_range : [0.2, 1.0]   #range of accelerator pedal where output acceleration is not flat
 brake_active_range : [0,1]             #range of brake pedal where output deceleration is not flat
 

@@ -48,6 +48,8 @@ class GNSSStateEstimator(Component):
         # vehicle gnss heading (yaw) in radians
         # vehicle x, y position in fixed local frame, in meters
         # reference point is located at the center of GNSS antennas
+        self.gnss_pose.x = math.degrees(self.gnss_pose.x)
+        self.gnss_pose.y = math.degrees(self.gnss_pose.y)
         localxy = transforms.rotate2d(self.location,-self.yaw_offset)
         gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
         center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)

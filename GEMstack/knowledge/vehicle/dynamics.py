@@ -11,6 +11,9 @@ import math
 
 def sign(x):
     return 1 if x > 0 else -1 if x < 0 else 0
+def convert_RPM(vel):
+    wheel_rad = settings.get('vehicle.dynamics.wheel_rad',0.55)
+    return (vel *60 )/ (2 * math.pi*wheel_rad)
 
 def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitch : float, gear : int) -> Tuple[float,float,int]:
     """Converts acceleration in m/s^2 to pedal positions in % of pedal travel.
@@ -18,10 +21,12 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
     Returns tuple (accelerator_pedal_position, brake_pedal_position, desired_gear)
     """
     model = settings.get('vehicle.dynamics.acceleration_model','hang_v1')
+    
     if model == 'hang_v1':
         if gear != 1:
             print("WARNING can't handle gears other than 1 yet")
         max_accel     = settings.get('vehicle.dynamics.max_accelerator_acceleration')[1] # m/s^2
+
         max_brake     = settings.get('vehicle.dynamics.max_brake_deceleration') # m/s^2
         dry_decel     = settings.get('vehicle.dynamics.internal_dry_deceleration') # m/s^2
         accel_active_range = settings.get('vehicle.dynamics.accelerator_active_range') # pedal position fraction
@@ -38,6 +43,98 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
             throttle_percent = 0
         return (max(throttle_percent,0.0),max(brake_percent,0.0),1)
     
+    elif model == 'group8_v1':
+        brake_max = settings.get('vehicle.dynamics.max_brake_deceleration')
+        reverse_accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration_reverse')
+        accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration')
+        assert isinstance(brake_max,(int,float))
+        assert isinstance(reverse_accel_max,(int,float))
+        assert isinstance(accel_max,list)
+        assert isinstance(acceleration,(int,float))
+
+        #compute required acceleration
+        vsign = sign(velocity)
+        gravity = settings.get('vehicle.dynamics.gravity')
+        internal_dry_deceleration = settings.get('vehicle.dynamics.internal_dry_deceleration')
+        internal_viscous_deceleration = settings.get('vehicle.dynamics.internal_viscous_deceleration')
+        aerodynamic_drag_coefficient = settings.get('vehicle.dynamics.aerodynamic_drag_coefficient')
+        accel_active_range = settings.get('vehicle.dynamics.accelerator_active_range') # pedal position fraction
+        brake_active_range = settings.get('vehicle.dynamics.brake_active_range') # pedal position fraction
+        acceleration_deadband = settings.get('vehicle.dynamics.acceleration_deadband',0.0)
+        vehicle_mass = settings.get('vehicle.dynamics.mass')
+        dry_decel     = settings.get('vehicle.dynamics.internal_dry_deceleration') # m/s^2
+
+        # do the offset of the acceleration drag force to compensate real acceleration
+        drag = (aerodynamic_drag_coefficient * velocity**2) * vsign + internal_dry_deceleration * vsign + internal_viscous_deceleration * velocity
+        sin_pitch = math.sin(pitch)
+        # TODO find rolling resistance
+        R_r = 0.5
+        R_f = 0.5
+        acceleration += drag + gravity * sin_pitch + R_f + R_r
+        #acceleration += drag 
+
+        current_RPM = convert_RPM(velocity)
+        
+
+        if acceleration > -dry_decel:
+            # safe to accelerate
+            if acceleration < 0 and gear > 0:
+                # in order to do reverse, we need to be in neutral first   
+                # change current gear to neutral 
+                gear = 0
+                return (0,0,gear)
+            
+            # power curve to select optimal gear
+            else:
+                if current_RPM < 500:
+                    gear = 1
+                elif current_RPM < 1000:
+                    gear = 2
+                elif current_RPM < 1500:
+                    gear = 3
+                else:
+                    gear = 4
+                # do forward
+                accel_pos = acceleration / accel_max[1]
+                if accel_pos > 1.0:
+                    accel_pos = 1.0
+                return (accel_active_range[0] + accel_pos*(accel_active_range[1]-accel_active_range[0]),0,gear)
+            
+
+            
+        else:
+            # in this case, acceleration is negative
+            if acceleration < 0 and gear > 0:
+                # in order to do reverse, we need to be in neutral first   
+                # change current gear to neutral 
+                gear = 0
+                return (0,0,gear)
+            if velocity > 0 and gear == 0:
+                # need to brake and make velocity to 0
+                accel_pos = 0
+                brake_pos = -acceleration / brake_max
+                if brake_pos > 1.0:
+                    brake_pos = 1.0
+                return (accel_pos,brake_active_range[0] + brake_pos*(brake_active_range[1]-brake_active_range[0]),gear)
+            elif velocity <= 0 and gear == 0:
+                # do reverse  
+                gear = -1
+                accel_pos = -acceleration / reverse_accel_max
+                brake_pos = 0
+                if accel_pos > 1.0:
+                    accel_pos = 1.0
+                return (accel_active_range[0] + accel_pos*(accel_active_range[1]-accel_active_range[0]),brake_pos,gear)
+            else:
+                # stay in neutral gear, brake
+                return (0,1,0)
+
+            
+            
+            
+            
+
+
+        
     elif model == 'kris_v1':
         brake_max = settings.get('vehicle.dynamics.max_brake_deceleration')
         reverse_accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration_reverse')
@@ -72,6 +169,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
             if brake_pos > 1.0:
                 brake_pos = 1.0
             return (accel_pos,brake_active_range[0] + brake_pos*(brake_active_range[1]-brake_active_range[0]),gear)
+        
         else:
             #may want to switch gear?
             if velocity == 0:
