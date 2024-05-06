@@ -37,7 +37,7 @@ class PedestrianTrajPrediction(Component):
     def __init__(self,vehicle_interface : GEMInterface):
         print("initializing trajpredict CONSTRUCTOR")
         # Inferencing somehow takes 1 extra second on CPU
-        self.device = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.config = Config(CONFIG_FILE)
         self.model = self.load_model()
         self.frame_rate = 2.5
@@ -127,7 +127,7 @@ class PedestrianTrajPrediction(Component):
         cp_path = self.config.model_path
 
         print(f'loading model from checkpoint: {cp_path}')
-        model_cp = torch.load(cp_path, map_location='cpu')
+        model_cp = torch.load(cp_path, map_location=self.device)
         model.load_state_dict(model_cp['model_dict'], strict=False)
         #model = model_dict[self.config.model_name](self.config)
         return model
