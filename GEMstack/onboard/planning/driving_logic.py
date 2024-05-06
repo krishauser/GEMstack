@@ -6,7 +6,7 @@ from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgra
 from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
 from ...state.intent import VehicleIntent,VehicleIntentEnum
-from ...state import AgentEnum
+from ...state import AgentEnum,SignalLightEnum
 import os
 import copy
 from time import time
@@ -177,4 +177,51 @@ class DrivingLogicIntent(Component):
                     continue
 
 
+class SignalDrivingLogic(Component):
+    def __init__(self):
+        self.closest_signal = None
+        self.closest_d = np.inf
 
+    def state_inputs(self):
+        return ['all']
+
+    def state_outputs(self) -> List[str]:
+        return ['intent']
+
+    def rate(self):
+        return 2.0
+
+    def update(self, state : AllState) -> VehicleIntent:
+        self.find_closest_signal(state)
+
+        # if there is no signal in sight or if the nearest signal is far away (> 5m), continue driving
+        intent = VehicleIntent(intent=VehicleIntentEnum.DRIVING, entity='')
+
+        if self.closest_signal and self.closest_d <= 5:
+            signal_state = self.closest_signal.state.signal_state.state
+            if signal_state == SignalLightEnum.GREEN:
+                intent = VehicleIntent(intent=VehicleIntentEnum.DRIVING, entity='')
+            elif signal_state in [SignalLightEnum.YELLOW, SignalLightEnum.RED]:
+                if state.vehicle.v == 0:
+                    intent = VehicleIntent(intent=VehicleIntentEnum.IDLE, entity='')
+                else:
+                    intent = VehicleIntent(intent=VehicleIntentEnum.WAIT_AT_SIGN, entity='')
+
+        return intent
+    
+    def find_closest_signal(self, state : AllState) -> SignalLightEnum:
+        closest_signal = None
+        d_min = np.inf
+        
+        for k, signal in state.detected_signs.items():
+            signal_pose = signal.pose.to_frame(state.vehicle.pose.frame, state.vehicle.pose, state.start_vehicle_pose)
+            d = signal_pose.x - state.vehicle.pose.x
+            if 0 <= d < d_min:
+                d_min = d
+                closest_signal = signal
+            elif d < 0:
+                d_min = np.inf
+                closest_signal = None
+        
+        self.closest_signal = closest_signal
+        self.closest_d = d_min
