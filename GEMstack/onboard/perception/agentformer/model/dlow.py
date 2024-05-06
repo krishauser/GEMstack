@@ -56,7 +56,7 @@ class DLow(nn.Module):
     def __init__(self, cfg):
         super().__init__()
 
-        self.device = torch.device('cpu')
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.cfg = cfg
         self.nk = nk = cfg.sample_k
         self.nz = nz = cfg.nz
@@ -70,7 +70,7 @@ class DLow(nn.Module):
         self.pred_model_dim = pred_cfg.tf_model_dim
 
         print('loading model from checkpoint: %s' % pred_cfg.model_path)
-        model_cp = torch.load(pred_cfg.model_path, map_location='cpu')
+        model_cp = torch.load(pred_cfg.model_path, map_location=self.device)
         pred_model.load_state_dict(model_cp['model_dict'])
         # if cfg.pred_epoch > 0:
         #     cp_path = pred_cfg.model_path % cfg.pred_epoch

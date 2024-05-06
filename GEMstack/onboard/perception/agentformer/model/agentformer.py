@@ -433,7 +433,7 @@ class AgentFormer(nn.Module):
     def __init__(self, cfg):
         super().__init__()
 
-        self.device = torch.device('cpu')
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.cfg = cfg
 
         input_type = cfg.get('input_type', 'pos')
