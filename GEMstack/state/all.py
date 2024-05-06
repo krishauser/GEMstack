@@ -11,8 +11,6 @@ from .route import Route
 from .trajectory import Trajectory
 from .predicates import PredicateValues
 from typing import Dict,List,Optional
-from .agent import AgentState
-from .agent import AgentEnum
 
 @dataclass
 @register
@@ -55,11 +53,6 @@ class AllState(SceneState):
     intent_update_time : float = 0
     route_update_time : float = 0
     trajectory_update_time : float = 0
-    
-    # pedestrian detection and tracking items
-    detected_agents : List[AgentState] = None
-    tracking_frames : Dict[AgentEnum, Dict[int, Dict[int, AgentState]]] = None
-    predicted_trajectories : List[Dict[List[AgentState]]] = None
 
     @staticmethod
     def zero():
