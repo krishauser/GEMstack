@@ -4,6 +4,11 @@
 vehicle:  !include ../vehicle/gem_e4.yaml
 carla_vehicle: !include ../vehicle/carla.yaml
 
+calibration:
+    intrinsic: !relative_path '../calibration/gem_e4_intrinsic.txt'
+    lidar_to_camera: !relative_path '../calibration/gem_e4_lidar2oak.txt'
+    lidar_to_vehicle: !relative_path '../calibration/gem_e4_lidar2vehicle.txt'
+
 #arguments for algorithm components here
 model_predictive_controller:
     dt: 0.1
@@ -22,6 +27,18 @@ control:
         pid_i: 0.1
         pid_d: 0.0
 
+perception:
+    agent_detection:
+        model: !relative_path '../detection/yolov9c.pt'
+        rate: 4.0
+    sign_detection:
+        model: !relative_path '../detection/sign_model.pt'
+        rate: 4.0
+    lane_detection:
+        rate: 5.0
+        horizon: 0.4 # fraction of the image considered (= height of trapezium)
+        min_angle: 0.52359877559 # pi/6, min angle subtended by a line in order to be considered as part of a lane marking
+    
 A_star_planner:  
     !include A_star_planner.yaml
 MPC_planner:
