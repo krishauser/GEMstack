@@ -3,10 +3,10 @@ import numpy as np
 from typing import Tuple
 
 P_camera = np.zeros((3, 4))
-P_camera[:3,:3] = np.loadtxt(settings.get('vehicle.calibration.intrinsic'))
+P_camera[:3,:3] = np.loadtxt(settings.get('vehicle.calibration.front_camera.intrinsic'))
 
 T_lidar = np.loadtxt(settings.get('vehicle.calibration.lidar_to_vehicle'))
-T_lidar_camera = np.loadtxt(settings.get('vehicle.calibration.lidar_to_camera'))
+T_lidar_camera = np.loadtxt(settings.get('vehicle.calibration.lidar_to_oak'))
 T_camera = np.matmul(T_lidar, np.linalg.inv(T_lidar_camera))
 
 

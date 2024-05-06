@@ -5,6 +5,5 @@ gnss_location: [1.10,1.62] # meters, taken from https://github.com/hangcui1201/P
 gnss_yaw: 0.0 # radians
 top_lidar: !include "gem_e4_ouster.yaml"
 front_camera: !include "gem_e4_oak.yaml"
-intrinsic: !relative_path 'gem_e4_intrinsic.txt'
-lidar_to_camera: !relative_path 'gem_e4_lidar2oak.txt'
+lidar_to_oak: !relative_path 'gem_e4_lidar2oak.txt'
 lidar_to_vehicle: !relative_path 'gem_e4_lidar2vehicle.txt'
