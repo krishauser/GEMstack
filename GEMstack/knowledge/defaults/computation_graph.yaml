@@ -58,3 +58,6 @@ components:
   - trajectory_tracking:
       inputs: [vehicle, trajectory]
       outputs: 
+  - recording:
+      inputs: ['vehicle', 'tracking_frames', 'predicted_trajectories', 'detected_agents']
+      outputs:
