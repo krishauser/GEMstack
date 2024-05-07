@@ -92,7 +92,8 @@ class WavingDetector(Component):
         return 4.0
 
     def state_inputs(self):
-        return ['agents']
+        #comment return ['agents']
+        return []
 
     def state_outputs(self):
         return ['agents']
@@ -130,9 +131,10 @@ class WavingDetector(Component):
         #     # no camera info yet
         #     print("camera")
         #     return {}
-        pose_array, flag_array=self.form_agent_info(detected_agents)
+        #comment pose_array, flag_array=self.form_agent_info(detected_agents)
         #add flag to them
-        detected_agents = self.update_waving_agents(detected_agents,pose_array, flag_array) 
+        #comment detected_agents = self.update_waving_agents(detected_agents,pose_array, flag_array)
+        detected_agents = self.update_waving_agents() 
         print("Update waving flag: ", detected_agents)
         return detected_agents
 ###
@@ -314,7 +316,9 @@ class WavingDetector(Component):
         return closest_index
 
 #based on agent_detection.py
-    def update_waving_agents(self, detected_agents : List[AgentState], pose_array, flag_array):
+    #comment def update_waving_agents(self, detected_agents : List[AgentState], pose_array, flag_array):
+    def update_waving_agents(self):
+
         results = self.model.track(self.zed_image,verbose=False)
         boxes = results[0].boxes
         #print('boxes  ',len(boxes))
