@@ -226,15 +226,17 @@ def run_lane_detection_paired_scan(lidar_path, rgb_path):
     lane_detector.height, lane_detector.width, _ = image.shape
     lane_detector.lidar_point_cloud = np.load(lidar_path)['arr_0']
 
-    lane = lane_detector.update()
-    
-    print(RoadgraphLaneEnum(lane.type).name)
-    print('- surface:', RoadgraphSurfaceEnum(lane.surface).name)
-    print('- center:')
-    print('  - type:', RoadgraphCurveEnum(lane.center.type).name)
-    print('  - polyline (in CURRENT frame):')
-    for i, pt in enumerate(lane.center.segments[0]):
-        print('    {0}. ({1:.3f}, {2:.3f}, {3:.3f})'.format(i+1, pt[0], pt[1], pt[2]))
+    roadgraph = lane_detector.update(None)
+
+    if roadgraph:
+        lane = roadgraph.lanes['current_lane']
+        print(RoadgraphLaneEnum(lane.type).name)
+        print('- surface:', RoadgraphSurfaceEnum(lane.surface).name)
+        print('- center:')
+        print('  - type:', RoadgraphCurveEnum(lane.center.type).name)
+        print('  - polyline (in CURRENT frame):')
+        for i, pt in enumerate(lane.center.segments[0]):
+            print('    {0}. ({1:.3f}, {2:.3f}, {3:.3f})'.format(i+1, pt[0], pt[1], pt[2]))
 
 
 def test_detection_paired_scan(data_folder, idx, detectors):

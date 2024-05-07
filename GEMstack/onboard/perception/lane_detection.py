@@ -1,4 +1,4 @@
-from ...state import RoadgraphLane,RoadgraphLaneEnum,RoadgraphSurfaceEnum,RoadgraphCurve,RoadgraphCurveEnum
+from ...state import ObjectFrameEnum,VehicleState,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphSurfaceEnum,RoadgraphCurve,RoadgraphCurveEnum
 from ...utils import settings
 from ..interface.gem import GEMInterface
 from ..component import Component
@@ -28,10 +28,10 @@ class LaneDetector(Component):
         return settings.get('perception.lane_detection.rate')
     
     def state_inputs(self):
-        return []
+        return ['vehicle']
     
     def state_outputs(self):
-        return ['detected_lane']
+        return ['roadgraph']
 
     def initialize(self):
         # use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
@@ -47,7 +47,7 @@ class LaneDetector(Component):
     def lidar_callback(self, point_cloud: np.ndarray):
         self.lidar_point_cloud = point_cloud
 
-    def update(self) -> RoadgraphLane:
+    def update(self, vehicle : VehicleState) -> Roadgraph:
         if self.camera_image is None:
             return None   # no image data yet
         
@@ -61,7 +61,8 @@ class LaneDetector(Component):
         t2 = timeit.default_timer()
         print('Detection time: {:.6f} s'.format(t2 - t1))
 
-        return self.polys_to_roadgraph_lane(left_poly, right_poly) 
+        roadgraph_lane = self.polys_to_roadgraph_lane(left_poly, right_poly)
+        return Roadgraph(frame=ObjectFrameEnum.CURRENT, lanes={'current_lane' : roadgraph_lane})
 
     def region_of_interest(self, image):
         vertices = [
