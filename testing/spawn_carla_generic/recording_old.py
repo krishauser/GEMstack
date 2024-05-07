@@ -79,13 +79,6 @@ except IndexError:
 
 
 import carla
-from sensor_msgs.msg import Image
-from sensor_msgs.msg import CameraInfo
-from sensor_msgs.msg import PointCloud2
-#from novatel_gps_msgs.msg import Inspva
-#from ros_numpy import msgify  # new import > sudo apt-get install ros-noetic-ros-numpy
-import std_msgs
-from cv_bridge import CvBridge
 
 from carla import ColorConverter as cc
 
@@ -97,7 +90,6 @@ import math
 import random
 import re
 import weakref
-#import rospy
 
 try:
     import pygame
@@ -214,7 +206,6 @@ class World(object):
         self.collision_sensor = None
         self.lane_invasion_sensor = None
         self.gnss_sensor = None
-        self.gnss_value = {}
         self.imu_sensor = None
         self.radar_sensor = None
         self.camera_manager = None
@@ -223,12 +214,6 @@ class World(object):
         self._actor_filter = args.filter
         self._actor_generation = args.generation
         self._gamma = args.gamma
-        #rospy.init_node('manual_control')
-        #self.r = rospy.Rate(30)  # 10hz
-        #self.rgb = rospy.Publisher('carla/front/rgb', Image, queue_size=10)
-        #self.gnss = rospy.Publisher('carla/gnss', Inspva, queue_size=10)
-        #self.lidar = rospy.Publisher('carla/top_lidar', PointCloud2, queue_size=10)
-        # watch out for restart method
         self.restart()
         self.world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
@@ -302,16 +287,10 @@ class World(object):
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
-        self.gnss_sensor.add_callback(self.publish_gnss_message)
         self.imu_sensor = IMUSensor(self.player)
         self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
-        self.radar_sensor = RadarSensor(self.player)
-        #self.radar_sensor.add_callback(self.publish_gnss_message)
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index, notify=False)
-        self.camera_manager.set_fixed_rgb()
-        self.camera_manager.add_rgb_callback(self.publish_image_message)
-        self.camera_manager.add_lidar_callback(self.publish_lidar_message)
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
 
@@ -319,36 +298,6 @@ class World(object):
             self.world.tick()
         else:
             self.world.wait_for_tick()
-
-    def publish_image_message(self, image):
-        self.rgb.publish(image)
-        pass
-
-    def publish_lidar_message(self, pc):
-        self.lidar.publish(pc)
-        pass
-
-    def publish_gnss_message(self, value):
-        for x in value:
-            self.gnss_value[x] = value[x]
-        # compose your gnss values here
-        inspva_message = Inspva()
-        inspva_message.latitude = self.gnss_value['lat'] if 'lat' in self.gnss_value else 0.0
-        inspva_message.latitude = self.gnss_value['lon'] if 'lon' in self.gnss_value else 0.0
-        inspva_message.height = 0.0
-        inspva_message.pitch = self.gnss_value['pitch'] if 'pitch' in self.gnss_value else 0.0
-        inspva_message.azimuth = self.gnss_value['yaw'] if 'yaw' in self.gnss_value else 0.0
-        inspva_message.roll = self.gnss_value['roll'] if 'roll' in self.gnss_value else 0.0
-        if (inspva_message.azimuth != 0.0):
-            angle = math.radians(inspva_message.azimuth)
-            sin_theta = math.sin(angle)
-            cos_theta = math.cos(angle)
-            inspva_message.east_velocity = self.player.get_velocity() * cos_theta
-            inspva_message.north_velocity = self.player.get_velocity() * sin_theta
-        else:
-            inspva_message.north_velocity = self.player.get_velocity()
-            inspva_message.east_velocity = 0.0
-        self.gnss.publish(inspva_message)
 
     def next_weather(self, reverse=False):
         self._weather_index += -1 if reverse else 1
@@ -397,7 +346,6 @@ class World(object):
 
     def destroy_sensors(self):
         self.camera_manager.sensor.destroy()
-        self.camera_manager.fixed_front_rgb_sensor.destroy()
         self.camera_manager.sensor = None
         self.camera_manager.index = None
 
@@ -406,7 +354,6 @@ class World(object):
             self.toggle_radar()
         sensors = [
             self.camera_manager.sensor,
-            self.camera_manager.fixed_front_rgb_sensor,
             self.collision_sensor.sensor,
             self.lane_invasion_sensor.sensor,
             self.gnss_sensor.sensor,
@@ -435,7 +382,7 @@ class KeyboardControl(object):
             self._control = carla.VehicleControl()
             self._ackermann_control = carla.VehicleAckermannControl()
             self._lights = carla.VehicleLightState.NONE
-            world.player.set_autopilot(self._autopilot_enabled, 8002)
+            world.player.set_autopilot(self._autopilot_enabled)
             world.player.set_light_state(self._lights)
         elif isinstance(world.player, carla.Walker):
             self._control = carla.WalkerControl()
@@ -544,7 +491,7 @@ class KeyboardControl(object):
                     world.destroy_sensors()
                     # disable autopilot
                     self._autopilot_enabled = False
-                    world.player.set_autopilot(self._autopilot_enabled, 8002)
+                    world.player.set_autopilot(self._autopilot_enabled)
                     world.hud.notification("Replaying file 'manual_recording.rec'")
                     # replayer
                     client.replay_file("manual_recording.rec", world.recording_start, 0, 0)
@@ -589,7 +536,7 @@ class KeyboardControl(object):
                             print("WARNING: You are currently in asynchronous mode and could "
                                   "experience some issues with the traffic simulation")
                         self._autopilot_enabled = not self._autopilot_enabled
-                        world.player.set_autopilot(self._autopilot_enabled, 8002)
+                        world.player.set_autopilot(self._autopilot_enabled)
                         world.hud.notification(
                             'Autopilot %s' % ('On' if self._autopilot_enabled else 'Off'))
                     elif event.key == K_l and pygame.key.get_mods() & KMOD_CTRL:
@@ -1009,7 +956,6 @@ class GnssSensor(object):
         self._parent = parent_actor
         self.lat = 0.0
         self.lon = 0.0
-        self.callbacks = []
         world = self._parent.get_world()
         bp = world.get_blueprint_library().find('sensor.other.gnss')
         self.sensor = world.spawn_actor(bp, carla.Transform(carla.Location(x=1.0, z=2.8)), attach_to=self._parent)
@@ -1025,13 +971,6 @@ class GnssSensor(object):
             return
         self.lat = event.latitude
         self.lon = event.longitude
-        for cb in self.callbacks:
-            value = {'lat': self.lat, 'lon': self.lon}
-            cb(value)
-
-    def add_callback(self, callback):
-        if (callback not in self.callbacks):
-            self.callbacks.append(callback)
 
 
 # ==============================================================================
@@ -1082,8 +1021,6 @@ class RadarSensor(object):
     def __init__(self, parent_actor):
         self.sensor = None
         self._parent = parent_actor
-        self.callbacks = []
-        self.ctr = 0  # remove later
         bound_x = 0.5 + self._parent.bounding_box.extent.x
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
@@ -1110,15 +1047,11 @@ class RadarSensor(object):
         self = weak_self()
         if not self:
             return
-        self.ctr += 1
         # To get a numpy [[vel, altitude, azimuth, depth],...[,,,]]:
         # points = np.frombuffer(radar_data.raw_data, dtype=np.dtype('f4'))
         # points = np.reshape(points, (len(radar_data), 4))
 
         current_rot = radar_data.transform.rotation
-        value = {'yaw': current_rot.yaw, 'pitch': current_rot.pitch, 'roll': current_rot.roll}
-        for cb in self.callbacks:
-            cb(value)
         for detect in radar_data:
             azi = math.degrees(detect.azimuth)
             alt = math.degrees(detect.altitude)
@@ -1146,10 +1079,6 @@ class RadarSensor(object):
                 persistent_lines=False,
                 color=carla.Color(r, g, b))
 
-    def add_callback(self, callback):
-        if (callback not in self.callbacks):
-            self.callbacks.append(callback)
-
 
 # ==============================================================================
 # -- CameraManager -------------------------------------------------------------
@@ -1159,17 +1088,10 @@ class RadarSensor(object):
 class CameraManager(object):
     def __init__(self, parent_actor, hud, gamma_correction):
         self.sensor = None
-        self.fixed_front_rgb_sensor = None
-        self.fixed_top_lidar_sensor = None
         self.surface = None
         self._parent = parent_actor
         self.hud = hud
         self.recording = False
-
-        self.rgb_callbacks = []
-        self.lidar_callbacks = []
-        self.bridge = CvBridge()
-
         bound_x = 0.5 + self._parent.bounding_box.extent.x
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
@@ -1180,7 +1102,8 @@ class CameraManager(object):
                 (carla.Transform(carla.Location(x=-2.0 * bound_x, y=+0.0 * bound_y, z=2.0 * bound_z),
                                  carla.Rotation(pitch=8.0)), Attachment.SpringArmGhost),
                 (
-                carla.Transform(carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.3 * bound_z)), Attachment.Rigid),
+                    carla.Transform(carla.Location(x=+0.8 * bound_x, y=+0.0 * bound_y, z=1.3 * bound_z)),
+                    Attachment.Rigid),
                 (carla.Transform(carla.Location(x=+1.9 * bound_x, y=+1.0 * bound_y, z=1.2 * bound_z)),
                  Attachment.SpringArmGhost),
                 (carla.Transform(carla.Location(x=-2.8 * bound_x, y=+0.0 * bound_y, z=4.6 * bound_z),
@@ -1196,8 +1119,6 @@ class CameraManager(object):
                 (carla.Transform(carla.Location(x=0, y=-2.5, z=-0.0), carla.Rotation(yaw=90.0)), Attachment.Rigid)]
 
         self.transform_index = 1
-        self.fixed_front_camera_info = ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}]
-        self.fixed_front_camera_transform = self._camera_transforms[self.transform_index]
         self.sensors = [
             ['sensor.camera.rgb', cc.Raw, 'Camera RGB', {}],
             ['sensor.camera.depth', cc.Raw, 'Camera Depth (Raw)', {}],
@@ -1239,27 +1160,11 @@ class CameraManager(object):
                         self.lidar_range = float(attr_value)
 
             item.append(bp)
-        bp = bp_library.find(self.fixed_front_camera_info[0])
-        bp.set_attribute('image_size_x', str(hud.dim[0]))
-        bp.set_attribute('image_size_y', str(hud.dim[1]))
-        if bp.has_attribute('gamma'):
-            bp.set_attribute('gamma', str(gamma_correction))
-        for attr_name, attr_value in item[3].items():
-            bp.set_attribute(attr_name, attr_value)
-        self.fixed_front_camera_info.append(bp)
         self.index = None
 
     def toggle_camera(self):
         self.transform_index = (self.transform_index + 1) % len(self._camera_transforms)
         self.set_sensor(self.index, notify=False, force_respawn=True)
-
-    def add_rgb_callback(self, callback):
-        if (callback not in self.rgb_callbacks):
-            self.rgb_callbacks.append(callback)
-
-    def add_lidar_callback(self, callback):
-        if (callback not in self.lidar_callbacks):
-            self.lidar_callbacks.append(callback)
 
     def set_sensor(self, index, notify=True, force_respawn=False):
         index = index % len(self.sensors)
@@ -1269,7 +1174,6 @@ class CameraManager(object):
             if self.sensor is not None:
                 self.sensor.destroy()
                 self.surface = None
-            print(self._camera_transforms[self.transform_index][0])
             self.sensor = self._parent.get_world().spawn_actor(
                 self.sensors[index][-1],
                 self._camera_transforms[self.transform_index][0],
@@ -1283,22 +1187,6 @@ class CameraManager(object):
             self.hud.notification(self.sensors[index][2])
         self.index = index
 
-    def set_fixed_rgb(self):
-        if self.fixed_front_rgb_sensor is not None:
-            print('fixed sensor destroyed')
-            self.fixed_front_rgb_sensor.destroy()
-        print(self.fixed_front_camera_transform[0])
-        self.fixed_front_rgb_sensor = self._parent.get_world().spawn_actor(
-            self.fixed_front_camera_info[-1],
-            self.fixed_front_camera_transform[0],
-            attach_to=self._parent,
-            attachment_type=self.fixed_front_camera_transform[1])
-        # We need to pass the lambda a weak reference to self to avoid
-        # circular reference.
-        weak_self = weakref.ref(self)
-        self.fixed_front_rgb_sensor.listen(
-            lambda image: CameraManager._parse_image(weak_self, image, callback=True, caller='sensor.camera.rgb'))
-
     def next_sensor(self):
         self.set_sensor(self.index + 1)
 
@@ -1311,7 +1199,7 @@ class CameraManager(object):
             display.blit(self.surface, (0, 0))
 
     @staticmethod
-    def _parse_image(weak_self, image, callback=False, caller='sensor.camera.rgb'):
+    def _parse_image(weak_self, image):
         self = weak_self()
         if not self:
             return
@@ -1327,8 +1215,7 @@ class CameraManager(object):
             lidar_img_size = (self.hud.dim[0], self.hud.dim[1], 3)
             lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
             lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            if (not callback):
-                self.surface = pygame.surfarray.make_surface(lidar_img)
+            self.surface = pygame.surfarray.make_surface(lidar_img)
         elif self.sensors[self.index][0].startswith('sensor.camera.dvs'):
             # Example of converting the raw_data from a carla.DVSEventArray
             # sensor into a NumPy array and using it as an image
@@ -1337,53 +1224,23 @@ class CameraManager(object):
             dvs_img = np.zeros((image.height, image.width, 3), dtype=np.uint8)
             # Blue is positive, red is negative
             dvs_img[dvs_events[:]['y'], dvs_events[:]['x'], dvs_events[:]['pol'] * 2] = 255
-            if (not callback):
-                self.surface = pygame.surfarray.make_surface(dvs_img.swapaxes(0, 1))
+            self.surface = pygame.surfarray.make_surface(dvs_img.swapaxes(0, 1))
         elif self.sensors[self.index][0].startswith('sensor.camera.optical_flow'):
             image = image.get_color_coded_flow()
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
             array = array[:, :, :3]
             array = array[:, :, ::-1]
-            if (not callback):
-                self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+            self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         else:
             image.convert(self.sensors[self.index][1])
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
             array = array[:, :, :3]
             array = array[:, :, ::-1]
-            if (not callback):
-                self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-
-        if (callback and caller == 'sensor.camera.rgb'):
-            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (image.height, image.width, 4))
-            for cb in self.rgb_callbacks:
-                cb(self.bridge.cv2_to_imgmsg(array))
-        elif (callback and caller == 'sensor.lidar.ray_cast'):
-            points = np.frombuffer(image.raw_data, dtype=np.dtype('f4'))
-            points = np.reshape(points, (int(points.shape[0] / 4), 4))
-            for cb in self.lidar_callbacks:
-                cb(self.lidar_points_to_pc2(points))
-
+            self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         if self.recording:
             image.save_to_disk('_out/%08d' % image.frame)
-
-    def lidar_points_to_pc2(self, pc):
-        header = std_msgs.Header(frame_id='/lidar', stamp=rospy.Time.now())
-        pc_array = np.zeros(len(pc), dtype=[
-            ('x', np.float32),
-            ('y', np.float32),
-            ('z', np.float32),
-            ('intensity', np.float32),
-        ])
-        pc_array['x'] = pc[:, 0]
-        pc_array['y'] = pc[:, 1]
-        pc_array['z'] = pc[:, 2]
-        pc_array['intensity'] = pc[:, 3]
-
-        return msgify(PointCloud2, pc_array, stamp=header.stamp, frame_id=header.frame_id)
 
 
 # ==============================================================================
@@ -1401,6 +1258,8 @@ def game_loop(args):
         client = carla.Client(args.host, args.port)
         client.set_timeout(2000.0)
 
+        client.start_recorder("/home/hb-station1/Documents/GEMstack/testing/spawn_carla_generic/recording.log", True)
+
         sim_world = client.get_world()
         if args.sync:
             original_settings = sim_world.get_settings()
@@ -1411,7 +1270,6 @@ def game_loop(args):
             sim_world.apply_settings(settings)
 
             traffic_manager = client.get_trafficmanager()
-
             traffic_manager.set_synchronous_mode(True)
 
         if args.autopilot and not sim_world.get_settings().synchronous_mode:
@@ -1449,6 +1307,7 @@ def game_loop(args):
         if original_settings:
             sim_world.apply_settings(original_settings)
 
+        client.stop_recorder()
         if (world and world.recording_enabled):
             client.stop_recorder()
 

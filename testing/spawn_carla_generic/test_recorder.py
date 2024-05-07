@@ -243,8 +243,20 @@ class World(object):
             carla.MapLayer.All
         ]
         os.makedirs("../recordings", exist_ok=True)
-        self.filename = "../recordings/recording_3.txt"
+        self.filepath = os.path.join("../recordings", args.prefix + ".json")
+        if args.readFromFile:
+            if not os.path.exists(self.filepath):
+                raise FileNotFoundError("File not found: " + self.filepath)
+        else:
+            # check if already exists
+            if os.path.exists(self.filepath):
+                # add timestamp to filename
+                self.filename = self.filepath.replace(".json", "_" + str(
+                    datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + ".json")
+            else:
+                self.filename = self.filepath
         self.meta_recorded = False
+        self.readFromFile = args.readFromFile
 
     def restart(self):
         self.player_max_speed = 1.589
@@ -284,16 +296,23 @@ class World(object):
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         while self.player is None:
-            # Read spawn points from the JSON file
-            with open('../recordings/recording.json', 'r') as file:
-                data = json.load(file)
-                first_waypoint = data['Waypoints'][0]['Waypoint']
-                location = first_waypoint['Location']
-                rotation = first_waypoint['Rotation']
-                spawn_location = carla.Location(x=location[0], y=location[1], z=location[2]+2)
-                spawn_rotation = carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2])
-                spawn_point = carla.Transform(spawn_location, spawn_rotation)
-
+            if self.readFromFile:
+                # Read spawn points from the JSON file
+                with open(self.filename, 'r') as file:
+                    data = json.load(file)
+                    first_waypoint = data['Waypoints'][0]['Waypoint']
+                    location = first_waypoint['Location']
+                    rotation = first_waypoint['Rotation']
+                    spawn_location = carla.Location(x=location[0], y=location[1], z=location[2] + 2)
+                    spawn_rotation = carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2])
+                    spawn_point = carla.Transform(spawn_location, spawn_rotation)
+            else:
+                if not self.map.get_spawn_points():
+                    print('There are no spawn points available in your map/town.')
+                    print('Please add some Vehicle Spawn Point to your UE4 scene.')
+                    sys.exit(1)
+                spawn_points = self.map.get_spawn_points()
+                spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
             # Try to spawn the player at the read spawn point
             self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
             if self.player is None:
@@ -494,8 +513,8 @@ class KeyboardControl(object):
                     world.camera_manager.set_sensor(event.key - 1 - K_0 + index_ctrl)
                 elif event.key == K_r and not (pygame.key.get_mods() & KMOD_CTRL):
                     waypoint = world.map.get_waypoint(world.player.get_location())
-                    filename = world.filename.replace('.txt', '.json')  # Change file extension to .json
-
+                    # filename = world.filename.replace('.txt', '.json')  # Change file extension to .json
+                    filename = world.filename
                     if not world.meta_recorded:
                         world.hud.notification("Starting to record data")
                         metadata = {
@@ -551,7 +570,6 @@ class KeyboardControl(object):
                         world.recording_enabled = False
                         world.hud.notification("Recorder is OFF")
                     else:
-
                         filename_txt = world.filename.replace("recording.log", "weather_time.txt")
                         with open(filename_txt, 'w') as file:
                             file.write("weather_time: " + str(world._weather_index))
@@ -1497,5 +1515,7 @@ if __name__ == '__main__':
     # add args for user specified experiment name
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", default="TODO", type=str)
+    parser.add_argument("--prefix", default="recording", type=str)
+    parser.add_argument("--readFromFile", 'store_true', help="Read waypoints from file")
     args = parser.parse_args()
     main()
