@@ -29,7 +29,7 @@ class ParkingSpotDetector(Component):
         self.front_image = None
         self.point_cloud = None
 
-        self.x = 14.768, 
+        self.x = 14.768
         self.y = -6.092
         self.yaw = -1.1
         self.parking_spot = ObjectPose(t=0, x=self.x, y=self.y, yaw=self.yaw, frame=ObjectFrameEnum.START)
