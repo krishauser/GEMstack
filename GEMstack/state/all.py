@@ -13,6 +13,7 @@ from .predicates import PredicateValues
 from typing import Dict,List,Optional
 from .agent import AgentState
 from .agent import AgentEnum
+from .roadgraph import RoadgraphLane
 
 @dataclass
 @register
@@ -36,6 +37,7 @@ class AllState(SceneState):
     # for parking
     parking_slot : Optional[ObjectPose] = None
     # for normal road driving
+    detected_lane: Optional[RoadgraphLane] = None
     lane_goal: Optional[ObjectPose] = None
     lane_bound: Optional[List[float]] = None
     
