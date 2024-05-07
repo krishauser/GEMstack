@@ -180,9 +180,13 @@ class ParkingSpotDetector(Component):
         self.parking_spot_detection()  # Attempt to detect and update parking spot
         x, y = 14.768, -6.092
         yaw = -1.1
+        x_real = self.parking_spot.x
+        y_real = self.parking_spot.y
+        yaw_real = self.parking_spot.yaw
         if self.parking_spot is None:
             print("Fixed Route")
             return ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.START)
         else:
             print("Our code")
+            print(f"x:{x_real}, y:{y_real}, yaw:{yaw_real}")
             return self.parking_spot
