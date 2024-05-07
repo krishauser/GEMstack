@@ -10,7 +10,7 @@ recovery:
 # Driving behavior for the GEM vehicle.  Runs perception and planner but doesn't execute anything (no controller).
 drive: 
     perception:
-        state_estimation : IMUStateEstimator
+        state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
     planning:
         route_planning:
