@@ -53,7 +53,7 @@ class ParkingSpotDetector(Component):
 
     def detect_empty(self, img: cv2.Mat, empty_spot=0, conf_threshold=conf_thresh):
         global model
-        results = model(img)
+        results = self.model(img)
         for box, conf in zip(results[0].obb, results[0].obb.conf):
             class_id = int(box.cls[0].item())
             confidence = float(conf.item())
