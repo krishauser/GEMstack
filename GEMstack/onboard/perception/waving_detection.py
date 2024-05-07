@@ -92,10 +92,10 @@ class WavingDetector(Component):
         return 4.0
 
     def state_inputs(self):
-        return ['detected_agents']
+        return ['agents']
 
     def state_outputs(self):
-        return ['detected_agents']
+        return ['agents']
 
 
     def initialize(self):
@@ -104,7 +104,7 @@ class WavingDetector(Component):
         #tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
         self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         #subscribe to the Zed CameraInfo topic
-        self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
+        #self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
         self.point_cloud_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.lidar_callback)
 
     def image_callback(self, image : cv2.Mat):
@@ -126,10 +126,10 @@ class WavingDetector(Component):
             # no lidar data yet
             print("pc")
             return {}
-        if self.camera_info is None:
-            # no camera info yet
-            print("camera")
-            return {}
+        # if self.camera_info is None:
+        #     # no camera info yet
+        #     print("camera")
+        #     return {}
         pose_array, flag_array=self.form_agent_info(detected_agents)
         #add flag to them
         detected_agents = self.update_waving_agents(detected_agents,pose_array, flag_array) 
@@ -327,9 +327,11 @@ class WavingDetector(Component):
 
         if len(boxes)!=0:
             curr_ped,img=self.waving_detection(boxes,kpt,img)
+        print("reached--------------------")
         cv2.imshow("Keypoints of waving ped", img)
-        if cv2.waitKey(1) == ord('q'):
-            dict_no_keys = set(self.count_frame.keys()) - set(curr_ped.keys())    
+        cv2.waitKey(1)
+        
+        dict_no_keys = set(self.count_frame.keys()) - set(curr_ped.keys())    
         for idx in dict_no_keys:
             self.count_frame[idx][1]-=1
 
@@ -351,73 +353,73 @@ class WavingDetector(Component):
 
         self.prev_ped=curr_ped
 
-        # Only keep lidar point cloud that lies in roi area for agents
-        filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
-                                                  self.xrange, 
-                                                  self.yrange,
-                                                  self.zrange)
+        # # Only keep lidar point cloud that lies in roi area for agents
+        # filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
+        #                                           self.xrange, 
+        #                                           self.yrange,
+        #                                           self.zrange)
         
-        epsilon = 0.09  # Epsilon parameter for DBSCAN
+        # epsilon = 0.09  # Epsilon parameter for DBSCAN
 
-        # Perform DBSCAN clustering
-        min_samples = 5  # Minimum number of samples in a cluster
-        dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
-        clusters = dbscan.fit_predict(filtered_point_cloud)
+        # # Perform DBSCAN clustering
+        # min_samples = 5  # Minimum number of samples in a cluster
+        # dbscan = DBSCAN(eps=epsilon, min_samples=min_samples)
+        # clusters = dbscan.fit_predict(filtered_point_cloud)
         
-        # Tansfer lidar point cloud to camera frame
-        point_cloud_image = lidar_to_image(filtered_point_cloud, 
-                                           self.extrinsic, 
-                                           self.intrinsic)
+        # # Tansfer lidar point cloud to camera frame
+        # point_cloud_image = lidar_to_image(filtered_point_cloud, 
+        #                                    self.extrinsic, 
+        #                                    self.intrinsic)
         
-        # Tansfer lidar point cloud to vehicle frame
-        pc_3D = lidar_to_vehicle(filtered_point_cloud, self.T_lidar2_Gem)
+        # # Tansfer lidar point cloud to vehicle frame
+        # pc_3D = lidar_to_vehicle(filtered_point_cloud, self.T_lidar2_Gem)
 
 
-        #change to waving
-        pred_waving_indices = np.nonzero(flag_array)[0]
-        cur_waving_indices=[]
-        for i,b in enumerate(waving_ped_bb):
-            box = boxes[i]
-            #id = bbox_ids[i]
+        # #change to waving
+        # pred_waving_indices = np.nonzero(flag_array)[0]
+        # cur_waving_indices=[]
+        # for i,b in enumerate(waving_ped_bb):
+        #     box = boxes[i]
+        #     #id = bbox_ids[i]
 
-            x, y, w, h = box
-            xmin, xmax = x - w/2, x + w/2
-            ymin, ymax = y - h/2, y + h/2
+        #     x, y, w, h = box
+        #     xmin, xmax = x - w/2, x + w/2
+        #     ymin, ymax = y - h/2, y + h/2
 
-            # Filter. Get the idxs of point cloud that belongs to the agent
-            idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
-                            (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
-            agent_image_pc = point_cloud_image[idxs]
-            agent_pc_3D = pc_3D[idxs]
-            agent_clusters = clusters[idxs]
+        #     # Filter. Get the idxs of point cloud that belongs to the agent
+        #     idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
+        #                     (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
+        #     agent_image_pc = point_cloud_image[idxs]
+        #     agent_pc_3D = pc_3D[idxs]
+        #     agent_clusters = clusters[idxs]
 
-            # Get unique elements and their counts
-            unique_elements, counts = np.unique(agent_clusters, return_counts=True)
-            if len(counts) == 0:
-                continue
-            max_freq = np.max(counts)
-            label_cluster = unique_elements[counts == max_freq]
+        #     # Get unique elements and their counts
+        #     unique_elements, counts = np.unique(agent_clusters, return_counts=True)
+        #     if len(counts) == 0:
+        #         continue
+        #     max_freq = np.max(counts)
+        #     label_cluster = unique_elements[counts == max_freq]
             
-            # filter again
-            idxs = agent_clusters == label_cluster
-            agent_image_pc = agent_image_pc[idxs]
-            agent_clusters = agent_clusters[idxs]
-            agent_pc_3D = agent_pc_3D[idxs]
+        #     # filter again
+        #     idxs = agent_clusters == label_cluster
+        #     agent_image_pc = agent_image_pc[idxs]
+        #     agent_clusters = agent_clusters[idxs]
+        #     agent_pc_3D = agent_pc_3D[idxs]
 
-            # calulate depth average
-            depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
-            y_3d = y - (width/2)
-            pose=np.array([depth,y_3d,0])
-            idx=self.closest_point(pose_array, pose)
-            detected_agents[idx].attributes=AgentAttributesFlag.WAVING
-            cur_waving_indices.append(idx)
+        #     # calulate depth average
+        #     depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
+        #     y_3d = y - (width/2)
+        #     pose=np.array([depth,y_3d,0])
+        #     idx=self.closest_point(pose_array, pose)
+        #     detected_agents[idx].attributes=AgentAttributesFlag.WAVING
+        #     cur_waving_indices.append(idx)
         
-        #change from waving in the previous frame to not waving
-        cur_waving_indices=np.array(cur_waving_indices)
-        mask = np.isin(pred_waving_indices, cur_waving_indices)
-        not_waving_indices = pred_waving_indices[~mask]
-        for ind in not_waving_indices:
-            detected_agents[ind].attributes=AgentAttributesFlag.DEFAULT
+        # #change from waving in the previous frame to not waving
+        # cur_waving_indices=np.array(cur_waving_indices)
+        # mask = np.isin(pred_waving_indices, cur_waving_indices)
+        # not_waving_indices = pred_waving_indices[~mask]
+        # for ind in not_waving_indices:
+        #     detected_agents[ind].attributes=AgentAttributesFlag.DEFAULT
 
         return detected_agents
 
