@@ -71,13 +71,18 @@ def run_model_on_data(generator, save_dir, cfg, model, device, log):
         return sample_motion_3D, data['valid_id'], frame
 
 if __name__ == "__main__":
-    cfg = Config('inference')
-    # device = 'cuda'
+    config_file = 'cfg/eth_ucy/inference_data/inference.yml'
+    cfg = Config(config_file)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     model = model_dict['dlow'](cfg)
     model.set_device(device)
     model.eval()
+
+    cp_path = cfg.model_path
+    print(f'loading model from checkpoint: {cp_path}')
+    model_cp = torch.load(cp_path, map_location=device)
+    model.load_state_dict(model_cp['model_dict'], strict=False)
 
     cp_path = cfg.model_path % 5
     print(f'loading model from checkpoint: {cp_path}')
