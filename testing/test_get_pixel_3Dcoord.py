@@ -271,7 +271,8 @@ if __name__ == '__main__':
 
         # init handler
         handler = PixelWise3DLidarCoordHandler(args.kernel_size)
-        coord_3d_map = handler.get3DCoord(image, point_cloud)
+        
+        coord_3d_map = handler.get3DCoord(image, point_cloud, which_camera="front_left")
         
         test_pts = [
             (379, 612),
@@ -303,28 +304,28 @@ if __name__ == '__main__':
                     
 
         
-        if args.vis_lidar:
-            # get point_cloud_image
-            handler.filter_lidar_by_range(point_cloud)
-            filtered_point_cloud = handler.filter_lidar_by_range(point_cloud)
-            extrinsic = handler.T_lidar2cam_dict['front_center']['extrinsic']
-            intrinsic = handler.T_lidar2cam_dict['front_center']['intrinsic']
-            point_cloud_image = handler.lidar_to_image(filtered_point_cloud, extrinsic, intrinsic)
+        # if args.vis_lidar:
+        #     # get point_cloud_image
+        #     handler.filter_lidar_by_range(point_cloud)
+        #     filtered_point_cloud = handler.filter_lidar_by_range(point_cloud)
+        #     extrinsic = handler.T_lidar2cam_dict['front_center']['extrinsic']
+        #     intrinsic = handler.T_lidar2cam_dict['front_center']['intrinsic']
+        #     point_cloud_image = handler.lidar_to_image(filtered_point_cloud, extrinsic, intrinsic)
 
-            vis_dbscan(point_cloud_image, image)
+        #     vis_dbscan(point_cloud_image, image)
             
-        # check pixel 3D coords in interactive mode
-        cv2.namedWindow('Image')
-        cv2.setMouseCallback('Image', mouse_callback)
-        while True:
-            vis = image.copy()
-            cv2.circle(vis, center=(mouse_x, mouse_y), radius=5, color=(0, 0, 255), thickness=cv2.FILLED)
-            cv2.imshow('Image', vis)
+        # # check pixel 3D coords in interactive mode
+        # cv2.namedWindow('Image')
+        # cv2.setMouseCallback('Image', mouse_callback)
+        # while True:
+        #     vis = image.copy()
+        #     cv2.circle(vis, center=(mouse_x, mouse_y), radius=5, color=(0, 0, 255), thickness=cv2.FILLED)
+        #     cv2.imshow('Image', vis)
 
-            # Break the loop if 'q' is pressed
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+        #     # Break the loop if 'q' is pressed
+        #     if cv2.waitKey(1) & 0xFF == ord('q'):
+        #         break
 
-        cv2.destroyAllWindows()
+        # cv2.destroyAllWindows()
         
     print('\nDone!')
