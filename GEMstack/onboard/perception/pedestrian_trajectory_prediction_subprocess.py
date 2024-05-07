@@ -27,7 +27,7 @@ from dataloader_improved import data_generator
 # 8 frames used to base future trajectories off of (current frame plus previous 7)
 NUM_PREV_FRAMES = 7
 NUM_FUTURE_FRAMES = 12
-MODEL_SCRIPT_PATH = 'GEMstack/onboard/perception/agentformer/model/agentformer_process.py'
+MODEL_SCRIPT_PATH = 'GEMstack/onboard/perception/agentformer_process.py'
 INPUT_FILE_PATH = 'GEMstack/onboard/perception/agentformer/model_input.txt'
 
 CONFIG_FILE = 'GEMstack/onboard/perception/agentformer/model_cfg/inference.yml'
@@ -43,12 +43,13 @@ class PedestrianTrajPrediction(Component):
         self.config = Config(CONFIG_FILE)
         self.frame_rate = 2.5
 
-        self.model_process = self.start_model_process('')
+        self.model_process = self.start_model_process(MODEL_SCRIPT_PATH)
+        print("MODEL PROCESS", self.model_process)
 
     def start_model_process(self, model_path):
         # python_path = '/root/anaconda3/envs/AgentFormer/bin/python'
         return subprocess.Popen(
-            ['python', model_path], #["conda", "run", "-n", env_path, "python", model_path],
+            ['python3', model_path], #["conda", "run", "-n", env_path, "python", model_path],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             encoding="utf-8",
@@ -147,6 +148,7 @@ class PedestrianTrajPrediction(Component):
         sample_motion_3D = torch.load('sample_motion.pt')
         frame = torch.load('frame.pt')
         valid_id = torch.load('valid_id.pt')
+        print("sample motion 3d", sample_motion_3D)
         return sample_motion_3D, valid_id, frame
         
 
@@ -261,6 +263,6 @@ class PedestrianTrajPrediction(Component):
         
     def cleanup(self):
         # clean up subprocess which runs the model.
-        self.model_process.stdin.close()
+        # self.model_process.stdin.close()
         self.model_process.wait()
         pass
