@@ -10,7 +10,6 @@ from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ..interface.gem_hardware import GNSSReading
-from ..interface.gem_hardware import IMUReading
 import numpy as np
 from ekf import ESKF 
 
