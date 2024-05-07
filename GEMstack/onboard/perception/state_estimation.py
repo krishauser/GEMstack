@@ -9,6 +9,7 @@ from ...knowledge.vehicle.geometry import front2steer,steer2front
 from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
+from ..interface.gem_hardware import GNSSReading
 import rospy
 from std_msgs.msg import Float64
 import numpy as np
@@ -216,7 +217,3 @@ class OmniscientStateEstimator(Component):
 
     def update(self) -> VehicleState:
         return self.vehicle_state
-    
-
-#alias, will be deprecated by end of February
-FakeStateEstimator = OmniscientStateEstimator
