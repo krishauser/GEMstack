@@ -68,5 +68,5 @@ components:
       inputs: vehicle
       outputs: roadgraph
   - waving_detection:
-      inputs: 
+      inputs: agents
       outputs: agents
