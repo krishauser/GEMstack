@@ -131,26 +131,14 @@ class PedestrianTrajPrediction(Component):
 
         return past_frames
 
-    #  Load a model from the file specified in config. 
-    def load_model(self):
-        model = model_dict['dlow'](self.config)
-        model.set_device(self.device)
-        model.eval()
-        cp_path = self.config.model_path
-
-        print(f'loading model from checkpoint: {cp_path}')
-        model_cp = torch.load(cp_path, map_location=self.device)
-        model.load_state_dict(model_cp['model_dict'], strict=False)
-        #model = model_dict[self.config.model_name](self.config)
-        return model
 
     # Run the model on the data
-    def run_model(self, process):
-        process.stdin.write("GET PREDICTIONS" + "\n")
-        process.stdin.flush()
+    def run_model(self):
+        self.model_process.stdin.write("GET PREDICTIONS" + "\n")
+        self.model_process.stdin.flush()
 
         while True:
-            start_up_message = process.stdout.readline().strip()
+            start_up_message = self.model_process.stdout.readline().strip()
             print(start_up_message)
             if start_up_message == "READY":
                 break
@@ -257,7 +245,7 @@ class PedestrianTrajPrediction(Component):
         # save model_input to file 
         np.savetxt(INPUT_FILE_PATH, model_input, delimiter=" ", fmt="%s")
         # run the traj prediction model on data
-        sample_model_3D, valid_ids, frame = self.run_model(model_input)
+        sample_model_3D, valid_ids, frame = self.run_model()
         model_finish = time.time()
         print(model_finish - self.cur_time, "RAN MODEL")
 
@@ -273,6 +261,6 @@ class PedestrianTrajPrediction(Component):
         
     def cleanup(self):
         # clean up subprocess which runs the model.
-        self.model.stdin.close()
-        self.model.wait()
+        self.model_process.stdin.close()
+        self.model_process.wait()
         pass

@@ -97,4 +97,5 @@ if __name__ == "__main__":
         # read in txt file into numpy array of strings with delimiter ' '
         input_data = np.genfromtxt(INPUT_FILE_PATH, delimiter=' ')
         run_model(model, cfg)
+        print("READY")
         sys.stdout.flush()
