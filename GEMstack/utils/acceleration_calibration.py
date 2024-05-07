@@ -26,7 +26,7 @@ To generate the calibration text file with lists of measured acceleration, outpu
             print('speed_list:', self.speed)
 
     3. **Generate the Text File**: 
-    Run your simulation or real-world test by executing the appropriate command. 
+    Run your real-world test by executing the appropriate command. 
     Ensure the tested route: GEMstack/knowledge/routes/forward_15m.csv is specified correctly in your 'fixed_route.yaml'. 
     This will capture the printed lists into the 'acc_cali.txt' file.
 
