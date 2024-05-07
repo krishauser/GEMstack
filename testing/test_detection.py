@@ -240,7 +240,6 @@ def run_lane_detection_paired_scan(lidar_path, rgb_path):
 def test_detection_paired_scan(data_folder, idx, detectors):
     lidar_path = os.path.join(data_folder, 'lidar{}.npz'.format(idx))
     rgb_path = os.path.join(data_folder, 'color{}.png'.format(idx)) 
-    # depth_path = os.path.join(data_folder, 'depth{}.tif'.format(idx))
     
     fns = set()
     for char in list(detectors):
