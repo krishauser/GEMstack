@@ -61,7 +61,8 @@ class EKFStateEstimator(Component):
 
     def update(self) -> VehicleState:
         if self.gnss_pose is None:
-            return
+            raise RuntimeError("GNSS is unavailable indoor")
+
 
         # vehicle gnss heading not working on Gem e4 vehicle
         # vehicle x, y position in radians, global frame, see gem_hardware.py
