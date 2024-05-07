@@ -117,7 +117,7 @@ class WavingDetector(Component):
     def lidar_callback(self, point_cloud: np.ndarray):
         self.point_cloud = point_cloud
 
-    def update(self, detected_agents : List[AgentState]):
+    def update(self):
         print("--Waving Detection", self.zed_image is None, self.point_cloud is None, self.camera_info is  None)
         if self.zed_image is None:
             # no image data yet
