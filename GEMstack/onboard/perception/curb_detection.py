@@ -30,7 +30,6 @@ class CurbSegmentor(Component):
         self.camera_info_sub = None
         self.camera_info = None
         self.zed_image = None
-
         self.point_cloud = None
         self.point_cloud_zed = None
         assert(settings.get('vehicle.calibration.top_lidar.reference') == 'rear_axle_center')
@@ -55,7 +54,7 @@ class CurbSegmentor(Component):
         self.inferencer = MMSegInferencer(model='cgnet_fcn_4xb8-60k_cityscapes-512x1024')#30 fps
 
     def rate(self):
-        return 1.0
+        return 15
     
     def state_inputs(self):
         return ['vehicle']
@@ -69,7 +68,7 @@ class CurbSegmentor(Component):
         # tell the vehicle to use lidar_callback whenever 'top_lidar' gets a reading, and it expects numpy arrays
         self.vehicle_interface.subscribe_sensor('top_lidar',self.lidar_callback,np.ndarray)
         # subscribe to the Zed CameraInfo topic
-        self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback)
+        self.camera_info_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, self.camera_info_callback, queue_size=5000)
 
     def image_callback(self, image : cv2.Mat):
         self.zed_image = image
@@ -85,20 +84,18 @@ class CurbSegmentor(Component):
         #print(frame_number)
         frame = self.zed_image
         downsampled = cv2.resize(frame, (self.width, self.height))
-        cv2.imshow('Curb detector', downsampled)
-        cv2.waitKey(1)
-        # # Perform inference on the frame
-        # result = self.inferencer(downsampled, return_datasamples=True)
-        # seg = result.pred_sem_seg.data.squeeze().cpu().numpy()
-        # seg = cv2.convertScaleAbs(seg)
-        # seg_curb = (seg==9).astype(np.uint8)
-        # print("reached----------------------")
-        # if self.print_image:
-        #     downsampled = self.print_curb(seg_curb,downsampled)
-        #     # Display the original and processed images
-        #     cv2.imshow('Curb detector', downsampled)
-        #     cv2.waitKey(0)
-        #     print("reached----------------------")
+    
+        # Perform inference on the frame
+        result = self.inferencer(downsampled, return_datasamples=True)
+        seg = result.pred_sem_seg.data.squeeze().cpu().numpy()
+        seg = cv2.convertScaleAbs(seg)
+        seg_curb = (seg==9).astype(np.uint8)
+        if self.print_image:
+            downsampled = self.print_curb(seg_curb,downsampled)
+            # Display the original and processed images
+            cv2.imshow('Curb detector', downsampled)
+            cv2.waitKey(1)
+            print("reached----------------------")
 
         #TODO Use coordinates of corners to grab 3D Bounding boxes 
         #TODO Incorperate Roadgraph creation here
