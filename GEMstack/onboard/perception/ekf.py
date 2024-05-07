@@ -1,4 +1,4 @@
-#Implementation of Error State Kalman Filter
+#Implementation of Error State Kalman Filter, code adapted from https://github.com/enginBozkurt/Error-State-Extended-Kalman-Filter/
 from ...mathutils.transforms import Quaternion, skew_symmetric
 import numpy as np
 

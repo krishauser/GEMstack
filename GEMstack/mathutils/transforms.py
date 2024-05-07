@@ -140,6 +140,7 @@ def skew_symmetric(v):
          [-v[1][0], v[0][0], 0]]
     )
 
+#Adapted from https://arxiv.org/pdf/1711.02508
 class Quaternion():
     def __init__(self, w=1., x=0., y=0., z=0., axis_angle=None, euler=None):
         """
