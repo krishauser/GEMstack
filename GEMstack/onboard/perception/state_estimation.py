@@ -14,7 +14,6 @@ from ..interface.gem_hardware import GNSSReading
 #necessary imports for processing Vio odometry information
 from nav_msgs.msg import Odometry
 from ...mathutils import transforms
-from ..interface.vioslam_reading import VioslamReading
 import rospy
 import numpy as np
 import subprocess
@@ -91,8 +90,7 @@ class VIOSlamEstimator(Component):
         self.run_vio_rtabmap()
 
     def vio_slam_callback(self, reading : VioslamReading):
-        self.Vioslam_pose = reading.pose
-        self.status = reading.status
+        
 
     # Get information from the visual odometry topic from rtabmap
     def callback_with_Vioslam_reading(self, msg : Odometry):
@@ -106,8 +104,9 @@ class VIOSlamEstimator(Component):
         zw = msg.pose.pose.orientation.z
         w = msg.pose.pose.orientation.w
         [roll, pitch, yaw] = transforms.quaternion_to_euler(xw, yw, zw, w)
-        start_pose = ObjectPose(ObjectFrameEnum.START,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
-        self.vio_slam_callback(VioslamReading(start_pose,'ok'))
+        pose = ObjectPose(ObjectFrameEnum.START,t = self.time(),x=x,y=y,z=z,yaw=yaw,roll=roll,pitch=pitch)
+        self.Vioslam_pose = pose
+        self.status = 'ok'
     
     def run_vio_rtabmap(self):
         # Command to run roslaunch in a new terminal
