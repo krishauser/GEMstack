@@ -26,7 +26,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--src_dir', '-s', type=str, default='./data/gt')
 parser.add_argument('--test_target', '-t', type=str, default='frame',
-                    choices=['frame',  'rosbag', 'test_conv'])
+                    choices=['frame',  'rosbag', 'test_conv', 'frame_with_pts'])
 parser.add_argument('--data_idx', '-i', type=int, default=3)
 parser.add_argument('--kernel_size', '-k', type=int, default=5)
 parser.add_argument('--vis_lidar', '-v', default=False, action='store_true')
@@ -259,4 +259,72 @@ if __name__ == '__main__':
         except rospy.ROSInterruptException:
             print('rospy node error.')
 
+    elif args.test_target == 'frame_with_pts':
+        # load data
+        lidar_fn = os.path.join(args.src_dir, f'lidar{args.data_idx}.npz')
+        image_fn = os.path.join(args.src_dir, f'color{args.data_idx}.png')
+
+        point_cloud = np.load(lidar_fn)['arr_0']
+        image = cv2.imread(image_fn)
+
+        print('\nStart testing...')
+
+        # init handler
+        handler = PixelWise3DLidarCoordHandler(args.kernel_size)
+        coord_3d_map = handler.get3DCoord(image, point_cloud)
+        
+        test_pts = [
+            (379, 612),
+            (427, 554),
+            (454, 513),
+            (476, 485),
+            (573, 484),
+            (670, 481),
+            (772, 482),
+            (870, 483),
+            (972, 481),
+            (377, 485),
+        ]
+        
+        for i, pt in enumerate(test_pts):
+            cv2.circle(image, center=pt, radius=2, color=(0, 255, 0), thickness=cv2.FILLED)
+            x, y = pt
+            x_3d, y_3d, z_3d = coord_3d_map[y][x]
+            
+            if i < 3:
+                loc = (x + 10, y)
+                label = f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
+                cv2.putText(image, label, loc, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            else:
+                loc = [x - 50, y - 80]
+                for j, label in enumerate([f'x={x_3d:.2f}', f'y={y_3d:.2f}', f'z={z_3d:.2f}']):
+                    loc[1] = loc[1] + 15
+                    cv2.putText(image, label, loc, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                    
+
+        
+        if args.vis_lidar:
+            # get point_cloud_image
+            handler.filter_lidar_by_range(point_cloud)
+            filtered_point_cloud = handler.filter_lidar_by_range(point_cloud)
+            extrinsic = handler.T_lidar2cam_dict['front_center']['extrinsic']
+            intrinsic = handler.T_lidar2cam_dict['front_center']['intrinsic']
+            point_cloud_image = handler.lidar_to_image(filtered_point_cloud, extrinsic, intrinsic)
+
+            vis_dbscan(point_cloud_image, image)
+            
+        # check pixel 3D coords in interactive mode
+        cv2.namedWindow('Image')
+        cv2.setMouseCallback('Image', mouse_callback)
+        while True:
+            vis = image.copy()
+            cv2.circle(vis, center=(mouse_x, mouse_y), radius=5, color=(0, 0, 255), thickness=cv2.FILLED)
+            cv2.imshow('Image', vis)
+
+            # Break the loop if 'q' is pressed
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        cv2.destroyAllWindows()
+        
     print('\nDone!')
