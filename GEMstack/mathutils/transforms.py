@@ -36,6 +36,14 @@ def vector_dist(v1, v2) -> float:
     """Euclidean distance between two vectors"""
     return vo.distance(v1,v2)
 
+def vector_dot(v1, v2) -> float:
+    """Dot product between two vectors"""
+    return vo.dot(v1,v2)
+
+def vector_cross(v1, v2) -> float:
+    """Cross product between two 2D vectors"""
+    return vo.cross(v1,v2)
+
 def vector2_angle(v1, v2 = None) -> float:
     """find the ccw angle bewtween two 2d vectors"""
     if v2 is None:

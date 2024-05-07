@@ -1,0 +1,124 @@
+vehicle_state: [4.0, 5.0, 0.0, 0.0, 0.0]
+# vehicle_state: [12.0, 0.0, 1.57, 0.0, 0.0]
+# agents:
+#   car1:
+#     type: car
+#     position: [8.0, 10.0]
+#     nominal_velocity: 0.0
+#     target: [8.0, 10.0]
+#     behavior: stationary
+#   car2:
+#     type: car
+#     position: [8.0, 13.0]
+#     nominal_velocity: 0.0
+#     target: [8.0, 13.0]
+#     behavior: stationary
+#   car3:
+#     type: car
+#     position: [8.0, 16.0]
+#     nominal_velocity: 0.0
+#     target: [8.0, 16.0]
+#     behavior: stationary
+#   car4:
+#     type: car
+#     position: [8.0, 19.0]
+#     nominal_velocity: 0.0
+#     target: [8.0, 19.0]
+#     behavior: stationary
+#   car5:
+#     type: car
+#     position: [8.0, 22.0]
+#     nominal_velocity: 0.0
+#     target: [8.0, 22.0]
+#     behavior: stationary
+#   car6:
+#     type: car
+#     position: [20.0, 10.0]
+#     nominal_velocity: 0.0
+#     target: [20.0, 10.0]
+#     behavior: stationary
+#   car7:
+#     type: car
+#     position: [20.0, 13.0]
+#     nominal_velocity: 0.0
+#     target: [20.0, 13.0]
+#     behavior: stationary
+#   car8:
+#     type: car
+#     position: [20.0, 16.0]
+#     nominal_velocity: 0.0
+#     target: [20.0, 16.0]
+#     behavior: stationary
+#   # car9:
+#   #   type: car
+#   #   position: [20.0, 19.0]
+#   #   nominal_velocity: 0.0
+#   #   target: [20.0, 19.0]
+#   #   behavior: stationary
+#   car10:
+#     type: car
+#     position: [20.0, 22.0]
+#     nominal_velocity: 0.0
+#     target: [20.0, 22.0]
+#     behavior: stationary
+agents:
+  car1:
+    type: car
+    position: [8.0, 10.0]
+    nominal_velocity: 0.0
+    target: [8.0, 10.0]
+    behavior: stationary
+  car2:
+    type: car
+    position: [8.0, 14.0]
+    nominal_velocity: 0.0
+    target: [8.0, 14.0]
+    behavior: stationary
+  car3:
+    type: car
+    position: [8.0, 18.0]
+    nominal_velocity: 0.0
+    target: [8.0, 18.0]
+    behavior: stationary
+  car4:
+    type: car
+    position: [8.0, 22.0]
+    nominal_velocity: 0.0
+    target: [8.0, 22.0]
+    behavior: stationary
+  car5:
+    type: car
+    position: [8.0, 26.0]
+    nominal_velocity: 0.0
+    target: [8.0, 26.0]
+    behavior: stationary
+  car6:
+    type: car
+    position: [20.0, 10.0]
+    nominal_velocity: 0.0
+    target: [20.0, 10.0]
+    behavior: stationary
+  car7:
+    type: car
+    position: [20.0, 14.0]
+    nominal_velocity: 0.0
+    target: [20.0, 14.0]
+    behavior: stationary
+  car8:
+    type: car
+    position: [20.0, 18.0]
+    nominal_velocity: 0.0
+    target: [20.0, 18.0]
+    behavior: stationary
+  # car9:
+  #   type: car
+  #   position: [20.0, 22.0]
+  #   nominal_velocity: 0.0
+  #   target: [20.0, 22.0]
+  #   behavior: stationary
+  car10:
+    type: car
+    position: [20.0, 26.0]
+    nominal_velocity: 0.0
+    target: [20.0, 26.0]
+    behavior: stationary

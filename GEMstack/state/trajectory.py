@@ -77,6 +77,9 @@ class Path:
             if d > 0:
                 points.append(p2)
                 times.append(times[-1] + d/speed)
+        # check whether self has attribute yaws
+        if hasattr(self, 'yaws'):
+            return Trajectory(frame=self.frame,points=points,times=times,yaws=self.yaws)
         return Trajectory(frame=self.frame,points=points,times=times)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
@@ -169,6 +172,7 @@ class Path:
 class Trajectory(Path):
     """A timed, piecewise linear path."""
     times : List[float]
+    yaws : Optional[List[float]] = None
 
     def domain(self) -> Tuple[float,float]:
         """Returns the time parameter domain"""
@@ -209,6 +213,15 @@ class Trajectory(Path):
             return self.points[0]
         ind,u = self.time_to_index(t)
         return transforms.vector_madd(self.points[ind],transforms.vector_sub(self.points[ind+1],self.points[ind]),u)
+    
+    def eval_yaw(self, t : float) -> List[float]:
+        """Evaluates the trajectory at a given time."""
+        if not hasattr(self, 'yaws'):
+            return None
+        if len(self.points) < 2:
+            return self.points[0]
+        ind,u = self.time_to_index(t)
+        return self.yaws[ind] + (self.yaws[ind+1] - self.yaws[ind]) * u
 
     def eval_derivative(self, t : float) -> List[float]:
         """Evaluates the derivative (velocity) at a given time."""

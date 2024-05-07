@@ -1,0 +1,39 @@
+vehicle_state: [4.0, 5.0, 0.0, 0.0, 0.0]
+# vehicle_state: [12.0, 0.0, 1.57, 0.0, 0.0]
+agents:
+  car1:
+    type: car
+    position: [16.0, 5.0]
+    nominal_velocity: 0.5
+    target: [30.0, 5.0]
+    behavior: target
+  car2:
+    type: car
+    position: [12.0, 1.0]
+    nominal_velocity: 0.5
+    target: [26.0, 1.0]
+    behavior: target
+  # pedestrian:
+    # type: pedestrian
+    # position: [15.0, 8.0]
+    # nominal_velocity: 0.5
+    # target: [15.0, 0.0]
+    # behavior: target
+  # car3:
+  #   type: car
+  #   position: [12.0, 9.0]
+  #   nominal_velocity: 1
+  #   target: [26.0, 9.0]
+  #   behavior: target
+  # car4:
+  #   type: car
+  #   position: [7.0, 1.0]
+  #   nominal_velocity: 0.5
+  #   target: [18.0, 1.0]
+  #   behavior: target
+  # car5:
+  #   type: car
+  #   position: [7.0, 9.0]
+  #   nominal_velocity: 0.5
+  #   target: [18.0, 9.0]
+  #   behavior: target

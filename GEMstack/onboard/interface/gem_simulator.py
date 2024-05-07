@@ -3,7 +3,7 @@ from .gem import *
 from ...mathutils.dubins import SecondOrderDubinsCar
 from ...mathutils.dynamics import simulate
 from ...mathutils import transforms
-from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,Sign,AllState
+from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,Sign,AllState,AgentAttributesFlag
 from ...knowledge.vehicle.geometry import front2steer,steer2front,heading_rate
 from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration, acceleration_to_pedal_positions
 from ...utils.loops import TimedLooper
@@ -58,13 +58,15 @@ class AgentSimulation:
         self.behavior = config['behavior']
         self.start = self.position[:]
         self.yaw = config.get('yaw',0)
+        self.is_waving = config.get('waving', False)
 
     def to_agent_state(self) -> AgentState:
         pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=time.time(),x=self.position[0],y=self.position[1],yaw=self.yaw)
         activity = AgentActivityEnum.MOVING if self.velocity[0] != 0 or self.velocity[1] != 0 else AgentActivityEnum.STOPPED
+        attributes = AgentAttributesFlag.WAVING if self.is_waving else AgentAttributesFlag.DEFAULT
         return AgentState(pose=pose,dimensions=AGENT_DIMENSIONS[self.type],outline=None,
                           type=AGENT_TYPE_TO_ENUM[self.type],
-                        activity=activity,velocity=(self.velocity[0],self.velocity[1],0),yaw_rate=0.0)
+                        activity=activity,velocity=(self.velocity[0],self.velocity[1],0),yaw_rate=0.0, attributes=attributes)
 
     def advance(self,dt):
         if self.behavior == 'stationary':
