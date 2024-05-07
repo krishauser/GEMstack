@@ -2,6 +2,36 @@ import re
 import numpy as np
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
+"""
+To generate the calibration text file with lists of measured acceleration, output acceleration, and speed, follow these steps:
+
+    1. **Initialization**: 
+    Inside the '__init__' method of the 'PurePursuitTrajectoryTracker', 
+    initialize three lists to store the measured acceleration, the output acceleration, and the speed values.
+
+        def __init__(self):
+            self.acc_measured = []
+            self.acc_output = []
+            self.speed = []
+
+    2. **Data Collection**: 
+    Within the 'update' function of the controller, append the current vehicle state values to these lists. 
+
+        def update(self, vehicle: VehicleState, trajectory: Trajectory):
+            self.acc_measured.append(vehicle.acceleration)
+            self.acc_output.append(accel) 
+            self.speed.append(vehicle.v)
+            print('acc_measured_list:', self.acc_measured)
+            print('acc_out_list:', self.acc_output)
+            print('speed_list:', self.speed)
+
+    3. **Generate the Text File**: 
+    Run your simulation or real-world test by executing the appropriate command. 
+    Ensure the tested route: GEMstack/knowledge/routes/forward_15m.csv is specified correctly in your 'fixed_route.yaml'. 
+    This will capture the printed lists into the 'acc_cali.txt' file.
+
+        python3 main.py launch/fixed_route.yaml > acc_cali.txt
+"""
 
 def read_last_list_from_file(filename, keyword):
     """Extracts the last occurrence of a list in the file after a specific keyword."""
