@@ -353,6 +353,14 @@ class WavingDetector(Component):
 
         self.prev_ped=curr_ped
 
+        #show waving person
+        for value in waving_dict.values():
+            tl=(int(value[2][0]-value[2][2]/2),int(value[2][1]-value[2][3]/2))
+            br=(int(value[2][0]+value[2][2]/2),int(value[2][1]+value[2][3]/2))
+            print('tl  ',tl)
+            print('br  ',br)
+            cv2.rectangle(img,tl,br,(255, 0, 255),3)
+        #
         # # Only keep lidar point cloud that lies in roi area for agents
         # filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
         #                                           self.xrange, 
