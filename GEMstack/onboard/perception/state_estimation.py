@@ -84,8 +84,7 @@ class VIOSlamEstimator(Component):
         self.P_c_cam = -1 * np.array(self.cam_location) #position of center of the vehicle relative to camera 
         self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
         self.status = None
-
-        self.Vioslam_sub = rospy.Subscriber("/Odom", Odometry, self.callback_with_Vioslam_reading)
+        self.Vioslam_sub = rospy.Subscriber("/odom", Odometry, self.callback_with_Vioslam_reading)
         self.launch_file = "./launch/rgbdrtabmap.launch" # Specify the path to your rtabmap launch file
         self.run_vio_rtabmap()
 
@@ -114,6 +113,10 @@ class VIOSlamEstimator(Component):
         # Execute the command
         subprocess.Popen(command, shell=True)
 
+    def time(self):
+        seconds = rospy.get_time()
+        return seconds
+
     def rate(self):
         return 10.0
     
@@ -130,20 +133,20 @@ class VIOSlamEstimator(Component):
         if self.Vioslam_pose is None:
             return
         # reference point is located at the center of rear axle
-        center_x, center_y = np.array([self.Vioslam_pose.x, self.Vioslam_pose.y]) + \
+        center_x, center_y = np.array([self.Vioslam_pose.x+self.cam_location[0], self.Vioslam_pose.y+ \
+                                       self.cam_location[1]]) + \
                         self.rotation_mat(self.Vioslam_pose.yaw) @ self.P_c_cam
         print("VIO pose_start x, y, yaw = ", center_x, center_y, self.Vioslam_pose.yaw)
-        
         self.Vioslam_pose.x=center_x
         self.Vioslam_pose.y=center_y
 
         readings = self.vehicle_interface.get_reading()
         raw = readings.to_state(self.Vioslam_pose)
 
-        #filtering speed
-        raw.v = self.gnss_speed
-        #filt_vel     = self.speed_filter(raw.v)
-        #raw.v = filt_vel
+        # !! FAKE FILTERED SPEED
+        # odometry msg has no speed measurment, adding fake speek because 
+        # the provided pure pursuit planner will crush
+        raw.v = 1 #self.gnss_speed
         return raw
         
 
