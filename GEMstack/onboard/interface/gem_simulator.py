@@ -127,13 +127,13 @@ class SignalSimulation:
                     state=SignState(signal_state=SignalLightState(SIGNAL_STATE_TO_ENUM[self.state], duration)))
     
     def advance(self):
-        t = (time.time() - self.t_start) % sum(self.duration) # time elapsed (since beginning of current cycle)
+        t = (time.time() - self.t_start) % sum(self.duration) # time elapsed since the beginning of the current cycle
         if 0 < t <= self.duration[self.idx]:
             self.state = list(SIGNAL_STATE_TO_ENUM.keys())[self.idx]
         elif self.duration[self.idx] < t <= self.duration[self.idx] + self.duration[(self.idx + 1) % 3]:
-            self.state = list(SIGNAL_STATE_TO_ENUM.keys())[(self.idx + 1) %3]
+            self.state = list(SIGNAL_STATE_TO_ENUM.keys())[(self.idx + 1) % 3]
         elif self.duration[self.idx] + self.duration[(self.idx + 1) % 3] < t <= sum(self.duration):
-            self.state = list(SIGNAL_STATE_TO_ENUM.keys())[(self.idx + 2) %3]
+            self.state = list(SIGNAL_STATE_TO_ENUM.keys())[(self.idx + 2) % 3]
 
 
 class GEMDoubleIntegratorSimulation:

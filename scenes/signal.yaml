@@ -1,0 +1,14 @@
+vehicle_state: [0.0, 5.0, 0.0, 5.0, 0.0]
+detected_signs:
+  signal1:
+    state: red
+    position: [15.0, 3.0]
+    duration: [10.0, 5.0, 2.0] # red, green, yellow
+  signal2:
+    state: green
+    position: [25.0, 3.0]
+    duration: [8.0, 6.0, 4.0]
+  signal3:
+    state: yellow
+    position: [40.0, 3.0]
+    duration: [9.0, 7.0, 3.0]
