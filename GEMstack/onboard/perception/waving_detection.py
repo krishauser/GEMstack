@@ -74,8 +74,8 @@ class WavingDetector(Component):
         self.zrange = (-3, 1)
 
         # Parameters for waving detection
-        self.no_for_discard=20
-        self.no_for_confirm=20
+        self.no_for_discard=5
+        self.no_for_confirm=5
         self.parallel_range=20
         self.lh_elbow_range_1=0
         self.lh_elbow_range_2=145
@@ -332,8 +332,6 @@ class WavingDetector(Component):
         if len(boxes)!=0:
             curr_ped,img=self.waving_detection(boxes,kpt,img)
         print("reached--------------------")
-        cv2.imshow("Keypoints of waving ped", img)
-        cv2.waitKey(1)
         
         dict_no_keys = set(self.count_frame.keys()) - set(curr_ped.keys())    
         for idx in dict_no_keys:
@@ -354,16 +352,19 @@ class WavingDetector(Component):
         waving_dict = {key: value for key, value in self.count_frame.items() if value[0] > self.no_for_confirm}
         waving_ped_key = list(waving_dict.keys())
         waving_ped_bb = [value[2] for value in waving_dict.values()]
+        print('waving_dict  ',waving_dict)
 
         self.prev_ped=curr_ped
 
         #show waving person
         for value in waving_dict.values():
-            tl=(int(value[2][0]-value[2][2]/2),int(value[2][1]-value[2][3]/2))
-            br=(int(value[2][0]+value[2][2]/2),int(value[2][1]+value[2][3]/2))
-            print('tl  ',tl)
-            print('br  ',br)
+            tl=(int(value[2][0]),int(value[2][1]))
+            br=(int(value[2][2]),int(value[2][3]))
+            # print('tl  ',tl)
+            # print('br  ',br)
             cv2.rectangle(img,tl,br,(255, 0, 255),3)
+        cv2.imshow("Keypoints of waving ped", img)
+        cv2.waitKey(1)
         #
         # # Only keep lidar point cloud that lies in roi area for agents
         # filtered_point_cloud = filter_lidar_by_range(self.point_cloud, 
@@ -432,7 +433,7 @@ class WavingDetector(Component):
         # not_waving_indices = pred_waving_indices[~mask]
         # for ind in not_waving_indices:
         #     detected_agents[ind].attributes=AgentAttributesFlag.DEFAULT
-
+        detected_agents=[]
         return detected_agents
 
 
