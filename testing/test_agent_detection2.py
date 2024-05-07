@@ -127,7 +127,7 @@ def filter_lidar_by_range(point_cloud, xrange: Tuple[float, float], yrange: Tupl
                      (point_cloud[:, 2] > zmin) & (point_cloud[:, 2] < zmax))
     return point_cloud[idxs]
 
-class PedestrianDetector():
+class MultiObjectTest():
     """Detects and tracks pedestrians."""
     def __init__(self):
         yolo_path = os.path.join(abs_path, '../GEMstack/knowledge/detection/yolov8s.pt')
@@ -229,7 +229,15 @@ class PedestrianDetector():
                 
                 text = class_names[class_id]
                 if class_id == 0:
-                    print (f'pedestrian x: {x}, y: {y}')
+                    print (f'Pedestrian x: {x}, y: {y}')
+                    x_3d, y_3d, z_3d = coord_3d_map[int(y)][int(x)]
+                    text = text + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
+                if class_id == 2:
+                    print (f'Car x: {x}, y: {y}')
+                    x_3d, y_3d, z_3d = coord_3d_map[int(y)][int(x)]
+                    text = text + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
+                if class_id == 11:
+                    print (f'Stop Sign x: {x}, y: {y}')
                     x_3d, y_3d, z_3d = coord_3d_map[int(y)][int(x)]
                     text = text + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
                     
@@ -327,7 +335,11 @@ class PedestrianDetector():
                         center_x = (x1 + x2) / 2
                         center_y = (y1 + y2) / 2
                         if int(cls) == 0:
-                            print (f'pedestrian {class_counts[class_name]} x: {center_x}, y: {center_y}')
+                            print (f'Pedestrian {class_counts[class_name]} x: {center_x}, y: {center_y}')
+                        if int(cls) == 2:
+                            print (f'Car {class_counts[class_name]} x: {center_x}, y: {center_y}')
+                        if int(cls) == 11:
+                            print (f'Stop Sign {class_counts[class_name]} x: {center_x}, y: {center_y}')
                         x_3d, y_3d, z_3d = coord_3d_map[int(center_y)][int(center_x)]
                         depth = x_3d
                         label = label + f' x={x_3d:.2f}, y={y_3d:.2f}, z={z_3d:.2f}'
@@ -348,14 +360,13 @@ class PedestrianDetector():
                         if agent is not None:
                             detected_ped.append(agent) # Pedestrian tracking info => type:AgentState
                         vel, pred_x, pred_y = self.MOT.track_agents(detected_ped)
-                        print("Pred_x:", pred_x)
                         print(f"{class_name}{class_counts[class_name]} Velocity:", vel)  
                         print("><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>")
 
                     if cls == 2:
                         color = (0, 255, 255)
                         agent_type = AgentEnum.CAR
-                        print("Vehicle Depth:", depth)
+                        print("Car Depth:", depth)
                         agent = self.MOD.box_to_agent(box, agent_type, y_3d, depth)
                         if agent is not None:
                             detected_car.append(agent) # Vehicle tracking info => type:AgentState
@@ -371,7 +382,6 @@ class PedestrianDetector():
                         if agent is not None:
                             detected_sign.append(agent) # Stop sign tracking info => type:AgentState
                         vel, pred_x, pred_y = self.MOT.track_agents(detected_sign)
-                        print("Pred_x:", pred_x)
                         print(f"{class_name}{class_counts[class_name]} Velocity:", vel)
                         print("><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>")
                     
@@ -415,7 +425,7 @@ def main():
     rospy.init_node('rgb_track_node', anonymous=True)
     rate = rospy.Rate(30)  # Hz
 
-    ped = PedestrianDetector()
+    ped = MultiObjectTest()
 
     try:
         print('\nStart detection...')

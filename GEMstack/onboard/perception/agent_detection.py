@@ -121,8 +121,8 @@ class MultiObjectDetector(Component):
         return ['vehicle']
 
     def state_outputs(self):
-        # return ['agents']
-        return ["detected_agents"]
+        return ['agents']
+        # return ["detected_agents"]
     
     def test_set_data(self, zed_image, point_cloud, camera_info='dummy'):
         self.zed_image = zed_image
@@ -184,7 +184,7 @@ class MultiObjectDetector(Component):
                             crossing_gate_state = None)
             return Sign(pose=pose, dimensions=dims, outline=None, type=cls, entities=["intersection"], speed=0, state=state)
         else:
-            return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+            return AgentState(pose=pose,dimensions=dims,outline=None,type=cls,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0, attributes=0)
 
     def detect_agents(self, img, pc_3D):
         print("Start Detecting...")
@@ -272,7 +272,7 @@ class MultiObjectDetector(Component):
                 color = (0, 255, 255)
                 self.car_counter += 1
                 cls = AgentEnum.CAR
-                print("Vehicle Depth:", depth)
+                print("Car Depth:", depth)
                 agent = self.box_to_agent(b, cls, y_3d, depth)
                 if agent is not None:
                     detected_agents.append(agent)
@@ -331,7 +331,7 @@ class MultiObjectDetector(Component):
             #TODO: these are guessed parameters
             self.camera_info = CameraInfo(width=1280,height=720,P=[560.0,0,640.0,0,  0,560.0,360,0,  0,0,1,0])
 
-class MultiObjectTracker():
+class MultiObjectTracker(Component):
     """Using Kalman Filter to track objects"""
     def __init__(
         self,
@@ -360,11 +360,13 @@ class MultiObjectTracker():
 
     def state_inputs(self) -> List[str]:
         """Returns the list of AllState inputs this component requires."""
-        return ["detected_agents"]
+        # return ["detected_agents"]
+        return ["vehicle"]
 
     def state_outputs(self) -> List[str]:
         """Returns the list of AllState outputs this component generates."""
-        return ["tracking_frames"]
+        # return ["tracking_frames"]
+        return ["agents"]
 
     def healthy(self):
         """Returns True if the element is in a stable state."""
@@ -433,7 +435,7 @@ class MultiObjectTracker():
                         frame=ObjectFrameEnum.CURRENT,),
                     dimensions=(ag_state[2], ag_state[3], 1.5), velocity=(ag_state[4], ag_state[5], 0),
                     type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING,
-                    yaw_rate=0, outline=None,
+                    yaw_rate=0, outline=None, attributes=0,
                 )  
                 return velocity, ag_state[0], ag_state[1]
             if cls == 2:
@@ -446,7 +448,7 @@ class MultiObjectTracker():
                         frame=ObjectFrameEnum.CURRENT,),
                     dimensions=(ag_state[2], ag_state[3], 1.5), velocity=(ag_state[4], ag_state[5], 0),
                     type=AgentEnum.CAR, activity=AgentActivityEnum.MOVING,
-                    yaw_rate=0, outline=None,
+                    yaw_rate=0, outline=None, attributes=0,
                 ) 
                 return velocity, ag_state[0], ag_state[1]
             if cls == 11:
@@ -459,7 +461,7 @@ class MultiObjectTracker():
                         frame=ObjectFrameEnum.CURRENT,),
                     dimensions=(ag_state[2], ag_state[3], 1.5), velocity=(ag_state[4], ag_state[5], 0),
                     type=SignEnum.STOP_SIGN, activity=AgentActivityEnum.MOVING,
-                    yaw_rate=0, outline=None,
+                    yaw_rate=0, outline=None, attributes=0,
                 )   
                 return velocity, ag_state[0], ag_state[1]
 
