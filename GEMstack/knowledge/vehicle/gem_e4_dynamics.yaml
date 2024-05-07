@@ -1,4 +1,28 @@
+# ==================  Vehicle Dynamics Parameters ==================
+#TODO if this applicable to the GEM vehicle for future use
+
+gear_ratio: 1 # simple gear
+
+wheel_rad : 0.55  #wheel radius
+# suppose a common 3000RPM , angular velcoity = 3000 RPM * 2pi /60 = 300 pi rad/s
+# max acc = 10000 watts, peak torque =  10000 watts / 300pi = 10.61 Nm 
+peak_torque : 10.61 # nm 
+
+
+# front_cornering_stiffness: 5000 # N/deg 30653 N/rad
+# rear_cornering_stiffness: 4800 # N/deg 63254 N/rad
+#sim
+front_cornering_stiffness: 1 # N/deg 30653 N/rad
+rear_cornering_stiffness: 1 # N/deg 63254 N/rad
+
+rolling_resistance_f : 0.5
+rolling_resistance_r : 0.5
+
+# ==================  Vehicle Dynamics Parameters ==================
+
 mass: 300.0  #kg
+lf: 1.28 # distance of wheel base to front
+lr: 1.28 # distance of wheel base to front
 gravity: 9.81 #m/s^2
 longitudinal_friction : 1.0  # unitless
 lateral_friction : 1.0       # unitless
@@ -12,7 +36,9 @@ max_accelerator_power:  #Watts.  Power at max accelerator pedal, by gear
   - 10000.0
 max_accelerator_power_reverse: 10000.0 #Watts.  Power (backwards) in reverse gear
 
+# change the vehicle dynamic model here
 acceleration_model : kris_v1
+
 accelerator_active_range : [0.2, 1.0]   #range of accelerator pedal where output acceleration is not flat
 brake_active_range : [0,1]             #range of brake pedal where output deceleration is not flat
 
