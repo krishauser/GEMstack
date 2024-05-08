@@ -221,6 +221,23 @@ class World(object):
         self._actor_filter = args.filter
         self._actor_generation = args.generation
         self._gamma = args.gamma
+
+        self.readFromFile = args.readFromFile
+        os.makedirs("../recordings", exist_ok=True)
+        self.filepath = os.path.join("../recordings", args.prefix + ".json")
+        if args.readFromFile:
+            if not os.path.exists(self.filepath):
+                raise FileNotFoundError("File not found: " + self.filepath)
+            self.filename = self.filepath
+        else:
+            # check if already exists
+            if os.path.exists(self.filepath):
+                # add timestamp to filename
+                self.filename = self.filepath.replace(".json", "_" + str(
+                    datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + ".json")
+            else:
+                self.filename = self.filepath
+
         self.restart()
         self.carla_world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
@@ -242,21 +259,7 @@ class World(object):
             carla.MapLayer.Walls,
             carla.MapLayer.All
         ]
-        os.makedirs("../recordings", exist_ok=True)
-        self.filepath = os.path.join("../recordings", args.prefix + ".json")
-        if args.readFromFile:
-            if not os.path.exists(self.filepath):
-                raise FileNotFoundError("File not found: " + self.filepath)
-        else:
-            # check if already exists
-            if os.path.exists(self.filepath):
-                # add timestamp to filename
-                self.filename = self.filepath.replace(".json", "_" + str(
-                    datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + ".json")
-            else:
-                self.filename = self.filepath
         self.meta_recorded = False
-        self.readFromFile = args.readFromFile
 
     def restart(self):
         self.player_max_speed = 1.589
@@ -1491,6 +1494,8 @@ def main():
         action='store_true',
         help='Activate synchronous mode execution')
     argparser.add_argument("--mode", default="TODO", type=str)
+    argparser.add_argument("--prefix", default="recording", type=str)
+    argparser.add_argument("--readFromFile", action='store_true', help="Read waypoints from file")
 
     args = argparser.parse_args()
 
@@ -1512,10 +1517,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # add args for user specified experiment name
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", default="TODO", type=str)
-    parser.add_argument("--prefix", default="recording", type=str)
-    parser.add_argument("--readFromFile", 'store_true', help="Read waypoints from file")
-    args = parser.parse_args()
     main()
