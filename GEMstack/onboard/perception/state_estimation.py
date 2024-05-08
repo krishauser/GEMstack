@@ -78,6 +78,7 @@ class IMUStateEstimator(Component):
 
     def healthy(self):
         if self.gnss_pose is None:
+            print("GNSS is unavailable indoor")
             return False
         else:
             return True
@@ -113,6 +114,8 @@ class IMUStateEstimator(Component):
         # print('a', self.imu_ax, self.imu_ay, self.imu_az)
 
     def update(self) -> VehicleState:
+        #detect whether gnss throws garbage value
+        #if gnss throws garbage value, use IMU to get pose
         if self.garbage_value(self.gnss_pose):
             self.create_imu_pose()
 
@@ -125,9 +128,10 @@ class IMUStateEstimator(Component):
             raw.v = filt_vel
             self.last_pose = self.imu_pose
 
+        #if gnss throws normal value, use gnss to get pose
         else:
-            localxy = transforms.rotate2d(self.location,-self.yaw_offset)
-            gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
+            gnss_localxy = transforms.rotate2d(self.location,-self.yaw_offset)
+            gnss_xyhead_inv = (-gnss_localxy[0],-gnss_localxy[1],-self.yaw_offset)
             center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
             vehicle_pose_global = replace(self.gnss_pose,
                                         t=self.vehicle_interface.time(), 
@@ -141,6 +145,7 @@ class IMUStateEstimator(Component):
             #filtering speed
             filt_vel     = self.speed_filter(raw.v)
             raw.v = filt_vel
+            #record the lastest pose from normal value GNSS throws
             self.last_pose = self.gnss_pose
             return raw
 
