@@ -832,7 +832,6 @@ class HUD(object):
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
         # Load the last waypoint data
-        # Load the last waypoint data
         with open('../recordings/recording.json', 'r') as file:
             data = json.load(file)
             last_waypoint = data['Waypoints'][-1]['Waypoint']
@@ -843,44 +842,7 @@ class HUD(object):
         # Get the vehicle's current transform and bounding box
         vehicle_transform = world.player.get_transform()
         vehicle_bounding_box = world.player.bounding_box
-        '''
-        # Calculate the relative location in the world coordinate system
-        relative_location = carla.Location(
-            x=destination_location.x - vehicle_transform.location.x,
-            y=destination_location.y - vehicle_transform.location.y,
-            z=destination_location.z - vehicle_transform.location.z
-        )
 
-        # Convert the relative location to the vehicle's local coordinate system
-        # by applying the inverse of the vehicle's rotation
-        def rotate_inverse(location, rotation):
-            import math
-            # Convert rotation to radians
-            pitch_rad = math.radians(rotation.pitch)
-            yaw_rad = math.radians(rotation.yaw)
-            roll_rad = math.radians(rotation.roll)
-
-            # Create rotation matrix
-            cos_yaw = math.cos(-yaw_rad)
-            sin_yaw = math.sin(-yaw_rad)
-            cos_pitch = math.cos(-pitch_rad)
-            sin_pitch = math.sin(-pitch_rad)
-            cos_roll = math.cos(-roll_rad)
-            sin_roll = math.sin(-roll_rad)
-
-            # Apply rotation matrix to the coordinates
-            x = location.x * (cos_yaw * cos_pitch) + location.y * (
-                        cos_yaw * sin_pitch * sin_roll - sin_yaw * cos_roll) + location.z * (
-                            cos_yaw * sin_pitch * cos_roll + sin_yaw * sin_roll)
-            y = location.x * (sin_yaw * cos_pitch) + location.y * (
-                        sin_yaw * sin_pitch * sin_roll + cos_yaw * cos_roll) + location.z * (
-                            sin_yaw * sin_pitch * cos_roll - cos_yaw * sin_roll)
-            z = location.x * (-sin_pitch) + location.y * (cos_pitch * sin_roll) + location.z * (cos_pitch * cos_roll)
-
-            return carla.Location(x=x, y=y, z=z)
-
-        transformed_location = rotate_inverse(relative_location, vehicle_transform.rotation)
-        '''
         # Check if the transformed destination location is within the bounding box
         if vehicle_bounding_box.contains(destination_location, vehicle_transform):
             world.hud.notification("Arrived at destination")

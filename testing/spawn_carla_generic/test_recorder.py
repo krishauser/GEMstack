@@ -188,7 +188,7 @@ def get_actor_blueprints(world, filter, generation):
             return []
     except Exception:
         print("   Warning! Actor Generation is not valid. No actor will be spawned.")
-        return []
+    return []
 
 
 # ==============================================================================
@@ -950,7 +950,6 @@ class FadingText(object):
 
 class HelpText(object):
     """Helper class to handle text output using pygame"""
-
     def __init__(self, font, width, height):
         lines = __doc__.split('\n')
         self.font = font

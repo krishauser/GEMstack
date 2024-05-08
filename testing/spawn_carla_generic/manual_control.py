@@ -63,6 +63,7 @@ from __future__ import print_function
 
 
 import glob
+import json
 import os
 import sys
 
@@ -93,6 +94,9 @@ import std_msgs
 from cv_bridge import CvBridge
 
 from carla import ColorConverter as cc
+
+from agents.navigation.basic_agent import BasicAgent
+# from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 
 import argparse
 import collections
@@ -128,6 +132,7 @@ try:
     from pygame.locals import K_c
     from pygame.locals import K_d
     from pygame.locals import K_f
+    from pygame.locals import K_e
     from pygame.locals import K_g
     from pygame.locals import K_h
     from pygame.locals import K_i
@@ -170,6 +175,7 @@ def find_weather_presets():
 def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
     return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
+
 
 def get_actor_blueprints(world, filter, generation):
     bps = world.get_blueprint_library().filter(filter)
@@ -236,6 +242,22 @@ class World(object):
         self.speed = rospy.Publisher('/carla/parsed_tx/vehicle_speed_rpt', VehicleSpeedRpt, queue_size=10)
         self.steer = rospy.Publisher('/carla/parsed_tx/steer_rpt', SystemRptFloat, queue_size=10)
         # watch out for restart method
+
+        self.readFromFile = args.readFromFile
+        os.makedirs("../recordings", exist_ok=True)
+        self.filepath = os.path.join("../recordings", args.prefix + ".json")
+        if args.readFromFile:
+            if not os.path.exists(self.filepath):
+                raise FileNotFoundError("File not found: " + self.filepath)
+            self.filename = self.filepath
+        else:
+            # check if already exists
+            if os.path.exists(self.filepath):
+                # add timestamp to filename
+                self.filename = self.filepath.replace(".json", "_" + str(
+                    datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + ".json")
+            else:
+                self.filename = self.filepath
         self.restart()
         self.carla_world.on_tick(hud.on_world_tick)
         self.recording_enabled = False

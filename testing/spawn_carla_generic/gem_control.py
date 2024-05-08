@@ -63,6 +63,7 @@ from __future__ import print_function
 
 
 import glob
+import json
 import os
 import sys
 
@@ -76,6 +77,7 @@ try:
 except IndexError:
     pass
 
+sys.path.append('~/carla-simulator/PythonAPI')
 
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
@@ -95,6 +97,9 @@ import std_msgs
 from cv_bridge import CvBridge
 
 from carla import ColorConverter as cc
+
+from agents.navigation.basic_agent import BasicAgent
+# from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 
 import argparse
 import collections
@@ -135,6 +140,7 @@ def find_weather_presets():
 def get_actor_display_name(actor, truncate=250):
     name = ' '.join(actor.type_id.replace('_', '.').title().split('.')[1:])
     return (name[:truncate - 1] + u'\u2026') if len(name) > truncate else name
+
 
 def get_actor_blueprints(world, filter, generation):
     bps = world.get_blueprint_library().filter(filter)
@@ -200,6 +206,14 @@ class World(object):
         self.depth = rospy.Publisher('/carla/front/depth', Image, queue_size=10)
         self.speed = rospy.Publisher('/carla/parsed_tx/vehicle_speed_rpt', VehicleSpeedRpt, queue_size=10)
         self.steer = rospy.Publisher('/carla/parsed_tx/steer_rpt', SystemRptFloat, queue_size=10)
+        self.readFromFile = args.readFromFile
+        os.makedirs("../recordings", exist_ok=True)
+        self.filepath = os.path.join("../recordings", args.prefix + ".json")
+        if args.readFromFile:
+            if not os.path.exists(self.filepath):
+                raise FileNotFoundError("File not found: " + self.filepath)
+            self.filename = self.filepath
+
         # watch out for restart method
         self.restart()
         self.carla_world.on_tick(hud.on_world_tick)
@@ -266,12 +280,24 @@ class World(object):
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         while self.player is None:
-            if not self.map.get_spawn_points():
-                print('There are no spawn points available in your map/town.')
-                print('Please add some Vehicle Spawn Point to your UE4 scene.')
-                sys.exit(1)
-            spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            if self.readFromFile:
+                # Read spawn points from the JSON file
+                with open(self.filename, 'r') as file:
+                    data = json.load(file)
+                    first_waypoint = data['Waypoints'][0]['Waypoint']
+                    location = first_waypoint['Location']
+                    rotation = first_waypoint['Rotation']
+                    spawn_location = carla.Location(x=location[0], y=location[1], z=location[2] + 2)
+                    spawn_rotation = carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2])
+                    spawn_point = carla.Transform(spawn_location, spawn_rotation)
+            else:
+                if not self.map.get_spawn_points():
+                    print('There are no spawn points available in your map/town.')
+                    print('Please add some Vehicle Spawn Point to your UE4 scene.')
+                    sys.exit(1)
+                spawn_points = self.map.get_spawn_points()
+                spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            # Try to spawn the player at the read spawn point
             self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
@@ -540,7 +566,7 @@ class HUD(object):
             'Map:     % 20s' % world.map.name.split('/')[-1],
             'Simulation time: % 12s' % datetime.timedelta(seconds=int(self.simulation_time)),
             '',
-            'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)),
+            'Speed:   % 15.0f km/h' % (3.6 * math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)),
             u'Compass:% 17.0f\N{DEGREE SIGN} % 2s' % (compass, heading),
             'Accelero: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.accelerometer),
             'Gyroscop: (%5.1f,%5.1f,%5.1f)' % (world.imu_sensor.gyroscope),
@@ -561,7 +587,7 @@ class HUD(object):
                 self._info_text += [
                     '',
                     'Ackermann Controller:',
-                    '  Target speed: % 8.0f km/h' % (3.6*self._ackermann_control.speed),
+                    '  Target speed: % 8.0f km/h' % (3.6 * self._ackermann_control.speed),
                 ]
         elif isinstance(c, carla.WalkerControl):
             self._info_text += [
@@ -582,7 +608,26 @@ class HUD(object):
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
-        
+
+        # Load the last waypoint data
+        with open(world.filename, 'r') as file:
+            data = json.load(file)
+            last_waypoint = data['Waypoints'][-1]['Waypoint']
+            destination_location = carla.Location(x=last_waypoint['Location'][0],
+                                                  y=last_waypoint['Location'][1],
+                                                  z=last_waypoint['Location'][2])
+
+        # Get the vehicle's current transform and bounding box
+        vehicle_transform = world.player.get_transform()
+        vehicle_bounding_box = world.player.bounding_box
+
+        # Check if the transformed destination location is within the bounding box
+        if vehicle_bounding_box.contains(destination_location, vehicle_transform):
+            world.hud.notification("Arrived at destination")
+            world.player.set_autopilot(False)
+            world.restart()
+            exit(0)
+
         for cb in self.vehicle_speed_callbacks:
             cb(3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))   
 
@@ -745,7 +790,7 @@ class CollisionSensor(object):
         actor_type = get_actor_display_name(event.other_actor)
         self.hud.notification('Collision with %r' % actor_type)
         impulse = event.normal_impulse
-        intensity = math.sqrt(impulse.x**2 + impulse.y**2 + impulse.z**2)
+        intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
         self.history.append((event.frame, intensity))
         if len(self.history) > 4000:
             self.history.pop(0)
@@ -1309,6 +1354,10 @@ def main():
         '--sync',
         action='store_true',
         help='Activate synchronous mode execution')
+    argparser.add_argument("--mode", default="TODO", type=str)
+    argparser.add_argument("--prefix", default="recording", type=str)
+    argparser.add_argument("--readFromFile", action='store_true', help="Read waypoints from file")
+
     args = argparser.parse_args()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]
