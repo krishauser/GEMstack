@@ -108,7 +108,7 @@ class CurbSegmentor(Component):
         contours, hierarchy = cv2.findContours(eroded_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         for c in contours:
             area = cv2.contourArea(c)
-            if area > 5500:
+            if area > 500:
                 epsilon = 0.02 * cv2.arcLength(c, True)  # Adjust epsilon as needed
                 approx = cv2.approxPolyDP(c, epsilon, True)
                 polygon_points = approx.squeeze() 
