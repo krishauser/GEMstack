@@ -26,8 +26,9 @@ from __future__ import print_function
 import glob
 import os
 import sys
-
+import time
 import std_msgs.msg
+import json 
 
 try:
     sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
@@ -153,10 +154,12 @@ class World(object):
         self._actor_filter = args.filter
         self._actor_generation = args.generation
         self._gamma = args.gamma
+        self.spawn_location = None
+        self.spawn_yaw = None
         rospy.init_node('manual_control')
         self.r = rospy.Rate(10) # 10hz
         self.rgb = rospy.Publisher('carla/front/rgb', Image, queue_size=10)
-        self.gnss = rospy.Publisher('carla/gnss', Inspva, queue_size=10)
+        self.gnss = rospy.Publisher('carla/gnss', Inspva, queue_size=1)
         self.lidar = rospy.Publisher('carla/top_lidar', PointCloud2, queue_size=10)
         self.depth = rospy.Publisher('/carla/front/depth', Image, queue_size=10)
         self.speed = rospy.Publisher('/carla/parsed_tx/vehicle_speed_rpt', VehicleSpeedRpt, queue_size=10)
@@ -227,15 +230,30 @@ class World(object):
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         while self.player is None:
-            if not self.map.get_spawn_points():
-                print('There are no spawn points available in your map/town.')
-                print('Please add some Vehicle Spawn Point to your UE4 scene.')
-                sys.exit(1)
-            spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
-            self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
-            self.show_vehicle_telemetry = False
-            self.modify_vehicle_physics(self.player)
+            # Read spawn points from the JSON file
+            with open('../recordings/recording_3.json', 'r') as file:
+                data = json.load(file)
+                first_waypoint = data['Waypoints'][0]['Waypoint']
+                location = first_waypoint['Location']
+                rotation = first_waypoint['Rotation']
+                spawn_location = carla.Location(x=location[0], y=location[1], z=location[2]+2)
+                self.spawn_location = spawn_location
+                spawn_rotation = carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2])
+                self.spawn_yaw = spawn_rotation.yaw
+                spawn_point = carla.Transform(spawn_location, spawn_rotation)
+                self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
+                self.show_vehicle_telemetry = False
+                self.modify_vehicle_physics(self.player)
+        # while self.player is None:
+        #     if not self.map.get_spawn_points():
+        #         print('There are no spawn points available in your map/town.')
+        #         print('Please add some Vehicle Spawn Point to your UE4 scene.')
+        #         sys.exit(1)
+        #     spawn_points = self.map.get_spawn_points()
+        #     spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+        #     self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
+        #     self.show_vehicle_telemetry = False
+        #     self.modify_vehicle_physics(self.player)
         # Set up the sensors.
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
@@ -257,7 +275,6 @@ class World(object):
         self.hud.add_vehicle_speed_callback(self.publish_vehicle_speed)
         self.hud.add_vehicle_steer_callback(self.publish_vehicle_steer)
         self.hud.notification(actor_type)
-
         if self.sync:
             self.carla_world.tick()
         else:
@@ -279,22 +296,29 @@ class World(object):
 
     def publish_vehicle_steer(self, steer):
         msg = SystemRptFloat()
-        msg.output = steer
+        msg.output = steer * 11
         self.steer.publish(msg)
         
     def publish_gnss_message(self, value) :
+        if (not self.spawn_location):
+            return
         for x in value:
             self.gnss_value[x] = value[x]
         # compose your gnss values here
         inspva_message = Inspva()
-        inspva_message.latitude = self.gnss_value['lat'] if 'lat' in self.gnss_value else 0.0
-        inspva_message.latitude = self.gnss_value['lon'] if 'lon' in self.gnss_value else 0.0
+        # inspva_message.latitude = self.gnss_value['lat'] if 'lat' in self.gnss_value else 0.0
+        # inspva_message.latitude = self.gnss_value['lon'] if 'lon' in self.gnss_value else 0.0
+        current_location = self.player.get_transform().location
+        inspva_message.longitude =  self.spawn_location.x - current_location.x
+        inspva_message.latitude = self.spawn_location.y - current_location.y 
         inspva_message.height = 0.0
         inspva_message.pitch = self.gnss_value['pitch'] if 'pitch' in self.gnss_value else 0.0
-        inspva_message.azimuth = self.gnss_value['yaw'] if 'yaw' in self.gnss_value else 0.0
+        if (self.imu_sensor):
+            inspva_message.azimuth =  self.spawn_yaw - self.imu_sensor.compass
         inspva_message.roll = self.gnss_value['roll'] if 'roll' in self.gnss_value else 0.0
+        print("lat",inspva_message.longitude,"lon",inspva_message.latitude)
         v = self.player.get_velocity()
-        velocity = 3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)
+        velocity = math.sqrt(v.x**2 + v.y**2 + v.z**2)
         angle = math.radians(inspva_message.azimuth)
         sin_theta = math.sin(angle)
         cos_theta = math.cos(angle)
@@ -335,6 +359,13 @@ class World(object):
         #If actor is not a vehicle, we cannot use the physics control
         try:
             physics_control = actor.get_physics_control()
+            physics_control.mass = 612
+            physics_control.drag_coefficient = 0.01
+            for wheel in physics_control.wheels:
+                wheel.tire_friction = 1
+                if (wheel.max_handbrake_torque < 1):
+                    wheel.max_steer_angle = 35
+                #wheel.max_brake_torque = 1000
             physics_control.use_sweep_wheel_collision = True
             actor.apply_physics_control(physics_control)
         except Exception:
@@ -386,9 +417,14 @@ class GEMControl(object):
         world.player.set_light_state(self._lights)
         self._steer_cache = 0.0
         self._gear_cache = self._control.gear
+        self._control.manual_gear_shift = True
+        self._control.gear = 1
+        self.world.player.apply_control(self._control)
         self.throttle = 0.0
         self.brake = 0.0
         self.state = "none"
+        self.debug_ctr = 0
+        self.time_since_last_steer_change = time.time()
         rospy.Subscriber('/carla/as_rx/shift_cmd', PacmodCmd, self.gear_shift_callback)
         rospy.Subscriber('/carla/as_rx/brake_cmd', PacmodCmd, self.brake_callback)
         rospy.Subscriber('/carla/as_rx/accel_cmd', PacmodCmd, self.acceleration_callback)
@@ -397,29 +433,33 @@ class GEMControl(object):
 
 
     def step_ahead(self):
-        if (self.state == "MOVE"):
-            self._control.throttle = self.throttle
-        if (self.state == "BRAKE"):
-            self._control.brake = self.brake
+        #print(self.throttle, self.brake)
+        self.debug_ctr += 1
+        self._control.throttle = self.throttle
+        #self._control.brake = 0.0 if (self.throttle > self.brake) else self.brake
+        # self._control.brake = self.brake
+        # if (self.debug_ctr % 10 == 0):
+        #     print(self.acc_cache, self.throttle, self.brake, self._control.steer)
+        
         self.world.player.apply_control(self._control)
 
     def gear_shift_callback(self, message: PacmodCmd):
         if (self._gear_cache == 0 and message.ui16_cmd == message.SHIFT_FORWARD):
-            self._control.gear = self._gear_cache + 1
+            self._control.gear = self._gear_cache + 1 
             self._gear_cache = self._control.gear
             self.world.player.apply_control(self._control)
 
     def acceleration_callback(self, message: PacmodCmd):
-        v = self.world.player.get_velocity()
-        if (self._control.throttle < 0.1 and (3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2)) < 0.1):
-            self.throttle = 1
+        if (message.f64_cmd < 0.01):
+            pass
         else:
             self.throttle = message.f64_cmd
-        self.state = "MOVE"
+            self.state = "MOVE"
 
     def brake_callback(self, message: PacmodCmd):
         self.state = "BRAKE"
         self.brake = message.f64_cmd
+        # self.throttle = 0.0 if (self.throttle < self.brake) else self.throttle - self.brake
 
     def turn_signal_callback(self, message: PacmodCmd):
         current_lights = self._lights
@@ -438,7 +478,14 @@ class GEMControl(object):
             self.world.player.set_light_state(carla.VehicleLightState(self._lights))
 
     def steer_callback(self, message: PositionWithSpeed):
-        self._control.steer = round(message.angular_position, 1)
+        sign = -1 * message.angular_position / abs(message.angular_position)
+
+        current_expected_steer = sign * round(abs(message.angular_position/11), 2)
+        if (abs(abs(self._control.steer) - abs(current_expected_steer)) > message.angular_velocity_limit/10):
+            self._control.steer += sign * round(message.angular_velocity_limit/10, 2)
+        else:
+            self._control.steer = current_expected_steer
+        #print("steer", message.angular_position/11, current_expected_steer)
         self.world.player.apply_control(self._control)
 
 
@@ -545,7 +592,7 @@ class HUD(object):
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
         
         for cb in self.vehicle_speed_callbacks:
-            cb(3.6 * math.sqrt(v.x**2 + v.y**2 + v.z**2))   
+            cb(math.sqrt(v.x**2 + v.y**2 + v.z**2))   
 
         for cb in self.vehicle_steer_callbacks:
             cb(c.steer)
