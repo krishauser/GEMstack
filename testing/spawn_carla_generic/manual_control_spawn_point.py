@@ -831,6 +831,23 @@ class HUD(object):
                     break
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append('% 4dm %s' % (d, vehicle_type))
+        # Load the last waypoint data
+        with open('../recordings/recording.json', 'r') as file:
+            data = json.load(file)
+            last_waypoint = data['Waypoints'][-1]['Waypoint']
+            destination_location = carla.Location(x=last_waypoint['Location'][0],
+                                                  y=last_waypoint['Location'][1],
+                                                  z=last_waypoint['Location'][2])
+
+        # Get the vehicle's current transform and bounding box
+        vehicle_transform = world.player.get_transform()
+        vehicle_bounding_box = world.player.bounding_box
+
+        # Check if the transformed destination location is within the bounding box
+        if vehicle_bounding_box.contains(destination_location, vehicle_transform):
+            world.hud.notification("Arrived at destination")
+            world.player.set_autopilot(False)
+            world.restart()
 
     def show_ackermann_info(self, enabled):
         self._show_ackermann_info = enabled
