@@ -19,7 +19,7 @@ from numpy.linalg import inv
 from sklearn.cluster import DBSCAN
 import sensor_msgs.point_cloud2 as pc2
 
-def ros_PointCloud2_to_numpy(pc2_msg, want_rgb=False):
+def pointcloud_to_numpy(pc2_msg):
     if pc2 is None:
         raise ImportError("ROS is not installed")
     gen = pc2.read_points(pc2_msg, skip_nans=True, field_names=['x', 'y', 'z'])
@@ -36,10 +36,10 @@ def lidar_to_image(point_cloud_lidar: np.ndarray, extrinsic : np.ndarray, intrin
     point_cloud_image =  pointcloud_pixel[:,:2] # (N, 2)
     return point_cloud_image
 
-def lidar_to_vehicle(point_cloud_lidar: np.ndarray, T_lidar2_Gem: np.ndarray):
+def lidar_to_vehicle(point_cloud_lidar: np.ndarray, t_lidar2_gem: np.ndarray):
     ones = np.ones((point_cloud_lidar.shape[0], 1))
     pcd_homogeneous = np.hstack((point_cloud_lidar, ones)) # (N, 4)
-    pointcloud_trans = np.dot(T_lidar2_Gem, pcd_homogeneous.T) # (4, N)
+    pointcloud_trans = np.dot(t_lidar2_gem, pcd_homogeneous.T) # (4, N)
     pointcloud_trans = pointcloud_trans.T # (N, 4)
     point_cloud_image_world = pointcloud_trans[:, :3] # (N, 3)
     return point_cloud_image_world
@@ -70,8 +70,8 @@ class WavingDetector(Component):
         intrinsic = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_intrinsic.txt")
         self.intrinsic = np.concatenate([intrinsic, np.zeros((3, 1))], axis=1)
 
-        T_lidar2_Gem = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt")
-        self.T_lidar2_Gem = np.asarray(T_lidar2_Gem)
+        t_lidar2_gem = np.loadtxt("GEMstack/knowledge/calibration/gem_e4_lidar2vehicle.txt")
+        self.t_lidar2_gem = np.asarray(t_lidar2_gem)
 
         # Hardcode the roi area for agents
         self.xrange = (0, 20)
@@ -193,7 +193,7 @@ class WavingDetector(Component):
 
             if boxes[i].id is None:
                 break
-            id=int(boxes[i].id.item())
+            idx=int(boxes[i].id.item())
             kpt_i=kpt[i].xy.cpu().numpy()[0].astype(int).tolist()
             nose=kpt_i[0]
             lh_eye=kpt_i[1]
@@ -253,7 +253,7 @@ class WavingDetector(Component):
                 
                 forearm_parallel_flag=self.check_parallel(lh_elbow_angle,rh_elbow_angle)
                 if (lh_waving_flag or rh_waving_flag) and not forearm_parallel_flag:
-                    curr_ped[id]=boxes[i].xywh[0].numpy().tolist()
+                    curr_ped[idx]=boxes[i].xywh[0].numpy().tolist()
                     #show only waving pedestrian
                     if kpt_i[5][0]!=0 and kpt_i[7][0]!=0:
                         cv2.line(img, (kpt_i[5][0],kpt_i[5][1]), (kpt_i[7][0],kpt_i[7][1]), (0, 255, 0), 2)
@@ -283,7 +283,7 @@ class WavingDetector(Component):
         kpt=results[0].keypoints
         curr_ped={}
         img=self.zed_image
-        height, width, channels = img.shape
+        _, width, _ = img.shape
 
         if len(boxes)!=0:
             curr_ped,img=self.waving_detection(boxes,kpt,img)
@@ -314,7 +314,7 @@ class WavingDetector(Component):
         # cv2.waitKey(1)
 
         # Only keep lidar point cloud that lies in roi area for agents
-        raw_point_cloud = ros_PointCloud2_to_numpy(self.point_cloud)
+        raw_point_cloud = pointcloud_to_numpy(self.point_cloud)
         filtered_point_cloud = filter_lidar_by_range(raw_point_cloud, 
                                                   self.xrange, 
                                                   self.yrange,
@@ -333,7 +333,7 @@ class WavingDetector(Component):
                                            self.intrinsic)
         
         # Tansfer lidar point cloud to vehicle frame
-        pc_3D = lidar_to_vehicle(filtered_point_cloud, self.T_lidar2_Gem)
+        pc_3d = lidar_to_vehicle(filtered_point_cloud, self.t_lidar2_gem)
 
         #change the flag to waving
         pred_waving_indices = np.nonzero(waving_flag_array)[0]
@@ -349,7 +349,7 @@ class WavingDetector(Component):
             idxs = np.where((point_cloud_image[:, 0] > xmin) & (point_cloud_image[:, 0] < xmax) &
                             (point_cloud_image[:, 1] > ymin) & (point_cloud_image[:, 1] < ymax) )
             agent_image_pc = point_cloud_image[idxs]
-            agent_pc_3D = pc_3D[idxs]
+            agent_pc_3d = pc_3d[idxs]
             agent_clusters = clusters[idxs]
 
             # Get unique elements and their counts
@@ -363,10 +363,10 @@ class WavingDetector(Component):
             idxs = agent_clusters == label_cluster
             agent_image_pc = agent_image_pc[idxs]
             agent_clusters = agent_clusters[idxs]
-            agent_pc_3D = agent_pc_3D[idxs]
+            agent_pc_3d = agent_pc_3d[idxs]
 
             # calulate depth average
-            depth = np.mean( (agent_pc_3D[:, 0] ** 2 + agent_pc_3D[:, 1] ** 2) ** 0.5 ) # euclidean dist
+            depth = np.mean( (agent_pc_3d[:, 0] ** 2 + agent_pc_3d[:, 1] ** 2) ** 0.5 ) # euclidean dist
             y_3d = y - (width/2)
             pose=np.array([depth,y_3d,0])
             idx=self.closest_point(pose_array, pose)
