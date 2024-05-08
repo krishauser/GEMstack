@@ -82,7 +82,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
 
         acceleration += drag + gravity * sin_pitch + rolling_resistance_f + rolling_resistance_r
 
-        current_RPM = convert_RPM(velocity)
+        
         
 
         if acceleration > -dry_decel:
@@ -94,17 +94,8 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
                 gear = 0
                 return (0,0,gear)
             
-            # power curve to select optimal gear
-            #TODO find bondaries for each gear
             else:
-                if current_RPM < 500:
-                    gear = 1
-                elif current_RPM < 1000:
-                    gear = 2
-                elif current_RPM < 1500:
-                    gear = 3
-                else:
-                    gear = 4
+                
                 #TODO impelment acceleration for each gear > 1
                 # do forward
                 accel_pos = acceleration / accel_max[1]
