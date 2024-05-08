@@ -64,3 +64,6 @@ components:
   - trajectory_tracking:
       inputs: [vehicle, trajectory]
       outputs: 
+  - curb_detection:
+      inputs: vehicle
+      outputs: roadgraph
