@@ -35,7 +35,8 @@ PEDESTRIAN_DIMS = (1, 1, 1.7)
 class PedestrianTrajPrediction(Component):
     """Detects and tracks pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        # Inferencing somehow takes 1 extra second on GPU
+        self.device = "cpu" # torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.config = Config(CONFIG_FILE)
         self.model = self.load_model()
         self.frame_rate = 2.5
@@ -119,7 +120,7 @@ class PedestrianTrajPrediction(Component):
         model.load_state_dict(model_cp['model_dict'], strict=False)
         return model
 
-    # Run the model on the data
+    # run the model on the data. 
     def run_model(self, data):
         assert len(data) != None, "Model can't run on empty data"
 
@@ -139,6 +140,7 @@ class PedestrianTrajPrediction(Component):
         sample_motion_3D = sample_motion_3D.transpose(0, 1).contiguous()
         return sample_motion_3D
     
+    # Takes 7-9 seconds (SLOW)
     def run_model_on_data(self, generator): 
         data = generator()
         if data is None:
@@ -178,17 +180,14 @@ class PedestrianTrajPrediction(Component):
     def convert_data_from_model_output(self, sample_model_3D, valid_id, frame) -> List[Dict[int,List[AgentState]]]:
         agent_list = []
         # sample_model_3D: 3 x ped_id x 12 x 2
-        
         for traj in range(sample_model_3D.shape[0]):
-            
             # Create the dictionary of pedestrian-future AgentState lists for the current trajectory
             agent_dict = defaultdict(list) # Key: Pedestrian ID | Value: List of AgentStates for each future frame
             for ped_idx in range(sample_model_3D.shape[1]):
                 for future_frame_id in range(sample_model_3D.shape[2]):
                     ped_id = valid_id[ped_idx]
                     # flip the x- and y-coordinates back to normal
-                    x = sample_model_3D[traj][ped_idx][future_frame_id][1]
-                    y = sample_model_3D[traj][ped_idx][future_frame_id][0]
+                    y, x = sample_model_3D[traj][ped_idx][future_frame_id]
 
                     # convert the frame_id to time
                     frame_id = frame + future_frame_id + 1
@@ -196,17 +195,15 @@ class PedestrianTrajPrediction(Component):
 
                     # create an AgentState object
                     pose = ObjectPose(t=frame_time, x=x, y=y, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.START)
-                    
+
                     # dimensions of a pedestrian (not accurate)
                     dims = PEDESTRIAN_DIMS
-                    # velocity = esimate velocity from past few frames
-                    # velocity = self.estimate_velocity(past few frames)
+                    
                     agent_state = AgentState(pose=pose, dimensions=dims, outline=None, type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
                     agent_dict[ped_id].append(agent_state)
-                                        
             agent_list.append(agent_dict)
 
-        return agent_dict
+        return agent_list
             
 
     # takes in the agent states of the past 8 frames and returns the predicted trajectories of the agents in the next 12 frames
@@ -220,7 +217,7 @@ class PedestrianTrajPrediction(Component):
         # flip the x- and y-coordinates for each pedestrian in each frame
 
         if data is None or data == []: 
-            print("No input to the model. Not running model. ")
+            print("No past agent states found. Not running model.")
             return []
 
         model_input = self.convert_data_to_model_input(data)
@@ -231,7 +228,7 @@ class PedestrianTrajPrediction(Component):
 
         # run the traj prediction model on data
         sample_model_3D, valid_ids, frame = self.run_model(model_input)
-
+        
         # convert data to AgentState objects make sure to convert the frames to time(which will add to the AgentPose object)
         agent_list = self.convert_data_from_model_output(sample_model_3D, valid_ids, frame)
         

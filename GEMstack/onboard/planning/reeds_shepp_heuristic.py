@@ -2,7 +2,7 @@ import numpy as np
 from ...utils import settings
 from .reeds_shepp import *
 
-precomputed = settings.get("planner.search_planner.precomputed", None)
+precomputed = settings.get("A_star_planner.search_planner.precomputed", None)
 HS, RESOLUTION, ANGLE_RESOLUTION, BOUNDS = None, None, None, None
 
 def load_precomputed():

@@ -29,7 +29,7 @@ components:
       outputs: vehicle_lane
   - sign_detection: 
       inputs: [vehicle, roadgraph]
-      outputs: roadgraph.signs
+      outputs: detected_signs
   - parking_slot_detection: 
       outputs: parking_slot
   - lane_following_detection: 
@@ -64,3 +64,6 @@ components:
   - trajectory_tracking:
       inputs: [vehicle, trajectory]
       outputs: 
+  - curb_detection:
+      inputs: vehicle
+      outputs: roadgraph

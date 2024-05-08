@@ -65,7 +65,7 @@ if __name__ == "__main__":
     
     # Example inputs
     ref_path = [[1, 0, 0], [2, 0, 0], [3, 0, 0], [4, 0, 0], [5, 0, 0]]
-    actual_path = [[1.1, 0, 0], [1.9, 0, 0]. [3.1, 0, 0], [3.9, 0, 0], [5.1, 0, 0]]
+    actual_path = [[1.1, 0, 0], [1.9, 0, 0], [3.1, 0, 0], [3.9, 0, 0], [5.1, 0, 0]]
 
     rate = 10.0
     time_stamps = [1 / rate * i for i in range(len(ref_path))]
