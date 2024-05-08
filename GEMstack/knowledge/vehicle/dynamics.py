@@ -12,6 +12,11 @@ import math
 def sign(x):
     return 1 if x > 0 else -1 if x < 0 else 0
 
+def convert_RPM(vel):
+    wheel_rad = settings.get('vehicle.dynamics.wheel_rad',0.55)
+    return (vel *60 )/ (2 * math.pi*wheel_rad)
+
+
 def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitch : float, gear : int) -> Tuple[float,float,int]:
     """Converts acceleration in m/s^2 to pedal positions in % of pedal travel.
 
@@ -60,7 +65,11 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
         dry_decel     = settings.get('vehicle.dynamics.internal_dry_deceleration') # m/s^2
 
         # do the offset of the acceleration drag force to compensate real acceleration
-        drag = (aerodynamic_drag_coefficient * velocity**2) * vsign + internal_dry_deceleration * vsign + internal_viscous_deceleration * velocity
+        front_area = settings.get('vehicle.dynamics.front_area')
+
+        rho = settings.get('vehicle.dynamics.air_density')
+        drag = 0.5 * rho * front_area * aerodynamic_drag_coefficient * velocity**2 * vsign
+
         sin_pitch = math.sin(pitch)
         
         # reference : https://link.springer.com/book/10.1007/978-1-4614-1433-9

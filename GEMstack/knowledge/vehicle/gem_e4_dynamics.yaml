@@ -8,6 +8,10 @@ wheel_rad : 0.55  #wheel radius
 # max acc = 10000 watts, peak torque =  10000 watts / 300pi = 10.61 Nm 
 peak_torque : 10.61 # nm 
 
+# height 1.5m , width 1.3m 
+front_area : 1.95 # m^2
+
+air_density : 1.225 # kg/m^3
 
 # front_cornering_stiffness: 5000 # N/deg 30653 N/rad
 # rear_cornering_stiffness: 4800 # N/deg 63254 N/rad
