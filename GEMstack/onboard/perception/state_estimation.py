@@ -20,9 +20,14 @@ class IMUStateEstimator(Component):
         self.vehicle_interface = vehicle_interface
         if 'gnss' in vehicle_interface.sensors():
             vehicle_interface.subscribe_sensor('gnss',self.inspva_callback)
+        else:
+            raise RuntimeError("GNSS sensor not available")
 
         if 'imu' in vehicle_interface.sensors():
             vehicle_interface.subscribe_sensor('imu',self.imu_callback)
+        else:
+            raise RuntimeError("IMU sensor not available")
+
         # self.imu_sub = rospy.Subscriber("/as_tx/vehicle_speed",Float64, self.vel_callback)
         self.gnss_pose = None
         self.imu_pose =  None
@@ -56,7 +61,7 @@ class IMUStateEstimator(Component):
                                     )
         self.status = inspva_msg.status
 
-
+    #the magic constant is the calibration IMU value(average value for one minute from static vehicle)
     def imu_callback(self, msg):
         self.imu_ax = msg.linear_acceleration.x + 0.25602528980775924
         self.imu_ay = msg.linear_acceleration.y - 0.013
@@ -72,7 +77,10 @@ class IMUStateEstimator(Component):
         return ['vehicle']
 
     def healthy(self):
-        return self.gnss_pose is not None
+        if self.gnss_pose is None:
+            return False
+        else:
+            return True
     
     def garbage_value(self, pose):
         if pose.x > 180 or pose.x < -180:
@@ -87,6 +95,7 @@ class IMUStateEstimator(Component):
         past_time = self.last_pose.t
        
         self.imu_pose = self.last_pose
+        #formula for double integral from acceleration to get pose
         self.imu_pose.x += 0.5* self.imu_ax* (time - past_time)**2 + self.linear_vx* (time - past_time)
         self.imu_pose.y += 0.5* self.imu_ay* (time - past_time)**2 + self.linear_vy* (time - past_time)
         self.imu_pose.z += 0.5* self.imu_az* (time - past_time)**2 + self.linear_vz* (time - past_time)
@@ -94,13 +103,14 @@ class IMUStateEstimator(Component):
         self.imu_pose.roll += self.ang_vy* (time - past_time)
         self.imu_pose.pitch += self.ang_vz* (time - past_time)
         # self.velocity = self.imu_ax* (time - past_time)
+        #formula for integral from acceleration to get velocity
         self.linear_vx += self.imu_ax* (time - past_time)
         self.linear_vy += self.imu_ay* (time - past_time)
         self.linear_vz += self.imu_az* (time - past_time) 
         self.imu_pose.t = time
-        print(self.imu_pose)
-        print('v', self.linear_vx, self.linear_vy, self.linear_vz)
-        print('a', self.imu_ax, self.imu_ay, self.imu_az)
+        # print(self.imu_pose)
+        # print('v', self.linear_vx, self.linear_vy, self.linear_vz)
+        # print('a', self.imu_ax, self.imu_ay, self.imu_az)
 
     def update(self) -> VehicleState:
         if self.garbage_value(self.gnss_pose):
@@ -192,7 +202,6 @@ class GNSSStateEstimator(Component):
     
 
 
-
 class OmniscientStateEstimator(Component):
     """A state estimator used for the simulator which provides perfect state information"""
     def __init__(self, vehicle_interface : GEMInterface):
@@ -201,7 +210,6 @@ class OmniscientStateEstimator(Component):
             raise RuntimeError("GNSS sensor not available")
         vehicle_interface.subscribe_sensor('gnss',self.fake_gnss_callback)
         self.vehicle_state = None
-
     # Get GNSS information
     def fake_gnss_callback(self, vehicle_state):
         self.vehicle_state = vehicle_state
@@ -211,9 +219,10 @@ class OmniscientStateEstimator(Component):
     
     def state_outputs(self) -> List[str]:
         return ['vehicle']
-
     def healthy(self):
         return self.vehicle_state is not None
-
     def update(self) -> VehicleState:
         return self.vehicle_state
+    
+#alias, will be deprecated by end of February
+FakeStateEstimator = OmniscientStateEstimator
