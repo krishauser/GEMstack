@@ -19,7 +19,7 @@ from numpy.linalg import inv
 from sklearn.cluster import DBSCAN
 import sensor_msgs.point_cloud2 as pc2
 
-def ros_PointCloud2_to_numpy(pc2_msg, want_rgb=False):
+def ros_PointCloud2_to_numpy(pc2_msg):
     if pc2 is None:
         raise ImportError("ROS is not installed")
     gen = pc2.read_points(pc2_msg, skip_nans=True, field_names=['x', 'y', 'z'])
