@@ -256,7 +256,12 @@ class World(object):
         blueprint_list = get_actor_blueprints(self.carla_world, self._actor_filter, self._actor_generation)
         if not blueprint_list:
             raise ValueError("Couldn't find any blueprints with the specified filters")
-        blueprint = random.choice(blueprint_list)
+        
+        blueprint = None
+        for car in blueprint_list:
+            if (car.id == "vehicle.mini.cooper_s_2021"):
+                blueprint = car
+
         blueprint.set_attribute('role_name', self.actor_role_name)
         if blueprint.has_attribute('terramechanics'):
             blueprint.set_attribute('terramechanics', 'true')
@@ -403,7 +408,7 @@ class KeyboardControl(object):
             self._control = carla.VehicleControl()
             self._ackermann_control = carla.VehicleAckermannControl()
             self._lights = carla.VehicleLightState.NONE
-            world.player.set_autopilot(self._autopilot_enabled)
+            world.player.set_autopilot(self._autopilot_enabled, 8002)
             world.player.set_light_state(self._lights)
         elif isinstance(world.player, carla.Walker):
             self._control = carla.WalkerControl()
@@ -427,7 +432,7 @@ class KeyboardControl(object):
                     if self._autopilot_enabled:
                         world.player.set_autopilot(False)
                         world.restart()
-                        world.player.set_autopilot(True)
+                        world.player.set_autopilot(True, 8002)
                     else:
                         world.restart()
                 elif event.key == K_F1:
@@ -569,7 +574,7 @@ class KeyboardControl(object):
                     world.destroy_sensors()
                     # disable autopilot
                     self._autopilot_enabled = False
-                    world.player.set_autopilot(self._autopilot_enabled)
+                    world.player.set_autopilot(self._autopilot_enabled, 8002)
                     world.hud.notification("Replaying file 'manual_recording.rec'")
                     # replayer
                     client.replay_file("manual_recording.rec", world.recording_start, 0, 0)
@@ -614,7 +619,7 @@ class KeyboardControl(object):
                             print("WARNING: You are currently in asynchronous mode and could "
                                   "experience some issues with the traffic simulation")
                         self._autopilot_enabled = not self._autopilot_enabled
-                        world.player.set_autopilot(self._autopilot_enabled)
+                        world.player.set_autopilot(self._autopilot_enabled, 8002)
                         world.hud.notification(
                             'Autopilot %s' % ('On' if self._autopilot_enabled else 'Off'))
                     elif event.key == K_l and pygame.key.get_mods() & KMOD_CTRL:
@@ -1322,7 +1327,9 @@ class CameraManager(object):
         if self.recording:
             image.save_to_disk('_out/%08d' % image.frame)
 
-def save_route(waypoints, world):
+def save_route(waypoints, world) -> None:
+    if (len(waypoints) < 2):
+        return 
     csv_file_path = 'recording_route.csv'
     agent = BasicAgent(world.player, 30)
     agent.follow_speed_limits(True)
@@ -1337,8 +1344,21 @@ def save_route(waypoints, world):
         startT = carla.Rotation(pitch=rot[0],yaw=rot[1],roll=rot[2])
         route = agent._global_planner.trace_route(startL,endL)
         intermediate_points.extend(agent._global_planner.trace_route(startL,endL))
+    initial_point = intermediate_points[0][0]
+    initial_x = initial_point.transform.location.x
+    initial_y = initial_point.transform.location.y
+    initial_yaw = initial_point.transform.rotation.yaw
+    sign = 0
+    set_sign = False
+    sign_is_set = False
     for point in intermediate_points:
-        total_route.append([round(point[0].transform.location.x,3), round(point[0].transform.location.y,3), round(point[0].transform.rotation.yaw,3)])
+        if (set_sign and not sign_is_set):
+            sign = point[0].transform.location.x / abs(point[0].transform.location.x)
+            sign_is_set = True
+        total_route.append([sign*round(point[0].transform.location.x - initial_x,3), -1*sign*round(point[0].transform.location.y - initial_y,3), round(abs(point[0].transform.rotation.yaw - initial_yaw) % 360 - 180,3)])
+        if (sign == 0):
+            set_sign = True
+
     with open(csv_file_path, 'w',newline='') as csvfile:
         csv_writer = csv.writer(csvfile,delimiter=',')
         csv_writer.writerows(total_route)
