@@ -147,11 +147,6 @@ class PedestrianTrajPrediction(Component):
         print("RAN MODEL !!!!!", flush=True)
         print(f"ids are {valid_id}", flush=True)
         print(sample_motion_3D.shape)
-
-        # # load in gt_results from real_results.pt
-        # gt_results = torch.load('real_results.pt')
-        # # check if the two tensors are equal
-        # print("the results match the expected results", torch.equal(sample_motion_3D, gt_results))
         
         return sample_motion_3D, valid_id, frame
     
@@ -181,7 +176,6 @@ class PedestrianTrajPrediction(Component):
         sample_motion_3D = sample_motion_3D * self.config.traj_scale
     
         return sample_motion_3D, data['valid_id'], frame
-        print("end of run model on data, not returning anything")
         
 
     def rate(self):
@@ -201,13 +195,6 @@ class PedestrianTrajPrediction(Component):
     def initialize(self):
         print("initializing trajpredict")
         pass
-
-    # May not need this if motion planning can just get the velocities themselves
-    def estimate_velocity(self, past_values):
-        # estimate velocity from past few frames
-        self.cur_time = time.time()
-        
-        pass
     
     # Changing signature of model since we changed the output format of AgentFormer to return the actual tensor
     def convert_data_from_model_output(self, sample_model_3D, valid_id, frame) -> List[Dict[int,List[AgentState]]]:
@@ -215,15 +202,12 @@ class PedestrianTrajPrediction(Component):
         # sample_model_3D: 3 x ped_id x 12 x 2
         iterations = 0
         for traj in range(sample_model_3D.shape[0]):
-            # starttime = time.time()
             # Create the dictionary of pedestrian-future AgentState lists for the current trajectory
             agent_dict = defaultdict(list) # Key: Pedestrian ID | Value: List of AgentStates for each future frame
             for ped_idx in range(sample_model_3D.shape[1]):
                 for future_frame_id in range(sample_model_3D.shape[2]):
                     ped_id = valid_id[ped_idx]
                     # flip the x- and y-coordinates back to normal
-                    # x = sample_model_3D[traj][ped_idx][future_frame_id][1]
-                    # y = sample_model_3D[traj][ped_idx][future_frame_id][0]
                     y, x = sample_model_3D[traj][ped_idx][future_frame_id]
 
                     # convert the frame_id to time
@@ -235,23 +219,19 @@ class PedestrianTrajPrediction(Component):
 
                     # dimensions of a pedestrian (not accurate)
                     dims = PEDESTRIAN_DIMS
-                    # velocity = esimate velocity from past few frames
-                    # velocity = self.estimate_velocity(past few frames)
                     agent_state = AgentState(pose=pose, dimensions=dims, outline=None, type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
                     agent_dict[ped_id].append(agent_state)
                     iterations += 1
                 # print("single pedestrian time", time.time()-starttime)
             agent_list.append(agent_dict)
-            # print(starttime-time.time(), "iteration", traj)
 
-        # print(time.time() - starttime, "line 245")
-        # print(iterations, "iterations of innermost loop")
         return agent_list
             
 
-    # takes in the agent states of the past 8 frames and returns the predicted trajectories of the agents in the next 12 frames
-    # outputs dictionary where key is the sampler id and value is the list of agent states for the next 12 frames
-    # def update(self, past_agent_states : List[str]) -> List[Dict[List[AgentState]]]:
+    # Takes in the agent states of the past 8 frames and returns the predicted trajectories of the agents in the next 12 frames
+    # Outputs nested dictionary where key is an AgentEnum (different objects, including pedestrians) and value
+    # is a dictionary where key is the sampler id and value is a dictionary where key is a future
+    # frame ID, and the value is an agent state (will predict the next 12 frames)
     # Assuming that past_agent_states is actually a numpy array instead of just a list of strings
     # past_agent_states.shape: [num_frames_in_model * (peds_in_frame for frame in frames), 17]
     def update(self, past_agent_states) -> Dict[AgentEnum, Dict[int, Dict[int, AgentState]]]:
@@ -267,15 +247,9 @@ class PedestrianTrajPrediction(Component):
 
         model_input = self.convert_data_to_model_input(data)
 
-        # print(time.time() - self.cur_time, "COMPUTED MODEL INPUT")
-
         if len(model_input) == 0 or model_input.shape == (0, ):
             print("no pedestrians found, no need to run model. ")
             return []
-
-        # print("input to model:")
-        # for m in model_input:
-        #     print(m)
 
         # run the traj prediction model on data
         sample_model_3D, valid_ids, frame = self.run_model(model_input)
@@ -288,8 +262,6 @@ class PedestrianTrajPrediction(Component):
         agent_list = self.convert_data_from_model_output(sample_model_3D, valid_ids, frame)
         print(time.time() - model_finish, "CONVERT DATA")
         
-        # print("agent list", len(agent_list))
-        # return data
         return agent_list
         
     def cleanup(self):
