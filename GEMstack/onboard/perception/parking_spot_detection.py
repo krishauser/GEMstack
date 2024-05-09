@@ -96,9 +96,8 @@ class ParkingSpotDetector(Component):
 
     def get_parking_spot(self, img, bbox):
         [midpoint, angle, img] = self.isolate_and_draw_lines(img, bbox)
-        
-        if midpoint is None:
-            [x,y] = self.get_goal_pose(midpoint)
+        [x,y] = self.get_goal_pose(midpoint)
+        if x and y:
             return [x,y,angle]
         return [None,None,angle]
 
