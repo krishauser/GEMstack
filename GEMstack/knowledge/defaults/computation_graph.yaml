@@ -67,3 +67,6 @@ components:
   - curb_detection:
       inputs: vehicle
       outputs: roadgraph
+  - waving_detection:
+      inputs: agents
+      outputs: agents
