@@ -53,7 +53,6 @@ class ParkingSpotDetector(Component):
         self.point_cloud = point_cloud
 
     def detect_empty(self, img: cv2.Mat, empty_spot=0, conf_threshold=conf_thresh):
-        global model
         results = self.model(img)
         for box, conf in zip(results[0].obb, results[0].obb.conf):
             class_id = int(box.cls[0].item())
@@ -77,6 +76,7 @@ class ParkingSpotDetector(Component):
             print(f"front image = {self.front_image}")
             print(f"point cloud = {self.point_cloud}")
             return None # Just return without doing anything if data is not ready
+        print("GREAT! camera and sensors working")
 
         if self.euclidean is not None and self.euclidean < self.dist_thresh:
             print(f"euclidean = {self.euclidean} is less than threshold")
@@ -180,12 +180,16 @@ class ParkingSpotDetector(Component):
         return [None,None]
 
     def update(self):
-        self.parking_spot_detection()  # Attempt to detect and update parking spot
-        x, y = 14.768, -6.092
-        yaw = -1.1
-        if self.parking_spot is None:
-            print("Fixed Route")
-            return ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.START)
-        else:
-            print("Our code")
-            return self.parking_spot
+        founded = False
+        while not founded:
+            res = self.parking_spot_detection()  # Attempt to detect and update parking spot
+            # x, y = 14.768, -6.092
+            # yaw = -1.1
+            if res is not None:
+                print("Our code")
+                print("self.parking_spot: ",self.parking_spot)
+                founded = True
+
+            print("Looping......")
+
+        return self.parking_spot

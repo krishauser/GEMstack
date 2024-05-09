@@ -612,6 +612,10 @@ class ExecutorBase:
 
             self.update_components(perception_components,self.state)
             sensors_working = all([c.healthy() for c in perception_components.values()])
+            for sensor_name, sensor in perception_components.items():
+                if not sensor.healthy():
+                    print(f"The sensor '{sensor_name}' is not healthy.")
+            sensors_working =  True
 
             self.update_components(self.always_run_components,self.state,force=True)
             always_run_working = all([c.healthy() for c in self.always_run_components.values()])

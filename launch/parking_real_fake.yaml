@@ -1,7 +1,10 @@
 description: "Drive the GEM vehicle along a fixed route (currently xyhead_highbay_backlot_p.csv)"
 mode: hardware
 
-vehicle_interface: gem_hardware.GEMHardwareInterface
+vehicle_interface:
+    type: gem_mixed.GEMRealSensorsWithSimMotionInterface
+    args:
+        scene: !relative_path '../scenes/xyhead_demo.yaml'
 
 mission_execution: StandardExecutor
 # Recovery behavior after a component failure
@@ -30,6 +33,13 @@ drive:
             # print: False
 
 #visualization methods
+visualization:
+    type: mpl_visualization.MPLVisualization
+    args:
+        rate: 8
+        #Don't include save_as if you don't want to save the video
+        save_as:
+    multiprocess: True
 
 
 log:
