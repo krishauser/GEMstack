@@ -133,7 +133,6 @@ def get_actor_blueprints(world, filter, generation):
 # -- World ---------------------------------------------------------------------
 # ==============================================================================
 
-
 class World(object):
     def __init__(self, carla_world, hud, args):
         self.carla_world = carla_world
@@ -161,6 +160,7 @@ class World(object):
         self._actor_generation = args.generation
         self._gamma = args.gamma
         self.spawn_location = None
+        self.c = 0
         self.spawn_yaw = None
         rospy.init_node('manual_control')
         self.r = rospy.Rate(10) # 10hz
@@ -177,6 +177,7 @@ class World(object):
             if not os.path.exists(self.filepath):
                 raise FileNotFoundError("File not found: " + self.filepath)
             self.filename = self.filepath
+            print("Replaying test from", self.filename)
 
         # watch out for restart method
         self.restart()
@@ -252,7 +253,9 @@ class World(object):
                     location = first_waypoint['Location']
                     rotation = first_waypoint['Rotation']
                     spawn_location = carla.Location(x=location[0], y=location[1], z=location[2] + 2)
+                    self.spawn_location = spawn_location
                     spawn_rotation = carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2])
+                    self.spawn_yaw = spawn_rotation.yaw
                     spawn_point = carla.Transform(spawn_location, spawn_rotation)
             else:
                 if not self.map.get_spawn_points():
@@ -307,27 +310,28 @@ class World(object):
 
     def publish_vehicle_steer(self, steer):
         msg = SystemRptFloat()
-        msg.output = steer * 11
+        msg.output = min(steer, 1) * 11
         self.steer.publish(msg)
         
     def publish_gnss_message(self, value) :
-        if (not self.spawn_location):
+        if (not self.imu_sensor):
             return
         for x in value:
             self.gnss_value[x] = value[x]
+        self.c += 1
         # compose your gnss values here
         inspva_message = Inspva()
-        # inspva_message.latitude = self.gnss_value['lat'] if 'lat' in self.gnss_value else 0.0
-        # inspva_message.latitude = self.gnss_value['lon'] if 'lon' in self.gnss_value else 0.0
-        current_location = self.player.get_transform().location
-        inspva_message.longitude =  self.spawn_location.x - current_location.x
-        inspva_message.latitude = self.spawn_location.y - current_location.y 
+
+        x = self.gnss_value['lon']
+        y = self.gnss_value['lat']
+        inspva_message.longitude = x
+        inspva_message.latitude = y
         inspva_message.height = 0.0
         inspva_message.pitch = self.gnss_value['pitch'] if 'pitch' in self.gnss_value else 0.0
-        if (self.imu_sensor):
-            inspva_message.azimuth =  self.spawn_yaw - self.imu_sensor.compass
+        inspva_message.azimuth = self.imu_sensor.compass
         inspva_message.roll = self.gnss_value['roll'] if 'roll' in self.gnss_value else 0.0
-        print("lat",inspva_message.longitude,"lon",inspva_message.latitude)
+        if (self.c % 30 == 0):
+            print("lat",x,"lon",y, "azimuth", self.imu_sensor.compass)
         v = self.player.get_velocity()
         velocity = math.sqrt(v.x**2 + v.y**2 + v.z**2)
         angle = math.radians(inspva_message.azimuth)
