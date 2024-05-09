@@ -168,8 +168,7 @@ class ParkingSpotDetector(Component):
     
     def get_goal_pose(self, coords_pixel):
         if self.point_cloud and coords_pixel:
-            numpy_point_cloud = self.handler.ros_PointCloud2_to_numpy(self.point_cloud)
-            coord_3d_map = self.handler.get3DCoord(self.image, numpy_point_cloud)
+            coord_3d_map = self.handler.get3DCoord(self.front_image, self.point_cloud)
             (x, y) = coords_pixel
             if 0 <= int(x) < coord_3d_map.shape[1] and 0 <= int(y) < coord_3d_map.shape[0]:
                 midpoint_3d = coord_3d_map[y, x]
