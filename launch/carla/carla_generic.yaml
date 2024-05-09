@@ -19,11 +19,12 @@ drive:
             args: [!relative_path '../../testing/spawn_carla_generic/recording_route.csv']
         motion_planning:
             type: RouteToTrajectoryPlanner
-            args: [0.5]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+            args: [2.5]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
-            args: {desired_speed: 2.5}  #approximately 5mph
+            args: {desired_speed: 3.5}  #approximately 5mph
             print: True
+visualization: !include "../mpl_visualization.yaml"
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
             #     type: mpc_tracking.MPCTrajectoryTracker
@@ -53,7 +54,7 @@ replay:  # Add items here to set certain topics / inputs to be replayed from log
     components : []
 
 #usually can keep this constant
-computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
+computation_graph: !include "../../GEMstack/knowledge/defaults/computation_graph.yaml"
 
 after:
     show_log_folder: True  #set to false to avoid showing the log folder
@@ -68,14 +69,14 @@ variants:
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+                    scene: !relative_path '../../scenes/xyhead_demo.yaml'
 
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
                     #agent_detection : OmniscientAgentDetector
-            visualization: !include "klampt_visualization.yaml"
+            visualization: !include "../mpl_visualization.yaml"
             #visualization: !include "mpl_visualization.yaml"
     log_ros:
         log:
-            ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"
+            ros_topics : !include "../../GEMstack/knowledge/defaults/standard_ros_topics.yaml"
