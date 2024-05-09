@@ -13,7 +13,7 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
-        parking_slot_detection : ParkingSlotDetector
+        parking_spot_detection : ParkingSpotDetector
     planning:
         route_planning:
             type: SearchNavigationRoutePlanner
@@ -22,10 +22,10 @@ drive:
             # type: mpc_motion_planning.MPCTrajectoryPlanner
             args: [0.5]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
-            type: pure_pursuit.PurePursuitTrajectoryTracker
-            # type: mpc_tracking.MPCTracker
-            args: {desired_speed: 1.0}  #approximately 5mph
-            print: False
+            # type: pure_pursuit.PurePursuitTrajectoryTracker
+            type: mpc_tracking.MPCTrajectoryTracker
+            args: {N: 4, dt: 1.75, Q: [1,1,1], R: [1,1,5,5], fixed: True}
+            # print: False
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 

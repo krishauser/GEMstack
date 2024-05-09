@@ -30,8 +30,8 @@ components:
   - sign_detection: 
       inputs: [vehicle, roadgraph]
       outputs: detected_signs
-  - parking_slot_detection: 
-      outputs: parking_slot
+  - parking_spot_detection: 
+      outputs: parking_spot
   - lane_following_detection: 
       outputs: lane_goal
   - lane_boundary_detection: 
