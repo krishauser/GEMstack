@@ -18,6 +18,9 @@ components:
   - agent_detection:
       inputs: vehicle
       outputs: agents
+  - front_corner_camera_detection:
+      inputs: vehicle
+      outputs: agents  
   - multi_class_detection:
       inputs: vehicle
       outputs: detected_agents
