@@ -25,7 +25,7 @@ class ParkingSpotDetector(Component):
         self.model = YOLO(MODEL_WEIGHT_PATH)
         self.handler = PixelWise3DLidarCoordHandler()
         self.euclidean = None
-        self.dist_thresh = None
+        self.dist_thresh = 8
         self.front_image = None
         self.point_cloud = None
 
@@ -96,9 +96,11 @@ class ParkingSpotDetector(Component):
 
     def get_parking_spot(self, img, bbox):
         [midpoint, angle, img] = self.isolate_and_draw_lines(img, bbox)
-        [x,y] = self.get_goal_pose(midpoint)
-
-        return [x,y,angle]
+        
+        if midpoint is None:
+            [x,y] = self.get_goal_pose(midpoint)
+            return [x,y,angle]
+        return [None,None,angle]
 
     def isolate_and_draw_lines(self, img, bbox_info):
         if bbox_info is None:
@@ -169,13 +171,13 @@ class ParkingSpotDetector(Component):
     def get_goal_pose(self, coords_pixel):
         if self.point_cloud and coords_pixel:
             numpy_point_cloud = self.handler.ros_PointCloud2_to_numpy(self.point_cloud)
-            coord_3d_map = self.handler.get3DCoord(self.image, numpy_point_cloud)
+            coord_3d_map = self.handler.get3DCoord(self.front_image, numpy_point_cloud)
             (x, y) = coords_pixel
             if 0 <= int(x) < coord_3d_map.shape[1] and 0 <= int(y) < coord_3d_map.shape[0]:
                 midpoint_3d = coord_3d_map[y, x]
                 if midpoint_3d[0] != 0 and midpoint_3d[1] != 0:
                     return [midpoint_3d[0], midpoint_3d[1]]
-        return None
+        return [None,None]
 
     def update(self):
         self.parking_spot_detection()  # Attempt to detect and update parking spot
