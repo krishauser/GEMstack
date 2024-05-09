@@ -1347,6 +1347,27 @@ class CameraManager(object):
         if self.recording:
             image.save_to_disk('_out/%08d' % image.frame)
 
+
+def interchange_x_y(yaw):
+    yaw = yaw + 90
+    while (yaw < 0):
+        yaw = yaw + 360
+
+    while (yaw > 360):
+        yaw = yaw - 360
+
+    if yaw <= 45 and yaw > -45:
+        return False
+
+    if yaw <= 135 and yaw > 45:
+        return True
+
+    if yaw <= 225 and yaw > 135:
+        return False
+
+    if yaw <= 315 and yaw > 225:
+        return True 
+
 def save_route(waypoints, world) -> None:
     if (len(waypoints) < 2):
         return 
@@ -1371,11 +1392,17 @@ def save_route(waypoints, world) -> None:
     sign = 0
     set_sign = False
     sign_is_set = False
+    # initially, if movements in x are too small, the path drawn doesn't have a lot of forward x to properly work
+    interchange = interchange_x_y(initial_yaw)
     for point in intermediate_points:
         if (set_sign and not sign_is_set):
             sign = point[0].transform.location.x / abs(point[0].transform.location.x)
             sign_is_set = True
-        total_route.append([sign*round(point[0].transform.location.x - initial_x,3), -1*sign*round(point[0].transform.location.y - initial_y,3), round(abs(point[0].transform.rotation.yaw - initial_yaw) % 360 - 180,3)])
+        if (interchange):
+            total_route.append([sign*round(point[0].transform.location.x - initial_x,3), -1*sign*round(point[0].transform.location.y - initial_y,3), point[0].transform.rotation.yaw - initial_yaw])
+        else : 
+            total_route.append([sign*round(point[0].transform.location.y - initial_y,3), -1*sign*round(point[0].transform.location.x - initial_x,3), point[0].transform.rotation.yaw - initial_yaw])
+
         if (sign == 0):
             set_sign = True
 
