@@ -32,6 +32,7 @@ class ParkingSpotDetector(Component):
         self.x = 14.768
         self.y = -6.092
         self.yaw = -1.1
+        self.grey_thresh = 180
         self.parking_spot = ObjectPose(t=0, x=self.x, y=self.y, yaw=self.yaw, frame=ObjectFrameEnum.START)
 
     def rate(self):
