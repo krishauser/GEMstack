@@ -271,7 +271,7 @@ class World(object):
         blueprint_list = get_actor_blueprints(self.carla_world, self._actor_filter, self._actor_generation)
         if not blueprint_list:
             raise ValueError("Couldn't find any blueprints with the specified filters")
-        
+
         blueprint = None
         for car in blueprint_list:
             if (car.id == "vehicle.mini.cooper_s_2021"):
@@ -538,39 +538,38 @@ class KeyboardControl(object):
 
                         world.meta_recorded = True
 
-
                     world.hud.notification("Recording data")
                     t = waypoint.transform
 
                     waypoint_data = {
-                            'Mode': mode,  # Add your mode value here,
-                            'Waypoint': {
-                                'id': waypoint.id,
-                                'Location': (t.location.x, t.location.y, t.location.z),
-                                'Rotation': (t.rotation.pitch, t.rotation.yaw, t.rotation.roll),
-                                'Road ID': waypoint.road_id,
-                                'Lane ID': waypoint.lane_id,
-                                'Section ID': waypoint.section_id,
-                                's': waypoint.s,
-                                'Is Junction': waypoint.is_junction,
-                                'Lane Width': waypoint.lane_width,
-                                'Lane Type': waypoint.lane_type.name,  # Assuming enum to str conversion
-                                'Lane Change': waypoint.lane_change.name,  # Assuming enum to str conversion
-                                'Right Lane Marking': waypoint.right_lane_marking.type.name,
-                                # Assuming enum to str conversion
-                                'Left Lane Marking': waypoint.left_lane_marking.type.name,
-                                # Assuming enum to str conversion
-                            },
+                        'Mode': mode,  # Add your mode value here,
+                        'Waypoint': {
+                            'id': waypoint.id,
+                            'Location': (t.location.x, t.location.y, t.location.z),
+                            'Rotation': (t.rotation.pitch, t.rotation.yaw, t.rotation.roll),
+                            'Road ID': waypoint.road_id,
+                            'Lane ID': waypoint.lane_id,
+                            'Section ID': waypoint.section_id,
+                            's': waypoint.s,
+                            'Is Junction': waypoint.is_junction,
+                            'Lane Width': waypoint.lane_width,
+                            'Lane Type': waypoint.lane_type.name,  # Assuming enum to str conversion
+                            'Lane Change': waypoint.lane_change.name,  # Assuming enum to str conversion
+                            'Right Lane Marking': waypoint.right_lane_marking.type.name,
+                            # Assuming enum to str conversion
+                            'Left Lane Marking': waypoint.left_lane_marking.type.name,
+                            # Assuming enum to str conversion
+                        },
 
-                        }
+                    }
 
                     with open(filename, 'r+') as file:
-                            data = json.load(file)  # Load existing data
-                            data['Waypoints'].append(waypoint_data)  # Append new waypoint
-                            save_route(data['Waypoints'],world)
-                            file.seek(0)  # Go back to the start of the file
-                            file.truncate()  # Clear the file content before writing
-                            json.dump(data, file, indent=4)  # Re-write the modified data
+                        data = json.load(file)  # Load existing data
+                        data['Waypoints'].append(waypoint_data)  # Append new waypoint
+                        save_route(data['Waypoints'], world)
+                        file.seek(0)  # Go back to the start of the file
+                        file.truncate()  # Clear the file content before writing
+                        json.dump(data, file, indent=4)  # Re-write the modified data
 
                 elif event.key == K_r and (pygame.key.get_mods() & KMOD_CTRL):
                     if (world.recording_enabled):
@@ -955,6 +954,7 @@ class FadingText(object):
 
 class HelpText(object):
     """Helper class to handle text output using pygame"""
+
     def __init__(self, font, width, height):
         lines = __doc__.split('\n')
         self.font = font
@@ -1366,25 +1366,26 @@ def interchange_x_y(yaw):
         return False
 
     if yaw <= 315 and yaw > 225:
-        return True 
+        return True
+
 
 def save_route(waypoints, world) -> None:
     if (len(waypoints) < 2):
-        return 
-    csv_file_path = 'recording_route.csv'
+        return
+    csv_file_path = os.path.join('..', 'recordings', 'route_' + world.filename.split('/')[-1].split('.')[0] + '.csv')
     agent = BasicAgent(world.player, 30)
     agent.follow_speed_limits(True)
     total_route = []
     intermediate_points = []
-    for i in range(len(waypoints)-1):
+    for i in range(len(waypoints) - 1):
         start = waypoints[i]["Waypoint"]["Location"]
         end = waypoints[i + 1]["Waypoint"]["Location"]
         rot = waypoints[i]["Waypoint"]["Rotation"]
-        startL = carla.Location(x=start[0],y=start[1],z=start[2])
-        endL = carla.Location(x=end[0],y=end[1],z=end[2])
-        startT = carla.Rotation(pitch=rot[0],yaw=rot[1],roll=rot[2])
-        route = agent._global_planner.trace_route(startL,endL)
-        intermediate_points.extend(agent._global_planner.trace_route(startL,endL))
+        startL = carla.Location(x=start[0], y=start[1], z=start[2])
+        endL = carla.Location(x=end[0], y=end[1], z=end[2])
+        startT = carla.Rotation(pitch=rot[0], yaw=rot[1], roll=rot[2])
+        route = agent._global_planner.trace_route(startL, endL)
+        intermediate_points.extend(agent._global_planner.trace_route(startL, endL))
     initial_point = intermediate_points[0][0]
     initial_x = initial_point.transform.location.x
     initial_y = initial_point.transform.location.y
@@ -1468,9 +1469,10 @@ def save_route(waypoints, world) -> None:
 
 
 
-    with open(csv_file_path, 'w',newline='') as csvfile:
-        csv_writer = csv.writer(csvfile,delimiter=',')
+    with open(csv_file_path, 'w', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile, delimiter=',')
         csv_writer.writerows(total_route)
+
 
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
