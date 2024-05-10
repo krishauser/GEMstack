@@ -170,8 +170,11 @@ class ParkingSpotDetector(Component):
                         mid_y2 = (line1[3] + line2[3]) // 2
                         midpoint = ((x + mid_x1 + x + mid_x2) // 2, (y + mid_y1 + y + mid_y2) // 2)
 
-                        angle = np.arctan2(mid_y2 - mid_y1, mid_x2 - mid_x1) - np.pi / 2
-                        angle = angle if angle >= 0 else angle + np.pi
+                        #angle = np.arctan2(mid_y2 - mid_y1, mid_x2 - mid_x1) - np.pi / 2
+                        #angle = angle if angle >= 0 else angle + np.pi
+
+                        angle = np.arctan2(mid_x2 - mid_x1, mid_y2 - mid_y1)
+                        angle = angle if angle >= 0 else angle + 2*np.pi
 
                         cv2.line(img, (x + mid_x1, y + mid_y1), (x + mid_x2, y + mid_y2), (0, 0, 255), 4)
                         for x1, y1, x2, y2 in avg_lines:
