@@ -1394,17 +1394,79 @@ def save_route(waypoints, world) -> None:
     sign_is_set = False
     # initially, if movements in x are too small, the path drawn doesn't have a lot of forward x to properly work
     interchange = interchange_x_y(initial_yaw)
-    for point in intermediate_points:
-        if (set_sign and not sign_is_set):
-            sign = point[0].transform.location.x / abs(point[0].transform.location.x)
-            sign_is_set = True
-        if (interchange):
-            total_route.append([sign*round(point[0].transform.location.x - initial_x,3), -1*sign*round(point[0].transform.location.y - initial_y,3), point[0].transform.rotation.yaw - initial_yaw])
-        else : 
-            total_route.append([sign*round(point[0].transform.location.y - initial_y,3), -1*sign*round(point[0].transform.location.x - initial_x,3), point[0].transform.rotation.yaw - initial_yaw])
 
-        if (sign == 0):
-            set_sign = True
+    # Start with 0,0,yaw in your route
+    total_route.append([0.0, 0.0, intermediate_points[0][0].transform.rotation.yaw - initial_yaw]) # plot starting point
+    ctr = 1
+
+    # for GEMStack, to ensure that the car is initially going forward in x axis, calculate sign to interchange x and y if necessary
+    while (sign == 0 and ctr < len(intermediate_points)):
+        x_point = intermediate_points[ctr][0].transform.location.x
+        y_point = intermediate_points[ctr][0].transform.location.y
+        if (interchange and abs(x_point) != 0):
+            sign = x_point/ abs(x_point)
+        elif (not interchange and abs(y_point) != 0):
+            sign = y_point / abs(y_point)
+        ctr += 1
+
+    prev_x = None
+    prev_y = None
+    for itr in range(len(intermediate_points[1:])):
+        # if (set_sign and not sign_is_set):
+        #     sign = point[0].transform.location.x / abs(point[0].transform.location.x)
+        #     sign_is_set = True
+        cur_x = intermediate_points[itr][0].transform.location.x 
+        cur_y = intermediate_points[itr][0].transform.location.y
+        cur_yaw = intermediate_points[itr][0].transform.rotation.yaw 
+
+        # calculate list of discrete points if necessary
+        discretize_list = []
+        bandwidth = 3.5
+        # bandwidth dictates max possible distance between current and previous x or y
+        # Why 3.5 ? in purepursuit, max distance to check for next point in path is -5 to 5
+        # 3.5 * sqrt(2) ~ 4.9 which is close to the above limit
+
+        ## YAW Value not calculated as it is not used in path
+        if (prev_x != None):
+            if ((abs(cur_x - prev_x) > bandwidth) or (abs(cur_y - prev_y) > bandwidth)):
+                if (abs(cur_x - prev_x) > abs(cur_y - prev_y)):
+                    sign_for_incr = 1 if cur_x > prev_x else -1  
+                    range_of_x = abs(int(cur_x - prev_x)//2)
+                    const_incr_for_y = (cur_y - prev_y) / range_of_x
+                    const_incr_for_x = 2 * sign_for_incr
+                    incr_for_x = const_incr_for_x
+                    incr_for_y = const_incr_for_y
+                    for i in range(range_of_x):
+                        discretize_list.append((prev_x + incr_for_x, prev_y + incr_for_y))
+                        incr_for_y += const_incr_for_y
+                        incr_for_x += const_incr_for_x
+                elif (abs(cur_x - prev_x) <= abs(cur_y - prev_y)):
+                    sign_for_incr = 1 if cur_y > prev_y else -1  
+                    range_of_y = abs(int(cur_y - prev_y)//2)
+                    const_incr_for_x = (cur_x - prev_x) / range_of_y
+                    const_incr_for_y = 2 * sign_for_incr
+                    incr_for_x = const_incr_for_x
+                    incr_for_y = const_incr_for_y
+                    for i in range(range_of_y):
+                        discretize_list.append((prev_x + incr_for_x, prev_y + incr_for_y))
+                        incr_for_x += const_incr_for_x
+                        incr_for_y += const_incr_for_y
+        if (interchange):
+            for dsc_points in discretize_list:
+                total_route.append([sign*round(dsc_points[0] - initial_x,3), -1*sign*round(dsc_points[1] - initial_y,3), cur_yaw - initial_yaw]) 
+            
+            total_route.append([sign*round(cur_x - initial_x,3), -1*sign*round(cur_y - initial_y,3), cur_yaw - initial_yaw])
+        else : 
+            for dsc_points in discretize_list:
+                total_route.append([sign*round(dsc_points[1] - initial_y,3), -1*sign*round(dsc_points[0] - initial_x,3), cur_yaw - initial_yaw])            
+            
+            total_route.append([sign*round(cur_y - initial_y,3), -1*sign*round(cur_x - initial_x,3), cur_yaw - initial_yaw])
+        prev_x = cur_x
+        prev_y = cur_y
+        # if (sign == 0):
+        #     set_sign = True
+
+
 
     with open(csv_file_path, 'w',newline='') as csvfile:
         csv_writer = csv.writer(csvfile,delimiter=',')
