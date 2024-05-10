@@ -20,7 +20,6 @@ MODEL_WEIGHT_PATH = 'GEMstack/knowledge/detection/parking_spot_detection.pt'
 class ParkingSpotDetector(Component):
     """Performs Parking Spot Detection"""
     def __init__(self, vehicle_interface : GEMInterface):
-        print("initializing")
         self.pub = rospy.Publisher("/annotated_lines", Image, queue_size=10)
         self.vehicle_interface = vehicle_interface
         self.model = YOLO(MODEL_WEIGHT_PATH)
@@ -29,12 +28,7 @@ class ParkingSpotDetector(Component):
         self.dist_thresh = 8
         self.front_image = None
         self.point_cloud = None
-
-        # self.x = 14.768
-        # self.y = -6.092
-        # self.yaw = -1.1
         self.grey_thresh = 180
-        # self.parking_spot = ObjectPose(t=0, x=self.x, y=self.y, yaw=self.yaw, frame=ObjectFrameEnum.START)
         self.parking_spot = None
 
     def rate(self):
@@ -47,7 +41,6 @@ class ParkingSpotDetector(Component):
         # Subscribe to necessary sensors
         self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
         self.vehicle_interface.subscribe_sensor('top_lidar', self.lidar_callback, PointCloud2)
-        print("updating")
         founded = False
         while not founded:
             res = self.parking_spot_detection()  # Attempt to detect and update parking spot
@@ -58,7 +51,6 @@ class ParkingSpotDetector(Component):
                 print("self.parking_spot: ",self.parking_spot)
                 founded = True
 
-            print("Looping......")
 
     def image_callback(self, image: cv2.Mat):
         self.front_image = image
@@ -170,9 +162,6 @@ class ParkingSpotDetector(Component):
                         mid_y2 = (line1[3] + line2[3]) // 2
                         midpoint = ((x + mid_x1 + x + mid_x2) // 2, (y + mid_y1 + y + mid_y2) // 2)
 
-                        #angle = np.arctan2(mid_y2 - mid_y1, mid_x2 - mid_x1) - np.pi / 2
-                        #angle = angle if angle >= 0 else angle + np.pi
-
                         angle = np.arctan2(mid_x2 - mid_x1, mid_y2 - mid_y1)
                         angle = angle if angle >= 0 else angle + 2*np.pi
 
@@ -195,17 +184,4 @@ class ParkingSpotDetector(Component):
         return [None,None]
 
     def update(self):
-        # print("updating")
-        # founded = False
-        # while not founded:
-        #     res = self.parking_spot_detection()  # Attempt to detect and update parking spot
-        #     # x, y = 14.768, -6.092
-        #     # yaw = -1.1
-        #     if res:
-        #         print("Our code")
-        #         print("self.parking_spot: ",self.parking_spot)
-        #         founded = True
-
-        #     print("Looping......")
-
         return self.parking_spot
