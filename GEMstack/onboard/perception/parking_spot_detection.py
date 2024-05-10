@@ -20,6 +20,7 @@ MODEL_WEIGHT_PATH = 'GEMstack/knowledge/detection/parking_spot_detection.pt'
 class ParkingSpotDetector(Component):
     """Performs Parking Spot Detection"""
     def __init__(self, vehicle_interface : GEMInterface):
+        print("initializing")
         self.pub = rospy.Publisher("/annotated_lines", Image, queue_size=10)
         self.vehicle_interface = vehicle_interface
         self.model = YOLO(MODEL_WEIGHT_PATH)
@@ -29,11 +30,12 @@ class ParkingSpotDetector(Component):
         self.front_image = None
         self.point_cloud = None
 
-        self.x = 14.768
-        self.y = -6.092
-        self.yaw = -1.1
+        # self.x = 14.768
+        # self.y = -6.092
+        # self.yaw = -1.1
         self.grey_thresh = 180
-        self.parking_spot = ObjectPose(t=0, x=self.x, y=self.y, yaw=self.yaw, frame=ObjectFrameEnum.START)
+        # self.parking_spot = ObjectPose(t=0, x=self.x, y=self.y, yaw=self.yaw, frame=ObjectFrameEnum.START)
+        self.parking_spot = None
 
     def rate(self):
         return 0.25
@@ -45,6 +47,18 @@ class ParkingSpotDetector(Component):
         # Subscribe to necessary sensors
         self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
         self.vehicle_interface.subscribe_sensor('top_lidar', self.lidar_callback, PointCloud2)
+        print("updating")
+        founded = False
+        while not founded:
+            res = self.parking_spot_detection()  # Attempt to detect and update parking spot
+            # x, y = 14.768, -6.092
+            # yaw = -1.1
+            if res:
+                print("Our code")
+                print("self.parking_spot: ",self.parking_spot)
+                founded = True
+
+            print("Looping......")
 
     def image_callback(self, image: cv2.Mat):
         self.front_image = image
@@ -73,8 +87,6 @@ class ParkingSpotDetector(Component):
     def parking_spot_detection(self):
         if self.front_image is None or self.point_cloud is None:
             print("camera or sensors not working")
-            print(f"front image = {self.front_image}")
-            print(f"point cloud = {self.point_cloud}")
             return None # Just return without doing anything if data is not ready
         print("GREAT! camera and sensors working")
 
@@ -92,7 +104,8 @@ class ParkingSpotDetector(Component):
 
         if x and y and yaw:
             self.euclidean = np.sqrt(x**2 + y**2)
-            self.parking_spot = ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.CURRENT)
+            self.parking_spot = ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.START)
+            return True
 
     def get_parking_spot(self, img, bbox):
         [midpoint, angle, img] = self.isolate_and_draw_lines(img, bbox)
@@ -179,16 +192,17 @@ class ParkingSpotDetector(Component):
         return [None,None]
 
     def update(self):
-        founded = False
-        while not founded:
-            res = self.parking_spot_detection()  # Attempt to detect and update parking spot
-            # x, y = 14.768, -6.092
-            # yaw = -1.1
-            if res is not None:
-                print("Our code")
-                print("self.parking_spot: ",self.parking_spot)
-                founded = True
+        # print("updating")
+        # founded = False
+        # while not founded:
+        #     res = self.parking_spot_detection()  # Attempt to detect and update parking spot
+        #     # x, y = 14.768, -6.092
+        #     # yaw = -1.1
+        #     if res:
+        #         print("Our code")
+        #         print("self.parking_spot: ",self.parking_spot)
+        #         founded = True
 
-            print("Looping......")
+        #     print("Looping......")
 
         return self.parking_spot

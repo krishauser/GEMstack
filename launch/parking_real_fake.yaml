@@ -4,7 +4,7 @@ mode: hardware
 vehicle_interface:
     type: gem_mixed.GEMRealSensorsWithSimMotionInterface
     args:
-        scene: !relative_path '../scenes/xyhead_demo.yaml'
+        scene: !relative_path '../scenes/parking_demo.yaml'
 
 mission_execution: StandardExecutor
 # Recovery behavior after a component failure
@@ -27,9 +27,9 @@ drive:
             # type: mpc_motion_planning.MPCTrajectoryPlanner
             args: [0.5]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
-            # type: pure_pursuit.PurePursuitTrajectoryTracker
-            type: mpc_tracking.MPCTrajectoryTracker
-            args: {N: 4, dt: 1.75, Q: [1,1,1], R: [1,1,5,5], fixed: True}
+            type: pure_pursuit.PurePursuitTrajectoryTracker
+            #type: mpc_tracking.MPCTrajectoryTracker
+            #args: {N: 4, dt: 1.75, Q: [1,1,1], R: [1,1,5,5], fixed: True}
             # print: False
 
 #visualization methods
@@ -39,7 +39,7 @@ visualization:
         rate: 8
         #Don't include save_as if you don't want to save the video
         save_as:
-    multiprocess: True
+    multiprocess: False
 
 
 log:
