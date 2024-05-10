@@ -9,7 +9,13 @@ sudo apt-get install ros-noetic-radar-msgs
 sudo apt-get install ros-noetic-novatel-gps-msgs
 
 # Run the following command for Town map 5 (It has city, highway, curb side and parking-lot locations)
+# PLEASE NOTE THAT: Town05_Opt is not an HD map. If you have 16 GB GPU like in highbay, you can also make use of Town10HD_Opt with sync=true, which is essentially good for testing in-built perception
+
+# for local testing with 4GB gpu ->
 python config.py --map Town05_Opt --no-rendering --no-sync
+
+# for local testing with 8+ GB GPU / highbay env
+python config.py --map Town10HD_Opt --no-rendering
 
 # While visualizing pointcloud on rviz, if you see Status: error, in a separate terminal, run the following command, and re-add point-cloud viz.
 rosrun tf static_transform_publisher 0 0 0 0 0 0 map lidar 50
