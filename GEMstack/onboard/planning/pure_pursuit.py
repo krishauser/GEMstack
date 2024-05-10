@@ -85,9 +85,6 @@ class PurePursuit(object):
                 self.trajectory = self.trajectory.to_frame(state.pose.frame, current_pose=state.pose)
         low = 5.0
         high = 5.0
-        """
-        MAKE SURE TO USE low = 0.0 AND high = 20.0 WHEN USING CARLA SIMULATION (TODO shift this to file)
-        """
         closest_dist,closest_parameter = self.path.closest_point_local((curr_x,curr_y),[self.current_path_parameter - low,self.current_path_parameter + high])
         self.current_path_parameter = closest_parameter
         self.current_traj_parameter += dt
