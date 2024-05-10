@@ -25,14 +25,11 @@ class ParkingSpotDetector(Component):
         self.model = YOLO(MODEL_WEIGHT_PATH)
         self.handler = PixelWise3DLidarCoordHandler()
         self.euclidean = None
-        self.dist_thresh = None
+        self.dist_thresh = 8
         self.front_image = None
         self.point_cloud = None
-
-        self.x = 14.768
-        self.y = -6.092
-        self.yaw = -1.1
-        self.parking_spot = ObjectPose(t=0, x=self.x, y=self.y, yaw=self.yaw, frame=ObjectFrameEnum.START)
+        self.grey_thresh = 180
+        self.parking_spot = None
 
     def rate(self):
         return 0.25
@@ -44,6 +41,16 @@ class ParkingSpotDetector(Component):
         # Subscribe to necessary sensors
         self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
         self.vehicle_interface.subscribe_sensor('top_lidar', self.lidar_callback, PointCloud2)
+        founded = False
+        while not founded:
+            res = self.parking_spot_detection()  # Attempt to detect and update parking spot
+            # x, y = 14.768, -6.092
+            # yaw = -1.1
+            if res:
+                print("Our code")
+                print("self.parking_spot: ",self.parking_spot)
+                founded = True
+
 
     def image_callback(self, image: cv2.Mat):
         self.front_image = image
@@ -52,8 +59,7 @@ class ParkingSpotDetector(Component):
         self.point_cloud = point_cloud
 
     def detect_empty(self, img: cv2.Mat, empty_spot=0, conf_threshold=conf_thresh):
-        global model
-        results = model(img)
+        results = self.model(img)
         for box, conf in zip(results[0].obb, results[0].obb.conf):
             class_id = int(box.cls[0].item())
             confidence = float(conf.item())
@@ -73,9 +79,8 @@ class ParkingSpotDetector(Component):
     def parking_spot_detection(self):
         if self.front_image is None or self.point_cloud is None:
             print("camera or sensors not working")
-            print(f"front image = {self.front_image}")
-            print(f"point cloud = {self.point_cloud}")
             return None # Just return without doing anything if data is not ready
+        print("GREAT! camera and sensors working")
 
         if self.euclidean is not None and self.euclidean < self.dist_thresh:
             print(f"euclidean = {self.euclidean} is less than threshold")
@@ -91,13 +96,15 @@ class ParkingSpotDetector(Component):
 
         if x and y and yaw:
             self.euclidean = np.sqrt(x**2 + y**2)
-            self.parking_spot = ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.CURRENT)
+            self.parking_spot = ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.START)
+            return True
 
     def get_parking_spot(self, img, bbox):
         [midpoint, angle, img] = self.isolate_and_draw_lines(img, bbox)
         [x,y] = self.get_goal_pose(midpoint)
-
-        return [x,y,angle]
+        if x and y:
+            return [x,y,angle]
+        return [None,None,angle]
 
     def isolate_and_draw_lines(self, img, bbox_info):
         if bbox_info is None:
@@ -155,8 +162,8 @@ class ParkingSpotDetector(Component):
                         mid_y2 = (line1[3] + line2[3]) // 2
                         midpoint = ((x + mid_x1 + x + mid_x2) // 2, (y + mid_y1 + y + mid_y2) // 2)
 
-                        angle = np.arctan2(mid_y2 - mid_y1, mid_x2 - mid_x1) - np.pi / 2
-                        angle = angle if angle >= 0 else angle + np.pi
+                        angle = np.arctan2(mid_x2 - mid_x1, mid_y2 - mid_y1)
+                        angle = angle if angle >= 0 else angle + 2*np.pi
 
                         cv2.line(img, (x + mid_x1, y + mid_y1), (x + mid_x2, y + mid_y2), (0, 0, 255), 4)
                         for x1, y1, x2, y2 in avg_lines:
@@ -168,25 +175,13 @@ class ParkingSpotDetector(Component):
     def get_goal_pose(self, coords_pixel):
         if self.point_cloud and coords_pixel:
             numpy_point_cloud = self.handler.ros_PointCloud2_to_numpy(self.point_cloud)
-            coord_3d_map = self.handler.get3DCoord(self.image, numpy_point_cloud)
+            coord_3d_map = self.handler.get3DCoord(self.front_image, numpy_point_cloud)
             (x, y) = coords_pixel
             if 0 <= int(x) < coord_3d_map.shape[1] and 0 <= int(y) < coord_3d_map.shape[0]:
                 midpoint_3d = coord_3d_map[y, x]
                 if midpoint_3d[0] != 0 and midpoint_3d[1] != 0:
                     return [midpoint_3d[0], midpoint_3d[1]]
-        return None
+        return [None,None]
 
     def update(self):
-        self.parking_spot_detection()  # Attempt to detect and update parking spot
-        x, y = 14.768, -6.092
-        yaw = -1.1
-        x_real = self.parking_spot.x
-        y_real = self.parking_spot.y
-        yaw_real = self.parking_spot.yaw
-        if self.parking_spot is None:
-            print("Fixed Route")
-            return ObjectPose(t=0, x=x, y=y, yaw=yaw, frame=ObjectFrameEnum.START)
-        else:
-            print("Our code")
-            print(f"x:{x_real}, y:{y_real}, yaw:{yaw_real}")
-            return self.parking_spot
+        return self.parking_spot

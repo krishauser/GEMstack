@@ -154,47 +154,47 @@ class GEMHardwareInterface(GEMInterface):
         return self.last_reading
 
     def subscribe_sensor(self, name, callback, type = None):
-        if name == 'gnss':
-            topic = self.ros_sensor_topics[name]
-            if topic.endswith('inspva'):
-                if type is not None and (type is not Inspva and type is not GNSSReading):
-                    raise ValueError("GEMHardwareInterface GEM e2 only supports Inspva/GNSSReading for GNSS")
-                if type is Inspva:
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback)
-                else:
-                    def callback_with_gnss_reading(inspva_msg: Inspva):
-                        pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-                                    x=inspva_msg.longitude,
-                                    y=inspva_msg.latitude,
-                                    z=inspva_msg.height,
-                                    yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
-                                    roll=math.radians(inspva_msg.roll),
-                                    pitch=math.radians(inspva_msg.pitch),
-                                    )
-                        speed = np.sqrt(inspva_msg.east_velocity**2 + inspva_msg.north_velocity**2)
-                        callback(GNSSReading(pose,speed,inspva_msg.status))
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
-            else:
-                #assume it's septentrio
-                if type is not None and (type is not INSNavGeod and type is not GNSSReading):
-                    raise ValueError("GEMHardwareInterface GEM e4 only supports INSNavGeod/GNSSReading for GNSS")
-                if type is INSNavGeod:
-                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback)
-                else:
-                    def callback_with_gnss_reading(msg: INSNavGeod):
-                        pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-                                    t=self.time(),
-                                    x=msg.longitude,
-                                    y=msg.latitude,
-                                    z=msg.height,
-                                    yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
-                                    roll=math.radians(msg.roll),
-                                    pitch=math.radians(msg.pitch),
-                                    )
-                        speed = np.sqrt(msg.ve**2 + msg.vn**2)
-                        callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
-                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
-        elif name == 'top_lidar':
+        # if name == 'gnss':
+        #     topic = self.ros_sensor_topics[name]
+        #     if topic.endswith('inspva'):
+        #         if type is not None and (type is not Inspva and type is not GNSSReading):
+        #             raise ValueError("GEMHardwareInterface GEM e2 only supports Inspva/GNSSReading for GNSS")
+        #         if type is Inspva:
+        #             self.gnss_sub = rospy.Subscriber(topic, Inspva, callback)
+        #         else:
+        #             def callback_with_gnss_reading(inspva_msg: Inspva):
+        #                 pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+        #                             x=inspva_msg.longitude,
+        #                             y=inspva_msg.latitude,
+        #                             z=inspva_msg.height,
+        #                             yaw=math.radians(inspva_msg.azimuth),  #heading from north in degrees
+        #                             roll=math.radians(inspva_msg.roll),
+        #                             pitch=math.radians(inspva_msg.pitch),
+        #                             )
+        #                 speed = np.sqrt(inspva_msg.east_velocity**2 + inspva_msg.north_velocity**2)
+        #                 callback(GNSSReading(pose,speed,inspva_msg.status))
+        #             self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+        #     else:
+        #         #assume it's septentrio
+        #         if type is not None and (type is not INSNavGeod and type is not GNSSReading):
+        #             raise ValueError("GEMHardwareInterface GEM e4 only supports INSNavGeod/GNSSReading for GNSS")
+        #         if type is INSNavGeod:
+        #             self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback)
+        #         else:
+        #             def callback_with_gnss_reading(msg: INSNavGeod):
+        #                 pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+        #                             t=self.time(),
+        #                             x=msg.longitude,
+        #                             y=msg.latitude,
+        #                             z=msg.height,
+        #                             yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
+        #                             roll=math.radians(msg.roll),
+        #                             pitch=math.radians(msg.pitch),
+        #                             )
+        #                 speed = np.sqrt(msg.ve**2 + msg.vn**2)
+        #                 callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
+        #             self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
+        if name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
                 raise ValueError("GEMHardwareInterface only supports PointCloud2 or numpy array for top lidar")
