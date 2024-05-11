@@ -14,7 +14,7 @@ drive:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
     planning:
-        driving_calibration:
+        driving_for_calibration:
             type: acc_calibration_driver.AccelerationCalibrationDriver
             args: {acc: 1} 
             print: True
@@ -32,7 +32,7 @@ log:
     # If True, then record all readings / commands of the vehicle interface. Default False
     vehicle_interface : True
     # Specify which components to record to behavior.json. Default records nothing
-    components : ['state_estimation','test_driving']
+    components : ['state_estimation','driving_for_calibration']
     # Specify which components of state to record to state.json. Default records nothing 
     #state: ['all']
     # Specify the rate in Hz at which to record state to state.json. Default records at the pipeline's rate
