@@ -83,9 +83,8 @@ class PurePursuit(object):
             if self.trajectory.frame != state.pose.frame:
                 print("Transforming trajectory from",self.trajectory.frame.name,"to",state.pose.frame.name)
                 self.trajectory = self.trajectory.to_frame(state.pose.frame, current_pose=state.pose)
-        low = 5.0
-        high = 5.0
-        closest_dist,closest_parameter = self.path.closest_point_local((curr_x,curr_y),[self.current_path_parameter - low,self.current_path_parameter + high])
+
+        closest_dist,closest_parameter = self.path.closest_point_local((curr_x,curr_y),[self.current_path_parameter-5.0,self.current_path_parameter+5.0])
         self.current_path_parameter = closest_parameter
         self.current_traj_parameter += dt
         #TODO: calculate parameter that is look_ahead distance away from the closest point?
