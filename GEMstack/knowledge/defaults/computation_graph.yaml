@@ -73,3 +73,6 @@ components:
   - waving_detection:
       inputs: agents
       outputs: agents
+  - driving_calibration:
+      inputs: [vehicle]
+      outputs:
