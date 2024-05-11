@@ -65,27 +65,7 @@ class Path:
         for i in range(len(self.points)-1):
             l += transforms.vector_dist(self.points[i],self.points[i+1])
         return l
-        
-    def curvature(self, px, py, cx, cy, nx, ny):
-        # Calculate the curvature using three points (previous, current, next)
-        # Using the circumcircle radius formula for curvature: kappa = 1 / R
-        # R = (a*b*c) / sqrt((a+b+c)*(b+c-a)*(c+a-b)*(a+b-c))
-        a = np.sqrt((cx - px)**2 + (cy - py)**2)
-        b = np.sqrt((cx - nx)**2 + (cy - ny)**2)
-        c = np.sqrt((nx - px)**2 + (ny - py)**2)
-        s = (a + b + c) / 2
-        radius = (a*b*c) / (4 * np.sqrt(s * (s-a) * (s-b) * (s-c)))
-        return 1 / radius if radius != 0 else 0
 
-    def adjust_speed(self, curve, max_speed, k=3.0):
-        # Adjust speed based on curvature
-        # Simple example: speed is inverse of curvature; more sophisticated function might be needed
-        if curve == 0:
-            return max_speed
-        speed_inv = max_speed / (1 + k * curve)
-        speed_exp = max_speed * np.exp(-k * curve)
-        return min(max_speed, speed_inv)
-    
     def arc_length_parameterize(self, speed = 1.0) -> Trajectory:
         """Returns a new path that is parameterized by arc length."""
         times = [0.0]
@@ -100,50 +80,6 @@ class Path:
         # check whether self has attribute yaws
         if hasattr(self, 'yaws'):
             return Trajectory(frame=self.frame,points=points,times=times,yaws=self.yaws)
-        return Trajectory(frame=self.frame,points=points,times=times)
-
-    def var_speed_arc_length_parameterize(self, reference_speed) -> 'Trajectory':
-        """Parameterizes the path by arc length with variable speeds based on curvature."""
-        times = [0.0]
-        points = [self.points[0]]
-        
-        headings = [point[2] for point in compute_headings(self).points]
-        for i in range(1, len(self.points) - 1):
-            p0 = self.points[i - 1]
-            p1 = self.points[i]
-            p2 = self.points[i + 1]
-            yaw = headings[i-1]
-            next_yaw = headings[i]
-            yaw_difference = abs(next_yaw - yaw)
-            curve = self.curvature(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1])
-            curvature_adjusted_speed = self.adjust_speed(curve, reference_speed, k=1)
-
-            low_threshold = np.radians(3)
-            high_threshold = np.radians(5)
-            
-            # Define speeds corresponding to the yaw differences
-            if yaw_difference < low_threshold:
-                adjusted_speed = reference_speed
-            elif low_threshold <= yaw_difference < high_threshold:
-                adjusted_speed = reference_speed * 0.6
-            else:
-                adjusted_speed = reference_speed * 0.2
-
-            adjusted_speed = min(curvature_adjusted_speed, adjusted_speed)
-
-            d = np.linalg.norm(np.array(p1) - np.array(p0))
-            if d > 0:
-                points.append(p1)
-                times.append(times[-1] + d / adjusted_speed)
-
-        points.append(self.points[-1])  # Ensure the last point is included
-        # Final segment with average or previous speed
-        final_d = np.linalg.norm(np.array(self.points[-1]) - np.array(points[-1]))
-        times.append(times[-1] + final_d / adjusted_speed)
-
-        if hasattr(self, 'yaws'):
-            return Trajectory(frame=self.frame,points=points,times=times,yaws=self.yaws,gear=self.gear)
-        
         return Trajectory(frame=self.frame,points=points,times=times)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
