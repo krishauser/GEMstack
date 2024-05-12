@@ -20,7 +20,7 @@ class SceneState:
     vehicle_lane : Optional[str]                  #lane in which the vehicle is located, if known
     agents : Dict[str,AgentState]                 #moving agents
     obstacles : Dict[str,Obstacle]                #dynamically determined obstacles
-    detected_signs : Optional[Dict[str,Sign]]     #stores the states of the detected signs
+    detected_signs : Optional[Dict[str,Sign]] = field(default_factory=dict) #stores the states of the detected signs
     
     def get_entity(self, name : str) -> Any:
         if name =='':
