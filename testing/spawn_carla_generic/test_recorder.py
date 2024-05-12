@@ -57,6 +57,7 @@ Use ARROWS or WASD keys for control.
 from __future__ import print_function
 
 import glob
+import json
 import os
 import sys
 
@@ -72,14 +73,20 @@ try:
 except IndexError:
     pass
 
+sys.path.append('~/carla-simulator/PythonAPI')
+
 # ==============================================================================
 # -- imports -------------------------------------------------------------------
 # ==============================================================================
 
 
 import carla
+import csv
 
 from carla import ColorConverter as cc
+
+from agents.navigation.basic_agent import BasicAgent
+# from agents.navigation.behavior_agent import BehaviorAgent  # pylint: disable=import-error
 
 import argparse
 import collections
@@ -114,6 +121,7 @@ try:
     from pygame.locals import K_c
     from pygame.locals import K_d
     from pygame.locals import K_f
+    from pygame.locals import K_e
     from pygame.locals import K_g
     from pygame.locals import K_h
     from pygame.locals import K_i
@@ -180,7 +188,7 @@ def get_actor_blueprints(world, filter, generation):
             return []
     except Exception:
         print("   Warning! Actor Generation is not valid. No actor will be spawned.")
-        return []
+    return []
 
 
 # ==============================================================================
@@ -213,6 +221,23 @@ class World(object):
         self._actor_filter = args.filter
         self._actor_generation = args.generation
         self._gamma = args.gamma
+
+        self.readFromFile = args.readFromFile
+        os.makedirs("../recordings", exist_ok=True)
+        self.filepath = os.path.join("../recordings", args.prefix + ".json")
+        if args.readFromFile:
+            if not os.path.exists(self.filepath):
+                raise FileNotFoundError("File not found: " + self.filepath)
+            self.filename = self.filepath
+        else:
+            # check if already exists
+            if os.path.exists(self.filepath):
+                # add timestamp to filename
+                self.filename = self.filepath.replace(".json", "_" + str(
+                    datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")) + ".json")
+            else:
+                self.filename = self.filepath
+
         self.restart()
         self.carla_world.on_tick(hud.on_world_tick)
         self.recording_enabled = False
@@ -234,7 +259,7 @@ class World(object):
             carla.MapLayer.Walls,
             carla.MapLayer.All
         ]
-        self.filename = "/home/hb-station1/Documents/GEMstack/testing/spawn_carla_generic/recording.log"
+        self.meta_recorded = False
 
     def restart(self):
         self.player_max_speed = 1.589
@@ -246,7 +271,12 @@ class World(object):
         blueprint_list = get_actor_blueprints(self.carla_world, self._actor_filter, self._actor_generation)
         if not blueprint_list:
             raise ValueError("Couldn't find any blueprints with the specified filters")
-        blueprint = random.choice(blueprint_list)
+
+        blueprint = None
+        for car in blueprint_list:
+            if (car.id == "vehicle.mini.cooper_s_2021"):
+                blueprint = car
+
         blueprint.set_attribute('role_name', self.actor_role_name)
         if blueprint.has_attribute('terramechanics'):
             blueprint.set_attribute('terramechanics', 'true')
@@ -274,15 +304,33 @@ class World(object):
             self.show_vehicle_telemetry = False
             self.modify_vehicle_physics(self.player)
         while self.player is None:
-            if not self.map.get_spawn_points():
-                print('There are no spawn points available in your map/town.')
-                print('Please add some Vehicle Spawn Point to your UE4 scene.')
-                sys.exit(1)
-            spawn_points = self.map.get_spawn_points()
-            spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            if self.readFromFile:
+                # Read spawn points from the JSON file
+                with open(self.filename, 'r') as file:
+                    data = json.load(file)
+                    first_waypoint = data['Waypoints'][0]['Waypoint']
+                    location = first_waypoint['Location']
+                    rotation = first_waypoint['Rotation']
+                    spawn_location = carla.Location(x=location[0], y=location[1], z=location[2] + 2)
+                    spawn_rotation = carla.Rotation(pitch=rotation[0], yaw=rotation[1], roll=rotation[2])
+                    spawn_point = carla.Transform(spawn_location, spawn_rotation)
+            else:
+                if not self.map.get_spawn_points():
+                    print('There are no spawn points available in your map/town.')
+                    print('Please add some Vehicle Spawn Point to your UE4 scene.')
+                    sys.exit(1)
+                spawn_points = self.map.get_spawn_points()
+                spawn_point = random.choice(spawn_points) if spawn_points else carla.Transform()
+            # Try to spawn the player at the read spawn point
             self.player = self.carla_world.try_spawn_actor(blueprint, spawn_point)
-            self.show_vehicle_telemetry = False
+            if self.player is None:
+                print("Failed to spawn the vehicle at the specified spawn point.")
+                continue  # or handle the failure case appropriately
+
+            # Assuming you have a method to modify vehicle physics
             self.modify_vehicle_physics(self.player)
+
+            self.show_vehicle_telemetry = False
         # Set up the sensors.
         self.collision_sensor = CollisionSensor(self.player, self.hud)
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
@@ -382,7 +430,7 @@ class KeyboardControl(object):
             self._control = carla.VehicleControl()
             self._ackermann_control = carla.VehicleAckermannControl()
             self._lights = carla.VehicleLightState.NONE
-            world.player.set_autopilot(self._autopilot_enabled)
+            world.player.set_autopilot(self._autopilot_enabled, 8002)
             world.player.set_light_state(self._lights)
         elif isinstance(world.player, carla.Walker):
             self._control = carla.WalkerControl()
@@ -393,7 +441,7 @@ class KeyboardControl(object):
         self._steer_cache = 0.0
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
-    def parse_events(self, client, world, clock, sync_mode):
+    def parse_events(self, client, world, clock, sync_mode, mode=''):
         if isinstance(self._control, carla.VehicleControl):
             current_lights = self._lights
         for event in pygame.event.get():
@@ -406,7 +454,7 @@ class KeyboardControl(object):
                     if self._autopilot_enabled:
                         world.player.set_autopilot(False)
                         world.restart()
-                        world.player.set_autopilot(True)
+                        world.player.set_autopilot(True, 8002)
                     else:
                         world.restart()
                 elif event.key == K_F1:
@@ -472,14 +520,63 @@ class KeyboardControl(object):
                         index_ctrl = 9
                     world.camera_manager.set_sensor(event.key - 1 - K_0 + index_ctrl)
                 elif event.key == K_r and not (pygame.key.get_mods() & KMOD_CTRL):
-                    world.camera_manager.toggle_recording()
+                    waypoint = world.map.get_waypoint(world.player.get_location())
+                    # filename = world.filename.replace('.txt', '.json')  # Change file extension to .json
+                    filename = world.filename
+                    if not world.meta_recorded:
+                        world.hud.notification("Starting to record data")
+                        metadata = {
+                            "Description/Mode": mode,
+                            "Map": world.map.name.split('/')[-1],
+                            "Weather and time": str(world._weather_presets[world._weather_index][1]),
+                            "Traffic condition": "TODO",
+                            "Waypoints": []  # List to store waypoints data
+                        }
+
+                        with open(filename, 'w') as file:
+                            json.dump(metadata, file, indent=4)
+
+                        world.meta_recorded = True
+
+                    world.hud.notification("Recording data")
+                    t = waypoint.transform
+
+                    waypoint_data = {
+                        'Mode': mode,  # Add your mode value here,
+                        'Waypoint': {
+                            'id': waypoint.id,
+                            'Location': (t.location.x, t.location.y, t.location.z),
+                            'Rotation': (t.rotation.pitch, t.rotation.yaw, t.rotation.roll),
+                            'Road ID': waypoint.road_id,
+                            'Lane ID': waypoint.lane_id,
+                            'Section ID': waypoint.section_id,
+                            's': waypoint.s,
+                            'Is Junction': waypoint.is_junction,
+                            'Lane Width': waypoint.lane_width,
+                            'Lane Type': waypoint.lane_type.name,  # Assuming enum to str conversion
+                            'Lane Change': waypoint.lane_change.name,  # Assuming enum to str conversion
+                            'Right Lane Marking': waypoint.right_lane_marking.type.name,
+                            # Assuming enum to str conversion
+                            'Left Lane Marking': waypoint.left_lane_marking.type.name,
+                            # Assuming enum to str conversion
+                        },
+
+                    }
+
+                    with open(filename, 'r+') as file:
+                        data = json.load(file)  # Load existing data
+                        data['Waypoints'].append(waypoint_data)  # Append new waypoint
+                        save_route(data['Waypoints'], world)
+                        file.seek(0)  # Go back to the start of the file
+                        file.truncate()  # Clear the file content before writing
+                        json.dump(data, file, indent=4)  # Re-write the modified data
+
                 elif event.key == K_r and (pygame.key.get_mods() & KMOD_CTRL):
                     if (world.recording_enabled):
                         client.stop_recorder()
                         world.recording_enabled = False
                         world.hud.notification("Recorder is OFF")
                     else:
-
                         filename_txt = world.filename.replace("recording.log", "weather_time.txt")
                         with open(filename_txt, 'w') as file:
                             file.write("weather_time: " + str(world._weather_index))
@@ -497,7 +594,7 @@ class KeyboardControl(object):
                     world.destroy_sensors()
                     # disable autopilot
                     self._autopilot_enabled = False
-                    world.player.set_autopilot(self._autopilot_enabled)
+                    world.player.set_autopilot(self._autopilot_enabled, 8002)
                     world.hud.notification("Replaying file 'manual_recording.rec'")
                     # replayer
                     client.replay_file("manual_recording.rec", world.recording_start, 0, 0)
@@ -542,7 +639,7 @@ class KeyboardControl(object):
                             print("WARNING: You are currently in asynchronous mode and could "
                                   "experience some issues with the traffic simulation")
                         self._autopilot_enabled = not self._autopilot_enabled
-                        world.player.set_autopilot(self._autopilot_enabled)
+                        world.player.set_autopilot(self._autopilot_enabled, 8002)
                         world.hud.notification(
                             'Autopilot %s' % ('On' if self._autopilot_enabled else 'Off'))
                     elif event.key == K_l and pygame.key.get_mods() & KMOD_CTRL:
@@ -1251,6 +1348,132 @@ class CameraManager(object):
             image.save_to_disk('_out/%08d' % image.frame)
 
 
+def interchange_x_y(yaw):
+    yaw = yaw + 90
+    while (yaw < 0):
+        yaw = yaw + 360
+
+    while (yaw > 360):
+        yaw = yaw - 360
+
+    if yaw <= 45 and yaw > -45:
+        return False
+
+    if yaw <= 135 and yaw > 45:
+        return True
+
+    if yaw <= 225 and yaw > 135:
+        return False
+
+    if yaw <= 315 and yaw > 225:
+        return True
+
+
+def save_route(waypoints, world) -> None:
+    if (len(waypoints) < 2):
+        return
+    csv_file_path = os.path.join('..', 'recordings', 'route_' + world.filename.split('/')[-1].split('.')[0] + '.csv')
+    agent = BasicAgent(world.player, 30)
+    agent.follow_speed_limits(True)
+    total_route = []
+    intermediate_points = []
+    for i in range(len(waypoints) - 1):
+        start = waypoints[i]["Waypoint"]["Location"]
+        end = waypoints[i + 1]["Waypoint"]["Location"]
+        rot = waypoints[i]["Waypoint"]["Rotation"]
+        startL = carla.Location(x=start[0], y=start[1], z=start[2])
+        endL = carla.Location(x=end[0], y=end[1], z=end[2])
+        startT = carla.Rotation(pitch=rot[0], yaw=rot[1], roll=rot[2])
+        route = agent._global_planner.trace_route(startL, endL)
+        intermediate_points.extend(agent._global_planner.trace_route(startL, endL))
+    initial_point = intermediate_points[0][0]
+    initial_x = initial_point.transform.location.x
+    initial_y = initial_point.transform.location.y
+    initial_yaw = initial_point.transform.rotation.yaw
+    sign = 0
+    set_sign = False
+    sign_is_set = False
+    # initially, if movements in x are too small, the path drawn doesn't have a lot of forward x to properly work
+    interchange = interchange_x_y(initial_yaw)
+
+    # Start with 0,0,yaw in your route
+    total_route.append([0.0, 0.0, intermediate_points[0][0].transform.rotation.yaw - initial_yaw]) # plot starting point
+    ctr = 1
+
+    # for GEMStack, to ensure that the car is initially going forward in x axis, calculate sign to interchange x and y if necessary
+    while (sign == 0 and ctr < len(intermediate_points)):
+        x_point = intermediate_points[ctr][0].transform.location.x
+        y_point = intermediate_points[ctr][0].transform.location.y
+        if (interchange and abs(x_point) != 0):
+            sign = x_point/ abs(x_point)
+        elif (not interchange and abs(y_point) != 0):
+            sign = y_point / abs(y_point)
+        ctr += 1
+
+    prev_x = None
+    prev_y = None
+    for itr in range(len(intermediate_points[1:])):
+        # if (set_sign and not sign_is_set):
+        #     sign = point[0].transform.location.x / abs(point[0].transform.location.x)
+        #     sign_is_set = True
+        cur_x = intermediate_points[itr][0].transform.location.x 
+        cur_y = intermediate_points[itr][0].transform.location.y
+        cur_yaw = intermediate_points[itr][0].transform.rotation.yaw 
+
+        # calculate list of discrete points if necessary
+        discretize_list = []
+        bandwidth = 3.5
+        # bandwidth dictates max possible distance between current and previous x or y
+        # Why 3.5 ? in purepursuit, max distance to check for next point in path is -5 to 5
+        # 3.5 * sqrt(2) ~ 4.9 which is close to the above limit
+
+        ## YAW Value not calculated as it is not used in path
+        if (prev_x != None):
+            if ((abs(cur_x - prev_x) > bandwidth) or (abs(cur_y - prev_y) > bandwidth)):
+                if (abs(cur_x - prev_x) > abs(cur_y - prev_y)):
+                    sign_for_incr = 1 if cur_x > prev_x else -1  
+                    range_of_x = abs(int(cur_x - prev_x)//2)
+                    const_incr_for_y = (cur_y - prev_y) / range_of_x
+                    const_incr_for_x = 2 * sign_for_incr
+                    incr_for_x = const_incr_for_x
+                    incr_for_y = const_incr_for_y
+                    for i in range(range_of_x):
+                        discretize_list.append((prev_x + incr_for_x, prev_y + incr_for_y))
+                        incr_for_y += const_incr_for_y
+                        incr_for_x += const_incr_for_x
+                elif (abs(cur_x - prev_x) <= abs(cur_y - prev_y)):
+                    sign_for_incr = 1 if cur_y > prev_y else -1  
+                    range_of_y = abs(int(cur_y - prev_y)//2)
+                    const_incr_for_x = (cur_x - prev_x) / range_of_y
+                    const_incr_for_y = 2 * sign_for_incr
+                    incr_for_x = const_incr_for_x
+                    incr_for_y = const_incr_for_y
+                    for i in range(range_of_y):
+                        discretize_list.append((prev_x + incr_for_x, prev_y + incr_for_y))
+                        incr_for_x += const_incr_for_x
+                        incr_for_y += const_incr_for_y
+        if (interchange):
+            for dsc_points in discretize_list:
+                total_route.append([sign*round(dsc_points[0] - initial_x,3), -1*sign*round(dsc_points[1] - initial_y,3), cur_yaw - initial_yaw]) 
+            
+            total_route.append([sign*round(cur_x - initial_x,3), -1*sign*round(cur_y - initial_y,3), cur_yaw - initial_yaw])
+        else : 
+            for dsc_points in discretize_list:
+                total_route.append([sign*round(dsc_points[1] - initial_y,3), -1*sign*round(dsc_points[0] - initial_x,3), cur_yaw - initial_yaw])            
+            
+            total_route.append([sign*round(cur_y - initial_y,3), -1*sign*round(cur_x - initial_x,3), cur_yaw - initial_yaw])
+        prev_x = cur_x
+        prev_y = cur_y
+        # if (sign == 0):
+        #     set_sign = True
+
+
+
+    with open(csv_file_path, 'w', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile, delimiter=',')
+        csv_writer.writerows(total_route)
+
+
 # ==============================================================================
 # -- game_loop() ---------------------------------------------------------------
 # ==============================================================================
@@ -1302,7 +1525,7 @@ def game_loop(args):
             if args.sync:
                 sim_world.tick()
             clock.tick_busy_loop(60)
-            if controller.parse_events(client, world, clock, args.sync):
+            if controller.parse_events(client, world, clock, args.sync, args.mode):
                 return
             world.tick(clock)
             world.render(display)
@@ -1380,6 +1603,10 @@ def main():
         '--sync',
         action='store_true',
         help='Activate synchronous mode execution')
+    argparser.add_argument("--mode", default="TODO", type=str)
+    argparser.add_argument("--prefix", default="recording", type=str)
+    argparser.add_argument("--readFromFile", action='store_true', help="Read waypoints from file")
+
     args = argparser.parse_args()
 
     args.width, args.height = [int(x) for x in args.res.split('x')]

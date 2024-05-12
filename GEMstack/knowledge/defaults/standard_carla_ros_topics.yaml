@@ -1,0 +1,11 @@
+/carla/top_lidar
+/carla/front/rgb
+/carla/front/depth
+/carla/gnss
+/carla/parsed_tx/vehicle_speed_rpt
+/carla/parsed_tx/steer_rpt
+/carla/as_rx/shift_cmd
+/carla/as_rx/brake_cmd
+/carla/as_rx/accel_cmd
+/carla/as_rx/turn_cmd
+/carla/as_rx/steer_cmd

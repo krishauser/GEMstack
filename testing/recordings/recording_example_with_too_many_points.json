@@ -1,0 +1,1048 @@
+{
+    "Description/Mode": "TODO",
+    "Map": "Town10HD_Opt",
+    "Weather and time": "Clear Night",
+    "Traffic condition": "TODO",
+    "Waypoints": [
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 10101245929639794313,
+                "Location": [
+                    99.1661605834961,
+                    2.825843095779419,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    100.4928207397461,
+                    0.0
+                ],
+                "Road ID": 655,
+                "Lane ID": 1,
+                "Section ID": 0,
+                "s": 23.475793685860392,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "NONE",
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 10585898897505367135,
+                "Location": [
+                    97.83405303955078,
+                    6.4696364402771,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    119.6702880859375,
+                    0.0
+                ],
+                "Road ID": 655,
+                "Lane ID": 1,
+                "Section ID": 0,
+                "s": 18.99222373599507,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "NONE",
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 5617323205928625641,
+                "Location": [
+                    96.05677032470703,
+                    8.83148193359375,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    134.2525177001953,
+                    0.0
+                ],
+                "Road ID": 655,
+                "Lane ID": 1,
+                "Section ID": 0,
+                "s": 15.582991328186774,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "NONE",
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 17603974095995418808,
+                "Location": [
+                    94.04679107666016,
+                    10.49832820892334,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -214.52920532226562,
+                    0.0
+                ],
+                "Road ID": 655,
+                "Lane ID": 1,
+                "Section ID": 0,
+                "s": 12.624840941376476,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "NONE",
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 10723901743556238599,
+                "Location": [
+                    92.46669006347656,
+                    11.460220336914062,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -208.13336181640625,
+                    0.0
+                ],
+                "Road ID": 655,
+                "Lane ID": 1,
+                "Section ID": 0,
+                "s": 10.578686203903946,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "NONE",
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 1933663504597402744,
+                "Location": [
+                    90.78219604492188,
+                    12.242937088012695,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -201.71112060546875,
+                    0.0
+                ],
+                "Road ID": 655,
+                "Lane ID": 1,
+                "Section ID": 0,
+                "s": 8.524088051266467,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "NONE",
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 7697852691460243416,
+                "Location": [
+                    89.39568328857422,
+                    12.725062370300293,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -196.63668823242188,
+                    0.0
+                ],
+                "Road ID": 655,
+                "Lane ID": 1,
+                "Section ID": 0,
+                "s": 6.900676351136962,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "NONE",
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 323349067345112911,
+                "Location": [
+                    87.6388168334961,
+                    13.147274017333984,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -190.3895263671875,
+                    0.0
+                ],
+                "Road ID": 655,
+                "Lane ID": 1,
+                "Section ID": 0,
+                "s": 4.902090977973742,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "NONE",
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 15104259474149740521,
+                "Location": [
+                    85.45391845703125,
+                    13.399552345275879,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -182.78338623046875,
+                    0.0
+                ],
+                "Road ID": 655,
+                "Lane ID": 1,
+                "Section ID": 0,
+                "s": 2.4687419795463557,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "NONE",
+                "Right Lane Marking": "NONE",
+                "Left Lane Marking": "NONE"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 9941908761766638131,
+                "Location": [
+                    81.79351043701172,
+                    13.411243438720703,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 24.348278169631936,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 3085803717383199646,
+                "Location": [
+                    79.2026138305664,
+                    13.404045104980469,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 21.75737178802488,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 10596409204982538753,
+                "Location": [
+                    77.49235534667969,
+                    13.399293899536133,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 20.04711330413816,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 3239393163234506215,
+                "Location": [
+                    75.75335693359375,
+                    13.394460678100586,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 18.30810249328611,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 16468848163813814603,
+                "Location": [
+                    71.66282653808594,
+                    13.383094787597656,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 14.217559700012183,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 12418845631915308014,
+                "Location": [
+                    68.69729614257812,
+                    13.374855041503906,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 11.252014999389624,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 8155229085885531942,
+                "Location": [
+                    67.09430694580078,
+                    13.370401382446289,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 9.649020080566382,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 17388363557988118883,
+                "Location": [
+                    65.25233459472656,
+                    13.365283966064453,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 7.807038192748999,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 12020978743041414544,
+                "Location": [
+                    61.3720703125,
+                    13.354501724243164,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 3.926756744384742,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 3527396707091174451,
+                "Location": [
+                    58.066287994384766,
+                    13.345317840576172,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 21,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 0.6209610748290779,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 3505053280694072557,
+                "Location": [
+                    56.473812103271484,
+                    13.340892791748047,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 30.02848589420317,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 13231509474092023213,
+                "Location": [
+                    54.92030334472656,
+                    13.336576461791992,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 28.474972248077375,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 16410200758512396370,
+                "Location": [
+                    51.21233367919922,
+                    13.326274871826172,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 24.76698732376097,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 3196966299046177002,
+                "Location": [
+                    48.73078155517578,
+                    13.319377899169922,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 22.285424232482892,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 8433741918943938938,
+                "Location": [
+                    47.144691467285156,
+                    13.314970016479492,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 20.699324607849103,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 8225638078805299128,
+                "Location": [
+                    44.17333221435547,
+                    13.30671501159668,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 17.727954864501935,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 8224161855833930300,
+                "Location": [
+                    40.7935905456543,
+                    13.297323226928711,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 14.348201751708965,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 8497843475833856141,
+                "Location": [
+                    38.65553665161133,
+                    13.291383743286133,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 12.210138320922832,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 16434409540221778482,
+                "Location": [
+                    36.85334396362305,
+                    13.286376953125,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 10.40793800354002,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 17405149700010148868,
+                "Location": [
+                    33.720706939697266,
+                    13.277671813964844,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 7.275291442871074,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 8904472166060648849,
+                "Location": [
+                    29.42684555053711,
+                    13.265741348266602,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 2.9814167022704887,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 5686375224274291231,
+                "Location": [
+                    27.51520347595215,
+                    13.260429382324219,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    -179.84078979492188,
+                    0.0
+                ],
+                "Road ID": 876,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 1.0697650909423637,
+                "Is Junction": true,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 3892839394120969086,
+                "Location": [
+                    25.771268844604492,
+                    13.255584716796875,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 20,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 54.45582199573514,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 1438711175475847535,
+                "Location": [
+                    23.381235122680664,
+                    13.248943328857422,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 20,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 52.06577885627744,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 9194532514133771766,
+                "Location": [
+                    19.987871170043945,
+                    13.23951530456543,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 20,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 48.6724036979675,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 186480419473333780,
+                "Location": [
+                    17.752843856811523,
+                    13.233304977416992,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 20,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 46.43736637115476,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 13912432322848442636,
+                "Location": [
+                    15.739375114440918,
+                    13.227710723876953,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 20,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 44.423889045715306,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 17174279273878402008,
+                "Location": [
+                    12.530474662780762,
+                    13.218795776367188,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 20,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 41.214974288940404,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 9600722957734157398,
+                "Location": [
+                    10.64087200164795,
+                    13.213544845581055,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 20,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 39.325367813110326,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 3924917321345368844,
+                "Location": [
+                    8.9162015914917,
+                    13.20875358581543,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 20,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 37.600689773559544,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        },
+        {
+            "Mode": "TODO",
+            "Waypoint": {
+                "id": 11749943107578872725,
+                "Location": [
+                    5.112886905670166,
+                    13.198184967041016,
+                    0.0
+                ],
+                "Rotation": [
+                    360.0,
+                    180.15919494628906,
+                    0.0
+                ],
+                "Road ID": 20,
+                "Lane ID": 5,
+                "Section ID": 0,
+                "s": 33.79736030578611,
+                "Is Junction": false,
+                "Lane Width": 3.5,
+                "Lane Type": "Driving",
+                "Lane Change": "Left",
+                "Right Lane Marking": "Solid",
+                "Left Lane Marking": "Broken"
+            }
+        }
+    ]
+}
