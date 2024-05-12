@@ -44,7 +44,7 @@ class DubinsCar(Dynamics):
         right = [-fwd[1],fwd[0]]
         phi = u[1]
         d = u[0]
-        return np.array([fwd[0]*d,fwd[1]*d,phi*d])
+        return np.array([fwd[0]*d,fwd[1]*d,phi])
         
 
 class DubinsCarIntegrator(ControlSpace):
@@ -112,6 +112,6 @@ class SecondOrderDubinsCar(Dynamics):
         assert len(x) == 5
         assert len(u) == 2
         v,phi = x[3:5]
-        turn_rate = np.tan(phi)/self.wheelBase
+        turn_rate = v*np.tan(phi)/self.wheelBase
         return np.hstack((self.dubins.derivative(x[:3],[v,turn_rate]),[u[0],u[1]]))
         
