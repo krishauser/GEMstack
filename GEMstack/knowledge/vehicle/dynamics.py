@@ -101,13 +101,13 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
         return (max(throttle_percent,0.0),max(brake_percent,0.0),1)
     
     elif model == 'group8_v1':
-        brake_max = settings.get('vehicle.dynamics.max_brake_deceleration')
+        brake_maximum = settings.get('vehicle.dynamics.max_brake_deceleration')
         reverse_accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration_reverse')
         accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration')
         wheel_rad = settings.get('vehicle.dynamics.wheel_rad')
         lf = settings.get('vehicle.dynamics.lf')
         lr = settings.get('vehicle.dynamics.lr')
-        assert isinstance(brake_max,(int,float))
+        assert isinstance(brake_maximum,(int,float))
         assert isinstance(reverse_accel_max,(int,float))
         assert isinstance(accel_max,list)
         assert isinstance(acceleration,(int,float))
@@ -132,7 +132,7 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
         front_area = settings.get('vehicle.dynamics.front_area')
 
         rho = settings.get('vehicle.dynamics.air_density')
-        drag = calculate_drag(velocity,rho,front_area,aerodynamic_drag_coefficient,vsign)
+        air_drag = calculate_drag(velocity,rho,front_area,aerodynamic_drag_coefficient,vsign)
 
         sin_pitch = math.sin(pitch)
         cos_pitch = math.cos(pitch)
@@ -144,41 +144,39 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
         rear_normal_tire_r  = calculate_tire_forces(velocity,acceleration,pitch,vehicle_height,vehicle_mass)[1]
         
         total_rolling_resistance = (front_normal_tire_f  + rear_normal_tire_r )/ vehicle_mass
-        acceleration += drag  + gravity * sin_pitch + total_rolling_resistance
+        acceleration += air_drag  + gravity * sin_pitch + total_rolling_resistance
 
 
         if acceleration > -dry_decel:
             # safe to accelerate
             # if acceleration is between 0 and dry_decel, we can assume that we are in a deadband
-            if acceleration < 0 :
+            if acceleration < 0:
                 # deadband to stop
                 # change current gear to neutral 
                 gear = 0
                 return (0,0,gear)
             else:
                 # do forward
-                accel_pos = acceleration / accel_max[1]
-                if accel_pos > 1.0:
-                    accel_pos = 1.0
-                return (accel_active_range[0] + accel_pos*(accel_active_range[1]-accel_active_range[0]),0,gear)
+                accel_pos = acceleration / accel_max[gear]
+                accel_pos = min(1.0,max(accel_pos,0.0))
+                brake_pos = 0
+                return (accel_active_range[0] + accel_pos*(accel_active_range[1]-accel_active_range[0]),brake_pos,gear)
 
         else:
             # in this case, acceleration is negative
             # we need to brake
-            if velocity > 0 and gear == 0:
+            if velocity > 0 :
                 # need to brake and make velocity to 0
                 accel_pos = 0
-                brake_pos = -acceleration / brake_max
-                if brake_pos > 1.0:
-                    brake_pos = 1.0
+                brake_pos = -acceleration / brake_maximum
+                brake_pos = min(1.0,max(brake_pos,0.0))
                 return (accel_pos,brake_active_range[0] + brake_pos*(brake_active_range[1]-brake_active_range[0]),gear)
-            elif velocity <= 0 and gear == 0:
+            elif velocity <= 0:
                 # do reverse  
                 gear = -1
                 accel_pos = -acceleration / reverse_accel_max
                 brake_pos = 0
-                if accel_pos > 1.0:
-                    accel_pos = 1.0
+                accel_pos = min(1.0,max(accel_pos,0.0))
                 return (accel_active_range[0] + accel_pos*(accel_active_range[1]-accel_active_range[0]),brake_pos,gear)
             else:
                 # stay in neutral gear, brake
