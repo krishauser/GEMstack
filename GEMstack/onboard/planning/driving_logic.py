@@ -2,7 +2,7 @@ from typing import List, Tuple
 from ...mathutils.transforms import *
 from ..component import Component
 from ...utils import serialization, settings
-from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph,RoadgraphRegionEnum
+from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph,RoadgraphRegionEnum,SignalLightEnum
 from ...mathutils import collisions
 from ...mathutils.transforms import normalize_vector
 from ...state.intent import VehicleIntent,VehicleIntentEnum
@@ -177,4 +177,51 @@ class DrivingLogicIntent(Component):
                     continue
 
 
+class SignalDrivingLogic(Component):
+    """Component that sets vehicle intent based on signal state."""
+    def __init__(self):
+        pass
 
+    def state_inputs(self):
+        return ['all']
+
+    def state_outputs(self) -> List[str]:
+        return ['intent']
+
+    def rate(self):
+        return 4.0
+
+    def update(self, state : AllState) -> VehicleIntent:
+        closest_signal, d_signal = self.find_closest_signal(state)
+
+        zero_vel = lambda vehicle : abs(vehicle.v) <= 1e-12 # to check if velocity is close to 0
+
+        # if there is no signal in sight or if the nearest signal is far away, continue driving
+        intent = VehicleIntentEnum.DRIVING
+
+        d_braking = 0 if zero_vel(state.vehicle) else abs(state.vehicle.v ** 2 / (2 * state.vehicle.acceleration))
+        if closest_signal and d_signal <= (5 + d_braking): # to stop in front of the signal
+            if closest_signal.state.signal_state.state == SignalLightEnum.GREEN:
+                intent = VehicleIntentEnum.DRIVING
+            else: # YELLOW or RED
+                intent = VehicleIntentEnum.IDLE if zero_vel(state.vehicle) else VehicleIntentEnum.WAIT_AT_SIGN
+
+        print('Vehicle intent:', VehicleIntentEnum(intent).name)
+        return VehicleIntent(intent=intent, entity='')
+
+    def find_closest_signal(self, state : AllState) -> SignalLightEnum:
+        closest_signal = None
+        d_min = np.inf # distance to the closest signal
+        
+        for k, signal in state.detected_signs.items():
+            signal_pose = signal.pose.to_frame(state.vehicle.pose.frame, state.vehicle.pose, state.start_vehicle_pose)
+            
+            d = signal_pose.x - state.vehicle.pose.x
+            if 0 <= d < d_min: # ignores signals behind the vehicle
+                closest_signal = signal
+                d_min = d
+
+        if closest_signal:
+            print('Closest signal: {0}, distance = {1:.3f}'.format(SignalLightEnum(closest_signal.state.signal_state.state).name, d_min))
+
+        return closest_signal, d_min
