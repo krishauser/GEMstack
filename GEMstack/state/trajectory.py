@@ -5,6 +5,7 @@ from ..mathutils import transforms,collisions
 from .physical_object import ObjectFrameEnum, convert_point
 import math
 from typing import List,Tuple,Optional,Union
+from ..utils import serialization, settings
 
 @dataclass
 @register
@@ -80,6 +81,39 @@ class Path:
         # check whether self has attribute yaws
         if hasattr(self, 'yaws'):
             return Trajectory(frame=self.frame,points=points,times=times,yaws=self.yaws)
+        return Trajectory(frame=self.frame,points=points,times=times)
+    
+    def curvature_based_speed_parameterize(self, speed = 1.0) -> Trajectory:
+        """ Adjusts the vehicle's speed along a trajectory based on the curvature of the path."""
+        times = [0.0]
+        path_with_yaws = compute_headings(self)
+        points = [path_with_yaws.points[0][:2]]
+        yaws = [point[2] for point in path_with_yaws.points]
+
+        #-------------------- tune the curvature gain ----------------------
+        curvature_gain = settings.get('curvature_based_speed_parameterize.curvature_gain')
+        threshold = settings.get('curvature_based_speed_parameterize.threshold')
+
+        for i in range(len(path_with_yaws.points) - 1):
+            p1 = path_with_yaws.points[i][:2]
+            p2 = path_with_yaws.points[i+1][:2]
+            yaw1 = yaws[i]
+            yaw2 = yaws[i+1]
+            yaw_difference = abs(yaw2 - yaw1)
+            if yaw_difference > math.pi:
+                yaw_difference -= 2 * math.pi
+
+            if yaw_difference < threshold:
+                adjusted_speed = speed
+            else:
+                adjusted_speed = speed / (1 + curvature_gain * yaw_difference)
+
+            d = transforms.vector_dist(p1,p2)
+            if d > 0:
+                points.append(p2)
+                # Calculate time increment with adjusted speed
+                times.append(times[-1] + d / adjusted_speed)
+
         return Trajectory(frame=self.frame,points=points,times=times)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
