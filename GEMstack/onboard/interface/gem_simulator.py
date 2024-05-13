@@ -3,7 +3,7 @@ from .gem import *
 from ...mathutils.dubins import SecondOrderDubinsCar
 from ...mathutils.dynamics import simulate
 from ...mathutils import transforms
-from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,Sign,AllState,AgentAttributesFlag
+from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,AllState,AgentAttributesFlag,Sign,SignEnum,SignState,SignalLightEnum,SignalLightState
 from ...knowledge.vehicle.geometry import front2steer,steer2front,heading_rate
 from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration, acceleration_to_pedal_positions
 from ...utils.loops import TimedLooper
@@ -44,6 +44,12 @@ AGENT_NOMINAL_ACCELERATION = {
     'car' : 5.0,
     'medium_truck': 3.0,
     'large_truck': 2.0
+}
+
+SIGNAL_STATE_TO_ENUM = {
+    'red' : SignalLightEnum.RED,
+    'green' : SignalLightEnum.GREEN,
+    'yellow' : SignalLightEnum.YELLOW
 }
 
 class AgentSimulation:
@@ -105,6 +111,32 @@ class AgentSimulation:
         self.position = transforms.vector_madd(self.position,self.velocity,dt)
 
 
+class SignalSimulation:
+    def __init__(self, config):
+        self.idx = list(SIGNAL_STATE_TO_ENUM.keys()).index(config['state']) # index of state in dict
+        self.position = config['position']
+        self.duration = config['duration']
+        self.start_idx = self.idx # index of start state
+        self.t_start = time.time() # start time
+
+    def to_sign_state(self) -> Sign:
+        pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=time.time(),x=self.position[0],y=self.position[1])
+        state = list(SIGNAL_STATE_TO_ENUM.values())[self.idx]
+        duration = self.duration[self.idx]
+        return Sign(pose=pose, entities=[], dimensions=[0.25,0.25,1.0], outline=[],
+                    type=SignEnum.STOP_LIGHT, 
+                    state=SignState(signal_state=SignalLightState(state, duration)))
+    
+    def advance(self):
+        t = (time.time() - self.t_start) % sum(self.duration) # time elapsed since the beginning of the current cycle
+        if 0 < t <= self.duration[self.start_idx]:
+            self.idx = self.start_idx
+        elif self.duration[self.start_idx] < t <= self.duration[self.start_idx] + self.duration[(self.start_idx + 1) % 3]:
+            self.idx = (self.start_idx + 1) % 3
+        else:
+            self.idx = (self.start_idx + 2) % 3
+
+
 class GEMDoubleIntegratorSimulation:
     """Standard simulation of a second-order Dubins car with a double
     integrator controller.  The simulation is deterministic and accepts
@@ -133,6 +165,7 @@ class GEMDoubleIntegratorSimulation:
             print("Loading simulator from scene",scene)
             scene = config.load_config_recursive(scene)
         self.agents = {}
+        self.signals = {}
         if scene is None:
             self.simulation_time = time.time()
             self.start_state = (0.0,0.0,0.0)
@@ -143,6 +176,9 @@ class GEMDoubleIntegratorSimulation:
                 start_state.append(0.0)
             for k,a in scene.get('agents',{}).items():
                 self.agents[k] = AgentSimulation(a)
+            for k,s in scene.get('detected_signs',{}).items():
+                if 'duration' in s:
+                    self.signals[k] = SignalSimulation(s)
         self.cur_vehicle_state = np.array(start_state,dtype=float)
 
         self.last_reading = GEMVehicleReading()
@@ -169,6 +205,8 @@ class GEMDoubleIntegratorSimulation:
             self.last_command = command
         for k,a in self.agents.items():
             a.advance(T)
+        for k,s in self.signals.items():
+            s.advance()
         x,y,theta,v,phi = self.cur_vehicle_state
         #print("x %.2f y %.2f theta %.2f v %.2f" % (x,y,theta,v))
         #simulate actuators
@@ -267,17 +305,21 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         self.gnss_emulator_settings = settings.get('simulator.gnss_emulator',{})
         self.imu_emulator_settings = settings.get('simulator.imu_emulator',{})
         self.agent_emulator_settings = settings.get('simulator.agent_emulator',{})
+        self.sign_emulator_settings = settings.get('simulator.sign_emulator',{})
         self.gnss_dt = self.gnss_emulator_settings.get('dt',0.1)
         self.imu_dt = self.imu_emulator_settings.get('dt',0.05)
         self.agent_dt = self.agent_emulator_settings.get('dt',0.1)
+        self.sign_dt = self.sign_emulator_settings.get('dt',0.1)
         self.last_reading = self.simulator.last_reading
         self.last_command = self.simulator.last_command
         self.last_gnss_time = 0
         self.last_imu_time = 0
         self.last_agent_time = 0
+        self.last_sign_time = 0
         self.gnss_callback = None
         self.imu_callback = None
         self.agent_detector_callback = None
+        self.sign_detector_callback = None
         self.thread_lock = Lock()
         self.thread_data = dict()
         self.thread = None 
@@ -304,7 +346,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
     
     def sensors(self):
         #TODO: simulate other sensors?
-        return ['gnss','imu','agent_detector']
+        return ['gnss','imu','agent_detector','sign_detector']
 
     def subscribe_sensor(self, name, callback, type = None):
         if name == 'gnss':
@@ -319,6 +361,10 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
             if type is not None and type is not AgentState:
                 raise ValueError("GEMDoubleIntegratorSimulationInterface only supports AgentState for agent_detector")
             self.agent_detector_callback = callback
+        elif name == 'sign_detector':
+            if type is not None and type is not Sign:
+                raise ValueError("GEMDoubleIntegratorSimulationInterface only supports Sign for sign_detector")
+            self.sign_detector_callback = callback
         else:
             print("Warning, GEM simulator doesn't provide sensor",name)
         
@@ -349,6 +395,10 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
                     for k,a in self.simulator.agents.items():
                         self.agent_detector_callback(k,a.to_agent_state())
                     self.last_agent_time = self.simulator.simulation_time
+                if self.sign_detector_callback is not None and self.simulator.simulation_time - self.last_sign_time > self.sign_dt:
+                    for k,s in self.simulator.signals.items():
+                        self.sign_detector_callback(k,s.to_sign_state())
+                    self.last_sign_time = self.simulator.simulation_time
 
     def gnss_emulator(self, vehicle_state: VehicleState):
         position_noise = self.gnss_emulator_settings.get('position_noise',0.0)

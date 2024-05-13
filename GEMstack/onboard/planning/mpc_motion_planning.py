@@ -2,7 +2,7 @@ from ...mathutils.control import PID
 from ...utils import settings
 from ...mathutils import transforms
 from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
-from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph
+from ...state import AllState,VehicleState,Route,ObjectFrameEnum,Roadmap,Roadgraph,VehicleIntentEnum
 from ...state.vehicle import VehicleState,ObjectFrameEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
 from ...state.agent import AgentEnum, AgentState
@@ -399,8 +399,12 @@ class MPCTrajectoryPlanner(Component):
                 self.mpc.lane_centerline = state.roadgraph.lanes[curr_lane].center.segments[seg_idx]
 
             # Compute the controls
-            wheel_angle, accel = self.mpc.compute(x_start, y_start, theta_start, v_start, agents)
-            print(f"Wheel angle: {wheel_angle}, Acceleration: {accel}")
+            if len(state.detected_signs) != 0 and state.intent.intent in [VehicleIntentEnum.IDLE, VehicleIntentEnum.WAIT_AT_SIGN]:
+                accel = -self.mpc.max_decel if vehicle.v > 0 else 0
+                wheel_angle = 0
+            else:
+                wheel_angle, accel = self.mpc.compute(x_start, y_start, theta_start, v_start, agents)
+                print(f"Wheel angle: {wheel_angle}, Acceleration: {accel}")
 
             steering_angle = np.clip(front2steer(wheel_angle), self.mpc.steering_angle_range[0], self.mpc.steering_angle_range[1])
             self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel, steering_angle, vehicle))

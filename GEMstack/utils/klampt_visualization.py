@@ -4,7 +4,7 @@ from klampt.model.trajectory import Trajectory
 from klampt import Geometry3D, GeometricPrimitive, TriangleMesh
 import numpy as np
 from . import settings
-from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,AgentEnum,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
+from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,AgentEnum,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState,Sign,SignEnum,SignalLightEnum
 from ..state.intent import VehicleIntent, VehicleIntentEnum
 
 OBJECT_COLORS = {
@@ -118,6 +118,37 @@ def plot_object(name : str, obj : PhysicalObject, type=None, axis_len=None, outl
             outline.append(outline[0])
             vis.add(name+"_outline2",outline,width=1,color=core_color,hide_label=True)
 
+def plot_signal(name : str, obj : Sign, state=None):
+    (xmin,xmax), (ymin,ymax), (zmin,zmax) = obj.bounds()
+    R = obj.pose.rotation()
+    t = obj.pose.translation()
+    pole_h = 3.0 # height of the pole
+    prim = GeometricPrimitive()
+
+    # pole
+    prim.setAABB([-0.03,-0.03,0], [0.03,0.03,pole_h])
+    g = Geometry3D(prim)
+    g.setCurrentTransform(so3.from_matrix(R), t)
+    vis.add(name+'_pole', g, color=(0,0,0,0.75), hide_label=True)
+
+    # backplate
+    prim.setAABB([xmin, ymin, pole_h + zmin], [xmax, ymax, pole_h + zmax])
+    g = Geometry3D(prim)
+    g.setCurrentTransform(so3.from_matrix(R), t)
+    vis.add(name+'_backplate', g, color=(0,0,0,0.75), hide_label=True)
+
+    SIGNAL_COLORS = {
+        'RED' : (1,0,0,0.75) if state == SignalLightEnum.RED else (0,0,0,0.75),
+        'YELLOW' : (1,1,0,0.75) if state == SignalLightEnum.YELLOW else (0,0,0,0.75),
+        'GREEN' : (0,1,0,0.75) if state == SignalLightEnum.GREEN else (0,0,0,0.75)
+    }
+
+    for s in ['RED', 'YELLOW', 'GREEN']:
+        dz = (3 - list(SIGNAL_COLORS.keys()).index(s)) * 0.25
+        prim.setSphere([(xmin+xmax)/2 - 0.05, (ymin+ymax)/2, pole_h + dz], 0.125)
+        g = Geometry3D(prim)
+        g.setCurrentTransform(so3.from_matrix(R), t)
+        vis.add(name+'_'+s, g, color=SIGNAL_COLORS[s], hide_label=True)
 
 def plot_vehicle(vehicle : VehicleState, vehicle_model=None, axis_len=1.0):
     """Plots the vehicle in the given axes.  The coordinates
@@ -297,6 +328,9 @@ def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = No
 
     for k,a in scene.agents.items():
         plot_object(k,a,type=a.type)
+    for k,s in scene.detected_signs.items():
+        if s.type == SignEnum.STOP_LIGHT: 
+            plot_signal(k,s,state=s.state.signal_state.state)
     for k,o in scene.obstacles.items():
         plot_object(k,o)
     if title is None:
