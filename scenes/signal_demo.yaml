@@ -1,0 +1,21 @@
+vehicle_state: [0.0, 5.0, 0.0, 5.0, 0.0]
+agents:
+  car1:
+    type: car
+    position: [40.0, 5.0]
+    nominal_velocity: 0.75
+    target: [100.0,5.0]
+    behavior: target
+detected_signs:
+  signal1:
+    position: [15.0, 3.0]
+    state: red                  # starting state
+    duration: [15.0, 5.0, 2.0]  # red, green, yellow duration
+  signal2:
+    position: [25.0, 3.0]
+    state: green
+    duration: [8.0, 6.0, 4.0]
+  signal3:
+    position: [40.0, 3.0]
+    state: yellow
+    duration: [9.0, 7.0, 3.0]
