@@ -1,4 +1,29 @@
+# ==================  Vehicle Dynamics Parameters ==================
+#TODO if this applicable to the GEM vehicle for future use
+
+gear_ratio: 1 # simple gear
+vehicle_height : 1.5 #m
+wheel_rad : 0.55  #wheel radius
+
+# height 1.5m , width 1.3m 
+front_area : 1.95 # m^2
+
+air_density : 1.225 # kg/m^3
+
+# front_cornering_stiffness: 5000 # N/deg 30653 N/rad
+# rear_cornering_stiffness: 4800 # N/deg 63254 N/rad
+# sim
+front_cornering_stiffness: 1 # N/deg 30653 N/rad
+rear_cornering_stiffness: 1 # N/deg 63254 N/rad
+
+rolling_resistance_f : 0.5
+rolling_resistance_r : 0.5
+
+# ==================  Vehicle Dynamics Parameters ==================
+
 mass: 300.0  #kg
+lf: 1.28 # distance of wheel base to front
+lr: 1.28 # distance of wheel base to front
 gravity: 9.81 #m/s^2
 longitudinal_friction : 1.0  # unitless
 lateral_friction : 1.0       # unitless
@@ -12,7 +37,9 @@ max_accelerator_power:  #Watts.  Power at max accelerator pedal, by gear
   - 10000.0
 max_accelerator_power_reverse: 10000.0 #Watts.  Power (backwards) in reverse gear
 
-acceleration_model : kris_v1
+# change the vehicle dynamic model here
+acceleration_model : group8_v1
+
 accelerator_active_range : [0.2, 1.0]   #range of accelerator pedal where output acceleration is not flat
 brake_active_range : [0,1]             #range of brake pedal where output deceleration is not flat
 
