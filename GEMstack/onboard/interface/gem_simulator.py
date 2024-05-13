@@ -123,7 +123,7 @@ class SignalSimulation:
         pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=time.time(),x=self.position[0],y=self.position[1])
         state = list(SIGNAL_STATE_TO_ENUM.values())[self.idx]
         duration = self.duration[self.idx]
-        return Sign(pose=pose, entities=[], dimensions=[0.25,0.25,0.25], outline=[],
+        return Sign(pose=pose, entities=[], dimensions=[0.25,0.25,1.0], outline=[],
                     type=SignEnum.STOP_LIGHT, 
                     state=SignState(signal_state=SignalLightState(state, duration)))
     
