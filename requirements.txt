@@ -9,3 +9,6 @@ pyyaml
 dacite
 filterpy
 overpass
+pygame
+pillow
+glob
