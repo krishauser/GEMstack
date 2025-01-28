@@ -198,7 +198,10 @@ def plot_vehicle(vehicle : VehicleState, vehicle_model=None, axis_len=1.0):
             vehicle_model.link('rear_left_stop_light_link').appearance().setColor(0.3,0,0,1)
 
 def plot_path(name : str, path : Path, color=(0,0,0), width=1):
-    vis.add(name,[list(p) for p in path.points],color=color,width=width)
+    if len(path.points) > 50:
+        vis.add(name,[list(p) for p in path.points[::len(path.points)//50]],color=color,width=width)
+    else:
+        vis.add(name,[list(p) for p in path.points],color=color,width=width)
 
 def plot_curve(name : str, curve : RoadgraphCurve, color=None, width=None):
     style = CURVE_TO_STYLE.get(curve.type,CURVE_TO_STYLE[None])
@@ -211,7 +214,10 @@ def plot_curve(name : str, curve : RoadgraphCurve, color=None, width=None):
     if width is not None:
         style['width'] = width
     for i,seg in enumerate(curve.segments):
-        vis.add(name+"_%d" % i,seg,**style)
+        if len(seg) > 50:
+            vis.add(name+"_%d" % i,seg[::len(seg)//50],**style)
+        else:
+            vis.add(name+"_%d" % i,seg,**style)
 
 def plot_lane(name : str, lane : RoadgraphLane, on_route=False):
     if lane.surface != RoadgraphSurfaceEnum.PAVEMENT:
@@ -284,6 +290,6 @@ def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = No
 def plot(state : AllState, ground_truth_vehicle = None, vehicle_model=None, title=None, show=True):
     plot_scene(state, ground_truth_vehicle=ground_truth_vehicle, vehicle_model=vehicle_model, title=title, show=show)
     if state.route is not None:
-        plot_path("route",state.route,color=(1,0.5,0,1))
+        plot_path("route",state.route,color=(1,0.5,0,1),width=2)
     if state.trajectory is not None:
-        plot_path("trajectory",state.trajectory,color=(1,0,0,1),width=2)
+        plot_path("trajectory",state.trajectory,color=(1,0,0,1),width=3)
