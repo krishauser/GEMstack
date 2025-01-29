@@ -82,6 +82,13 @@ class GEMVehicleCommand:
     wiper_level : int = 0
 
 
+@dataclass 
+class GNSSReading:
+    pose : ObjectPose
+    speed : float
+    status : str
+
+
 class GEMInterface:
     """Base class for simulated / physical GEM vehicle.
     """

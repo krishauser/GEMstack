@@ -9,7 +9,7 @@ from ...knowledge.vehicle.geometry import front2steer,steer2front
 from ...mathutils.signal import OnlineLowPassFilter
 from ..interface.gem import GEMInterface
 from ..component import Component
-from ..interface.gem_hardware import GNSSReading
+from ..interface.gem import GNSSReading
 
 class GNSSStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
