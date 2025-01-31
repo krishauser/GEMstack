@@ -1,6 +1,8 @@
 from ..component import Component
 from ..interface.gem import GEMInterface,GEMVehicleCommand,GEMVehicleReading
 
+from pacmod_msgs import SystemRptFloat
+import rospy
 
 class BlinkDistress(Component):
     """Your control loop code should go here.  You will use GEMVehicleCommand
@@ -9,6 +11,8 @@ class BlinkDistress(Component):
     def __init__(self, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.command = None
+        
+        self.accel_sub = rospy.Subscriber("parsed_tx/accel_rpt",SystemRptFloat,self.cb_accel,queue_size=1)
 
     def rate(self):
         """Requested update frequency, in Hz"""
