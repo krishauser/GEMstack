@@ -16,6 +16,10 @@ class BlinkDistress:
         # You will want this callback to be a BlinkDistress method, such as print_X(self, msg).  msg will have a
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
+
+        # Subscribers to /pacmod/parsed_tx/X (at least 2)
+        self.sub = rospy.Subscriber("/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
+        self.sub = rospy.Subscriber("/pacmod/parsed_tx/accel_rpt", SystemRptFloat, self.accel_callback)
         
         pass
 
@@ -46,7 +50,29 @@ class BlinkDistress:
         """Return True if you want to exit."""
         return False
 
+    def speed_callback(self, msg):
+        """Callback for /pacmod/parsed_tx/vehicle_speed_rpt"""
+        rospy.loginfo(f"Vehicle Speed: {msg.vehicle_speed} m/s | Valid: {msg.vehicle_speed_valid}")
 
+    def accel_callback(msg):
+        """Callback for /pacmod/parsed_tx/accel_rpt"""
+        rospy.loginfo("--- Acceleration Report ---")
+        rospy.loginfo(f"Header Timestamp: {msg.header.stamp.to_sec()}")
+        
+        # Boolean status flags
+        rospy.loginfo(f"Enabled: {msg.enabled}")
+        rospy.loginfo(f"Override Active: {msg.override_active}")
+        rospy.loginfo(f"Command Output Fault: {msg.command_output_fault}")
+        rospy.loginfo(f"Input Output Fault: {msg.input_output_fault}")
+        rospy.loginfo(f"Output Reported Fault: {msg.output_reported_fault}")
+        rospy.loginfo(f"PACMod Fault: {msg.pacmod_fault}")
+        rospy.loginfo(f"Vehicle Fault: {msg.vehicle_fault}")
+
+        # Float values
+        rospy.loginfo(f"Manual Input: {msg.manual_input} (Driver Input)")
+        rospy.loginfo(f"Command: {msg.command} (Requested Acceleration)")
+        rospy.loginfo(f"Output: {msg.output} (Final Output to Vehicle)")
+        rospy.loginfo("---------------------------\n")
 
 def run_ros_loop(node):
     """Executes the event loop of a node using ROS.  `node` should support
