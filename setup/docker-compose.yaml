@@ -1,7 +1,7 @@
 version: '3.9'
 
 services:
-  ros1-noetic:
+  gem-stack-ubuntu-20.04-CUDA:
     image: gem_stack
     container_name: gem_stack-container
     build:
