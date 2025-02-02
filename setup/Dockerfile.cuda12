@@ -62,9 +62,11 @@ RUN cd /catkin_ws/src && git clone https://github.com/ros-perception/radar_msgs.
 RUN source /opt/ros/noetic/setup.bash && cd /catkin_ws && rosdep install --from-paths src --ignore-src -r -y
 RUN source /opt/ros/noetic/setup.bash && cd /catkin_ws && catkin_make -DCMAKE_BUILD_TYPE=Release
 
-# install GEMstack Python dependencies
-RUN git clone https://github.com/krishauser/GEMstack.git -b s2025_teamB
-RUN cd GEMstack && pip3 install -r requirements.txt
+# Copy requirements.txt from host (now relative to parent directory)
+COPY requirements.txt /tmp/requirements.txt
+
+# Install Python dependencies
+RUN pip3 install -r /tmp/requirements.txt
 
 USER ${USER}
 

@@ -7,10 +7,10 @@ read -p "Enter choice [1-2]: " choice
 
 case $choice in
     1)
-        DOCKERFILE=Dockerfile.cuda11.8
+        DOCKERFILE=setup/Dockerfile.cuda11.8
         ;;
     2)
-        DOCKERFILE=Dockerfile.cuda12
+        DOCKERFILE=setup/Dockerfile.cuda12
         ;;
     *)
         echo "Invalid choice"

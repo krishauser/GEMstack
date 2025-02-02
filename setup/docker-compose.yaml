@@ -5,8 +5,8 @@ services:
     image: gem_stack
     container_name: gem_stack-container
     build:
-      context: .
-      dockerfile: ${DOCKERFILE:-Dockerfile.cuda11.8}  # Default to cuda11.8 if not specified
+      context: ..
+      dockerfile: ${DOCKERFILE:-setup/Dockerfile.cuda11.8}  # Default to cuda11.8 if not specified
       args:
         USER: ${USER}
         USER_UID: ${UID:-1000}  # Pass host UID
