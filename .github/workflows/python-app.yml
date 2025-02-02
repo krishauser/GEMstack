@@ -52,7 +52,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ~/.cache/pip
-        keys: ${{ runner.os}}-python-${{hashFiles('**/requirements.txt')}}
+        key: ${{ runner.os}}-python-${{hashFiles('**/requirements.txt')}}
         restore-keys: |
           ${{runner.os}}-python-
     - name: Install dependencies
