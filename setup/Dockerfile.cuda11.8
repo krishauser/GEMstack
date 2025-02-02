@@ -1,7 +1,28 @@
 FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu20.04
+
+ARG USER_UID=1000
+ARG USER_GID=1000
+ARG USER=$(whoami)
+
+ENV DEBIAN_FRONTEND=noninteractive
+
 #use bash instead of sh
-RUN rm /bin/sh && ln -s /bin/bash /bin/sh
+SHELL ["/bin/bash", "-c"]
+
 RUN apt-get update && apt-get install -y git python3 python3-pip wget zstd
+
+# Set time zone non-interactively
+ENV TZ=America/Chicago
+RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && apt-get update && apt-get install -y tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# install Zed SDK
+RUN wget https://download.stereolabs.com/zedsdk/4.0/cu118/ubuntu20 -O zed_sdk.run
+RUN chmod +x zed_sdk.run
+RUN ./zed_sdk.run -- silent
+
 # Install ROS Noetic
 RUN apt-get update && apt-get install -y lsb-release gnupg2
 RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu focal main" > /etc/apt/sources.list.d/ros-latest.list'
@@ -13,19 +34,18 @@ RUN apt-get install -y python3-rosdep python3-rosinstall python3-rosinstall-gene
 RUN rosdep init
 RUN rosdep update
 
-#Install Cuda 11.8
-#RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
-#RUN sudo mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
-##add public keys
-#RUN sudo apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/3bf863cc.pub
-#RUN sudo add-apt-repository "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
-#RUN install cuda-toolkit-11-8
+ARG USER
+ARG USER_UID
+ARG USER_GID
 
+# Create user more safely
+RUN groupadd -g ${USER_GID} ${USER} || groupmod -n ${USER} $(getent group ${USER_GID} | cut -d: -f1)
+RUN useradd -l -m -u ${USER_UID} -g ${USER_GID} ${USER} || usermod -l ${USER} -m -u ${USER_UID} -g ${USER_GID} $(getent passwd ${USER_UID} | cut -d: -f1)
+RUN echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# install Zed SDK
-RUN wget https://download.stereolabs.com/zedsdk/4.0/cu118/ubuntu20 -O zed_sdk.run
-RUN chmod +x zed_sdk.run
-RUN ./zed_sdk.run -- silent
+# Fix permissions for Python packages
+RUN chown -R ${USER}:${USER} /usr/local/lib/python3.8/dist-packages/ \
+    && chmod -R u+rw /usr/local/lib/python3.8/dist-packages/
 
 # create ROS Catkin workspace
 RUN mkdir -p /catkin_ws/src
@@ -43,7 +63,16 @@ RUN source /opt/ros/noetic/setup.bash && cd /catkin_ws && rosdep install --from-
 RUN source /opt/ros/noetic/setup.bash && cd /catkin_ws && catkin_make -DCMAKE_BUILD_TYPE=Release
 
 # install GEMstack Python dependencies
-RUN git clone https://github.com/krishauser/GEMstack.git
+RUN git clone https://github.com/krishauser/GEMstack.git -b s2025_teamB
 RUN cd GEMstack && pip3 install -r requirements.txt
 
-RUN echo /catkin_ws/devel/setup.sh
+USER ${USER}
+
+# Add ROS and GEMstack paths to bashrc
+RUN echo "source /opt/ros/noetic/setup.bash" >> /home/${USER}/.bashrc
+RUN echo "source /catkin_ws/devel/setup.bash" >> /home/${USER}/.bashrc
+
+# BASE END CONFIG
+WORKDIR /home/${USER}
+
+ENTRYPOINT ["/bin/bash"]
