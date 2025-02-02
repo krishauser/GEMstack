@@ -59,7 +59,7 @@ jobs:
         # stop the build if there are Python syntax errors or undefined names
         sphinx-build -b html docs docs/build
     - name: Save Documentation as Artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: documentation
         path: documents/build
