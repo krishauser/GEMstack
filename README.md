@@ -48,7 +48,7 @@ you can install the dependencies or GEMstack by running `setup/setup_this_machin
 > Make sure to check the Nvidia Driver and supported CUDA version before proceeding by following the steps in the previous section.
 
 ## Prerequisites
-- Docker
+- Docker (In Linux - Make sure to follow the post-installation steps from [here](https://docs.docker.com/engine/install/linux-postinstall/))
 - Nvidia Container Toolkit
 
 Try running the sample workload from the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/sample-workload.html) to check if your system is compatible.
