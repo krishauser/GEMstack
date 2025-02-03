@@ -60,3 +60,6 @@ cd $CURRENT_DIR
 cd ..
 #install GEMstack Python dependencies
 python3 -m pip install -r requirements.txt
+
+#install other dependencies
+sudo apt-get install -y ros-noetic-septentrio-gnss-driver
