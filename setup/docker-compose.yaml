@@ -14,10 +14,10 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      - "/etc/group:/etc/group:ro"
-      - "/etc/passwd:/etc/passwd:ro"
-      - "/etc/shadow:/etc/shadow:ro"
-      - "/etc/sudoers.d:/etc/sudoers.d:ro"
+      # - "/etc/group:/etc/group:ro"
+      # - "/etc/passwd:/etc/passwd:ro"
+      # - "/etc/shadow:/etc/shadow:ro"
+      # - "/etc/sudoers.d:/etc/sudoers.d:ro"
       - "~:/home/${USER}/host"
       - "/tmp/.X11-unix:/tmp/.X11-unix:rw"
     environment:
