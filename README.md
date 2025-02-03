@@ -46,7 +46,21 @@ you can install the dependencies or GEMstack by running `setup/setup_this_machin
 > [!NOTE]
 > Make sure to check the Nvidia Driver and supported CUDA version before proceeding by following the steps in the previous section.
 
-For GPU support you will need the NVidia Container Toolkit (run `setup/get_nvidia_container.sh` from this directory to install, or see [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more details).
+## Prerequisites
+- Docker
+- Nvidia Container Toolkit
+
+Try running the sample workload from the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/sample-workload.html) to check if your system is compatible.
+
+```bash
+sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
+```
+You should see the nvidia-smi output similar to [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/sample-workload.html#:~:text=all%20ubuntu%20nvidia%2Dsmi-,Your%20output%20should%20resemble%20the%20following%20output%3A,-%2B%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2B%0A%7C%20NVIDIA%2DSMI%20535.86.10).
+
+If you see the output, you are good to go. Otherwise, you will need to install the Docker and NVidia Container Toolkit by following the instructions. 
+- For **Docker**, follow the instructions [here](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository).
+  
+- For **Nvidia Container Toolkit**, run `setup/get_nvidia_container.sh` from this directory to install, or see [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more details.
 
 ## Building the Docker image
 
