@@ -11,17 +11,18 @@
 GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior or training for rosbag files.)  
 
 You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
-
-- numpy
-- scipy
-- matplotlib
-- opencv-python
-- torch
-- klampt==0.9.2
-- shapely
-- dacite
-- pyyaml
-
+- GEMstack Dependencies
+  - numpy
+  - scipy
+  - matplotlib
+  - opencv-python
+  - torch
+  - klampt==0.9.2
+  - shapely
+  - dacite
+  - pyyaml
+- Perception Dependencies
+  - ultralytics
 
 In order to interface with the actual GEM e2 vehicle, you will need [PACMOD2](https://github.com/astuff/pacmod2) - Autonomoustuff's low level interface to vehicle. You will also need Autonomoustuff's [sensor message packages](https://github.com/astuff/astuff_sensor_msgs).  The onboard computer uses Ubuntu 20.04 with Python 3.8, CUDA 11.6, and NVIDIA driver 515, so to minimize compatibility issues you should ensure that these are installed on your development system.
 
