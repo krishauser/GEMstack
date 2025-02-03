@@ -6,6 +6,10 @@ import numpy as np
 from . import settings
 from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,AgentEnum,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
 
+#KH: there is a bug on some system where the visualization crashes with an OpenGL error when drawing curves
+#this is a workaround.  We really should find the source of the bug!
+MAX_POINTS_IN_CURVE = 50
+
 OBJECT_COLORS = {
     AgentEnum.CAR : (1,1,0,1),
     AgentEnum.PEDESTRIAN : (0,1,0,1),
@@ -198,8 +202,8 @@ def plot_vehicle(vehicle : VehicleState, vehicle_model=None, axis_len=1.0):
             vehicle_model.link('rear_left_stop_light_link').appearance().setColor(0.3,0,0,1)
 
 def plot_path(name : str, path : Path, color=(0,0,0), width=1):
-    if len(path.points) > 50:
-        vis.add(name,[list(p) for p in path.points[::len(path.points)//50]],color=color,width=width)
+    if len(path.points) > MAX_POINTS_IN_CURVE:  # downsample due to OpenGL error?
+        vis.add(name,[list(p) for p in path.points[::len(path.points)//MAX_POINTS_IN_CURVE]],color=color,width=width)
     else:
         vis.add(name,[list(p) for p in path.points],color=color,width=width)
 
@@ -214,8 +218,8 @@ def plot_curve(name : str, curve : RoadgraphCurve, color=None, width=None):
     if width is not None:
         style['width'] = width
     for i,seg in enumerate(curve.segments):
-        if len(seg) > 50:
-            vis.add(name+"_%d" % i,seg[::len(seg)//50],**style)
+        if len(seg) > MAX_POINTS_IN_CURVE:  # downsample due to OpenGL error?
+            vis.add(name+"_%d" % i,seg[::len(seg)//MAX_POINTS_IN_CURVE],**style)
         else:
             vis.add(name+"_%d" % i,seg,**style)
 
@@ -290,12 +294,6 @@ def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = No
 def plot(state : AllState, ground_truth_vehicle = None, vehicle_model=None, title=None, show=True):
     plot_scene(state, ground_truth_vehicle=ground_truth_vehicle, vehicle_model=vehicle_model, title=title, show=show)
     if state.route is not None:
-<<<<<<< HEAD
-        plot_path("route",state.route,color=(1,0.5,0,1))
-    if state.trajectory is not None:
-        plot_path("trajectory",state.trajectory,color=(1,0,0,1),width=2)
-=======
         plot_path("route",state.route,color=(1,0.5,0,1),width=2)
     if state.trajectory is not None:
         plot_path("trajectory",state.trajectory,color=(1,0,0,1),width=3)
->>>>>>> 32c90b400b9e1f01833a3bd9788abdab03565978
