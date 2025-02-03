@@ -294,12 +294,6 @@ def plot_scene(scene : SceneState, ground_truth_vehicle=None, vehicle_model = No
 def plot(state : AllState, ground_truth_vehicle = None, vehicle_model=None, title=None, show=True):
     plot_scene(state, ground_truth_vehicle=ground_truth_vehicle, vehicle_model=vehicle_model, title=title, show=show)
     if state.route is not None:
-<<<<<<< HEAD
-        plot_path("route",state.route,color=(1,0.5,0,1))
-    if state.trajectory is not None:
-        plot_path("trajectory",state.trajectory,color=(1,0,0,1),width=2)
-=======
         plot_path("route",state.route,color=(1,0.5,0,1),width=2)
     if state.trajectory is not None:
         plot_path("trajectory",state.trajectory,color=(1,0,0,1),width=3)
->>>>>>> 32c90b400b9e1f01833a3bd9788abdab03565978
