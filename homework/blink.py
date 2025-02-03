@@ -77,7 +77,7 @@ class BlinkDistress:
         """Callback for /pacmod/parsed_tx/vehicle_speed_rpt"""
         rospy.loginfo(f"Vehicle Speed: {msg.vehicle_speed} m/s | Valid: {msg.vehicle_speed_valid}")
 
-    def accel_callback(msg):
+    def accel_callback(self, msg):
         """Callback for /pacmod/parsed_tx/accel_rpt"""
         rospy.loginfo("--- Acceleration Report ---")
         rospy.loginfo(f"Header Timestamp: {msg.header.stamp.to_sec()}")
