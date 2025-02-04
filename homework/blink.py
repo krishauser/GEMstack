@@ -22,10 +22,8 @@ class BlinkDistress:
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
 
         self.turn_blink_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=1)
-        #define blink cmd
+        # Define blink cmd
         self.turn_cmd = PacmodCmd()
-        self.turn_cmd.ui16_cmd = TURN_NONE 
-        self.turn_blink_pub.publish(self.turn_cmd)
 
         # Subscribers to /pacmod/parsed_tx/X (at least 2)
         self.speed_sub = rospy.Subscriber("/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
@@ -56,11 +54,11 @@ class BlinkDistress:
         #self.turn_cmd = PacmodCmd()
         # TODO change to actual direction in Part 2
         if self.turn_cmd.ui16_cmd == TURN_NONE:
-            self.turn_cmd.ui16_cmd == TURN_LEFT
+            self.turn_cmd.ui16_cmd = TURN_LEFT
         elif self.turn_cmd.ui16_cmd == TURN_LEFT:
-            self.turn_cmd.ui16_cmd == TURN_RIGHT
+            self.turn_cmd.ui16_cmd = TURN_RIGHT
         else:
-            self.turn_cmd.ui16_cmd == TURN_NONE
+            self.turn_cmd.ui16_cmd = TURN_NONE
         self.turn_blink_pub.publish(self.turn_cmd)
 
         pass
