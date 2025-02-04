@@ -1,8 +1,8 @@
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
-#from ultralytics import YOLO
-#import cv2
+from ultralytics import YOLO
+import cv2
 from typing import Dict
 
 def box_to_fake_agent(box):
@@ -20,7 +20,7 @@ class PedestrianDetector2D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        #self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        # self.detector = YOLO('../../knowledge/detection/yolov11n.pt')
         self.last_person_boxes = []
 
     def rate(self):
@@ -34,17 +34,22 @@ class PedestrianDetector2D(Component):
     
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        #self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
-        pass
-    
-    #def image_callback(self, image : cv2.Mat):
-    #    detection_result = self.detector(image)
-    #    self.last_person_boxes = []
-    #    #uncomment if you want to debug the detector...
-    #    #for bb in self.last_person_boxes:
-    #    #    x,y,w,h = bb
-    #    #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
-    #    #cv2.imwrite("pedestrian_detections.png",image)
+        self.detector = YOLO('../../knowledge/detection/yolov11n.pt')
+        self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
+
+    def image_callback(self, image: cv2.Mat):
+        """Image processing callback with original detection logic"""
+        results = self.detector(image, conf=0.5)
+        boxes = results[0].boxes
+
+        if len(boxes) == 0:
+            self.last_person_boxes = []
+            return
+        cls_ids = boxes.cls.cpu()
+        xywh = boxes.xywh.cpu()
+        person_mask = (cls_ids == 0)
+
+        self.last_person_boxes = [tuple(map(float, box)) for box in xywh[person_mask]]
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         res = {}
