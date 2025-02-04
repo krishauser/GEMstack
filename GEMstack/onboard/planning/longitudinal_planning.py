@@ -14,9 +14,53 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
        decelerate with accel = -deceleration until velocity goes to 0.
     """
     path_normalized = path.arc_length_parameterize()
+
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
+
+    #=============================================
+
+    print("-----LONGITUDINAL PLAN-----")
+    print("path length: ", path.length())
+    length = path.length()
+
+    # Starting point
+    x0 = points[0][0]
+    # Time to stop
+    t_stop = current_speed / deceleration
+    # Position to stop
+    x_stop = x0 + current_speed * t_stop - 0.5 * deceleration * t_stop**2
+
+    # GEM will decelerate to 0 before the end of the path
+    if length < 10.0 and x_stop > points[-1][0]:
+        new_points = []
+        for t in times:
+            if t <= t_stop:
+                x = x0 + current_speed * t - 0.5 * deceleration * t**2
+            # Keep the position after reaching 0 velocity
+            else:
+                x = x_stop
+            new_points.append([x, 0])
+        points = new_points
+        print("[BRAKE] Computed points:", points)
+
+    # GEM will accelerate to max speed before the end of the path
+    else:
+        new_points = []
+        for t in times:
+            # Accelerate to max speed
+            if max_speed > current_speed:
+                x = x0 + current_speed * t + 0.5 * acceleration * t**2
+            # Keep the velocity after reaching max speed
+            else:
+                x = x0 + current_speed * t
+            new_points.append([x, 0])
+        points = new_points
+        print("[ACCEL] Computed points:", points)
+
+    #=============================================
+
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
@@ -24,9 +68,33 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
     path_normalized = path.arc_length_parameterize()
+
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
+
+    #=============================================
+
+    print("=====LONGITUDINAL BRAKE=====")
+    print("path length: ", path.length())
+    length = path.length()
+
+    x0 = points[0][0]
+    t_stop = current_speed / deceleration
+    x_stop = x0 + current_speed * t_stop - 0.5 * deceleration * t_stop**2
+
+    new_points = []
+    for t in times:
+        if t <= t_stop:
+            x = x0 + current_speed * t - 0.5 * deceleration * t**2
+        else:
+            x = x_stop
+        new_points.append([x, 0])
+    points = new_points
+    print("[BRAKE] Computed points:", points)
+
+    #=============================================
+
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
