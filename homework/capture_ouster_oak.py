@@ -67,7 +67,7 @@ def save_scan(lidar_fn,color_fn,depth_fn):
     cv2.imwrite(depth_fn,dimage)
 
 def main(folder='data',start_index=1):
-    rospy.init_node("capture_ouster_oak",disable_signals=True) # what to change to?
+    rospy.init_node("capture_ouster_oak",disable_signals=True) 
     lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
     camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
     depth_sub = rospy.Subscriber("/oak/rgb/image_raw/compressedDepth", Image, depth_callback)
