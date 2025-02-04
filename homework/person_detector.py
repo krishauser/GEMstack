@@ -9,7 +9,7 @@ def person_detector(img: cv2.Mat):
 
     # Only detect people (class id: 0) within the image
     results = model.predict(img, classes=[0])
-    return results[0].boxes.xywh
+    return results[0].boxes.xywh.tolist()
 
 
 def main(fn):
