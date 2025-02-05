@@ -6,6 +6,7 @@ TURN_RIGHT = 0
 TURN_NONE = 1
 TURN_LEFT = 2
 TURN_HAZARD = 3 
+TURN_AROUND = 4
 # For message format, see
 # https://github.com/astuff/astuff_sensor_msgs/blob/3.3.0/pacmod_msgs/msg/PacmodCmd.msg
 
@@ -20,6 +21,7 @@ class BlinkDistress:
         # You will want this callback to be a BlinkDistress method, such as print_X(self, msg).  msg will have a
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
+        # check update file good
 
         self.turn_blink_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=1)
         # Define blink cmd
