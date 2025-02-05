@@ -41,7 +41,7 @@ class BlinkDistress:
             self.curr_time = rospy.get_time()
             # change signal every 2 secs
             if (self.curr_time - self.prev_time > 2):
-                self.signal = (self.signal + 1) % 3
+                self.msg_signal.ui16_cmd = (self.msg_signal.ui16_cmd + 1) % 3
                 self.prev_time = self.curr_time
             # publish cmd
             self.update()
