@@ -68,10 +68,13 @@ def save_scan(lidar_fn,color_fn,depth_fn):
 
 def main(folder='data',start_index=1):
     rospy.init_node("capture_lidar_zed",disable_signals=True)
-    lidar_sub = rospy.Subscriber("/lidar1/velodyne_points", PointCloud2, lidar_callback)
-    camera_sub = rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image, camera_callback)
-    depth_sub = rospy.Subscriber("/zed2/zed_node/depth/depth_registered", Image, depth_callback)
+    lidar_sub = rospy.Subscriber("/os_cloud_node/points", PointCloud2, lidar_callback)  
+    camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)  
+    depth_sub = rospy.Subscriber("/oak/depth/image_raw", Image, depth_callback) 
+    
+    
     index = start_index
+    dataset_path = "./GEMstack/data/" + "ou_oak/"
     print("Press any key to:")
     print("  store lidar point clouds as npz")
     print("  store color images as png")
@@ -94,9 +97,9 @@ def main(folder='data',start_index=1):
                     files = [os.path.join(folder,'lidar{}.npz'.format(index)),
                         os.path.join(folder,'color{}.png'.format(index)),
                         os.path.join(folder,'depth{}.tif'.format(index))]
-                    Lpath = "GEMstack/data/scans/lidar_scan/" + str(index) + ".npz"
-                    Cpath = "GEMstack/data/scans/color_image/" + str(index) + ".png"
-                    Dpath = "GEMstack/data/scans/depth_image/" + str(index) + ".tif"
+                    Lpath = dataset_path + str(index) + ".npz"
+                    Cpath = dataset_path + str(index) + ".png"
+                    Dpath = dataset_path + str(index) + ".tif"
                     save_scan(Lpath,Cpath,Dpath)
                     index += 1
 
