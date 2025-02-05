@@ -168,3 +168,6 @@ cython_debug/
 
 # ZED run files
 **/*.run
+.vscode/
+setup/zed_sdk.run
+cuda/

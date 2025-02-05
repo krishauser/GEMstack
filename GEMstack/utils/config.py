@@ -18,7 +18,7 @@ def save_config(fn : str, config : dict) -> None:
 
 
 def load_config_recursive(fn : str) -> dict:
-    """Loads a configuration file with !include directives."""
+    """Loads a configuration file with !include and !relative_path directives."""
     if fn.endswith('yaml') or fn.endswith('yml'):
         with open(fn,'r') as f:
             res = yaml.load(f,_Loader)
@@ -35,7 +35,7 @@ def load_config_recursive(fn : str) -> dict:
 
 
 class _Loader(yaml.SafeLoader):
-    """YAML Loader with `!include` constructor."""
+    """YAML Loader with `!include` and `!relative_path` directives."""
 
     def __init__(self, stream: IO) -> None:
         """Initialise Loader."""
@@ -60,7 +60,7 @@ yaml.add_constructor('!include', _construct_include, _Loader)
 yaml.add_constructor('!relative_path', _construct_relative_path, _Loader)
 
 def _load_config_or_text_recursive(fn : str) -> dict:
-    """Loads a configuration file with !include directives."""
+    """Loads a configuration file with !include and !relative_path directives."""
     if fn.endswith('yaml') or fn.endswith('yml'):
         with open(fn,'r') as f:
             res = yaml.load(f,_Loader)
