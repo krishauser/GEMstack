@@ -4,6 +4,8 @@ from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum,
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd
 
+import time
+
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
     trapezoidal velocity profile. 
@@ -104,6 +106,7 @@ class YieldTrajectoryPlanner(Component):
     you are at the end of the route, otherwise accelerates to
     the desired speed.
     """
+
     def __init__(self):
         self.route_progress = None
         self.t_last = None
@@ -121,6 +124,8 @@ class YieldTrajectoryPlanner(Component):
         return 10.0
 
     def update(self, state : AllState):
+        start_time = time.time()
+
         vehicle = state.vehicle # type: VehicleState
         route = state.route   # type: Route
         t = state.t
@@ -144,10 +149,39 @@ class YieldTrajectoryPlanner(Component):
 
         #parse the relations indicated
         should_brake = False
+
         for r in state.relations:
-            if r.type == EntityRelationEnum.YIELD and r.obj1 == '':
+            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
                 #yielding to something, brake
-                should_brake = True
+
+                #=========================
+                """
+                Collision detection:
+                    - Compute the lookahead distance required to avoid collision using:
+                        d = v^2/(2*a)
+                    - For many steps along the route (using a resolution that adapts if the
+                    planner runs too slowly), simulate the vehicle's future positions.
+                    - If a pedestrian is detected within 3m longitudinal and 1m lateral buffer,
+                    determine the distance-to-collision. Then compute the required deceleration:
+                        a = -(v^2)/(2*d_collision)
+                    - For distant crossing pedestrians, apply a gentle deceleration based on the
+                    perception-estimated pedestrian velocity.
+                """
+                print("#### YIELDING PLANNING ####")
+                for n,a in state.agents.items():
+                    print("ped", a.pose.x,a.pose.y)
+                    print("ego", curr_x,curr_y)
+                    # TEMPORARY: STOP WHEN WITHIN 10M OF PEDESTRIAN
+                    if a.pose.x - curr_x < 10.0 and a.pose.x - curr_x > 0.0:
+                        print("#### Yielding to",n)
+                        should_brake = True
+                    break
+
+                # # UNCOMMENT TO BRAKE FOR ALL PEDESTRIANS
+                # should_brake = True
+
+                #=========================
+
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
 
         #choose whether to accelerate, brake, or keep at current velocity
