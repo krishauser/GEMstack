@@ -54,7 +54,7 @@ Part 1:
 
     Replicate your sensor printing and distress signal code in the BlinkDistress class in blink_component.py.  You will need to adapt your code from using ROS subscribers / publishers to using the `GEMVehicleInterface` and `GEMVehicleReading` objects provided in the template code.  Opening the GEMstack folder in the VSCode IDE will help you find the documentation for these classes.
 
-    Run your code in simulation first.  (If you are running on the vehicle, first open one terminal window and run `roscore`. Keep this running.)  Then, in the GEMstack folder, run `python3 main.py --variant=sim launch/blink_launch.yaml`.  You should see your blinking sequence in a matplotlib window.  Use Ctrl+C to quit.
+    Run your code in simulation first.  (If you are running on the vehicle, first open one terminal window and run `roscore`. Keep this running.)  Then, in the GEMstack folder, run `python3 main.py --variant=sim launch/blink_launch.yaml`.  You should see your blinking sequence in a 3D visualization window.  Use Ctrl+C to quit.
 
     Now, run your code on the real vehicle.  Enable Pacmod control as before, then run `python3 main.py launch/blink_launch.yaml`.
 
