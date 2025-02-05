@@ -25,7 +25,7 @@ class BlinkDistress(Component):
 
     def initialize(self):
         """Run first"""
-        passcommand
+        pass
 
     def cleanup(self):
         """Run last"""
