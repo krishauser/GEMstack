@@ -94,15 +94,15 @@ def main(folder='data',start_index=1):
                     files = [os.path.join(folder,'lidar{}.npz'.format(index)),
                         os.path.join(folder,'color{}.png'.format(index)),
                         os.path.join(folder,'depth{}.tif'.format(index))]
-                    Lpath = "GEMstack/data/scans/lidar_scan/" + str(index) + ".npz"
-                    Cpath = "GEMstack/data/scans/color_image/" + str(index) + ".png"
-                    Dpath = "GEMstack/data/scans/depth_image/" + str(index) + ".tif"
-                    save_scan(Lpath,Cpath,Dpath)
+                    #Lpath = "GEMstack/data/scans/lidar_scan/" + str(index) + ".npz"
+                    #Cpath = "GEMstack/data/scans/color_image/" + str(index) + ".png"
+                    #Dpath = "GEMstack/data/scans/depth_image/" + str(index) + ".tif"
+                    save_scan(files)
                     index += 1
 
 if __name__ == '__main__':
     import sys
-    folder = 'data'
+    folder = 'GEMstack/data/li_zed/scans/'
     start_index = 1
     if len(sys.argv) >= 2:
         folder = sys.argv[1]
