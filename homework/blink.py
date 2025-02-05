@@ -18,7 +18,7 @@ class BlinkDistress:
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
         
         rospy.init_node("blink_node",anonymous=True)
-        rospy.Rate(self.rate())
+        rospy.Rate(5)
         
         self.sub_accel = rospy.Subscriber("/pacmod/parsed_tx/accel_rpt",SystemRptFloat,self.cb_accel,queue_size=1)
         self.sub_brake = rospy.Subscriber("/pacmod/parsed_tx/brake_rpt",SystemRptFloat,self.cb_brake,queue_size=1)
