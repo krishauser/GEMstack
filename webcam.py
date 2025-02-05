@@ -43,7 +43,7 @@ def webcam_publisher():
             rate.sleep()
     
     except KeyboardInterrupt:
-        rospy.loginfo("user interrupt")
+        rospy.loginfo("user key interrupt")
     
     finally:
         cap.release()
