@@ -44,11 +44,13 @@ class BlinkDistress(Component):
 
         # print("curr_accel is {}".format(command.accelerator_pedal_position))
         # print("curr_brake is {}".format(command.brake_pedal_position))
-        print("right turn {}".format(command.right_turn_signal))
-        print("left turn {}".format(command.left_turn_signal))
+        # print("right turn {}".format(command.right_turn_signal))
+        # print("left turn {}".format(command.left_turn_signal))
         self.curr_time = time.time()
 
         if (self.curr_time - self.prev_time > 2):
+            # print("right turn {}".format(command.right_turn_signal))
+            # print("left turn {}".format(command.left_turn_signal))
             if(command.left_turn_signal is True):
                 command.left_turn_signal = False
                 command.right_turn_signal = True
@@ -56,15 +58,18 @@ class BlinkDistress(Component):
             elif (command.right_turn_signal is True):
                 command.left_turn_signal = False
                 command.right_turn_signal = False
-                print("Conditon 2")
+                print("Condition 2")
             else:
                 command.left_turn_signal = True
                 print("Condition 3")
             self.prev_time = self.curr_time
             # print("theoretical right turn {}".format(command.right_turn_signal))
             # print("theoretical left turn {}".format(command.left_turn_signal))
+            # print("=========================================")
+            # print("real right turn {}".format(command.right_turn_signal))
+            # print("real left turn {}".format(command.left_turn_signal))
 
-        self.vehicle_interface.send_command(command)
+            self.vehicle_interface.send_command(command)
 
         
         # command = self.vehicle_interface.command_from_reading()
