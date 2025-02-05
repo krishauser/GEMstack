@@ -134,6 +134,7 @@ class YieldTrajectoryPlanner(Component):
             self.t_last = t
         dt = t - self.t_last
   
+        # Position in vehicle frame (Start (0,0) to (15,0))
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
         curr_v = vehicle.v
@@ -167,14 +168,26 @@ class YieldTrajectoryPlanner(Component):
                     - For distant crossing pedestrians, apply a gentle deceleration based on the
                     perception-estimated pedestrian velocity.
                 """
+
                 print("#### YIELDING PLANNING ####")
+
+                # Convert vehicle pose from vehicle to world coordinates
+                # xyhead_demo: vehicle start at [4, 5], ped walks [15, 2]~[15, 10]
+                # Is there relative pose of pedestrian or absolute pose of vehicle?
+                abs_x = vehicle.pose.x + state.start_vehicle_pose.x
+                abs_y = vehicle.pose.y + state.start_vehicle_pose.y
+
+                # TODO: Check if there are multiple pedestrians
                 for n,a in state.agents.items():
-                    print("ped", a.pose.x,a.pose.y)
-                    print("ego", curr_x,curr_y)
+                    print("ped", a.pose.x, a.pose.y)
+                    print("ego", abs_x, abs_y)
+
+                    # TODO: Make logic for smooth deceleration and re-acceleration
                     # TEMPORARY: STOP WHEN WITHIN 10M OF PEDESTRIAN
-                    if a.pose.x - curr_x < 10.0 and a.pose.x - curr_x > 0.0:
+                    if a.pose.x - abs_x < 10.0 and a.pose.x - abs_x > 0.0:
                         print("#### Yielding to",n)
                         should_brake = True
+
                     break
 
                 # # UNCOMMENT TO BRAKE FOR ALL PEDESTRIANS
