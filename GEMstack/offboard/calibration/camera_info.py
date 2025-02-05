@@ -1,9 +1,12 @@
 # ROS Headers
 import rospy
-from sensor_msgs.msg import Image,PointCloud2
+from sensor_msgs.msg import Image,PointCloud2, CameraInfo
 import sensor_msgs.point_cloud2 as pc2
 import ctypes
 import struct
+import pickle
+import image_geometry
+
 
 # OpenCV and cv2 bridge
 import cv2
@@ -21,9 +24,9 @@ def lidar_callback(lidar : PointCloud2):
     global lidar_points
     lidar_points = lidar
 
-def camera_callback(img : Image):
+def camera_callback(info : CameraInfo):
     global camera_image
-    camera_image = img
+    camera_image = info
 
 def pc2_to_numpy(pc2_msg, want_rgb = False):
     gen = pc2.read_points(pc2_msg, skip_nans=True)
@@ -49,24 +52,23 @@ def pc2_to_numpy(pc2_msg, want_rgb = False):
     else:
         return np.array(list(gen),dtype=np.float32)[:,:3]
 
-def save_scan(lidar_fn,color_fn):
-    print("Saving scan to",lidar_fn,color_fn)
-    pc = pc2_to_numpy(lidar_points,want_rgb=False)
-    np.savez(lidar_fn,pc)
-    cv2.imwrite(color_fn,bridge.imgmsg_to_cv2(camera_image))
+def save_scan(cam_path):
+    model = image_geometry.PinholeCameraModel()
+    model.fromCameraInfo(camera_image)
+    print(model.intrinsicMatrix())
+    # with open(cam_path, "w") as file:
+    #     pickle.dump(, file)
+    #     print("Saving scan to", cam_path)
 
 def main(folder='data',start_index=1):
-    rospy.init_node("capture_lidar_zed",disable_signals=True)
-    lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
-    camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
+    rospy.init_node("capture_cam_info",disable_signals=True)
+    caminfo_sub = rospy.Subscriber("/oak/rgb/camera_info", CameraInfo, camera_callback)
     index = start_index
     print("Press any key to:")
-    print("  store lidar point clouds as npz")
-    print("  store color images as png")
+    print("  store camera info ")
     print("Press Escape or Ctrl+C to quit")
     while True:
         if camera_image:
-            cv2.imshow("result",bridge.imgmsg_to_cv2(camera_image))
             time.sleep(1)
             # key = cv2.waitKey(0)
             # if key == -1:
@@ -87,8 +89,7 @@ def main(folder='data',start_index=1):
             #         index += 1
 
             files = [
-                        os.path.join(folder,'lidar{}.npz'.format(index)),
-                        os.path.join(folder,'color{}.png'.format(index))]
+                        os.path.join(folder,'cam_info{}.txt'.format(index))]
             save_scan(*files)
             index += 1
 
