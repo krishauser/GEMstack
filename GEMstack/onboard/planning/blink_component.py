@@ -1,6 +1,7 @@
 from ..component import Component
 from ..interface.gem import GEMInterface,GEMVehicleCommand,GEMVehicleReading
 import time
+from ..state import AllState, VehicleIntentEnum
 
 class BlinkDistress(Component):
     """Your control loop code should go here.  You will use GEMVehicleCommand
@@ -12,10 +13,12 @@ class BlinkDistress(Component):
 
         # command.left_turn_signal = True
         self.prev_time = time.time()
+        self.state = AllState()
 
         while True :
+            # if(self.state.intent.intent == VehicleIntentEnum.HALTING)
+            #     self.update()
             self.update()
-
         
         
 
