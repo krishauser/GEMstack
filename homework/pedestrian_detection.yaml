@@ -95,3 +95,4 @@ variants:
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
+                    agent_detection : OmniscientAgentDetector
