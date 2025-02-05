@@ -1,4 +1,5 @@
 from ..component import Component
+from klampt import __version__ as klampt_version
 from klampt import vis
 from klampt.math import se3
 from klampt import *
@@ -11,14 +12,16 @@ import math
 import numpy as np
 
 class KlamptVisualization(Component):
-    """Runs a matplotlib visualization at 10Hz. 
-    
-    If save_as is not None, saves the visualization to a file.
+    """Runs a Klampt visualization.
+     
+    Runs at 20Hz by default. 
     """
     def __init__(self, vehicle_interface, rate : float = 20.0, save_as : str = None):
         self.vehicle_interface = vehicle_interface
         self._rate = rate
         self.save_as = save_as
+        if save_as is not None:
+            print("WARNING: automatic saving of KlamptVisualization to movie is not supported yet. You can use Ctrl+M to start / stop saving the movie")
         self.num_updates = 0
         self.last_yaw = None
         self.plot_values = {}
@@ -57,12 +60,20 @@ class KlamptVisualization(Component):
     def initialize(self):
         vis.setWindowTitle("GEMstack visualization")
         vp = vis.getViewport()
-        vp.camera.rot[1] = -0.15
-        vp.camera.rot[2] = -math.pi/2
-        vp.camera.dist = 30.0
-        vp.w = 1280
-        vp.h = 720
-        vp.clippingplanes = (0.1,1000)
+        if klampt_version == '0.10.0':
+            vp.controller.rot[1] = -0.15
+            vp.controller.rot[2] = -math.pi/2
+            vp.controller.dist = 30.0
+            vp.resize(1280,720)
+            vp.n = 0.1
+            vp.f = 1000
+        else:
+            vp.camera.rot[1] = -0.15
+            vp.camera.rot[2] = -math.pi/2
+            vp.camera.dist = 30.0
+            vp.w = 1280
+            vp.h = 720
+            vp.clippingplanes = (0.1,1000)
         vis.setViewport(vp)
         vis.add("vehicle_plane",self.world.terrain(0),hide_label=True)
         #note: show() takes over the interrupt handler and sets it to default, so we restore it
@@ -121,9 +132,14 @@ class KlamptVisualization(Component):
                 center_offset = 1.0
                 lookahead = 4.0*v
                 dx,dy = math.cos(tracked_vehicle.pose.yaw)*(lookahead+center_offset),math.sin(tracked_vehicle.pose.yaw)*(lookahead+center_offset)
-                vp.camera.tgt = [tracked_vehicle.pose.x+dx,tracked_vehicle.pose.y+dy,1.5]
-                vp.camera.rot[2] += tracked_vehicle.pose.yaw - self.last_yaw
-                vp.camera.dist += 5.0*(v - self.last_v)
+                if klampt_version == '0.10.0':
+                    vp.controller.tgt = [tracked_vehicle.pose.x+dx,tracked_vehicle.pose.y+dy,1.5]
+                    vp.controller.rot[2] += tracked_vehicle.pose.yaw - self.last_yaw
+                    vp.controller.dist += 5.0*(v - self.last_v)
+                else:
+                    vp.camera.tgt = [tracked_vehicle.pose.x+dx,tracked_vehicle.pose.y+dy,1.5]
+                    vp.camera.rot[2] += tracked_vehicle.pose.yaw - self.last_yaw
+                    vp.camera.dist += 5.0*(v - self.last_v)
                 self.last_v = v
                 vis.setViewport(vp)
             
