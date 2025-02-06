@@ -28,3 +28,8 @@ cd .. #back to GEMstack
 
 #install GEMstack Python dependencies
 python3 -m pip install -r requirements.txt
+
+
+
+
+CATKIN_IGNORE
