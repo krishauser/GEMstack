@@ -20,52 +20,167 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
-
     #=============================================
 
     print("-----LONGITUDINAL PLAN-----")
     print("path length: ", path.length())
     length = path.length()
 
+    # This assumes that the time denomination cannot be changed
+
     # Starting point
     x0 = points[0][0]
-    # Time to stop
-    t_stop = current_speed / deceleration
-    # Position to stop
-    x_stop = x0 + current_speed * t_stop - 0.5 * deceleration * t_stop**2
+    cur_point = points[0]
+    cur_time = times[0]
+    cur_index = 0
 
-    # GEM will decelerate to 0 before the end of the path
-    if length < 10.0 and x_stop > points[-1][0]:
-        new_points = []
-        for t in times:
-            if t <= t_stop:
-                x = x0 + current_speed * t - 0.5 * deceleration * t**2
-            # Keep the position after reaching 0 velocity
+    new_points = []
+    new_times = []
+    while current_speed > 0 or cur_index == 0:
+        # we want to iterate through all the points and add them
+        # to the new points. However, we also want to add "critical points"
+        # where we reach top speed, begin decelerating, and stop
+        new_points.append(cur_point)
+        new_times.append(cur_time)
+        print("=====================================")
+        print("new points: ", new_points)
+        print("current index: ", cur_index)
+        print("current speed: ", current_speed)
+
+        # Calculate how much time it would take to stop
+        min_delta_t_stop = current_speed/deceleration
+        min_delta_x_stop = current_speed*min_delta_t_stop - 0.5*deceleration*min_delta_t_stop**2
+        assert min_delta_x_stop >= 0
+
+        # Information we will need 
+        #assert cur_index < len(points)-1
+
+        # Check if we are done
+
+        # If we cannot stop before or stop exactly at the final position requested
+        if cur_point[0] + min_delta_x_stop >= points[-1][0]:
+            print("In case one")
+            # put on the breaks
+
+            # Calculate the next point in a special manner because of too-little time to stop 
+            if cur_index == len(points)-1:
+                # the next point in this instance would be when we stop
+                next_point = (cur_point[0] + min_delta_x_stop, 0)
             else:
-                x = x_stop
-            new_points.append([x, 0])
-        points = new_points
-        print("[BRAKE] Computed points:", points)
+                next_point = points[cur_index+1]
 
-    # GEM will accelerate to max speed before the end of the path
-    else:
-        new_points = []
-        for t in times:
-            # Accelerate to max speed
-            if max_speed > current_speed:
-                x = x0 + current_speed * t + 0.5 * acceleration * t**2
-            # Keep the velocity after reaching max speed
+            # do we just progress and update time
+            if next_point[0] <= points[-1][0]:
+                print("continuing to next point")
+                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
+                cur_time += delta_t_to_next_x
+                cur_point = next_point
+                current_speed -= deceleration*delta_t_to_next_x
+                cur_index += 1
             else:
-                x = x0 + current_speed * t
-            new_points.append([x, 0])
-        points = new_points
-        print("[ACCEL] Computed points:", points)
+                # continue to the point in which we would stop
+                # update to the next point 
+                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
+                cur_point = next_point
+                cur_time += delta_t_to_next_x
+                #current_speed -= delta_t_to_next_x*deceleration
+                current_speed = 0
+                assert current_speed == 0
 
+        elif current_speed < max_speed:
+            print("In case two")
+            next_point = points[cur_index+1]
+            # accelerate to max speed
+            delta_t_to_max_speed = (max_speed - current_speed)/acceleration
+            delta_x_to_max_speed = current_speed*delta_t_to_max_speed + 0.5*acceleration*delta_t_to_max_speed**2
+            
+            if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
+                print("go to next point")
+                # accelerate to max speed
+                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, acceleration)
+                cur_time += delta_t_to_next_x
+                cur_point = [next_point[0], 0]
+                current_speed += delta_t_to_next_x*deceleration
+                cur_index += 1
+            
+            else:
+                print("adding new point")
+                # we would need to add a new point at max speed
+                cur_time += delta_t_to_max_speed
+                cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
+                current_speed = max_speed
+
+        elif current_speed == max_speed:
+            next_point = points[cur_index+1]
+            # continue on with max speed
+            print("In case three")
+            
+            # add point to start decelerating
+            if next_point[0] + min_delta_x_stop >= points[-1][0]:
+                print("Adding new point to start decelerating")
+                cur_time += (points[-1][0] - min_delta_x_stop - cur_point[0])/current_speed
+                cur_point = [points[-1][0] - min_delta_x_stop,0]
+                current_speed = max_speed
+            else:
+                print("Continuing on to next point")
+                cur_time += (next_point[0] - cur_point[0])/current_speed
+                cur_point = next_point
+                cur_index += 1
+            
+        elif current_speed > max_speed:
+            next_point = points[cur_index+1]
+            print("In case four")
+            # slow down to max speed 
+            delta_t_to_max_speed = (current_speed - max_speed)/deceleration
+            delta_x_to_max_speed = current_speed*delta_t_to_max_speed - 0.5*deceleration*delta_t_to_max_speed**2
+
+            if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
+                # next position will take care of this 
+                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
+                cur_time += delta_t_to_next_x
+                cur_point = next_point[0]
+                current_speed -= delta_t_to_next_x*deceleration
+                cur_index += 1
+            else:
+                cur_time += delta_t_to_max_speed
+                cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
+                current_speed = max_speed
+
+        else:
+            # not sure what falls here
+            raise ValueError("Not sure what to do here")
+        
+    new_points.append(cur_point)
+    new_times.append(cur_time)
+        
+    points = new_points
+    times = new_times
+    print("[PLAN] Computed points:", points)
+    print("[TIME] Computed time:", times)
     #=============================================
 
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
+def compute_time_to_x(x0 : float, x1 : float, v : float, a : float) -> float:
+    """Computes the time to go from x0 to x1 with initial velocity v0 and final velocity v1
+    with constant acceleration a."""
+    # x1 = x0 + v0*t + 0.5*a*t^2
+    # x1 - x0 = v0*t + 0.5*a*t^2
+    # 0.5*a*t^2 + v0*t + x0 - x1 = 0
+    # t = (-v0 + sqrt(v0^2 - 4*0.5*a*(x0-x1)))/(2*0.5*a)
+    # t = (-v0 + sqrt(v0^2 + 2*a*(x1-x0)))/a
+    print("x0: ", x0)
+    print("x1: ", x1)
+    print("v: ", v)
+    print("a: ", a)
+
+    t1 = (-v + (v**2 - 2*a*(x0-x1))**0.5)/a
+    t2 = (-v - (v**2 - 2*a*(x0-x1))**0.5)/a
+    print("t1: ", t1)
+    print("t2: ", t2)
+
+    return min(n for n in [t1, t2]  if n>0)
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
