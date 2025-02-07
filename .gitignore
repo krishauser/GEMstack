@@ -171,3 +171,9 @@ cython_debug/
 .vscode/
 setup/zed_sdk.run
 cuda/
+homework/yolo8n.pt
+homework/yolo11n.pt
+GEMstack/knowledge/detection/yolo8n.pt
+GEMstack/knowledge/detection/yolo11n.pt
+yolo8n.pt
+yolo11n.pt
