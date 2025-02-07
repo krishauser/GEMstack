@@ -27,6 +27,10 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     print("path length: ", path.length())
     length = path.length()
 
+    # If the path is too short, just return the path for preventing sudden halt of simulation
+    if length < 0.05:
+        return Trajectory(path.frame, points, times)
+
     # This assumes that the time denomination cannot be changed
 
     # Starting point
@@ -184,7 +188,11 @@ def compute_time_to_x(x0 : float, x1 : float, v : float, a : float) -> float:
     print("t1: ", t1)
     print("t2: ", t2)
 
-    return min(n for n in [t1, t2]  if n>0)
+    valid_times = [n for n in [t1, t2] if n > 0]
+    if valid_times:
+        return min(valid_times)
+    else:
+        return 0.0
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
