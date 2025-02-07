@@ -5,6 +5,7 @@ from ...utils import serialization
 from ...mathutils.transforms import vector_madd
 
 import time
+import math
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
@@ -138,7 +139,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
                 # next position will take care of this 
                 delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
                 cur_time += delta_t_to_next_x
-                cur_point = next_point[0]
+                cur_point = [next_point[0], 0]
                 current_speed -= delta_t_to_next_x*deceleration
                 cur_index += 1
             else:
@@ -177,6 +178,9 @@ def compute_time_to_x(x0 : float, x1 : float, v : float, a : float) -> float:
 
     t1 = (-v + (v**2 - 2*a*(x0-x1))**0.5)/a
     t2 = (-v - (v**2 - 2*a*(x0-x1))**0.5)/a
+    if math.isnan(t1): t1 = 0
+    if math.isnan(t2): t2 = 0
+
     print("t1: ", t1)
     print("t2: ", t2)
 
@@ -307,6 +311,9 @@ class YieldTrajectoryPlanner(Component):
 
                 # # UNCOMMENT TO BRAKE FOR ALL PEDESTRIANS
                 # should_brake = True
+
+                # # UNCOMMENT NOT TO BRAKE
+                should_brake = False
 
                 #=========================
 
