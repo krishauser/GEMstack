@@ -12,8 +12,8 @@ def person_detector(img : cv2.Mat):
     for result in results:
         for box in result.boxes:
             if int(box.cls[0]) == 0: # check if bounding box is a person
-                x1, y1, x2, y2 = box.xyxy[0].int().tolist()
-                bboxes.append(((x1 + x2) / 2, (y1 + y2) / 2, abs(x2 - x1), abs(y2 - y1)))
+                x, y, w, h = box.xywh[0].int().tolist()
+                bboxes.append((x, y, w, h))
     return bboxes
 
 def main(fn):

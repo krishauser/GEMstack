@@ -1,8 +1,8 @@
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
-#from ultralytics import YOLO
-#import cv2
+from ultralytics import YOLO
+import cv2
 from typing import Dict
 
 def box_to_fake_agent(box):
@@ -20,7 +20,7 @@ class PedestrianDetector2D(Component):
     """Detects pedestrians."""
     def __init__(self,vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        #self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
         self.last_person_boxes = []
 
     def rate(self):
@@ -34,17 +34,22 @@ class PedestrianDetector2D(Component):
     
     def initialize(self):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        #self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
         pass
     
-    #def image_callback(self, image : cv2.Mat):
-    #    detection_result = self.detector(image)
-    #    self.last_person_boxes = []
-    #    #uncomment if you want to debug the detector...
-    #    #for bb in self.last_person_boxes:
-    #    #    x,y,w,h = bb
-    #    #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
-    #    #cv2.imwrite("pedestrian_detections.png",image)
+    def image_callback(self, image : cv2.Mat):
+        detection_result = self.detector(image)
+        self.last_person_boxes = []
+        for result in detection_result:
+            for box in result.boxes:
+                if int(box.cls[0]) == 0: # check if bounding box is a person
+                    x, y, w, h = box.xywh[0].int().tolist()
+                    self.last_person_boxes.append((x, y, w, h))
+        #uncomment if you want to debug the detector...
+        #for bb in self.last_person_boxes:
+        #    x,y,w,h = bb
+        #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
+        #cv2.imwrite("pedestrian_detections.png",image)
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         res = {}
