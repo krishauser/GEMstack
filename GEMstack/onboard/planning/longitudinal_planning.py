@@ -47,13 +47,13 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         print("current index: ", cur_index)
         print("current speed: ", current_speed)
 
-        # Calculate how much time it would take to stop
+        # Information we will need: 
+            # Calculate how much time it would take to stop
+            # Calculate how much distance it would take to stop
         min_delta_t_stop = current_speed/deceleration
         min_delta_x_stop = current_speed*min_delta_t_stop - 0.5*deceleration*min_delta_t_stop**2
         assert min_delta_x_stop >= 0
 
-        # Information we will need 
-        #assert cur_index < len(points)-1
 
         # Check if we are done
 
@@ -69,7 +69,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
             else:
                 next_point = points[cur_index+1]
 
-            # do we just progress and update time
+            # keep breaking until the next milestone in path
             if next_point[0] <= points[-1][0]:
                 print("continuing to next point")
                 delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
@@ -78,22 +78,32 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
                 current_speed -= deceleration*delta_t_to_next_x
                 cur_index += 1
             else:
-                # continue to the point in which we would stop
+                # continue to the point in which we would stop (current_velocity = 0)
                 # update to the next point 
                 delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
                 cur_point = next_point
                 cur_time += delta_t_to_next_x
+                # current_speed would not be exactly zero error would be less than 1e-4 but perfer to just set to zero
                 #current_speed -= delta_t_to_next_x*deceleration
                 current_speed = 0
                 assert current_speed == 0
 
+        # This is the case where we are accelerating to max speed
+        # because the first if-statement covers for when we decelerating,
+        # the only time current_speed < max_speed is when we are accelerating 
         elif current_speed < max_speed:
             print("In case two")
+            # next point 
             next_point = points[cur_index+1]
             # accelerate to max speed
+
+            # calculate the time it would take to reach max speed
             delta_t_to_max_speed = (max_speed - current_speed)/acceleration
+            # calculate the distance it would take to reach max speed
             delta_x_to_max_speed = current_speed*delta_t_to_max_speed + 0.5*acceleration*delta_t_to_max_speed**2
             
+            # if we would reach max speed after the next point, 
+            # just move to the next point and update the current speed and time
             if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
                 print("go to next point")
                 # accelerate to max speed
@@ -103,6 +113,8 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
                 current_speed += delta_t_to_next_x*deceleration
                 cur_index += 1
             
+            # this is the case where we would reach max speed before the next point
+            # we need to create a new point where we would reach max speed 
             else:
                 print("adding new point")
                 # we would need to add a new point at max speed
@@ -110,6 +122,10 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
                 cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
                 current_speed = max_speed
 
+        # This is the case where we are at max speed
+        # special functionality is that this block must 
+        # add a point where we would need to start declerating to reach
+        # the final point
         elif current_speed == max_speed:
             next_point = points[cur_index+1]
             # continue on with max speed
@@ -122,33 +138,42 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
                 cur_point = [points[-1][0] - min_delta_x_stop,0]
                 current_speed = max_speed
             else:
+                # Continue on to next point
                 print("Continuing on to next point")
                 cur_time += (next_point[0] - cur_point[0])/current_speed
                 cur_point = next_point
                 cur_index += 1
-            
+        
+        # This is an edge case and should only be reach 
+        # if the initial speed is greater than the max speed
         elif current_speed > max_speed:
+            # We need to hit the breaks 
+
             next_point = points[cur_index+1]
             print("In case four")
             # slow down to max speed 
             delta_t_to_max_speed = (current_speed - max_speed)/deceleration
             delta_x_to_max_speed = current_speed*delta_t_to_max_speed - 0.5*deceleration*delta_t_to_max_speed**2
 
+            # If we would reach the next point before slowing down to max speed
+            # keep going until we reach the next point
             if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
-                # next position will take care of this 
                 delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
                 cur_time += delta_t_to_next_x
                 cur_point = next_point[0]
                 current_speed -= delta_t_to_next_x*deceleration
                 cur_index += 1
             else:
+            # We would reach max speed before the next point
+            # we need to add a new point at the point where we
+            # would reach max speed
                 cur_time += delta_t_to_max_speed
                 cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
                 current_speed = max_speed
 
         else:
             # not sure what falls here
-            raise ValueError("Not sure what to do here")
+            raise ValueError("LONGITUDINAL PLAN ERROR: Not sure how we ended up here")
         
     new_points.append(cur_point)
     new_times.append(cur_time)
