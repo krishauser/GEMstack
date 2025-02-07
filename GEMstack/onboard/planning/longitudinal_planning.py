@@ -288,8 +288,9 @@ class YieldTrajectoryPlanner(Component):
         self.route_progress = None
         self.t_last = None
         self.acceleration = 0.5
-        self.desired_speed = 1.0
+        self.desired_speed = 2.0 # default 1.0
         self.deceleration = 2.0
+        self.relation = "None"
 
     def state_inputs(self):
         return ['all']
@@ -322,8 +323,15 @@ class YieldTrajectoryPlanner(Component):
         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
         self.route_progress = closest_parameter
 
+        lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
+        route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
+        print("Lookahead distance:", lookahead_distance)
         #extract out a 10m segment of the route
-        route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
+        # route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
+
+        decel = self.deceleration
+        prev_relation = self.relation
+        should_yield = False
 
         #parse the relations indicated
         should_brake = False
@@ -349,34 +357,47 @@ class YieldTrajectoryPlanner(Component):
                 print("#### YIELDING PLANNING ####")
 
                 # Vehicle parameters.
-                x1, y1, t1 = vehicle.pose.x + state.start_vehicle_pose.x, vehicle.pose.y + state.start_vehicle_pose.y, 0
+                x1, y1 = vehicle.pose.x + state.start_vehicle_pose.x, vehicle.pose.y + state.start_vehicle_pose.y
                 v1 = [curr_v, 0]     # Vehicle speed vector
 
                 for n,a in state.agents.items():
 
                     # Pedestrian parameters.
-                    x2, y2, t2 = a.pose.x, a.pose.y, 0
+                    x2, y2 = a.pose.x, a.pose.y
                     v2 = [a.velocity[0], a.velocity[1]]     # Pedestrian speed vector
                     # Total simulation time
-                    total_time = 10.0
+                    if curr_v > 0.1:
+                        total_time = min(10, lookahead_distance / curr_v)
+                    else:
+                        total_time = 10
+                    print(f"Total time: {total_time:.2f} seconds")
 
                     # Create and run the simulation.
-                    # start_time = time.time()
-                    sim = Simulation(x1, y1, t1, x2, y2, t2, v1, v2, total_time)
+                    sim = Simulation(x1, y1, 0, x2, y2, 0, v1, v2, total_time)
 
-                    # sim.run(is_displayed=True)
-                    relation, decel = sim.run(is_displayed=False)
-                    print(f"Relation: {relation}")
+                    self.relation, decel = sim.run()
+                    print(f"Relation: {self.relation}")
                     print(f"Deceleration: {decel:.2f} m/s^2")
-                    # print(f"Simulation took {time.time() - start_time:.3f} seconds.")
+
+                    # relation: None, Yielding, Stopping
+                    # Stopping => None
+                    if prev_relation == "Stopping" and self.relation == "Yielding":
+                        self.relation = "Stopping"
 
                     break
+
+                if self.relation == "Yielding":
+                    should_brake = True
+                    should_yield = True
+                elif self.relation == "Stopping":
+                    should_brake = True
+                    should_yield = False
 
                 # # UNCOMMENT TO BRAKE FOR ALL PEDESTRIANS
                 # should_brake = True
 
                 # # UNCOMMENT NOT TO BRAKE
-                should_brake = False
+                # should_brake = False
 
                 #=========================
 
@@ -385,8 +406,11 @@ class YieldTrajectoryPlanner(Component):
         #choose whether to accelerate, brake, or keep at current velocity
         if should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
-        elif should_brake:
+        elif should_brake and not should_yield:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+        elif should_brake and should_yield:
+            print("Yielding with", decel, "m/s^2")
+            traj = longitudinal_brake(route_with_lookahead, decel, curr_v)
         else:
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
 
