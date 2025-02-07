@@ -1,7 +1,12 @@
+<<<<<<< HEAD
 from ultralytics import YOLO
+=======
+>>>>>>> 995409b8e816bd1143c87a55e6da45d077ed8e93
 import cv2
 import sys
+from ultralytics import YOLO
 
+<<<<<<< HEAD
 
 def person_detector(img: cv2.Mat):
     # Load the YOLOv8 model (assuming you  ave the model file 'yolov8n.pt' in the same directory)
@@ -19,6 +24,22 @@ def person_detector(img: cv2.Mat):
                 bboxes.append((x, y, w, h))
     return bboxes
 
+=======
+def person_detector(img : cv2.Mat):
+    #TODO: implement me to produce a list of (x,y,w,h) bounding boxes of people in the image
+    model = YOLO("yolo11n.pt")
+    results = model(img)
+    cls = results[0].boxes.cls.cpu().numpy()
+    bboxes = results[0].boxes.xywh.cpu().numpy()
+    detection = []
+    for k in range(len(cls)):
+        category = cls[k]
+        b = bboxes[k]
+        bb = (b[0], b[1], b[2], b[3])
+        if category == 0:
+            detection.append(bb)
+    return detection
+>>>>>>> 995409b8e816bd1143c87a55e6da45d077ed8e93
 
 def main(fn):
     image = cv2.imread(fn)
