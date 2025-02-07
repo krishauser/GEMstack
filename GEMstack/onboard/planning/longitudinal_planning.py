@@ -17,7 +17,7 @@ class CollosionDetector:
     All functions remain within the class, and variables defined in __init__ remain unchanged;
     local copies are used during simulation.
     """
-    def __init__(self, x1, y1, t1, x2, y2, t2, v1, v2, total_time=10.0):
+    def __init__(self, x1, y1, t1, x2, y2, t2, v1, v2, total_time=10.0, basic_deceleration=2.0, max_deceleration=8.0):
 
         self.vehicle_x = x1
         self.vehicle_y = y1
@@ -50,6 +50,8 @@ class CollosionDetector:
 
         self.dt = 0.1  # seconds
         self.total_time = total_time  # seconds
+        self.basic_deceleration = basic_deceleration
+        self.max_deceleration = max_deceleration
 
     def get_corners(self, x, y, w, h, theta):
         """
@@ -119,7 +121,7 @@ class CollosionDetector:
         ax.set_title(f"Collision: {'Yes' if collision else 'No'}")
 
     def run(self, is_displayed=False):
-        appropriate_deceleration = 0.0
+        output_deceleration = 0.0
         relation = "None"
         # None: No relation 
         # Yielding: Vehicle is yielding to pedestrian
@@ -144,12 +146,6 @@ class CollosionDetector:
 
         for i in range(steps):
             t_sim = i * self.dt
-
-            # Update local positions based on velocities.
-            current_x1 += self.v1[0] * self.dt
-            current_y1 += self.v1[1] * self.dt
-            current_x2 += self.v2[0] * self.dt
-            current_y2 += self.v2[1] * self.dt
 
             # Compute rectangle corners using the local positional variables.
             rect1 = self.get_corners(current_x1, current_y1, self.w1, self.h1, self.t1)
@@ -186,32 +182,42 @@ class CollosionDetector:
 
             # Stop simulation if collision is detected.
             if collision:
+                # Check if the vehicle will hit the pedestrian or can stop before hitting.
                 # Dmin = v^2 / (2 * a) => a = -v^2 / (2 * D)
-                # ASSUMING DECELERATION IS 2.0 m/s^2
-                minimum_distance         = self.v1[0]**2 / (2 * 2.0)
+                # Minimum distance required to stop before hitting with basic_deceleration
+                minimum_distance         = self.v1[0]**2 / (2 * self.basic_deceleration)
                 current_vehicle_x        = current_x1 - (self.vehicle_size_x + self.vehicle_buffer_x) * 0.5
                 current_vehicle_y        = current_y1
-                current_vehicle_x_head   = current_vehicle_x + self.vehicle_size_x + self.vehicle_buffer_x
-                current_vehicle_y_head   = current_vehicle_y
-                appropriate_deceleration = self.v1[0]**2 / (2 * current_vehicle_x_head)
 
                 print("Collision detected. Stopping simulation.")
                 print(f"Collision coordinates: ({current_vehicle_x:.1f}, {current_vehicle_y:.1f})")
                 print(f"Vehicle speed: {self.v1[0]:.1f}")
                 print(f"Minimum distance required to avoid collision: {minimum_distance:.1f}")
-                print(f"Appropriate deceleration: {appropriate_deceleration:.2f}")
 
-                if minimum_distance > current_vehicle_x_head:
+                if minimum_distance > current_vehicle_x - self.vehicle_x:
+                    print("Vehicle will hit the pedestrian!!!")
                     relation = "Stopping"
+                    # Deceleration to stop at the current position > basic_deceleration
+                    output_deceleration = min(self.max_deceleration, self.v1[0]**2 / (2 * (current_vehicle_x - self.vehicle_x)))
                 else:
+                    print("Vehicle can yield. Speed down with:")
+                    # Deceleration to stop at the current position < basic_deceleration
+                    output_deceleration = self.v1[0]**2 / (2 * (current_vehicle_x - self.vehicle_x))
+                    print(f"Appropriate deceleration: {output_deceleration:.2f}")
                     relation = "Yielding"
                 break
+
+            # Update local positions based on velocities.
+            current_x1 += self.v1[0] * self.dt
+            current_y1 += self.v1[1] * self.dt
+            current_x2 += self.v2[0] * self.dt
+            current_y2 += self.v2[1] * self.dt
 
         if is_displayed:
             plt.ioff()
             plt.show(block=True)
 
-        return relation, appropriate_deceleration
+        return relation, output_deceleration
 
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
@@ -321,6 +327,8 @@ class YieldTrajectoryPlanner(Component):
         self.acceleration = 0.5
         self.desired_speed = 2.0 # default 1.0
         self.deceleration = 2.0
+
+        self.max_deceleration = 8.0
         self.relation = "None"
 
     def state_inputs(self):
@@ -354,7 +362,7 @@ class YieldTrajectoryPlanner(Component):
         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
         self.route_progress = closest_parameter
 
-        lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
+        lookahead_distance = max(5, curr_v**2 / (2 * self.deceleration))
         route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
         print("Lookahead distance:", lookahead_distance)
         #extract out a 10m segment of the route
@@ -404,9 +412,9 @@ class YieldTrajectoryPlanner(Component):
                     print(f"Total time: {total_time:.2f} seconds")
 
                     # Create and run the simulation.
-                    print(f"Vehicle: ({x1:.1f}, {y1:.1f})")
-                    print(f"Pedestrian: ({x2:.1f}, {y2:.1f})")
-                    sim = CollosionDetector(x1, y1, 0, x2, y2, 0, v1, v2, total_time)
+                    print(f"Vehicle: ({x1:.1f}, {y1:.1f}, ({v1[0]:.1f}, {v1[1]:.1f}))")
+                    print(f"Pedestrian: ({x2:.1f}, {y2:.1f}, ({v2[0]:.1f}, {v2[1]:.1f}))")
+                    sim = CollosionDetector(x1, y1, 0, x2, y2, 0, v1, v2, total_time, self.deceleration, self.max_deceleration)
 
                     self.relation, decel = sim.run()
                     print(f"Relation: {self.relation}")

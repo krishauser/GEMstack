@@ -11,7 +11,7 @@ class Simulation:
     All functions remain within the class, and variables defined in __init__ remain unchanged;
     local copies are used during simulation.
     """
-    def __init__(self, x1, y1, t1, x2, y2, t2, v1, v2, total_time=10.0):
+    def __init__(self, x1, y1, t1, x2, y2, t2, v1, v2, total_time=10.0, basic_deceleration=2.0, max_deceleration=8.0):
 
         self.vehicle_x = x1
         self.vehicle_y = y1
@@ -44,6 +44,8 @@ class Simulation:
 
         self.dt = 0.1  # seconds
         self.total_time = total_time  # seconds
+        self.basic_deceleration = basic_deceleration
+        self.max_deceleration = max_deceleration
 
     def get_corners(self, x, y, w, h, theta):
         """
@@ -113,7 +115,7 @@ class Simulation:
         ax.set_title(f"Collision: {'Yes' if collision else 'No'}")
 
     def run(self, is_displayed=False):
-        appropriate_deceleration = 0.0
+        output_deceleration = 0.0
         relation = "None"
         # None: No relation 
         # Yielding: Vehicle is yielding to pedestrian
@@ -138,12 +140,6 @@ class Simulation:
 
         for i in range(steps):
             t_sim = i * self.dt
-
-            # Update local positions based on velocities.
-            current_x1 += self.v1[0] * self.dt
-            current_y1 += self.v1[1] * self.dt
-            current_x2 += self.v2[0] * self.dt
-            current_y2 += self.v2[1] * self.dt
 
             # Compute rectangle corners using the local positional variables.
             rect1 = self.get_corners(current_x1, current_y1, self.w1, self.h1, self.t1)
@@ -180,51 +176,70 @@ class Simulation:
 
             # Stop simulation if collision is detected.
             if collision:
+                # Check if the vehicle will hit the pedestrian or can stop before hitting.
                 # Dmin = v^2 / (2 * a) => a = -v^2 / (2 * D)
-                # ASSUMING DECELERATION IS 2.0 m/s^2
-                minimum_distance         = self.v1[0]**2 / (2 * 2.0)
+                # Minimum distance required to stop before hitting with basic_deceleration
+                minimum_distance         = self.v1[0]**2 / (2 * self.basic_deceleration)
                 current_vehicle_x        = current_x1 - (self.vehicle_size_x + self.vehicle_buffer_x) * 0.5
                 current_vehicle_y        = current_y1
-                current_vehicle_x_head   = current_vehicle_x + self.vehicle_size_x + self.vehicle_buffer_x
-                current_vehicle_y_head   = current_vehicle_y
-                appropriate_deceleration = self.v1[0]**2 / (2 * current_vehicle_x_head)
 
                 print("Collision detected. Stopping simulation.")
                 print(f"Collision coordinates: ({current_vehicle_x:.1f}, {current_vehicle_y:.1f})")
                 print(f"Vehicle speed: {self.v1[0]:.1f}")
                 print(f"Minimum distance required to avoid collision: {minimum_distance:.1f}")
-                print(f"Appropriate deceleration: {appropriate_deceleration:.2f}")
 
-                if minimum_distance > current_vehicle_x_head:
+                if minimum_distance > current_vehicle_x - self.vehicle_x:
+                    print("Vehicle will hit the pedestrian!!!")
                     relation = "Stopping"
+                    # Deceleration to stop at the current position > basic_deceleration
+                    output_deceleration = min(self.max_deceleration, self.v1[0]**2 / (2 * (current_vehicle_x - self.vehicle_x)))
                 else:
+                    print("Vehicle can yield. Speed down with:")
+                    # Deceleration to stop at the current position < basic_deceleration
+                    output_deceleration = self.v1[0]**2 / (2 * (current_vehicle_x - self.vehicle_x))
+                    print(f"Appropriate deceleration: {output_deceleration:.2f}")
                     relation = "Yielding"
                 break
+
+            # Update local positions based on velocities.
+            current_x1 += self.v1[0] * self.dt
+            current_y1 += self.v1[1] * self.dt
+            current_x2 += self.v2[0] * self.dt
+            current_y2 += self.v2[1] * self.dt
 
         if is_displayed:
             plt.ioff()
             plt.show(block=True)
 
-        return relation, appropriate_deceleration
+        return relation, output_deceleration
 
 
 if __name__ == "__main__":
     # Vehicle parameters. x, y, theta (angle in radians)
-    x1, y1, t1 = 6, 0, 0
+    x1, y1, t1 = 7.6, 5.0, 0
     # Pedestrian parameters. x, y, theta (angle in radians)
-    x2, y2, t2 = 15, -5, 0
+    x2, y2, t2 = 15.0, 5.8, 0
     # Velocity vectors: [vx, vy]
-    v1 = [1.0, 0]     # Vehicle speed vector
+    v1 = [0.6, 0]     # Vehicle speed vector
     v2 = [0, 0.5]     # Pedestrian speed vector
     # Total simulation time
     total_time = 10.0
 
+    # Basic deceleration for the vehicle
+    # Output is decided based on this deceleration if the vehicle is about to hit
+    basic_deceleration = 2.0
+
+    # Max deceleration for the vehicle
+    # Return deceleration bigger than basic_deceleration when the vehicle will hit
+    max_deceleration = 8.0
+
     # Create and run the simulation.
     start_time = time.time()
-    sim = Simulation(x1, y1, t1, x2, y2, t2, v1, v2, total_time)
+    # Simulate with the above parameters: Whether to hit without decelerating
+    sim = Simulation(x1, y1, t1, x2, y2, t2, v1, v2, total_time, basic_deceleration, max_deceleration)
 
-    relation, decel = sim.run(is_displayed=True)
-    # relation, decel = sim.run(is_displayed=False)
+    # relation, decel = sim.run(is_displayed=True)
+    relation, decel = sim.run(is_displayed=False)
 
     print(f"Relation: {relation}")
     print(f"Deceleration: {decel:.2f} m/s^2")
