@@ -12,14 +12,26 @@ class Simulation:
     local copies are used during simulation.
     """
     def __init__(self, x1, y1, t1, x2, y2, t2, v1, v2, total_time=10.0):
-        # Vehicle parameters with buffer adjustments.
-        self.x1 = x1 + 1.5      # Offset for buffer (remains constant)
-        self.y1 = y1
-        self.w1 = 3.2 + 3.0      # Increase width with buffer
-        self.h1 = 1.7 + 1.0      # Increase height with buffer
+
+        self.vehicle_x = x1
+        self.vehicle_y = y1
+        self.pedestrian_x = x2
+        self.pedestrian_y = y2
+
+        # Vehicle parameters with buffer adjustments
+        self.vehicle_size_x = 3.2
+        self.vehicle_size_y = 1.7
+        self.vehicle_buffer_x = 3.0
+        self.vehicle_buffer_y = 1.0
+
+        # Vehicle rectangle
+        self.x1 = self.vehicle_x + (self.vehicle_size_x + self.vehicle_buffer_x)*0.5 # Offset for buffer (remains constant)
+        self.y1 = self.vehicle_y
+        self.w1 = self.vehicle_size_x + self.vehicle_buffer_x  # Increase width with buffer
+        self.h1 = self.vehicle_size_y + self.vehicle_buffer_y  # Increase height with buffer
         self.t1 = t1
 
-        # Pedestrian parameters.
+        # Pedestrian rectangle
         self.x2 = x2
         self.y2 = y2
         self.w2 = 0.5
@@ -143,7 +155,7 @@ class Simulation:
             if is_displayed:
                 # Plot the current step.
                 ax.clear()
-                ax.set_xlim(-5, 20)
+                ax.set_xlim(self.vehicle_x - 5, self.vehicle_x + 20)
                 ax.set_ylim(-5, 5)
                 ax.grid(True, linestyle='--', alpha=0.5)
                 self.plot_rectangles(rect1, rect2, collision, ax)
@@ -160,26 +172,30 @@ class Simulation:
                 )
                 ax.add_patch(rect_vehiclebody)
 
-                ax.text(-4, 4.5, f"t = {t_sim:.1f}s", fontsize=12)
+                ax.text(0, 5.5, f"t = {t_sim:.1f}s", fontsize=12)
                 plt.draw()
 
                 # Pause briefly to simulate real-time updating.
-                plt.pause(self.dt * 0.1)
+                plt.pause(self.dt * 0.05)
 
             # Stop simulation if collision is detected.
             if collision:
                 # Dmin = v^2 / (2 * a) => a = -v^2 / (2 * D)
                 # ASSUMING DECELERATION IS 2.0 m/s^2
-                minimum_distance = self.v1[0]**2 / (2 * 2.0)
-                appropriate_deceleration = self.v1[0]**2 / (2 * current_x1)
+                minimum_distance         = self.v1[0]**2 / (2 * 2.0)
+                current_vehicle_x        = current_x1 - (self.vehicle_size_x + self.vehicle_buffer_x) * 0.5
+                current_vehicle_y        = current_y1
+                current_vehicle_x_head   = current_vehicle_x + self.vehicle_size_x + self.vehicle_buffer_x
+                current_vehicle_y_head   = current_vehicle_y
+                appropriate_deceleration = self.v1[0]**2 / (2 * current_vehicle_x_head)
 
                 print("Collision detected. Stopping simulation.")
-                print(f"Collision coordinates: ({current_x1:.1f}, {current_y1:.1f})")
-                print("Vehicle speed:", self.v1[0])
+                print(f"Collision coordinates: ({current_vehicle_x:.1f}, {current_vehicle_y:.1f})")
+                print(f"Vehicle speed: {self.v1[0]:.1f}")
                 print(f"Minimum distance required to avoid collision: {minimum_distance:.1f}")
-                print(f"Appropriate deceleration: {appropriate_deceleration:.1f}")
+                print(f"Appropriate deceleration: {appropriate_deceleration:.2f}")
 
-                if minimum_distance > current_x1:
+                if minimum_distance > current_vehicle_x_head:
                     relation = "Stopping"
                 else:
                     relation = "Yielding"
@@ -193,10 +209,10 @@ class Simulation:
 
 
 if __name__ == "__main__":
-    # Vehicle parameters.
-    x1, y1, t1 = 0, 0, 0
-    # Pedestrian parameters.
-    x2, y2, t2 = 9, -5, 0
+    # Vehicle parameters. x, y, theta (angle in radians)
+    x1, y1, t1 = 6, 0, 0
+    # Pedestrian parameters. x, y, theta (angle in radians)
+    x2, y2, t2 = 15, -5, 0
     # Velocity vectors: [vx, vy]
     v1 = [1.0, 0]     # Vehicle speed vector
     v2 = [0, 0.5]     # Pedestrian speed vector
