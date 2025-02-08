@@ -27,8 +27,8 @@ def camera_callback(img : Image):
     camera_image = img
 
 def depth_callback(img : Image):
-    global depth
-    depth = img
+    global depth_image
+    depth_image = img
 
 def pc2_to_numpy(pc2_msg, want_rgb = False):
     gen = pc2.read_points(pc2_msg, skip_nans=True)
@@ -71,19 +71,19 @@ def save_scan(lidar_fn,color_fn,depth_fn):
     cv2.imwrite(depth_fn,dimage)
 
 def main(folder='data',start_index=1):
-    rospy.init_node("caoture_ouster_oak",disable_signals=True)
+    rospy.init_node("capture_ouster_oak",disable_signals=True)
     lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
     camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
-    depth_sub = rospy.Subscriber("/oak/rgb/image_raw/compressedDepth", Image, depth_callback)
-    index = start_index
+    depth_sub = rospy.Subscriber("/oak/stereo/image_raw", Image, depth_callback)
+    index = 0
     print(" Storing lidar point clouds as npz")
     print(" Storing color images as png")
     print(" Storing depth images as tif")
     print(" Ctrl+C to quit")
     while True:
-        if camera_image:
+        if camera_image and depth_image:
             cv2.imshow("result",bridge.imgmsg_to_cv2(camera_image))
-            time.sleep(1)
+            time.sleep(.5)
             files = [
                         os.path.join(folder,'lidar{}.npz'.format(index)),
                         os.path.join(folder,'color{}.png'.format(index)),
