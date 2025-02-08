@@ -148,7 +148,7 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
         #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
         #cv2.imwrite("pedestrian_detections.png",image)
 
-    def __visualize_labeled_image():
+    def __visualize_labeled_image(self, image: cv2.Mat):
         # Draw bounding box
         cv2.rectangle(image, (int(x - w / 2), int(y - h / 2)), (int(x + w / 2), int(y + h / 2)), (255, 0, 255), 3)
 
@@ -172,7 +172,7 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
         # Draw main text on top of the outline
         cv2.putText(image, label, (text_x, text_y - baseline), self.font, self.font_scale, self.font_color, self.text_thickness)
     
-    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
+    def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         res = {}
         for i,b in enumerate(self.last_person_boxes):
             x,y,w,h = b
@@ -184,11 +184,11 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
 
 class FakePedestrianDetector2D(PedestrianDetector2DShared):
     """Triggers a pedestrian detection at some random time ranges"""
-    def __init__(self,vehicle_interface : GEMInterface):
+    def __init__(self, vehicle_interface: GEMInterface):
         self.times = [(5.0,20.0),(30.0,35.0)]
         self.t_start = None
     
-    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
+    def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         if self.t_start is None:
             self.t_start = self.vehicle_interface.time()
         t = self.vehicle_interface.time() - self.t_start
