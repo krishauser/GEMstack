@@ -1,4 +1,4 @@
-from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
+from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum #, AllState
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
@@ -21,13 +21,13 @@ class PedestrianDetector2DShared(Component):
 
     def rate(self):
         return 4.0
-    
+
     def state_inputs(self):
         return ['vehicle']
-    
+
     def state_outputs(self):
         return ['agents']
-    
+
     def box_to_fake_agent(box) -> AgentState:
         """Creates a fake agent state from an (x,fy,w,h) bounding box.
         
@@ -133,7 +133,7 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
 
             # Used for visualization
             if(self.visualization):
-                self.__visualize_labeled_image()
+                self.__visualize_labeled_image(image, box, x, y, w, h)
         
         # Used for visualization
         if(self.visualization):
@@ -148,7 +148,7 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
         #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
         #cv2.imwrite("pedestrian_detections.png",image)
 
-    def __visualize_labeled_image(self, image: cv2.Mat):
+    def __visualize_labeled_image(self, image: cv2.Mat, box, x: float, y: float, w: float, h: float):
         # Draw bounding box
         cv2.rectangle(image, (int(x - w / 2), int(y - h / 2)), (int(x + w / 2), int(y + h / 2)), (255, 0, 255), 3)
 
@@ -176,7 +176,7 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
         res = {}
         for i,b in enumerate(self.last_person_boxes):
             x,y,w,h = b
-            res['pedestrian'+str(i)] = box_to_fake_agent(b)
+            res['pedestrian'+str(i)] = self.box_to_fake_agent(b)
         if len(res) > 0:
             print("Detected",len(res),"pedestrians")
         return res
@@ -195,6 +195,6 @@ class FakePedestrianDetector2D(PedestrianDetector2DShared):
         res = {}
         for times in self.times:
             if t >= times[0] and t <= times[1]:
-                res['pedestrian0'] = box_to_fake_agent((0,0,0,0))
+                res['pedestrian0'] = self.box_to_fake_agent((0,0,0,0))
                 print("Detected a pedestrian")
         return res
