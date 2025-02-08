@@ -2,10 +2,10 @@ from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
-import cv2
-from cv_bridge import CvBridge, CvBridgeError
 import os
+import cv2
 import rospy
+from cv_bridge import CvBridge, CvBridgeError
 from sensor_msgs.msg import Image
 from typing import Dict
 
@@ -37,9 +37,23 @@ class PedestrianDetector2D(Component):
 		return ['agents']
     
 	def initialize(self):
-        #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
+        # tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
         # self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+
+		# Initialize cv bridge
+		self.bridge = CvBridge()
+
+		# Subscribe to webcam
 		rospy.Subscriber('/webcam', Image, self.image_callback)
+
+		# Subscribe to GEM4 front camera
+		# rospy.Subscriber('/oak/rgb/image_raw', Image, self.image_callback)
+
+		# Publish visualization
+		self.vis = rospy.Publisher("pedestrain_detection/annotate", Image, queue_size=1)
+
+		# Publish AgentState data TODO: Need a custom data type for AgentState msg
+		# self.agent_state = rospy.Publisher("pedestrain_detection/agent_state", AgentState, queue_size=1)
          
 	def update(self, vehicle: VehicleState=None) -> Dict[str,AgentState]:
 		res = {}
@@ -51,11 +65,16 @@ class PedestrianDetector2D(Component):
 		return res
     
 	def image_callback(self, image: Image):
-		bridge = CvBridge()
-		cv_image = bridge.imgmsg_to_cv2(image, "bgr8")
+		# Convert image to cv2 format
+		try:
+			cv_image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+		except CvBridgeError as e:
+			print(e)
+
 		detection_result = self.detector(cv_image)
 		self.last_person_boxes = []
 
+		# Extract bounding boxes (x,y,w,h)
 		data = detection_result[0].boxes
 		cls = data.cls.tolist()
 		conf = data.conf.tolist()
@@ -70,19 +89,25 @@ class PedestrianDetector2D(Component):
 			if category == 0 and confidence > 0.5:
 				self.last_person_boxes.append(bb)
        
-		res = self.update()
-		print(f"res: {res}")
+	   	# Insert bounding boxes into AgentState object
+		agent_state = self.update()
+		print(f"agent_state: {agent_state}")
 
-        # uncomment if you want to debug the detector...
+		# Publish AgentState object TODO: Need a custom data type for AgentState msg
+		# self.agent_state.publish(agent_state)
+
+        # Add annotated visualization
 		font = cv2.FONT_HERSHEY_SIMPLEX
 		for id, bb in enumerate(self.last_person_boxes):
 			x,y,w,h = bb
 			cv2.rectangle(cv_image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
 			cv2.putText(cv_image, f'Person: {id + 1}', (int(x-w/2), int(y-h/2) - 15), font, 0.7, (255,0,255), 2, cv2.LINE_AA)
-       
-		cv2.putText(cv_image, f'Detected {len(res)} pedestrians', (50,40), font, 0.8, (255,0,0), 2, cv2.LINE_AA)
-		cv2.imshow('Person detection', cv_image)
-		cv2.waitKey(1)
+		cv2.putText(cv_image, f'Detected {len(agent_state)} pedestrians', (50,40), font, 0.8, (255,0,0), 2, cv2.LINE_AA)
+
+		# Publish visualization topic
+		if cv_image is not None:
+			out_vis_msg = self.bridge.cv2_to_imgmsg(cv_image, 'bgr8')
+			self.vis.publish(out_vis_msg)
 
 
 class FakePedestrianDetector2D(Component):
