@@ -166,10 +166,13 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+
 # ZED run files
+
 **/*.run
 .vscode/
 setup/zed_sdk.run
 cuda/
 
 **/rosbag/*
+
