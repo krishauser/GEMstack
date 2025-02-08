@@ -8,20 +8,38 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 import rospy
 import os
+from typing import Union
 
 
-def box_to_fake_agent(box):
-    """Creates a fake agent state from an (x,y,w,h) bounding box.
-    
-    The location and size are pretty much meaningless since this is just giving a 2D location.
+class PedestrianDetector2DShared(Component):
     """
-    x,y,w,h = box
-    pose = ObjectPose(t=0,x=x+w/2,y=y+h/2,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
-    dims = (w,h,0)
-    return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+    Detects pedestrians.
+    self.vehicle_interface -> GEM car info
+    """
+    def __init__(self,vehicle_interface : GEMInterface):
+        self.vehicle_interface = vehicle_interface
+
+    def rate(self):
+        return 4.0
+    
+    def state_inputs(self):
+        return ['vehicle']
+    
+    def state_outputs(self):
+        return ['agents']
+    
+    def box_to_fake_agent(box) -> AgentState:
+        """Creates a fake agent state from an (x,fy,w,h) bounding box.
+        
+        The location and size are pretty much meaningless since this is just giving a 2D location.
+        """
+        x,y,w,h = box
+        pose = ObjectPose(t=0,x=x+w/2,y=y+h/2,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
+        dims = (w,h,0)
+        return AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
 
 
-class PedestrianDetector2D(Component):
+class PedestrianDetector2D(PedestrianDetector2DShared):
     """Detects pedestrians.
     
     self.vehicle -> GEM car info
@@ -34,22 +52,22 @@ class PedestrianDetector2D(Component):
     
     """
     def __init__(self,vehicle_interface : GEMInterface):
-        self.vehicle_interface = vehicle_interface
         self.detector = YOLO(os.getcwd()+'/GEMstack/knowledge/detection/yolov8n.pt') # change to get model value from sys arg
         self.last_person_boxes = [] 
         self.pedestrians = {}
-        self.visualization = True # Set this to true for visualization, later change to get value from sys arg
         self.confidence = 0.7
         self.classes_to_detect = 0
-
-    def rate(self):
-        return 4.0
-    
-    def state_inputs(self):
-        return ['vehicle']
-    
-    def state_outputs(self):
-        return ['agents']
+        
+        # Setup visualization variables
+        self.visualization = True # Set this to true for visualization, later change to get value from sys arg
+        self.label_text = "Pedestrian "
+        self.font = cv2.FONT_HERSHEY_SIMPLEX
+        self.font_scale = 0.5
+        self.font_color = (255, 255, 255)  # White text
+        self.outline_color = (0, 0, 0)  # Black outline
+        self.line_type = 1
+        self.text_thickness = 2 # Text thickness
+        self.outline_thickness = 1  # Thickness of the text outline
     
     def initialize(self):
 
@@ -62,7 +80,7 @@ class PedestrianDetector2D(Component):
         """
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
 
-        # GEM Car subacriber
+        # GEM Car subscriber
         # self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
 
         # Webcam
@@ -72,10 +90,9 @@ class PedestrianDetector2D(Component):
         self.rosbag_test = rospy.Subscriber('/oak/rgb/image_raw',Image, self.image_callback,queue_size=1)
         if(self.visualization):
             self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
-        pass
     
     # Use cv2.Mat for GEM Car, Image for RosBag
-    def image_callback(self, image : Image): #image : cv2.Mat):
+    def image_callback(self, image : Union[cv2.Mat, Image]):
 
         """Detects pedestrians using the model provided when new image is passed.
 
@@ -88,27 +105,14 @@ class PedestrianDetector2D(Component):
         
         """
 
-        # Use Image directly for GEM Car
-        # track_result = self.detector.track(source=image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
-
-        # Convert to CV2 format for RosBag
-        bridge = CvBridge() 
-        image = bridge.imgmsg_to_cv2(image, "bgr8") 
+        # Use Image directly for GEM Car convert to cv2.Mat for rosbag:
+        if type(image) == Image:
+            bridge = CvBridge() 
+            image = bridge.imgmsg_to_cv2(image, "bgr8") 
         track_result = self.detector.track(source=image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
 
         self.last_person_boxes = []
         boxes = track_result[0].boxes
-
-        # Used for visualization
-        if(self.visualization):
-            label_text = "Pedestrian "
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 0.5
-            font_color = (255, 255, 255)  # White text
-            outline_color = (0, 0, 0)  # Black outline
-            line_type = 1
-            text_thickness = 2 # Text thickness
-            outline_thickness = 1  # Thickness of the text outline
 
         # Unpacking box dimentions detected into x,y,w,h
         for box in boxes:
@@ -129,29 +133,7 @@ class PedestrianDetector2D(Component):
 
             # Used for visualization
             if(self.visualization):
-                # Draw bounding box
-                cv2.rectangle(image, (int(x - w / 2), int(y - h / 2)), (int(x + w / 2), int(y + h / 2)), (255, 0, 255), 3)
-
-                # Define text label
-                x = int(x - w / 2)
-                y = int(y - h / 2)
-                label = label_text + str(id) + " : " + str(round(box.conf.item(), 2))
-
-                # Get text size
-                text_size, baseline = cv2.getTextSize(label, font, font_scale, line_type)
-                text_w, text_h = text_size
-
-                # Position text above the bounding box
-                text_x = x
-                text_y = y - 10 if y - 10 > 10 else y + h + text_h
-
-                # Draw text outline for better visibility, uncomment for outline
-                # for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:  
-                #     cv2.putText(image, label, (text_x + dx, text_y - baseline + dy), font, font_scale, outline_color, outline_thickness)
-
-                # Draw main text on top of the outline
-                cv2.putText(image, label, (text_x, text_y - baseline), font, font_scale, font_color, text_thickness)
-
+                self.__visualize_labeled_image()
         
         # Used for visualization
         if(self.visualization):
@@ -165,6 +147,30 @@ class PedestrianDetector2D(Component):
         #    x,y,w,h = bb
         #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
         #cv2.imwrite("pedestrian_detections.png",image)
+
+    def __visualize_labeled_image():
+        # Draw bounding box
+        cv2.rectangle(image, (int(x - w / 2), int(y - h / 2)), (int(x + w / 2), int(y + h / 2)), (255, 0, 255), 3)
+
+        # Define text label
+        x = int(x - w / 2)
+        y = int(y - h / 2)
+        label = self.label_text + str(id) + " : " + str(round(box.conf.item(), 2))
+
+        # Get text size
+        text_size, baseline = cv2.getTextSize(label, self.font, self.font_scale, self.line_type)
+        text_w, text_h = text_size
+
+        # Position text above the bounding box
+        text_x = x
+        text_y = y - 10 if y - 10 > 10 else y + h + text_h
+
+        # Draw text outline for better visibility, uncomment for outline
+        # for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:  
+        #     cv2.putText(image, label, (text_x + dx, text_y - baseline + dy), self.font, self.font_scale, self.outline_color, self.outline_thickness)
+
+        # Draw main text on top of the outline
+        cv2.putText(image, label, (text_x, text_y - baseline), self.font, self.font_scale, self.font_color, self.text_thickness)
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         res = {}
@@ -176,21 +182,11 @@ class PedestrianDetector2D(Component):
         return res
 
 
-class FakePedestrianDetector2D(Component):
+class FakePedestrianDetector2D(PedestrianDetector2DShared):
     """Triggers a pedestrian detection at some random time ranges"""
     def __init__(self,vehicle_interface : GEMInterface):
-        self.vehicle_interface = vehicle_interface
         self.times = [(5.0,20.0),(30.0,35.0)]
         self.t_start = None
-
-    def rate(self):
-        return 4.0
-    
-    def state_inputs(self):
-        return ['vehicle']
-    
-    def state_outputs(self):
-        return ['agents']
     
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
         if self.t_start is None:
