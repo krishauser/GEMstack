@@ -44,15 +44,15 @@ class PedestrianDetector2D(Component):
 		self.bridge = CvBridge()
 
 		# Subscribe to webcam
-		rospy.Subscriber('/webcam', Image, self.image_callback)
+		# rospy.Subscriber('/webcam', Image, self.image_callback)
 
 		# Subscribe to GEM4 front camera
-		# rospy.Subscriber('/oak/rgb/image_raw', Image, self.image_callback)
+		rospy.Subscriber('/oak/rgb/image_raw', Image, self.image_callback)
 
 		# Publish visualization
 		self.vis = rospy.Publisher("pedestrain_detection/annotate", Image, queue_size=1)
 
-		# Publish AgentState data TODO: Need a custom data type for AgentState msg
+		# Publish AgentState data TODO: Need to implement a custom data type for AgentState msg
 		# self.agent_state = rospy.Publisher("pedestrain_detection/agent_state", AgentState, queue_size=1)
          
 	def update(self, vehicle: VehicleState=None) -> Dict[str,AgentState]:
@@ -93,7 +93,7 @@ class PedestrianDetector2D(Component):
 		agent_state = self.update()
 		print(f"agent_state: {agent_state}")
 
-		# Publish AgentState object TODO: Need a custom data type for AgentState msg
+		# Publish AgentState object TODO: Need to implement a custom data type for AgentState msg
 		# self.agent_state.publish(agent_state)
 
         # Add annotated visualization
