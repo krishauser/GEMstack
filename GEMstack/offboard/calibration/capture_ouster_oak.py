@@ -14,6 +14,7 @@ import time
 
 lidar_points = None
 camera_image = None
+depth = None
 depth_image = None
 bridge = CvBridge()
 
@@ -24,6 +25,10 @@ def lidar_callback(lidar : PointCloud2):
 def camera_callback(img : Image):
     global camera_image
     camera_image = img
+
+def depth_callback(img : Image):
+    global depth
+    depth = img
 
 def pc2_to_numpy(pc2_msg, want_rgb = False):
     gen = pc2.read_points(pc2_msg, skip_nans=True)
@@ -49,46 +54,40 @@ def pc2_to_numpy(pc2_msg, want_rgb = False):
     else:
         return np.array(list(gen),dtype=np.float32)[:,:3]
 
-def save_scan(lidar_fn,color_fn):
+def save_scan(lidar_fn,color_fn,depth_fn):
     print("Saving scan to",lidar_fn,color_fn)
-    pc = pc2_to_numpy(lidar_points,want_rgb=False)
+
+    pc = pc2_to_numpy(lidar_points,want_rgb=False) # convert lidar feed to numpy
     np.savez(lidar_fn,pc)
     cv2.imwrite(color_fn,bridge.imgmsg_to_cv2(camera_image))
 
+    dimage = bridge.imgmsg_to_cv2(depth_image)
+    dimage_non_nan = dimage[np.isfinite(dimage)]
+    print("Depth range",np.min(dimage_non_nan),np.max(dimage_non_nan))
+    dimage = np.nan_to_num(dimage,nan=0,posinf=0,neginf=0)
+    dimage = (dimage/4000*0xffff)
+    print("Depth pixel range",np.min(dimage),np.max(dimage))
+    dimage = dimage.astype(np.uint16)
+    cv2.imwrite(depth_fn,dimage)
+
 def main(folder='data',start_index=1):
-    rospy.init_node("capture_lidar_zed",disable_signals=True)
+    rospy.init_node("caoture_ouster_oak",disable_signals=True)
     lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
     camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
+    depth_sub = rospy.Subscriber("/oak/rgb/image_raw/compressedDepth", Image, depth_callback)
     index = start_index
-    print("Press any key to:")
-    print("  store lidar point clouds as npz")
-    print("  store color images as png")
-    print("Press Escape or Ctrl+C to quit")
+    print(" Storing lidar point clouds as npz")
+    print(" Storing color images as png")
+    print(" Storing depth images as tif")
+    print(" Ctrl+C to quit")
     while True:
         if camera_image:
             cv2.imshow("result",bridge.imgmsg_to_cv2(camera_image))
             time.sleep(1)
-            # key = cv2.waitKey(0)
-            # if key == -1:
-            #     #nothing
-            #     pass
-            # elif key == 27:
-            #     #escape
-            #     break
-            # else:
-            #     print("this is what we want")
-            #     if lidar_points is None or camera_image is None:
-            #         print("Missing some messages?")
-            #     else:
-            #         files = [
-            #             os.path.join(folder,'lidar{}.npz'.format(index)),
-            #             os.path.join(folder,'color{}.png'.format(index))]
-            #         save_scan(*files)
-            #         index += 1
-
             files = [
                         os.path.join(folder,'lidar{}.npz'.format(index)),
-                        os.path.join(folder,'color{}.png'.format(index))]
+                        os.path.join(folder,'color{}.png'.format(index)),
+                        os.path.join(folder,'depth{}.tif'.format(index))]
             save_scan(*files)
             index += 1
 
