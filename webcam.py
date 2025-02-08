@@ -9,7 +9,7 @@ def webcam_publisher():
     
     image_pub = rospy.Publisher('/webcam', Image, queue_size=10)
     
-    cap = cv2.VideoCapture(0)  # 0 表示默认摄像头
+    cap = cv2.VideoCapture(0)
     if not cap.isOpened():
         rospy.logerr("cannot open camera")
         return
