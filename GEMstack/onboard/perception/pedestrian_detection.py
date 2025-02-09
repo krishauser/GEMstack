@@ -134,6 +134,17 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
             # Used for visualization
             if(self.visualization):
                 self.__visualize_labeled_image(image, box, x, y, w, h)
+
+            #### Calculate and Convert Image Points to Lidar Frame of Reference Task:
+            (ped_cloud, flat_center) = self.extract_ped_cloud(x, y, w, h)
+
+            #### Calculate Pedestrian Center and Dimensions
+            (pose, dims) = self.calc_ped_center_dims(ped_cloud, flat_center)
+            self.pedestrians[id].pose = pose
+            self.pedestrians[id].dims = dims
+
+            #### Associate and Track Pedestrian Id's
+            self.associate_and_track_peds()
         
         # Used for visualization
         if(self.visualization):
@@ -171,6 +182,23 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
 
         # Draw main text on top of the outline
         cv2.putText(image, label, (text_x, text_y - baseline), self.font, self.font_scale, self.font_color, self.text_thickness)
+
+    def extract_ped_cloud(x: float, y: float, w: float, h: float): # return type TBD
+        img_center = self.__calculate_image_center(x, y, w, h)
+        img_corners = self.__calculate_image_corners(x, y, w, h)
+
+        # Convert the calculated image points into LIDAR frame of reference
+        (flat_center, boundary_corners) = self.__convert_img_pts_to_lidar_frame(img_center, img_corners)
+
+        # Extract all point cloud points that are on or within the 4 corners
+        ped_cloud = self.__extract_pedestrian_cloud(boundary_corners)
+        return (ped_cloud, flat_center)
+    
+    def calc_ped_center_dims(ped_cloud, flat_center):
+        return (pose, dims)
+
+    def associate_and_track_peds():
+        pass
     
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         res = {}
