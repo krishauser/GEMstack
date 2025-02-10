@@ -36,7 +36,7 @@ def main(folder):
         pc = colorize(pc,'z','plasma')
         data['lidar'] = Geometry3D(pc)
 
-        try:
+        try: # might need some modifications to work with our code 
             color = cv2.imread(color_pattern.format(idx))
             depth = cv2.imread(depth_pattern.format(idx),cv2.IMREAD_UNCHANGED)
             depth = depth.astype(np.float32)
@@ -44,16 +44,26 @@ def main(folder):
             zed_xfov = 2*np.arctan(zed_w/(2*zed_intrinsics[0]))
             zed_yfov = 2*np.arctan(zed_h/(2*zed_intrinsics[1]))
             print("estimated zed horizontal FOV",math.degrees(zed_xfov),"deg")
-            pc = image_to_points(depth,color,zed_xfov,zed_yfov,depth_scale=4000.0/0xffff, points_format='PointCloud')
+            print(f"Depth image shape: {depth.shape}, dtype: {depth.dtype}, min: {np.min(depth)}, max: {np.max(depth)}")
+            print(f"Color image shape: {color.shape}, dtype: {color.dtype}, min: {np.min(color)}, max: {np.max(color)}")
+            image_to_points(
+                depth, 
+                color, 
+                intrinsics=None,
+                xfov=zed_xfov, 
+                yfov=zed_yfov, 
+                depth_scale=4000.0 / 0xffff
+            )
+
         except Exception as e:
             print("Error loading zed data:",e)
             pc = PointCloud()
 
-        data['zed'] = Geometry3D(pc)
+        data['oak'] = Geometry3D(pc)
         data['lidar'].setCurrentTransform(*lidar_xform)
-        data['zed'].setCurrentTransform(*zed_xform)
+        data['oak'].setCurrentTransform(*zed_xform)
         vis.add('lidar',data['lidar'])
-        vis.add('zed',data['zed'])
+        vis.add('oak',data['oak'])
 
     data['index'] = 1
     def increment_index():
@@ -152,7 +162,7 @@ def main(folder):
             box_geometry = bbox(lower,upper,type='GeometricPrimitive')
             vis.add('box_widget',box_geometry,color=(1.0,0.5,0,0.5))
         data['lidar'].setCurrentTransform(*lidar_xform)
-        data['zed'].setCurrentTransform(*zed_xform)
+        data['oak'].setCurrentTransform(*zed_xform)
         time.sleep(0.02)
     vis.kill()
 
