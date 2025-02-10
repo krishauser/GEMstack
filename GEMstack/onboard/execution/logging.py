@@ -8,7 +8,8 @@ import os
 import subprocess
 import numpy as np
 import cv2
-
+import requests
+from msal import PublicClientApplication
 class LoggingManager:
     """A top level manager of the logging process.  This is responsible for
     creating log folders, log metadata files, and for replaying components from log
@@ -129,11 +130,19 @@ class LoggingManager:
 
     def log_ros_topics(self, topics : List[str], rosbag_options : str = '') -> Optional[str]:
         if topics:
-            command = ['rosbag','record','--output-name={}'.format(os.path.join(self.log_folder,'vehicle.bag'))]
-            command += rosbag_options.split()
-            command += topics
-            self.rosbag_process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            return ' '.join(command)
+            rosbag_command = 'rosbag record --output-name={} {} {}'.format(
+            os.path.join(self.log_folder, 'vehicle.bag'),
+            rosbag_options,
+            ' '.join(topics)
+            )
+            full_command = f'source catkin_ws/devel/setup.bash && {rosbag_command}'
+
+            # Run the command in a bash shell
+            self.rosbag_process = subprocess.Popen(
+                ['bash', '-c', full_command],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE
+            )
         return None
 
     def set_vehicle_time(self, vehicle_time : float) -> None:
@@ -207,7 +216,7 @@ class LoggingManager:
                     else:
                         isevent[col] = True
                 f.write(','.join(columns)+'\n')
-                nrows = max(len(v[col]) for col in v)
+                nrows = max((len(v[col]) for col in v), default=0)
                 for i in range(nrows):
                     row = []
                     for col,vals in v.items():
@@ -263,6 +272,8 @@ class LoggingManager:
             self.component_output_loggers[component][1].write(timestr + ': ' + l + '\n')
 
     def close(self):
+           
+        
         self.dump_debug()
         self.debug_messages = {}
         if self.rosbag_process is not None:
@@ -276,6 +287,54 @@ class LoggingManager:
             print('Log file size in MegaBytes is {}'.format(loginfo.st_size / (1024 * 1024)))
             print('-------------------------------------------')
             self.rosbag_process = None
+
+
+            
+            record_bag = input("Do you want to upload this Rosbag? Y/N (default: Y): ") or "Y"
+            
+
+            if(record_bag not in ["N", "no", "n", "No"]):
+
+                # Azure App credentials (trying not to hardcode)
+                # export CLIENT_ID= ""
+                # export TENANT_ID =""
+                CLIENT_ID = os.getenv("CLIENT_ID")
+                TENANT_ID = os.getenv("TENANT_ID")
+                AUTHORITY = f'https://login.microsoftonline.com/{TENANT_ID}'
+                SCOPES = ['Files.ReadWrite.All']
+
+                app = PublicClientApplication(CLIENT_ID, authority=AUTHORITY)
+                accounts = app.get_accounts()
+
+
+                if accounts:
+                    result = app.acquire_token_silent(SCOPES, account=accounts[0])
+                else:
+                    print("Opening Authentication Window")
+
+                    result = app.acquire_token_interactive(SCOPES)
+
+                if 'access_token' in result:
+                    access_token = result['access_token']
+                    headers = {
+                        'Authorization': f'Bearer {access_token}',
+                        'Content-Type': 'application/octet-stream'
+                    }
+                    file_path = os.path.join(self.log_folder,'vehicle.bag')
+                    file_name = os.path.basename(file_path)
+
+                    upload_url = f'https://graph.microsoft.com/v1.0/me/drive/root:/{file_name}:/content'
+
+                    with open(file_path, 'rb') as file:
+                        response = requests.put(upload_url, headers=headers, data=file)
+
+                    if response.status_code == 201 or response.status_code == 200:
+                        print(f"✅ Successfully uploaded '{file_name}' to OneDrive.")
+                    else:
+                        print(f"❌ Upload failed: {response.status_code} - {response.text}")
+                else:
+                    print("❌ Authentication failed.")
+
     
     def __del__(self):
         self.close()
