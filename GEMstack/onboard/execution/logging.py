@@ -136,7 +136,6 @@ class LoggingManager:
             ' '.join(topics)
             )
             full_command = f'source catkin_ws/devel/setup.bash && {rosbag_command}'
-
             # Run the command in a bash shell
             self.rosbag_process = subprocess.Popen(
                 ['bash', '-c', full_command],
@@ -320,10 +319,10 @@ class LoggingManager:
                         'Authorization': f'Bearer {access_token}',
                         'Content-Type': 'application/octet-stream'
                     }
-                    file_path = os.path.join(self.log_folder,'vehicle.bag')
+                    file_path = os.path.join(self.log_folder,  'vehicle.bag')
+                    print(self.log_folder[1])
                     file_name = os.path.basename(file_path)
-
-                    upload_url = f'https://graph.microsoft.com/v1.0/me/drive/root:/{file_name}:/content'
+                    upload_url = f'https://graph.microsoft.com/v1.0/me/drive/root:/Rosbags/{self.log_folder[5:]+ " " + file_name}:/content'
 
                     with open(file_path, 'rb') as file:
                         response = requests.put(upload_url, headers=headers, data=file)
