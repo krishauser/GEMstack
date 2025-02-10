@@ -22,7 +22,7 @@ class Simulation:
         self.vehicle_size_x = 3.2
         self.vehicle_size_y = 1.7
         self.vehicle_buffer_x = 3.0
-        self.vehicle_buffer_y = 1.0
+        self.vehicle_buffer_y = 2.0
 
         # Vehicle rectangle
         self.x1 = self.vehicle_x + (self.vehicle_size_x + self.vehicle_buffer_x)*0.5 # Offset for buffer (remains constant)
@@ -116,6 +116,7 @@ class Simulation:
 
     def run(self, is_displayed=False):
         output_deceleration = 0.0
+        collision_distance = -1
         relation = "None"
         # None: No relation 
         # Yielding: Vehicle is yielding to pedestrian
@@ -133,10 +134,6 @@ class Simulation:
         if is_displayed:
             plt.ion()  # Turn on interactive mode
             fig, ax = plt.subplots(figsize=(10,5))
-            ax.set_xlim(-5, 25)
-            ax.set_ylim(-5, 5)
-            ax.grid(True, linestyle='--', alpha=0.5)
-            ax.set_aspect('equal')
 
         for i in range(steps):
             t_sim = i * self.dt
@@ -151,16 +148,17 @@ class Simulation:
             if is_displayed:
                 # Plot the current step.
                 ax.clear()
-                ax.set_xlim(self.vehicle_x - 5, self.vehicle_x + 20)
-                ax.set_ylim(-5, 5)
-                ax.grid(True, linestyle='--', alpha=0.5)
                 self.plot_rectangles(rect1, rect2, collision, ax)
+                ax.set_aspect('equal')
+                ax.grid(True, linestyle='--', alpha=0.5)
+                ax.set_xlim(self.vehicle_x - 5, self.vehicle_x + 20)
+                ax.set_ylim(self.vehicle_y -5, self.vehicle_y +5)
 
                 # Draw an additional rectangle (vehicle body) at the vehicle's center.
                 rect_vehiclebody = patches.Rectangle(
-                    (current_x1 - 3.1, current_y1 - 0.85),
-                    self.w1 - 3.0,
-                    self.h1 - 1.0,
+                    (current_x1 - (self.vehicle_size_x + self.vehicle_buffer_x)*0.5, current_y1 - self.vehicle_size_y * 0.5),
+                    self.w1 - self.vehicle_buffer_x,
+                    self.h1 - self.vehicle_buffer_y,
                     edgecolor='green',
                     fill=False,
                     linewidth=2,
@@ -168,7 +166,7 @@ class Simulation:
                 )
                 ax.add_patch(rect_vehiclebody)
 
-                ax.text(0, 5.5, f"t = {t_sim:.1f}s", fontsize=12)
+                ax.text(0.01, 0.99, f"t = {t_sim:.1f}s", fontsize=12, transform=ax.transAxes, verticalalignment='top')
                 plt.draw()
 
                 # Pause briefly to simulate real-time updating.
@@ -188,11 +186,13 @@ class Simulation:
                 print(f"Vehicle speed: {self.v1[0]:.1f}")
                 print(f"Minimum distance required to avoid collision: {minimum_distance:.1f}")
 
-                if minimum_distance > current_vehicle_x - self.vehicle_x:
+                collision_distance = current_vehicle_x - self.vehicle_x
+
+                if minimum_distance > collision_distance:
                     print("Vehicle will hit the pedestrian!!!")
                     relation = "Stopping"
                     # Deceleration to stop at the current position > basic_deceleration
-                    output_deceleration = min(self.max_deceleration, self.v1[0]**2 / (2 * (current_vehicle_x - self.vehicle_x)))
+                    output_deceleration = min(self.max_deceleration, self.v1[0]**2 / (2 * (collision_distance)))
                 else:
                     print("Vehicle can yield. Speed down with:")
                     # Deceleration to stop at the current position < basic_deceleration
@@ -211,17 +211,17 @@ class Simulation:
             plt.ioff()
             plt.show(block=True)
 
-        return relation, output_deceleration
+        return relation, output_deceleration, collision_distance
 
 
 if __name__ == "__main__":
     # Vehicle parameters. x, y, theta (angle in radians)
-    x1, y1, t1 = 7.6, 5.0, 0
+    x1, y1, t1 = 7.5, 5.0, 0
     # Pedestrian parameters. x, y, theta (angle in radians)
     x2, y2, t2 = 15.0, 5.8, 0
     # Velocity vectors: [vx, vy]
     v1 = [0.6, 0]     # Vehicle speed vector
-    v2 = [0, 0.5]     # Pedestrian speed vector
+    v2 = [0, 0.25]     # Pedestrian speed vector
     # Total simulation time
     total_time = 10.0
 
@@ -238,9 +238,10 @@ if __name__ == "__main__":
     # Simulate with the above parameters: Whether to hit without decelerating
     sim = Simulation(x1, y1, t1, x2, y2, t2, v1, v2, total_time, basic_deceleration, max_deceleration)
 
-    # relation, decel = sim.run(is_displayed=True)
-    relation, decel = sim.run(is_displayed=False)
+    relation, decel, distance = sim.run(is_displayed=True)
+    # relation, decel = sim.run(is_displayed=False)
 
     print(f"Relation: {relation}")
     print(f"Deceleration: {decel:.2f} m/s^2")
+    print(f"Distance: {distance:.2f} m")
     # print(f"Simulation took {time.time() - start_time:.3f} seconds.")

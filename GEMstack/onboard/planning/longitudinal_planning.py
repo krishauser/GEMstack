@@ -28,7 +28,7 @@ class CollosionDetector:
         self.vehicle_size_x = 3.2
         self.vehicle_size_y = 1.7
         self.vehicle_buffer_x = 3.0
-        self.vehicle_buffer_y = 1.0
+        self.vehicle_buffer_y = 2.0
 
         # Vehicle rectangle
         self.x1 = self.vehicle_x + (self.vehicle_size_x + self.vehicle_buffer_x)*0.5 # Offset for buffer (remains constant)
@@ -122,6 +122,7 @@ class CollosionDetector:
 
     def run(self, is_displayed=False):
         output_deceleration = 0.0
+        collision_distance = -1
         relation = "None"
         # None: No relation 
         # Yielding: Vehicle is yielding to pedestrian
@@ -139,10 +140,6 @@ class CollosionDetector:
         if is_displayed:
             plt.ion()  # Turn on interactive mode
             fig, ax = plt.subplots(figsize=(10,5))
-            ax.set_xlim(-5, 25)
-            ax.set_ylim(-5, 5)
-            ax.grid(True, linestyle='--', alpha=0.5)
-            ax.set_aspect('equal')
 
         for i in range(steps):
             t_sim = i * self.dt
@@ -157,16 +154,17 @@ class CollosionDetector:
             if is_displayed:
                 # Plot the current step.
                 ax.clear()
-                ax.set_xlim(self.vehicle_x - 5, self.vehicle_x + 20)
-                ax.set_ylim(-5, 5)
-                ax.grid(True, linestyle='--', alpha=0.5)
                 self.plot_rectangles(rect1, rect2, collision, ax)
+                ax.set_aspect('equal')
+                ax.grid(True, linestyle='--', alpha=0.5)
+                ax.set_xlim(self.vehicle_x - 5, self.vehicle_x + 20)
+                ax.set_ylim(self.vehicle_y -5, self.vehicle_y +5)
 
                 # Draw an additional rectangle (vehicle body) at the vehicle's center.
                 rect_vehiclebody = patches.Rectangle(
-                    (current_x1 - 3.1, current_y1 - 0.85),
-                    self.w1 - 3.0,
-                    self.h1 - 1.0,
+                    (current_x1 - (self.vehicle_size_x + self.vehicle_buffer_x)*0.5, current_y1 - self.vehicle_size_y * 0.5),
+                    self.w1 - self.vehicle_buffer_x,
+                    self.h1 - self.vehicle_buffer_y,
                     edgecolor='green',
                     fill=False,
                     linewidth=2,
@@ -174,7 +172,7 @@ class CollosionDetector:
                 )
                 ax.add_patch(rect_vehiclebody)
 
-                ax.text(0, 5.5, f"t = {t_sim:.1f}s", fontsize=12)
+                ax.text(0.01, 0.99, f"t = {t_sim:.1f}s", fontsize=12, transform=ax.transAxes, verticalalignment='top')
                 plt.draw()
 
                 # Pause briefly to simulate real-time updating.
@@ -194,11 +192,13 @@ class CollosionDetector:
                 print(f"Vehicle speed: {self.v1[0]:.1f}")
                 print(f"Minimum distance required to avoid collision: {minimum_distance:.1f}")
 
-                if minimum_distance > current_vehicle_x - self.vehicle_x:
+                collision_distance = current_vehicle_x - self.vehicle_x
+
+                if minimum_distance > collision_distance:
                     print("Vehicle will hit the pedestrian!!!")
                     relation = "Stopping"
                     # Deceleration to stop at the current position > basic_deceleration
-                    output_deceleration = min(self.max_deceleration, self.v1[0]**2 / (2 * (current_vehicle_x - self.vehicle_x)))
+                    output_deceleration = min(self.max_deceleration, self.v1[0]**2 / (2 * (collision_distance)))
                 else:
                     print("Vehicle can yield. Speed down with:")
                     # Deceleration to stop at the current position < basic_deceleration
@@ -217,7 +217,7 @@ class CollosionDetector:
             plt.ioff()
             plt.show(block=True)
 
-        return relation, output_deceleration
+        return relation, output_deceleration, collision_distance
 
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
@@ -416,9 +416,13 @@ class YieldTrajectoryPlanner(Component):
                     print(f"Pedestrian: ({x2:.1f}, {y2:.1f}, ({v2[0]:.1f}, {v2[1]:.1f}))")
                     sim = CollosionDetector(x1, y1, 0, x2, y2, 0, v1, v2, total_time, self.deceleration, self.max_deceleration)
 
-                    self.relation, decel = sim.run()
+                    self.relation, decel, collision_distance = sim.run()
                     print(f"Relation: {self.relation}")
                     print(f"Deceleration: {decel:.2f} m/s^2")
+
+                    # Update the lookahead distance based on the deceleration
+                    if collision_distance > 0:
+                        route_with_lookahead = route.trim(closest_parameter,closest_parameter + collision_distance)
 
                     # relation: None, Yielding, Stopping
                     # Stopping => None
@@ -450,7 +454,6 @@ class YieldTrajectoryPlanner(Component):
         elif should_brake and not should_yield:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
         elif should_brake and should_yield:
-            print("Yielding with", decel, "m/s^2")
             traj = longitudinal_brake(route_with_lookahead, decel, curr_v)
         else:
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
