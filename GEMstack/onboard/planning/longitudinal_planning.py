@@ -293,6 +293,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 
     print("=====LONGITUDINAL BRAKE=====")
     print("path length: ", path.length())
+    print("deceleration: ", deceleration)
     length = path.length()
 
     x0 = points[0][0]
@@ -362,7 +363,7 @@ class YieldTrajectoryPlanner(Component):
         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
         self.route_progress = closest_parameter
 
-        lookahead_distance = max(5, curr_v**2 / (2 * self.deceleration))
+        lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
         route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
         print("Lookahead distance:", lookahead_distance)
         #extract out a 10m segment of the route
@@ -404,6 +405,7 @@ class YieldTrajectoryPlanner(Component):
                     # Pedestrian parameters.
                     x2, y2 = a.pose.x, a.pose.y
                     v2 = [a.velocity[0], a.velocity[1]]     # Pedestrian speed vector
+
                     # Total simulation time
                     if curr_v > 0.1:
                         total_time = min(10, lookahead_distance / curr_v)
@@ -421,11 +423,18 @@ class YieldTrajectoryPlanner(Component):
                     print(f"Deceleration: {decel:.2f} m/s^2")
 
                     # Update the lookahead distance based on the deceleration
-                    if collision_distance > 0:
+                    if collision_distance >= 0:
                         route_with_lookahead = route.trim(closest_parameter,closest_parameter + collision_distance)
 
                     # relation: None, Yielding, Stopping
-                    # Stopping => None
+                    # None: No need to speed down
+                    # Yielding: Speed down but not to 0 m/s
+                    # Stopping: Speed down to 0 m/s
+                    # State transition:
+                        # None => Yielding or Stopping
+                        # Yielding => Stopping
+                        # Stopping => nan
+                        
                     if prev_relation == "Stopping" and self.relation == "Yielding":
                         self.relation = "Stopping"
 
@@ -452,8 +461,10 @@ class YieldTrajectoryPlanner(Component):
         if should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         elif should_brake and not should_yield:
-            traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+            # Stopping: 2.0 < Decel < 8.0 
+            traj = longitudinal_brake(route_with_lookahead, decel, curr_v)
         elif should_brake and should_yield:
+            # Yielding: 0.0 < Decel < 2.0
             traj = longitudinal_brake(route_with_lookahead, decel, curr_v)
         else:
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
