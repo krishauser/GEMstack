@@ -313,7 +313,7 @@ class LoggingManager:
                     }
                     file_path = os.path.join(self.log_folder,  'vehicle.bag')
                     file_name = self.log_folder[5:]+ "_" +  os.path.basename(file_path)
-                    upload_url = f'https://graph.microsoft.com/v1.0/me/drive/sharedWithMe/Rosbags/{file_name}:/content'
+                    upload_url = f'https://graph.microsoft.com/v1.0/drives/b!r8UV8D4x3E2BtZZ7BCsmXkluecl4_LtGks5ml-JzZoIsKNgi6n5kSYav_vojyk-B/items/01H5P3RBES56VFCT3I6NAISSB4OPNNFDDB:/{file_name}:/content'
 
                     with open(file_path, 'rb') as file:
                         response = requests.put(upload_url, headers=headers, data=file)
