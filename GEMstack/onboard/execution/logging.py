@@ -130,18 +130,11 @@ class LoggingManager:
 
     def log_ros_topics(self, topics : List[str], rosbag_options : str = '') -> Optional[str]:
         if topics:
-            rosbag_command = 'rosbag record --output-name={} {} {}'.format(
-            os.path.join(self.log_folder, 'vehicle.bag'),
-            rosbag_options,
-            ' '.join(topics)
-            )
-            full_command = f'source catkin_ws/devel/setup.bash && {rosbag_command}'
-            # Run the command in a bash shell
-            self.rosbag_process = subprocess.Popen(
-                ['bash', '-c', full_command],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE
-            )
+            command = ['rosbag','record','--output-name={}'.format(os.path.join(self.log_folder,'vehicle.bag'))]
+            command += rosbag_options.split()
+            command += topics
+            self.rosbag_process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            return ' '.join(command)
         return None
 
     def set_vehicle_time(self, vehicle_time : float) -> None:
@@ -294,22 +287,21 @@ class LoggingManager:
 
             if(record_bag not in ["N", "no", "n", "No"]):
 
-                # Azure App credentials (trying not to hardcode)
-                # export CLIENT_ID= ""
-                # export TENANT_ID =""
-                CLIENT_ID = os.getenv("CLIENT_ID")
-                TENANT_ID = os.getenv("TENANT_ID")
+                CLIENT_ID = '845ade48-ce2e-49d3-ab66-f0419a3460f0'
+                TENANT_ID = "44467e6f-462c-4ea2-823f-7800de5434e3"
+
+
                 AUTHORITY = f'https://login.microsoftonline.com/{TENANT_ID}'
                 SCOPES = ['Files.ReadWrite.All']
 
                 app = PublicClientApplication(CLIENT_ID, authority=AUTHORITY)
                 accounts = app.get_accounts()
 
+                print("Opening Authentication Window")
 
                 if accounts:
                     result = app.acquire_token_silent(SCOPES, account=accounts[0])
                 else:
-                    print("Opening Authentication Window")
 
                     result = app.acquire_token_interactive(SCOPES)
 
@@ -320,9 +312,8 @@ class LoggingManager:
                         'Content-Type': 'application/octet-stream'
                     }
                     file_path = os.path.join(self.log_folder,  'vehicle.bag')
-                    print(self.log_folder[1])
-                    file_name = os.path.basename(file_path)
-                    upload_url = f'https://graph.microsoft.com/v1.0/me/drive/root:/Rosbags/{self.log_folder[5:]+ " " + file_name}:/content'
+                    file_name = self.log_folder[5:]+ "_" +  os.path.basename(file_path)
+                    upload_url = f'https://graph.microsoft.com/v1.0/me/drive/sharedWithMe/Rosbags/{file_name}:/content'
 
                     with open(file_path, 'rb') as file:
                         response = requests.put(upload_url, headers=headers, data=file)
