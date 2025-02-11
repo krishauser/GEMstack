@@ -2,25 +2,17 @@
 import os
 import sys
 import math
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 os.getcwd()
 VIS = False
 
 #%% things to extract
 tx,ty,tz,rx,ry,rz = [None] * 6
-#%%
-#TODO make into command line arguments
-pbg = '/mount/wp/GEMstack/data/lidar70.npz' #null scene
-pbgAndLine = '/mount/wp/GEMstack/data/lidar78.npz'
 
-#%% load and wash data
-import numpy as np
-
-bg = np.load(pbg)['arr_0'] # load null scene -- no added objects
-bgAndLine = np.load(pbgAndLine)['arr_0'] # load data pc -- with added object
-bg = bg[~np.all(bg == 0, axis=1)] # remove (0,0,0)'s
-bgAndLine = bgAndLine[~np.all(bgAndLine == 0, axis=1)]
-
-#%% visualize cropped null scene and data scene
+#%%==============================================================
+#======================= util functions =========================
+#================================================================
 import pyvista as pv
 import panel as pn
 import matplotlib.pyplot as plt
@@ -32,7 +24,6 @@ def vis(ratio = 1):
     plotter.show_axes()
     class foo:
         def add_pc(self,pc,ratio=ratio,**kargs):
-            print(ratio)
             plotter.add_mesh(
                 pv.PolyData(pc*ratio), 
                 render_points_as_spheres=True, 
@@ -46,13 +37,9 @@ def vis(ratio = 1):
                 line_width=1)
             return self
         def add_box(self,bound,trans,ratio=ratio):
-            print(ratio)
             l,w,h = map(lambda x:x*ratio,bound)
             box = pv.Box(bounds=(-l/2,l/2,-w/2,w/2,-h/2,h/2))
-            print(box)
-            print(*map(lambda x:x*ratio,trans))
             box = box.translate(list(map(lambda x:x*ratio,trans)))
-            print(box)
             plotter.add_mesh(box, color='yellow',show_edges=True)
             return self
         def show(self):
@@ -60,15 +47,10 @@ def vis(ratio = 1):
             return self
 
     return foo()
-
-
-if VIS:
-    vis().add_pc(bg,color='blue').show()
-    vis().add_pc(bgAndLine,color='blue').show()
-
-#%%==============================================================
-#======================= util functions =========================
-#================================================================
+def load_scene(path):
+    sc = np.load(path)['arr_0'] 
+    sc = sc[~np.all(sc == 0, axis=1)] # remove (0,0,0)'s
+    return sc
 def crop(pc,ix=None,iy=None,iz=None):
     # crop a subrectangle in a pointcloud
     # usage: crop(pc, ix = (x_min,x_max), ...)
@@ -98,7 +80,7 @@ def fit_plane_ransac(pc,tol=0.01):
             if pc.shape[1] == 2:
                 plt.scatter(pc[:,0], pc[:,1], color='blue', marker='o', s=1)
                 plt.scatter(inliers[:,0], inliers[:,1], color='red', marker='o', s=1)
-                x_line = np.linspace(0, 7, 100).reshape(-1,1)
+                x_line = np.linspace(0, max(pc[:,0]), 100).reshape(-1,1)
                 plt.plot(x_line, x_line * a[0] + inter, color='red', label='Fitted Line')
             elif pc.shape[1] == 3:
                 vis().add_pc(pc).add_pc(inliers,color='red').show()
@@ -137,15 +119,19 @@ def pc_diff(pc0,pc1,tol=0.1):
 #%%==============================================================
 #========================= tz rx ry =============================
 #================================================================
-# %% this time we crop to keep the ground
-cropped_bg = crop(bg,iz = (-3,-2))
+
+#%% load scene for ground plane
+sc = load_scene('/mount/wp/GEMstack/data/lidar1.npz')
+
+# %% we crop to keep the ground
+cropped_sc = crop(sc,iz = (-3,-2))
 if VIS:
-    print(cropped_bg.shape)
-    vis().add_pc(cropped_bg,color='blue').show()
+    print(cropped_sc.shape)
+    vis().add_pc(cropped_sc,color='blue').show()
 
 #%%
 from math import sqrt
-fit = fit_plane_ransac(cropped_bg,tol=0.01)
+fit = fit_plane_ransac(cropped_sc,tol=0.01)
 c, inter = fit.results()
 normv = np.array([c[0], c[1], -1])
 normv /= np.linalg.norm(normv)
@@ -164,23 +150,43 @@ rx = math.atan2(-ny,sqrt(nx**2 + nz**2))
 #%%==============================================================
 #========================== tx ty rz ============================
 #================================================================
-#%% crop to only keep a frontal box area
-area = (-0,7),(-1,1),(-3,1)
-cropped_bg = crop(bg,*area)
-cropped_bgAndLine = crop(bgAndLine,*area)
-print(cropped_bg.shape)
-print(cropped_bgAndLine.shape)
 
-#%% Take difference to only keep added object
-diff = pc_diff(cropped_bg,cropped_bgAndLine)
+if False: # True to use the diff method to extract object.
+    # load data
+    sc0 = load_scene('/mount/wp/GEMstack/data/lidar70.npz')
+    sc1 = load_scene('/mount/wp/GEMstack/data/lidar78.npz')
+
+    # crop to only keep a frontal box area
+    area = (-0,7),(-1,1),(-3,1)
+    cropped0 = crop(sc0,*area)
+    cropped1 = crop(sc1,*area)
+    print(cropped0.shape)
+    print(cropped1.shape)
+
+    # Take difference to only keep added object
+    objects = pc_diff(cropped0,cropped1)
+else: #False to use only cropping
+    sc1 = load_scene('/mount/wp/GEMstack/data/lidar1.npz')
+
+    rot = R.from_euler('xyz',[rx,ry,0]).as_matrix()
+
+    objects = sc1 @ rot.T + [0,0,tz]
+
+    # crop to only keep a frontal box area
+    area = (-0,20),(-1,1),(0,1)
+    objects = crop(objects,*area)
+    print(objects.shape)
+
+
+#%%
 if VIS:
-    vis().add_pc(diff,color='blue').show() #visualize diff, hopefully the added objects
+    vis().add_pc(objects,color='blue').show() #visualize diff, hopefully the added objects
 
 # %% use the added objects to find rz. 
 # TODO after dataset retake
 # right now we assume tx = ty = 0 and \
 # just use median to find a headding direction
-fit = fit_plane_ransac(diff[:,:2],tol=0.6)
+fit = fit_plane_ransac(objects[:,:2],tol=0.6)
 c,inter = fit.results()
 if VIS:
     fit.plot()
@@ -194,24 +200,22 @@ rz = - math.atan(c)
 if VIS:
     from scipy.spatial.transform import Rotation as R
     rot = R.from_euler('xyz',[0,0,rz]).as_matrix()
-
-    calibrated_bgAndLine = bgAndLine @ rot.T + [tx,ty,0]
-    line = np.arange(0,100)/100*7
+    cal_sc1 = sc1 @ rot.T + [tx,ty,0]
+    line = np.arange(0,100)/100*max(objects[:,0])
     line = np.stack((line,c[0]*line+inter,np.zeros(100)),axis=1)
     line = line @ rot.T + [tx,ty,0]
-    vis().add_pc(calibrated_bgAndLine,color='blue').add_pc(line,color='red').show()
+    vis().add_pc(cal_sc1,color='blue').add_pc(line,color='red').show()
 
 
 #%% visualize calibrated pointcloud
 if VIS:
-    from scipy.spatial.transform import Rotation as R
     rot = R.from_euler('xyz',[rx,ry,rz]).as_matrix()
 
-    calibrated_bgAndLine = bgAndLine @ rot.T + [tx,ty,tz]
+    cal_sc1 = sc1 @ rot.T + [tx,ty,tz]
     # projection
-    # calibrated_bgAndLine[:,2] = 0
+    # cal_sc1[:,2] = 0
     v = vis(ratio=100)
-    v.add_pc(calibrated_bgAndLine,color='blue')
+    v.add_pc(cal_sc1,color='blue')
     v.add_box((2.56,.61*2,2.03+height_axel),[2.56/2,0,(2.03+height_axel)/2])
     v.show()
 # %%
@@ -221,10 +225,3 @@ rotation: ({rx,ry,rz})
 """)
 
 
-# %%
-
-
-s = np.load('/mount/wp/GEMstack/data/lidar1.npz')['arr_0'] # load null scene -- no added objects
-s = s[~np.all(s == 0, axis=1)] 
-vis().add_pc(s,color='blue').show()
-# %%
