@@ -7,6 +7,7 @@ VIS = False
 #%% things to extract
 tx,ty,tz,rx,ry,rz = [None] * 6
 #%%
+#TODO make into command line arguments
 pbg = '/mount/wp/GEMstack/data/lidar76.npz' #null scene
 pbgAndLine = '/mount/wp/GEMstack/data/lidar78.npz'
 
@@ -125,7 +126,11 @@ if VIS:
 
 #%%
 from math import sqrt
-a, b, tz, inliers = fit_plane_ransac(cropped_bg,tol=0.001)
+a, b, height, inliers = fit_plane_ransac(cropped_bg,tol=0.001)
+# TODO MAGIC NUMBER WARNING
+real_tz = 203 #https://publish.illinois.edu/robotics-autonomy-resources/gem-e4/hardware/
+real_height = 203 + 27.94 # 11 inches that we measured
+tz = height * real_tz/real_height
 if VIS:
     vispc(inliers)
 normv = np.array([a, b, -1])
@@ -147,3 +152,7 @@ if VIS:
 
     vispc(calibrated_bgAndLine)
 # %%
+print(f"""
+translation: ({tx,ty,tz})
+rotation: ({rx,ry,rz})
+""")
