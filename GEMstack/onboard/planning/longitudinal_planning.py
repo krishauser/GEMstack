@@ -41,12 +41,15 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
 
     new_points = []
     new_times = []
+    velocities = [] # for graphing and debugging purposes
+
     while current_speed > 0 or cur_index == 0:
         # we want to iterate through all the points and add them
         # to the new points. However, we also want to add "critical points"
         # where we reach top speed, begin decelerating, and stop
         new_points.append(cur_point)
         new_times.append(cur_time)
+        velocities.append(current_speed)
         print("=====================================")
         print("new points: ", new_points)
         print("current index: ", cur_index)
@@ -115,7 +118,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
                 delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, acceleration)
                 cur_time += delta_t_to_next_x
                 cur_point = [next_point[0], 0]
-                current_speed += delta_t_to_next_x*deceleration
+                current_speed += delta_t_to_next_x*acceleration
                 cur_index += 1
             
             # this is the case where we would reach max speed before the next point
@@ -182,19 +185,25 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         
     new_points.append(cur_point)
     new_times.append(cur_time)
+    velocities.append(current_speed)
         
     points = new_points
     times = new_times
     print("[PLAN] Computed points:", points)
     print("[TIME] Computed time:", times)
+    print("[Velocities] Computed velocities:", velocities)
+
     #=============================================
 
-    trajectory = Trajectory(path.frame,points,times)
+    trajectory = Trajectory(path.frame,points,times,velocities)
     return trajectory
 
 def compute_time_to_x(x0 : float, x1 : float, v : float, a : float) -> float:
     """Computes the time to go from x0 to x1 with initial velocity v0 and final velocity v1
-    with constant acceleration a."""
+    with constant acceleration a. I am assuming that we will always have a solution by settings
+    discriminant equal to zero, i'm not sure if this is an issue."""
+
+    """Consider changing the system to use linear operators instead of explicitly calculating because of instances here"""
     # x1 = x0 + v0*t + 0.5*a*t^2
     # x1 - x0 = v0*t + 0.5*a*t^2
     # 0.5*a*t^2 + v0*t + x0 - x1 = 0
@@ -205,13 +214,17 @@ def compute_time_to_x(x0 : float, x1 : float, v : float, a : float) -> float:
     print("v: ", v)
     print("a: ", a)
 
-    t1 = (-v + (v**2 - 2*a*(x0-x1))**0.5)/a
-    t2 = (-v - (v**2 - 2*a*(x0-x1))**0.5)/a
-    if math.isnan(t1): t1 = 0
-    if math.isnan(t2): t2 = 0
+    t1 = (-v + max(0,(v**2 - 2*a*(x0-x1)))**0.5)/a
+    t2 = (-v - max(0,(v**2 - 2*a*(x0-x1)))**0.5)/a
 
     print("t1: ", t1)
     print("t2: ", t2)
+
+    if math.isnan(t1): t1 = 0
+    if math.isnan(t2): t2 = 0
+
+    # print("t1: ", t1)
+    # print("t2: ", t2)
 
     valid_times = [n for n in [t1, t2] if n > 0]
     if valid_times:
@@ -238,18 +251,21 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     x_stop = x0 + current_speed * t_stop - 0.5 * deceleration * t_stop**2
 
     new_points = []
+    velocities = []
+
     for t in times:
         if t <= t_stop:
             x = x0 + current_speed * t - 0.5 * deceleration * t**2
         else:
             x = x_stop
         new_points.append([x, 0])
+        velocities.append(current_speed - deceleration * t)
     points = new_points
     print("[BRAKE] Computed points:", points)
 
     #=============================================
 
-    trajectory = Trajectory(path.frame,points,times)
+    trajectory = Trajectory(path.frame,points,times,velocities)
     return trajectory
 
 
