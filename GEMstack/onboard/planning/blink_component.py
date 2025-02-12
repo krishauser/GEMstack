@@ -38,6 +38,9 @@ class BlinkDistress(Component):
         # sent to the drive-by-wire system, simultaneously.  To avoid doing arbitrary things
         # to the vehicle, let's maintain the current values (e.g., accelerator, brake pedal,
         # steering angle) from its current readings.
+        
+        #if Allstate.intent.intent == "HALTING" :
+            #return
         current_time = time.time()
         if current_time - self.last_update_time >= 2:  # Change signal every 2 seconds
             if self.turn_state == TURN_OFF:
