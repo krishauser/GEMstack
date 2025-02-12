@@ -10,6 +10,7 @@ import numpy as np
 import cv2
 import requests
 from msal import PublicClientApplication
+import json
 class LoggingManager:
     """A top level manager of the logging process.  This is responsible for
     creating log folders, log metadata files, and for replaying components from log
@@ -286,10 +287,23 @@ class LoggingManager:
             
 
             if(record_bag not in ["N", "no", "n", "No"]):
+                def load_config(config_path="onedrive_config.json"):
+                    try:
+                        with open(config_path, "r") as f:
+                            config = json.load(f)
+                        return config
+                    except Exception as e:
+                        print(f"Error loading configuration file: {e}")
+                        exit(1)
 
-                CLIENT_ID = '845ade48-ce2e-49d3-ab66-f0419a3460f0'
-                TENANT_ID = "44467e6f-462c-4ea2-823f-7800de5434e3"
+                config = load_config()
 
+                # Not private but for reusability in future semesters:
+                # Retrieve values from the config
+                CLIENT_ID = config.get("CLIENT_ID")
+                TENANT_ID = config.get("TENANT_ID")
+                DRIVE_ID = config.get("DRIVE_ID")
+                ITEM_ID = config.get("ITEM_ID")
 
                 AUTHORITY = f'https://login.microsoftonline.com/{TENANT_ID}'
                 SCOPES = ['Files.ReadWrite.All']
@@ -313,7 +327,10 @@ class LoggingManager:
                     }
                     file_path = os.path.join(self.log_folder,  'vehicle.bag')
                     file_name = self.log_folder[5:]+ "_" +  os.path.basename(file_path)
-                    upload_url = f'https://graph.microsoft.com/v1.0/drives/b!r8UV8D4x3E2BtZZ7BCsmXkluecl4_LtGks5ml-JzZoIsKNgi6n5kSYav_vojyk-B/items/01H5P3RBES56VFCT3I6NAISSB4OPNNFDDB:/{file_name}:/content'
+                    upload_url = (
+                    f'https://graph.microsoft.com/v1.0/drives/{DRIVE_ID}/items/'
+                    f'{ITEM_ID}:/{file_name}:/content'
+                    )
 
                     with open(file_path, 'rb') as file:
                         response = requests.put(upload_url, headers=headers, data=file)
