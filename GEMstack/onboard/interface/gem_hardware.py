@@ -26,12 +26,6 @@ import cv2
 import numpy as np
 from ...utils import conversions
 
-@dataclass 
-class GNSSReading:
-    pose : ObjectPose
-    speed : float
-    status : str
-
 class GEMHardwareInterface(GEMInterface):
     """Interface for connnecting to the physical GEM e2 vehicle."""
     def __init__(self):
