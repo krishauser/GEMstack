@@ -5,7 +5,7 @@ import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 os.getcwd()
-VIS = False
+VIS = True
 
 #%% things to extract
 tx,ty,tz,rx,ry,rz = [None] * 6
@@ -16,7 +16,8 @@ tx,ty,tz,rx,ry,rz = [None] * 6
 import pyvista as pv
 import panel as pn
 import matplotlib.pyplot as plt
-def vis(ratio = 1):
+def vis(title='', ratio=1):
+    print(title)
     pv.set_jupyter_backend('client')
     plotter = pv.Plotter(notebook=True)
     plotter.camera.position = (-20*ratio,0,20*ratio)
@@ -40,7 +41,7 @@ def vis(ratio = 1):
             l,w,h = map(lambda x:x*ratio,bound)
             box = pv.Box(bounds=(-l/2,l/2,-w/2,w/2,-h/2,h/2))
             box = box.translate(list(map(lambda x:x*ratio,trans)))
-            plotter.add_mesh(box, color='yellow',show_edges=True)
+            plotter.add_mesh(box, color='yellow')
             return self
         def show(self):
             plotter.show()
@@ -66,7 +67,7 @@ def crop(pc,ix=None,iy=None,iz=None):
 
 from sklearn.linear_model import RANSACRegressor
 from sklearn.linear_model import LinearRegression
-def fit_plane_ransac(pc,tol=0.01):
+def fit_plane_ransac(pc,tol=0.01): 
     # fit a line/plane/hyperplane in a pointcloud 
     # pc: np array (N,D). the pointcloud
     # tol: the tolerance. default 0.01
@@ -78,12 +79,13 @@ def fit_plane_ransac(pc,tol=0.01):
         def plot(self):
             inliers = pc[model.inlier_mask_]
             if pc.shape[1] == 2:
+                plt.title('ransac fitting line')
                 plt.scatter(pc[:,0], pc[:,1], color='blue', marker='o', s=1)
                 plt.scatter(inliers[:,0], inliers[:,1], color='red', marker='o', s=1)
                 x_line = np.linspace(0, max(pc[:,0]), 100).reshape(-1,1)
                 plt.plot(x_line, x_line * a[0] + inter, color='red', label='Fitted Line')
             elif pc.shape[1] == 3:
-                vis().add_pc(pc).add_pc(inliers,color='red').show()
+                vis('ransac fitting a plane').add_pc(pc).add_pc(inliers,color='red').show()
             return self
             
         def results(self):
@@ -126,12 +128,11 @@ sc = load_scene('/mount/wp/GEMstack/data/lidar1.npz')
 # %% we crop to keep the ground
 cropped_sc = crop(sc,iz = (-3,-2))
 if VIS:
-    print(cropped_sc.shape)
-    vis().add_pc(cropped_sc,color='blue').show()
+    vis('ground points cropped').add_pc(cropped_sc,color='blue').show()
 
 #%%
 from math import sqrt
-fit = fit_plane_ransac(cropped_sc,tol=0.01)
+fit = fit_plane_ransac(cropped_sc,tol=0.01) # small tol because the ground is very flat
 c, inter = fit.results()
 normv = np.array([c[0], c[1], -1])
 normv /= np.linalg.norm(normv)
@@ -186,7 +187,7 @@ if VIS:
 # TODO after dataset retake
 # right now we assume tx = ty = 0 and \
 # just use median to find a headding direction
-fit = fit_plane_ransac(objects[:,:2],tol=0.6)
+fit = fit_plane_ransac(objects[:,:2],tol=1) # tol=1 because 1m^3 foam boxes
 c,inter = fit.results()
 if VIS:
     fit.plot()
@@ -217,7 +218,9 @@ if VIS:
     v = vis(ratio=100)
     v.add_pc(cal_sc1,color='blue')
     v.add_box((2.56,.61*2,2.03+height_axel),[2.56/2,0,(2.03+height_axel)/2])
-    v.show()
+    v.show() 
+    # the yellow box should be 11 inches above the ground
+    # rear-axel center should be at (0,0,0)
 # %%
 print(f"""
 translation: ({tx,ty,tz})
