@@ -47,14 +47,14 @@ class BlinkDistress:
     def get_dir_distress(self):
         pass
     
-    def update(self, inputs):
+    def update(self, Allstate):
         """Run in a loop"""
         # TODO: Implement your control loop here
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
         #self.turn_cmd = PacmodCmd()
         # TODO change to actual direction in Part 2
-        if inputs.intent.intent == "HALTING":
+        if Allstate.intent.intent == "HALTING":
             if self.turn_cmd.ui16_cmd == TURN_NONE:
                 self.turn_cmd.ui16_cmd = TURN_LEFT
             elif self.turn_cmd.ui16_cmd == TURN_LEFT:
@@ -97,7 +97,7 @@ class BlinkDistress:
         rospy.loginfo(f"Output: {msg.output} (Final Output to Vehicle)")
         rospy.loginfo("---------------------------\n")
 
-def run_ros_loop(node):
+def run_ros_loop(node, Allstate):
     """Executes the event loop of a node using ROS.  `node` should support
     rate(), initialize(), cleanup(), update(), and done().  You should not modify
     this code.
@@ -111,7 +111,7 @@ def run_ros_loop(node):
     termination_reason = "undetermined"
     try:
         while not rospy.is_shutdown() and not node.done() and node.healthy():
-            node.update()
+            node.update(node, Allstate)
             rate.sleep()
         if node.done():
             termination_reason = "Node done"
