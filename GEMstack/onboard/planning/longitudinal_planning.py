@@ -25,7 +25,7 @@ def solve_for_v_peak(v0: float, acceleration: float, deceleration: float, total_
 
     return math.sqrt(v_peak_sq)
 
-def compute_dynamic_dt(acceleration, speed, k=0.02, a_min=0.5):
+def compute_dynamic_dt(acceleration, speed, k=0.005, a_min=0.5):
     position_step = k * max(speed, 1.0)  # Ensures position step is speed-dependent
     return np.sqrt(2 * position_step / max(acceleration, a_min))
 
@@ -37,6 +37,14 @@ def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed:
     # 1 parametrizatiom.
     path_norm = path.arc_length_parameterize(speed=1.0)
     total_length = path.length()
+
+    # -------------------
+    # If the path is too short, just return the path for preventing sudden halt of simulation
+    if total_length < 0.05:
+        points = [p for p in path_norm.points]
+        times = [t for t in path_norm.times]
+        return Trajectory(path.frame, points, times)
+    # -------------------
 
     # 2. Compute distances for d_accel,d_decel
     if max_speed > current_speed:
@@ -69,8 +77,6 @@ def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed:
     s_vals = []
     num_time_steps = 0
     while t < t_final:
-        dt = compute_dynamic_dt(acceleration if t < t_accel else deceleration,current_speed)
-        t = t + dt
         times.append(t)
         if profile_type == "trapezoidal":
             if t < t_accel:
@@ -95,6 +101,10 @@ def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed:
         s_vals.append(min(s, total_length))
         if s >= total_length:
             break
+
+        dt = compute_dynamic_dt(acceleration if t < t_accel else deceleration,current_speed)
+        t = t + dt
+
         num_time_steps +=1
 
     # Compute trajectory points
@@ -104,7 +114,16 @@ def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed:
     # return Trajectory(path_norm.frame, points, times)
 
 
-
+    # # Plot: update a single window
+    # import matplotlib.pyplot as plt
+    # plt.figure("Distance vs Time")
+    # plt.clf()  # Clear the current figure
+    # plt.plot(times, s_vals)
+    # plt.xlabel("Time (s)")
+    # plt.ylabel("Distance (m)")
+    # plt.title("Distance vs Time")
+    # plt.draw()
+    # plt.pause(0.001)
 
     
 
