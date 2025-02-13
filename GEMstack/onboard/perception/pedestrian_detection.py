@@ -5,9 +5,13 @@ from ultralytics import YOLO
 import cv2
 from typing import Dict
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2, PointField
+from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
+from geometry_msgs.msg import TransformStamped
 import rospy
 import os
+import numpy as np
+import tf2_ros
 
 
 def box_to_fake_agent(box):
@@ -56,8 +60,8 @@ class PedestrianDetector2D(Component):
         """Initializes subscribers and publishers
         
         self.vehicle_interface.subscribe_sensor -> GEM Car camera subscription
-        self.rosbag_test -> ROS Bag topic subscription
-        self.pub_image -> Publishes Image with detection for visualization
+        self.rosbag_cam_sub -> ROS Bag topic subscription
+        self.rosbag_cam_pub -> Publishes Image with detection for visualization
 
         """
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
@@ -68,11 +72,73 @@ class PedestrianDetector2D(Component):
         # Webcam
         # rospy.Subscriber('/webcam', Image, self.image_callback)
 
+        # Conversion tools
+        self.cv_bridge = CvBridge()
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer)
+
         # Testing with rosbag
-        self.rosbag_test = rospy.Subscriber('/oak/rgb/image_raw',Image, self.image_callback,queue_size=1)
         if(self.visualization):
-            self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
+            self.rosbag_cam_pub = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
+
+        # Lidar Tranform topic publisher
+        self.rosbag_lidar_livox_pub = rospy.Publisher("/livox/transformed_lidar", PointCloud2, queue_size=1)
+        # self.rosbag_lidar_ouster_pub = rospy.Publisher("/ouster/transformed_lidar", PointCloud2, queue_size=1)
+
+        self.rosbag_cam_sub = rospy.Subscriber('/oak/rgb/image_raw',Image, self.image_callback,queue_size=1)
+        self.rosbag_lidar_livox_sub = rospy.Subscriber('/livox/lidar',PointCloud2, self.lidar_livox_callback,queue_size=1)
+        # self.rosbag_lidar_ouster_sub = rospy.Subscriber('/ouster/points',PointCloud2, self.lidar_ouster_callback,queue_size=1)
+        
         pass
+    
+
+    def publish_base_link(self):
+
+        br = tf2_ros.TransformBroadcaster()
+        transform = TransformStamped()
+        
+        transform.header.stamp = rospy.Time.now()
+        transform.header.frame_id = "map"  # Parent frame
+        transform.child_frame_id = "base_link"  # Child frame
+
+        # Set translation (change as per actual vehicle position)
+        transform.transform.translation.x = 0.0
+        transform.transform.translation.y = 0.0
+        transform.transform.translation.z = 0.0
+
+        # Set rotation (quaternion)
+        transform.transform.rotation.x = 0.0
+        transform.transform.rotation.y = 0.0
+        transform.transform.rotation.z = 0.0
+        transform.transform.rotation.w = 1.0  # No rotation
+        br.sendTransform(transform)
+
+    def lidar_livox_callback(self,pointcloud : PointCloud2):
+
+        transform = self.tf_buffer.lookup_transform('base_link', pointcloud.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+        
+        # Transform the point cloud
+        transformed_cloud = do_transform_cloud(pointcloud, transform)
+
+        # Publish transformed point cloud
+        self.rosbag_lidar_livox_pub.publish(transformed_cloud)
+
+        if(self.visualization):
+            self.publish_base_link()
+
+    # def lidar_ouster_callback(self,pointcloud : PointCloud2):
+
+    #     transform = self.tf_buffer.lookup_transform('base_link', pointcloud.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+        
+    #     # Transform the point cloud
+    #     transformed_cloud = do_transform_cloud(pointcloud, transform)
+
+    #     # Publish transformed point cloud
+    #     self.rosbag_lidar_livox_pub.publish(transformed_cloud)
+
+    #     if(self.visualization):
+    #         self.publish_base_link()
+
     
     # Use cv2.Mat for GEM Car, Image for RosBag
     def image_callback(self, image : Image): #image : cv2.Mat):
@@ -92,8 +158,7 @@ class PedestrianDetector2D(Component):
         # track_result = self.detector.track(source=image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
 
         # Convert to CV2 format for RosBag
-        bridge = CvBridge() 
-        image = bridge.imgmsg_to_cv2(image, "bgr8") 
+        image = self.cv_bridge.imgmsg_to_cv2(image, "bgr8") 
         track_result = self.detector.track(source=image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
 
         self.last_person_boxes = []
@@ -155,8 +220,8 @@ class PedestrianDetector2D(Component):
         
         # Used for visualization
         if(self.visualization):
-            ros_img = bridge.cv2_to_imgmsg(image, 'bgr8')
-            self.pub_image.publish(ros_img)
+            ros_img = self.cv_bridge.cv2_to_imgmsg(image, 'bgr8')
+            self.rosbag_cam_pub.publish(ros_img)
 
         #uncomment if you want to debug the detector...
         # print(self.last_person_boxes)
