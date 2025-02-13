@@ -5,7 +5,7 @@ import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 os.getcwd()
-VIS = True
+VIS = False # True to show visuals
 
 #%% things to extract
 tx,ty,tz,rx,ry,rz = [None] * 6
@@ -13,9 +13,9 @@ tx,ty,tz,rx,ry,rz = [None] * 6
 #%%==============================================================
 #======================= util functions =========================
 #================================================================
-import pyvista as pv
-import panel as pn
-import matplotlib.pyplot as plt
+if VIS:
+    import pyvista as pv
+    import matplotlib.pyplot as plt
 def vis(title='', ratio=1):
     print(title)
     pv.set_jupyter_backend('client')
@@ -31,10 +31,10 @@ def vis(title='', ratio=1):
                 point_size=2,
                 **kargs)
             return self
-        def add_line(self,p1,p2,ratio=ratio):
+        def add_line(self,p1,p2,ratio=ratio,**kargs):
             plotter.add_mesh(
                 pv.Line(p1*ratio,p2*ratio), 
-                color='red', 
+                **kargs,
                 line_width=1)
             return self
         def add_box(self,bound,trans,ratio=ratio):
@@ -123,7 +123,7 @@ def pc_diff(pc0,pc1,tol=0.1):
 #================================================================
 
 #%% load scene for ground plane
-sc = load_scene('/mount/wp/GEMstack/data/lidar1.npz')
+sc = load_scene('/mount/wp/GEMstack/data/lidar70.npz')
 
 # %% we crop to keep the ground
 cropped_sc = crop(sc,iz = (-3,-2))
@@ -143,19 +143,30 @@ height_axel = 0.2794 # 11 inches that we measured
 tz =  height - height_axel
 if VIS:
     fit.plot()
-ry = math.atan2(nx, sqrt(ny**2 + nz**2))
-rx = math.atan2(-ny,sqrt(nx**2 + nz**2))
+rx = -math.atan2(ny,-nz)
+ry = -math.atan2(-nx,-nz)
 
 
+if VIS:
+    from scipy.spatial.transform import Rotation as R
+    rot = R.from_euler('xyz',[rx,ry,0]).as_matrix()
+    cal_sc = sc @ rot.T + [0,0,tz]
+    vis('yz projection').add_pc(cal_sc*[0,1,1],color='blue').show()
+    vis('xz projection').add_pc(cal_sc*[1,0,1],color='blue').show()
 
 #%%==============================================================
 #========================== tx ty rz ============================
 #================================================================
 
+rot = R.from_euler('xyz',[rx,ry,0]).as_matrix()
+
 if False: # True to use the diff method to extract object.
     # load data
     sc0 = load_scene('/mount/wp/GEMstack/data/lidar70.npz')
     sc1 = load_scene('/mount/wp/GEMstack/data/lidar78.npz')
+
+    sc0 = sc0 @ rot.T + [0,0,tz]
+    sc1 = sc1 @ rot.T + [0,0,tz]
 
     # crop to only keep a frontal box area
     area = (-0,7),(-1,1),(-3,1)
@@ -166,10 +177,9 @@ if False: # True to use the diff method to extract object.
 
     # Take difference to only keep added object
     objects = pc_diff(cropped0,cropped1)
+
 else: #False to use only cropping
     sc1 = load_scene('/mount/wp/GEMstack/data/lidar1.npz')
-
-    rot = R.from_euler('xyz',[rx,ry,0]).as_matrix()
 
     objects = sc1 @ rot.T + [0,0,tz]
 
@@ -199,13 +209,14 @@ ty = - inter
 rz = - math.atan(c)
 
 if VIS:
+    p1 = (0,inter,0)
+    p2 = max(objects[:,0])*np.array([1,c[0],0])+np.array([0,inter,0])
+    vis().add_pc(sc1*np.array([1,1,0]),color='blue').add_line(p1,p2,color='red').show()
+
     from scipy.spatial.transform import Rotation as R
     rot = R.from_euler('xyz',[0,0,rz]).as_matrix()
     cal_sc1 = sc1 @ rot.T + [tx,ty,0]
-    line = np.arange(0,100)/100*max(objects[:,0])
-    line = np.stack((line,c[0]*line+inter,np.zeros(100)),axis=1)
-    line = line @ rot.T + [tx,ty,0]
-    vis().add_pc(cal_sc1,color='blue').add_pc(line,color='red').show()
+    vis().add_pc(cal_sc1,color='blue').show()
 
 
 #%% visualize calibrated pointcloud
@@ -214,9 +225,9 @@ if VIS:
 
     cal_sc1 = sc1 @ rot.T + [tx,ty,tz]
     # projection
-    # cal_sc1[:,2] = 0
+    # cal_sc1[:,1] = 0
     v = vis(ratio=100)
-    v.add_pc(cal_sc1,color='blue')
+    v.add_pc(cal_sc1*[0,1,1],color='blue')
     v.add_box((2.56,.61*2,2.03+height_axel),[2.56/2,0,(2.03+height_axel)/2])
     v.show() 
     # the yellow box should be 11 inches above the ground
@@ -228,3 +239,5 @@ rotation: ({rx,ry,rz})
 """)
 
 
+
+# %%
