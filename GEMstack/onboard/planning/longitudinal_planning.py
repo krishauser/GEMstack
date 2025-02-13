@@ -234,52 +234,216 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
-
     #=============================================
 
     print("-----LONGITUDINAL PLAN-----")
     print("path length: ", path.length())
     length = path.length()
 
+    # If the path is too short, just return the path for preventing sudden halt of simulation
+    if length < 0.05:
+        return Trajectory(path.frame, points, times)
+
+    # This assumes that the time denomination cannot be changed
+
     # Starting point
     x0 = points[0][0]
-    # Time to stop
-    t_stop = current_speed / deceleration
-    # Position to stop
-    x_stop = x0 + current_speed * t_stop - 0.5 * deceleration * t_stop**2
+    cur_point = points[0]
+    cur_time = times[0]
+    cur_index = 0
 
-    # GEM will decelerate to 0 before the end of the path
-    if length < 10.0 and x_stop > points[-1][0]:
-        new_points = []
-        for t in times:
-            if t <= t_stop:
-                x = x0 + current_speed * t - 0.5 * deceleration * t**2
-            # Keep the position after reaching 0 velocity
-            else:
-                x = x_stop
-            new_points.append([x, 0])
-        points = new_points
-        print("[BRAKE] Computed points:", points)
+    new_points = []
+    new_times = []
+    velocities = [] # for graphing and debugging purposes
 
-    # GEM will accelerate to max speed before the end of the path
-    else:
-        new_points = []
-        for t in times:
-            # Accelerate to max speed
-            if max_speed > current_speed:
-                x = x0 + current_speed * t + 0.5 * acceleration * t**2
-            # Keep the velocity after reaching max speed
+    while current_speed > 0 or cur_index == 0:
+        # we want to iterate through all the points and add them
+        # to the new points. However, we also want to add "critical points"
+        # where we reach top speed, begin decelerating, and stop
+        new_points.append(cur_point)
+        new_times.append(cur_time)
+        velocities.append(current_speed)
+        print("=====================================")
+        print("new points: ", new_points)
+        print("current index: ", cur_index)
+        print("current speed: ", current_speed)
+
+        # Information we will need: 
+            # Calculate how much time it would take to stop
+            # Calculate how much distance it would take to stop
+        min_delta_t_stop = current_speed/deceleration
+        min_delta_x_stop = current_speed*min_delta_t_stop - 0.5*deceleration*min_delta_t_stop**2
+        assert min_delta_x_stop >= 0
+
+
+        # Check if we are done
+
+        # If we cannot stop before or stop exactly at the final position requested
+        if cur_point[0] + min_delta_x_stop >= points[-1][0]:
+            print("In case one")
+            # put on the breaks
+
+            # Calculate the next point in a special manner because of too-little time to stop 
+            if cur_index == len(points)-1:
+                # the next point in this instance would be when we stop
+                next_point = (cur_point[0] + min_delta_x_stop, 0)
             else:
-                x = x0 + current_speed * t
-            new_points.append([x, 0])
-        points = new_points
-        print("[ACCEL] Computed points:", points)
+                next_point = points[cur_index+1]
+
+            # keep breaking until the next milestone in path
+            if next_point[0] <= points[-1][0]:
+                print("continuing to next point")
+                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
+                cur_time += delta_t_to_next_x
+                cur_point = next_point
+                current_speed -= deceleration*delta_t_to_next_x
+                cur_index += 1
+            else:
+                # continue to the point in which we would stop (current_velocity = 0)
+                # update to the next point 
+                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
+                cur_point = next_point
+                cur_time += delta_t_to_next_x
+                # current_speed would not be exactly zero error would be less than 1e-4 but perfer to just set to zero
+                #current_speed -= delta_t_to_next_x*deceleration
+                current_speed = 0
+                assert current_speed == 0
+
+        # This is the case where we are accelerating to max speed
+        # because the first if-statement covers for when we decelerating,
+        # the only time current_speed < max_speed is when we are accelerating 
+        elif current_speed < max_speed:
+            print("In case two")
+            # next point 
+            next_point = points[cur_index+1]
+            # accelerate to max speed
+
+            # calculate the time it would take to reach max speed
+            delta_t_to_max_speed = (max_speed - current_speed)/acceleration
+            # calculate the distance it would take to reach max speed
+            delta_x_to_max_speed = current_speed*delta_t_to_max_speed + 0.5*acceleration*delta_t_to_max_speed**2
+            
+            # if we would reach max speed after the next point, 
+            # just move to the next point and update the current speed and time
+            if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
+                print("go to next point")
+                # accelerate to max speed
+                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, acceleration)
+                cur_time += delta_t_to_next_x
+                cur_point = [next_point[0], 0]
+                current_speed += delta_t_to_next_x*acceleration
+                cur_index += 1
+            
+            # this is the case where we would reach max speed before the next point
+            # we need to create a new point where we would reach max speed 
+            else:
+                print("adding new point")
+                # we would need to add a new point at max speed
+                cur_time += delta_t_to_max_speed
+                cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
+                current_speed = max_speed
+
+        # This is the case where we are at max speed
+        # special functionality is that this block must 
+        # add a point where we would need to start declerating to reach
+        # the final point
+        elif current_speed == max_speed:
+            next_point = points[cur_index+1]
+            # continue on with max speed
+            print("In case three")
+            
+            # add point to start decelerating
+            if next_point[0] + min_delta_x_stop >= points[-1][0]:
+                print("Adding new point to start decelerating")
+                cur_time += (points[-1][0] - min_delta_x_stop - cur_point[0])/current_speed
+                cur_point = [points[-1][0] - min_delta_x_stop,0]
+                current_speed = max_speed
+            else:
+                # Continue on to next point
+                print("Continuing on to next point")
+                cur_time += (next_point[0] - cur_point[0])/current_speed
+                cur_point = next_point
+                cur_index += 1
+        
+        # This is an edge case and should only be reach 
+        # if the initial speed is greater than the max speed
+        elif current_speed > max_speed:
+            # We need to hit the breaks 
+
+            next_point = points[cur_index+1]
+            print("In case four")
+            # slow down to max speed 
+            delta_t_to_max_speed = (current_speed - max_speed)/deceleration
+            delta_x_to_max_speed = current_speed*delta_t_to_max_speed - 0.5*deceleration*delta_t_to_max_speed**2
+
+            # If we would reach the next point before slowing down to max speed
+            # keep going until we reach the next point
+            if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
+                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
+                cur_time += delta_t_to_next_x
+                cur_point = [next_point[0], 0]
+                current_speed -= delta_t_to_next_x*deceleration
+                cur_index += 1
+            else:
+            # We would reach max speed before the next point
+            # we need to add a new point at the point where we
+            # would reach max speed
+                cur_time += delta_t_to_max_speed
+                cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
+                current_speed = max_speed
+
+        else:
+            # not sure what falls here
+            raise ValueError("LONGITUDINAL PLAN ERROR: Not sure how we ended up here")
+        
+    new_points.append(cur_point)
+    new_times.append(cur_time)
+    velocities.append(current_speed)
+        
+    points = new_points
+    times = new_times
+    print("[PLAN] Computed points:", points)
+    print("[TIME] Computed time:", times)
+    print("[Velocities] Computed velocities:", velocities)
 
     #=============================================
 
-    trajectory = Trajectory(path.frame,points,times)
+    trajectory = Trajectory(path.frame,points,times,velocities)
     return trajectory
 
+def compute_time_to_x(x0 : float, x1 : float, v : float, a : float) -> float:
+    """Computes the time to go from x0 to x1 with initial velocity v0 and final velocity v1
+    with constant acceleration a. I am assuming that we will always have a solution by settings
+    discriminant equal to zero, i'm not sure if this is an issue."""
+
+    """Consider changing the system to use linear operators instead of explicitly calculating because of instances here"""
+    # x1 = x0 + v0*t + 0.5*a*t^2
+    # x1 - x0 = v0*t + 0.5*a*t^2
+    # 0.5*a*t^2 + v0*t + x0 - x1 = 0
+    # t = (-v0 + sqrt(v0^2 - 4*0.5*a*(x0-x1)))/(2*0.5*a)
+    # t = (-v0 + sqrt(v0^2 + 2*a*(x1-x0)))/a
+    print("x0: ", x0)
+    print("x1: ", x1)
+    print("v: ", v)
+    print("a: ", a)
+
+    t1 = (-v + max(0,(v**2 - 2*a*(x0-x1)))**0.5)/a
+    t2 = (-v - max(0,(v**2 - 2*a*(x0-x1)))**0.5)/a
+
+    print("t1: ", t1)
+    print("t2: ", t2)
+
+    if math.isnan(t1): t1 = 0
+    if math.isnan(t2): t2 = 0
+
+    # print("t1: ", t1)
+    # print("t2: ", t2)
+
+    valid_times = [n for n in [t1, t2] if n > 0]
+    if valid_times:
+        return min(valid_times)
+    else:
+        return 0.0
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
@@ -301,18 +465,21 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     x_stop = x0 + current_speed * t_stop - 0.5 * deceleration * t_stop**2
 
     new_points = []
+    velocities = []
+
     for t in times:
         if t <= t_stop:
             x = x0 + current_speed * t - 0.5 * deceleration * t**2
         else:
             x = x_stop
         new_points.append([x, 0])
+        velocities.append(current_speed - deceleration * t)
     points = new_points
     print("[BRAKE] Computed points:", points)
 
     #=============================================
 
-    trajectory = Trajectory(path.frame,points,times)
+    trajectory = Trajectory(path.frame,points,times,velocities)
     return trajectory
 
 
