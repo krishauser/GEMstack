@@ -101,7 +101,7 @@ def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed:
     points = [path_norm.eval(s) for s in s_vals]
     print("Number of time steps is --------------------", num_time_steps)
 
-    return Trajectory(path_norm.frame, points, times)
+    # return Trajectory(path_norm.frame, points, times)
 
 
 
