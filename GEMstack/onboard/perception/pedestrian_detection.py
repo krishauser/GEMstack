@@ -83,16 +83,17 @@ class PedestrianDetector2D(Component):
 
         # Lidar Tranform topic publisher
         self.rosbag_lidar_livox_pub = rospy.Publisher("/livox/transformed_lidar", PointCloud2, queue_size=1)
-        # self.rosbag_lidar_ouster_pub = rospy.Publisher("/ouster/transformed_lidar", PointCloud2, queue_size=1)
+        self.rosbag_lidar_ouster_pub = rospy.Publisher("/ouster/transformed_lidar", PointCloud2, queue_size=1)
 
         self.rosbag_cam_sub = rospy.Subscriber('/oak/rgb/image_raw',Image, self.image_callback,queue_size=1)
         self.rosbag_lidar_livox_sub = rospy.Subscriber('/livox/lidar',PointCloud2, self.lidar_livox_callback,queue_size=1)
-        # self.rosbag_lidar_ouster_sub = rospy.Subscriber('/ouster/points',PointCloud2, self.lidar_ouster_callback,queue_size=1)
+        self.rosbag_lidar_ouster_sub = rospy.Subscriber('/ouster/points',PointCloud2, self.lidar_ouster_callback,queue_size=1)
         
         pass
     
 
-    def publish_base_link(self):
+    # Publishes baselink to map transformation for visualization
+    def publish_base_link_to_map(self):
 
         br = tf2_ros.TransformBroadcaster()
         transform = TransformStamped()
@@ -113,6 +114,8 @@ class PedestrianDetector2D(Component):
         transform.transform.rotation.w = 1.0  # No rotation
         br.sendTransform(transform)
 
+
+    # Livox Lidar data
     def lidar_livox_callback(self,pointcloud : PointCloud2):
 
         transform = self.tf_buffer.lookup_transform('base_link', pointcloud.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
@@ -124,20 +127,21 @@ class PedestrianDetector2D(Component):
         self.rosbag_lidar_livox_pub.publish(transformed_cloud)
 
         if(self.visualization):
-            self.publish_base_link()
+            self.publish_base_link_to_map()
 
-    # def lidar_ouster_callback(self,pointcloud : PointCloud2):
+    # Ouster Lidar data
+    def lidar_ouster_callback(self,pointcloud : PointCloud2):
 
-    #     transform = self.tf_buffer.lookup_transform('base_link', pointcloud.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+        transform = self.tf_buffer.lookup_transform('base_link', pointcloud.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
         
-    #     # Transform the point cloud
-    #     transformed_cloud = do_transform_cloud(pointcloud, transform)
+        # Transform the point cloud
+        transformed_cloud = do_transform_cloud(pointcloud, transform)
 
-    #     # Publish transformed point cloud
-    #     self.rosbag_lidar_livox_pub.publish(transformed_cloud)
+        # Publish transformed point cloud
+        self.rosbag_lidar_livox_pub.publish(transformed_cloud)
 
-    #     if(self.visualization):
-    #         self.publish_base_link()
+        if(self.visualization):
+            self.publish_base_link_to_map()
 
     
     # Use cv2.Mat for GEM Car, Image for RosBag
