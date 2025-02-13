@@ -25,6 +25,11 @@ def solve_for_v_peak(v0: float, acceleration: float, deceleration: float, total_
 
     return math.sqrt(v_peak_sq)
 
+def compute_dynamic_dt(acceleration, speed, k=0.02, a_min=0.5):
+    position_step = k * max(speed, 1.0)  # Ensures position step is speed-dependent
+    return np.sqrt(2 * position_step / max(acceleration, a_min))
+
+
 
 def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed: float, current_speed: float):
     
@@ -59,13 +64,14 @@ def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed:
         t_final = t_accel + t_decel
         profile_type = "triangular"
 
-    # 4. Create a time grid.
-    dt = 0.1  # adjust based on computation
-    times = np.arange(0, t_final + dt, dt)
-
-    # 5. Compute the distance s(t) for each time step.
+    t = 0
+    times = []
     s_vals = []
-    for t in times:
+    num_time_steps = 0
+    while t < t_final:
+        dt = compute_dynamic_dt(acceleration if t < t_accel else deceleration,current_speed)
+        t = t + dt
+        times.append(t)
         if profile_type == "trapezoidal":
             if t < t_accel:
                 # Acceleration phase.
@@ -76,7 +82,6 @@ def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed:
             else:
                 # Deceleration phase.
                 t_decel_phase = t - (t_accel + t_cruise)
-                # Compute the remaining distance using the deceleration equation.
                 s = total_length - 0.5 * deceleration * (t_decel - t_decel_phase)**2
         else:  # Triangular profile.
             if t < t_accel:
@@ -87,11 +92,59 @@ def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed:
                 s_accel = current_speed * t_accel + 0.5 * acceleration * t_accel**2
                 s = s_accel + peak_speed * t_decel_phase - 0.5 * deceleration * t_decel_phase**2
 
-        # should not exceed total path length
         s_vals.append(min(s, total_length))
+        if s >= total_length:
+            break
+        num_time_steps +=1
+
+    # Compute trajectory points
+    points = [path_norm.eval(s) for s in s_vals]
+    print("Number of time steps is --------------------", num_time_steps)
+
+    return Trajectory(path_norm.frame, points, times)
+
+
+
 
     
-    points = [path_norm.eval(s) for s in s_vals]
+
+    # 4. Create a time grid.
+    # dt = 0.1  # adjust based on computation
+    # times = np.arange(0, t_final + dt, dt)
+    # num_time_steps = 0
+
+    # # 5. Compute the distance s(t) for each time step.
+    # s_vals = []
+    # for t in times:
+    #     if profile_type == "trapezoidal":
+    #         if t < t_accel:
+    #             # Acceleration phase.
+    #             s = current_speed * t + 0.5 * acceleration * t**2
+    #         elif t < t_accel + t_cruise:
+    #             # Cruise phase.
+    #             s = d_accel + max_speed * (t - t_accel)
+    #         else:
+    #             # Deceleration phase.
+    #             t_decel_phase = t - (t_accel + t_cruise)
+    #             # Compute the remaining distance using the deceleration equation.
+    #             s = total_length - 0.5 * deceleration * (t_decel - t_decel_phase)**2
+    #     else:  # Triangular profile.
+    #         if t < t_accel:
+    #             # Acceleration phase.
+    #             s = current_speed * t + 0.5 * acceleration * t**2
+    #         else:
+    #             t_decel_phase = t - t_accel
+    #             s_accel = current_speed * t_accel + 0.5 * acceleration * t_accel**2
+    #             s = s_accel + peak_speed * t_decel_phase - 0.5 * deceleration * t_decel_phase**2
+    #     num_time_steps +=1
+
+    #     # should not exceed total path length
+    #     s_vals.append(min(s, total_length))
+    # print("NUmber of time steps -----------",num_time_steps)
+    # print("T FInal ----------------------------", t_final)
+    # points = [path_norm.eval(s) for s in s_vals]
+
+
 
     trajectory = Trajectory(path_norm.frame, points, list(times))
     return trajectory
@@ -103,9 +156,23 @@ def longitudinal_plan(path, acceleration: float, deceleration: float, max_speed:
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
     path_normalized = path.arc_length_parameterize()
+    # print("paaaaaaa", path_normalized)
     #TODO: actually do something to points and times
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
+    # print("points",points)
+    x0 = points[0][0]
+    t_stop = current_speed/deceleration
+    x_stop = x0 + current_speed * t_stop - 0.5 * deceleration * t_stop**2
+    new_points = []
+    for t in times:
+        if t <= t_stop:
+            x = x0 + current_speed * t - 0.5 * deceleration * t**2
+        else:
+            x = x_stop
+        new_points.append([x, 0])
+    points = new_points
+
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
 
