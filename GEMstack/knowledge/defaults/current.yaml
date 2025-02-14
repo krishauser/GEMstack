@@ -13,12 +13,12 @@ control:
         brake_speed : 2.0
     pure_pursuit:
         lookahead: 2.0
-        lookahead_scale: 3.0
+        lookahead_scale: 2.0
         crosstrack_gain: 0.5
         desired_speed: trajectory
     longitudinal_control:
         pid_p: 1.0
-        pid_i: 0.1
+        pid_i: 0.05
         pid_d: 0.0
 
 #configure the simulator, if using
