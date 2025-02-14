@@ -97,3 +97,5 @@ variants:
                     # agent_detection : pedestrian_detection.FakePedestrianDetector2D
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
+                    agent_detection : OmniscientAgentDetector
+
