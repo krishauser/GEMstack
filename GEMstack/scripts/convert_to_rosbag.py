@@ -144,11 +144,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     directory = args.files_directory
     output_bag = args.output_bag
-    # Define your directories here
-    #png_directory = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/"
-    #tif_directory = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/"
-    #npz_directory = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/"
-    #output_bag = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/output.bag"
+    # Example directories below:
+    #directory = "/home/username/host/CS588/GEMstack/data/data_sample/data/"
+    #output_bag = "/home/username/host/CS588/GEMstack/data/data_sample/data/output.bag"
     
     try:
         create_rosbag_from_data(
