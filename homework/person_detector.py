@@ -15,25 +15,11 @@ def person_detector(img: cv2.Mat) -> list[tuple[float, float, float, float]]:
         List of bounding box tuples (x_center, y_center, width, height)
     """
     # Initialize YOLOv11 model
-    model = YOLO("yolo11n.pt")
+    model = YOLO("yolov8n.pt")
 
-    # Perform inference with confidence threshold
-    results = model(img, conf=0.5)
-
-    # Extract detection boxes from results
-    boxes = results[0].boxes
-    if len(boxes) == 0:
-        return []
-
-    # Convert tensor data to CPU (assuming CUDA acceleration)
-    cls_ids = boxes.cls.cpu()  # Class IDs tensor
-    xywh = boxes.xywh.cpu()  # Box coordinates in xywh format
-
-    # Create boolean mask for person class (ID 0)
-    person_mask = (cls_ids == 0)
-
-    # Convert qualified boxes to Python native types
-    return [tuple(map(float, box)) for box in xywh[person_mask]]
+    results = model.predict(img, conf=0.5, classes=[0])  # detect only person (class id: 0)
+    boxes = results[0].boxes.xywh.tolist()  # each box: [x, y, w, h]
+    return boxes
 
 def main(fn):
     image = cv2.imread(fn)
@@ -70,7 +56,11 @@ def main_webcam():
 
 
 if __name__ == '__main__':
-    fn = sys.argv[1]
+
+    try:
+        fn = sys.argv[1]
+    except:
+        fn = 'webcam'
     if fn != 'webcam':
         main(fn)
     else:
