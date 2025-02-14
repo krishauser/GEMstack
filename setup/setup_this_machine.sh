@@ -20,6 +20,9 @@ git clone https://github.com/astuff/astuff_sensor_msgs.git
 git clone https://github.com/ros-perception/radar_msgs.git
 cd radar_msgs; git checkout noetic; cd ..
 
+# Remove the ibeo_msgs folder so it is not included
+rm -rf astuff_sensor_msgs/ibeo_msgs
+
 cd ..   #back to catkin_ws
 rosdep install --from-paths src --ignore-src -r -y
 catkin_make -DCMAKE_BUILD_TYPE=Release
