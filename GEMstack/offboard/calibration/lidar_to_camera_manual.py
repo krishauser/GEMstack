@@ -84,7 +84,7 @@ def crop(pc,ix=None,iy=None,iz=None):
     return pc[mask]
 
 
-lidar_post = np.pad(lidar_points,((0,0),(0,1)),constant_values=1) @ lidar_ex.T
+lidar_post = np.pad(lidar_points,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
 lidar_post = crop(lidar_post,ix=(0,8),iy=(-5,5))
 vis().add_pc(lidar_post).show()
 
