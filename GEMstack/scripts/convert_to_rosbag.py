@@ -49,7 +49,7 @@ def get_matching_files(dir):
 def create_rosbag_from_data(
     dir, 
     output_bag_path, 
-    frame_interval=0.5
+    frame_interval
 ):
     # Initialize CV bridge
     bridge = CvBridge()
@@ -73,7 +73,7 @@ def create_rosbag_from_data(
         
         for idx, (png_file, tif_file, npz_file) in enumerate(zip(png_files, tif_files, npz_files)):
             # Calculate timestamp for this frame
-            timestamp = rospy.Time.from_sec(start_time.to_sec() + idx * frame_interval)
+            timestamp = rospy.Time.from_sec(start_time.to_sec() + idx * (1/frame_interval))
             
             try:
                 # Process PNG image
@@ -100,7 +100,7 @@ def create_rosbag_from_data(
                 
                 # Process pointcloud NPZ
                 pc_data = np.load(npz_file)
-                points = pc_data['arr_0']  # Using 'arr_0' instead of 'points'
+                points = pc_data['arr_0']  # Using 'arr_0' based on the provided files'
                 
                 # Create pointcloud message
                 header = std_msgs.msg.Header()
@@ -141,9 +141,15 @@ if __name__ == "__main__":
         'output_bag', type = str,
         help = 'The path to the directory where the bag file will be saved'
     )
+    
+    parser.add_argument(
+        'rate', type = int,
+        help = 'The rate at which the data is collected in Hz'
+    )
     args = parser.parse_args()
     directory = args.files_directory
     output_bag = args.output_bag
+    rate = args.rate
     # Example directories below:
     #directory = "/home/username/host/CS588/GEMstack/data/data_sample/data/"
     #output_bag = "/home/username/host/CS588/GEMstack/data/data_sample/data/output.bag"
@@ -151,7 +157,8 @@ if __name__ == "__main__":
     try:
         create_rosbag_from_data(
             directory,
-            output_bag
+            output_bag,
+            rate
         )
         print("Successfully created ROS bag file!")
         
