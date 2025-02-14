@@ -99,17 +99,7 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
 
         distance_to_move = pedestrian_back - vehicle_front - vehicle_buffer_x + time_to_pass * obj_v_y
 
-    #======replace this part with actual algorithm====
-
-        deceleration = relative_v ** 2 / (2 * distance)
-        if deceleration > max_deceleration:
-            return True, max_deceleration
-        if deceleration < min_deceleration:
-            return False, 0.0
-
-        return True, deceleration
-    
-    # ================================================
+        return True, [distance_to_move, time_to_pass]
 
     else:
         deceleration = relative_v ** 2 / (2 * distance)
@@ -266,9 +256,6 @@ class YieldTrajectoryPlanner(Component):
         print("Lookahead distance:", lookahead_distance)
 
         route_to_end = route.trim(closest_parameter, len(route.points) - 1)
-        
-        #extract out a 10m segment of the route
-        # route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
 
         should_yield = False
         yield_deceleration = 0.0
@@ -277,19 +264,21 @@ class YieldTrajectoryPlanner(Component):
 
         for r in state.relations:
             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
-                #yielding to something, brake
-
-                #=========================
-                # print("#### YIELDING PLANNING ####")
-
                 #get the object we are yielding to
                 obj = state.agents[r.obj2]
 
                 detected, deceleration = detect_collision(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
-                
-                if detected and deceleration > 0:
-                    yield_deceleration = max(deceleration, yield_deceleration)
-                    should_yield = True
+                if isinstance(deceleration, list):
+                    time_collision = deceleration[1]
+                    distance_collision = deceleration[0]
+                    b = 3*time_collision - 2*curr_v
+                    c = curr_v**2 - 3*distance_collision
+                    self.desired_speed = (-b + (b**2 - 4*c)**0.5)/2
+                    self.deceleration = 1.5
+                else:
+                    if detected and deceleration > 0:
+                        yield_deceleration = max(deceleration, yield_deceleration)
+                        should_yield = True
                 
                 print("should yield: ", should_yield)
 
@@ -298,5 +287,4 @@ class YieldTrajectoryPlanner(Component):
             traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
         else:
             traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v)
-
         return traj 
