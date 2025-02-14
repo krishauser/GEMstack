@@ -80,18 +80,45 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
 
     if obj_v_y > 0 and ((obj_y - curr_y) / relative_v) < ((vehicle_right - vehicle_buffer_y - yield_buffer_y - pedestrian_left) / abs(obj_v_y)):
         # The object is to the right of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle
+        print("The object is to the right of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle")
         return False, 0.0
     if obj_v_y < 0 and ((obj_y - curr_y) / relative_v) < ((pedestrian_right - vehicle_left - vehicle_buffer_y - yield_buffer_y) / abs(obj_v_y)):
         # The object is to the left of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle
+        print("The object is to the left of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle")
         return False, 0.0
     
-    deceleration = relative_v ** 2 / (2 * distance)
-    if deceleration > max_deceleration:
-        return True, max_deceleration
-    if deceleration < min_deceleration:
-        return False, 0.0
+    if obj_v_y != 0:
+        if obj_v_y < 0:
+            # The object is moving toward the right side of the vehicle
+            distance_to_pass = obj_y - (vehicle_right - vehicle_buffer_y - yield_buffer_y) + pedestrian_width / 2
+        elif obj_v_y > 0:
+            # The object is moving toward the left side of the vehicle
+            distance_to_pass = (vehicle_left + vehicle_buffer_y + yield_buffer_y) - obj_y + pedestrian_width / 2
 
-    return True, deceleration
+        time_to_pass = distance_to_pass / abs(obj_v_y)
+
+        distance_to_move = pedestrian_back - vehicle_front - vehicle_buffer_x + time_to_pass * obj_v_y
+
+    #======replace this part with actual algorithm====
+
+        deceleration = relative_v ** 2 / (2 * distance)
+        if deceleration > max_deceleration:
+            return True, max_deceleration
+        if deceleration < min_deceleration:
+            return False, 0.0
+
+        return True, deceleration
+    
+    # ================================================
+
+    else:
+        deceleration = relative_v ** 2 / (2 * distance)
+        if deceleration > max_deceleration:
+            return True, max_deceleration
+        if deceleration < min_deceleration:
+            return False, 0.0
+
+        return True, deceleration
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
