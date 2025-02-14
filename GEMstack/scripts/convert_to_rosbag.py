@@ -11,14 +11,15 @@ import glob
 from datetime import datetime
 import time
 import rospy
-import std_msgs.msg  # Add this import
+import std_msgs.msg  
+import argparse
 
-def get_matching_files(png_dir, tif_dir, npz_dir):
+def get_matching_files(dir):
     """Get files that have corresponding data in all three formats"""
     # Get sorted lists of files
-    png_files = sorted(glob.glob(os.path.join(png_dir, 'color*.png')))
-    tif_files = sorted(glob.glob(os.path.join(tif_dir, 'depth*.tif')))
-    npz_files = sorted(glob.glob(os.path.join(npz_dir, 'lidar*.npz')))
+    png_files = sorted(glob.glob(os.path.join(dir, 'color*.png')))
+    tif_files = sorted(glob.glob(os.path.join(dir, 'depth*.tif')))
+    npz_files = sorted(glob.glob(os.path.join(dir, 'lidar*.npz')))
     
     print(f"Found {len(png_files)} PNG files")
     print(f"Found {len(tif_files)} TIF files")
@@ -46,9 +47,7 @@ def get_matching_files(png_dir, tif_dir, npz_dir):
     return matching_pngs, matching_tifs, matching_npzs
 
 def create_rosbag_from_data(
-    png_dir, 
-    tif_dir, 
-    npz_dir, 
+    dir, 
     output_bag_path, 
     frame_interval=0.5
 ):
@@ -59,7 +58,7 @@ def create_rosbag_from_data(
     rospy.init_node('bag_creator', anonymous=True)
     
     # Get matching files
-    png_files, tif_files, npz_files = get_matching_files(png_dir, tif_dir, npz_dir)
+    png_files, tif_files, npz_files = get_matching_files(dir)
     
     print(f"Found {len(png_files)} matching files in all three formats")
     
@@ -128,17 +127,32 @@ def create_rosbag_from_data(
         print(f"Total messages written to bag: {message_count}")
 
 if __name__ == "__main__":
+    #This initializes the parser and sets the parameters that the user will be asked to provide in the terminal
+    parser = argparse.ArgumentParser(
+        description='A script to convert data gathered by cameras and lidar sensors to ros .bag messages'
+    )
+
+    parser.add_argument(
+        'files_directory', type = str,
+        help = 'The path to the directory with all the rgb images, depth maps, and point clouds. The file formats must be PNG, TIF, and NPZ, respectively'
+    )
+
+    parser.add_argument(
+        'output_bag', type = str,
+        help = 'The path to the directory where the bag file will be saved'
+    )
+    args = parser.parse_args()
+    directory = args.files_directory
+    output_bag = args.output_bag
     # Define your directories here
-    png_directory = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/"
-    tif_directory = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/"
-    npz_directory = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/"
-    output_bag = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/output.bag"
+    #png_directory = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/"
+    #tif_directory = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/"
+    #npz_directory = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/"
+    #output_bag = "/home/mhmadnour/host/CS588/GEMstack/data/data_sample/data/output.bag"
     
     try:
         create_rosbag_from_data(
-            png_directory,
-            tif_directory,
-            npz_directory,
+            directory,
             output_bag
         )
         print("Successfully created ROS bag file!")
