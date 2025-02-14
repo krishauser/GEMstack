@@ -28,8 +28,10 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
     vehicle_buffer_x = 3.0
     vehicle_buffer_y = 1.5
 
-    vehicle_front = curr_x + vehicle_length / 2
-    vehicle_back = curr_x - vehicle_length / 2
+    yield_buffer_y = 1.0
+
+    vehicle_front = curr_x + vehicle_length
+    vehicle_back = curr_x
     vehicle_left = curr_y + vehicle_width / 2
     vehicle_right = curr_y - vehicle_width / 2
 
@@ -75,6 +77,13 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
         return False, 0.0
     
     print(relative_v, distance)
+
+    if obj_v_y > 0 and ((obj_y - curr_y) / relative_v) < ((vehicle_right - vehicle_buffer_y - yield_buffer_y - pedestrian_left) / abs(obj_v_y)):
+        # The object is to the right of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle
+        return False, 0.0
+    if obj_v_y < 0 and ((obj_y - curr_y) / relative_v) < ((pedestrian_right - vehicle_left - vehicle_buffer_y - yield_buffer_y) / abs(obj_v_y)):
+        # The object is to the left of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle
+        return False, 0.0
     
     deceleration = relative_v ** 2 / (2 * distance)
     if deceleration > max_deceleration:
