@@ -164,6 +164,13 @@ def create_ray_line_set(start, end):
     line_set.colors = o3d.utility.Vector3dVector([[1, 1, 0]])
     return line_set
 
+
+def extract_roi_box(lidar_pc, center, half_extents):
+    lower = center - half_extents
+    upper = center + half_extents
+    mask = np.all((lidar_pc >= lower) & (lidar_pc <= upper), axis=1)
+    return lidar_pc[mask]
+
 def visualize_geometries(geometries, window_name="Open3D", width=800, height=600, point_size=5.0):
     """
     Utility to visualize a list of Open3D geometries.
@@ -181,7 +188,7 @@ def visualize_geometries(geometries, window_name="Open3D", width=800, height=600
 
 def main():
     # Load the color image.
-    idx = 5
+    idx = 7
     img = cv2.imread(f"../data/color{idx}.png")
     if img is None:
         print("Error: Could not load the color image.")
@@ -189,7 +196,7 @@ def main():
 
     # Show the original YOLO detection results on the image.
     model = YOLO("yolov8n.pt")
-    results = model.predict(img, classes=[0])  # detect only person (class id: 0)
+    results = model.predict(img, classes=[0], conf = 0.4)  # detect only person (class id: 0)
     boxes = results[0].boxes.xywh.tolist()  # each box: [center_x, center_y, w, h]
     for box in boxes:
         cx, cy, w, h = box
@@ -235,56 +242,45 @@ def main():
     # For each detected person:
     for box in boxes:
         cx, cy, w, h = box
-        # The center pixel is (cx, cy) since YOLO gives center coordinates.
-        center_u = cx
-        center_v = cy
-
-        # Backproject the center pixel into a ray (camera coordinates).
+        center_u, center_v = cx, cy
         ray_dir_cam = backproject_pixel(center_u, center_v, K)
-        # Transform ray direction to LiDAR coordinates.
         ray_dir_lidar = R_c2l @ ray_dir_cam
-        ray_dir_lidar = ray_dir_lidar / np.linalg.norm(ray_dir_lidar)
+        ray_dir_lidar /= np.linalg.norm(ray_dir_lidar)
 
-        # --- Method 1: Ray-sweeping with plane fitting ---
-        t_min = 0.5      # minimum distance (m)
-        t_max = 20.0     # maximum distance (m)
-        t_step = 0.1     # step size (m)
-        distance_threshold = 0.2   # neighborhood threshold (m)
-        min_points = 20            # minimum points for plane fit
-        ransac_threshold = 0.05    # RANSAC threshold (m)
-
-        intersection, plane_model, inliers = find_human_center_on_ray(
+        intersection, _, _ = find_human_center_on_ray(
             lidar_pc, camera_origin_in_lidar, ray_dir_lidar,
-            t_min, t_max, t_step, distance_threshold, min_points, ransac_threshold
+            t_min=0.5, t_max=20.0, t_step=0.1,
+            distance_threshold=0.5, min_points=10, ransac_threshold=0.05
         )
-
         if intersection is None:
-            print("No 3D intersection found along the ray for box:", box)
             continue
 
-        # --- Method 2: Refine using ROI extraction & DBSCAN ---
-        roi_radius = 1.0  # meters
-        roi_points = extract_roi(lidar_pc, intersection, roi_radius)
-        if roi_points.shape[0] < min_points:
-            print("Not enough points in ROI for box:", box)
+        # Compute physical dimensions based on candidate depth.
+        d = np.linalg.norm(intersection - camera_origin_in_lidar)
+        physical_width = (w * d) / K[0, 0]
+        physical_height = (h * d) / K[1, 1]
+        depth_margin = physical_width  # or a constant like 0.5
+        half_extents = np.array([1.1*physical_width / 2, 1.1*depth_margin / 2, 1.25*physical_height / 2])
+
+        # Extract ROI using a 3D box that matches the 2D bounding box.
+        roi_points = extract_roi_box(lidar_pc, intersection, half_extents)
+        if roi_points.shape[0] < 10:
             continue
-        # Refine the cluster using DBSCAN.
-        refined_cluster = refine_cluster(roi_points, intersection, eps=0.15, min_samples=10)
-        # Remove ground points by choosing the minimum z and eliminating all points within a small z range.
+
+        refined_cluster = refine_cluster(roi_points, intersection, eps=0.125, min_samples=10)
         refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.05)
         if refined_cluster is None or refined_cluster.shape[0] == 0:
             refined_center = intersection
             bbox_dims = np.array([0, 0, 0])
+            yaw, pitch, roll = 0, 0, 0
         else:
-            # Instead of mean, compute the bounding box (oriented) center and dimensions.
             pcd_cluster = o3d.geometry.PointCloud()
             pcd_cluster.points = o3d.utility.Vector3dVector(refined_cluster)
             obb = pcd_cluster.get_oriented_bounding_box()
             refined_center = obb.center
-            bbox_dims = obb.extent  # dimensions along the principal axes
-            # Compute Euler angles (yaw, pitch, roll) from the rotation matrix.
+            bbox_dims = obb.extent
             euler_angles = R.from_matrix(obb.R.copy()).as_euler('zyx', degrees=True)
-            # euler_angles[0] is yaw, euler_angles[1] is pitch, euler_angles[2] is roll.
+            yaw, pitch, roll = euler_angles[0], euler_angles[1], euler_angles[2]
             print(f"Detected human - Pose (yaw, pitch, roll): {euler_angles}")
             print(f"Bounding box center: {refined_center}, Dimensions: {bbox_dims}")
 
@@ -337,9 +333,9 @@ def main():
 
     # Open3D debugging visualizations.
     print("Launching Open3D debug visualization with ALL objects...")
-    visualize_geometries(debug_all, window_name="LiDAR Debug Visualization (All)", point_size=5.0)
+    visualize_geometries(debug_all, window_name="LiDAR Debug Visualization (All)")
     print("Launching Open3D debug visualization without Full PointCloud and ROI...")
-    visualize_geometries(debug_filtered, window_name="LiDAR Debug Visualization (Filtered)", point_size=5.0)
+    visualize_geometries(debug_filtered, window_name="LiDAR Debug Visualization (Filtered)")
 
 if __name__ == '__main__':
     main()
