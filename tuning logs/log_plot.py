@@ -29,7 +29,7 @@ def create_error_plot(t, error, xlabel, ylabel, title, save_path=None):
         plt.savefig(save_path, dpi=600)
 
 def main():
-    log_folder = '2025-02-09_16-51-29'
+    log_folder = '2025-02-13_21-10-39'
     df = pd.read_csv(log_folder + '/PurePursuitTrajectoryTracker_debug.csv')
     save_figures =True
 
@@ -50,6 +50,27 @@ def main():
     cte = df['crosstrack error'].tolist()
     front_wheel_angle = df['front wheel angle (rad)'].tolist()
     accel = df['output accel (m/s^2)'].tolist()
+
+
+
+    rmse_cte = np.sqrt(np.mean(np.array(cte)**2))
+    print(f'RMSE (cte): {rmse_cte}')
+
+    max_accel_error = np.max((np.array(accel) - 1.0)**2)
+    print(f'Maximum (acceleration - 1.0)^2: {max_accel_error}')
+
+    rms_forward_acceleration = np.sqrt(np.mean(np.array(accel)**2))
+    print(f'RMS of Acceleration: {rms_forward_acceleration}')
+
+    dt = np.mean(np.diff(t))
+    jerk = np.gradient(np.array(accel), dt)
+    rms_jerk = np.sqrt(np.mean(jerk**2))
+    print(f'RMS of Jerk: {rms_jerk}')
+
+    w1, w2 = 0.7, 0.3
+    comfort_index = w1 * rms_forward_acceleration + w2 * rms_jerk
+    print(f'Comfort Index: {comfort_index}')
+
 
     create_plot(t, y, yd, '$t$ (s)', '$y(t)$, $y_{d}(t)$ (m)', 'Actual and Desired y', ['Actual $y(t)$', 'Desired $y_{d}(t)$'], os.path.join(plots_folder, 'y_vs_yd.png') if save_figures else None)
     create_error_plot(t, np.array(y) - np.array(yd), '$t$ (s)', 'Error in $y(t)$ (m)', 'Error between Actual and Desired $y(t)$', os.path.join(plots_folder, 'error_y.png') if save_figures else None)
@@ -90,6 +111,9 @@ def main():
         plt.savefig(os.path.join(plots_folder, 'accel.png'), dpi=600)
 
     plt.show()
+
+
+
 
 if __name__ == '__main__':
     main()
