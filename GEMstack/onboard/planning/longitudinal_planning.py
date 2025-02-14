@@ -350,11 +350,13 @@ class YieldTrajectoryPlanner(Component):
                     print("ped", a.pose.x, a.pose.y)
                     print("ego", abs_x, abs_y)
 
-                    # TODO: Make logic for smooth deceleration and re-acceleration
-                    # TEMPORARY: STOP WHEN WITHIN 10M OF PEDESTRIAN
-                    if a.pose.x - abs_x < 10.0 and a.pose.x - abs_x > 0.0:
-                        print("#### Yielding to",n)
-                        should_brake = True
+                    should_brake = True
+
+                    # # TODO: Make logic for smooth deceleration and re-acceleration
+                    # # TEMPORARY: STOP WHEN WITHIN 10M OF PEDESTRIAN
+                    # if a.pose.x - abs_x < 10.0 and a.pose.x - abs_x > 0.0:
+                    #     print("#### Yielding to",n)
+                    #     should_brake = True
 
                     break
 
@@ -362,7 +364,7 @@ class YieldTrajectoryPlanner(Component):
                 # should_brake = True
 
                 # # UNCOMMENT NOT TO BRAKE
-                should_brake = False
+                # should_brake = False
 
                 #=========================
 
