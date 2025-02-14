@@ -154,8 +154,8 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     
     points = new_points
 
-    for p, t in zip(points, times):
-        print(f"Time: {t:.2f}, Point: {p}")
+    # for p, t in zip(points, times):
+    #     print(f"Time: {t:.2f}, Point: {p}")
 
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
@@ -194,8 +194,8 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
         new_points.append([x, 0])
     points = new_points
 
-    for p, t in zip(points, times):
-        print(f"Time: {t:.2f}, Point: {p}")
+    # for p, t in zip(points, times):
+    #     print(f"Time: {t:.2f}, Point: {p}")
 
     trajectory = Trajectory(path.frame,points,times)
     return trajectory
@@ -273,8 +273,11 @@ class YieldTrajectoryPlanner(Component):
                     distance_collision = deceleration[0]
                     b = 3*time_collision - 2*curr_v
                     c = curr_v**2 - 3*distance_collision
-                    self.desired_speed = (-b + (b**2 - 4*c)**0.5)/2
-                    self.deceleration = 1.5
+                    desired_speed = (-b + (b**2 - 4*c)**0.5)/2
+                    deceleration = 1.5
+                    print("@@@@@ YIELDING", desired_speed)
+                    traj = longitudinal_plan(route_to_end, self.acceleration, deceleration, desired_speed, curr_v)
+                    return traj
                 else:
                     if detected and deceleration > 0:
                         yield_deceleration = max(deceleration, yield_deceleration)
