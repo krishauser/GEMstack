@@ -1,6 +1,7 @@
 from ..component import Component
 from ..interface.gem import GEMInterface,GEMVehicleCommand,GEMVehicleReading
 from ..interface.gem_hardware import GEMHardwareInterface
+from typing import List
 
 import time
 
@@ -38,8 +39,13 @@ class BlinkDistress(Component):
     def cleanup(self):
         """Run last"""
         pass
-    
-    def update(self):
+
+    def state_inputs(self) -> List[str]:
+        """Returns the list of AllState inputs this component requires."""
+        return ['intent']
+        # return []
+
+    def update(self, *args):
         """Run in a loop"""
         # we need to set up a GEMVehicleCommand which encapsulates all commands that will be
         # sent to the drive-by-wire system, simultaneously.  To avoid doing arbitrary things
@@ -52,6 +58,11 @@ class BlinkDistress(Component):
         # the command to vehicle
         # self.vehicle_interface.send_command(command)
         self.curr_time = time.time()
+
+        print("====================")
+        print(args)
+        print("====================")
+
         
         if(self.curr_time - self.prev_time > 2):
             if command.left_turn_signal is True:
