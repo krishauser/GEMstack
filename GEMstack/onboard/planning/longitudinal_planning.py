@@ -99,6 +99,19 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
 
         distance_to_move = pedestrian_back - vehicle_front - vehicle_buffer_x + time_to_pass * obj_v_y
 
+
+        # if curr_v**2/2*distance_to_pass >= 1.5:
+        #     return True, curr_v**2/2*distance_to_pass
+        time_to_max_v = (5 - curr_v)/0.5
+
+        if time_to_max_v > time_to_pass:
+            if curr_v*time_to_pass + 0.25*time_to_pass**2 > distance_to_move:
+                return False, 0.0
+        else:
+            if (25 - curr_v**2)*4 + (time_to_pass - time_to_max_v) * 5 >= distance_to_move:
+                return False, 0.0
+
+
         return True, [distance_to_move, time_to_pass]
 
     else:
@@ -503,6 +516,7 @@ class YieldTrajectoryPlanner(Component):
 
                 detected, deceleration = detect_collision(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
                 if isinstance(deceleration, list):
+                    print("@@@@@ INPUT", deceleration)
                     time_collision = deceleration[1]
                     distance_collision = deceleration[0]
                     b = 3*time_collision - 2*curr_v
@@ -510,7 +524,8 @@ class YieldTrajectoryPlanner(Component):
                     desired_speed = (-b + (b**2 - 4*c)**0.5)/2
                     deceleration = 1.5
                     print("@@@@@ YIELDING", desired_speed)
-                    traj = longitudinal_plan(route_to_end, self.acceleration, deceleration, desired_speed, curr_v)
+                    route_with_lookahead = route.trim(closest_parameter,closest_parameter + distance_collision)
+                    traj = longitudinal_plan(route_with_lookahead, self.acceleration, deceleration, desired_speed, curr_v)
                     return traj
                 else:
                     if detected and deceleration > 0:
@@ -523,5 +538,6 @@ class YieldTrajectoryPlanner(Component):
         if should_yield:
             traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
         else:
-            traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v)
+            # traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v)
+            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         return traj 
