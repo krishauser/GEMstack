@@ -23,6 +23,8 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         return longitudinal_plan_milestone(path, acceleration, deceleration, max_speed, current_speed)
     elif method == "dt":
         return longitudinal_plan_dt(path, acceleration, deceleration, max_speed, current_speed)
+    elif method == "dx":
+        return longitudinal_plan_dx(path, acceleration, deceleration, max_speed, current_speed)
     else:
         raise NotImplementedError("Invalid method, only milestone and dt implemented.")
     
@@ -467,6 +469,8 @@ def longitudinal_plan_dt(path, acceleration: float, deceleration: float, max_spe
 
     trajectory = Trajectory(path_norm.frame, points, list(times))
     return trajectory
+
+
 
 def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for braking along a path."""
