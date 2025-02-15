@@ -104,7 +104,6 @@ class Fusion3D():
             ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts)
             self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
 
-        
         # Used for visualization
         if(self.visualization):
             ros_img = self.bridge.cv2_to_imgmsg(cv_image, 'bgr8')
