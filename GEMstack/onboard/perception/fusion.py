@@ -2,6 +2,7 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, PointCloud2
 from ultralytics import YOLO
 from fusion_utils import *
+import open3d as o3d
 import rospy
 import message_filters
 import os
