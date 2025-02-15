@@ -11,6 +11,21 @@ def convert_pointcloud2_to_xyz(lidar_pc2_msg: PointCloud2):
     return np.array(list(pc2.read_points(lidar_pc2_msg, skip_nans=True)), dtype=np.float32)[:, :3]
 
 
+def downsample_points(lidar_points):
+    """ Downsample point clouds """
+    # Convert numpy array to Open3D point cloud
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(lidar_points)
+
+    # Apply voxel grid downsampling
+    voxel_size = 0.1  # Adjust for desired resolution
+    downsampled_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
+
+    # Convert back to numpy array
+    transformed_points = np.asarray(downsampled_pcd.points)
+    return transformed_points
+
+
 # Credits: The following lines of codes (17 to 159 excluding lines 80 to 115) are adapted from the Calibration Team B
 def load_extrinsics(extrinsics_file):
     """

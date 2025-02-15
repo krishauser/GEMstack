@@ -2,11 +2,11 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, PointCloud2
 from ultralytics import YOLO
 from fusion_utils import *
-import open3d as o3d
 import rospy
 import message_filters
 import os
 import tf
+
 
 class Fusion3D():
     def __init__(self):
@@ -22,7 +22,7 @@ class Fusion3D():
         # Load calibration data
         self.R = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/R.npy')
         self.t = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/t.npy')
-        self.K = load_intrinsics(os.getcwd()+ '/GEMstack/onboard/perception/calibration/camera_intrinsics.json')
+        self.K = load_intrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/camera_intrinsics.json')
 
         # Subscribers and sychronizers
         self.rgb_rosbag = message_filters.Subscriber('/oak/rgb/image_raw', Image)
@@ -38,32 +38,22 @@ class Fusion3D():
             self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
 
-
-    def fusion_callback(self, image: Image, lidar_pc2_msg: PointCloud2):
-        image = self.bridge.imgmsg_to_cv2(image, "bgr8") 
-        track_result = self.detector.track(source=image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
+    def fusion_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
+        cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
+        track_result = self.detector.track(source=cv_image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
 
         # Convert 1D PointCloud2 data to x, y, z coords
         lidar_points = convert_pointcloud2_to_xyz(lidar_pc2_msg)
 
-        # Convert numpy array to Open3D point cloud
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(lidar_points)
-
-        # Apply voxel grid downsampling
-        voxel_size = 0.1  # Adjust for desired resolution
-        downsampled_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
-
-        # Convert back to numpy array
-        transformed_points = np.asarray(downsampled_pcd.points)
+        # Downsample xyz point clouds
+        downsampled_points = downsample_points(lidar_points)
         
         # Transform LiDAR points into the camera coordinate frame.
-        lidar_in_camera = transform_lidar_points(transformed_points, self.R, self.t)
+        lidar_in_camera = transform_lidar_points(downsampled_points, self.R, self.t)
     
         # Project the transformed points into the image plane.
         projected_pts = project_points(lidar_in_camera, self.K)
 
-        
         # Process bboxes
         self.last_person_boxes = []
         boxes = track_result[0].boxes
@@ -93,15 +83,15 @@ class Fusion3D():
             
             # Used for visualization
             if(self.visualization):
-                image = vis_2d_bbox(image, xywh, box)
+                cv_image = vis_2d_bbox(cv_image, xywh, box)
         
         # Draw projected LiDAR points on the image.
         for pt in all_extracted_pts:
-            cv2.circle(image, pt, 2, (0, 0, 255), -1)
+            cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
         
         # Used for visualization
         if(self.visualization):
-            ros_img = self.bridge.cv2_to_imgmsg(image, 'bgr8')
+            ros_img = self.bridge.cv2_to_imgmsg(cv_image, 'bgr8')
             self.pub_image.publish(ros_img)  
 
 
