@@ -6,13 +6,15 @@ import cv2
 from typing import Dict
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, PointCloud2, PointField
+import sensor_msgs.point_cloud2 as pc2
 from tf2_sensor_msgs.tf2_sensor_msgs import do_transform_cloud
 from geometry_msgs.msg import TransformStamped
 import rospy
 import os
 import numpy as np
 import tf2_ros
-
+import json
+import open3d as o3d
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -45,6 +47,7 @@ class PedestrianDetector2D(Component):
         self.visualization = True # Set this to true for visualization, later change to get value from sys arg
         self.confidence = 0.7
         self.classes_to_detect = 0
+        self.rosbag_image = None
 
     def rate(self):
         return 4.0
@@ -67,7 +70,7 @@ class PedestrianDetector2D(Component):
         #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
 
         # GEM Car subacriber
-        # self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
 
         # Webcam
         # rospy.Subscriber('/webcam', Image, self.image_callback)
@@ -80,13 +83,14 @@ class PedestrianDetector2D(Component):
         # Testing with rosbag
         if(self.visualization):
             self.rosbag_cam_pub = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
+            self.rosbag_cam_lidar_pub = rospy.Publisher("/camera/sensor_fusion", Image, queue_size=1)
 
         # Lidar Tranform topic publisher
         self.rosbag_lidar_livox_pub = rospy.Publisher("/livox/transformed_lidar", PointCloud2, queue_size=1)
         self.rosbag_lidar_ouster_pub = rospy.Publisher("/ouster/transformed_lidar", PointCloud2, queue_size=1)
 
         self.rosbag_cam_sub = rospy.Subscriber('/oak/rgb/image_raw',Image, self.image_callback,queue_size=1)
-        self.rosbag_lidar_livox_sub = rospy.Subscriber('/livox/lidar',PointCloud2, self.lidar_livox_callback,queue_size=1)
+        # self.rosbag_lidar_livox_sub = rospy.Subscriber('/livox/lidar',PointCloud2, self.lidar_livox_callback,queue_size=1)
         self.rosbag_lidar_ouster_sub = rospy.Subscriber('/ouster/points',PointCloud2, self.lidar_ouster_callback,queue_size=1)
         
         pass
@@ -118,30 +122,90 @@ class PedestrianDetector2D(Component):
     # Livox Lidar data
     def lidar_livox_callback(self,pointcloud : PointCloud2):
 
-        transform = self.tf_buffer.lookup_transform('base_link', pointcloud.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
-        
-        # Transform the point cloud
-        transformed_cloud = do_transform_cloud(pointcloud, transform)
+        points = np.array(list(pc2.read_points(pointcloud, skip_nans=True)), dtype=np.float32)[:, :3]
+        intrinsic_file_path = os.getcwd()+'/GEMstack/knowledge/calibration/intrinsic.json'
+        extrinsics_file_path = os.getcwd()+'/GEMstack/knowledge/calibration/extrinsics.npz'
+        R, t = self.load_extrinsics(extrinsics_file_path)
+        K = self.load_intrinsics(intrinsic_file_path)
 
-        # Publish transformed point cloud
-        self.rosbag_lidar_livox_pub.publish(transformed_cloud)
 
-        if(self.visualization):
-            self.publish_base_link_to_map()
+        # if(self.visualization):
+        #     transform = self.tf_buffer.lookup_transform('base_link', pointcloud.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+        #     # Transform the point cloud
+        #     transformed_cloud = do_transform_cloud(pointcloud, transform)
+        #     # Publish transformed point cloud
+        #     self.rosbag_lidar_livox_pub.publish(transformed_cloud)
+        #     self.publish_base_link_to_map()
 
     # Ouster Lidar data
     def lidar_ouster_callback(self,pointcloud : PointCloud2):
 
-        transform = self.tf_buffer.lookup_transform('base_link', pointcloud.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+        points = np.array(list(pc2.read_points(pointcloud, skip_nans=True)), dtype=np.float32)[:, :3]
+        intrinsic_file_path = os.getcwd()+'/GEMstack/knowledge/calibration/intrinsic.json'
+        extrinsics_file_path = os.getcwd()+'/GEMstack/knowledge/calibration/extrinsics.npz'
+        R, t = self.load_extrinsics(extrinsics_file_path)
+        K = self.load_intrinsics(intrinsic_file_path)
         
-        # Transform the point cloud
-        transformed_cloud = do_transform_cloud(pointcloud, transform)
+        transformed_points = (R @ points.T + t.reshape(3,1)).T
 
-        # Publish transformed point cloud
-        self.rosbag_lidar_livox_pub.publish(transformed_cloud)
+        print(f"before :{transformed_points.shape}")
+        # Convert numpy array to Open3D point cloud
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(transformed_points)
 
-        if(self.visualization):
-            self.publish_base_link_to_map()
+        # Apply voxel grid downsampling
+        voxel_size = 0.1  # Adjust for desired resolution
+        downsampled_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
+
+        # Convert back to numpy array
+        transformed_points = np.asarray(downsampled_pcd.points)
+        print(f"after :{transformed_points.shape}")
+
+        for p in transformed_points:
+            if p[2] > 0:  # only project points in front of the camera
+                u = K[0, 0] * (p[0] / p[2]) + K[0, 2]
+                v = K[1, 1] * (p[1] / p[2]) + K[1, 2]
+                cv2.circle(self.rosbag_image, (int(u),int(v)), 2, (0, 0, 255), -1)
+
+        ros_img = self.cv_bridge.cv2_to_imgmsg(self.rosbag_image, 'bgr8')
+        self.rosbag_cam_lidar_pub.publish(ros_img)
+        
+        
+
+        # if(self.visualization):
+        #     transform = self.tf_buffer.lookup_transform('base_link', pointcloud.header.frame_id, rospy.Time(0), rospy.Duration(1.0))
+        #     # Transform the point cloud
+        #     transformed_cloud = do_transform_cloud(pointcloud, transform)
+        #     # Publish transformed point cloud
+        #     self.rosbag_lidar_ouster_pub.publish(transformed_cloud)
+        #     self.publish_base_link_to_map()
+
+
+    def load_extrinsics(self,extrinsics_file):
+        """
+        Load calibrated extrinsics from a .npz file.
+        Assumes the file contains keys 'R' and 't'.
+        """
+        data = np.load(extrinsics_file)
+        R = data['R']
+        t = data['t']
+        return R, t
+
+    def load_intrinsics(self,intrinsics_file):
+        """
+        Load camera intrinsics from a JSON file.
+        Expects keys: 'fx', 'fy', 'cx', and 'cy'.
+        """
+        with open(intrinsics_file, 'r') as f:
+            intrinsics = json.load(f)
+        fx = intrinsics["fx"]
+        fy = intrinsics["fy"]
+        cx = intrinsics["cx"]
+        cy = intrinsics["cy"]
+        K = np.array([[fx, 0, cx],
+                    [0, fy, cy],
+                    [0,  0,  1]], dtype=np.float32)
+        return K
 
     
     # Use cv2.Mat for GEM Car, Image for RosBag
@@ -220,6 +284,7 @@ class PedestrianDetector2D(Component):
 
                 # Draw main text on top of the outline
                 cv2.putText(image, label, (text_x, text_y - baseline), font, font_scale, font_color, text_thickness)
+                self.rosbag_image = image
 
         
         # Used for visualization
