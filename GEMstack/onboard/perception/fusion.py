@@ -40,6 +40,7 @@ class Fusion3D():
 
 
     def fusion_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
+        # Convert to cv2 image and run detector
         cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
         track_result = self.detector.track(source=cv_image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
 
