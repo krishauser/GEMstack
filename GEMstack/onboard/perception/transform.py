@@ -1,5 +1,6 @@
 import rospy
 import tf
+import numpy as np
 
 def publish_tf():
     rospy.init_node('pointcloud_tf_broadcaster')
@@ -8,8 +9,8 @@ def publish_tf():
 
     while not rospy.is_shutdown():
         br.sendTransform(
-            (0, 0, 1),  # (x, y, z) translation
-            tf.transformations.quaternion_from_euler(0, 0, 0),  # (roll, pitch, yaw)
+            (0, 1.5, 7),  # (x, y, z) translation
+            tf.transformations.quaternion_from_euler(0.5* np.pi, 0, 0),  # (roll, pitch, yaw)
             rospy.Time.now(),
             "os_sensor",  # Child frame (sensor)
             "map"  # Parent frame (world)

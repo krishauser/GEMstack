@@ -1,9 +1,12 @@
-from sensor_msgs.msg import PointCloud2
+from sensor_msgs.msg import PointCloud2, PointField
 import numpy as np
 import sensor_msgs.point_cloud2 as pc2
 import open3d as o3d
 import cv2
 import json
+import rospy
+import numpy as np
+import struct
 
 
 def convert_pointcloud2_to_xyz(lidar_pc2_msg: PointCloud2):
@@ -85,7 +88,7 @@ def project_points(points_3d, K):
         if pt[2] > 0:  # only project points in front of the camera
             u = K[0, 0] * (pt[0] / pt[2]) + K[0, 2]
             v = K[1, 1] * (pt[1] / pt[2]) + K[1, 2]
-            proj_points.append((int(u), int(v)))
+            proj_points.append((int(u), int(v), pt[0], pt[1], pt[2]))
     return proj_points
 
 
@@ -134,10 +137,16 @@ def visualize_point_cloud(points):
     Args:
         points (np.ndarray): Nx3 array of point cloud coordinates.
     """
+    # Create a visualization window
+    vis = o3d.visualization.Visualizer()
+    vis.create_window()
+
     pc = o3d.geometry.PointCloud()
     pc.points = o3d.utility.Vector3dVector(points)
-    pc.paint_uniform_color([0.1, 0.7, 0.9])  # Light blue color
-    o3d.visualization.draw_geometries([pc])
+    pc.paint_uniform_color([0.1, 0.7, 0.9])
+
+    vis.add_geometry(pc)
+    vis.run()
 
 
 def visualize_plane(inlier_cloud, outlier_cloud, bounding_box_2d_points):
@@ -169,3 +178,27 @@ def visualize_plane(inlier_cloud, outlier_cloud, bounding_box_2d_points):
     
     # Visualize
     o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud, bounding_box_pcd, bounding_box_lines])
+
+
+def create_point_cloud(points, color=(255, 0, 0)):
+    """
+    Converts a list of (x, y, z) points into a PointCloud2 message.
+    """
+    header = rospy.Header()
+    header.stamp = rospy.Time.now()
+    header.frame_id = "map"  # Change to your TF frame
+
+    fields = [
+        PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
+        PointField(name="y", offset=4, datatype=PointField.FLOAT32, count=1),
+        PointField(name="z", offset=8, datatype=PointField.FLOAT32, count=1),
+        PointField(name="rgb", offset=12, datatype=PointField.FLOAT32, count=1),
+    ]
+
+    # Convert RGB color to packed float32
+    r, g, b = color
+    packed_color = struct.unpack('f', struct.pack('I', (r << 16) | (g << 8) | b))[0]
+
+    point_cloud_data = [(x, y, z, packed_color) for x, y, z in points]
+
+    return pc2.create_cloud(header, fields, point_cloud_data)

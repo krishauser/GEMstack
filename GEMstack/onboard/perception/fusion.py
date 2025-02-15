@@ -34,6 +34,7 @@ class Fusion3D():
         self.tf_listener = tf.TransformListener()
 
         # Publishers
+        self.pub_pedestrians_pc2 = rospy.Publisher("/point_cloud/pedestrians", PointCloud2, queue_size=10)
         if(self.visualization):
             self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
@@ -80,14 +81,26 @@ class Fusion3D():
                                     ]
                 
                 all_extracted_pts = all_extracted_pts + list(extracted_pts)
-            
+
             # Used for visualization
             if(self.visualization):
                 cv_image = vis_2d_bbox(cv_image, xywh, box)
         
-        # Draw projected LiDAR points on the image.
-        for pt in all_extracted_pts:
-            cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
+        if len(all_extracted_pts) > 0:
+            # Extract 2D points
+            extracted_2d_pts = list(np.array(all_extracted_pts)[:, :2].astype(int))
+
+            # Draw projected 2D LiDAR points on the image.
+            for pt in extracted_2d_pts:
+                cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
+
+            # Extract 3D points
+            extracted_3d_pts = list(np.array(all_extracted_pts)[:, -3:])
+
+            # Create point cloud from extracted 3D points
+            ros_extracted_pedestrian_pc2 = create_point_cloud(extracted_3d_pts)
+            self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
+
         
         # Used for visualization
         if(self.visualization):
