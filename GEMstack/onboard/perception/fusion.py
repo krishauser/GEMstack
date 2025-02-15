@@ -45,17 +45,10 @@ class Fusion3D():
 
         # Convert 1D PointCloud2 data to x, y, z coords
         lidar_points = convert_pointcloud2_to_xyz(lidar_pc2_msg)
-    
-        # Transform LiDAR points into the camera coordinate frame.
-        lidar_in_camera = transform_lidar_points(lidar_points, self.R, self.t)
-    
-        # Project the transformed points into the image plane.
-        projected_pts = project_points(lidar_in_camera, self.K)
 
         # Convert numpy array to Open3D point cloud
-        transformed_points = projected_pts
         pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(transformed_points)
+        pcd.points = o3d.utility.Vector3dVector(lidar_points)
 
         # Apply voxel grid downsampling
         voxel_size = 0.1  # Adjust for desired resolution
@@ -63,7 +56,13 @@ class Fusion3D():
 
         # Convert back to numpy array
         transformed_points = np.asarray(downsampled_pcd.points)
-        print(f"after :{transformed_points.shape}")
+        
+        # Transform LiDAR points into the camera coordinate frame.
+        lidar_in_camera = transform_lidar_points(transformed_points, self.R, self.t)
+    
+        # Project the transformed points into the image plane.
+        projected_pts = project_points(lidar_in_camera, self.K)
+
         
         # Process bboxes
         self.last_person_boxes = []
