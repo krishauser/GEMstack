@@ -11,7 +11,7 @@ def publish_tf():
             (0, 0, 1),  # (x, y, z) translation
             tf.transformations.quaternion_from_euler(0, 0, 0),  # (roll, pitch, yaw)
             rospy.Time.now(),
-            "oak_rgb_camera_optical_frame",  # Child frame (sensor)
+            "os_sensor",  # Child frame (sensor)
             "map"  # Parent frame (world)
         )
         rate.sleep()
