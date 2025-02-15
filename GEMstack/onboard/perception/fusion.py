@@ -42,18 +42,6 @@ class Fusion3D():
         image = self.bridge.imgmsg_to_cv2(image, "bgr8") 
         track_result = self.detector.track(source=image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
 
-        self.last_person_boxes = []
-        boxes = track_result[0].boxes
-
-        # Unpacking box dimentions detected into x,y,w,h
-        for box in boxes:
-            xywh = box.xywh[0].tolist()
-            self.last_person_boxes.append(xywh)
-
-            # Used for visualization
-            if(self.visualization):
-                image = vis_2d_bbox(image, xywh, box)
-
         # Convert 1D PointCloud2 data to x, y, z coords
         lidar_points = convert_pointcloud2_to_xyz(lidar_pc2_msg)
     
@@ -63,11 +51,40 @@ class Fusion3D():
         # Project the transformed points into the image plane.
         projected_pts = project_points(lidar_in_camera, self.K)
         
-        # Draw projected LiDAR points on the image.
-        for pt in projected_pts:
-            cv2.circle(image, pt, 2, (0, 0, 255), -1)
+        # Process bboxes
+        self.last_person_boxes = []
+        boxes = track_result[0].boxes
 
-        # visualize_point_cloud(p_img_cloud)
+        # Unpacking box dimentions detected into x,y,w,h
+        all_extracted_pts = []
+        for box in boxes:
+            xywh = box.xywh[0].tolist()
+            self.last_person_boxes.append(xywh)
+
+            # Extracting projected pts
+            x, y, w, h = xywh
+            left_bound = int(x - w / 2)
+            right_bound = int(x + w / 2)
+            top_bound = int(y - h / 2)
+            bottom_bound = int(y + h / 2)
+
+            if len(projected_pts) > 0:
+                pts = np.array(projected_pts)
+                extracted_pts = pts[(pts[:, 0] > left_bound) &
+                                    (pts[:, 0] < right_bound) &
+                                    (pts[:, 1] > top_bound) &
+                                    (pts[:, 1] < bottom_bound)
+                                    ]
+                
+                all_extracted_pts = all_extracted_pts + list(extracted_pts)
+            
+            # Used for visualization
+            if(self.visualization):
+                image = vis_2d_bbox(image, xywh, box)
+        
+        # Draw projected LiDAR points on the image.
+        for pt in all_extracted_pts:
+            cv2.circle(image, pt, 2, (0, 0, 255), -1)
         
         # Used for visualization
         if(self.visualization):
