@@ -9,7 +9,7 @@ def publish_tf():
 
     while not rospy.is_shutdown():
         br.sendTransform(
-            (0, 1.5, 7),  # (x, y, z) translation
+            (0, 1.6, 7),  # (x, y, z) translation
             tf.transformations.quaternion_from_euler(0.5* np.pi, 0, 0),  # (roll, pitch, yaw)
             rospy.Time.now(),
             "os_sensor",  # Child frame (sensor)

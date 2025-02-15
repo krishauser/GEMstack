@@ -1,4 +1,5 @@
 from sensor_msgs.msg import PointCloud2, PointField
+from scipy.stats import zscore
 import numpy as np
 import sensor_msgs.point_cloud2 as pc2
 import open3d as o3d
@@ -23,10 +24,21 @@ def downsample_points(lidar_points):
     # Apply voxel grid downsampling
     voxel_size = 0.1  # Adjust for desired resolution
     downsampled_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
-
+    
     # Convert back to numpy array
     transformed_points = np.asarray(downsampled_pcd.points)
     return transformed_points
+
+
+def filter_ground_points(lidar_points, ground_threshold = 0):
+    filtered_array = lidar_points[lidar_points[:, 3] < ground_threshold]
+    return filtered_array
+
+
+def filter_far_points(lidar_points, max_dist_percent=0.85):
+    max_dist = np.max(lidar_points[:, 4])
+    filtered_array = lidar_points[lidar_points[:, 4] < max_dist_percent * max_dist]
+    return filtered_array
 
 
 # Credits: The following lines of codes (from 33 to 92) are adapted from the Calibration Team B

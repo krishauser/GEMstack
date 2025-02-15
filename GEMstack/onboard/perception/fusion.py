@@ -18,6 +18,8 @@ class Fusion3D():
         self.visualization = True
         self.confidence = 0.7
         self.classes_to_detect = 0
+        self.ground_threshold = 1.6
+        self.max_dist_percent = 0.7
 
         # Load calibration data
         self.R = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/R.npy')
@@ -84,10 +86,17 @@ class Fusion3D():
                                     (pts[:, 1] < bottom_bound)
                                     ]
                 
-                extracted_2d_pts = list(np.array(extracted_pts)[:, :2].astype(int))
+                #if no points extracted for this bbox, skip
+                if len(extracted_pts) < 1:
+                    continue
+                
+                extracted_pts = filter_ground_points(extracted_pts, self.ground_threshold)
+                extracted_pts = filter_far_points(extracted_pts)
+                
+                extracted_2d_pts = list(extracted_pts[:, :2].astype(int))
                 flattened_pedestrians_2d_pts = flattened_pedestrians_2d_pts + extracted_2d_pts
-               
-                extracted_3d_pts = list(np.array(extracted_pts)[:, -3:])
+
+                extracted_3d_pts = list(extracted_pts[:, -3:])
                 pedestrians_3d_pts.append(extracted_3d_pts)
                 flattened_pedestrians_3d_pts = flattened_pedestrians_3d_pts + extracted_3d_pts
 
@@ -95,7 +104,10 @@ class Fusion3D():
             if(self.visualization):
                 cv_image = vis_2d_bbox(cv_image, xywh, box)
         
-        if len(pedestrians_3d_pts) > 0:
+        if len(flattened_pedestrians_3d_pts) > 0:
+            # print(f"x_dim pedestrians_3d_pts: {np.max(np.array(flattened_pedestrians_3d_pts)[:, 0]), np.min(np.array(flattened_pedestrians_3d_pts)[:, 0])}")
+            # print(f"y_dim pedestrians_3d_pts: {np.max(np.array(flattened_pedestrians_3d_pts)[:, 1]), np.min(np.array(flattened_pedestrians_3d_pts)[:, 1])}")
+            # print(f"z_dim pedestrians_3d_pts: {np.max(np.array(flattened_pedestrians_3d_pts)[:, 2]), np.min(np.array(flattened_pedestrians_3d_pts)[:, 2])}")
             # Draw projected 2D LiDAR points on the image.
             for pt in flattened_pedestrians_2d_pts:
                 cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
