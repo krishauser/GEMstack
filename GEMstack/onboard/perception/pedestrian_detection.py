@@ -5,7 +5,8 @@ from ultralytics import YOLO
 import cv2
 from typing import Dict
 from cv_bridge import CvBridge
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
+import sensor_msgs.point_cloud2 as pc2
 import rospy
 import os
 from typing import Union
@@ -54,9 +55,8 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
     def __init__(self,vehicle_interface : GEMInterface):
         self.detector = YOLO(os.getcwd()+'/GEMstack/knowledge/detection/yolov8n.pt') # change to get model value from sys arg
         self.last_person_boxes = [] 
-        self.pedestrians = {}
-        self.confidence = 0.7
-        self.classes_to_detect = 0
+        self.confidence = 0.7 # YOLO Confidence level at which a pedestrian is considered detected
+        self.classes_to_detect = 0 # The YOLO class id's that are being detected
         
         # Setup visualization variables
         self.visualization = True # Set this to true for visualization, later change to get value from sys arg
@@ -70,7 +70,6 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
         self.outline_thickness = 1  # Thickness of the text outline
     
     def initialize(self):
-
         """Initializes subscribers and publishers
         
         self.vehicle_interface.subscribe_sensor -> GEM Car camera subscription
@@ -78,41 +77,58 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
         self.pub_image -> Publishes Image with detection for visualization
 
         """
-        #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-
-        # GEM Car subscriber
-        # self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
-
-        # Webcam
-        # rospy.Subscriber('/webcam', Image, self.image_callback)
-
-        # Testing with rosbag
-        self.rosbag_test = rospy.Subscriber('/oak/rgb/image_raw',Image, self.image_callback,queue_size=1)
         if(self.visualization):
             self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
+        
+        front_image = message_filters.Subscriber('/oak/rgb/image_raw', Image)
+        ouster = message_filters.Subscriber('/ouster/scan', PointCloud2D)
+
+        ats = message_filters.ApproximateTimeSynchronizer([front_image, ouster], queue_size=1, slop=0.01) # TODO calculate slop parameter
+        ats.registerCallback(self.detect_pedestrians)
+
+    def detect_pedestrians(self, front_image_msg: Image, ouster_msg: PointCloud2D):
+        """Fuses Image and Lidar information to detect pedestrians
+        """
+        # combined_point_cloud = self.combine_point_clouds # Removed because we only have transformation for a single lidar (ouster) at the moment. Probably should return np.array
+
+        point_cloud = np.array(list(pc2.read_points(ouster_msg, skip_nans=True)), dtype=np.float32)[:, :3]
+
+        image_pedestrians = self.detect_pedestrians_in_image(image=front_image_msg)
+
+        for id in image_pedestrians:
+            #### Scrum-20: Calculate and Convert Image Points to Lidar Frame of Reference Task:
+            (estimated_ped_cloud, flat_center) = self.extract_ped_cloud(point_cloud=point_cloud, image_pedestrian=image_pedestrians[key])
+
+            #### Scrum-21 & 39:Calculate Pedestrian Center and Dimensions
+            # Determine a more exact center and dimensions of the pedestrian by ignoring background point cloud points
+            (pose, dims) = self.calc_ped_center_dims(estimated_ped_cloud, flat_center)
+            image_pedestrians[id].pose = pose
+            image_pedestrians[id].dims = dims
+
+        #### Scrum-35: Associate and Track Pedestrian Id's
+        self.associate_and_track_peds(image_pedestrians)
     
     # Use cv2.Mat for GEM Car, Image for RosBag
-    def image_callback(self, image : Union[cv2.Mat, Image]):
-
+    def detect_pedestrians_in_image(self, image : Union[cv2.Mat, Image]) -> dict:
         """Detects pedestrians using the model provided when new image is passed.
 
-        Converts Image.msg to cv2 format (Might need to change this to use cv2.Mat) and uses the model to detect pedestrian
+        Converts Image.msg to cv2 format and uses the model to detect pedestrian
         IF visualization is true, will publish an image with pedestrians detected.
 
         Hardcoded values for now:
             Detected only pedestrians -> Class = 0
-            Confidence level -> 0.7
         
         """
 
-        # Use Image directly for GEM Car convert to cv2.Mat for rosbag:
+        # Use Image directly for GEM Car, convert to cv2.Mat for rosbag:
         if type(image) == Image:
-            bridge = CvBridge() 
+            bridge = CvBridge()
             image = bridge.imgmsg_to_cv2(image, "bgr8") 
         track_result = self.detector.track(source=image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
 
         self.last_person_boxes = []
         boxes = track_result[0].boxes
+        image_pedestrians = {} # Stores a dictionary of pedestrian AgentState objects with the YOLO predicted id as the key
 
         # Unpacking box dimentions detected into x,y,w,h
         for box in boxes:
@@ -125,39 +141,30 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
             # Stores AgentState in a dict, can be removed if not required
             pose = ObjectPose(t=0,x=x,y=y,z=0,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT)
             dims = (w,h,0)
-            if(id not in self.pedestrians.keys()):
-                self.pedestrians[id] = AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
+            if(id not in pedestrians.keys()):
+                image_pedestrians[id] = AgentState(pose=pose,dimensions=dims,outline=None,type=AgentEnum.PEDESTRIAN,activity=AgentActivityEnum.MOVING,velocity=(0,0,0),yaw_rate=0)
             else:
-                self.pedestrians[id].pose = pose
-                self.pedestrians[id].dims = dims
+                image_pedestrians[id].pose = pose
+                image_pedestrians[id].dims = dims
 
             # Used for visualization
             if(self.visualization):
                 self.__visualize_labeled_image(image, box, x, y, w, h)
-
-            #### Calculate and Convert Image Points to Lidar Frame of Reference Task:
-            (ped_cloud, flat_center) = self.extract_ped_cloud(x, y, w, h)
-
-            #### Calculate Pedestrian Center and Dimensions
-            (pose, dims) = self.calc_ped_center_dims(ped_cloud, flat_center)
-            self.pedestrians[id].pose = pose
-            self.pedestrians[id].dims = dims
-
-            #### Associate and Track Pedestrian Id's
-            self.associate_and_track_peds()
         
+        #uncomment if you want to debug the detector...
+        # print(self.last_person_boxes)
+        # print(pedestrians.keys())
+        #for bb in self.last_person_boxes:
+        #    x,y,w,h = bb
+        #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
+        #cv2.imwrite("pedestrian_detections.png",image)
+
         # Used for visualization
         if(self.visualization):
             ros_img = bridge.cv2_to_imgmsg(image, 'bgr8')
             self.pub_image.publish(ros_img)
 
-        #uncomment if you want to debug the detector...
-        # print(self.last_person_boxes)
-        # print(self.pedestrians.keys())
-        #for bb in self.last_person_boxes:
-        #    x,y,w,h = bb
-        #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
-        #cv2.imwrite("pedestrian_detections.png",image)
+        return image_pedestrians
 
     def __visualize_labeled_image(self, image: cv2.Mat, box, x: float, y: float, w: float, h: float):
         # Draw bounding box
@@ -182,24 +189,20 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
 
         # Draw main text on top of the outline
         cv2.putText(image, label, (text_x, text_y - baseline), self.font, self.font_scale, self.font_color, self.text_thickness)
-
-    def extract_ped_cloud(x: float, y: float, w: float, h: float): # return type TBD
-        img_center = self.__calculate_image_center(x, y, w, h)
-        img_corners = self.__calculate_image_corners(x, y, w, h)
-
-        # Convert the calculated image points into LIDAR frame of reference
-        (flat_center, boundary_corners) = self.__convert_img_pts_to_lidar_frame(img_center, img_corners)
-
-        # Extract all point cloud points that are on or within the 4 corners
-        ped_cloud = self.__extract_pedestrian_cloud(boundary_corners)
-        return (ped_cloud, flat_center)
     
-    def calc_ped_center_dims(ped_cloud, flat_center):
-        return (pose, dims)
-
-    def associate_and_track_peds():
+    def extract_ped_cloud(point_cloud: np.array, image_pedestrian: AgentState):
+        # return (estimated_ped_cloud, flat_center)
         pass
-    
+
+    def calc_ped_center_dims(estimated_ped_cloud: np.array, flat_center: np.array):
+        #### Scrum-21 & 39:Calculate Pedestrian Center and Dimensions
+        # Determine a more exact center and dimensions of the pedestrian by ignoring background point cloud points
+        # return (pose, dims)
+        pass
+
+        #### Scrum-35: Associate and Track Pedestrian Id's
+        self.associate_and_track_peds(image_pedestrians)
+
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         res = {}
         for i,b in enumerate(self.last_person_boxes):
