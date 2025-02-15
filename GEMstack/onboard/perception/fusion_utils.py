@@ -29,7 +29,7 @@ def downsample_points(lidar_points):
     return transformed_points
 
 
-# Credits: The following lines of codes (17 to 159 excluding lines 80 to 115) are adapted from the Calibration Team B
+# Credits: The following lines of codes (from 33 to 92) are adapted from the Calibration Team B
 def load_extrinsics(extrinsics_file):
     """
     Load calibrated extrinsics from a .npz file.
@@ -126,58 +126,7 @@ def vis_2d_bbox(image, xywh, box):
 
     # Draw main text on top of the outline
     cv2.putText(image, label, (text_x, text_y - baseline), font, font_scale, font_color, text_thickness)
-
     return image
-
-
-def visualize_point_cloud(points):
-    """
-    Visualizes the given point cloud using Open3D.
-
-    Args:
-        points (np.ndarray): Nx3 array of point cloud coordinates.
-    """
-    # Create a visualization window
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-
-    pc = o3d.geometry.PointCloud()
-    pc.points = o3d.utility.Vector3dVector(points)
-    pc.paint_uniform_color([0.1, 0.7, 0.9])
-
-    vis.add_geometry(pc)
-    vis.run()
-
-
-def visualize_plane(inlier_cloud, outlier_cloud, bounding_box_2d_points):
-    """
-    Visualizes the detected plane with its 2D bounding box.
-
-    :param inlier_cloud: Open3D point cloud containing plane points.
-    :param outlier_cloud: Open3D point cloud containing non-plane points.
-    :param bounding_box_2d_points: 4 corner points of the 2D bounding box on the plane.
-    """
-    inlier_cloud.paint_uniform_color([1, 0, 0])  # Red for the plane
-    outlier_cloud.paint_uniform_color([0.5, 0.5, 0.5])  # Gray for other points
-
-    # Create bounding box visualization
-    bounding_box_pcd = o3d.geometry.PointCloud()
-    bounding_box_pcd.points = o3d.utility.Vector3dVector(bounding_box_2d_points)
-    bounding_box_pcd.paint_uniform_color([0, 1, 0])  # Green for bounding box corners
-    
-    # Create a bounding box line set (connect corners)
-    lines = [
-        [0, 1], [1, 2], [2, 3], [3, 0]   # Edges of the rectangle
-    ]
-    
-    bounding_box_lines = o3d.geometry.LineSet()
-    bounding_box_lines.points = o3d.utility.Vector3dVector(bounding_box_2d_points)
-    bounding_box_lines.lines = o3d.utility.Vector2iVector(lines)
-    
-    bounding_box_lines.paint_uniform_color([0, 1, 0])  # Green for bounding box edges
-    
-    # Visualize
-    o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud, bounding_box_pcd, bounding_box_lines])
 
 
 def create_point_cloud(points, color=(255, 0, 0)):

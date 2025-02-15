@@ -60,7 +60,11 @@ class Fusion3D():
         boxes = track_result[0].boxes
 
         # Unpacking box dimentions detected into x,y,w,h
-        all_extracted_pts = []
+        extracted_2d_pedestrians_pts = []
+        extracted_3d_pedestrians_pts = []
+        flattened_extracted_2d_pedestrians_pts = []
+        flattened_extracted_3d_pedestrians_pts = []
+
         for box in boxes:
             xywh = box.xywh[0].tolist()
             self.last_person_boxes.append(xywh)
@@ -80,25 +84,25 @@ class Fusion3D():
                                     (pts[:, 1] < bottom_bound)
                                     ]
                 
-                all_extracted_pts = all_extracted_pts + list(extracted_pts)
+                extracted_2d_pts = list(np.array(extracted_pts)[:, :2].astype(int))
+                extracted_2d_pedestrians_pts.append(extracted_2d_pts)
+                flattened_extracted_2d_pedestrians_pts = flattened_extracted_2d_pedestrians_pts + extracted_2d_pts
+               
+                extracted_3d_pts = list(np.array(extracted_pts)[:, -3:])
+                extracted_3d_pedestrians_pts.append(extracted_3d_pts)
+                flattened_extracted_3d_pedestrians_pts = flattened_extracted_3d_pedestrians_pts + extracted_3d_pts
 
             # Used for visualization
             if(self.visualization):
                 cv_image = vis_2d_bbox(cv_image, xywh, box)
         
-        if len(all_extracted_pts) > 0:
-            # Extract 2D points
-            extracted_2d_pts = list(np.array(all_extracted_pts)[:, :2].astype(int))
-
+        if len(extracted_2d_pedestrians_pts) > 0:
             # Draw projected 2D LiDAR points on the image.
-            for pt in extracted_2d_pts:
+            for pt in flattened_extracted_2d_pedestrians_pts:
                 cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
 
-            # Extract 3D points
-            extracted_3d_pts = list(np.array(all_extracted_pts)[:, -3:])
-
             # Create point cloud from extracted 3D points
-            ros_extracted_pedestrian_pc2 = create_point_cloud(extracted_3d_pts)
+            ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_extracted_3d_pedestrians_pts)
             self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
 
         
