@@ -8,10 +8,7 @@ import json
 
 def convert_pointcloud2_to_xyz(lidar_pc2_msg: PointCloud2):
     """ Convert 1D PointCloud2 data to x, y, z coords """
-    lidar_points = []
-    for point in pc2.read_points(lidar_pc2_msg, field_names=("x", "y", "z", "intensity"), skip_nans=True):
-        lidar_points.append([point[0], point[1], point[2]])
-    return np.array(lidar_points)
+    return np.array(list(pc2.read_points(lidar_pc2_msg, skip_nans=True)), dtype=np.float32)[:, :3]
 
 
 # Credits: The following lines of codes (17 to 159 excluding lines 80 to 115) are adapted from the Calibration Team B

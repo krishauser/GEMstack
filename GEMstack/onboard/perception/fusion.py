@@ -50,6 +50,19 @@ class Fusion3D():
     
         # Project the transformed points into the image plane.
         projected_pts = project_points(lidar_in_camera, self.K)
+
+        # Convert numpy array to Open3D point cloud
+        transformed_points = projected_pts
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(transformed_points)
+
+        # Apply voxel grid downsampling
+        voxel_size = 0.1  # Adjust for desired resolution
+        downsampled_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
+
+        # Convert back to numpy array
+        transformed_points = np.asarray(downsampled_pcd.points)
+        print(f"after :{transformed_points.shape}")
         
         # Process bboxes
         self.last_person_boxes = []
