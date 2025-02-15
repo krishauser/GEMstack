@@ -164,10 +164,14 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         # if the initial speed is greater than the max speed
         elif current_speed > max_speed:
             # We need to hit the breaks 
-
-            next_point = points[cur_index+1]
-            acc = acceleration
+            acc = deceleration
             flag = 1
+            # next point 
+            next_point = points[cur_index+1]
+            if next_point[0] - cur_point[0] > rq * acc:
+                tmp = cur_point[0] + (next_point[0] - cur_point[0]) / (acc * multi)
+                flag = 0
+                next_point = [tmp, next_point[1]]
             print("In case four")
             # slow down to max speed 
             delta_t_to_max_speed = (current_speed - max_speed)/deceleration
