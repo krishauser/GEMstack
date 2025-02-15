@@ -22,8 +22,8 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
     times = [t for t in path_normalized.times]
     #=============================================
     # Adjust these two numbers to choose between computation speed or smoothness
-    rq = 0.01
-    multi = 10
+    rq = 0.1  # Smaller, smoother
+    multi = 5 # Larger, smoother
     print("-----LONGITUDINAL PLAN-----")
     print("path length: ", path.length())
     length = path.length()
@@ -68,7 +68,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         # Check if we are done
 
         # If we cannot stop before or stop exactly at the final position requested
-        if cur_point[0] + min_delta_x_stop >= points[-1][0]:
+        if cur_point[0] + min_delta_x_stop >= points[-1][0] - 0.0001:
             acc = deceleration
             flag = 1
             print("In case one")
@@ -76,12 +76,14 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
             # Calculate the next point in a special manner because of too-little time to stop 
             if cur_index >= len(points)-1:
                 # the next point in this instance would be when we stop
+                print(1)
                 if min_delta_x_stop < rq * acc:
                     next_point = (cur_point[0] + min_delta_x_stop, 0)
                 else:
                     next_point = (cur_point[0] + (min_delta_x_stop / (acc * multi)), 0)
                     flag = 0
             else:
+                print(2)
                 next_point = points[cur_index+1]
                 if next_point[0] - cur_point[0] > rq * acc:
                     tmp = cur_point[0] + (next_point[0] - cur_point[0]) / (acc * multi)
@@ -102,6 +104,7 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         # the only time current_speed < max_speed is when we are accelerating 
         elif current_speed < max_speed:
             print("In case two")
+            print(current_speed)
             acc = acceleration
             flag = 1
             # next point 
