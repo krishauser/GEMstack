@@ -1,5 +1,4 @@
 from sensor_msgs.msg import PointCloud2, PointField
-from scipy.stats import zscore
 import numpy as np
 import sensor_msgs.point_cloud2 as pc2
 import open3d as o3d
@@ -31,11 +30,13 @@ def downsample_points(lidar_points):
 
 
 def filter_ground_points(lidar_points, ground_threshold = 0):
+    """ Filter points given an elevation of ground threshold """
     filtered_array = lidar_points[lidar_points[:, 3] < ground_threshold]
     return filtered_array
 
 
 def filter_far_points(lidar_points, max_dist_percent=0.85):
+    """ Filter points beyond a percentage threshold of max distance in a point cluster """
     max_dist = np.max(lidar_points[:, 4])
     filtered_array = lidar_points[lidar_points[:, 4] < max_dist_percent * max_dist]
     return filtered_array
@@ -100,6 +101,7 @@ def project_points(points_3d, K):
         if pt[2] > 0:  # only project points in front of the camera
             u = K[0, 0] * (pt[0] / pt[2]) + K[0, 2]
             v = K[1, 1] * (pt[1] / pt[2]) + K[1, 2]
+            # 5D points that stores original lidar points
             proj_points.append((int(u), int(v), pt[0], pt[1], pt[2]))
     return proj_points
 
