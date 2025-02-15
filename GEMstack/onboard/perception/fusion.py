@@ -90,11 +90,11 @@ class Fusion3D():
                 if len(extracted_pts) < 1:
                     continue
                 
-                # Apply ground and max distance filter to extracted 5D points
+                # Apply ground and max distance filter to the extracted 5D points
                 extracted_pts = filter_ground_points(extracted_pts, self.ground_threshold)
                 extracted_pts = filter_far_points(extracted_pts)
                 
-                # Extract 2D pedestrians points camera frame
+                # Extract 2D pedestrians points in camera frame
                 extracted_2d_pts = list(extracted_pts[:, :2].astype(int))
                 flattened_pedestrians_2d_pts = flattened_pedestrians_2d_pts + extracted_2d_pts
 
