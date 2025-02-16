@@ -1,5 +1,5 @@
-# assigns pedestrians the same id 
-# calculates velocity
+from typing import Dict
+
 
 class AgentTracker():
     """Associates and tracks AgentState agents.
@@ -33,7 +33,7 @@ class AgentTracker():
         # you can ignore this function akul
         pass
         
-    def __agents_overlap(ped1, ped2) -> bool:
+    def __agents_overlap(self, ped1, ped2) -> bool:
         """Determines if two AgentState objects overlap.
         
         returns true if they overlap, false if not

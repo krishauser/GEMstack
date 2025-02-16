@@ -4,7 +4,7 @@ class IdTracker():
     def __init__(self):
         self.__ped_id = 0
 
-    def get_new_ped_id() -> int:
+    def get_new_ped_id(self) -> int:
         """Returns a unique pedestrian id
         """
         assigned_id = self.__id

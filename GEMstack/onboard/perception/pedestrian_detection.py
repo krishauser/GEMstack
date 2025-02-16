@@ -150,7 +150,7 @@ class PedestrianDetector2D(PedestrianDetector2DShared):
         # Update Current AgentStates
         self.current_agents = [
             AgentState(
-                track_id = track_ids[ind]
+                track_id = track_ids[ind],
                 pose=ObjectPose(t=0,obj_centers[0],obj_centers[1],obj_centers[2],yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
                 # (l, w, h)
                 # TODO: confirm (z -> l, x -> w, y -> h)
