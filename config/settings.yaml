@@ -1,0 +1,8 @@
+turn_signals:
+  TURN_RIGHT: 0
+  TURN_NONE: 1
+  TURN_LEFT: 2
+  TURN_HAZARD: 3
+
+blink_distress:
+  update_frequency: 0.5

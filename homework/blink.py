@@ -1,4 +1,5 @@
 import rospy
+import yaml
 from std_msgs.msg import String, Bool, Float32, Float64
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptInt, SystemRptFloat, VehicleSpeedRpt
 
@@ -22,6 +23,16 @@ class BlinkDistress:
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
         # check update file good
 
+        # Load settings
+        with open("./config/settings.yaml", "r") as file:
+            self.settings = yaml.safe_load(file)
+
+        # Assign constants from settings
+        self.TURN_RIGHT = self.settings["turn_signals"]["TURN_RIGHT"]
+        self.TURN_NONE = self.settings["turn_signals"]["TURN_NONE"]
+        self.TURN_LEFT = self.settings["turn_signals"]["TURN_LEFT"]
+        self.TURN_HAZARD = self.settings["turn_signals"]["TURN_HAZARD"]
+
         self.turn_blink_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=1)
         # Define blink cmd
         self.turn_cmd = PacmodCmd()
@@ -34,7 +45,7 @@ class BlinkDistress:
 
     def rate(self):
         """Requested update frequency, in Hz"""
-        return 0.5
+        return self.settings["blink_distress"]["update_frequency"]
 
     def initialize(self):
         """Run first"""
@@ -55,10 +66,10 @@ class BlinkDistress:
         #self.turn_cmd = PacmodCmd()
         # TODO change to actual direction in Part 2
         if Allstate.intent.intent == "HALTING":
-            if self.turn_cmd.ui16_cmd == TURN_NONE:
-                self.turn_cmd.ui16_cmd = TURN_LEFT
-            elif self.turn_cmd.ui16_cmd == TURN_LEFT:
-                self.turn_cmd.ui16_cmd = TURN_RIGHT
+            if self.turn_cmd.ui16_cmd == self.TURN_NONE:
+                self.turn_cmd.ui16_cmd = self.TURN_LEFT
+            elif self.turn_cmd.ui16_cmd == self.TURN_LEFT:
+                self.turn_cmd.ui16_cmd = self.TURN_RIGHT
             else:
                 self.turn_cmd.ui16_cmd = TURN_NONE
         self.turn_blink_pub.publish(self.turn_cmd)
