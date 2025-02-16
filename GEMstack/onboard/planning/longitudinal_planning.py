@@ -24,7 +24,7 @@ ACCEL_MAX = 0.5
 def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentState, min_deceleration: float, max_deceleration: float) -> Tuple[bool, Union[float, List[float]]]:
     """Detects potential collision and computes required deceleration or necessary movement parameters."""
     obj_x, obj_y = obj.pose.x, obj.pose.y
-    obj_v_x, obj_v_y = obj.velocity
+    obj_v_x, obj_v_y, _ = obj.velocity
 
     vehicle_front = curr_x + VEHICLE_LENGTH
     vehicle_left, vehicle_right = curr_y + VEHICLE_WIDTH / 2, curr_y - VEHICLE_WIDTH / 2
@@ -186,7 +186,7 @@ def compute_time_triangle(x0 : float, xf: float,  v0: float, vf : float, acceler
     return t1
 
 
-def quad_root(a: float, b: float, c: float) -> list[float]:
+def quad_root(a: float, b: float, c: float) -> Tuple[float,float]:
     discriminant = b**2 - 4 * a * c
     if discriminant < 0:
         return [0.0, 0.0]  # No real solution
