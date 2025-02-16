@@ -28,14 +28,6 @@ class Fusion3D():
 
         # Setup visualization variables
         self.visualization = True # Set this to true for visualization, later change to get value from sys arg
-        self.label_text = "Pedestrian "
-        self.font = cv2.FONT_HERSHEY_SIMPLEX
-        self.font_scale = 0.5
-        self.font_color = (255, 255, 255)  # White text
-        self.outline_color = (0, 0, 0)  # Black outline
-        self.line_type = 1
-        self.text_thickness = 2 # Text thickness
-        self.outline_thickness = 1  # Thickness of the text outline
 
         # Load calibration data
         self.R = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/R.npy')
