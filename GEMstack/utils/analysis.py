@@ -1,6 +1,32 @@
+"""
+Log Analysis Tool
+
+This program allows users to analyze CSV files stored in log directories. Users can:
+- Select a log directory from the `./logs` folder.
+- Choose a CSV file within the selected directory.
+- Select specific columns to analyze.
+- Choose an analysis method such as MSE, RMS, Mean, or Standard Deviation.
+- Define a custom lambda function for analysis.
+- Save the results in the default log directory or specify a custom path.
+
+Usage:
+1. Run the script: `python ./GEMstack/utils/analysis.py`
+2. Follow the prompts to:
+   - Select a log directory.
+   - Choose a CSV file to analyze.
+   - Select the columns for analysis.
+   - Pick a predefined analysis method or define a custom lambda function.
+   - Save the results.
+
+Output:
+- The analysis results are saved in CSV format, with column names included, in the chosen directory.
+
+"""
+
 import os
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 def list_log_directories():
     logs_path = "./logs"
@@ -95,7 +121,8 @@ def analyze_data(df, log_dir):
         
         save_path = input("Enter a path to save the result (press Enter to save in the chosen log directory): ")
         if not save_path:
-            save_path = os.path.join(log_dir, "analysis_result.csv")
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            save_path = os.path.join(log_dir, f"analysis_result_{timestamp}.csv")
         
         result.to_frame().T.to_csv(save_path, index=False, header=True)
         print(f"Analysis result saved to {save_path}")
