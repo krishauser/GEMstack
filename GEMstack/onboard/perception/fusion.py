@@ -10,6 +10,8 @@ import tf
 # YOLO + GEM
 from ultralytics import YOLO
 from fusion_utils import *
+from ...state import AgentState
+
 
 class Fusion3D():
     def __init__(self):
@@ -19,94 +21,34 @@ class Fusion3D():
         self.current_dets_bboxes = [] 
         self.prev_agents = []         # dict{id: agent} is more efficient, but list for
         self.current_agents = []      # simplicity to match update() output to start
-        self.visualization = True
         self.confidence = 0.7
         self.classes_to_detect = 0
         self.ground_threshold = 1.6
         self.max_dist_percent = 0.7
+
+        # Setup visualization variables
+        self.visualization = True # Set this to true for visualization, later change to get value from sys arg
+        self.label_text = "Pedestrian "
+        self.font = cv2.FONT_HERSHEY_SIMPLEX
+        self.font_scale = 0.5
+        self.font_color = (255, 255, 255)  # White text
+        self.outline_color = (0, 0, 0)  # Black outline
+        self.line_type = 1
+        self.text_thickness = 2 # Text thickness
+        self.outline_thickness = 1  # Thickness of the text outline
 
         # Load calibration data
         self.R = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/R.npy')
         self.t = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/t.npy')
         self.K = load_intrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/camera_intrinsics.json')
 
-        # Subscribers and sychronizers
-        self.rgb_rosbag = message_filters.Subscriber('/oak/rgb/image_raw', Image)
-        self.top_lidar_rosbag = message_filters.Subscriber('/ouster/points', PointCloud2)
-        self.sync = message_filters.ApproximateTimeSynchronizer([self.rgb_rosbag, self.top_lidar_rosbag], queue_size=10, slop=0.1)
-        self.sync.registerCallback(self.fusion_callback)
-
         # TF listener to get transformation from LiDAR to Camera
-        self.tf_listener = tf.TransformListener()
+        # self.tf_listener = tf.TransformListener()S
 
         # Publishers
         self.pub_pedestrians_pc2 = rospy.Publisher("/point_cloud/pedestrians", PointCloud2, queue_size=10)
         if(self.visualization):
             self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
-
-    # TODO: refactor into pedestrian_detection.py
-    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        self.prev_agents = self.current_agents
-        return self.prev_agents
-
-    # clusters: list[ np.array(shape = (N, XYZ) ]
-    # TODO: Improve Algo Knn, ransac, etc.
-    def find_centers(clusters: list[np.ndarray]):
-        centers = [np.mean(clust, axis=0) for clust in clusters]
-        return centers
-    
-    # Beware: AgentState(PhysicalObject) builds bbox from 
-    # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
-    # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
-    def find_dims(clusters):
-        # Add some small constant to height to compensate for
-        # objects distance to ground we filtered from lidar, etc.?
-        dims = [np.max(clust, axis= 0) - np.min(clust, axis= 0) for clust in clusters]
-        return dims
-
-    # track_result:                 self.detector.track (YOLO) output
-    # flattened_pedestrians_3d_pts: Camera frame points, ind 
-    #                               corresponds to object
-    # TODO: Finish adapt this func + fusion.py to multiple classes
-    def update_object_states(track_result, flattened_pedestrians_3d_pts: list[np.ndarray]):
-        track_ids = track_result[0].boxes.id.int().cpu().tolist()
-        num_objs = len(track_ids)
-        
-        if len(flattened_pedestrians_3d_pts) != num_objs:
-            raise Exception('Perception - Camera detections, points num. mismatch')
-        
-        # Combine funcs for efficiency in C
-        # Separate numpy prob still faster
-        obj_centers = find_centers(flattened_pedestrians_3d_pts)
-        obj_dims = find_dims(flattened_pedestrians_3d_pts)
-
-        # Calculate new velocities
-        # TODO: Improve velocity algo + remove O(n) dict
-        # Moving Average across last N iterations pos/vel?
-        track_id_center_map = dict(zip(track_ids, obj_centers))
-        # Object not seen -> velocity = None
-        vels = defaultdict(None)
-        for prev_agent in self.prev_agents:
-            if prev_agent.track_id in track_ids:
-                vels[track_id] = track_id_center_map[track_id] - np.array([prev_agent.pose.x, prev_agent.pose.y, prev_agent.pose.z])
-
-        # Update Current AgentStates
-        self.current_agents = [
-            AgentState(
-                track_id = track_ids[ind]
-                pose=ObjectPose(t=0,obj_centers[0],obj_centers[1],obj_centers[2],yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
-                # (l, w, h)
-                # TODO: confirm (z -> l, x -> w, y -> h)
-                dimensions=tuple(obj_dims[ind][2], obj_dims[ind][0], obj_dims[ind][1]),  
-                outline=None,
-                type=AgentEnum.PEDESTRIAN,
-                activity=AgentActivityEnum.MOVING,
-                velocity=tuple(vels[track_ids[ind]]),
-                yaw_rate=0
-            )
-            for ind in len(num_objs)
-        ]
-    
 
     def fusion_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
         # Convert to cv2 image and run detector
@@ -195,10 +137,9 @@ class Fusion3D():
             self.pub_image.publish(ros_img)  
 
 
-
-if __name__ == '__main__':
-    rospy.init_node('fusion_node', anonymous=True)
-    Fusion3D()
-    while not rospy.core.is_shutdown():
-        rospy.rostime.wallsleep(0.5)
+# if __name__ == '__main__':
+#     rospy.init_node('fusion_node', anonymous=True)
+#     Fusion3D()
+#     while not rospy.core.is_shutdown():
+#         rospy.rostime.wallsleep(0.5)
 
