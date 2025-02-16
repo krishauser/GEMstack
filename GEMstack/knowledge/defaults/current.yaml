@@ -21,6 +21,12 @@ control:
         pid_i: 0.1
         pid_d: 0.0
 
+planning:
+    dt_method:
+        compute_dt:
+            scaling_factor: 0.02  # k value in compute_dynamic_dt
+            min_acceleration: 0.5  # a_min value in compute_dynamic_dt
+
 #configure the simulator, if using
 simulator:
     dt: 0.01
