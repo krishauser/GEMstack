@@ -1,5 +1,6 @@
 import rospy
 import yaml
+import os
 from std_msgs.msg import String, Bool, Float32, Float64
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptInt, SystemRptFloat, VehicleSpeedRpt
 
@@ -24,7 +25,9 @@ class BlinkDistress:
         # check update file good
 
         # Load settings
-        with open("./config/settings.yaml", "r") as file:
+
+        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../config/settings.yaml")
+        with open(config_path, "r") as file:
             self.settings = yaml.safe_load(file)
 
         # Assign constants from settings
