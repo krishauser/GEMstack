@@ -64,7 +64,6 @@ class Fusion3D():
         boxes = track_result[0].boxes
 
         # Unpacking box dimentions detected into x,y,w,h
-        pedestrians_3d_pts = []
         pedestrians_3d_centroids = []
         flattened_pedestrians_2d_pts = []
         flattened_pedestrians_3d_pts = []
@@ -102,7 +101,6 @@ class Fusion3D():
 
                 # Extract 3D pedestrians points in lidar frame
                 extracted_3d_pts = list(extracted_pts[:, -3:])
-                pedestrians_3d_pts.append(extracted_3d_pts)
                 flattened_pedestrians_3d_pts = flattened_pedestrians_3d_pts + extracted_3d_pts
                 
                 # Calculate and store centroids of each pedestrain
