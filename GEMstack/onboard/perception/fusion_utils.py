@@ -36,7 +36,7 @@ def filter_ground_points(lidar_points, ground_threshold = 0):
 
 
 def filter_far_points(lidar_points, human_depth=1.2):
-    """ Filter points beyond a percentage threshold of max distance in a point cluster """
+    """ Filter points beyond a max distance in a point cluster """
     min_dist = np.min(lidar_points[:, 4])
     max_depth = min_dist + human_depth
     filtered_array = lidar_points[lidar_points[:, 4] < max_depth]
