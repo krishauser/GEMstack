@@ -19,7 +19,7 @@ class Fusion3D():
         self.confidence = 0.7
         self.classes_to_detect = 0
         self.ground_threshold = 1.6
-        self.max_dist_percent = 0.7
+        self.human_depth = 1.2
 
         # Load calibration data
         self.R = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/R.npy')
