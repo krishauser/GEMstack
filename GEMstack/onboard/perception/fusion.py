@@ -37,6 +37,7 @@ class Fusion3D():
 
         # Publishers
         self.pub_pedestrians_pc2 = rospy.Publisher("/point_cloud/pedestrians", PointCloud2, queue_size=10)
+        self.pub_centroids_pc2 = rospy.Publisher("/point_cloud/centroids", PointCloud2, queue_size=10)
         if(self.visualization):
             self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
@@ -64,6 +65,7 @@ class Fusion3D():
 
         # Unpacking box dimentions detected into x,y,w,h
         pedestrians_3d_pts = []
+        pedestrians_3d_centroids = []
         flattened_pedestrians_2d_pts = []
         flattened_pedestrians_3d_pts = []
 
@@ -102,6 +104,10 @@ class Fusion3D():
                 extracted_3d_pts = list(extracted_pts[:, -3:])
                 pedestrians_3d_pts.append(extracted_3d_pts)
                 flattened_pedestrians_3d_pts = flattened_pedestrians_3d_pts + extracted_3d_pts
+                
+                # Calculate and store centroids of each pedestrain
+                centroid = calculate_centroid(extracted_3d_pts)
+                pedestrians_3d_centroids.append(centroid)
 
             # Used for visualization
             if(self.visualization):
@@ -115,6 +121,11 @@ class Fusion3D():
             # Create point cloud from extracted 3D points
             ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts)
             self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
+
+        if len(pedestrians_3d_centroids) > 0:
+            # Create point cloud from pedestrain centroid
+            ros_pedestrians_centroids_pc2 = create_point_cloud(pedestrians_3d_centroids, color=(255, 0, 255))
+            self.pub_centroids_pc2.publish(ros_pedestrians_centroids_pc2)
 
         # Used for visualization
         if(self.visualization):

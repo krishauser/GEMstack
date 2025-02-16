@@ -42,6 +42,22 @@ def filter_far_points(lidar_points, max_dist_percent=0.85):
     return filtered_array
 
 
+def calculate_centroid(points):
+    """
+    Calculate the centroid of a cluster of points in 3D space.
+    
+    :param points: List of points in the format [[x1, y1, z1], [x2, y2, z2], ...]
+    :return: The centroid as a list [cx, cy, cz]
+    """
+    if not points:
+        return None  # Return None if the list is empty
+
+    num_points = len(points)
+    centroid = [sum(coord) / num_points for coord in zip(*points)]
+    
+    return centroid
+
+
 # Credits: The following lines of codes (from 33 to 92) are adapted from the Calibration Team B
 def load_extrinsics(extrinsics_file):
     """
