@@ -5,9 +5,8 @@ class AgentTracker():
     """Associates and tracks AgentState agents.
     """
     def __init__(self):
-        self.__lost_agents = []     # Stores LostAgent objects that are no longer detected
-        self.prev_agents = []       # dict{id: agent} is more efficient, but list for
-        self.current_agents = []    # simplicity to match update() output to start
+        self.prev_agents = []       # dict{id: agent} is more efficient, but list for simplicity to match update() output to start
+        self.current_agents = []    # Stores PrevAgent objects that were in previous frames
         self.drop_agent_t: float = 1.0     # The maximum length of time a lost agent is stored before it is dropped in seconds
     
     def assign_ids(self, agents: list) -> Dict[str,AgentState]:
@@ -29,7 +28,7 @@ class AgentTracker():
         """Converts a list of AgentState agents from ouster Lidar frame of 
         reference (which is in reference to the current frame) to start 
         frame frame of reference
-        """
+        ""
         # you can ignore this function akul
         pass
         
