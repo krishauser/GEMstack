@@ -1,6 +1,8 @@
 from ..component import Component
 from ..interface.gem import GEMInterface,GEMVehicleCommand,GEMVehicleReading
+from ...state import AllState,VehicleIntent
 import time
+from typing import List
 
 TURN_OFF = 0
 TURN_LEFT = 1
@@ -32,27 +34,30 @@ class BlinkDistress(Component):
         self.send_turn_command(TURN_OFF)
         # pass
     
-    def update(self):
+    def state_inputs(self) -> List[str]:
+        """Returns the list of AllState inputs this component requires."""
+        return ["intent"]
+    
+    def update(self, state: AllState):
         """Run in a loop"""
         # we need to set up a GEMVehicleCommand which encapsulates all commands that will be
         # sent to the drive-by-wire system, simultaneously.  To avoid doing arbitrary things
         # to the vehicle, let's maintain the current values (e.g., accelerator, brake pedal,
         # steering angle) from its current readings.
-        
-        #if Allstate.intent.intent == "HALTING" :
-            #return
         current_time = time.time()
-        if current_time - self.last_update_time >= 2:  # Change signal every 2 seconds
-            if self.turn_state == TURN_OFF:
-                self.turn_state = TURN_LEFT
-            elif self.turn_state == TURN_LEFT:
-                self.turn_state = TURN_RIGHT
-            else:
-                self.turn_state = TURN_OFF
+        if state.intent == 2: # check if halting
 
-            self.send_turn_command(self.turn_state)
-            self.last_update_time = current_time
-        
+            if current_time - self.last_update_time >= 2:  # Change signal every 2 seconds
+                if self.turn_state == TURN_OFF:
+                    self.turn_state = TURN_LEFT
+                elif self.turn_state == TURN_LEFT:
+                    self.turn_state = TURN_RIGHT
+                else:
+                    self.turn_state = TURN_OFF
+
+                self.send_turn_command(self.turn_state)
+                self.last_update_time = current_time
+            
          # Read vehicle sensor data
         vehicle_reading = self.vehicle_interface.get_reading()
         print(f"Vehicle Speed: {vehicle_reading.speed:.2f} m/s")
