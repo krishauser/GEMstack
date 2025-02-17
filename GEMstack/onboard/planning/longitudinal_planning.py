@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import List, Tuple
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, AgentState
 
@@ -25,68 +25,102 @@ ACCEL_MAX = 0.5
 def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentState, min_deceleration: float, max_deceleration: float) -> Tuple[bool, Union[float, List[float]]]:
     """Detects potential collision and computes required deceleration or necessary movement parameters."""
     obj_x, obj_y = obj.pose.x, obj.pose.y
-    obj_v_x, obj_v_y, _ = obj.velocity
+    obj_v_x, obj_v_y = obj.velocity
 
     vehicle_front = curr_x + VEHICLE_LENGTH
+    vehicle_back = curr_x
     vehicle_left, vehicle_right = curr_y + VEHICLE_WIDTH / 2, curr_y - VEHICLE_WIDTH / 2
     pedestrian_front, pedestrian_back = obj_x + PEDESTRIAN_LENGTH / 2, obj_x - PEDESTRIAN_LENGTH / 2
     pedestrian_left, pedestrian_right = obj_y + PEDESTRIAN_WIDTH / 2, obj_y - PEDESTRIAN_WIDTH / 2
 
-    # Object is behind or out of lateral bounds
-    if vehicle_front > pedestrian_back and vehicle_front - VEHICLE_BUFFER_X < pedestrian_back or \
-            vehicle_right - VEHICLE_BUFFER_Y > pedestrian_left or vehicle_left + VEHICLE_BUFFER_Y < pedestrian_right:
-        return False, 0.0
-
-    # Object is ahead and within collision zone
-    if vehicle_front + VEHICLE_BUFFER_X >= pedestrian_back:
+    # Check if the object is in front of the vehicle
+    if vehicle_front > pedestrian_back:
+        if vehicle_back > pedestrian_front:
+            # The object is behind the vehicle
+            print("Object is behind the vehicle")
+            return False, 0.0
+        if vehicle_right - VEHICLE_BUFFER_Y > pedestrian_left or vehicle_left + VEHICLE_BUFFER_Y < pedestrian_right:
+            # The object is to the side of the vehicle
+            print("Object is to the side of the vehicle")
+            return False, 0.0
+        # The object overlaps with the vehicle
         return True, max_deceleration
 
-    # Compute relative velocity
+    if vehicle_right - VEHICLE_BUFFER_Y > pedestrian_left and obj_v_y <= 0:
+        # The object is to the right of the vehicle and moving away
+        print("Object is to the right of the vehicle and moving away")
+        return False, 0.0
+
+    if vehicle_left + VEHICLE_BUFFER_Y < pedestrian_right and obj_v_y >= 0:
+        # The object is to the left of the vehicle and moving away
+        print("Object is to the left of the vehicle and moving away")
+        return False, 0.0
+
+    if vehicle_front + VEHICLE_BUFFER_X >= pedestrian_back:
+        # The object is in front of the vehicle and within the buffer
+        print("Object is in front of the vehicle and within the buffer")
+        return True, max_deceleration
+
+    # Calculate the deceleration needed to avoid a collision
+    print("Object is in front of the vehicle and outside the buffer")
+    distance = pedestrian_back - vehicle_front - VEHICLE_BUFFER_X
+
     relative_v = curr_v - obj_v_x
     if relative_v <= 0:
         return False, 0.0
 
-    # Handling object moving laterally
+    print(relative_v, distance)
+
+    if obj_v_y > 0 and ((obj_y - curr_y) / relative_v) < ((vehicle_right - VEHICLE_BUFFER_Y - YIELD_BUFFER - pedestrian_left) / abs(obj_v_y)):
+        # The object is to the right of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle
+        print("The object is to the right of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle")
+        return False, 0.0
+    if obj_v_y < 0 and ((obj_y - curr_y) / relative_v) < ((pedestrian_right - vehicle_left - VEHICLE_BUFFER_Y - YIELD_BUFFER) / abs(obj_v_y)):
+        # The object is to the left of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle
+        print("The object is to the left of the vehicle and moving towards it, but the vehicle will pass before the object reaches the vehicle")
+        return False, 0.0
+
     if obj_v_y != 0:
         if obj_v_y < 0:
+            # The object is moving toward the right side of the vehicle
             distance_to_pass = obj_y - (vehicle_right - VEHICLE_BUFFER_Y - YIELD_BUFFER) + PEDESTRIAN_WIDTH / 2
         else:
+            # The object is moving toward the left side of the vehicle
             distance_to_pass = (vehicle_left + VEHICLE_BUFFER_Y + YIELD_BUFFER) - obj_y + PEDESTRIAN_WIDTH / 2
 
         time_to_pass = distance_to_pass / abs(obj_v_y)
+
         distance_to_move = pedestrian_back - vehicle_front - VEHICLE_BUFFER_X + time_to_pass * obj_v_y
 
-        time_to_max_v = (V_MAX - curr_v) / ACCEL_MAX
+
+        # if curr_v**2/2*distance_to_pass >= 1.5:
+        #     return True, curr_v**2/2*distance_to_pass
+        time_to_max_v = (V_MAX - curr_v)/0.5
 
         if time_to_max_v > time_to_pass:
-            if curr_v * time_to_pass + 0.5 * ACCEL_MAX * time_to_pass**2 > distance_to_move:
+            if curr_v*time_to_pass + 0.5*ACCEL_MAX*time_to_pass**2 > distance_to_move:
                 return False, 0.0
         else:
-            if (V_MAX**2 - curr_v**2) / (2 * ACCEL_MAX) + (time_to_pass - time_to_max_v) * V_MAX >= distance_to_move:
+            if (V_MAX**2 - curr_v**2)/(2*ACCEL_MAX) + (time_to_pass - time_to_max_v) * V_MAX >= distance_to_move:
                 return False, 0.0
-
-        if curr_v**2 / (2 * distance_to_pass) >= 1.5:
-            return True, curr_v**2 / (2 * distance_to_pass)
 
         return True, [distance_to_move, time_to_pass]
 
-    # Compute deceleration for avoiding collision
-    distance = pedestrian_back - vehicle_front - VEHICLE_BUFFER_X
-    deceleration = relative_v ** 2 / (2 * distance)
+    else:
+        deceleration = relative_v ** 2 / (2 * distance)
+        if deceleration > max_deceleration:
+            return True, max_deceleration
+        if deceleration < min_deceleration:
+            return False, 0.0
 
-    if deceleration > max_deceleration:
-        return True, max_deceleration
-    if deceleration < min_deceleration:
-        return False, 0.0
-
-    return True, deceleration
+        return True, deceleration
 
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float,
                       method : str) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
-    trapezoidal velocity profile. 
-    
+    trapezoidal velocity profile.
+
     1. accelerates from current speed toward max speed
     2. travel along max speed
     3. if at any point you can't brake before hitting the end of the path,
@@ -101,12 +135,12 @@ def longitudinal_plan(path : Path, acceleration : float, deceleration : float, m
         return longitudinal_plan_dx(path, acceleration, deceleration, max_speed, current_speed)
     else:
         raise NotImplementedError("Invalid method, only milestone, dt, adn dx are implemented.")
-    
+
 
 def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
-    trapezoidal velocity profile. 
-    
+    trapezoidal velocity profile.
+
     1. accelerates from current speed toward max speed
     2. travel along max speed
     3. if at any point you can't brake before hitting the end of the path,
@@ -214,7 +248,7 @@ def compute_time_triangle(x0 : float, xf: float,  v0: float, vf : float, acceler
     return t1
 
 
-def quad_root(a: float, b: float, c: float) -> Tuple[float,float]:
+def quad_root(a: float, b: float, c: float) -> list[float]:
     discriminant = b**2 - 4 * a * c
     if discriminant < 0:
         return [0.0, 0.0]  # No real solution
@@ -226,7 +260,7 @@ def quad_root(a: float, b: float, c: float) -> Tuple[float,float]:
 
 
 def solve_for_v_peak(v0: float, acceleration: float, deceleration: float, total_length: float) -> float:
-    
+
     if acceleration <= 0 or deceleration <= 0:
         raise ValueError("Acceleration and deceleration cant be negative")
 
@@ -245,8 +279,8 @@ def compute_dynamic_dt(acceleration, speed, k=0.005, a_min=0.5):
     return np.sqrt(2 * position_step / max(acceleration, a_min))
 
 def longitudinal_plan_dt(path, acceleration: float, deceleration: float, max_speed: float, current_speed: float):
-    
-    
+
+
     # 1 parametrizatiom.
     path_norm = path.arc_length_parameterize(speed=1.0)
     total_length = path.length()
@@ -338,7 +372,7 @@ def longitudinal_plan_dt(path, acceleration: float, deceleration: float, max_spe
     # plt.draw()
     # plt.pause(0.001)
 
-    
+
 
     # 4. Create a time grid.
     # dt = 0.1  # adjust based on computation
@@ -383,8 +417,8 @@ def longitudinal_plan_dt(path, acceleration: float, deceleration: float, max_spe
 
 def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
-    trapezoidal velocity profile. 
-    
+    trapezoidal velocity profile.
+
     1. accelerates from current speed toward max speed
     2. travel along max speed
     3. if at any point you can't brake before hitting the end of the path,
@@ -431,7 +465,7 @@ def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float
         print("current index: ", cur_index)
         print("current speed: ", current_speed)
 
-        # Information we will need: 
+        # Information we will need:
             # Calculate how much time it would take to stop
             # Calculate how much distance it would take to stop
         min_delta_t_stop = current_speed/deceleration
@@ -447,7 +481,7 @@ def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float
             flag = 1
             print("In case one")
             # put on the breaks
-            # Calculate the next point in a special manner because of too-little time to stop 
+            # Calculate the next point in a special manner because of too-little time to stop
             if cur_index >= len(points)-1:
                 # the next point in this instance would be when we stop
                 print(1)
@@ -475,13 +509,13 @@ def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float
 
         # This is the case where we are accelerating to max speed
         # because the first if-statement covers for when we decelerating,
-        # the only time current_speed < max_speed is when we are accelerating 
+        # the only time current_speed < max_speed is when we are accelerating
         elif current_speed < max_speed:
             print("In case two")
             print(current_speed)
             acc = acceleration
             flag = 1
-            # next point 
+            # next point
             next_point = points[cur_index+1]
             if next_point[0] - cur_point[0] > rq * acc:
                 tmp = cur_point[0] + (next_point[0] - cur_point[0]) / (acc * multi)
@@ -493,8 +527,8 @@ def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float
             delta_t_to_max_speed = (max_speed - current_speed)/acceleration
             # calculate the distance it would take to reach max speed
             delta_x_to_max_speed = current_speed*delta_t_to_max_speed + 0.5*acceleration*delta_t_to_max_speed**2
-            
-            # if we would reach max speed after the next point, 
+
+            # if we would reach max speed after the next point,
             # just move to the next point and update the current speed and time
             if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
                 print("go to next point")
@@ -505,9 +539,9 @@ def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float
                 current_speed += delta_t_to_next_x*acceleration
                 if flag:
                     cur_index += 1
-            
+
             # this is the case where we would reach max speed before the next point
-            # we need to create a new point where we would reach max speed 
+            # we need to create a new point where we would reach max speed
             else:
                 print("adding new point")
                 # we would need to add a new point at max speed
@@ -516,14 +550,14 @@ def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float
                 current_speed = max_speed
 
         # This is the case where we are at max speed
-        # special functionality is that this block must 
+        # special functionality is that this block must
         # add a point where we would need to start declerating to reach
         # the final point
         elif current_speed == max_speed:
             next_point = points[cur_index+1]
             # continue on with max speed
             print("In case three")
-            
+
             # add point to start decelerating
             if next_point[0] + min_delta_x_stop >= points[-1][0]:
                 print("Adding new point to start decelerating")
@@ -536,21 +570,21 @@ def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float
                 cur_time += (next_point[0] - cur_point[0])/current_speed
                 cur_point = next_point
                 cur_index += 1
-        
-        # This is an edge case and should only be reach 
+
+        # This is an edge case and should only be reach
         # if the initial speed is greater than the max speed
         elif current_speed > max_speed:
-            # We need to hit the breaks 
+            # We need to hit the breaks
             acc = deceleration
             flag = 1
-            # next point 
+            # next point
             next_point = points[cur_index+1]
             if next_point[0] - cur_point[0] > rq * acc:
                 tmp = cur_point[0] + (next_point[0] - cur_point[0]) / (acc * multi)
                 flag = 0
                 next_point = [tmp, next_point[1]]
             print("In case four")
-            # slow down to max speed 
+            # slow down to max speed
             delta_t_to_max_speed = (current_speed - max_speed)/deceleration
             delta_x_to_max_speed = current_speed*delta_t_to_max_speed - 0.5*deceleration*delta_t_to_max_speed**2
 
@@ -573,11 +607,11 @@ def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float
         else:
             # not sure what falls here
             raise ValueError("LONGITUDINAL PLAN ERROR: Not sure how we ended up here")
-        
+
     new_points.append(cur_point)
     new_times.append(cur_time)
     velocities.append(current_speed)
-        
+
     points = new_points
     times = new_times
     print("[PLAN] Computed points:", points)
@@ -627,6 +661,7 @@ class YieldTrajectoryPlanner(Component):
     you are at the end of the route, otherwise accelerates to
     the desired speed.
     """
+
     def __init__(self):
         self.route_progress = None
         self.t_last = None
@@ -656,6 +691,7 @@ class YieldTrajectoryPlanner(Component):
         if self.t_last is None:
             self.t_last = t
   
+        # Position in vehicle frame (Start (0,0) to (15,0))
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
         curr_v = vehicle.v
@@ -699,8 +735,7 @@ class YieldTrajectoryPlanner(Component):
                 print("should yield: ", should_yield)
 
         if should_yield:
-            traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+            traj = longitudinal_brake(route_to_end, yield_deceleration, curr_v)
         else:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
-
+            traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v)
         return traj 
