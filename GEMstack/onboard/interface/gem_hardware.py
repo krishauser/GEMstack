@@ -186,7 +186,7 @@ class GEMHardwareInterface(GEMInterface):
                                     )
                         speed = np.sqrt(msg.ve**2 + msg.vn**2)
                         callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
