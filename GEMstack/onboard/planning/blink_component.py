@@ -22,11 +22,6 @@ class BlinkDistress(Component):
         self.prev_time = time.time()
         self.curr_time = time.time()
                
-        # while True :
-        #     self.curr_time = time.time()
-        #     if (self.curr_time - self.prev_time > 2):
-        #         self.update()
-        #         self.prev_time = self.curr_time
 
     def rate(self):
         """Requested update frequency, in Hz"""
@@ -59,30 +54,28 @@ class BlinkDistress(Component):
         # self.vehicle_interface.send_command(command)
         self.curr_time = time.time()
 
-        print("====================")
-        print(args)
-        print("====================")
+        intent = args[0]
 
-        
-        if(self.curr_time - self.prev_time > 2):
-            if command.left_turn_signal is True:
-                # print("code goes if")
-                command.left_turn_signal = False
-                command.right_turn_signal = True
+        if(intent == 2):
+            if(self.curr_time - self.prev_time > 2):
+                if command.left_turn_signal is True:
+                    # print("code goes if")
+                    command.left_turn_signal = False
+                    command.right_turn_signal = True
+                    
+                elif command.right_turn_signal is True:
+                    # print("code goes elif")
+                    command.left_turn_signal = False
+                    command.right_turn_signal = False
+                    
+                else:
+                    # print("code goes else")
+                    command.left_turn_signal = True
+                    command.right_turn_signal = False
                 
-            elif command.right_turn_signal is True:
-                # print("code goes elif")
-                command.left_turn_signal = False
-                command.right_turn_signal = False
-                
-            else:
-                # print("code goes else")
-                command.left_turn_signal = True
-                command.right_turn_signal = False
+                self.prev_time = self.curr_time
+                self.command = command
             
-            self.prev_time = self.curr_time
-            self.command = command
-        
         self.vehicle_interface.send_command(command)
         # print(command.left_turn_signal, command.right_turn_signal)
        

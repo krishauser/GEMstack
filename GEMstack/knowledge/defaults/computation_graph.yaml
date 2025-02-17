@@ -44,7 +44,7 @@ components:
       inputs: [vehicle, roadgraph, mission]
       outputs: route
   - driving_logic:
-      inputs: all
+      inputs: 
       outputs: intent
   - motion_planning:
       inputs: all
