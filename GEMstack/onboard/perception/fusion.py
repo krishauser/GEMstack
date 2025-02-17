@@ -42,7 +42,7 @@ from sensor_msgs.msg import Image, PointCloud2
 # GEMStack
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
 from ultralytics import YOLO
-from .fusion_utils import *
+from .pedestrian_detection_utils import *
 
 class Fusion3D():
     # TODO: Pull params into a JSON/yaml

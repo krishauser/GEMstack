@@ -77,12 +77,16 @@ class PedestrianDetector2D(Component):
         # track_id: AgentState
         self.prev_agents = dict()         
         self.current_agents = dict()
+        # TODO Implement time
+        self.prev_time = 0
+        self.curr_time = 1 # Avoid divide by 0 for placebolder, 0
         self.confidence = 0.7
         self.classes_to_detect = 0
         self.ground_threshold = 1.6
         self.max_dist_percent = 0.7
 
         # Load calibration data
+        # TODO: Maybe lets add one word or link what R t K are?
         self.R = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/R.npy')
         self.t = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/t.npy')
         self.K = load_intrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/camera_intrinsics.json')
@@ -128,6 +132,7 @@ class PedestrianDetector2D(Component):
     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
     # TODO Akul: Fix velocity calculation to calculate in ObjectFrameEnum.START
     #            Work towards own tracking class instead of simple YOLO track?
+    #            Fix division by time
     # ret: Dict[track_id: vel[x, y, z]]
     def find_vels(self, track_ids: List[int], obj_centers: List[np.ndarray]) -> Dict[int, np.ndarray]:
         # Object not seen -> velocity = None
@@ -142,7 +147,7 @@ class PedestrianDetector2D(Component):
                 # print("shape 2: ", np.array([prev_agent.pose.x, prev_agent.pose.y, prev_agent.pose.z]))
                 # prev can be 3 separate Nones, current is just empty array... make this symmetrical
                 if prev_agent.pose.x and prev_agent.pose.y and prev_agent.pose.z and track_id_center_map[prev_agent.track_id].shape == 3:
-                    vels[prev_track_id] = track_id_center_map[prev_track_id] - np.array([prev_agent.pose.x, prev_agent.pose.y, prev_agent.pose.z])
+                    vels[prev_track_id] = (track_id_center_map[prev_track_id] - np.array([prev_agent.pose.x, prev_agent.pose.y, prev_agent.pose.z])) / (self.curr_time - self.prev_time)
         return vels
 
 
