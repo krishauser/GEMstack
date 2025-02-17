@@ -35,7 +35,7 @@ def filter_ground_points(lidar_points, ground_threshold = 0):
     return filtered_array
 
 
-def filter_depth_points(lidar_points, max_human_depth=1.0):
+def filter_depth_points(lidar_points, max_human_depth=0.9):
     """ Filter points beyond a max possible human depth in a point cluster """
     lidar_points_dist = lidar_points[:, 4]
     min_dist = np.min(lidar_points_dist)

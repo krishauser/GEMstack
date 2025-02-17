@@ -19,7 +19,7 @@ class Fusion3D():
         self.confidence = 0.7
         self.classes_to_detect = 0
         self.ground_threshold = 1.6
-        self.max_human_depth = 1.0
+        self.max_human_depth = 0.9
 
         # Load calibration data
         self.R = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/R.npy')
@@ -93,7 +93,7 @@ class Fusion3D():
                 
                 # Apply ground and max distance filter to the extracted 5D points
                 extracted_pts = filter_ground_points(extracted_pts, self.ground_threshold)
-                extracted_pts = filter_depth_points(extracted_pts)
+                extracted_pts = filter_depth_points(extracted_pts, self.max_human_depth)
                 
                 # Extract 2D pedestrians points in camera frame
                 extracted_2d_pts = list(extracted_pts[:, :2].astype(int))
