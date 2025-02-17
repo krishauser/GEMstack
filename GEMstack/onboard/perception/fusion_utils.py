@@ -61,7 +61,6 @@ def calculate_centroid(points):
     
     # Compute centroid
     centroid_point = np.mean(points_array, axis=0)
-    
     return centroid_point.tolist()
 
 
@@ -84,8 +83,41 @@ def calculate_dimensions(points):
     
     # Compute dimensions
     dimensions = max_vals - min_vals
-    
     return dimensions.tolist()
+
+
+def calculate_bbox_corners_3d(centroid, dimensions):
+    """
+    Compute the 8 corners of a 3D bounding box given its centroid and dimensions.
+    
+    Parameters:
+        centroid (list or np.array): [cx, cy, cz] - Center coordinates of the bounding box.
+        dimensions (list or np.array): [length, width, height] - Dimensions of the bounding box.
+        
+    Returns:
+        list: (8,3) array containing the 8 corners of the bounding box.
+    """
+    if (not centroid) or (not dimensions):
+        return None
+    
+    centroid = np.array(centroid)
+    dimensions = np.array(dimensions) / 2  # Half dimensions to calculate corners
+    
+    # Define the 8 corner offsets
+    offsets = np.array([
+        [-1, -1, -1],
+        [-1, -1,  1],
+        [-1,  1, -1],
+        [-1,  1,  1],
+        [ 1, -1, -1],
+        [ 1, -1,  1],
+        [ 1,  1, -1],
+        [ 1,  1,  1]
+    ])
+    
+    # Compute the corners
+    corners = centroid + offsets * dimensions
+    return corners.tolist()
 
 
 # Credits: The following lines of codes (from 33 to 92) are adapted from the Calibration Team B

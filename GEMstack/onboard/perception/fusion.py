@@ -38,6 +38,7 @@ class Fusion3D():
         # Publishers
         self.pub_pedestrians_pc2 = rospy.Publisher("/point_cloud/pedestrians", PointCloud2, queue_size=10)
         self.pub_centroids_pc2 = rospy.Publisher("/point_cloud/centroids", PointCloud2, queue_size=10)
+        self.pub_bbox_corners_pc2 = rospy.Publisher("/point_cloud/bbox_corners", PointCloud2, queue_size=10)
         if(self.visualization):
             self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
@@ -66,6 +67,7 @@ class Fusion3D():
         # Unpacking box dimentions detected into x,y,w,h
         pedestrians_3d_centroids = []
         pedestrians_3d_dims = []
+        pedestrians_3d_bbox_corners = []
         flattened_pedestrians_2d_pts = []
         flattened_pedestrians_3d_pts = []
 
@@ -106,9 +108,17 @@ class Fusion3D():
                 
                 # Calculate and store centroids and dimensions of each pedestrain
                 centroid = calculate_centroid(extracted_3d_pts)
+                if centroid != None:
+                    pedestrians_3d_centroids.append(centroid)
+
                 dims = calculate_dimensions(extracted_3d_pts)
-                pedestrians_3d_centroids.append(centroid)
-                pedestrians_3d_dims.append(dims)
+                if dims != None:
+                    pedestrians_3d_dims.append(dims)
+
+                # Calculate bbox corners for visualization
+                corners = calculate_bbox_corners_3d(centroid, dims)
+                if corners != None:
+                    pedestrians_3d_bbox_corners = pedestrians_3d_bbox_corners + corners
             
             # Used for visualization
             if(self.visualization):
@@ -127,6 +137,11 @@ class Fusion3D():
             # Create point cloud from pedestrain centroid
             ros_pedestrians_centroids_pc2 = create_point_cloud(pedestrians_3d_centroids, color=(255, 0, 255))
             self.pub_centroids_pc2.publish(ros_pedestrians_centroids_pc2)
+
+        if len(pedestrians_3d_bbox_corners) > 0:
+            # Create point cloud from pedestrain centroid
+            ros_pedestrians_bbox_corners_pc2 = create_point_cloud(pedestrians_3d_bbox_corners, color=(0, 0, 255))
+            self.pub_bbox_corners_pc2.publish(ros_pedestrians_bbox_corners_pc2)
 
         # Used for visualization
         if(self.visualization):
