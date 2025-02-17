@@ -1,15 +1,27 @@
 from ultralytics import YOLO
 import cv2
 import sys
+from ultralytics import YOLO
+import numpy as np
 
 
-def person_detector(img: cv2.Mat):
-    # TODO: implement me to produce a list of (x,y,w,h) bounding boxes of people in the image
-    model = YOLO("yolo11n.pt")
+def person_detector(img: cv2.Mat) -> list[tuple[float, float, float, float]]:
+    """Detect persons in an image and return their bounding boxes in xywh format.
 
-    # Only detect people (class id: 0) within the image
-    results = model.predict(img, classes=[0])
-    return results[0].boxes.xywh.tolist()
+    Args:
+        img (cv2.Mat): Input image in OpenCV BGR format
+
+    Returns:
+        List of bounding box tuples (x_center, y_center, width, height)
+    """
+    # Initialize YOLOv11 model
+    model = YOLO("yolov8n.pt")
+
+    results = model.predict(
+        img, conf=0.5, classes=[0]
+    )  # detect only person (class id: 0)
+    boxes = results[0].boxes.xywh.tolist()  # each box: [x, y, w, h]
+    return boxes
 
 
 def main(fn):
@@ -67,7 +79,11 @@ def main_webcam():
 
 
 if __name__ == "__main__":
-    fn = sys.argv[1]
+
+    try:
+        fn = sys.argv[1]
+    except:
+        fn = "webcam"
     if fn != "webcam":
         main(fn)
     else:
