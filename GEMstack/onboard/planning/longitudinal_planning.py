@@ -560,6 +560,22 @@ class YieldTrajectoryPlanner(Component):
 
                 for n,a in state.agents.items():
 
+                    #=========================
+                    # PEDESTRIAN DETECTION TESTING
+                    # x: Longitudinal (forward and backward)
+                    # y: Lateral (left and right)
+                    # z: Vertical (up and down)
+                    print("\n@@@@@ PEDESTRIAN DETECTED @@@@@")
+                    print(f"Pose (x,y):        ({a.pose.x:.1f}, {a.pose.y:.1f})")
+                    print(f"Velocity (x,y:     ({a.velocity[0]:.1f}, {a.velocity[1]:.1f})")
+                    print(f"Dimension (x,y,z): ({a.dimensions[0]:.1f}, {a.dimensions[1]:.1f}, {a.dimensions[2]:.1f})")
+                    # print(f"Pedestrian: ({a}")
+                    # print(f"Frame: ({a.pose.frame}")
+                    # if a.pose.frame == ObjectFrameEnum.ABSOLUTE_CARTESIAN:
+                    #     print("Absolute Cartesian => Pedestrian is in the world frame.")
+                    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n")
+                    #=========================
+
                     # Pedestrian parameters.
                     x2, y2 = a.pose.x, a.pose.y
                     v2 = [a.velocity[0], a.velocity[1]]     # Pedestrian speed vector
@@ -627,11 +643,19 @@ class YieldTrajectoryPlanner(Component):
 
                 # # UNCOMMENT TO BRAKE FOR ALL PEDESTRIANS
                 # should_brake = True
+                # should_yield = False
 
                 # # UNCOMMENT NOT TO BRAKE
                 # should_brake = False
 
                 #=========================
+
+        #=========================
+        # NOT MOVE FOR PEDESTRIAN TESTING
+        print("\n@@@@@ FREEZING FOR DETECTION ONLY @@@@@\n")
+        should_brake = False
+        self.desired_speed = 0.0
+        #=========================
 
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
 
