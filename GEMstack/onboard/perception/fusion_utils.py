@@ -29,7 +29,7 @@ def downsample_points(lidar_points):
     return transformed_points
 
 
-def filter_ground_points(lidar_points, ground_threshold = 0):
+def filter_ground_points(lidar_points, ground_threshold=0):
     """ Filter points given an elevation of ground threshold """
     filtered_array = lidar_points[lidar_points[:, 3] < ground_threshold]
     return filtered_array
