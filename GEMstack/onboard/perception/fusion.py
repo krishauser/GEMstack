@@ -1,5 +1,6 @@
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, PointCloud2
+from visualization_msgs.msg import MarkerArray
 from ultralytics import YOLO
 from fusion_utils import *
 import rospy
@@ -38,7 +39,7 @@ class Fusion3D():
         # Publishers
         self.pub_pedestrians_pc2 = rospy.Publisher("/point_cloud/pedestrians", PointCloud2, queue_size=10)
         self.pub_centroids_pc2 = rospy.Publisher("/point_cloud/centroids", PointCloud2, queue_size=10)
-        self.pub_bbox_corners_pc2 = rospy.Publisher("/point_cloud/bbox_corners", PointCloud2, queue_size=10)
+        self.pub_bboxes_markers = rospy.Publisher("/markers/bboxes", MarkerArray, queue_size=10)
         if(self.visualization):
             self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
@@ -67,7 +68,6 @@ class Fusion3D():
         # Unpacking box dimentions detected into x,y,w,h
         pedestrians_3d_centroids = []
         pedestrians_3d_dims = []
-        pedestrians_3d_bbox_corners = []
         flattened_pedestrians_2d_pts = []
         flattened_pedestrians_3d_pts = []
 
@@ -114,39 +114,36 @@ class Fusion3D():
                 dims = calculate_dimensions(extracted_3d_pts)
                 if dims != None:
                     pedestrians_3d_dims.append(dims)
-
-                # Calculate bbox corners for visualization
-                corners = calculate_bbox_corners_3d(centroid, dims)
-                if corners != None:
-                    pedestrians_3d_bbox_corners = pedestrians_3d_bbox_corners + corners
             
             # Used for visualization
             if(self.visualization):
                 cv_image = vis_2d_bbox(cv_image, xywh, box)
-        
-        if len(flattened_pedestrians_3d_pts) > 0:
-            # Draw projected 2D LiDAR points on the image.
-            for pt in flattened_pedestrians_2d_pts:
-                cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
-
-            # Create point cloud from extracted 3D points
-            ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts)
-            self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
-
-        if len(pedestrians_3d_centroids) > 0:
-            # Create point cloud from pedestrain centroid
-            ros_pedestrians_centroids_pc2 = create_point_cloud(pedestrians_3d_centroids, color=(255, 0, 255))
-            self.pub_centroids_pc2.publish(ros_pedestrians_centroids_pc2)
-
-        if len(pedestrians_3d_bbox_corners) > 0:
-            # Create point cloud from pedestrain centroid
-            ros_pedestrians_bbox_corners_pc2 = create_point_cloud(pedestrians_3d_bbox_corners, color=(0, 0, 255))
-            self.pub_bbox_corners_pc2.publish(ros_pedestrians_bbox_corners_pc2)
 
         # Used for visualization
         if(self.visualization):
+            if len(flattened_pedestrians_3d_pts) > 0:
+                # Draw projected 2D LiDAR points on the image.
+                for pt in flattened_pedestrians_2d_pts:
+                    cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
+
+                # Create point cloud from extracted 3D points
+                ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts)
+                self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
+
+            if len(pedestrians_3d_centroids) > 0 and len(pedestrians_3d_dims) > 0:
+                # Create point cloud from pedestrain centroid
+                ros_pedestrians_centroids_pc2 = create_point_cloud(pedestrians_3d_centroids, color=(255, 0, 255))
+                self.pub_centroids_pc2.publish(ros_pedestrians_centroids_pc2)
+
+                # Create bbox marker from pedestrain dimensions
+                ros_delete_bboxes_markers = delete_bbox_marker()
+                self.pub_bboxes_markers.publish(ros_delete_bboxes_markers)
+                ros_pedestrians_bboxes_markers = create_bbox_marker(pedestrians_3d_centroids, pedestrians_3d_dims)
+                self.pub_bboxes_markers.publish(ros_pedestrians_bboxes_markers)
+
+            # Convert cv2 image to imgmsg
             ros_img = self.bridge.cv2_to_imgmsg(cv_image, 'bgr8')
-            self.pub_image.publish(ros_img)  
+            self.pub_image.publish(ros_img)
 
 
 
