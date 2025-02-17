@@ -37,6 +37,7 @@ def filter_ground_points(lidar_points, ground_threshold = 0):
 
 def filter_far_points(lidar_points, max_dist_percent=0.85):
     """ Filter points beyond a percentage threshold of max distance in a point cluster """
+    if lidar_points.shape[0] == 0: return lidar_points
     max_dist = np.max(lidar_points[:, 4])
     filtered_array = lidar_points[lidar_points[:, 4] < max_dist_percent * max_dist]
     return filtered_array
@@ -165,3 +166,5 @@ def create_point_cloud(points, color=(255, 0, 0)):
     point_cloud_data = [(x, y, z, packed_color) for x, y, z in points]
 
     return pc2.create_cloud(header, fields, point_cloud_data)
+
+    
