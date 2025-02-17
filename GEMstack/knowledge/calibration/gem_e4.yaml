@@ -1,7 +1,7 @@
 calibration_date: "2024-03-05"  # Date of calibration YYYY-MM-DD
 reference: rear_axle_center  # rear axle center
 rear_axle_height: 0.33      # height of rear axle center above flat ground
-gnss_location: [1.10,0.1.62] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/vehicle_drivers/gem_gnss_control/scripts/gem_gnss_tracker_stanley_rtk.py.  Note conflict with pure pursuit location?
+gnss_location: [1.10,1.62] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/vehicle_drivers/gem_gnss_control/scripts/gem_gnss_tracker_stanley_rtk.py.  Note conflict with pure pursuit location?
 gnss_yaw: 0.0 # radians
 top_lidar: !include "gem_e4_ouster.yaml"
 front_camera: !include "gem_e4_oak.yaml"

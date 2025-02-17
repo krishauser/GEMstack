@@ -26,6 +26,8 @@ import cv2
 import numpy as np
 from ...utils import conversions
 
+import time
+
 class GEMHardwareInterface(GEMInterface):
     """Interface for connnecting to the physical GEM e2 vehicle."""
     def __init__(self):
@@ -177,6 +179,7 @@ class GEMHardwareInterface(GEMInterface):
                 else:
                     def callback_with_gnss_reading(msg: INSNavGeod):
                         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t=time.time(),
                                     x=msg.longitude,
                                     y=msg.latitude,
                                     z=msg.height,
