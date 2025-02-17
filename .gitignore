@@ -175,4 +175,5 @@ setup/zed_sdk.run
 cuda/
 
 **/rosbag/*
+**/logs/*
 

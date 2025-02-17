@@ -2,8 +2,6 @@ import cv2
 import sys
 from ultralytics import YOLO
 
-<<<<<<< HEAD
-
 def person_detector(img: cv2.Mat):
     # Load the YOLOv8 model (assuming you  ave the model file 'yolov8n.pt' in the same directory)
     model = YOLO('../GEMstack/knowledge/detection/yolo11n.pt')  # You can also use 'yolov8s.pt', 'yolov8m.pt', etc.

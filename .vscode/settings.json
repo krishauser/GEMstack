@@ -3,6 +3,10 @@
         "./catkin_ws/devel/lib/python3/dist-packages",
         "../../../catkin_ws/devel/lib/python3/dist-packages",
         "/opt/ros/noetic/lib/python3/dist-packages"
+    ],
+    "python.autoComplete.extraPaths": [
+        "/home/lzy/Projects/catkin_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
     ]
 }
 

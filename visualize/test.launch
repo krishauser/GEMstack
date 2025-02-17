@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+  <node name="gem_rviz_text" pkg="gem_rviz_markers" type="gem_rviz_text.py" />
+  <!-- https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/vehicle_drivers/gem_visualization/gem_rviz_markers/scripts/gem_rviz_text.py -->
+  
+  <node name="gem_gnss_image" pkg="gem_gnss_image" type="gem_gnss_image.py" />
+  <!-- https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/vehicle_drivers/gem_visualization/gem_gnss_image/scripts/gem_gnss_image.py -->
+  
+</launch>
