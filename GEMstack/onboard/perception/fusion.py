@@ -1,5 +1,5 @@
 """
-Lidar + Camera fusion and object detection
+Top ouster lidar + Oak front camera fusion, object detection
 """
 """
 Terminal 1:
@@ -46,9 +46,9 @@ from .fusion_utils import *
 
 class Fusion3D():
     # TODO: Pull params into a JSON/yaml
-    # TODO: Convert lists into np.arrays where possible, vectorize calculations
-    # TODO: Implement logging instead of print
-    # TODO: Finish splitting this class + utils into separate classes
+    # TODO: Convert some lists into np.arrays, vectorize calculations
+    # TODO: Implement logging instead of print, cleanup comments
+    # TODO: Cleanup funcs + split into separate classes
     # TODO: Decide if we want to name dets "peds" or "objs"/"agents"
     #       Maybe peds for now and Agents in agent_detection.py?
     def __init__(self):
@@ -112,6 +112,7 @@ class Fusion3D():
     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
     # TODO Akul: Fix velocity calculation to calculate in ObjectFrameEnum.START
     #            work towards own tracking class instead of simple YOLO track?
+    # ret: Dict[track_id: vel[x, y, z]]
     def find_vels(self, track_ids, obj_centers):
         # Object not seen -> velocity = None
         track_id_center_map = dict(zip(track_ids, obj_centers))
