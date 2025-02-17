@@ -65,6 +65,7 @@ class Fusion3D():
 
         # Unpacking box dimentions detected into x,y,w,h
         pedestrians_3d_centroids = []
+        pedestrians_3d_dims = []
         flattened_pedestrians_2d_pts = []
         flattened_pedestrians_3d_pts = []
 
@@ -103,10 +104,12 @@ class Fusion3D():
                 extracted_3d_pts = list(extracted_pts[:, -3:])
                 flattened_pedestrians_3d_pts = flattened_pedestrians_3d_pts + extracted_3d_pts
                 
-                # Calculate and store centroids of each pedestrain
+                # Calculate and store centroids and dimensions of each pedestrain
                 centroid = calculate_centroid(extracted_3d_pts)
+                dims = calculate_dimensions(extracted_3d_pts)
                 pedestrians_3d_centroids.append(centroid)
-
+                pedestrians_3d_dims.append(dims)
+            
             # Used for visualization
             if(self.visualization):
                 cv_image = vis_2d_bbox(cv_image, xywh, box)

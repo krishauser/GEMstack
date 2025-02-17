@@ -54,12 +54,38 @@ def calculate_centroid(points):
     :return: The centroid as a list [cx, cy, cz]
     """
     if not points:
-        return None  # Return None if the list is empty
-
-    num_points = len(points)
-    centroid = [sum(coord) / num_points for coord in zip(*points)]
+        return None
     
-    return centroid
+    # Convert to numpy array for efficiency
+    points_array = np.array(points)
+    
+    # Compute centroid
+    centroid_point = np.mean(points_array, axis=0)
+    
+    return centroid_point.tolist()
+
+
+def calculate_dimensions(points):
+    """
+    Calculate the dimensions of a cluster of points in 3D space.
+    
+    :param points: List of points in the format [[x1, y1, z1], [x2, y2, z2], ...]
+    :return: the dimensions as a list [length (forward), width (sideways), height (up)]
+    """
+    if not points:
+        return None
+    
+    # Convert to numpy array for efficiency
+    points_array = np.array(points)
+    
+    # Extract min and max values along each axis
+    min_vals = np.min(points_array, axis=0)
+    max_vals = np.max(points_array, axis=0)
+    
+    # Compute dimensions
+    dimensions = max_vals - min_vals
+    
+    return dimensions.tolist()
 
 
 # Credits: The following lines of codes (from 33 to 92) are adapted from the Calibration Team B
