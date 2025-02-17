@@ -164,7 +164,7 @@ class PurePursuit(object):
                 print("Feedforward accel: " + str(feedforward_accel) + " m/s^2")
         else:
             #decay speed when crosstrack error is high
-            desired_speed *= np.exp(-abs(ct_error)*1.0)
+            desired_speed *= np.exp(-abs(ct_error)*0.8)
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
