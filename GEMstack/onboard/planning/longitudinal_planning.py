@@ -707,6 +707,7 @@ class YieldTrajectoryPlanner(Component):
 
         lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
         route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
+        route_to_end = route.trim(closest_parameter, len(route.points) - 1)
 
         should_yield = False
         yield_deceleration = 0.0
