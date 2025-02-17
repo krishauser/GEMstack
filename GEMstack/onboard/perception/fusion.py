@@ -10,7 +10,7 @@ roscore
 Terminal 2:
 ---------------
 source /opt/ros/noetic/setup.bash && source /catkin_ws/devel/setup.bash
-python3 /home/Admin/transform.py
+python3 GEMstack/onboard/perception/transform.py
 
 Terminal 3:
 ---------------
