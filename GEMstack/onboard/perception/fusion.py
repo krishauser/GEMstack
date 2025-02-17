@@ -15,7 +15,7 @@ python3 /home/Admin/transform.py
 Terminal 3:
 ---------------
 source /opt/ros/noetic/setup.bash && source /catkin_ws/devel/setup.bash
-rosbag play ~/vehicle.bag
+rosbag play -l ~/rosbags/vehicle.bag
 
 Terminal 4:
 ---------------
@@ -259,7 +259,7 @@ class Fusion3D():
             extracted_pts_all.append(extracted_pts)
             
         self.update_object_states(track_result, extracted_pts_all)
-        self.viz_object_states(cv_image, boxes, extracted_pts_all)
+        if self.debug: self.viz_object_states(cv_image, boxes, extracted_pts_all)
 
 
 if __name__ == '__main__':
