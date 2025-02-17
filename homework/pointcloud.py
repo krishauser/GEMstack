@@ -189,6 +189,7 @@ def visualize_geometries(geometries, window_name="Open3D", width=800, height=600
 def main():
     # Load the color image.
     idx = 7
+
     img = cv2.imread(f"../data/color{idx}.png")
     if img is None:
         print("Error: Could not load the color image.")
@@ -268,6 +269,7 @@ def main():
             continue
 
         refined_cluster = refine_cluster(roi_points, intersection, eps=0.125, min_samples=10)
+
         refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.05)
         if refined_cluster is None or refined_cluster.shape[0] == 0:
             refined_center = intersection
