@@ -86,7 +86,7 @@ class PedestrianDetector2D(Component):
         self.classes_to_detect = 0
         self.ground_threshold = -2.0
         self.max_human_depth = 0.9
-        self.vehicle_frame = False # Indicate whether pedestrians centroids and point clouds are in the vehicle frame
+        self.vehicle_frame = True # Indicate whether pedestrians centroids and point clouds are in the vehicle frame
 
         # Load calibration data
         # TODO: Maybe lets add one word or link what R t K are?
@@ -290,8 +290,14 @@ class PedestrianDetector2D(Component):
         #         ))
             
     def find_vels_and_ids(self, obj_centers: List[np.ndarray], obj_dims: List[np.ndarray]):
-        # Gate to check whether dims and centers are empty:
+        # Gate to check whether dims and centers are empty (will happen if no pedestrians are scanned):
         if ((len(obj_dims) == 1 or len(obj_centers) == 1) and (obj_centers[0].size == 0 or obj_dims[0].size == 0)):
+            self.prev_agents = self.current_agents.copy()
+            self.current_agents = {} # There weren't any pedestrians detected
+            return
+        elif (len(obj_centers) != len(obj_dims)):
+            for i in range(25):
+                print("ERROR NUM PARINGS AND OBJ DIMS ARENT THE SAME")
             self.prev_agents = self.current_agents.copy()
             self.current_agents = {} # There weren't any pedestrians detected
             return
@@ -305,9 +311,7 @@ class PedestrianDetector2D(Component):
         # TODO: NEED TO STORE AND INCORPORATE TRANSFORMS SOMEHOW TO DEAL WITH MOVING CAR CASE
         assigned = False
         num_pairings = len(obj_centers)
-        if num_pairings != len(obj_dims):
-            for i in range(25):
-                print("ERROR NUM PARINGS AND OBJ DIMS ARENT THE SAME")
+
         converted_centers = obj_centers # TODO: REPLACE WITH THIS: self.convert_vehicle_frame_to_start_frame(obj_centers)
 
         # Loop through the indexes of the obj_center and obj_dim pairings
@@ -326,8 +330,8 @@ class PedestrianDetector2D(Component):
                     else:
                         delta_t = self.curr_time - self.prev_time
                         vel = (converted_centers[idx] - np.array([prev_state.pose.x, prev_state.pose.y, prev_state.pose.z])) / delta_t.total_seconds()
-                        print("VELOCITY:")
-                        print(vel)
+                    print("VELOCITY:")
+                    print(vel)
 
                     self.current_agents[prev_id] = (
                         AgentState(
