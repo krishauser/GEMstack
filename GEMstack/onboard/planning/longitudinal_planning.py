@@ -9,19 +9,6 @@ import numpy as np
 DEBUG = False  # Set to False to disable debug output
 
 def generate_dense_points(points: List[Tuple[float, float]], density: int = 10) -> List[Tuple[float, float]]:
-    """
-    Generates a dense set of points by interpolating between consecutive points.
-    
-    For each segment between two points, this function inserts additional points
-    at a rate of 'density' points per unit distance.
-    
-    Parameters:
-      points: List of (x, y) tuples.
-      density: Number of interpolated points per unit length.
-      
-    Returns:
-      A new list of points including both the original and interpolated points.
-    """
     if not points:
         return []
     if len(points) == 1:
@@ -32,22 +19,18 @@ def generate_dense_points(points: List[Tuple[float, float]], density: int = 10) 
     for i in range(len(points) - 1):
         p0 = points[i]
         p1 = points[i + 1]
-        # Compute differences element-wise
         dx = p1[0] - p0[0]
         dy = p1[1] - p0[1]
         seg_length = math.hypot(dx, dy)
         
-        # Determine the number of intermediate points for this segment
         n_interp = int(round(seg_length * density))
         
-        # Generate and append the interpolated points
         for j in range(1, n_interp + 1):
             fraction = j / (n_interp + 1)
             x_interp = p0[0] + fraction * dx
             y_interp = p0[1] + fraction * dy
             dense_points.append((x_interp, y_interp))
         
-        # Append the endpoint of the segment
         dense_points.append(p1)
         
     return dense_points
@@ -55,8 +38,8 @@ def generate_dense_points(points: List[Tuple[float, float]], density: int = 10) 
 def compute_cumulative_distances(points: List[List[float]]) -> List[float]:
     s_vals = [0.0]
     for i in range(1, len(points)):
-        dx = points[i][0] - points[i-1][0]
-        dy = points[i][1] - points[i-1][1]
+        dx = points[i][0]- points[i-1][0]
+        dy = points[i][1] -points[i-1][1]
         ds = math.hypot(dx, dy)
         s_vals.append(s_vals[-1] + ds)
 
@@ -221,15 +204,6 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
     return Trajectory(frame=path.frame, points=dense_points, times=times)
 
 def longitudinal_brake(path: Path, deceleration: float, current_speed: float, emergency_decel: float = 8.0) -> Trajectory:
-    """
-    Generates a braking trajectory with emergency braking capability.
-    
-    Parameters:
-        path: The path to follow
-        deceleration: Normal deceleration rate (m/s²)
-        current_speed: Current vehicle speed (m/s)
-        emergency_decel: Emergency deceleration rate (m/s²), default 8.0 m/s²
-    """
     # Vehicle already stopped - maintain position
     if current_speed <= 0:
         print("[DEBUG] longitudinal_brake: Zero velocity case! ", [path.points[0]] * len(path.points))
