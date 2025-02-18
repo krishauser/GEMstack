@@ -85,6 +85,7 @@ class PedestrianDetector2D(Component):
         self.classes_to_detect = 0
         self.ground_threshold = -2.0
         self.max_human_depth = 0.9
+        self.vehicle_frame = False # Indicate whether pedestrians centroids and point clouds are in the vehicle frame
 
         # Load calibration data
         # TODO: Maybe lets add one word or link what R t K are?
@@ -193,10 +194,12 @@ class PedestrianDetector2D(Component):
             self.pub_image.publish(ros_img)  
 
             # Draw 3D pedestrian pointclouds
-            # Tranform 3D pedestrians points to vehicle frame for better visualization. Turn off for performance
-            flattened_pedestrians_3d_pts_vehicle = transform_lidar_points(np.array(flattened_pedestrians_3d_pts), self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)
+            if self.vehicle_frame:
+                # If in vehicle frame, tranform 3D pedestrians points to vehicle frame for better visualization.
+                flattened_pedestrians_3d_pts_vehicle = transform_lidar_points(np.array(flattened_pedestrians_3d_pts), self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)
+                flattened_pedestrians_3d_pts = flattened_pedestrians_3d_pts_vehicle
+
             # Create point cloud from extracted 3D points
-            # ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts_vehicle)
             ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts)
             self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
 
@@ -241,20 +244,22 @@ class PedestrianDetector2D(Component):
         obj_dims = self.find_dims(pedestrians_3d_pts)
         obj_vels = self.find_vels(track_ids, obj_centers)
 
-        # Transform centers from top_lidar frame to vehicle frame
+        # If in vehicle frame, transform centers from top_lidar frame to vehicle frame
         # Need to transform the center point one by one since matrix op can't deal with empty points
-        obj_centers_vehicle = []
-        for obj_center in obj_centers:
-            if len(obj_center) > 0:
-                obj_center = np.array([obj_center])
-                obj_center_vehicle = transform_lidar_points(obj_center, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
-                obj_centers_vehicle.append(obj_center_vehicle)
-            else:
-                obj_centers_vehicle.append(np.array(()))
+        if self.vehicle_frame:
+            obj_centers_vehicle = []
+            for obj_center in obj_centers:
+                if len(obj_center) > 0:
+                    obj_center = np.array([obj_center])
+                    obj_center_vehicle = transform_lidar_points(obj_center, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
+                    obj_centers_vehicle.append(obj_center_vehicle)
+                else:
+                    obj_centers_vehicle.append(np.array(()))
+            obj_centers = obj_centers_vehicle
         
         # Update Current AgentStates
         for ind in range(num_objs):
-            obj_center = (None, None, None) if obj_centers_vehicle[ind].size == 0 else obj_centers_vehicle[ind]
+            obj_center = (None, None, None) if obj_centers[ind].size == 0 else obj_centers[ind]
             obj_dim = (None, None, None) if obj_dims[ind].size == 0 else obj_dims[ind]
             self.current_agents[track_ids[ind]] = (
                 AgentState(
@@ -319,7 +324,8 @@ class PedestrianDetector2D(Component):
                 extracted_pts = filter_ground_points(extracted_pts, self.ground_threshold)
                 extracted_pts = filter_depth_points(extracted_pts, self.max_human_depth)
                 extracted_pts_all.append(extracted_pts)
-            else: extracted_pts_all.append(np.array(()))
+            # Still causing errors, I will turn this on later
+            # else: extracted_pts_all.append(np.array(()))
         
         #if len(extracted_pts_all) > 0 and len(track_result) > 0:
         self.update_object_states(track_result, extracted_pts_all)
