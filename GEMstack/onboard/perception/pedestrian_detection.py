@@ -83,7 +83,7 @@ class PedestrianDetector2D(Component):
         self.curr_time = 1 # Avoid divide by 0 for placebolder, 0
         self.confidence = 0.7
         self.classes_to_detect = 0
-        self.ground_threshold = 1.6
+        self.ground_threshold = -2.0
         self.max_human_depth = 0.9
 
         # Load calibration data
@@ -162,7 +162,7 @@ class PedestrianDetector2D(Component):
     def viz_object_states(self, cv_image, boxes, extracted_pts_all):
         # Extract 3D pedestrians points in lidar frame
         # ** These are camera frame after transform_lidar_points, right?
-        pedestrians_3d_pts = [list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all] 
+        pedestrians_3d_pts = [list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all]
 
         # Object center viz
         obj_3d_obj_centers = list()
@@ -196,7 +196,8 @@ class PedestrianDetector2D(Component):
             # Tranform 3D pedestrians points to vehicle frame for better visualization. Turn off for performance
             flattened_pedestrians_3d_pts_vehicle = transform_lidar_points(np.array(flattened_pedestrians_3d_pts), self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)
             # Create point cloud from extracted 3D points
-            ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts_vehicle)
+            # ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts_vehicle)
+            ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts)
             self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
 
         # Draw 3D pedestrian centers and dimensions
@@ -287,8 +288,8 @@ class PedestrianDetector2D(Component):
         # print("len lidar_in_camera", len(lidar_in_camera))
 
         # Project the transformed points into the image plane.
-        projected_pts = project_points(lidar_in_camera, self.K)
-        # print("len projected_pts", len(projected_pts))
+        projected_pts = project_points(lidar_in_camera, self.K, downsampled_points)
+        # print("projected_pts", len(projected_pts))
 
         # Process bboxes
         boxes = track_result[0].boxes
@@ -316,7 +317,7 @@ class PedestrianDetector2D(Component):
 
                 # Apply ground and max distance filter to the extracted 5D points
                 extracted_pts = filter_ground_points(extracted_pts, self.ground_threshold)
-                extracted_pts = filter_depth_points(extracted_pts)
+                extracted_pts = filter_depth_points(extracted_pts, self.max_human_depth)
                 extracted_pts_all.append(extracted_pts)
         
         if len(extracted_pts_all) > 0 and len(track_result) > 0:

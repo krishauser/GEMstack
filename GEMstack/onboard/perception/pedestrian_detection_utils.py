@@ -32,14 +32,14 @@ def downsample_points(lidar_points):
 
 def filter_ground_points(lidar_points, ground_threshold = 0):
     """ Filter points given an elevation of ground threshold """
-    filtered_array = lidar_points[lidar_points[:, 3] < ground_threshold]
+    filtered_array = lidar_points[lidar_points[:, 4] > ground_threshold]
     return filtered_array
 
 
 def filter_depth_points(lidar_points, max_human_depth=0.9):
     """ Filter points beyond a max possible human depth in a point cluster """
     if lidar_points.shape[0] == 0: return lidar_points
-    lidar_points_dist = lidar_points[:, 4]
+    lidar_points_dist = lidar_points[:, 2]
     min_dist = np.min(lidar_points_dist)
     max_dist = np.max(lidar_points_dist)
     max_possible_dist = min_dist + max_human_depth
@@ -97,19 +97,19 @@ def transform_lidar_points(lidar_points, R, t):
     return P_cam
 
 
-def project_points(points_3d, K):
+def project_points(points_3d, K, lidar_points):
     """
     Project 3D points (in the camera frame) into 2D image coordinates using the camera matrix K.
     Only projects points with z > 0.
     """
     proj_points = []
-    for pt in points_3d:
+    for pt, l_pt in zip(points_3d, lidar_points):
         if pt[2] > 0:  # only project points in front of the camera
             u = K[0, 0] * (pt[0] / pt[2]) + K[0, 2]
             v = K[1, 1] * (pt[1] / pt[2]) + K[1, 2]
-            # 5D points that stores original lidar points
-            proj_points.append((int(u), int(v), pt[0], pt[1], pt[2]))
-    return proj_points
+            # 5D data point
+            proj_points.append((int(u), int(v), l_pt[0], l_pt[1], l_pt[2]))
+    return np.array(proj_points)
 
 
 def vis_2d_bbox(image, xywh, box):
@@ -155,7 +155,7 @@ def create_point_cloud(points, color=(255, 0, 0)):
     """
     header = rospy.Header()
     header.stamp = rospy.Time.now()
-    header.frame_id = "map"  # Change to your TF frame
+    header.frame_id = "os_sensor"  # Change to your TF frame
 
     fields = [
         PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
@@ -185,7 +185,7 @@ def create_bbox_marker(centroids, dimensions):
             continue
 
         marker = Marker()
-        marker.header.frame_id = "map"  # Reference frame
+        marker.header.frame_id = "os_sensor"  # Reference frame
         marker.header.stamp = rospy.Time.now()
         marker.ns = "bounding_boxes"
         marker.id = i  # Unique ID for each marker
