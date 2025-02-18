@@ -48,6 +48,8 @@ from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState
 from .pedestrian_detection_utils import *
 from ..interface.gem import GEMInterface
 from ..component import Component
+from .AgentTracker import AgentTracker
+
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -238,14 +240,7 @@ class PedestrianDetector2D(Component):
         if len(pedestrians_3d_pts) != num_objs:
             raise Exception('Perception - Camera detections, points clusters num. mismatch')
         
-        # TODO: Slower but cleaner to pass dicts of AgentState
-        #       or at least {track_ids: centers/pts/etc}
-        # TODO: Combine funcs for efficiency in C.
-        #       Separate numpy prob still faster for now
-        obj_centers = self.find_centers(pedestrians_3d_pts)
-        obj_dims = self.find_dims(pedestrians_3d_pts)
-        obj_vels = self.find_vels(track_ids, obj_centers)
-
+        # TODO: CONVERT FROM LIDAR FRAME TO VEHICLE FRAME HERE (vehicle frame is center of rear axle at vehicle's current location)
         # If in vehicle frame, transform centers from top_lidar frame to vehicle frame
         # Need to transform the center point one by one since matrix op can't deal with empty points
         if self.vehicle_frame:
@@ -259,6 +254,17 @@ class PedestrianDetector2D(Component):
                     obj_centers_vehicle.append(np.array(()))
             obj_centers = obj_centers_vehicle
         
+        # TODO: Slower but cleaner to pass dicts of AgentState
+        #       or at least {track_ids: centers/pts/etc}
+        # TODO: Combine funcs for efficiency in C.
+        #       Separate numpy prob still faster for now
+        obj_centers = self.find_centers(pedestrians_3d_pts)
+        obj_dims = self.find_dims(pedestrians_3d_pts)
+
+        # TODO: CONVERT FROM VEHICLE FRAME TO START FRAME HERE
+        # Then compare previous and current agents with the same id to calculate velocity
+        obj_vels = self.find_vels(track_ids, obj_centers)
+
         # Update Current AgentStates
         for ind in range(num_objs):
             obj_center = (None, None, None) if obj_centers[ind].size == 0 else obj_centers[ind]
