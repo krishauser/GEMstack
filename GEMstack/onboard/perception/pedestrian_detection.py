@@ -324,8 +324,7 @@ class PedestrianDetector2D(Component):
                 extracted_pts = filter_ground_points(extracted_pts, self.ground_threshold)
                 extracted_pts = filter_depth_points(extracted_pts, self.max_human_depth)
                 extracted_pts_all.append(extracted_pts)
-            # Still causing errors, I will turn this on later
-            # else: extracted_pts_all.append(np.array(()))
+            else: extracted_pts_all.append(np.array(()))
         
         #if len(extracted_pts_all) > 0 and len(track_result) > 0:
         self.update_object_states(track_result, extracted_pts_all)
