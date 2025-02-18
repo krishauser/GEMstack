@@ -88,9 +88,14 @@ class PedestrianDetector2D(Component):
 
         # Load calibration data
         # TODO: Maybe lets add one word or link what R t K are?
-        self.R = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/R.npy')
-        self.t = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/t.npy')
+        self.R_lidar_to_oak = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/R.npy')
+        self.t_lidar_to_oak = load_extrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/extrinsics/t.npy')
         self.K = load_intrinsics(os.getcwd() + '/GEMstack/onboard/perception/calibration/camera_intrinsics.json')
+
+        self.R_lidar_to_vehicle = np.array([[0.9995121, 0.02132941, 0.02281911], 
+            [-0.02124771, 0.99976695, -0.00381707], 
+            [-0.02289521, 0.00333035, 0.9997323]])
+        self.t_lidar_to_vehicle = np.array([[0.0], [0.0], [0.35]])
 
         # Subscribers and sychronizers
         self.rgb_rosbag = message_filters.Subscriber('/oak/rgb/image_raw', Image)
@@ -179,7 +184,7 @@ class PedestrianDetector2D(Component):
         
         flattened_pedestrians_3d_pts = list() 
         for pts in pedestrians_3d_pts: flattened_pedestrians_3d_pts.extend(pts)
-
+	
         if len(flattened_pedestrians_3d_pts) > 0:
             # Draw projected 2D LiDAR points on the image.
             for pt in flattened_pedestrians_2d_pts:
@@ -188,8 +193,10 @@ class PedestrianDetector2D(Component):
             self.pub_image.publish(ros_img)  
 
             # Draw 3D pedestrian pointclouds
+            # Tranform 3D pedestrians points to vehicle frame for better visualization. Turn off for performance
+            flattened_pedestrians_3d_pts_vehicle = transform_lidar_points(np.array(flattened_pedestrians_3d_pts), self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)
             # Create point cloud from extracted 3D points
-            ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts)
+            ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts_vehicle)
             self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
 
         # Draw 3D pedestrian centers and dimensions
@@ -233,9 +240,20 @@ class PedestrianDetector2D(Component):
         obj_dims = self.find_dims(pedestrians_3d_pts)
         obj_vels = self.find_vels(track_ids, obj_centers)
 
+        # Transform centers from top_lidar frame to vehicle frame
+        # Need to transform the center point one by one since matrix op can't deal with empty points
+        obj_centers_vehicle = []
+        for obj_center in obj_centers:
+            if len(obj_center) > 0:
+                obj_center = np.array([obj_center])
+                obj_center_vehicle = transform_lidar_points(obj_center, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
+                obj_centers_vehicle.append(obj_center_vehicle)
+            else:
+                obj_centers_vehicle.append(np.array(()))
+        
         # Update Current AgentStates
         for ind in range(num_objs):
-            obj_center = (None, None, None) if obj_centers[ind].size == 0 else obj_centers[ind]
+            obj_center = (None, None, None) if obj_centers_vehicle[ind].size == 0 else obj_centers_vehicle[ind]
             obj_dim = (None, None, None) if obj_dims[ind].size == 0 else obj_dims[ind]
             self.current_agents[track_ids[ind]] = (
                 AgentState(
@@ -265,7 +283,7 @@ class PedestrianDetector2D(Component):
         # print("len downsampled_points", len(downsampled_points))
         
         # Transform LiDAR points into the camera coordinate frame.
-        lidar_in_camera = transform_lidar_points(downsampled_points, self.R, self.t)
+        lidar_in_camera = transform_lidar_points(downsampled_points, self.R_lidar_to_oak, self.t_lidar_to_oak)
         # print("len lidar_in_camera", len(lidar_in_camera))
 
         # Project the transformed points into the image plane.
