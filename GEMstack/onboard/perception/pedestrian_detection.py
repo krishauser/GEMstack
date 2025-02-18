@@ -163,6 +163,7 @@ class PedestrianDetector2D(Component):
     def viz_object_states(self, cv_image, boxes, extracted_pts_all):
         # Extract 3D pedestrians points in lidar frame
         # ** These are camera frame after transform_lidar_points, right?
+        # ** It was in camera frame before. I fixed it. Now they are in lidar frame!
         pedestrians_3d_pts = [list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all]
 
         # Object center viz
@@ -232,6 +233,7 @@ class PedestrianDetector2D(Component):
 
         # Extract 3D pedestrians points in lidar frame
         # ** These are camera frame after transform_lidar_points, right?
+        # ** It was in camera frame before. I fixed it. Now they are in lidar frame!
         pedestrians_3d_pts = [list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all] 
         if len(pedestrians_3d_pts) != num_objs:
             raise Exception('Perception - Camera detections, points clusters num. mismatch')
@@ -326,7 +328,6 @@ class PedestrianDetector2D(Component):
                 extracted_pts_all.append(extracted_pts)
             else: extracted_pts_all.append(np.array(()))
         
-        #if len(extracted_pts_all) > 0 and len(track_result) > 0:
         self.update_object_states(track_result, extracted_pts_all)
         if self.debug: self.viz_object_states(cv_image, boxes, extracted_pts_all)
 
