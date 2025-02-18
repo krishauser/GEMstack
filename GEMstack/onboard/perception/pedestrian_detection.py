@@ -242,6 +242,13 @@ class PedestrianDetector2D(Component):
         if len(pedestrians_3d_pts) != num_objs:
             raise Exception('Perception - Camera detections, points clusters num. mismatch')
         
+        # TODO: Slower but cleaner to pass dicts of AgentState
+        #       or at least {track_ids: centers/pts/etc}
+        # TODO: Combine funcs for efficiency in C.
+        #       Separate numpy prob still faster for now
+        obj_centers = self.find_centers(pedestrians_3d_pts) # Centers are calculated in lidar frame here
+        obj_dims = self.find_dims(pedestrians_3d_pts)
+
         # If in vehicle frame, transform centers from top_lidar frame to vehicle frame
         # Need to transform the center point one by one since matrix op can't deal with empty points
         if self.vehicle_frame:
@@ -254,13 +261,6 @@ class PedestrianDetector2D(Component):
                 else:
                     obj_centers_vehicle.append(np.array(()))
             obj_centers = obj_centers_vehicle
-        
-        # TODO: Slower but cleaner to pass dicts of AgentState
-        #       or at least {track_ids: centers/pts/etc}
-        # TODO: Combine funcs for efficiency in C.
-        #       Separate numpy prob still faster for now
-        obj_centers = self.find_centers(pedestrians_3d_pts) # Centers are calculated in current vehicle frame here (center of rear axle) 
-        obj_dims = self.find_dims(pedestrians_3d_pts)
 
         # TODO: CONVERT FROM VEHICLE FRAME TO START FRAME HERE
         self.find_vels_and_ids(obj_centers, obj_dims)
