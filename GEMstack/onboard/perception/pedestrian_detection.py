@@ -164,7 +164,7 @@ class PedestrianDetector2D(Component):
         # Extract 3D pedestrians points in lidar frame
         # ** These are camera frame after transform_lidar_points, right?
         # ** It was in camera frame before. I fixed it. Now they are in lidar frame!
-        pedestrians_3d_pts = [list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all]
+        pedestrians_3d_pts = [[] if len(extracted_pts) == 0 else list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all] 
 
         # Object center viz
         obj_3d_obj_centers = list()
@@ -176,7 +176,7 @@ class PedestrianDetector2D(Component):
                 obj_3d_obj_dims.append(agent.dimensions)
         
         # Extract 2D pedestrians points and bbox in camera frame
-        extracted_2d_pts = [list(extracted_pts[:, :2].astype(int)) for extracted_pts in extracted_pts_all]
+        extracted_2d_pts = [[] if len(extracted_pts) == 0 else list(extracted_pts[:, :2].astype(int)) for extracted_pts in extracted_pts_all]
         flattened_pedestrians_2d_pts = list()
         for pts in extracted_2d_pts:    flattened_pedestrians_2d_pts.extend(pts)
 
@@ -234,7 +234,7 @@ class PedestrianDetector2D(Component):
         # Extract 3D pedestrians points in lidar frame
         # ** These are camera frame after transform_lidar_points, right?
         # ** It was in camera frame before. I fixed it. Now they are in lidar frame!
-        pedestrians_3d_pts = [list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all] 
+        pedestrians_3d_pts = [[] if len(extracted_pts) == 0 else list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all] 
         if len(pedestrians_3d_pts) != num_objs:
             raise Exception('Perception - Camera detections, points clusters num. mismatch')
         
