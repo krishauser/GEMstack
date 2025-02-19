@@ -43,15 +43,31 @@ def find_human_center_on_ray(lidar_pc, ray_origin, ray_direction,
                              t_min, t_max, t_step,
                              distance_threshold, min_points, ransac_threshold):
     """
-    Sweep along the ray and return the first candidate point where enough LiDAR points exist.
-    (For simplicity, plane fitting is omitted.)
+    Pre-filter the point cloud to only include points near the ray, then sweep along the ray.
+    For each candidate along the ray, compute the centroid of nearby points and return that as the refined candidate.
+    Returns (refined_candidate, None, None) if found; otherwise, (None, None, None).
     """
+    # Pre-filter: compute distance from each point to the ray.
+    vecs = lidar_pc - ray_origin  # Vectors from origin to points.
+    proj_lengths = np.dot(vecs, ray_direction)  # Projection lengths.
+    proj_points = ray_origin + np.outer(proj_lengths, ray_direction)
+    dists_to_ray = np.linalg.norm(lidar_pc - proj_points, axis=1)
+    near_ray_mask = dists_to_ray < distance_threshold
+    filtered_pc = lidar_pc[near_ray_mask]
+
+    # If too few points remain, return None.
+    if filtered_pc.shape[0] < min_points:
+        return None, None, None
+
+    # Sweep along the ray using the filtered point cloud.
     t_values = np.arange(t_min, t_max, t_step)
     for t in t_values:
         candidate = ray_origin + t * ray_direction
-        dists = np.linalg.norm(lidar_pc - candidate, axis=1)
-        if np.sum(dists < distance_threshold) >= min_points:
-            return candidate, None, None
+        dists = np.linalg.norm(filtered_pc - candidate, axis=1)
+        nearby_points = filtered_pc[dists < distance_threshold]
+        if nearby_points.shape[0] >= min_points:
+            refined_candidate = np.mean(nearby_points, axis=0)
+            return refined_candidate, None, None
     return None, None, None
 
 
@@ -151,6 +167,7 @@ class PedestrianDetector2D(Component):
         self.vehicle_interface = vehicle_interface
         self.last_person_boxes = []
         self.lidar_pc = None  # Will be updated via ROS callback
+        self.pc_raw = None
 
     def rate(self):
         return 4.0
@@ -165,7 +182,8 @@ class PedestrianDetector2D(Component):
         # Subscribe to camera and LiDAR.
         self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
         self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
-        self.vehicle_interface.subscribe_sensor('lidar', self.lidar_callback, PointCloud2)
+        self.vehicle_interface.subscribe_sensor('top_lidar', self.lidar_callback, PointCloud2)
+        #self.vehicle_interface.subscribe_sensor('ouster/points', self.lidar_callback, PointCloud2)
         # Set up camera intrinsics and LiDAR-to-camera transformation.
         self.K = np.array([[684.83331299, 0., 573.37109375],
                            [0., 684.60968018, 363.70092773],
@@ -181,15 +199,17 @@ class PedestrianDetector2D(Component):
     def lidar_callback(self, lidar_msg: PointCloud2):
         """Convert ROS PointCloud2 to numpy array and store it."""
         self.lidar_pc = pc2_to_numpy(lidar_msg, want_rgb=False)
-
     def image_callback(self, image: cv2.Mat):
         results = self.detector(image, conf=0.5, classes=[0])
-        boxes = results[0].boxes.xywh.cpu().tolist()  # Format: [center_x, center_y, w, h]
+        boxes = np.array(results[0].boxes.xywh.cpu())  # Format: [center_x, center_y, w, h]
         self.last_person_boxes = boxes
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
+
+        # self.lidar_pc = pc2_to_numpy(self.pc_raw, want_rgb=False)
         agents = {}
         if self.lidar_pc is None:
+            print("NOT fOUND")
             return agents
         for i, box in enumerate(self.last_person_boxes):
             cx, cy, w, h = box
@@ -214,8 +234,10 @@ class PedestrianDetector2D(Component):
                 refined_cluster = roi_points
             else:
                 refined_cluster = refine_cluster(roi_points, intersection, eps=0.15, min_samples=10)
+            #print(roi_points)
             # Remove ground points by eliminating those within a small z-range of the minimum.
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.05)
+            #print(refined_cluster)
             if refined_cluster is None or refined_cluster.shape[0] == 0:
                 refined_center = intersection
                 dims = (0, 0, 0)
@@ -227,13 +249,14 @@ class PedestrianDetector2D(Component):
                 obb = pcd.get_oriented_bounding_box()
                 refined_center = obb.center
                 dims = tuple(obb.extent)
+
                 # Convert rotation matrix to Euler angles (yaw, pitch, roll).
                 euler_angles = R.from_matrix(obb.R.copy()).as_euler('zyx', degrees=True)
                 yaw, pitch, roll = euler_angles[0], euler_angles[1], euler_angles[2]
                 print(f"Detected human - Pose (yaw, pitch, roll): {euler_angles}")
                 print(f"Bounding box center: {refined_center}, Dimensions: {dims}")
             # Create agent pose.
-            pose = ObjectPose(t=vehicle.time, x=refined_center[0], y=refined_center[1],
+            pose = ObjectPose(t=0, x=refined_center[0], y=refined_center[1],
                               z=refined_center[2], yaw=yaw, pitch=pitch, roll=roll,
                               frame=ObjectFrameEnum.CURRENT)
             agent_state = AgentState(pose=pose, dimensions=dims, outline=None,

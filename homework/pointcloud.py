@@ -4,6 +4,7 @@ from ultralytics import YOLO
 import open3d as o3d
 from sklearn.cluster import DBSCAN
 from scipy.spatial.transform import Rotation as R  # For converting rotation matrix to Euler angles
+import time
 
 # ----- Helper Functions -----
 
@@ -54,31 +55,38 @@ def backproject_pixel(u, v, K):
     ray_dir = np.array([x, y, 1.0])
     return ray_dir / np.linalg.norm(ray_dir)
 
+
 def find_human_center_on_ray(lidar_pc, ray_origin, ray_direction,
                              t_min, t_max, t_step,
                              distance_threshold, min_points, ransac_threshold):
     """
-    Sweep along the ray (from ray_origin in LiDAR coordinates) and search for a local planar cluster.
+    Pre-filter the point cloud to only include points near the ray, then sweep along the ray.
+    For each candidate along the ray, compute the centroid of nearby points and return that as the refined candidate.
+    Returns (refined_candidate, None, None) if found; otherwise, (None, None, None).
     """
+    # Pre-filter: compute distance from each point to the ray.
+    vecs = lidar_pc - ray_origin  # Vectors from origin to points.
+    proj_lengths = np.dot(vecs, ray_direction)  # Projection lengths.
+    proj_points = ray_origin + np.outer(proj_lengths, ray_direction)
+    dists_to_ray = np.linalg.norm(lidar_pc - proj_points, axis=1)
+    near_ray_mask = dists_to_ray < distance_threshold
+    filtered_pc = lidar_pc[near_ray_mask]
+
+    # If too few points remain, return None.
+    if filtered_pc.shape[0] < min_points:
+        return None, None, None
+
+    # Sweep along the ray using the filtered point cloud.
     t_values = np.arange(t_min, t_max, t_step)
     for t in t_values:
         candidate = ray_origin + t * ray_direction
-        dists = np.linalg.norm(lidar_pc - candidate, axis=1)
-        nearby_points = lidar_pc[dists < distance_threshold]
-        if nearby_points.shape[0] < min_points:
-            continue
-        plane_model, inliers = fit_plane_ransac(nearby_points, ransac_threshold, min_points)
-        if plane_model is not None:
-            a, b, c, d = plane_model
-            denom = a * ray_direction[0] + b * ray_direction[1] + c * ray_direction[2]
-            if abs(denom) < 1e-6:
-                continue
-            t_plane = -(a * ray_origin[0] + b * ray_origin[1] + c * ray_origin[2] + d) / denom
-            if t_plane < 0:
-                continue
-            intersection = ray_origin + t_plane * ray_direction
-            return intersection, plane_model, inliers
+        dists = np.linalg.norm(filtered_pc - candidate, axis=1)
+        nearby_points = filtered_pc[dists < distance_threshold]
+        if nearby_points.shape[0] >= min_points:
+            refined_candidate = np.mean(nearby_points, axis=0)
+            return refined_candidate, None, None
     return None, None, None
+
 
 def extract_roi(pc, center, roi_radius):
     """
@@ -242,9 +250,11 @@ def main():
 
     # For each detected person:
     for box in boxes:
+        start = time.time()
         cx, cy, w, h = box
         center_u, center_v = cx, cy
         ray_dir_cam = backproject_pixel(center_u, center_v, K)
+
         ray_dir_lidar = R_c2l @ ray_dir_cam
         ray_dir_lidar /= np.linalg.norm(ray_dir_lidar)
 
@@ -253,6 +263,7 @@ def main():
             t_min=0.5, t_max=20.0, t_step=0.1,
             distance_threshold=0.5, min_points=10, ransac_threshold=0.05
         )
+
         if intersection is None:
             continue
 
@@ -285,7 +296,8 @@ def main():
             yaw, pitch, roll = euler_angles[0], euler_angles[1], euler_angles[2]
             print(f"Detected human - Pose (yaw, pitch, roll): {euler_angles}")
             print(f"Bounding box center: {refined_center}, Dimensions: {bbox_dims}")
-
+        end = time.time()
+        print(f"processing time: {end - start}s")
         # Project the refined 3D center back to the image.
         refined_center_h = np.hstack([refined_center, 1])
         cam_point = T_l2c @ refined_center_h
