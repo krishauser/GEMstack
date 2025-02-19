@@ -189,6 +189,11 @@ class PurePursuit(object):
             output_accel = -self.max_decel
 
         self.t_last = t
+
+        if desired_speed == 0 and speed == 0 and output_accel < 0.0:
+            print("Stopping. Set accel", output_accel, "to 0")
+            output_accel = 0.0
+
         return (output_accel, f_delta)
 
 

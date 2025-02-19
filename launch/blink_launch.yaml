@@ -9,14 +9,16 @@ recovery:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
     planning: 
-        trajectory_tracking : blink_component.BlinkDistress
+        driving_logic: driving_logic_component.DrivingLogic
+        signaling: blink_component.BlinkDistress
 # Driving behavior for the GEM vehicle.  Runs perception and planner but doesn't execute anything (no controller).
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
     planning:
-        trajectory_tracking : blink_component.BlinkDistress
+        driving_logic: driving_logic_component.DrivingLogic
+        signaling: blink_component.BlinkDistress
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     folder : 'logs' 
