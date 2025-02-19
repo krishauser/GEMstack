@@ -45,11 +45,12 @@ from visualization_msgs.msg import MarkerArray
 from ultralytics import YOLO
 from ultralytics.engine.results import Results, Boxes
 # GEMStack
-from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
+from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum,ObjectFrameEnum
 from .pedestrian_detection_utils import *
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .IdTracker import IdTracker
+
 
 
 def box_to_fake_agent(box):
@@ -262,7 +263,6 @@ class PedestrianDetector2D(Component):
                     obj_centers_vehicle.append(np.array(()))
             obj_centers = obj_centers_vehicle
 
-        # TODO: CONVERT FROM VEHICLE FRAME TO START FRAME HERE
         self.find_vels_and_ids(obj_centers, obj_dims)
             
     # TODO: Refactor to make more efficient
@@ -288,7 +288,7 @@ class PedestrianDetector2D(Component):
         num_pairings = len(obj_centers)
 
         # TODO: NEED TO STORE AND INCORPORATE TRANSFORMS SOMEHOW TO DEAL WITH MOVING CAR CASE
-        converted_centers = obj_centers # TODO: REPLACE WITH THIS: self.convert_vehicle_frame_to_start_frame(obj_centers)
+        converted_centers = obj_centers # TODO: Add this in when finished self.convert_vehicle_frame_to_start_frame(obj_centers)
 
         # Loop through the indexes of the obj_center and obj_dim pairings
         for idx in range(num_pairings):
@@ -302,7 +302,7 @@ class PedestrianDetector2D(Component):
 
                     if self.prev_time == None:
                         # This will be triggered if the very first message has pedestrians in it
-                        vel = 0.0
+                        vel = np.array([0, 0, 0])
                     else:
                         delta_t = self.curr_time - self.prev_time
                         vel = (converted_centers[idx] - np.array([prev_state.pose.x, prev_state.pose.y, prev_state.pose.z])) / delta_t.total_seconds()
@@ -318,7 +318,7 @@ class PedestrianDetector2D(Component):
                             dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_dims[idx][2]),  
                             outline=None,
                             type=AgentEnum.PEDESTRIAN,
-                            activity=AgentActivityEnum.MOVING,
+                            activity=AgentActivityEnum.STOPPED if np.all(vel == 0) else AgentActivityEnum.MOVING,
                             velocity=None if vel.size == 0 else tuple(vel),
                             yaw_rate=0
                         ))
@@ -331,7 +331,7 @@ class PedestrianDetector2D(Component):
                             dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_dims[idx][2]),  
                             outline=None,
                             type=AgentEnum.PEDESTRIAN,
-                            activity=AgentActivityEnum.MOVING,
+                            activity=AgentActivityEnum.STOPPED if np.all(vel == 0) else AgentActivityEnum.MOVING,
                             velocity=None if vel.size == 0 else tuple(vel),
                             yaw_rate=0
                         ))
@@ -351,7 +351,7 @@ class PedestrianDetector2D(Component):
                         dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_dims[idx][2]),  
                         outline=None,
                         type=AgentEnum.PEDESTRIAN,
-                        activity=AgentActivityEnum.MOVING,
+                        activity=AgentActivityEnum.UNDETERMINED,
                         velocity=None,
                         yaw_rate=0
                     ))
@@ -364,7 +364,7 @@ class PedestrianDetector2D(Component):
                         dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_dims[idx][2]),  
                         outline=None,
                         type=AgentEnum.PEDESTRIAN,
-                        activity=AgentActivityEnum.MOVING,
+                        activity=AgentActivityEnum.UNDETERMINED,
                         velocity=None,
                         yaw_rate=0
                     ))
@@ -393,8 +393,12 @@ class PedestrianDetector2D(Component):
             ( (z1_min <= z2_min and z2_min <= z1_max) or (z2_min <= z1_min and z1_min <= z2_max) )
         )
 
-    def convert_vehicle_frame_to_start_frame(self, obj_centers: List[np.ndarray]) -> List[np.ndarray]:
+    def convert_vehicle_frame_to_start_frame(self, vehicle_states: List[AgentState]) -> List[AgentState]:
+        # num_states = len(vehicle_states)
+        # for idx in num_states:
+        #     num_states[idx].to_frame()
         pass
+
 
     def ouster_oak_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
         # Update times for basic velocity calculation
