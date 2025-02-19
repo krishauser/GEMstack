@@ -22,6 +22,24 @@ import sensor_msgs.point_cloud2 as pc2
 import struct, ctypes
 
 
+class BoundingBox:
+    """
+    center: center of bounding box in x, y, z coordinates
+    dimensions: dimensions of bounding box in x, y, z format
+    orientation: 3x3 rotation matrix
+    """
+
+    def __init__(
+        self,
+        center: tuple[float, float, float],
+        dimensions: tuple[float, float, float],
+        orientation: list[list[float]],
+    ):
+        self.center = np.array(center)
+        self.dimensions = np.array(dimensions)
+        self.orientation = np.array(orientation)
+
+
 # ----- Helper Functions -----
 
 
@@ -163,6 +181,49 @@ def visualize_geometries(
     vis.destroy_window()
 
 
+def obb_collision(box1: BoundingBox, box2: BoundingBox):
+    """
+    Checks if two oriented bounding boxes (OBBs) collide using the Separating Axis Theorem (SAT).
+
+    :param box1: Box with 'center' (x, y, z), 'dimensions' (dx, dy, dz), and 'orientation' (3x3 rotation matrix)
+    :param box2: Box with 'center' (x, y, z), 'dimensions' (dx, dy, dz), and 'orientation' (3x3 rotation matrix)
+    :return: Boolean indicating whether the two OBBs collide
+    """
+
+    def get_axes(rotation_matrix):
+        """Extracts the axes from the rotation matrix."""
+        return [rotation_matrix[:, i] for i in range(3)]
+
+    def project_obb(obb: BoundingBox, axis):
+        """Projects the OBB onto a given axis and returns the min and max values."""
+        center_proj = np.dot(obb.center, axis)
+        extents = np.abs(np.dot(obb.orientation, np.diag(obb.dimensions / 2.0)))
+        radius = np.sum(extents * np.abs(axis))
+        return center_proj - radius, center_proj + radius
+
+    def overlap_on_axis(axis, box1, box2):
+        """Checks if the projections of two OBBs overlap on the given axis."""
+        min1, max1 = project_obb(box1, axis)
+        min2, max2 = project_obb(box2, axis)
+        return max1 >= min2 and max2 >= min1
+
+    # Get OBB axes
+    axes1 = get_axes(box1.orientation)
+    axes2 = get_axes(box2.orientation)
+
+    # Compute cross products of axes for possible separating axes
+    cross_axes = [np.cross(a1, a2) for a1 in axes1 for a2 in axes2]
+
+    # Test all axes
+    for axis in axes1 + axes2 + cross_axes:
+        if np.linalg.norm(axis) > 1e-6:  # Avoid near-zero axes
+            axis = axis / np.linalg.norm(axis)  # Normalize
+            if not overlap_on_axis(axis, box1, box2):
+                return False  # Separating axis found, no collision
+
+    return True  # No separating axis found, collision detected
+
+
 # ----- Pedestrian Detector 2D (with 3D fusion) -----
 
 
@@ -173,9 +234,10 @@ class PedestrianDetector2D(Component):
         self.vehicle_interface = vehicle_interface
         self.last_person_boxes = []
         self.lidar_pc = None  # Will be updated via ROS callback
+        self.frame_rate = 4.0
 
     def rate(self):
-        return 4.0
+        return self.frame_rate
 
     def state_inputs(self):
         return ["vehicle"]
@@ -211,6 +273,10 @@ class PedestrianDetector2D(Component):
         self.T_c2l = np.linalg.inv(self.T_l2c)
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
+        # Global dictionary to store pedestrians in previous frame
+        self.agents: Dict[str, AgentState] = {}
+        # Global variable for pedestrian id
+        self.id = 1
 
     def lidar_callback(self, lidar_msg: PointCloud2):
         """Convert ROS PointCloud2 to numpy array and store it."""
@@ -224,10 +290,11 @@ class PedestrianDetector2D(Component):
         self.last_person_boxes = boxes
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
-        agents = {}
         if self.lidar_pc is None:
-            return agents
-        for i, box in enumerate(self.last_person_boxes):
+            return self.agents
+
+        current_peds: Dict[str, AgentState] = {}
+        for box in self.last_person_boxes:
             cx, cy, w, h = box
             # Backproject the center pixel into a 3D ray.
             ray_dir_cam = backproject_pixel(cx, cy, self.K)
@@ -278,28 +345,62 @@ class PedestrianDetector2D(Component):
                 yaw, pitch, roll = euler_angles[0], euler_angles[1], euler_angles[2]
                 print(f"Detected human - Pose (yaw, pitch, roll): {euler_angles}")
                 print(f"Bounding box center: {refined_center}, Dimensions: {dims}")
-            # Create agent pose.
-            pose = ObjectPose(
-                t=vehicle.time,
-                x=refined_center[0],
-                y=refined_center[1],
-                z=refined_center[2],
-                yaw=yaw,
-                pitch=pitch,
-                roll=roll,
-                frame=ObjectFrameEnum.CURRENT,
-            )
-            agent_state = AgentState(
-                pose=pose,
-                dimensions=dims,
-                outline=None,
-                type=AgentEnum.PEDESTRIAN,
-                activity=AgentActivityEnum.MOVING,
-                velocity=(0, 0, 0),
-                yaw_rate=0,
-            )
-            agents[f"pedestrian{i}"] = agent_state
-        return agents
+
+                # Check with previous frame's detection and see if there are any overlaps between the bounding boxes
+                # If there are, add it to current frame dictionary
+                # If there aren't any overlaps, only add new objects to dictionary
+                # This way we ensure there isn't a collision with a previously detected object many frames ago
+                for ped_id, ped_data in self.agents.items():
+                    p_pose = ped_data.pose
+                    p_center = (p_pose.x, p_pose.y, p_pose.z)
+                    p_rotation = R.from_euler(
+                        "zyx", [p_pose.yaw, p_pose.pitch, p_pose.roll], degrees=True
+                    ).as_matrix()
+
+                    # This won't work too well if there are people standing close to each other
+                    if obb_collision(
+                        BoundingBox(refined_center, dims, obb.R),
+                        BoundingBox(p_center, ped_data.dimensions, p_rotation),
+                    ):
+                        current_peds[ped_id] = ped_data
+                        current_peds[ped_id].velocity = tuple(
+                            (np.array(refined_center) - np.array(p_center))
+                            * self.frame_rate
+                        )
+                        current_peds[ped_id].pose.x = refined_center[0]
+                        current_peds[ped_id].pose.y = refined_center[1]
+                        current_peds[ped_id].pose.z = refined_center[2]
+                        current_peds[ped_id].dimensions = dims
+                        current_peds[ped_id].pose.yaw = yaw
+                        current_peds[ped_id].pose.pitch = pitch
+                        current_peds[ped_id].pose.roll = roll
+                        break
+                else:
+                    # Create agent pose.
+                    pose = ObjectPose(
+                        t=0,
+                        x=refined_center[0],
+                        y=refined_center[1],
+                        z=refined_center[2],
+                        yaw=yaw,
+                        pitch=pitch,
+                        roll=roll,
+                        frame=ObjectFrameEnum.CURRENT,
+                    )
+                    agent_state = AgentState(
+                        pose=pose,
+                        dimensions=dims,
+                        outline=None,
+                        type=AgentEnum.PEDESTRIAN,
+                        activity=AgentActivityEnum.MOVING,
+                        velocity=(0, 0, 0),
+                        yaw_rate=0,
+                    )
+                    current_peds[f"ped{self.id}"] = agent_state
+                    self.id += 1
+
+            self.agents = current_peds
+            return current_peds
 
 
 # ----- Fake Pedestrian Detector 2D (unchanged) -----
