@@ -444,7 +444,7 @@ def solve_for_v_peak(v0: float, acceleration: float, deceleration: float, total_
 
     return math.sqrt(v_peak_sq)
 
-def compute_dynamic_dt(acceleration, speed, k=0.005, a_min=0.5):
+def compute_dynamic_dt(acceleration, speed, k=0.01, a_min=0.5):
     position_step = k * max(speed, 1.0)  # Ensures position step is speed-dependent
     return np.sqrt(2 * position_step / max(acceleration, a_min))
 
