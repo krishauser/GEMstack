@@ -1,10 +1,10 @@
 #%%
-import os
 import sys
 import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-os.getcwd()
+import pyvista as pv
+import matplotlib.pyplot as plt
 VIS = False # True to show visuals
 
 #%% things to extract
@@ -13,17 +13,16 @@ tx,ty,tz,rx,ry,rz = [None] * 6
 #%%==============================================================
 #======================= util functions =========================
 #================================================================
-if VIS:
-    import pyvista as pv
-    import matplotlib.pyplot as plt
 def vis(title='', ratio=1):
     print(title)
     pv.set_jupyter_backend('client')
     plotter = pv.Plotter(notebook=True)
-    plotter.camera.position = (-20*ratio,0,20*ratio)
-    plotter.camera.focal_point = (0,0,0)
     plotter.show_axes()
     class foo:
+        def set_cam(self,pos=(-20*ratio,0,20*ratio),foc=(0,0,0)):
+            plotter.camera.position = pos
+            plotter.camera.focal_point = foc
+            return self
         def add_pc(self,pc,ratio=ratio,**kargs):
             plotter.add_mesh(
                 pv.PolyData(pc*ratio), 
@@ -46,8 +45,11 @@ def vis(title='', ratio=1):
         def show(self):
             plotter.show()
             return self
+        def close(self):
+            plotter.close()
+            return None
 
-    return foo()
+    return foo().set_cam()
 def load_scene(path):
     sc = np.load(path)['arr_0'] 
     sc = sc[~np.all(sc == 0, axis=1)] # remove (0,0,0)'s
@@ -123,7 +125,7 @@ def pc_diff(pc0,pc1,tol=0.1):
 #================================================================
 
 #%% load scene for ground plane
-sc = load_scene('/mount/wp/GEMstack/data/lidar70.npz')
+sc = load_scene('/mount/wp/GEMstack/data/lidar1.npz')
 
 # %% we crop to keep the ground
 cropped_sc = crop(sc,iz = (-3,-2))
@@ -204,9 +206,9 @@ if VIS:
 # tx = ty = 0
 # hx,hy = np.median(diff,axis=0)[:2]
 # rz = -np.arctan2(hy,hx)
-tx = - (2.56 - 1.46) # https://publish.illinois.edu/robotics-autonomy-resources/gem-e4/hardware/
-ty = - inter
 rz = - math.atan(c)
+tx = 2.56 - 1.46 # https://publish.illinois.edu/robotics-autonomy-resources/gem-e4/hardware/
+ty = - inter * math.cos(rz)
 
 if VIS:
     p1 = (0,inter,0)
@@ -224,10 +226,9 @@ if VIS:
     rot = R.from_euler('xyz',[rx,ry,rz]).as_matrix()
 
     cal_sc1 = sc1 @ rot.T + [tx,ty,tz]
-    # projection
-    # cal_sc1[:,1] = 0
     v = vis(ratio=100)
-    v.add_pc(cal_sc1*[0,1,1],color='blue')
+    proj = [1,1,1]
+    v.add_pc(cal_sc1*proj,color='blue')
     v.add_box((2.56,.61*2,2.03+height_axel),[2.56/2,0,(2.03+height_axel)/2])
     v.show() 
     # the yellow box should be 11 inches above the ground
