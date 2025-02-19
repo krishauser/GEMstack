@@ -37,8 +37,8 @@ class GNSSStateEstimator(Component):
         return ['vehicle']
 
     def healthy(self):
-        return True
-        # return self.gnss_pose is not None TODO: fix
+        # return True
+        return self.gnss_pose is not None
 
     def update(self) -> VehicleState:
         if self.gnss_pose is None:

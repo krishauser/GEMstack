@@ -1,7 +1,7 @@
 from .gem import *
 from ...utils import settings
 import math
-
+import time
 # ROS Headers
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
@@ -178,6 +178,7 @@ class GEMHardwareInterface(GEMInterface):
                 else:
                     def callback_with_gnss_reading(msg: INSNavGeod):
                         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t = time.time(),
                                     x=msg.longitude,
                                     y=msg.latitude,
                                     z=msg.height,
@@ -185,6 +186,7 @@ class GEMHardwareInterface(GEMInterface):
                                     roll=math.radians(msg.roll),
                                     pitch=math.radians(msg.pitch),
                                     )
+                        # print("@@@@@, POSE", pose.x, pose.y)
                         speed = np.sqrt(msg.ve**2 + msg.vn**2)
                         callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
                     self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
