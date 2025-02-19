@@ -19,12 +19,6 @@ def test_longitudinal_planning():
     plt.ylabel('position')
     plt.show()
 
-    plt.plot(test_traj.times,[v for v in test_traj.velocities])
-    plt.title("Braking from 0 m/s (should just stay still)")
-    plt.xlabel('time')
-    plt.ylabel('velocity')
-    plt.show()
-
     test_traj = longitudinal_brake(test_path, 2.0, 2.0)
     assert (t1 < t2 for (t1,t2) in zip(test_traj.times[:-1],test_traj.times[1:]) )
     plt.plot(test_traj.times,[p[0] for p in test_traj.points])
@@ -33,24 +27,12 @@ def test_longitudinal_planning():
     plt.ylabel('position')
     plt.show()
 
-    plt.plot(test_traj.times,[v for v in test_traj.velocities])
-    plt.title("Braking from 2 m/s")
-    plt.xlabel('time')
-    plt.ylabel('velocity')
-    plt.show()
-
-    test_traj = longitudinal_plan(test_path, 1.1, 2.0, 3.0, 0.0)
+    test_traj = longitudinal_plan(test_path, 1.0, 2.0, 3.0, 0.0)
     assert (t1 < t2 for (t1,t2) in zip(test_traj.times[:-1],test_traj.times[1:]) )
     plt.plot(test_traj.times,[p[0] for p in test_traj.points])
     plt.title("Accelerating from 0 m/s")
     plt.xlabel('time')
     plt.ylabel('position')
-    plt.show()
-
-    plt.plot(test_traj.times,[v for v in test_traj.velocities])
-    plt.title("Accelerating from 0 m/s")
-    plt.xlabel('time')
-    plt.ylabel('velocity')
     plt.show()
 
     
@@ -62,25 +44,12 @@ def test_longitudinal_planning():
     plt.ylabel('position')
     plt.show()
 
-    plt.plot(test_traj.times,[v for v in test_traj.velocities])
-    plt.title("Accelerating from 2 m/s")
-    plt.xlabel('time')
-    plt.ylabel('velocity')
-    plt.show()
-
-
     test_traj = longitudinal_plan(test_path, 0.0, 2.0, 3.0, 3.1)
     assert (t1 < t2 for (t1,t2) in zip(test_traj.times[:-1],test_traj.times[1:]) )
     plt.plot(test_traj.times,[p[0] for p in test_traj.points])
     plt.title("Keeping constant velocity at 3.1 m/s")
     plt.xlabel('time')
     plt.ylabel('position')
-    plt.show()
-
-    plt.plot(test_traj.times,[v for v in test_traj.velocities])
-    plt.title("Keeping constant velocity at 3.1 m/s")
-    plt.xlabel('time')
-    plt.ylabel('velocity')
     plt.show()
 
     test_traj = longitudinal_plan(test_path, 2.0, 2.0, 20.0, 10.0)
@@ -91,23 +60,11 @@ def test_longitudinal_planning():
     plt.ylabel('position')
     plt.show()
 
-    plt.plot(test_traj.times,[v for v in test_traj.velocities])
-    plt.title("Too little time to stop, starting at 10 m/s")
-    plt.xlabel('time')
-    plt.ylabel('velocity')
-    plt.show()
-
     test_traj = longitudinal_brake(test_path, 2.0, 10.0)
     plt.plot(test_traj.times,[p[0] for p in test_traj.points])
     plt.title("Too little time to stop, braking at 10 m/s")
     plt.xlabel('time')
     plt.ylabel('position')
-    plt.show()
-
-    plt.plot(test_traj.times,[v for v in test_traj.velocities])
-    plt.title("Too little time to stop, braking at 10 m/s")
-    plt.xlabel('time')
-    plt.ylabel('velocity')
     plt.show()
 
     test_traj = longitudinal_plan(test_path2, 1.0, 2.0, 3.0, 0.0)
@@ -117,11 +74,6 @@ def test_longitudinal_planning():
     plt.ylabel('position')
     plt.show()
 
-    plt.plot(test_traj.times,[v for v in test_traj.velocities])
-    plt.title("Nonuniform planning")
-    plt.xlabel('time')
-    plt.ylabel('velocity')
-    plt.show()
 
 
 if __name__ == '__main__':
