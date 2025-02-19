@@ -15,6 +15,7 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
     
     # Get the object's position and velocity
     obj_x = obj.pose.x
+    # obj_x = 0.0
     obj_y = obj.pose.y
     obj_v_x = obj.velocity[0]
     obj_v_y = obj.velocity[1]
@@ -838,8 +839,8 @@ class YieldTrajectoryPlanner(Component):
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 0.5
-        self.desired_speed = 1.0
+        self.acceleration = 0.75 # 0.5 is not enough to start
+        self.desired_speed = 3.0 # cannot got more than 1.5 m/s
         self.deceleration = 2.0
 
         self.min_deceleration = 1.0
@@ -866,12 +867,17 @@ class YieldTrajectoryPlanner(Component):
         dt = t - self.t_last
   
         # Position in vehicle frame (Start (0,0) to (15,0))
-        curr_x = vehicle.pose.x
-        curr_y = vehicle.pose.y
+        curr_x = vehicle.pose.x * 20
+        curr_y = vehicle.pose.y * 20
         curr_v = vehicle.v
 
-        abs_x = curr_x + state.start_vehicle_pose.x
-        abs_y = curr_y + state.start_vehicle_pose.y
+        print("@@@@@ PLAN", curr_x, curr_y, curr_v)
+
+        # abs_x = curr_x + state.start_vehicle_pose.x
+        # abs_y = curr_y + state.start_vehicle_pose.y
+        abs_x = curr_x
+        abs_y = curr_y
+        print("@@@@@ PLAN", abs_x, abs_y)
 
         #figure out where we are on the route
         if self.route_progress is None:
@@ -895,6 +901,10 @@ class YieldTrajectoryPlanner(Component):
                 #get the object we are yielding to
                 obj = state.agents[r.obj2]
 
+                
+
+                print("@@@@@ PEESTRIAN", obj)
+
                 detected, deceleration = detect_collision(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
                 if isinstance(deceleration, list):
                     print("@@@@@ INPUT", deceleration)
@@ -914,9 +924,10 @@ class YieldTrajectoryPlanner(Component):
                         should_yield = True
                 
                 print("should yield: ", should_yield)
-
+    
         should_accelerate = (not should_yield and curr_v < self.desired_speed)
 
+        # traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
         #choose whether to accelerate, brake, or keep at current velocity
         if should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "dt")
@@ -925,4 +936,5 @@ class YieldTrajectoryPlanner(Component):
         else:
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "dt")
 
+        print(traj)
         return traj 
