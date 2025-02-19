@@ -7,12 +7,12 @@ max_accelerator_acceleration: #m/s^2. Acceleration at max accelerator pedal, by 
   - 0.0
   - 5.0
 max_accelerator_acceleration_reverse: 2.5 #m/s^2. Acceleration (backwards) in reverse gear
-max_accelerator_power:  #Watts.  Power at max accelerator pedal, by gear
+max_accelerator_power:  #Watts.  Power at max accelerator pedal, by gear (updated from website)
   - 0.0
-  - 10000.0
-max_accelerator_power_reverse: 10000.0 #Watts.  Power (backwards) in reverse gear
+  - 5000.0
+max_accelerator_power_reverse: 5000.0 #Watts.  Power (backwards) in reverse gear
 
-acceleration_model : kris_v1
+acceleration_model : hang_v1
 accelerator_active_range : [0.2, 1.0]   #range of accelerator pedal where output acceleration is not flat
 brake_active_range : [0.25,1]             #range of brake pedal where output deceleration is not flat
 
