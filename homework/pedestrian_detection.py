@@ -15,6 +15,40 @@ import struct, ctypes
 
 
 # ----- Helper Functions -----
+def match_existing_pedestrian(
+    new_center: np.ndarray,
+    new_dims: tuple,
+    existing_agents: Dict[str, AgentState],
+    distance_threshold: float = 1.0
+) -> str:
+    """
+    Return the agent_id of the best match if within distance_threshold;
+    otherwise return None.
+    """
+    best_agent_id = None
+    best_dist = float('inf')
+
+    for agent_id, agent_state in existing_agents.items():
+        old_center = np.array([agent_state.pose.x, agent_state.pose.y, agent_state.pose.z])
+        dist = np.linalg.norm(new_center - old_center)
+        if dist < distance_threshold and dist < best_dist:
+            best_dist = dist
+            best_agent_id = agent_id
+
+    return best_agent_id
+
+
+def compute_velocity(old_pose: ObjectPose, new_pose: ObjectPose, dt: float) -> tuple:
+    """
+    Returns a (vx, vy, vz) velocity in the same frame as old_pose/new_pose.
+    """
+    if dt <= 0:
+        return (0, 0, 0)
+    vx = (new_pose.x - old_pose.x) / dt
+    vy = (new_pose.y - old_pose.y) / dt
+    vz = (new_pose.z - old_pose.z) / dt
+    return (vx, vy, vz)
+
 def extract_roi_box(lidar_pc, center, half_extents):
     lower = center - half_extents
     upper = center + half_extents
@@ -217,60 +251,58 @@ class PedestrianDetector2D(Component):
         self.last_person_boxes = boxes
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
-
-        # self.lidar_pc = pc2_to_numpy(self.pc_raw, want_rgb=False)
         agents = {}
         if self.lidar_pc is None:
-            print("NOT fOUND")
+            print("NOT FOUND")
             return agents
+
+        current_time = self.vehicle_interface.time()
+
         for i, box in enumerate(self.last_person_boxes):
             cx, cy, w, h = box
-            # Backproject the center pixel into a 3D ray.
+            # --- same LiDAR + bounding box logic as before ---
             ray_dir_cam = backproject_pixel(cx, cy, self.K)
             ray_dir_lidar = self.R_c2l @ ray_dir_cam
             ray_dir_lidar /= np.linalg.norm(ray_dir_lidar)
-            # Find a candidate 3D point along the ray.
-            intersection, _, _ = find_human_center_on_ray(self.lidar_pc, self.camera_origin_in_lidar, ray_dir_lidar,
-                                                          t_min=0.5, t_max=20.0, t_step=0.1,
-                                                          distance_threshold=0.2, min_points=20, ransac_threshold=0.05)
+
+            intersection, _, _ = find_human_center_on_ray(
+                self.lidar_pc, self.camera_origin_in_lidar, ray_dir_lidar,
+                t_min=0.5, t_max=20.0, t_step=0.1,
+                distance_threshold=0.2, min_points=20, ransac_threshold=0.05
+            )
             if intersection is None:
                 continue
-            # Use the 2D bounding box dimensions to guide ROI extraction.
+
             d = np.linalg.norm(intersection - self.camera_origin_in_lidar)
             physical_width = (w * d) / self.K[0, 0]
             physical_height = (h * d) / self.K[1, 1]
-            # Here, we use a 3D sphere ROI as a simple approach; you can replace it with a box ROI if needed.
-            depth_margin = physical_width  # Alternatively, you can set a constant like 0.5
+            depth_margin = physical_width
             half_extents = np.array([
                 1.1 * physical_width / 2,
                 1.1 * depth_margin / 2,
                 1.25 * physical_height / 2
             ])
 
-            # Extract ROI using a 3D box that matches the 2D bounding box.
             roi_points = extract_roi_box(self.lidar_pc, intersection, half_extents)
             if roi_points.shape[0] < 10:
                 refined_cluster = roi_points
             else:
                 refined_cluster = refine_cluster(roi_points, intersection, eps=0.125, min_samples=10)
-            #print(roi_points)
-            # Remove ground points by eliminating those within a small z-range of the minimum.
+
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
-            #print(refined_cluster)
             if refined_cluster is None or refined_cluster.shape[0] == 0:
                 refined_center = intersection
                 dims = (0, 0, 0)
                 yaw, pitch, roll = 0, 0, 0
             else:
-                # Compute oriented bounding box for the refined cluster.
                 pcd = o3d.geometry.PointCloud()
                 pcd.points = o3d.utility.Vector3dVector(refined_cluster)
                 obb = pcd.get_oriented_bounding_box()
                 refined_center = obb.center
                 dims = tuple(obb.extent)
-                R_lidar = obb.R.copy()  # rotation in LiDAR frame
+                R_lidar = obb.R.copy()
 
-                # --- transform position to vehicle frame ---
+                # transform to vehicle frame
                 refined_center_lidar_hom = np.array([refined_center[0],
                                                      refined_center[1],
                                                      refined_center[2],
@@ -278,21 +310,68 @@ class PedestrianDetector2D(Component):
                 refined_center_vehicle_hom = self.T_l2v @ refined_center_lidar_hom
                 refined_center_vehicle = refined_center_vehicle_hom[:3]
 
-                # --- transform orientation to vehicle frame ---
                 R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                 euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=True)
-                yaw_v, pitch_v, roll_v = euler_angles_vehicle
+                yaw, pitch, roll = euler_angles_vehicle  # rename for clarity
 
-                print(f"Detected human in vehicle frame - Pose (yaw, pitch, roll): {euler_angles_vehicle}")
-                print(f"Bounding box center (vehicle frame): {refined_center_vehicle}, Dimensions: {dims}")
-            # Create agent pose.
-            pose = ObjectPose(t=0, x=refined_center[0], y=refined_center[1],
-                              z=refined_center[2], yaw=yaw, pitch=pitch, roll=roll,
-                              frame=ObjectFrameEnum.CURRENT)
-            agent_state = AgentState(pose=pose, dimensions=dims, outline=None,
-                                     type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING,
-                                     velocity=(0, 0, 0), yaw_rate=0)
-            agents[f'pedestrian{i}'] = agent_state
+                refined_center = refined_center_vehicle  # override to use vehicle frame
+                # dims remains the same; orientation is now (yaw, pitch, roll)
+
+            # -- CREATE the new pose in the vehicle frame --
+            new_pose = ObjectPose(
+                t=current_time,
+                x=refined_center[0],
+                y=refined_center[1],
+                z=refined_center[2],
+                yaw=yaw,
+                pitch=pitch,
+                roll=roll,
+                frame=ObjectFrameEnum.CURRENT
+            )
+
+            # 1) Attempt to match with an existing pedestrian
+            existing_id = match_existing_pedestrian(
+                new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
+                new_dims=dims,
+                existing_agents={k: v.pose for k, v in self.tracked_agents.items()},
+                distance_threshold=1.0
+            )
+
+            if existing_id is not None:
+                # 2) Update existing agent
+                old_agent_state, old_time = self.tracked_agents[existing_id]
+                dt = current_time - old_time
+                vx, vy, vz = compute_velocity(old_agent_state.pose, new_pose, dt)
+
+                updated_agent = AgentState(
+                    pose=new_pose,
+                    dimensions=dims,
+                    outline=None,
+                    type=AgentEnum.PEDESTRIAN,
+                    activity=AgentActivityEnum.MOVING,
+                    velocity=(vx, vy, vz),
+                    yaw_rate=0
+                )
+                agents[existing_id] = updated_agent
+                self.tracked_agents[existing_id] = (updated_agent, current_time)
+
+            else:
+                # 3) Create a new agent
+                agent_id = f"pedestrian{self.pedestrian_counter}"
+                self.pedestrian_counter += 1
+
+                new_agent = AgentState(
+                    pose=new_pose,
+                    dimensions=dims,
+                    outline=None,
+                    type=AgentEnum.PEDESTRIAN,
+                    activity=AgentActivityEnum.MOVING,
+                    velocity=(0, 0, 0),
+                    yaw_rate=0
+                )
+                agents[agent_id] = new_agent
+                self.tracked_agents[agent_id] = (new_agent, current_time)
+
         return agents
 
 
