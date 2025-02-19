@@ -115,7 +115,14 @@ class PedestrianDetector2D(Component):
         
         # Update function variables
         self.t_start = datetime.now() # Estimated start frame time
-        self.start_pose_abs = None
+        # self.start_pose_abs = None
+        # self.start_pose_abs = ObjectPose(
+        #     frame=ObjectFrameEnum.GLOBAL,
+        #     t=0,
+        #     x=0,
+        #     y=0,
+        #     z=0
+        # )
     
     def init_debug(self,) -> None:
          # Debug Publishers
@@ -125,8 +132,10 @@ class PedestrianDetector2D(Component):
         self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        if self.start_pose_abs is None:
-            self.start_pose_abs = vehicle.pose
+        # if self.start_pose_abs is None:
+            # self.start_pose_abs = vehicle.pose # Store first pose which is start frame
+            # self.start_pose_abs.to_frame(frame=ObjectFrameEnum.GLOBAL, current_pose=)
+        # self.current_vehicle_pose_sf = vehicle.pose # Vehicle pose in start frame
         return self.current_agents
 
     # TODO: Improve Algo Knn, ransac, etc.
@@ -409,20 +418,22 @@ class PedestrianDetector2D(Component):
                             velocity=None, # Temporary
                             yaw_rate=0
                         )
-            
+
             # Convert agent to start frame and add to agents list:
             agents.append(
-                state.to_frame(
-                    frame=ObjectFrameEnum.START, 
-                    current_pose=ObjectPose(
-                        frame=ObjectFrameEnum.CURRENT, 
-                        t=(self.curr_time - self.t_start).total_seconds(), 
-                        x=state.pose.x, 
-                        y=state.pose.y, 
-                        z=state.pose.z
-                    ), 
-                    start_pose_abs=self.start_pose_abs
-                )
+                state
+                # state.to_frame(
+                #     frame=ObjectFrameEnum.START, 
+                #     current_pose=self.current_vehicle_pose_sf,
+                #     # current_pose=ObjectPose(
+                #     #     frame=ObjectFrameEnum.CURRENT, 
+                #     #     t=(self.curr_time - self.t_start).total_seconds(), 
+                #     #     x=state.pose.x, 
+                #     #     y=state.pose.y, 
+                #     #     z=state.pose.z
+                #     # ), 
+                #     start_pose_abs=self.start_pose_abs
+                # )
             )
 
         # Return the agent states converted to start frame:
