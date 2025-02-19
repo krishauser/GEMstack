@@ -379,17 +379,18 @@ class PedestrianDetector2D(Component):
         self.prev_agents = new_prev_agents
 
     # Calculates whether 2 agents overlap in START frame. True if they do, false if not
-    def agents_overlap(self, obj_center: np.ndarray, obj_dim: np.ndarray, prev_agent: AgentState) -> bool:
-        # Calculate corners of obj_center and obj_dim pairing
-        x1_min, x1_max = obj_center[0] - obj_dim[0] / 2.0, obj_center[0] + obj_dim[0] / 2.0
-        y1_min, y1_max = obj_center[1] - obj_dim[1] / 2.0, obj_center[1] + obj_dim[1] / 2.0 # CENTER CALCULATION
-        z1_min, z1_max = obj_center[2] - obj_dim[2] / 2.0, obj_center[2] + obj_dim[2] / 2.0
-
+    def agents_overlap(self, curr_agent: AgentState, prev_agent: AgentState) -> bool:
         # Calculate corners of AgentState
         # Beware: AgentState(PhysicalObject) builds bbox from 
         # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
         # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
         # TODO: confirm (z -> l, x -> w, y -> h)
+
+        # Calculate corners of obj_center and obj_dim pairing
+        x1_min, x1_max = curr_agent.pose.x - curr_agent.dimensions[0] / 2.0, curr_agent.pose.x + curr_agent.dimensions[0] / 2.0
+        y1_min, y1_max = curr_agent.pose.y, curr_agent.pose.y + curr_agent.dimensions[1] # AGENT STATE CALCULATION
+        z1_min, z1_max = curr_agent.pose.z - curr_agent.dimensions[2] / 2.0, curr_agent.pose.z + curr_agent.dimensions[2] / 2.0
+
         x2_min, x2_max = prev_agent.pose.x - prev_agent.dimensions[0] / 2.0, prev_agent.pose.x + prev_agent.dimensions[0] / 2.0
         y2_min, y2_max = prev_agent.pose.y, prev_agent.pose.y + prev_agent.dimensions[1] # AGENT STATE CALCULATION
         z2_min, z2_max = prev_agent.pose.z - prev_agent.dimensions[2] / 2.0, prev_agent.pose.z + prev_agent.dimensions[2] / 2.0
@@ -401,20 +402,46 @@ class PedestrianDetector2D(Component):
             ( (z1_min <= z2_min and z2_min <= z1_max) or (z2_min <= z1_min and z1_min <= z2_max) )
         )
 
-    def convert_vehicle_frame_to_start_frame(self, vehicle_states: List[AgentState]) -> List[AgentState]:
-        num_states = len(vehicle_states)
-        for idx in num_states:
-            vehicle_states[idx] = vehicle_states[idx].to_frame(frame=ObjectFrameEnum.START, current_pose=current_obj_pose, start_pose_abs=self.start_pose_abs)
+    def create_agent_states_in_start_frame(self, obj_centers: List[np.ndarray], obj_dims: List[np.ndarray]) -> List[AgentState]:
+        # Create list of agent states in current vehicle frame:
+        agents = []
+        num_pairings = len(obj_centers)
+        for idx in range(num_pairings):
+            # Create agent in current frame:
+            state = AgentState(
+                            track_id="TBD", # Temporary
+                            pose=ObjectPose(t=(self.curr_time-self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
+                            # Beware: AgentState(PhysicalObject) builds bbox from 
+                            # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
+                            # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
+                            # (l, w, h)
+                            # TODO: confirm (z -> l, x -> w, y -> h)
+                            dimensions=(obj_dims[idx][2], obj_dims[idx][0], obj_centers[idx][1] + obj_dims[idx][1]),  
+                            outline=None,
+                            type=AgentEnum.PEDESTRIAN,
+                            activity=AgentActivityEnum.MOVING, # Temporary
+                            velocity=None, # Temporary
+                            yaw_rate=0
+                        )
+            
+            # Convert agent to start frame and add to agents list:
+            agents.append(
+                state.to_frame(
+                    frame=ObjectFrameEnum.START, 
+                    current_pose=ObjectPose(
+                        frame=ObjectFrameEnum.CURRENT, 
+                        t=(self.curr_time-self.t_start).total_seconds(), 
+                        x=state.pose.x, 
+                        y=state.pose.y, 
+                        z=state.pose.z
+                    ), 
+                    start_pose_abs=self.start_pose_abs
+                )
+            )
 
-        # current_obj_pose = ObjectPose(
-        #         frame=ObjectFrameEnum.CURRENT, 
-        #         t=(self.curr_time-self.t_start).total_seconds(), 
-        #         x=vehicle_states[idx].pose.x, 
-        #         y=vehicle_states[idx].pose.y, 
-        #         z=vehicle_states[idx].pose.z
-        #     )
-        # vehicle_states[0] = vehicle_states[0].to_frame(frame=ObjectFrameEnum.START, current_pose=current_obj_pose, start_pose_abs=self.start_pose_abs)
-        # # start_obj_pose???
+        # Return the agent states converted to start frame:
+        return agents
+
         # state = AgentState(
         #                     track_id =0,
         #                     pose=ObjectPose(t=(self.curr_time-self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
