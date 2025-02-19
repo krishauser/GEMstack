@@ -274,15 +274,15 @@ class PedestrianDetector2D(Component):
     # TODO Fix velocity calculation to calculate in ObjectFrameEnum.START
     def find_vels_and_ids(self, obj_centers: List[np.ndarray], obj_dims: List[np.ndarray]):
         # Gate to check whether dims and centers are empty (will happen if no pedestrians are scanned):
-        if ((len(obj_dims) == 1 or len(obj_centers) == 1) and (obj_centers[0].size == 0 or obj_dims[0].size == 0)):
-            self.prev_agents = self.current_agents.copy()
-            self.current_agents = {} # There weren't any pedestrians detected
-            return
-        elif (len(obj_centers) != len(obj_dims)):
-            for i in range(25):
-                print("ERROR NUM PARINGS AND OBJ DIMS ARENT THE SAME")
-            self.prev_agents = self.current_agents.copy()
-            self.current_agents = {} # There weren't any pedestrians detected
+        for idx in range(len(obj_dims) -1, -1, -1):
+            if (obj_centers[idx].size == 0) or (obj_dims[0].size == 0):
+                del obj_centers[idx]
+                del obj_dims[idx]
+
+        # Nothing was scanned, erase current (for current output) and previous list (for next time through because nothing was scanned)
+        if (len(obj_dims) == 0 or len(obj_centers) == 0):
+            self.current_agents = {}
+            self.prev_agents = {}
             return
         
         new_prev_agents = {} # Stores current agents in START frame for next time through (since 
