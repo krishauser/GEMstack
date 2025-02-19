@@ -15,6 +15,12 @@ import struct, ctypes
 
 
 # ----- Helper Functions -----
+def extract_roi_box(lidar_pc, center, half_extents):
+    lower = center - half_extents
+    upper = center + half_extents
+    mask = np.all((lidar_pc >= lower) & (lidar_pc <= upper), axis=1)
+    return lidar_pc[mask]
+
 
 def pc2_to_numpy(pc2_msg, want_rgb=False):
     """Convert ROS PointCloud2 message to a numpy array."""
@@ -228,15 +234,22 @@ class PedestrianDetector2D(Component):
             physical_width = (w * d) / self.K[0, 0]
             physical_height = (h * d) / self.K[1, 1]
             # Here, we use a 3D sphere ROI as a simple approach; you can replace it with a box ROI if needed.
-            roi_radius = max(physical_width, physical_height) / 2.0
-            roi_points = extract_roi(self.lidar_pc, intersection, roi_radius)
-            if roi_points.shape[0] < 20:
+            depth_margin = physical_width  # Alternatively, you can set a constant like 0.5
+            half_extents = np.array([
+                1.1 * physical_width / 2,
+                1.1 * depth_margin / 2,
+                1.25 * physical_height / 2
+            ])
+
+            # Extract ROI using a 3D box that matches the 2D bounding box.
+            roi_points = extract_roi_box(self.lidar_pc, intersection, half_extents)
+            if roi_points.shape[0] < 10:
                 refined_cluster = roi_points
             else:
-                refined_cluster = refine_cluster(roi_points, intersection, eps=0.15, min_samples=10)
+                refined_cluster = refine_cluster(roi_points, intersection, eps=0.125, min_samples=10)
             #print(roi_points)
             # Remove ground points by eliminating those within a small z-range of the minimum.
-            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.05)
+            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
             #print(refined_cluster)
             if refined_cluster is None or refined_cluster.shape[0] == 0:
                 refined_center = intersection
