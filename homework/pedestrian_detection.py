@@ -191,6 +191,12 @@ class PedestrianDetector2D(Component):
         self.vehicle_interface.subscribe_sensor('top_lidar', self.lidar_callback, PointCloud2)
         #self.vehicle_interface.subscribe_sensor('ouster/points', self.lidar_callback, PointCloud2)
         # Set up camera intrinsics and LiDAR-to-camera transformation.
+        self.T_l2v = np.array([
+            [0.99993639, 0.02547917, 0.023615, -1.1],
+            [-0.02530848, 0.9996156, -0.00749882, 0.03773583],
+            [-0.02379784, 0.00689664, 0.999693, 1.95320223],
+            [0., 0., 0., 1.]
+        ])
         self.K = np.array([[684.83331299, 0., 573.37109375],
                            [0., 684.60968018, 363.70092773],
                            [0., 0., 1.]])
@@ -262,12 +268,23 @@ class PedestrianDetector2D(Component):
                 obb = pcd.get_oriented_bounding_box()
                 refined_center = obb.center
                 dims = tuple(obb.extent)
+                R_lidar = obb.R.copy()  # rotation in LiDAR frame
 
-                # Convert rotation matrix to Euler angles (yaw, pitch, roll).
-                euler_angles = R.from_matrix(obb.R.copy()).as_euler('zyx', degrees=True)
-                yaw, pitch, roll = euler_angles[0], euler_angles[1], euler_angles[2]
-                print(f"Detected human - Pose (yaw, pitch, roll): {euler_angles}")
-                print(f"Bounding box center: {refined_center}, Dimensions: {dims}")
+                # --- transform position to vehicle frame ---
+                refined_center_lidar_hom = np.array([refined_center[0],
+                                                     refined_center[1],
+                                                     refined_center[2],
+                                                     1.0])
+                refined_center_vehicle_hom = self.T_l2v @ refined_center_lidar_hom
+                refined_center_vehicle = refined_center_vehicle_hom[:3]
+
+                # --- transform orientation to vehicle frame ---
+                R_vehicle = self.T_l2v[:3, :3] @ R_lidar
+                euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=True)
+                yaw_v, pitch_v, roll_v = euler_angles_vehicle
+
+                print(f"Detected human in vehicle frame - Pose (yaw, pitch, roll): {euler_angles_vehicle}")
+                print(f"Bounding box center (vehicle frame): {refined_center_vehicle}, Dimensions: {dims}")
             # Create agent pose.
             pose = ObjectPose(t=0, x=refined_center[0], y=refined_center[1],
                               z=refined_center[2], yaw=yaw, pitch=pitch, roll=roll,
