@@ -263,6 +263,8 @@ class PedestrianDetector2D(Component):
         for ind in range(num_objs):
             obj_center = (None, None, None) if obj_centers[ind].size == 0 else obj_centers[ind]
             obj_dim = (None, None, None) if obj_dims[ind].size == 0 else obj_dims[ind]
+
+            # Part 3 - Change creating this to start frame
             self.current_agents[track_ids[ind]] = (
                 AgentState(
                     track_id = track_ids[ind],
