@@ -51,8 +51,6 @@ from ..interface.gem import GEMInterface
 from ..component import Component
 from .IdTracker import IdTracker
 
-
-
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
     
