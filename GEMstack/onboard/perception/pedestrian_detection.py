@@ -140,7 +140,8 @@ class PedestrianDetector2D(Component):
     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
     # TODO Akul: Fix velocity calculation to calculate in ObjectFrameEnum.START
     #            Work towards own tracking class instead of simple YOLO track?
-    #            Fix division by time
+    #            Fix 1: division by time
+    #            Fix 2: Put centers and dims in start frame for velocity calc +  final agentstate in update_object_states
     # ret: Dict[track_id: vel[x, y, z]]
     def find_vels(self, track_ids: List[int], obj_centers: List[np.ndarray]) -> Dict[int, np.ndarray]:
         # Object not seen -> velocity = None
