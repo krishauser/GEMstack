@@ -14,7 +14,7 @@ lidar_points = np.load(lidar_path)['arr_0']
 lidar_points = lidar_points[~np.all(lidar_points== 0, axis=1)] # remove (0,0,0)'s
 
 rx,ry,rz = 0.006898647163954201, 0.023800082245145304, -0.025318355743942974
-tx,ty,tz = -1.1, 0.037735827433173136, 1.953202227766785
+tx,ty,tz = 1.1, 0.03773044170906172, 1.9525244316515322
 rot = R.from_euler('xyz',[rx,ry,rz]).as_matrix()
 lidar_ex = np.hstack([rot,[[tx],[ty],[tz]]])
 lidar_ex = np.vstack([lidar_ex,[0,0,0,1]])
@@ -25,6 +25,8 @@ camera_in = np.array([
     [  0.        ,   0.        ,   1.        ]
 ], dtype=np.float32)
 
+N = 8
+
 #%%
 # blurred = cv2.GaussianBlur(img, (5, 5), 0)
 # edges = cv2.Canny(blurred, threshold1=50, threshold2=150)
@@ -33,10 +35,10 @@ plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
 
 #%%
 import pyvista as pv
-def vis(title='', ratio=1):
+def vis(title='', ratio=1,notebook=False):
     print(title)
     pv.set_jupyter_backend('client')
-    plotter = pv.Plotter(notebook=True)
+    plotter = pv.Plotter(notebook=notebook)
     plotter.show_axes()
     class foo:
         def set_cam(self,pos=(-20*ratio,0,20*ratio),foc=(0,0,0)):
@@ -86,10 +88,10 @@ def crop(pc,ix=None,iy=None,iz=None):
 
 lidar_post = np.pad(lidar_points,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
 lidar_post = crop(lidar_post,ix=(0,8),iy=(-5,5))
-vis().add_pc(lidar_post).show()
+vis(notebook=True).add_pc(lidar_post).show()
 
 #%%
-def pick_4_img(img):
+def pick_n_img(img,n=4):
     corners = []  # Reset the corners list
     def click_event(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -101,7 +103,7 @@ def pick_4_img(img):
     cv2.setMouseCallback('Image', click_event, img)
     
     while True:
-        if len(corners) == 4:
+        if len(corners) == n:
             break
         if cv2.waitKey(1) & 0xFF == ord('q'):
             return None
@@ -109,15 +111,15 @@ def pick_4_img(img):
     cv2.destroyAllWindows()
     
     return corners
-cpoints = np.array(pick_4_img(img)).astype(float)
+cpoints = np.array(pick_n_img(img,N)).astype(float)
 print(cpoints)
 
 #%%
-def pick_4_pc(point_cloud):
+def pick_n_pc(point_cloud,n=4):
     points = []
     def cb(pt,*args):
         points.append(pt)
-    while len(points)!=4:
+    while len(points)!=n:
         points = []
         cloud = pv.PolyData(point_cloud)
         plotter = pv.Plotter(notebook=False)
@@ -128,7 +130,7 @@ def pick_4_pc(point_cloud):
         plotter.show()
     return points
 
-lpoints = np.array(pick_4_pc(lidar_post))
+lpoints = np.array(pick_n_pc(lidar_post,N))
 print(lpoints)
 # %%
 success, rvec, tvec = cv2.solvePnP(lpoints, cpoints, camera_in, None)
@@ -182,7 +184,7 @@ def depth_to_points(depth_img: np.ndarray, intrinsics: np.ndarray):
 depth_img = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
 camera_points = depth_to_points(depth_img, camera_in)
 
-v=vis()
+v=vis(notebook=False)
 v.add_pc(np.pad(lidar_points,((0,0),(0,1)),constant_values=1)@lidar_ex.T@T.T[:,:3],color='blue')
 v.add_pc(camera_points,color='red')
 v.show()
