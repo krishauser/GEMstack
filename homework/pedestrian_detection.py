@@ -57,16 +57,15 @@ def extract_roi_box(lidar_pc, center, half_extents):
 
 
 def pc2_to_numpy(pc2_msg, want_rgb=False):
-    """Convert ROS PointCloud2 message to a numpy array."""
+    """Convert ROS PointCloud2 message to a numpy array, filtering points with x > 0 and z < 2.5."""
     gen = pc2.read_points(pc2_msg, skip_nans=True)
-    if want_rgb:
-        # Implement RGB extraction if needed
-        xyzpack = np.array(list(gen), dtype=np.float32)
-        if xyzpack.shape[1] != 4:
-            raise ValueError("PointCloud2 does not have points")
-        # Additional processing for RGB if required
-    else:
-        return np.array(list(gen), dtype=np.float32)[:, :3]
+    pts = np.array(list(gen), dtype=np.float32)
+    # Use only the first three columns (x, y, z)
+    pts = pts[:, :3]
+    # Filter: only keep points where x > 0 and z < 2.5
+    mask = (pts[:, 0] > 0) & (pts[:, 2] < 2.5)
+    return pts[mask]
+
 
 
 def backproject_pixel(u, v, K):
@@ -208,6 +207,7 @@ class PedestrianDetector2D(Component):
         self.last_person_boxes = []
         self.lidar_pc = None  # Will be updated via ROS callback
         self.pc_raw = None
+        
 
     def rate(self):
         return 4.0
@@ -241,6 +241,10 @@ class PedestrianDetector2D(Component):
         self.T_c2l = np.linalg.inv(self.T_l2c)
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
+        self.tracked_agents = {}
+        
+        # For generating new IDs
+        self.pedestrian_counter = 0
 
     def lidar_callback(self, lidar_msg: PointCloud2):
         """Convert ROS PointCloud2 to numpy array and store it."""
@@ -257,8 +261,9 @@ class PedestrianDetector2D(Component):
             return agents
 
         current_time = self.vehicle_interface.time()
-
+        lidar_pc = self.lidar_pc.copy()
         for i, box in enumerate(self.last_person_boxes):
+            
             cx, cy, w, h = box
             # --- same LiDAR + bounding box logic as before ---
             ray_dir_cam = backproject_pixel(cx, cy, self.K)
@@ -266,9 +271,9 @@ class PedestrianDetector2D(Component):
             ray_dir_lidar /= np.linalg.norm(ray_dir_lidar)
 
             intersection, _, _ = find_human_center_on_ray(
-                self.lidar_pc, self.camera_origin_in_lidar, ray_dir_lidar,
-                t_min=0.5, t_max=20.0, t_step=0.1,
-                distance_threshold=0.2, min_points=20, ransac_threshold=0.05
+                lidar_pc, self.camera_origin_in_lidar, ray_dir_lidar,
+                t_min=0.4, t_max=20.0, t_step=0.1,
+                distance_threshold=0.3, min_points=5, ransac_threshold=0.05
             )
             if intersection is None:
                 continue
@@ -278,22 +283,24 @@ class PedestrianDetector2D(Component):
             physical_height = (h * d) / self.K[1, 1]
             depth_margin = physical_width
             half_extents = np.array([
-                1.1 * physical_width / 2,
-                1.1 * depth_margin / 2,
+                0.4,
+                0.4,
                 1.25 * physical_height / 2
             ])
 
-            roi_points = extract_roi_box(self.lidar_pc, intersection, half_extents)
+            roi_points = extract_roi_box(lidar_pc, intersection, half_extents)
             if roi_points.shape[0] < 10:
                 refined_cluster = roi_points
             else:
-                refined_cluster = refine_cluster(roi_points, intersection, eps=0.125, min_samples=10)
+                refined_cluster = refine_cluster(roi_points, intersection, eps=0.15, min_samples=10)
 
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
             if refined_cluster is None or refined_cluster.shape[0] == 0:
                 refined_center = intersection
                 dims = (0, 0, 0)
                 yaw, pitch, roll = 0, 0, 0
+            elif refined_cluster.shape[0] <= 5:
+                continue
             else:
                 pcd = o3d.geometry.PointCloud()
                 pcd.points = o3d.utility.Vector3dVector(refined_cluster)
@@ -316,6 +323,8 @@ class PedestrianDetector2D(Component):
 
                 refined_center = refined_center_vehicle  # override to use vehicle frame
                 # dims remains the same; orientation is now (yaw, pitch, roll)
+                print(f"Detected human in vehicle frame - Pose (yaw, pitch, roll): {euler_angles_vehicle}")
+                print(f"Bounding box center (vehicle frame): {refined_center_vehicle}, Dimensions: {dims}")
 
             # -- CREATE the new pose in the vehicle frame --
             new_pose = ObjectPose(
@@ -333,14 +342,15 @@ class PedestrianDetector2D(Component):
             existing_id = match_existing_pedestrian(
                 new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
                 new_dims=dims,
-                existing_agents={k: v.pose for k, v in self.tracked_agents.items()},
+                existing_agents={k: v[0] for k, v in self.tracked_agents.items()},
                 distance_threshold=1.0
             )
 
             if existing_id is not None:
+            # if False:
                 # 2) Update existing agent
                 old_agent_state, old_time = self.tracked_agents[existing_id]
-                dt = current_time - old_time
+                dt = float(current_time) - float(old_time)
                 vx, vy, vz = compute_velocity(old_agent_state.pose, new_pose, dt)
 
                 updated_agent = AgentState(
@@ -353,7 +363,7 @@ class PedestrianDetector2D(Component):
                     yaw_rate=0
                 )
                 agents[existing_id] = updated_agent
-                self.tracked_agents[existing_id] = (updated_agent, current_time)
+                self.tracked_agents[existing_id] = (updated_agent, str(current_time))
 
             else:
                 # 3) Create a new agent
@@ -370,7 +380,7 @@ class PedestrianDetector2D(Component):
                     yaw_rate=0
                 )
                 agents[agent_id] = new_agent
-                self.tracked_agents[agent_id] = (new_agent, current_time)
+                self.tracked_agents[agent_id] = (new_agent, str(current_time))
 
         return agents
 
