@@ -189,9 +189,9 @@ camera_points = depth_to_points(depth_img, camera_in)
 
 #%%
 v2c = T
-print('vehicle->camera:',l2c)
+print('vehicle->camera:',v2c)
 c2v = np.linalg.inv(l2c)
-print('camera->vehicle:',c2l)
+print('camera->vehicle:',c2v)
 
 v=vis(notebook=True)
 v.add_pc(lidar_post,color='blue')
