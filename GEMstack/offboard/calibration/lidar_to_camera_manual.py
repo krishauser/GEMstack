@@ -14,7 +14,7 @@ lidar_points = np.load(lidar_path)['arr_0']
 lidar_points = lidar_points[~np.all(lidar_points== 0, axis=1)] # remove (0,0,0)'s
 
 rx,ry,rz = 0.006898647163954201, 0.023800082245145304, -0.025318355743942974
-tx,ty,tz = -1.1, 0.037735827433173136, 1.953202227766785
+tx,ty,tz = 1.1, 0.037735827433173136, 1.953202227766785
 rot = R.from_euler('xyz',[rx,ry,rz]).as_matrix()
 lidar_ex = np.hstack([rot,[[tx],[ty],[tz]]])
 lidar_ex = np.vstack([lidar_ex,[0,0,0,1]])
