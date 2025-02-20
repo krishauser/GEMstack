@@ -533,7 +533,7 @@ class PedestrianDetector2D(Component):
             else: extracted_pts_all.append(np.array(()))
         
         # Generate Transformation matrix for vehicle to start
-        self.t_vehicle_to_start = self.generate_vehicle_start_frame(vehicle_state)
+        self.t_vehicle_to_start = self.generate_vehicle_start_frame()
         self.update_object_states(track_result, extracted_pts_all)
         if self.debug: self.viz_object_states(cv_image, boxes, extracted_pts_all)
 
