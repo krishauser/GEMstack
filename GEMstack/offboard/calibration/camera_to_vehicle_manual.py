@@ -190,7 +190,7 @@ camera_points = depth_to_points(depth_img, camera_in)
 #%%
 v2c = T
 print('vehicle->camera:',v2c)
-c2v = np.linalg.inv(l2c)
+c2v = np.linalg.inv(v2c)
 print('camera->vehicle:',c2v)
 
 v=vis(notebook=True)
