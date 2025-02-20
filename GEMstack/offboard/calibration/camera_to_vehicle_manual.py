@@ -4,9 +4,13 @@ from scipy.spatial.transform import Rotation as R
 import matplotlib.pyplot as plt
 import numpy as np
 
-rgb_path = '/mount/wp/GEMstack/data/color21.png'
-depth_path = '/mount/wp/GEMstack/data/depth21.tif'
-lidar_path = '/mount/wp/GEMstack/data/lidar21.npz'
+N = 4 #how many point pairs you want to select
+rgb_path = '/mount/wp/GEMstack/data/color20.png'
+depth_path = '/mount/wp/GEMstack/data/depth20.tif'
+lidar_path = '/mount/wp/GEMstack/data/lidar20.npz'
+# rgb_path = '/mount/wp/GEMstack/data/color25.png'
+# depth_path = '/mount/wp/GEMstack/data/depth25.tif'
+# lidar_path = '/mount/wp/GEMstack/data/lidar25.npz'
 
 img = cv2.imread(rgb_path, cv2.IMREAD_UNCHANGED)
 
@@ -14,11 +18,7 @@ lidar_points = np.load(lidar_path)['arr_0']
 lidar_points = lidar_points[~np.all(lidar_points== 0, axis=1)] # remove (0,0,0)'s
 
 rx,ry,rz = 0.006898647163954201, 0.023800082245145304, -0.025318355743942974
-<<<<<<< HEAD
-tx,ty,tz = 1.1, 0.03773044170906172, 1.9525244316515322
-=======
 tx,ty,tz = 1.1, 0.037735827433173136, 1.953202227766785
->>>>>>> 3891eedef59a3b450d8beaead04b7309d36517be
 rot = R.from_euler('xyz',[rx,ry,rz]).as_matrix()
 lidar_ex = np.hstack([rot,[[tx],[ty],[tz]]])
 lidar_ex = np.vstack([lidar_ex,[0,0,0,1]])
@@ -29,7 +29,6 @@ camera_in = np.array([
     [  0.        ,   0.        ,   1.        ]
 ], dtype=np.float32)
 
-N = 8
 
 #%%
 # blurred = cv2.GaussianBlur(img, (5, 5), 0)
@@ -91,7 +90,7 @@ def crop(pc,ix=None,iy=None,iz=None):
 
 
 lidar_post = np.pad(lidar_points,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
-lidar_post = crop(lidar_post,ix=(0,8),iy=(-5,5))
+lidar_post = crop(lidar_post,ix=(0,10),iy=(-5,5))
 vis(notebook=True).add_pc(lidar_post).show()
 
 #%%
@@ -188,10 +187,18 @@ def depth_to_points(depth_img: np.ndarray, intrinsics: np.ndarray):
 depth_img = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
 camera_points = depth_to_points(depth_img, camera_in)
 
-v=vis(notebook=False)
-v.add_pc(np.pad(lidar_points,((0,0),(0,1)),constant_values=1)@lidar_ex.T@T.T[:,:3],color='blue')
-v.add_pc(camera_points,color='red')
+#%%
+v2c = T
+print('vehicle->camera:',l2c)
+c2v = np.linalg.inv(l2c)
+print('camera->vehicle:',c2l)
+
+v=vis(notebook=True)
+v.add_pc(lidar_post,color='blue')
+v.add_pc(np.pad(camera_points,((0,0),(0,1)),constant_values=1)@c2v.T[:,:3],color='red')
 v.show()
 
-#%%
-print(np.vstack([(lidar_ex.T@T.T[:,:3]).T,[0,0,0,1]]))
+v=vis(notebook=True)
+v.add_pc(np.pad(lidar_post,((0,0),(0,1)),constant_values=1)@v2c.T[:,:3],color='blue')
+v.add_pc(camera_points,color='red')
+v.show()
