@@ -47,9 +47,10 @@ from ultralytics.engine.results import Results, Boxes
 # GEMStack
 from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum,ObjectFrameEnum
 from .pedestrian_detection_utils import *
-from ..interface.gem import GEMInterface
+from ..interface.gem import GEMInterface, GNSSReading
 from ..component import Component
 from .IdTracker import IdTracker
+from scipy.spatial.transform import Rotation as R
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -97,12 +98,16 @@ class PedestrianDetector2D(Component):
             [-0.02124771, 0.99976695, -0.00381707], 
             [-0.02289521, 0.00333035, 0.9997323]])
         self.t_lidar_to_vehicle = np.array([[0.0], [0.0], [0.35]])
+        self.t_start_to_world = None
+        self.t_vehicle_to_world = None
+        self.t_vehicle_to_start = None
 
         # Subscribers and sychronizers
-        self.rgb_rosbag = message_filters.Subscriber('/oak/rgb/image_raw', Image)
-        self.top_lidar_rosbag = message_filters.Subscriber('/ouster/points', PointCloud2)
-        self.sync = message_filters.ApproximateTimeSynchronizer([self.rgb_rosbag, self.top_lidar_rosbag], queue_size=10, slop=0.1)
-        self.sync.registerCallback(self.ouster_oak_callback)
+        # self.rgb_rosbag = message_filters.Subscriber('/oak/rgb/image_raw', Image)
+        # self.top_lidar_rosbag = message_filters.Subscriber('/ouster/points', PointCloud2)
+        # self.sync = message_filters.ApproximateTimeSynchronizer([self.rgb_rosbag, self.top_lidar_rosbag], queue_size=10, slop=0.1)
+        # self.sync.registerCallback(self.ouster_oak_callback)
+        self.vehicle_interface.subscribe_sensor('sensor_fusion',self.ouster_oak_callback)
 
         # TF listener to get transformation from LiDAR to Camera
         self.tf_listener = tf.TransformListener()
@@ -115,14 +120,8 @@ class PedestrianDetector2D(Component):
         
         # Update function variables
         self.t_start = datetime.now() # Estimated start frame time
-        # self.start_pose_abs = None
-        # self.start_pose_abs = ObjectPose(
-        #     frame=ObjectFrameEnum.GLOBAL,
-        #     t=0,
-        #     x=0,
-        #     y=0,
-        #     z=0
-        # )
+        self.start_pose_abs = None # Get this from GNSS and store it as GLOBAL
+        self.current_vehicle_state = VehicleState()
     
     def init_debug(self,) -> None:
          # Debug Publishers
@@ -132,10 +131,6 @@ class PedestrianDetector2D(Component):
         self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        # if self.start_pose_abs is None:
-            # self.start_pose_abs = vehicle.pose # Store first pose which is start frame
-            # self.start_pose_abs.to_frame(frame=ObjectFrameEnum.GLOBAL, current_pose=)
-        # self.current_vehicle_pose_sf = vehicle.pose # Vehicle pose in start frame
         return self.current_agents
 
     # TODO: Improve Algo Knn, ransac, etc.
@@ -278,11 +273,41 @@ class PedestrianDetector2D(Component):
             obj_centers = obj_centers_vehicle
 
         self.find_vels_and_ids(obj_centers, obj_dims)
-            
+
+    # TODO : Generate Transformation matrix from vehicle to start
+    def generate_vehicle_start_frame(self) -> np.ndarray:
+        '''
+        Creates T matrix for WORLD to START Frame and T matrix for WORLD to VEHICLE Frame
+        Return T VEHICLE to START
+        '''
+
+        # T World to Start 
+        start_x, start_y, start_z = self.current_vehicle_state.pose.x, self.current_vehicle_state.pose.y, self.current_vehicle_state.pose.z
+        start_yaw, start_roll, start_pitch =  self.current_vehicle_state.pose.yaw, self.current_vehicle_state.pose.pitch, self.current_vehicle_state.pose.roll
+        rotation_world_start = R.from_euler('xyz',[start_roll, start_pitch,start_yaw],degrees=False).as_matrix()
+        self.t_start_to_world = np.eye(4)
+        self.t_start_to_world[:3,:3] = rotation_world_start
+        self.t_start_to_world[:3,3] = [start_x, start_y, start_z]
+
+
+        # Converting vehicle_state from START to CURRENT
+        self.current_vehicle_state.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=self.current_vehicle_state.pose, start_pose_abs=self.start_pose_abs)
+
+        # T World to Vehicle
+        vehicle_x, vehicle_y, vehicle_z = self.current_vehicle_state.pose.x, self.current_vehicle_state.pose.y, self.current_vehicle_state.pose.z
+        vehicle_yaw, vehicle_roll, vehicle_pitch =  self.current_vehicle_state.pose.yaw, self.current_vehicle_state.pose.pitch, self.current_vehicle_state.pose.roll
+        rotation_world_vehicle = R.from_euler('xyz',[vehicle_roll, vehicle_pitch, vehicle_yaw],degrees=False).as_matrix()
+        self.t_vehicle_to_world = np.eye(4)
+        self.t_vehicle_to_world[:3,:3] = rotation_world_vehicle
+        self.t_vehicle_to_world[:3,3] = [vehicle_x, vehicle_y, vehicle_z]
+
+        return np.linalg.inv(self.t_start_to_world @ np.linalg.inv(self.t_vehicle_to_world))
+
     # TODO: Refactor to make more efficient
     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
     # TODO Fix velocity calculation to calculate in ObjectFrameEnum.START
     def find_vels_and_ids(self, obj_centers: List[np.ndarray], obj_dims: List[np.ndarray]):
+
         # Gate to check whether dims and centers are empty (will happen if no pedestrians are scanned):
         for idx in range(len(obj_dims) -1, -1, -1):
             if (obj_centers[idx].size == 0) or (obj_dims[0].size == 0):
@@ -440,17 +465,29 @@ class PedestrianDetector2D(Component):
         # Return the agent states converted to start frame:
         return agents
 
-    def ouster_oak_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
+    def ouster_oak_callback(self, cv_image: cv2.Mat, lidar_points: np.ndarray, vehicle_state: GNSSReading):
         # Update times for basic velocity calculation
         self.prev_time = self.curr_time
         self.curr_time = datetime.now()
 
+        # Getting start pose in GLOBAL Frame
+        if self.start_pose_abs == None and vehicle_state.status == 'ok':
+            self.start_pose_abs = vehicle_state.pose 
+
+        # Update current vehicle state and convert to START Frame
+        if (vehicle_state.status == 'ok'):
+            self.current_vehicle_state.pose = vehicle_state.pose
+            self.current_vehicle_state.v = vehicle_state.speed
+            self.current_vehicle_state.to_frame(frame=ObjectFrameEnum.START, current_pose=self.current_vehicle_state.pose, start_pose_abs=self.start_pose_abs)
+        else:
+            raise Exception('Unable to get current pose of vehicle, lost GPS')
+
         # Convert to cv2 image and run detector
-        cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
+        # cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
         track_result = self.detector.track(source=cv_image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
 
         # Convert 1D PointCloud2 data to x, y, z coords
-        lidar_points = convert_pointcloud2_to_xyz(lidar_pc2_msg)
+        # lidar_points = convert_pointcloud2_to_xyz(lidar_pc2_msg)
         # print("len lidar_points", len(lidar_points))
 
         # Downsample xyz point clouds
@@ -495,6 +532,8 @@ class PedestrianDetector2D(Component):
                 extracted_pts_all.append(extracted_pts)
             else: extracted_pts_all.append(np.array(()))
         
+        # Generate Transformation matrix for vehicle to start
+        self.t_vehicle_to_start = self.generate_vehicle_start_frame(vehicle_state)
         self.update_object_states(track_result, extracted_pts_all)
         if self.debug: self.viz_object_states(cv_image, boxes, extracted_pts_all)
 
