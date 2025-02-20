@@ -10,12 +10,15 @@ import time
 
 def fit_plane_ransac(points, threshold, min_inliers, iterations=100):
     """
-    A simple RANSAC plane fitting implementation.
+    A more efficient RANSAC plane fitting method.
+    - Skips iterations with nearly collinear points.
+    - Prioritizes diverse point selection to improve stability.
     """
     best_inliers_count = 0
     best_plane = None
     best_inliers = None
     n_points = points.shape[0]
+
     if n_points < 3:
         return None, None
 
@@ -23,15 +26,24 @@ def fit_plane_ransac(points, threshold, min_inliers, iterations=100):
         idx = np.random.choice(n_points, 3, replace=False)
         sample = points[idx]
         p1, p2, p3 = sample
+
+        # Ensure the points are sufficiently spread out (avoid collinearity)
+        if np.linalg.norm(p1 - p2) < 0.1 or np.linalg.norm(p2 - p3) < 0.1:
+            continue
+
         normal = np.cross(p2 - p1, p3 - p1)
         norm = np.linalg.norm(normal)
+
         if norm == 0:
-            continue
+            continue  # Skip degenerate cases
+
         normal = normal / norm
         d = -np.dot(normal, p1)
         plane = np.hstack([normal, d])
+
         distances = np.abs(points.dot(normal) + d)
         inliers = np.where(distances < threshold)[0]
+
         if len(inliers) > best_inliers_count:
             best_inliers_count = len(inliers)
             best_plane = plane
@@ -41,6 +53,7 @@ def fit_plane_ransac(points, threshold, min_inliers, iterations=100):
         return best_plane, best_inliers
     else:
         return None, None
+
 
 def backproject_pixel(u, v, K):
     """
@@ -118,16 +131,37 @@ def refine_cluster(roi_points, center, eps=0.2, min_samples=10):
             best_cluster = cluster
     return best_cluster
 
-def remove_ground_by_min_range(cluster, z_range=0.05):
+def remove_ground(cluster, z_range=0.05, ransac_threshold=0.05, min_inliers=20):
     """
-    Remove ground points from the cluster by finding the minimum z value and eliminating
-    all points within z_range of that minimum.
+    Improved ground removal using RANSAC plane fitting.
+    - First, attempts to remove the dominant ground plane using RANSAC.
+    - If no valid plane is found, falls back to simple min-Z filtering.
+
+    Parameters:
+    - cluster (np.ndarray): (N,3) point cloud cluster.
+    - z_range (float): Threshold for min-Z based ground removal (fallback).
+    - ransac_threshold (float): RANSAC distance threshold for ground plane fitting.
+    - min_inliers (int): Minimum number of inliers to accept a ground plane.
+
+    Returns:
+    - filtered (np.ndarray): The cluster with ground points removed.
     """
     if cluster is None or cluster.shape[0] == 0:
         return cluster
-    min_z = np.min(cluster[:, 2])
-    filtered = cluster[cluster[:, 2] > (min_z + z_range)]
+
+    # Attempt RANSAC-based plane removal
+    plane, inliers = fit_plane_ransac(cluster, threshold=ransac_threshold, min_inliers=min_inliers, iterations=100)
+    
+    if plane is not None and inliers is not None and len(inliers) > 0:
+        # Remove inlier points belonging to the ground plane
+        filtered = np.delete(cluster, inliers, axis=0)
+    else:
+        # Fallback to simple min-Z removal
+        min_z = np.min(cluster[:, 2])
+        filtered = cluster[cluster[:, 2] > (min_z + z_range)]
+
     return filtered
+
 
 def get_bounding_box_center_and_dimensions(points):
     """
@@ -281,7 +315,7 @@ def main():
 
         refined_cluster = refine_cluster(roi_points, intersection, eps=0.125, min_samples=10)
 
-        refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.05)
+        refined_cluster = remove_ground(refined_cluster, z_range=0.05)
         if refined_cluster is None or refined_cluster.shape[0] == 0:
             refined_center = intersection
             bbox_dims = np.array([0, 0, 0])

@@ -14,28 +14,72 @@ import sensor_msgs.point_cloud2 as pc2
 import struct, ctypes
 
 
+
 # ----- Helper Functions -----
 def match_existing_pedestrian(
     new_center: np.ndarray,
     new_dims: tuple,
     existing_agents: Dict[str, AgentState],
-    distance_threshold: float = 1.0
+    prev_velocities: Dict[str, np.ndarray],
+    distance_threshold: float = 1.0,
+    size_threshold: float = 0.5,
+    height_threshold: float = 0.3,
+    velocity_threshold: float = 2.0
 ) -> str:
     """
-    Return the agent_id of the best match if within distance_threshold;
-    otherwise return None.
+    Match a newly detected pedestrian with an existing one using:
+    - Euclidean distance
+    - Bounding box similarity
+    - Height consistency
+    - Velocity consistency
+
+    Returns the best-matching agent_id or None if no good match is found.
     """
     best_agent_id = None
-    best_dist = float('inf')
+    best_score = float('inf')
 
     for agent_id, agent_state in existing_agents.items():
         old_center = np.array([agent_state.pose.x, agent_state.pose.y, agent_state.pose.z])
+        old_dims = agent_state.dimensions
+
+        # 1. Euclidean Distance Check
         dist = np.linalg.norm(new_center - old_center)
-        if dist < distance_threshold and dist < best_dist:
-            best_dist = dist
+        if dist > distance_threshold:
+            continue  # Skip if too far away
+
+        # 2. Bounding Box Size Similarity (with Zero-Division Handling)
+        size_norm = np.linalg.norm(np.array(old_dims))
+        if size_norm > 0:
+            size_change = np.linalg.norm(np.array(new_dims) - np.array(old_dims)) / size_norm
+        else:
+            size_change = float('inf')  # Prevent invalid matching
+
+        if size_change > size_threshold:
+            continue  # Skip if bounding box changes too much
+
+        # 3. Height Consistency Check
+        height_change = abs(new_dims[2] - old_dims[2]) / old_dims[2] if old_dims[2] > 0 else 0
+        if height_change > height_threshold:
+            continue  # Skip if height changes drastically
+
+        # 4. Velocity Consistency Check
+        if agent_id in prev_velocities:
+            prev_velocity = prev_velocities[agent_id]
+            estimated_velocity = (new_center - old_center)
+            velocity_change = np.linalg.norm(estimated_velocity - prev_velocity)
+
+            if velocity_change > velocity_threshold:
+                continue  # Skip if unrealistic velocity jump
+
+        # Score: Lower score = better match (distance is primary factor)
+        score = dist
+        if score < best_score:
+            best_score = score
             best_agent_id = agent_id
 
     return best_agent_id
+
+
 
 
 def compute_velocity(old_pose: ObjectPose, new_pose: ObjectPose, dt: float) -> tuple:
@@ -128,15 +172,82 @@ def refine_cluster(roi_points, center, eps=0.2, min_samples=10):
     return best_cluster
 
 
-def remove_ground_by_min_range(cluster, z_range=0.05):
+def fit_plane_ransac(points, threshold, min_inliers, iterations=100):
     """
-    Remove ground points by finding the minimum z value in the cluster and eliminating
-    all points with z within z_range of that minimum.
+    A more efficient RANSAC plane fitting method.
+    - Skips iterations with nearly collinear points.
+    - Prioritizes diverse point selection to improve stability.
+    """
+    best_inliers_count = 0
+    best_plane = None
+    best_inliers = None
+    n_points = points.shape[0]
+
+    if n_points < 3:
+        return None, None
+
+    for _ in range(iterations):
+        idx = np.random.choice(n_points, 3, replace=False)
+        sample = points[idx]
+        p1, p2, p3 = sample
+
+        # Ensure the points are sufficiently spread out (avoid collinearity)
+        if np.linalg.norm(p1 - p2) < 0.1 or np.linalg.norm(p2 - p3) < 0.1:
+            continue
+
+        normal = np.cross(p2 - p1, p3 - p1)
+        norm = np.linalg.norm(normal)
+
+        if norm == 0:
+            continue  # Skip degenerate cases
+
+        normal = normal / norm
+        d = -np.dot(normal, p1)
+        plane = np.hstack([normal, d])
+
+        distances = np.abs(points.dot(normal) + d)
+        inliers = np.where(distances < threshold)[0]
+
+        if len(inliers) > best_inliers_count:
+            best_inliers_count = len(inliers)
+            best_plane = plane
+            best_inliers = inliers
+
+    if best_inliers_count >= min_inliers:
+        return best_plane, best_inliers
+    else:
+        return None, None
+    
+
+def remove_ground(cluster, z_range=0.05, ransac_threshold=0.05, min_inliers=20):
+    """
+    Improved ground removal using RANSAC plane fitting.
+    - First, attempts to remove the dominant ground plane using RANSAC.
+    - If no valid plane is found, falls back to simple min-Z filtering.
+
+    Parameters:
+    - cluster (np.ndarray): (N,3) point cloud cluster.
+    - z_range (float): Threshold for min-Z based ground removal (fallback).
+    - ransac_threshold (float): RANSAC distance threshold for ground plane fitting.
+    - min_inliers (int): Minimum number of inliers to accept a ground plane.
+
+    Returns:
+    - filtered (np.ndarray): The cluster with ground points removed.
     """
     if cluster is None or cluster.shape[0] == 0:
         return cluster
-    min_z = np.min(cluster[:, 2])
-    filtered = cluster[cluster[:, 2] > (min_z + z_range)]
+
+    # Attempt RANSAC-based plane removal
+    plane, inliers = fit_plane_ransac(cluster, threshold=ransac_threshold, min_inliers=min_inliers, iterations=100)
+    
+    if plane is not None and inliers is not None and len(inliers) > 0:
+        # Remove inlier points belonging to the ground plane
+        filtered = np.delete(cluster, inliers, axis=0)
+    else:
+        # Fallback to simple min-Z removal
+        min_z = np.min(cluster[:, 2])
+        filtered = cluster[cluster[:, 2] > (min_z + z_range)]
+
     return filtered
 
 
@@ -208,6 +319,9 @@ class PedestrianDetector2D(Component):
         self.last_person_boxes = []
         self.lidar_pc = None  # Will be updated via ROS callback
         self.pc_raw = None
+        self.tracked_agents = {}
+        self.pedestrian_counter = 0
+
 
     def rate(self):
         return 4.0
@@ -260,7 +374,6 @@ class PedestrianDetector2D(Component):
 
         for i, box in enumerate(self.last_person_boxes):
             cx, cy, w, h = box
-            # --- same LiDAR + bounding box logic as before ---
             ray_dir_cam = backproject_pixel(cx, cy, self.K)
             ray_dir_lidar = self.R_c2l @ ray_dir_cam
             ray_dir_lidar /= np.linalg.norm(ray_dir_lidar)
@@ -289,10 +402,36 @@ class PedestrianDetector2D(Component):
             else:
                 refined_cluster = refine_cluster(roi_points, intersection, eps=0.125, min_samples=10)
 
-            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
+            refined_cluster = remove_ground(refined_cluster, z_range=0.03)
+
+            # ✅ Ensure existing_agents only contains valid AgentState objects
+            existing_agents = {k: v[0] for k, v in self.tracked_agents.items() if v}
+            
+            # ✅ Ensure prev_velocities are properly formatted
+            prev_velocities = {
+                k: np.array(v[0].velocity) if v[0].velocity is not None else np.array([0, 0, 0])
+                for k, v in self.tracked_agents.items()
+            }
+
+            # ✅ Match before using `existing_id`
+            existing_id = match_existing_pedestrian(
+                new_center=np.array(intersection),
+                new_dims=(physical_width, depth_margin, physical_height),
+                existing_agents=existing_agents,
+                prev_velocities=prev_velocities,
+                distance_threshold=1.0,
+                size_threshold=0.5,
+                height_threshold=0.3,
+                velocity_threshold=2.0
+            )
+
             if refined_cluster is None or refined_cluster.shape[0] == 0:
                 refined_center = intersection
-                dims = (0, 0, 0)
+                # ✅ Fix: Ensure `existing_id` exists in `existing_agents` before accessing `.dimensions`
+                if existing_id is not None and existing_id in existing_agents:
+                    dims = existing_agents[existing_id].dimensions
+                else:
+                    dims = (0.5, 0.5, 1.7)  # Default pedestrian size
                 yaw, pitch, roll = 0, 0, 0
             else:
                 pcd = o3d.geometry.PointCloud()
@@ -302,22 +441,15 @@ class PedestrianDetector2D(Component):
                 dims = tuple(obb.extent)
                 R_lidar = obb.R.copy()
 
-                # transform to vehicle frame
-                refined_center_lidar_hom = np.array([refined_center[0],
-                                                     refined_center[1],
-                                                     refined_center[2],
-                                                     1.0])
-                refined_center_vehicle_hom = self.T_l2v @ refined_center_lidar_hom
+                refined_center_vehicle_hom = self.T_l2v @ np.array([*refined_center, 1.0])
                 refined_center_vehicle = refined_center_vehicle_hom[:3]
 
                 R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                 euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=True)
-                yaw, pitch, roll = euler_angles_vehicle  # rename for clarity
+                yaw, pitch, roll = euler_angles_vehicle
 
-                refined_center = refined_center_vehicle  # override to use vehicle frame
-                # dims remains the same; orientation is now (yaw, pitch, roll)
+                refined_center = refined_center_vehicle  # Override to use vehicle frame
 
-            # -- CREATE the new pose in the vehicle frame --
             new_pose = ObjectPose(
                 t=current_time,
                 x=refined_center[0],
@@ -329,16 +461,7 @@ class PedestrianDetector2D(Component):
                 frame=ObjectFrameEnum.CURRENT
             )
 
-            # 1) Attempt to match with an existing pedestrian
-            existing_id = match_existing_pedestrian(
-                new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
-                new_dims=dims,
-                existing_agents={k: v.pose for k, v in self.tracked_agents.items()},
-                distance_threshold=1.0
-            )
-
-            if existing_id is not None:
-                # 2) Update existing agent
+            if existing_id is not None and existing_id in self.tracked_agents:
                 old_agent_state, old_time = self.tracked_agents[existing_id]
                 dt = current_time - old_time
                 vx, vy, vz = compute_velocity(old_agent_state.pose, new_pose, dt)
@@ -356,7 +479,6 @@ class PedestrianDetector2D(Component):
                 self.tracked_agents[existing_id] = (updated_agent, current_time)
 
             else:
-                # 3) Create a new agent
                 agent_id = f"pedestrian{self.pedestrian_counter}"
                 self.pedestrian_counter += 1
 
@@ -373,6 +495,9 @@ class PedestrianDetector2D(Component):
                 self.tracked_agents[agent_id] = (new_agent, current_time)
 
         return agents
+
+
+
 
 
 # ----- Fake Pedestrian Detector 2D (unchanged) -----
