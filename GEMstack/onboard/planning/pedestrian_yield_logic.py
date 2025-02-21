@@ -1,4 +1,4 @@
-from ...state import AgentState, AgentEnum, EntityRelation, EntityRelationEnum, VehicleState, ObjectFrameEnum
+from ...state import AgentState, AgentEnum, EntityRelation, EntityRelationEnum, ObjectFrameEnum
 from ..component import Component
 from typing import List, Dict
 
