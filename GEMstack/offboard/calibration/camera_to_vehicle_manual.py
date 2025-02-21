@@ -5,12 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 N = 4 #how many point pairs you want to select
-rgb_path = '/mount/wp/GEMstack/data/color20.png'
-depth_path = '/mount/wp/GEMstack/data/depth20.tif'
-lidar_path = '/mount/wp/GEMstack/data/lidar20.npz'
-# rgb_path = '/mount/wp/GEMstack/data/color25.png'
-# depth_path = '/mount/wp/GEMstack/data/depth25.tif'
-# lidar_path = '/mount/wp/GEMstack/data/lidar25.npz'
+rgb_path = './data/color20.png'
+depth_path = './data/depth20.tif'
+lidar_path = './data/lidar20.npz'
 
 img = cv2.imread(rgb_path, cv2.IMREAD_UNCHANGED)
 
