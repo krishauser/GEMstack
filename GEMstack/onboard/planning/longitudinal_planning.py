@@ -8,7 +8,7 @@ from ...utils import serialization
 from ...mathutils import transforms
 import numpy as np
 
-DEBUG = True  # Set to False to disable debug output
+DEBUG = False  # Set to False to disable debug output
 
 
 def compute_cumulative_distances(points: List[List[float]]) -> List[float]:
@@ -189,6 +189,7 @@ class YieldTrajectoryPlanner(Component):
         curr_v = vehicle.v
         if DEBUG:
             print(f"[DEBUG] YieldTrajectoryPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}")
+            print(f"[DEBUG] YieldTrajectoryPlanner.update: Vehicle frame", vehicle.pose.frame)
 
         # Determine progress along the route.
         if self.route_progress is None:
@@ -207,7 +208,7 @@ class YieldTrajectoryPlanner(Component):
         print("[DEBUG] state", state.relations)
         # Check whether any yield relations (e.g. due to pedestrians) require braking.
         should_brake = any(
-            r.type == EntityRelationEnum.YIELDING and r.obj1 == ''
+            (r.type == EntityRelationEnum.YIELDING or r.type == EntityRelationEnum.STOPPING_AT) and r.obj1 == ''
             for r in state.relations
         )
         if DEBUG:
