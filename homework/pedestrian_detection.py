@@ -3,144 +3,183 @@ from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
 import cv2
-import numpy as np
 from typing import Dict
-
-# =============================================================================
-# Global camera intrinsics (placeholder values – move these to your settings file later)
-# The camera frame is assumed to be:
-#    - x: right, y: down, z: forward
-# These values should be obtained via calibration (e.g., from the /oak/rgb/camera_info topic)
-# =============================================================================
-CAMERA_INTRINSICS = {
-    'fx': 500.0,  # focal length in pixels (replace with your calibrated value)
-    'fy': 500.0,
-    'cx': 320.0,  # principal point x (replace with your calibrated value)
-    'cy': 240.0,  # principal point y (replace with your calibrated value)
-}
-
-# =============================================================================
-# LIDAR to Camera Transform (placeholder, replace with your actual calibration matrix)
-# This 4x4 homogeneous transformation converts points in the lidar frame to the camera frame.
-# Replace the identity matrix below with your actual calibration data.
-# =============================================================================
-LIDAR_TO_CAMERA_TRANSFORM = np.eye(4)  # TODO: replace with your calibrated transform
+import open3d as o3d
+import numpy as np
+from sklearn.cluster import DBSCAN
+from scipy.spatial.transform import Rotation as R
+import rospy
+from sensor_msgs.msg import PointCloud2
+import sensor_msgs.point_cloud2 as pc2
+import struct, ctypes
 
 
-def box_to_fake_agent(box):
-    """Creates a fake agent state from an (x,y,w,h) bounding box.
+# ----- Helper Functions -----
+def extract_roi_box(lidar_pc, center, half_extents):
+    lower = center - half_extents
+    upper = center + half_extents
+    #Instead of forming a full (N,3) boolean array and then using np.all(..., axis=1), 
+    # the updated code explicitly computes the condition for each axis.
+
+    mask = ((lidar_pc[:, 0] >= lower[0]) & (lidar_pc[:, 0] <= upper[0]) &
+            (lidar_pc[:, 1] >= lower[1]) & (lidar_pc[:, 1] <= upper[1]) &
+            (lidar_pc[:, 2] >= lower[2]) & (lidar_pc[:, 2] <= upper[2]))
+    return lidar_pc[mask]
+
+
+def pc2_to_numpy(pc2_msg, want_rgb=False):
     
-    The location and size are placeholders, since this is just a 2D approximation.
+    #Convert ROS PointCloud2 message to a numpy array.
+    #Does so just once, to reduce computing multiple times
+    gen = pc2.read_points(pc2_msg, skip_nans=True)
+
+    #Converts gen to np.array once and stores vs converting twice
+    points = np.array(list(gen), dtype=np.float32)
+    if want_rgb:
+        # Implement RGB extraction if needed
+        xyzpack = points
+        if xyzpack.shape[1] != 4:
+            raise ValueError("PointCloud2 does not have points")
+        # Additional processing for RGB if required
+    else:
+        return points[:, :3]
+
+
+def backproject_pixel(u, v, K):
+    """Backprojects pixel (u,v) into a normalized 3D ray (camera coordinates)."""
+    cx, cy = K[0, 2], K[1, 2]
+    fx, fy = K[0, 0], K[1, 1]
+    x = (u - cx) / fx
+    y = (v - cy) / fy
+    ray_dir = np.array([x, y, 1.0])
+    return ray_dir / np.linalg.norm(ray_dir)
+
+
+def find_human_center_on_ray(lidar_pc, ray_origin, ray_direction,
+                             t_min, t_max, t_step,
+                             distance_threshold, min_points, ransac_threshold):
     """
-    x, y, w, h = box
-    pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0,
-                      yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
-    dims = (w, h, 0)
-    return AgentState(pose=pose, dimensions=dims, outline=None, type=AgentEnum.PEDESTRIAN,
-                      activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
-
-
-def get_average_cam_point_from_lidar(bbox, point_cloud):
+    Pre-filter the point cloud to only include points near the ray, then sweep along the ray.
+    For each candidate along the ray, compute the centroid of nearby points and return that as the refined candidate.
+    Returns (refined_candidate, None, None) if found; otherwise, (None, None, None).
     """
-    Given a bounding box (x, y, w, h) in image coordinates and a lidar point cloud (in the lidar frame),
-    this function:
-      1. Converts the point cloud to homogeneous coordinates.
-      2. Transforms the points into the camera frame using LIDAR_TO_CAMERA_TRANSFORM.
-      3. Projects the points into the image using the camera intrinsics.
-      4. Selects points that fall inside the bounding box.
-      5. Returns the average 3D point (in the camera frame) of those points.
-    
-    Returns:
-        avg_point: A NumPy array [x_cam, y_cam, z_cam] in the camera frame,
-                   or None if no points are found inside the bbox.
+    # Pre-filter: compute distance from each point to the ray.
+    vecs = lidar_pc - ray_origin  # Vectors from origin to points.
+    proj_lengths = np.dot(vecs, ray_direction)  # Projection lengths.
+    proj_points = ray_origin + np.outer(proj_lengths, ray_direction)
+    dists_to_ray = np.linalg.norm(lidar_pc - proj_points, axis=1)
+    near_ray_mask = dists_to_ray < distance_threshold
+    filtered_pc = lidar_pc[near_ray_mask]
+
+    # If too few points remain, return None.
+    if filtered_pc.shape[0] < min_points:
+        return None, None, None
+
+    # Sweep along the ray using the filtered point cloud.
+    t_values = np.arange(t_min, t_max, t_step)
+    for t in t_values:
+        candidate = ray_origin + t * ray_direction
+        dists = np.linalg.norm(filtered_pc - candidate, axis=1)
+        nearby_points = filtered_pc[dists < distance_threshold]
+        if nearby_points.shape[0] >= min_points:
+            refined_candidate = np.mean(nearby_points, axis=0)
+            return refined_candidate, None, None
+    return None, None, None
+
+
+def extract_roi(pc, center, roi_radius):
+    """Extract points from pc that lie within roi_radius of center."""
+    distances = np.linalg.norm(pc - center, axis=1)
+    return pc[distances < roi_radius]
+
+
+def refine_cluster(roi_points, center, eps=0.2, min_samples=10):
+    """Refine a cluster using DBSCAN and return the cluster closest to center."""
+    clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(roi_points)
+    labels = clustering.labels_
+    valid_clusters = [roi_points[labels == l] for l in set(labels) if l != -1]
+    if not valid_clusters:
+        return roi_points
+    best_cluster = min(valid_clusters, key=lambda c: np.linalg.norm(np.mean(c, axis=0) - center))
+    return best_cluster
+
+
+def remove_ground_by_min_range(cluster, z_range=0.05):
     """
-    x, y, w, h = bbox
-    if point_cloud is None or point_cloud.shape[0] == 0:
-        return None
-
-    # Convert the point cloud (assumed shape (N,3)) to homogeneous coordinates (N,4)
-    ones = np.ones((point_cloud.shape[0], 1))
-    points_homog = np.hstack((point_cloud, ones))  # shape (N,4)
-    
-    # Transform points from lidar frame to camera frame
-    cam_points_homog = (LIDAR_TO_CAMERA_TRANSFORM @ points_homog.T).T  # shape (N,4)
-    cam_points = cam_points_homog[:, :3]  # (x_cam, y_cam, z_cam)
-    
-    # Only consider points in front of the camera (z_cam > 0)
-    valid_mask = cam_points[:, 2] > 0
-    cam_points = cam_points[valid_mask]
-    if cam_points.shape[0] == 0:
-        return None
-
-    # Project points into the image using the pinhole camera model:
-    # u = fx * (x_cam / z_cam) + cx, v = fy * (y_cam / z_cam) + cy
-    u = CAMERA_INTRINSICS['fx'] * (cam_points[:, 0] / cam_points[:, 2]) + CAMERA_INTRINSICS['cx']
-    v = CAMERA_INTRINSICS['fy'] * (cam_points[:, 1] / cam_points[:, 2]) + CAMERA_INTRINSICS['cy']
-    
-    # Create a mask for points that fall within the bounding box.
-    in_bbox_mask = (u >= x) & (u <= x + w) & (v >= y) & (v <= y + h)
-    if np.sum(in_bbox_mask) == 0:
-        return None
-    
-    selected_points = cam_points[in_bbox_mask]
-    # Compute the average of the selected points (mean of x, y, and z)
-    avg_point = np.mean(selected_points, axis=0)
-    return avg_point
-
-
-def camera_to_vehicle(cam_point):
+    Remove ground points by finding the minimum z value in the cluster and eliminating
+    all points with z within z_range of that minimum.
     """
-    Convert a point from the camera frame (x_cam, y_cam, z_cam) to the vehicle frame.
-    Assumptions:
-      - Camera frame: x to the right, y down, z forward.
-      - Vehicle frame: x forward, y to the left, z up.
-    
-    The conversion is:
-      x_vehicle = z_cam
-      y_vehicle = -x_cam
-      z_vehicle = -y_cam
-    """
-    x_cam, y_cam, z_cam = cam_point
-    x_vehicle = z_cam
-    y_vehicle = -x_cam
-    z_vehicle = -y_cam
-    return np.array([x_vehicle, y_vehicle, z_vehicle])
+    if cluster is None or cluster.shape[0] == 0:
+        return cluster
+    min_z = np.min(cluster[:, 2])
+    filtered = cluster[cluster[:, 2] > (min_z + z_range)]
+    return filtered
 
 
-def box_to_agent_with_lidar(bbox, point_cloud):
+def get_bounding_box_center_and_dimensions(points):
     """
-    Given a bounding box and a lidar point cloud, use the lidar data to estimate the 3D position
-    of the detected pedestrian.
+    Compute the bounding box center and dimensions (max - min) for the given points.
     """
-    avg_cam_point = get_average_cam_point_from_lidar(bbox, point_cloud)
-    if avg_cam_point is None:
-        # If no lidar points fall within the bounding box, fall back to a 2D-only approximation.
-        return box_to_fake_agent(bbox)
-    
-    # Convert the averaged 3D point (in the camera frame) to the vehicle frame.
-    vehicle_point = camera_to_vehicle(avg_cam_point)
-    
-    # Create an ObjectPose using the vehicle coordinates.
-    pose = ObjectPose(t=0, x=vehicle_point[0], y=vehicle_point[1], z=vehicle_point[2],
-                      yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
-    
-    # Estimate the dimensions in meters by projecting the bounding box dimensions using the average depth.
-    z = avg_cam_point[2]
-    width_m = (bbox[2] * z) / CAMERA_INTRINSICS['fx']
-    height_m = (bbox[3] * z) / CAMERA_INTRINSICS['fy']
-    dims = (width_m, height_m, 0.5)  # Assume a fixed thickness of 0.5 m for a pedestrian.
-    
-    return AgentState(pose=pose, dimensions=dims, outline=None, type=AgentEnum.PEDESTRIAN,
-                      activity=AgentActivityEnum.MOVING, velocity=(0, 0, 0), yaw_rate=0)
+    if points.shape[0] == 0:
+        return None, None
+    min_vals = np.min(points, axis=0)
+    max_vals = np.max(points, axis=0)
+    center = (min_vals + max_vals) / 2
+    dimensions = max_vals - min_vals
+    return center, dimensions
 
+def create_circle_line_set(center, radius, num_points=50):
+    #This avoids the Python loop and leverages NumPy’s vectorized operations.
+    theta = np.linspace(0, 2 * np.pi, num_points, endpoint=False)
+    x = center[0] + radius * np.cos(theta)
+    y = center[1] + radius * np.sin(theta)
+    z = np.full_like(theta, center[2])
+    circle_points = np.stack((x, y, z), axis=-1)
+    
+    lines = [[i, (i + 1) % num_points] for i in range(num_points)]
+    line_set = o3d.geometry.LineSet()
+    line_set.points = o3d.utility.Vector3dVector(circle_points)
+    line_set.lines = o3d.utility.Vector2iVector(lines)
+    line_set.colors = o3d.utility.Vector3dVector([[0, 1, 0] for _ in range(len(lines))])
+    return line_set
+
+
+
+def create_ray_line_set(start, end):
+    """
+    Create a LineSet representing a ray from 'start' to 'end' (colored yellow).
+    """
+    points = [start, end]
+    lines = [[0, 1]]
+    line_set = o3d.geometry.LineSet()
+    line_set.points = o3d.utility.Vector3dVector(points)
+    line_set.lines = o3d.utility.Vector2iVector(lines)
+    line_set.colors = o3d.utility.Vector3dVector([[1, 1, 0]])
+    return line_set
+
+
+def visualize_geometries(geometries, window_name="Open3D", width=800, height=600, point_size=5.0):
+    """Utility to visualize a list of Open3D geometries."""
+    vis = o3d.visualization.Visualizer()
+    vis.create_window(window_name=window_name, width=width, height=height)
+    for geom in geometries:
+        vis.add_geometry(geom)
+    opt = vis.get_render_option()
+    opt.point_size = point_size
+    vis.run()
+    vis.destroy_window()
+
+
+# ----- Pedestrian Detector 2D (with 3D fusion) -----
 
 class PedestrianDetector2D(Component):
-    """Detects pedestrians by fusing 2D image detections with lidar point cloud data."""
+    """Detects pedestrians using YOLO and LiDAR to estimate 3D pose."""
+
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.detector = None             # YOLO detector for image processing
-        self.last_person_boxes = []      # 2D bounding boxes from the image
-        self.latest_point_cloud = None   # Latest lidar point cloud (in the lidar frame)
+        self.last_person_boxes = []
+        self.lidar_pc = None  # Will be updated via ROS callback
+        self.pc_raw = None
 
     def rate(self):
         return 4.0
@@ -152,41 +191,129 @@ class PedestrianDetector2D(Component):
         return ['agents']
 
     def initialize(self):
-        # Subscribe to the front camera for 2D detection.
-        self.detector = YOLO('../../knowledge/detection/yolov11n.pt')
+        # Subscribe to camera and LiDAR.
+        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
         self.vehicle_interface.subscribe_sensor('front_camera', self.image_callback, cv2.Mat)
-        # Subscribe to the lidar sensor (e.g., "top_lidar"). Assume it provides a NumPy array for the point cloud.
-        self.vehicle_interface.subscribe_sensor('top_lidar', self.lidar_callback, np.ndarray)
+        self.vehicle_interface.subscribe_sensor('top_lidar', self.lidar_callback, PointCloud2)
+        #self.vehicle_interface.subscribe_sensor('ouster/points', self.lidar_callback, PointCloud2)
+        # Set up camera intrinsics and LiDAR-to-camera transformation.
+        self.T_l2v = np.array([
+            [0.99993639, 0.02547917, 0.023615, -1.1],
+            [-0.02530848, 0.9996156, -0.00749882, 0.03773583],
+            [-0.02379784, 0.00689664, 0.999693, 1.95320223],
+            [0., 0., 0., 1.]
+        ])
+        self.K = np.array([[684.83331299, 0., 573.37109375],
+                           [0., 684.60968018, 363.70092773],
+                           [0., 0., 1.]])
+        self.T_l2c = np.array([[-0.01909581, -0.9997844, 0.0081547, 0.24521313],
+                               [0.06526397, -0.00938524, -0.9978239, -0.80389025],
+                               [0.9976853, -0.01852205, 0.06542912, -0.6605772],
+                               [0., 0., 0., 1.]])
+        self.T_c2l = np.linalg.inv(self.T_l2c)
+        self.R_c2l = self.T_c2l[:3, :3]
+        self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
+    def lidar_callback(self, lidar_msg: PointCloud2):
+        """Convert ROS PointCloud2 to numpy array and store it."""
+        self.lidar_pc = pc2_to_numpy(lidar_msg, want_rgb=False)
     def image_callback(self, image: cv2.Mat):
-        """Process the image to detect pedestrians using YOLO."""
-        results = self.detector(image, conf=0.5)
-        boxes = results[0].boxes
-        if len(boxes) == 0:
-            self.last_person_boxes = []
-            return
-        cls_ids = boxes.cls.cpu()
-        xywh = boxes.xywh.cpu()
-        person_mask = (cls_ids == 0)
-        self.last_person_boxes = [tuple(map(float, box)) for box in xywh[person_mask]]
-
-    def lidar_callback(self, point_cloud):
-        """Receive and store the latest lidar point cloud (assumed to be a NumPy array of shape (N,3))."""
-        self.latest_point_cloud = point_cloud
+        results = self.detector(image, conf=0.5, classes=[0])
+        boxes = np.array(results[0].boxes.xywh.cpu())  # Format: [center_x, center_y, w, h]
+        self.last_person_boxes = boxes
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
-        res = {}
-        for i, bbox in enumerate(self.last_person_boxes):
-            # Fuse the 2D detection with lidar data to estimate a 3D location.
-            agent_state = box_to_agent_with_lidar(bbox, self.latest_point_cloud)
-            res['pedestrian' + str(i)] = agent_state
-        if len(res) > 0:
-            print("Detected", len(res), "pedestrians")
-        return res
 
+        # self.lidar_pc = pc2_to_numpy(self.pc_raw, want_rgb=False)
+        agents = {}
+        if self.lidar_pc is None:
+            print("NOT fOUND")
+            return agents
+
+        # TODO# --- Downsample LiDAR Point Cloud (Optimization) ---
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(self.lidar_pc)
+        # pcd_down = pcd.voxel_down_sample(voxel_size=0.05)  # Adjust voxel_size as needed
+        # self.lidar_pc = np.asarray(pcd_down.points)
+
+        for i, box in enumerate(self.last_person_boxes):
+            cx, cy, w, h = box
+            # Backproject the center pixel into a 3D ray.
+            ray_dir_cam = backproject_pixel(cx, cy, self.K)
+            ray_dir_lidar = self.R_c2l @ ray_dir_cam
+            ray_dir_lidar /= np.linalg.norm(ray_dir_lidar)
+            # Find a candidate 3D point along the ray.
+            intersection, _, _ = find_human_center_on_ray(self.lidar_pc, self.camera_origin_in_lidar, ray_dir_lidar,
+                                                          t_min=0.5, t_max=20.0, t_step=0.1,
+                                                          distance_threshold=0.2, min_points=20, ransac_threshold=0.05)
+            if intersection is None:
+                continue
+            # Use the 2D bounding box dimensions to guide ROI extraction.
+            d = np.linalg.norm(intersection - self.camera_origin_in_lidar)
+            physical_width = (w * d) / self.K[0, 0]
+            physical_height = (h * d) / self.K[1, 1]
+            # Here, we use a 3D sphere ROI as a simple approach; you can replace it with a box ROI if needed.
+            depth_margin = physical_width  # Alternatively, you can set a constant like 0.5
+            half_extents = np.array([
+                1.1 * physical_width / 2,
+                1.1 * depth_margin / 2,
+                1.25 * physical_height / 2
+            ])
+
+            # Extract ROI using a 3D box that matches the 2D bounding box.
+            roi_points = extract_roi_box(self.lidar_pc, intersection, half_extents)
+            if roi_points.shape[0] < 10:
+                refined_cluster = roi_points
+            else:
+                refined_cluster = refine_cluster(roi_points, intersection, eps=0.125, min_samples=10)
+            #print(roi_points)
+            # Remove ground points by eliminating those within a small z-range of the minimum.
+            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
+            #print(refined_cluster)
+            if refined_cluster is None or refined_cluster.shape[0] == 0:
+                refined_center = intersection
+                dims = (0, 0, 0)
+                yaw, pitch, roll = 0, 0, 0
+            else:
+                # Compute oriented bounding box for the refined cluster.
+                pcd = o3d.geometry.PointCloud()
+                pcd.points = o3d.utility.Vector3dVector(refined_cluster)
+                obb = pcd.get_oriented_bounding_box()
+                refined_center = obb.center
+                dims = tuple(obb.extent)
+                R_lidar = obb.R.copy()  # rotation in LiDAR frame
+
+                # --- transform position to vehicle frame ---
+                refined_center_lidar_hom = np.array([refined_center[0],
+                                                     refined_center[1],
+                                                     refined_center[2],
+                                                     1.0])
+                refined_center_vehicle_hom = self.T_l2v @ refined_center_lidar_hom
+                refined_center_vehicle = refined_center_vehicle_hom[:3]
+
+                # --- transform orientation to vehicle frame ---
+                R_vehicle = self.T_l2v[:3, :3] @ R_lidar
+                euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=True)
+                yaw_v, pitch_v, roll_v = euler_angles_vehicle
+
+                print(f"Detected human in vehicle frame - Pose (yaw, pitch, roll): {euler_angles_vehicle}")
+                print(f"Bounding box center (vehicle frame): {refined_center_vehicle}, Dimensions: {dims}")
+            # Create agent pose.
+            pose = ObjectPose(t=0, x=refined_center[0], y=refined_center[1],
+                              z=refined_center[2], yaw=yaw, pitch=pitch, roll=roll,
+                              frame=ObjectFrameEnum.CURRENT)
+            agent_state = AgentState(pose=pose, dimensions=dims, outline=None,
+                                     type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING,
+                                     velocity=(0, 0, 0), yaw_rate=0)
+            agents[f'pedestrian{i}'] = agent_state
+        return agents
+
+
+# ----- Fake Pedestrian Detector 2D (unchanged) -----
 
 class FakePedestrianDetector2D(Component):
     """Triggers a pedestrian detection at some random time ranges."""
+
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.times = [(5.0, 20.0), (30.0, 35.0)]
@@ -211,3 +338,22 @@ class FakePedestrianDetector2D(Component):
                 res['pedestrian0'] = box_to_fake_agent((0, 0, 0, 0))
                 print("Detected a pedestrian")
         return res
+
+
+def box_to_fake_agent(box):
+    """Creates a fake agent state from an (x,y,w,h) bounding box.
+
+    The location and size are just 2D approximations.
+    """
+    x, y, w, h = box
+    pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+    dims = (w, h, 0)
+    return AgentState(pose=pose, dimensions=dims, outline=None,
+                      type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING,
+                      velocity=(0, 0, 0), yaw_rate=0)
+
+
+if __name__ == '__main__':
+    # This module is meant to be used within the vehicle interface context.
+    # For testing standalone, you may create a fake vehicle state and call update().
+    pass
