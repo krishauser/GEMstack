@@ -7,4 +7,9 @@ shapely
 klampt
 pyyaml
 dacite
+<<<<<<< Updated upstream
 ultralytics
+=======
+ultralytics
+open3d
+>>>>>>> Stashed changes
