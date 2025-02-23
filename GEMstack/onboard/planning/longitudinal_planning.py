@@ -10,6 +10,14 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
 
+
+
+################################################################################
+########## Collisiong Detection ################################################
+################################################################################
+
+
+
 class CollisionDetector:
     """
     Simulation class to update positions of two rectangles (vehicle and pedestrian)
@@ -213,6 +221,7 @@ class CollisionDetector:
         return collision_distance
 
 
+
 def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentState, min_deceleration: float, max_deceleration: float, acceleration: float, max_speed: float) -> Tuple[bool, float]:
     """Detects if a collision will occur with the given object and return deceleration to avoid it."""
     
@@ -349,6 +358,14 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
 
     return True, [distance_to_move, time_to_pass]
 
+
+
+################################################################################
+########## Longitudinal Planning ###############################################
+################################################################################
+
+
+
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float,
                       method : str) -> Trajectory:
     """Generates a longitudinal trajectory for a path with a
@@ -413,7 +430,7 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
         new_points.append(cur_point)
         new_times.append(cur_time)
         velocities.append(current_speed)
-        print("=====================================")
+        # print("=====================================")
         # print("new points: ", new_points)
         # print("current index: ", cur_index)
         # print("current speed: ", current_speed)
@@ -1055,6 +1072,14 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
     trajectory = Trajectory(path.frame,points,times,velocities)
     return trajectory
 
+
+
+################################################################################
+########## Yield Trajectory Planner ############################################
+################################################################################
+
+
+
 # class YieldTrajectoryPlanner(Component):
 #     """Follows the given route.  Brakes if you have to yield or
 #     you are at the end of the route, otherwise accelerates to
@@ -1160,7 +1185,7 @@ class YieldTrajectoryPlanner(Component):
     the desired speed.
     """
 
-    def __init__(self):
+    def __init__(self, mode : str = 'real', planner : str = 'milestone'):
         self.route_progress = None
         self.t_last = None
         self.acceleration = 0.75 # 0.5 is not enough to start
@@ -1172,6 +1197,10 @@ class YieldTrajectoryPlanner(Component):
         self.yield_deceleration = 0.5
         self.deceleration       = 2.0
         self.max_deceleration   = 8.0
+
+        # Planner mode
+        self.mode = mode
+        self.planner = planner
 
     def state_inputs(self):
         return ['all']
@@ -1193,18 +1222,27 @@ class YieldTrajectoryPlanner(Component):
             self.t_last = t
         dt = t - self.t_last
   
-        # Position in vehicle frame (Start (0,0) to (15,0))
-        curr_x = vehicle.pose.x * 20
-        curr_y = vehicle.pose.y * 20
+
+        curr_x = vehicle.pose.x
+        curr_y = vehicle.pose.y
         curr_v = vehicle.v
 
-        print("@@@@@ PLAN", curr_x, curr_y, curr_v)
+        abs_x = curr_x + state.start_vehicle_pose.x
+        abs_y = curr_y + state.start_vehicle_pose.y
 
-        # abs_x = curr_x + state.start_vehicle_pose.x
-        # abs_y = curr_y + state.start_vehicle_pose.y
-        abs_x = curr_x
-        abs_y = curr_y
-        print("@@@@@ PLAN", abs_x, abs_y)
+        ###############################################
+        # # TODO: Fix the coordinate conversion of other files
+        if self.mode == 'real':
+            # Position in vehicle frame (Start (0,0) to (15,0))
+            curr_x = vehicle.pose.x * 20
+            curr_y = vehicle.pose.y * 20
+            curr_v = vehicle.v
+            # print("@@@@@ PLAN", curr_x, curr_y, curr_v)
+            abs_x = curr_x
+            abs_y = curr_y
+            # print("@@@@@ PLAN", abs_x, abs_y)
+        ###############################################
+
 
         #figure out where we are on the route
         if self.route_progress is None:
@@ -1255,7 +1293,7 @@ class YieldTrajectoryPlanner(Component):
                 """
 
 
-                x1, y1 = vehicle.pose.x + state.start_vehicle_pose.x, vehicle.pose.y + state.start_vehicle_pose.y
+                x1, y1 = abs_x, abs_y
                 v1 = [curr_v, 0]     # Vehicle speed vector
 
                 for n,a in state.agents.items():
@@ -1288,17 +1326,17 @@ class YieldTrajectoryPlanner(Component):
                     else:
 
                         ###############################################
-                        # UNCOMMENT NOT TO YIELD: JUST STOP FOR PART1
-                        print("The vehicle is Stopping.")
-                        # Decide the deceleration based on the collision distance.
-                        brake_deceleration = max(self.deceleration, v1[0]**2 / (2 * (collision_distance)))
-                        if brake_deceleration > self.deceleration:
-                            if brake_deceleration > self.max_deceleration:
-                                brake_deceleration = self.max_deceleration
-                            decel = brake_deceleration if brake_deceleration > decel else decel
-                            should_brake = True
-                            break
-                        break
+                        # # UNCOMMENT NOT TO YIELD: JUST STOP FOR PART1
+                        # print("The vehicle is Stopping.")
+                        # # Decide the deceleration based on the collision distance.
+                        # brake_deceleration = max(self.deceleration, v1[0]**2 / (2 * (collision_distance)))
+                        # if brake_deceleration > self.deceleration:
+                        #     if brake_deceleration > self.max_deceleration:
+                        #         brake_deceleration = self.max_deceleration
+                        #     decel = brake_deceleration if brake_deceleration > decel else decel
+                        #     should_brake = True
+                        #     break
+                        # break
                         ###############################################
 
                         print("Collision detected. Try to find yielding speed.")
@@ -1356,11 +1394,13 @@ class YieldTrajectoryPlanner(Component):
         # traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
         #choose whether to accelerate, brake, or keep at current velocity
         if should_accelerate:
-            traj = longitudinal_plan(route_with_lookahead, accel, decel, desired_speed, curr_v, "dt")
+            print(route_with_lookahead)
+            print(accel, decel, desired_speed, curr_v)
+            traj = longitudinal_plan(route_with_lookahead, accel, decel, desired_speed, curr_v, self.planner)
         elif should_brake:
             traj = longitudinal_brake(route_with_lookahead, decel, curr_v)
         else:
-            traj = longitudinal_plan(route_with_lookahead, 0.0, decel, desired_speed, curr_v, "dt")
+            traj = longitudinal_plan(route_with_lookahead, 0.0, decel, desired_speed, curr_v, self.planner)
 
         print(f"Simulation took {time.time() - start_time:.3f} seconds.")
 

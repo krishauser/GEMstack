@@ -19,7 +19,11 @@ drive:
         route_planning:
             type: StaticRoutePlanner
             args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
-        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+        motion_planning:
+            type: longitudinal_planning.YieldTrajectoryPlanner
+            args:
+                mode: 'real'
+                planner: 'dt' # 'milestone', 'dt', or 'dx'
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
             print: False
@@ -97,3 +101,8 @@ variants:
                     # agent_detection : pedestrian_detection.FakePedestrianDetector2D
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
+                planning:
+                    motion_planning:
+                        type: longitudinal_planning.YieldTrajectoryPlanner
+                        args:
+                            mode: 'simulation'
