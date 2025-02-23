@@ -137,7 +137,6 @@ class PedestrianDetector2D(Component):
             # self.start_pose_abs = vehicle.pose # Store first pose which is start frame
             # self.start_pose_abs.to_frame(frame=ObjectFrameEnum.GLOBAL, current_pose=)
         # self.current_vehicle_pose_sf = vehicle.pose # Vehicle pose in start frame
-        self.current_agents.clear()
         return self.current_agents
 
     # TODO: Improve Algo Knn, ransac, etc.
@@ -284,6 +283,7 @@ class PedestrianDetector2D(Component):
     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
     # TODO Fix velocity calculation to calculate in ObjectFrameEnum.START
     def find_vels_and_ids(self, agents: List[AgentState]):
+        self.current_agents.clear()
         # Nothing was scanned, erase current (for current output) and previous list (for next time through because nothing was scanned)
         if (len(agents) == 0):
             self.current_agents = {}
