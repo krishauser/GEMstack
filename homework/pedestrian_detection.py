@@ -365,8 +365,16 @@ class PedestrianDetector2D(Component):
                 agents[agent_id] = new_agent
                 self.tracked_agents[agent_id] = new_agent
 
+        # Remove stale agents that haven't been updated for more than 3 seconds.
+        stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
+                     if current_time - agent.pose.t > 3.0]
+        for agent_id in stale_ids:
+            rospy.loginfo(f"Removing stale agent: {agent_id}")
+            del self.tracked_agents[agent_id]
+
         self.current_agents = agents
         return agents
+
 
 # ----- Fake Pedestrian Detector 2D (unchanged) -----
 class FakePedestrianDetector2D(Component):
