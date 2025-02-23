@@ -68,6 +68,10 @@ COPY requirements.txt /tmp/requirements.txt
 # Install Python dependencies
 RUN pip3 install -r /tmp/requirements.txt
 
+
+# Install other Dependencies
+RUN apt-get install -y ros-noetic-septentrio-gnss-driver
+
 USER ${USER}
 
 # Add ROS and GEMstack paths to bashrc

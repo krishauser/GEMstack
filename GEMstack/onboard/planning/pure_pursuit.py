@@ -164,7 +164,7 @@ class PurePursuit(object):
                 print("Feedforward accel: " + str(feedforward_accel) + " m/s^2")
         else:
             #decay speed when crosstrack error is high
-            desired_speed *= np.exp(-abs(ct_error)*0.4)
+            desired_speed *= np.exp(-abs(ct_error)*0.8)
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
@@ -178,6 +178,8 @@ class PurePursuit(object):
             component.debug('desired speed (m/s)',desired_speed)
             component.debug('feedforward accel (m/s^2)',feedforward_accel)
             component.debug('output accel (m/s^2)',output_accel)
+            component.debug('current yaw (rad)', curr_yaw)
+            component.debug('current speed (m/s)', speed)
         print("Output accel: " + str(output_accel) + " m/s^2")
 
         if output_accel > self.max_accel:
@@ -187,6 +189,11 @@ class PurePursuit(object):
             output_accel = -self.max_decel
 
         self.t_last = t
+
+        if desired_speed == 0 and speed == 0 and output_accel < 0.0:
+            print("Stopping. Set accel", output_accel, "to 0")
+            output_accel = 0.0
+
         return (output_accel, f_delta)
 
 
