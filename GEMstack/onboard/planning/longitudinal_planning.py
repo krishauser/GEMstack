@@ -193,13 +193,15 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
             
             softest_accleration = 2 * r_velocity_y_from_vehicle * (r_velocity_y_from_vehicle * r_pedestrain_x - r_velocity_x_from_vehicle * r_pedestrain_y_temp) / r_pedestrain_y_temp**2
             peak_y = -(r_velocity_x_from_vehicle * r_velocity_y_from_vehicle) / softest_accleration
+            # if the peak is within the position of the pedestrian, 
+            # then it indicates the path had already collided with the pestrain, 
+            # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
+            # and the vehicle should be stopped exactly before the pedestrain's x position
             if math.abs(peak_y) > math.abs(r_pedestrain_y_temp):
                 minimum_deceleration = math.abs(softest_accleration)
-            else:
-                softest_accleration = - (r_velocity_x_from_vehicle**2) / (2 * r_pedestrain_x)
-                minimum_deceleration = math.abs(softest_accleration)
+            # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
 
-        else:
+        if minimum_deceleration is None:
             minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
     else:
         pass
