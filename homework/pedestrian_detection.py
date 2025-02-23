@@ -329,13 +329,13 @@ class PedestrianDetector2D(Component):
             existing_id = match_existing_pedestrian(
                 new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
                 new_dims=dims,
-                existing_agents={k: v[0] for k, v in self.tracked_agents.items()},
+                existing_agents=self.tracked_agents,
                 distance_threshold=1.0
             )
 
             if existing_id is not None:
-                old_agent_state, old_time = self.tracked_agents[existing_id]
-                dt = float(current_time) - float(old_time)
+                old_agent_state = self.tracked_agents[existing_id]
+                dt = new_pose.t - old_agent_state.pose.t
                 vx, vy, vz = compute_velocity(old_agent_state.pose, new_pose, dt)
 
                 updated_agent = AgentState(
@@ -348,7 +348,7 @@ class PedestrianDetector2D(Component):
                     yaw_rate=0
                 )
                 agents[existing_id] = updated_agent
-                self.tracked_agents[existing_id] = (updated_agent, str(current_time))
+                self.tracked_agents[existing_id] = updated_agent
             else:
                 agent_id = f"pedestrian{self.pedestrian_counter}"
                 self.pedestrian_counter += 1
@@ -363,7 +363,7 @@ class PedestrianDetector2D(Component):
                     yaw_rate=0
                 )
                 agents[agent_id] = new_agent
-                self.tracked_agents[agent_id] = (new_agent, str(current_time))
+                self.tracked_agents[agent_id] = new_agent
 
         self.current_agents = agents
         return agents
