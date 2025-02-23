@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
 
+
+from scipy.optimize import minimize
+
 def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentState, min_deceleration: float, max_deceleration: float) -> Tuple[bool, float]:
     """Detects if a collision will occur with the given object and return deceleration to avoid it."""
     
@@ -122,6 +125,87 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
             return False, 0.0
 
         return True, deceleration
+    
+def detect_collision_analytical(r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float) -> bool:
+    """Detects if a collision will occur with the given object and return deceleration to avoid it. Analytical"""
+    
+    if r_pedestrain_y > p_vehicle_left_y_after_t and r_pedestrain_y < p_vehicle_right_y_after_t:
+        return True
+    
+    return False
+
+
+def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: float, curr_v: float, obj: AgentState, min_deceleration: float, max_deceleration: float) -> Tuple[bool, float]:
+    """Detects if a collision will occur with the given object and return deceleration to avoid it. Via Optimization"""
+
+    # Get the object's position and velocity
+    obj_x = obj.pose.x
+    obj_y = obj.pose.y
+    obj_v_x = obj.velocity[0]
+    obj_v_y = obj.velocity[1]
+
+
+    vehicle_length = 3
+    vehicle_width = 2
+
+    vehicle_buffer_x = 3.0
+    vehicle_buffer_y = 1.5
+
+    vehicle_front = curr_x + vehicle_length
+    vehicle_back = curr_x 
+    vehicle_left = curr_y + vehicle_width / 2
+    vehicle_right = curr_y - vehicle_width / 2
+
+    r_vehicle_front = vehicle_front - vehicle_front - vehicle_buffer_x
+    r_vehicle_back = vehicle_back - vehicle_front - vehicle_buffer_x
+    r_vehicle_left = vehicle_left - vehicle_buffer_y
+    r_vehicle_right = vehicle_right + vehicle_buffer_y
+    r_vehicle_v_x = curr_v
+    r_vehicle_v_y = 0
+
+    r_pedestrain_x = obj_x - vehicle_front
+    r_pedestrain_y = obj_y
+    r_pedestrain_v_x = obj_v_x
+    r_pedestrain_v_y = obj_v_y
+
+
+    r_velocity_x_from_vehicle = r_vehicle_v_x - r_pedestrain_v_x
+    r_velocity_y_from_vehicle = r_vehicle_v_y - r_pedestrain_v_y
+
+    t_to_r_pedestrain_x = (r_pedestrain_x - r_vehicle_front) / r_velocity_x_from_vehicle
+    
+    p_vehicle_left_y_after_t = r_vehicle_left + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
+    p_vehicle_right_y_after_t = r_vehicle_right + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
+
+    if not detect_collision_analytical(r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t):
+        return 0.0
+    
+    yaw = None
+    minimum_deceleration = None
+    if yaw is None:
+        if math.abs(r_velocity_y_from_vehicle) > 0.1:
+            if r_velocity_y_from_vehicle > 0.1:
+                # Vehicle Left would be used to yield
+                r_pedestrain_y_temp = r_pedestrain_y + math.abs(r_vehicle_left)
+            elif r_velocity_y_from_vehicle < -0.1:
+                # Vehicle Right would be used to yield
+                r_pedestrain_y_temp = r_pedestrain_y - math.abs(r_vehicle_right)
+            
+            softest_accleration = 2 * r_velocity_y_from_vehicle * (r_velocity_y_from_vehicle * r_pedestrain_x - r_velocity_x_from_vehicle * r_pedestrain_y_temp) / r_pedestrain_y_temp**2
+            peak_y = -(r_velocity_x_from_vehicle * r_velocity_y_from_vehicle) / softest_accleration
+            if math.abs(peak_y) > math.abs(r_pedestrain_y_temp):
+                minimum_deceleration = math.abs(softest_accleration)
+            else:
+                softest_accleration = - (r_velocity_x_from_vehicle**2) / (2 * r_pedestrain_x)
+                minimum_deceleration = math.abs(softest_accleration)
+
+        else:
+            minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
+    else:
+        pass
+
+    return math.max(math.min(minimum_deceleration, max_deceleration), min_deceleration)
+
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float,
                       method : str) -> Trajectory:
@@ -895,23 +979,11 @@ class YieldTrajectoryPlanner(Component):
                 #get the object we are yielding to
                 obj = state.agents[r.obj2]
 
-                detected, deceleration = detect_collision(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
-                if isinstance(deceleration, list):
-                    print("@@@@@ INPUT", deceleration)
-                    time_collision = deceleration[1]
-                    distance_collision = deceleration[0]
-                    b = 3*time_collision - 2*curr_v
-                    c = curr_v**2 - 3*distance_collision
-                    desired_speed = (-b + (b**2 - 4*c)**0.5)/2
-                    deceleration = 1.5
-                    print("@@@@@ YIELDING", desired_speed)
-                    route_with_lookahead = route.trim(closest_parameter,closest_parameter + distance_collision)
-                    traj = longitudinal_plan(route_with_lookahead, self.acceleration, deceleration, desired_speed, curr_v)
-                    return traj
-                else:
-                    if detected and deceleration > 0:
-                        yield_deceleration = max(deceleration, yield_deceleration)
-                        should_yield = True
+                deceleration = get_minimum_deceleration_for_collision_avoidance(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
+                print("deceleration: ", deceleration)
+                if deceleration > 0:
+                    yield_deceleration = max(deceleration, yield_deceleration)
+                    should_yield = True
                 
                 print("should yield: ", should_yield)
 
