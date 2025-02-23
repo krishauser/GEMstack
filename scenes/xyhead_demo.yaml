@@ -9,3 +9,11 @@ agents:
     # target: [10.0,10.0]
     behavior: loop
     
+  ped2:
+    type: pedestrian
+    position: [15.0, 0.0]
+    # position: [10.0, 2.0]
+    nominal_velocity: 0.25
+    target: [15.0,10.0]
+    # target: [10.0,10.0]
+    behavior: loop

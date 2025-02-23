@@ -1290,6 +1290,7 @@ class YieldTrajectoryPlanner(Component):
         desired_speed = self.desired_speed
         accel = self.acceleration
         decel = self.deceleration
+        lookahead_distance_to_pedestrian = lookahead_distance
 
         for r in state.relations:
             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
@@ -1362,20 +1363,25 @@ class YieldTrajectoryPlanner(Component):
                         ###############################################
                         # # UNCOMMENT NOT TO YIELD: JUST STOP FOR PART1
                         # print("The vehicle is Stopping.")
+                        # print("@@@@@", a.pose.x)
+
+                        # # Update the collision distance.
+                        # if lookahead_distance_to_pedestrian > collision_distance:
+                        #     lookahead_distance_to_pedestrian = collision_distance
+
                         # # Decide the deceleration based on the collision distance.
-                        # brake_deceleration = max(self.deceleration, v1[0]**2 / (2 * (collision_distance)))
-                        # if brake_deceleration > self.deceleration:
-                        #     if brake_deceleration > self.max_deceleration:
-                        #         brake_deceleration = self.max_deceleration
+                        # # To stop perfectly, assume the vehicle is running at the desired speed. 
+                        # brake_deceleration = max(self.deceleration, desired_speed**2 / (2 * (collision_distance)))
+                        # if brake_deceleration > self.max_deceleration:
+                        #     brake_deceleration = self.max_deceleration
+
+                        # if brake_deceleration > decel:
                         #     decel = brake_deceleration if brake_deceleration > decel else decel
                         #     should_brake = True
-                        #     break
                         # break
                         ###############################################
 
                         print("Collision detected. Try to find yielding speed.")
-                        # Update lookahead distance to pedestrian.
-                        route_with_lookahead = route.trim(closest_parameter, closest_parameter + collision_distance)
 
                         collision_distance_after_yield = -1
 
@@ -1391,23 +1397,29 @@ class YieldTrajectoryPlanner(Component):
                             collision_distance_after_yield = sim.run()
                             if collision_distance_after_yield < 0:
                                 print(f"Yielding at speed: {v}")
-                                desired_speed = v if v < desired_speed else desired_speed
-                                decel = self.yield_deceleration if self.yield_deceleration > decel else decel
-                                break
+                                if lookahead_distance_to_pedestrian > collision_distance:
+                                    lookahead_distance_to_pedestrian = collision_distance
+                                    desired_speed = v
+                                    decel = self.yield_deceleration
+                                    break
                         
                         # Collision detected with any yielding speed.
                         # => Brake to avoid collision.
-                        if collision_distance_after_yield > 0:
+                        if collision_distance_after_yield >= 0:
                             print("The vehicle is Stopping.")
                             # Decide the deceleration based on the collision distance.
                             brake_deceleration = max(self.deceleration, v1[0]**2 / (2 * (collision_distance)))
                             if brake_deceleration > self.max_deceleration:
                                 brake_deceleration = self.max_deceleration
-                            decel = brake_deceleration if brake_deceleration > decel else decel
-                            should_brake = True
+                            if lookahead_distance_to_pedestrian > collision_distance:
+                                lookahead_distance_to_pedestrian = collision_distance
+                                decel = brake_deceleration
+                                route = route_with_lookahead
+                                should_brake = True
 
-                    break
-            
+                # Update the lookahead distance to pedestrian.
+                route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance_to_pedestrian)
+
                 # # UNCOMMENT TO BRAKE FOR ALL PEDESTRIANS
                 # should_brake = True
                 # desired_speed = 0.0
