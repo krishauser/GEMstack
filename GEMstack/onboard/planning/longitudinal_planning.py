@@ -218,6 +218,7 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
     
     # Get the object's position and velocity
     obj_x = obj.pose.x
+    # obj_x = 0.0
     obj_y = obj.pose.y
     obj_v_x = obj.velocity[0]
     obj_v_y = obj.velocity[1]
@@ -669,7 +670,7 @@ def solve_for_v_peak(v0: float, acceleration: float, deceleration: float, total_
 
     return math.sqrt(v_peak_sq)
 
-def compute_dynamic_dt(acceleration, speed, k=0.005, a_min=0.5):
+def compute_dynamic_dt(acceleration, speed, k=0.01, a_min=0.5):
     position_step = k * max(speed, 1.0)  # Ensures position step is speed-dependent
     return np.sqrt(2 * position_step / max(acceleration, a_min))
 
@@ -1162,8 +1163,8 @@ class YieldTrajectoryPlanner(Component):
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 0.5
-        self.desired_speed = 1.0 # default 1.0
+        self.acceleration = 0.75 # 0.5 is not enough to start
+        self.desired_speed = 1.0 # cannot got more than 1.5 m/s
 
         # Yielding parameters
         # Yielding speed [..., 1.0, 0.8, ..., 0.2]
@@ -1193,9 +1194,17 @@ class YieldTrajectoryPlanner(Component):
         dt = t - self.t_last
   
         # Position in vehicle frame (Start (0,0) to (15,0))
-        curr_x = vehicle.pose.x
-        curr_y = vehicle.pose.y
+        curr_x = vehicle.pose.x * 20
+        curr_y = vehicle.pose.y * 20
         curr_v = vehicle.v
+
+        print("@@@@@ PLAN", curr_x, curr_y, curr_v)
+
+        # abs_x = curr_x + state.start_vehicle_pose.x
+        # abs_y = curr_y + state.start_vehicle_pose.y
+        abs_x = curr_x
+        abs_y = curr_y
+        print("@@@@@ PLAN", abs_x, abs_y)
 
         #figure out where we are on the route
         if self.route_progress is None:
@@ -1344,6 +1353,7 @@ class YieldTrajectoryPlanner(Component):
 
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
 
+        # traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
         #choose whether to accelerate, brake, or keep at current velocity
         if should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, accel, decel, desired_speed, curr_v, "dt")

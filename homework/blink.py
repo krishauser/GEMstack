@@ -2,6 +2,10 @@ import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
 from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptInt, SystemRptFloat, VehicleSpeedRpt
 
+TURN_RIGHT = 0
+TURN_NONE = 1
+TURN_LEFT = 2
+TURN_HAZARD = 3 
 # For message format, see
 # https://github.com/astuff/astuff_sensor_msgs/blob/3.3.0/pacmod_msgs/msg/PacmodCmd.msg
 
@@ -16,6 +20,15 @@ class BlinkDistress:
         # You will want this callback to be a BlinkDistress method, such as print_X(self, msg).  msg will have a
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
+        # check update file good
+
+        self.turn_blink_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=1)
+        # Define blink cmd
+        self.turn_cmd = PacmodCmd()
+
+        # Subscribers to /pacmod/parsed_tx/X (at least 2)
+        self.speed_sub = rospy.Subscriber("/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
+        self.accel_sub = rospy.Subscriber("/pacmod/parsed_tx/accel_rpt", SystemRptFloat, self.accel_callback)
         
         pass
 
@@ -30,12 +43,26 @@ class BlinkDistress:
     def cleanup(self):
         """Run last"""
         pass
+
+    def get_dir_distress(self):
+        pass
     
     def update(self):
         """Run in a loop"""
         # TODO: Implement your control loop here
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
+        #self.turn_cmd = PacmodCmd()
+        # TODO change to actual direction in Part 2
+        
+        if self.turn_cmd.ui16_cmd == TURN_NONE:
+            self.turn_cmd.ui16_cmd = TURN_LEFT
+        elif self.turn_cmd.ui16_cmd == TURN_LEFT:
+            self.turn_cmd.ui16_cmd = TURN_RIGHT
+        else:
+            self.turn_cmd.ui16_cmd = TURN_NONE
+        self.turn_blink_pub.publish(self.turn_cmd)
+
         pass
        
     def healthy(self):
@@ -46,9 +73,31 @@ class BlinkDistress:
         """Return True if you want to exit."""
         return False
 
+    def speed_callback(self, msg):
+        """Callback for /pacmod/parsed_tx/vehicle_speed_rpt"""
+        rospy.loginfo(f"Vehicle Speed: {msg.vehicle_speed} m/s | Valid: {msg.vehicle_speed_valid}")
 
+    def accel_callback(self, msg):
+        """Callback for /pacmod/parsed_tx/accel_rpt"""
+        rospy.loginfo("--- Acceleration Report ---")
+        rospy.loginfo(f"Header Timestamp: {msg.header.stamp.to_sec()}")
+        
+        # Boolean status flags
+        rospy.loginfo(f"Enabled: {msg.enabled}")
+        rospy.loginfo(f"Override Active: {msg.override_active}")
+        rospy.loginfo(f"Command Output Fault: {msg.command_output_fault}")
+        rospy.loginfo(f"Input Output Fault: {msg.input_output_fault}")
+        rospy.loginfo(f"Output Reported Fault: {msg.output_reported_fault}")
+        rospy.loginfo(f"PACMod Fault: {msg.pacmod_fault}")
+        rospy.loginfo(f"Vehicle Fault: {msg.vehicle_fault}")
 
-def run_ros_loop(node):
+        # Float values
+        rospy.loginfo(f"Manual Input: {msg.manual_input} (Driver Input)")
+        rospy.loginfo(f"Command: {msg.command} (Requested Acceleration)")
+        rospy.loginfo(f"Output: {msg.output} (Final Output to Vehicle)")
+        rospy.loginfo("---------------------------\n")
+
+def run_ros_loop(node, Allstate):
     """Executes the event loop of a node using ROS.  `node` should support
     rate(), initialize(), cleanup(), update(), and done().  You should not modify
     this code.
@@ -62,7 +111,7 @@ def run_ros_loop(node):
     termination_reason = "undetermined"
     try:
         while not rospy.is_shutdown() and not node.done() and node.healthy():
-            node.update()
+            node.update(node, Allstate)
             rate.sleep()
         if node.done():
             termination_reason = "Node done"
