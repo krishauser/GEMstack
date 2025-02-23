@@ -216,7 +216,7 @@ class CollisionDetector:
             plt.ioff()
             plt.show(block=True)
 
-        print("Collision distance:", collision_distance)
+        # print("Collision distance:", collision_distance)
 
         return collision_distance
 
@@ -1086,7 +1086,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 #     the desired speed.
 #     """
 
-#     def __init__(self):
+#     def __init__(self, mode : str = 'real', planner : str = 'milestone'):
 #         self.route_progress = None
 #         self.t_last = None
 #         self.acceleration = 0.5
@@ -1095,6 +1095,9 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 
 #         self.min_deceleration = 1.0
 #         self.max_deceleration = 8.0
+
+#         self.mode = mode
+#         self.planner = planner
 
 #     def state_inputs(self):
 #         return ['all']
@@ -1124,6 +1127,22 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 #         abs_x = curr_x + state.start_vehicle_pose.x
 #         abs_y = curr_y + state.start_vehicle_pose.y
 
+#        ###############################################
+#        print("@@@@@ VEHICLE STATE @@@@@")
+#        print(vehicle)
+#        print("@@@@@@@@@@@@@@@@@@@@@@@@@")
+
+#        if self.mode == 'real':
+#            # Position in vehicle frame (Start (0,0) to (15,0))
+#            curr_x = vehicle.pose.x * 20
+#            curr_y = vehicle.pose.y * 20
+#            curr_v = vehicle.v
+#            # print("@@@@@ PLAN", curr_x, curr_y, curr_v)
+#            abs_x = curr_x
+#            abs_y = curr_y
+#            # print("@@@@@ PLAN", abs_x, abs_y)
+#        ###############################################
+
 #         #figure out where we are on the route
 #         if self.route_progress is None:
 #             self.route_progress = 0.0
@@ -1145,6 +1164,10 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 #             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
 #                 #get the object we are yielding to
 #                 obj = state.agents[r.obj2]
+
+#                  if self.mode == 'real':
+#                     obj.pose.x = obj.pose.x + curr_x
+#                     obj.pose.y = obj.pose.y + curr_y
 
 #                 detected, deceleration = detect_collision(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration, self.acceleration, self.desired_speed)
 #                 if isinstance(deceleration, list):
@@ -1232,6 +1255,11 @@ class YieldTrajectoryPlanner(Component):
 
         ###############################################
         # # TODO: Fix the coordinate conversion of other files
+
+        print("@@@@@ VEHICLE STATE @@@@@")
+        print(vehicle)
+        print("@@@@@@@@@@@@@@@@@@@@@@@@@")
+
         if self.mode == 'real':
             # Position in vehicle frame (Start (0,0) to (15,0))
             curr_x = vehicle.pose.x * 20
@@ -1284,23 +1312,29 @@ class YieldTrajectoryPlanner(Component):
                 print("#### YIELDING PLANNING ####")
 
                 # Vehicle parameters.
-
-
-                """
-                TODO: Change the pose of vehicle and pedestrian according to the frames.
-                    Simulation => World frame?
-                    Vehicle => Relative frame?
-                """
-
-
                 x1, y1 = abs_x, abs_y
                 v1 = [curr_v, 0]     # Vehicle speed vector
 
                 for n,a in state.agents.items():
 
+                    """
+                    class ObjectFrameEnum(Enum):
+                        START = 0                  #position / yaw in m / radians relative to starting pose of vehicle 
+                        CURRENT = 1                #position / yaw in m / radians relative to current pose of vehicle
+                        GLOBAL = 2                 #position in longitude / latitude, yaw=heading in radians with respect to true north (used in GNSS)
+                        ABSOLUTE_CARTESIAN = 3     #position / yaw  in m / radians relative to a global cartesian reference frame (used in simulation)
+                    """
+                    print("@@@@@ AGENT STATE @@@@@")
+                    print(a)
+                    print("@@@@@@@@@@@@@@@@@@@@@@@")
+
                     # Pedestrian parameters.
                     x2, y2 = a.pose.x, a.pose.y
                     v2 = [a.velocity[0], a.velocity[1]]     # Pedestrian speed vector
+
+                    if self.mode == 'real':
+                        x2 = a.pose.x + curr_x
+                        y2 = a.pose.y + curr_y
 
                     # Total simulation time
                     if v1[0] > 0.1:
@@ -1394,8 +1428,6 @@ class YieldTrajectoryPlanner(Component):
         # traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
         #choose whether to accelerate, brake, or keep at current velocity
         if should_accelerate:
-            print(route_with_lookahead)
-            print(accel, decel, desired_speed, curr_v)
             traj = longitudinal_plan(route_with_lookahead, accel, decel, desired_speed, curr_v, self.planner)
         elif should_brake:
             traj = longitudinal_brake(route_with_lookahead, decel, curr_v)
