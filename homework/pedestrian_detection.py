@@ -306,7 +306,7 @@ class PedestrianDetector2D(Component):
                 refined_center_vehicle = refined_center_vehicle_hom[:3]
 
                 R_vehicle = self.T_l2v[:3, :3] @ R_lidar
-                euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
+                euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=True)
                 yaw, pitch, roll = euler_angles_vehicle
                 refined_center = refined_center_vehicle  # Use vehicle frame for output
 
