@@ -8,7 +8,7 @@ from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,Vehic
 
 #KH: there is a bug on some system where the visualization crashes with an OpenGL error when drawing curves
 #this is a workaround.  We really should find the source of the bug!
-MAX_POINTS_IN_CURVE = 50
+MAX_POINTS_IN_CURVE = 30
 
 OBJECT_COLORS = {
     AgentEnum.CAR : (1,1,0,1),

@@ -11,6 +11,8 @@ import cv2
 import requests
 from msal import PublicClientApplication
 import json
+import rosbag
+import rospy
 class LoggingManager:
     """A top level manager of the logging process.  This is responsible for
     creating log folders, log metadata files, and for replaying components from log
@@ -18,7 +20,12 @@ class LoggingManager:
     def __init__(self):
         self.log_folder = None        # type: Optional[str]
         self.replayed_components = dict()  # type Dict[str,str]
+        self.replayed_topics = dict()  # type Dict[str,str]
+        self.rosbag_player = None
+
         self.logged_components = set() # type: Set[str]
+        self.logged_topics = set() # type: Set[str]
+
         self.component_output_loggers = dict() # type: Dict[str,list]
         self.behavior_log = None
         self.rosbag_process = None
@@ -76,16 +83,40 @@ class LoggingManager:
             if c not in logged_components:
                 raise ValueError("Replay component",c,"was not logged in",replay_folder,"(see settings.yaml)")
             self.replayed_components[c] = replay_folder
+
+    def replay_topics(self, replayed_topics : list, replay_folder : str):
+        """Declare that the given components should be replayed from a log folder.
+
+        Further make_component calls to this component will be replaced with
+        BagReplay objects.
+        """
+        #sanity check: was this item logged?
+        settings = config.load_config_recursive(os.path.join(replay_folder,'settings.yaml'))
+        try:
+            logged_topics = settings['run']['log']['ros_topics']
+        except KeyError:
+            logged_topics = []
+        for c in replayed_topics:
+            if c not in logged_topics:
+                raise ValueError("Replay topic",c,"was not logged in",replay_folder,"'s vehicle.bag file (see settings.yaml)")
+            self.replayed_topics[c] = replay_folder
+        if(not self.rosbag_player):
+            self.rosbag_player = RosbagPlayer(replay_folder, self.replayed_topics)
+
+        
+
+        
+        
     
-    def component_replayer(self, component_name : str, component : Component) -> Optional[LogReplay]:
+    def component_replayer(self, vehicle_interface, component_name : str, component : Component) -> Optional[LogReplay]:
         if component_name in self.replayed_components:
             #replace behavior of class with the LogReplay class
             replay_folder = self.replayed_components[component_name]
             outputs = component.state_outputs()
             rate = component.rate()
             assert rate is not None and rate > 0, "Replayed component {} must have a positive rate".format(component_name)
-            return LogReplay(outputs,
-                                os.path.join(replay_folder,'behavior_log.json'),
+            return LogReplay(vehicle_interface, outputs,
+                                os.path.join(replay_folder,'behavior.json'),
                                 rate=rate)
         return None
 
@@ -168,14 +199,14 @@ class LoggingManager:
                 os.mkdir(folder)
             filename = os.path.join(folder,item+'_%03d.npz'%len(self.debug_messages[component][item]))
             np.savez(filename,value)
-        elif isinstance(value,cv2.Mat):
-            #if really large, save as png
-            folder = os.path.join(self.log_folder,'debug_{}'.format(component))
-            if item not in self.debug_messages[component]:
-                self.debug_messages[component][item] = []
-                os.mkdir(folder)
-            filename = os.path.join(folder,item+'_%03d.png'%len(self.debug_messages[component][item]))
-            cv2.imwrite(filename,value)
+        # elif isinstance(value,cv2.Mat):
+        #     #if really large, save as png
+        #     folder = os.path.join(self.log_folder,'debug_{}'.format(component))
+        #     if item not in self.debug_messages[component]:
+        #         self.debug_messages[component][item] = []
+        #         os.mkdir(folder)
+        #     filename = os.path.join(folder,item+'_%03d.png'%len(self.debug_messages[component][item]))
+        #     cv2.imwrite(filename,value)
         else:
             if item not in self.debug_messages[component]:
                 self.debug_messages[component][item] = []
@@ -263,7 +294,7 @@ class LoggingManager:
         timestr = datetime.datetime.fromtimestamp(self.vehicle_time).strftime("%H:%M:%S.%f")[:-3]
         for l in msg:
             self.component_output_loggers[component][1].write(timestr + ': ' + l + '\n')
-
+    
     def close(self):
            
         
@@ -287,65 +318,75 @@ class LoggingManager:
             
 
             if(record_bag not in ["N", "no", "n", "No"]):
-                def load_config(config_path="onedrive_config.json"):
-                    try:
-                        with open(config_path, "r") as f:
-                            config = json.load(f)
-                        return config
-                    except Exception as e:
-                        print(f"Error loading configuration file: {e}")
-                        exit(1)
-
-                config = load_config()
-
-                # Not private but for reusability in future semesters:
-                # Retrieve values from the config
-                CLIENT_ID = config.get("CLIENT_ID")
-                TENANT_ID = config.get("TENANT_ID")
-                DRIVE_ID = config.get("DRIVE_ID")
-                ITEM_ID = config.get("ITEM_ID")
-
-                AUTHORITY = f'https://login.microsoftonline.com/{TENANT_ID}'
-                SCOPES = ['Files.ReadWrite.All']
-
-                app = PublicClientApplication(CLIENT_ID, authority=AUTHORITY)
-                accounts = app.get_accounts()
-
-                print("Opening Authentication Window")
-
-                if accounts:
-                    result = app.acquire_token_silent(SCOPES, account=accounts[0])
-                else:
-
-                    result = app.acquire_token_interactive(SCOPES)
-
-                if 'access_token' in result:
-                    access_token = result['access_token']
-                    headers = {
-                        'Authorization': f'Bearer {access_token}',
-                        'Content-Type': 'application/octet-stream'
-                    }
-                    file_path = os.path.join(self.log_folder,  'vehicle.bag')
-                    file_name = self.log_folder[5:]+ "_" +  os.path.basename(file_path)
-                    upload_url = (
-                    f'https://graph.microsoft.com/v1.0/drives/{DRIVE_ID}/items/'
-                    f'{ITEM_ID}:/{file_name}:/content'
-                    )
-
-                    with open(file_path, 'rb') as file:
-                        response = requests.put(upload_url, headers=headers, data=file)
-
-                    if response.status_code == 201 or response.status_code == 200:
-                        print(f"✅ Successfully uploaded '{file_name}' to OneDrive.")
-                    else:
-                        print(f"❌ Upload failed: {response.status_code} - {response.text}")
-                else:
-                    print("❌ Authentication failed.")
+                self.upload_to_onedrive()
+                
 
     
     def __del__(self):
         self.close()
             
+class OneDrive():
+    def __init__(self):
+        self.config_found = False
+        try:
+            with open("onedrive_config.json", "r") as f:
+                config = json.load(f)
+                self.CLIENT_ID = config.get("CLIENT_ID")
+                self.TENANT_ID = config.get("TENANT_ID")
+                self.DRIVE_ID = config.get("DRIVE_ID")
+                self.ITEM_ID = config.get("ITEM_ID")
+                self.credentials = True
+
+        except Exception as e:
+            print("No Onedrive config file found")
+
+
+    def upload_to_onedrive(self):
+        
+
+
+        # Not private but for reusability in future semesters:
+        # Retrieve values from the config
+       
+
+        AUTHORITY = f'https://login.microsoftonline.com/{self.TENANT_ID}'
+        SCOPES = ['Files.ReadWrite.All']
+
+        app = PublicClientApplication(self.CLIENT_ID, authority=AUTHORITY)
+        accounts = app.get_accounts()
+
+        print("Opening Authentication Window")
+
+        if accounts:
+            result = app.acquire_token_silent(SCOPES, account=accounts[0])
+        else:
+
+            result = app.acquire_token_interactive(SCOPES)
+
+        if 'access_token' in result:
+            access_token = result['access_token']
+            headers = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/octet-stream'
+            }
+            file_path = os.path.join(self.log_folder,  'vehicle.bag')
+            file_name = self.log_folder[5:]+ "_" +  os.path.basename(file_path)
+            upload_url = (
+            f'https://graph.microsoft.com/v1.0/drives/{self.DRIVE_ID}/items/'
+            f'{self.ITEM_ID}:/{file_name}:/content'
+            )
+
+            with open(file_path, 'rb') as file:
+                response = requests.put(upload_url, headers=headers, data=file)
+
+            if response.status_code == 201 or response.status_code == 200:
+                print(f"✅ Successfully uploaded '{file_name}' to OneDrive.")
+            else:
+                print(f"❌ Upload failed: {response.status_code} - {response.text}")
+        else:
+            print("❌ Authentication failed.")
+
+    
 
 class LogReplay(Component):
     """Substitutes the output of a component with replayed data from a log file.
@@ -400,6 +441,49 @@ class LogReplay(Component):
         self.logfile.close()
 
 
+class RosbagPlayer:
+    def __init__(self, bag_path, topics):
+        self.bag = rosbag.Bag(os.path.join(bag_path, 'vehicle.bag'), 'r')
+        self.current_time = None  # Track current position in bag
+        self.offset = -1
+
+        self.publishers = {}
+        for topic, msg, _ in self.bag.read_messages():
+            if topic in topics and topic not in self.publishers:
+                msg_type = type(msg)
+                self.publishers[topic] = rospy.Publisher(topic, msg_type, queue_size=10)
+                rospy.loginfo(f"Created publisher for topic: {topic}")
+                print(f"Created publisher for topic: {topic}")
+
+
+    def update_topics(self, target_timestamp):
+        """
+        Plays from the current position in the bag to the given timestamp.
+        :param target_timestamp: ROS time (rospy.Time) to play until
+        """
+        self.prev_timestamp = target_timestamp
+        if self.offset <0:
+            self.offset = target_timestamp - self.bag.get_start_time()
+        if self.current_time is None:
+            self.current_time = self.bag.get_start_time()
+
+        first_message = True
+        #rospy.loginfo(f"Playing from {self.current_time} to {target_timestamp}")
+        for topic, msg, t in self.bag.read_messages(start_time=rospy.Time(self.current_time )):
+            if t.to_sec() + self.offset > target_timestamp:
+                break  # Stop when reaching the target time
+            if first_message and t.to_sec() == self.current_time:
+                first_message = False
+                continue
+            #rospy.loginfo(f'Publishing {msg} to {topic}')
+            if topic in self.publishers:  # Only publish selected topics
+                self.publishers[topic].publish(msg)
+            rospy.sleep(0.01)  # Simulate real-time playback
+
+            self.current_time = t.to_sec()   # Update current position
+
+    def close(self):
+        self.bag.close()
 
 class VehicleBehaviorLogger(Component):
     def __init__(self,behavior_log, vehicle_interface):

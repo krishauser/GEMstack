@@ -146,7 +146,7 @@ class Logfile:
         else:
             raise ValueError("Need to provide a time to advance to")
         msgs = []
-        while self.next_item_time < next_t:
+        while self.next_item_time <= next_t:
             self.last_read_time = self.next_item_time
             msgs.append(self.next_item)
             try:
