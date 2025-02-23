@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum, AgentState
 from ...utils import serialization
@@ -126,10 +126,13 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
 
         return True, deceleration
     
-def detect_collision_analytical(r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float) -> bool:
+def detect_collision_analytical(r_pedestrain_x: float, r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float, lateral_buffer: float) -> Union[bool, str]:
     """Detects if a collision will occur with the given object and return deceleration to avoid it. Analytical"""
-    
-    if r_pedestrain_y > p_vehicle_left_y_after_t and r_pedestrain_y < p_vehicle_right_y_after_t:
+    if r_pedestrain_x < 0 and abs(r_pedestrain_y) > lateral_buffer:
+        return False
+    elif r_pedestrain_x < 0:
+        return 'max'
+    if r_pedestrain_y >= p_vehicle_left_y_after_t and r_pedestrain_y <= p_vehicle_right_y_after_t:
         return True
     
     return False
@@ -149,25 +152,30 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
     vehicle_width = 2
 
     vehicle_buffer_x = 3.0
-    vehicle_buffer_y = 1.5
+    vehicle_buffer_y = 1.0
 
-    vehicle_front = curr_x + vehicle_length
-    vehicle_back = curr_x 
-    vehicle_left = curr_y + vehicle_width / 2
-    vehicle_right = curr_y - vehicle_width / 2
+    obj_x = obj_x - curr_x
+    obj_y = obj_y - curr_y
 
-    r_vehicle_front = vehicle_front - vehicle_front - vehicle_buffer_x
-    r_vehicle_back = vehicle_back - vehicle_front - vehicle_buffer_x
+    curr_x = curr_x - curr_x
+    curr_y = curr_y - curr_y
+
+    vehicle_front = curr_x + vehicle_length + vehicle_buffer_x
+    vehicle_back = curr_x
+    vehicle_left = curr_y - vehicle_width / 2
+    vehicle_right = curr_y + vehicle_width / 2
+
+    r_vehicle_front = vehicle_front - vehicle_front
+    r_vehicle_back = vehicle_back - vehicle_front
     r_vehicle_left = vehicle_left - vehicle_buffer_y
     r_vehicle_right = vehicle_right + vehicle_buffer_y
     r_vehicle_v_x = curr_v
     r_vehicle_v_y = 0
 
     r_pedestrain_x = obj_x - vehicle_front
-    r_pedestrain_y = obj_y
+    r_pedestrain_y = -obj_y
     r_pedestrain_v_x = obj_v_x
-    r_pedestrain_v_y = obj_v_y
-
+    r_pedestrain_v_y = -obj_v_y
 
     r_velocity_x_from_vehicle = r_vehicle_v_x - r_pedestrain_v_x
     r_velocity_y_from_vehicle = r_vehicle_v_y - r_pedestrain_v_y
@@ -177,19 +185,24 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
     p_vehicle_left_y_after_t = r_vehicle_left + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
     p_vehicle_right_y_after_t = r_vehicle_right + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
 
-    if not detect_collision_analytical(r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t):
+    collision_flag = detect_collision_analytical(r_pedestrain_x, r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t, vehicle_buffer_y)
+    if collision_flag == False:
+        print("No collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
         return 0.0
+    elif collision_flag == 'max':
+        return max_deceleration
     
+    print("Collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
     yaw = None
     minimum_deceleration = None
     if yaw is None:
-        if math.abs(r_velocity_y_from_vehicle) > 0.1:
+        if abs(r_velocity_y_from_vehicle) > 0.1:
             if r_velocity_y_from_vehicle > 0.1:
                 # Vehicle Left would be used to yield
-                r_pedestrain_y_temp = r_pedestrain_y + math.abs(r_vehicle_left)
+                r_pedestrain_y_temp = r_pedestrain_y + abs(r_vehicle_left)
             elif r_velocity_y_from_vehicle < -0.1:
                 # Vehicle Right would be used to yield
-                r_pedestrain_y_temp = r_pedestrain_y - math.abs(r_vehicle_right)
+                r_pedestrain_y_temp = r_pedestrain_y - abs(r_vehicle_right)
             
             softest_accleration = 2 * r_velocity_y_from_vehicle * (r_velocity_y_from_vehicle * r_pedestrain_x - r_velocity_x_from_vehicle * r_pedestrain_y_temp) / r_pedestrain_y_temp**2
             peak_y = -(r_velocity_x_from_vehicle * r_velocity_y_from_vehicle) / softest_accleration
@@ -197,8 +210,8 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
             # then it indicates the path had already collided with the pestrain, 
             # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
             # and the vehicle should be stopped exactly before the pedestrain's x position
-            if math.abs(peak_y) > math.abs(r_pedestrain_y_temp):
-                minimum_deceleration = math.abs(softest_accleration)
+            if abs(peak_y) > abs(r_pedestrain_y_temp):
+                minimum_deceleration = abs(softest_accleration)
             # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
 
         if minimum_deceleration is None:
@@ -206,7 +219,8 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
     else:
         pass
 
-    return math.max(math.min(minimum_deceleration, max_deceleration), min_deceleration)
+    print("calculatedminimum_deceleration: ", minimum_deceleration)
+    return max(min(minimum_deceleration, max_deceleration), min_deceleration)
 
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float,
