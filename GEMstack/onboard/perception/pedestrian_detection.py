@@ -239,7 +239,7 @@ class PedestrianDetector2D(Component):
 
     def update_object_states(self, track_result: List[Results], extracted_pts_all: List[np.ndarray]) -> None:
         # self.prev_agents = self.current_agents.copy()
-        self.current_agents.clear()
+        # self.current_agents.clear()
 
         # Return if no track results available
         if track_result[0].boxes.id == None:

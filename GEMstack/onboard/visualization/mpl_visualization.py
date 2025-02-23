@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import time
 from collections import deque
+from ...state.agent import AgentEnum
 
 class MPLVisualization(Component):
     """Runs a matplotlib visualization at 10Hz. 
@@ -71,12 +72,20 @@ class MPLVisualization(Component):
             plot.popleft()
 
     def update(self, state):
+        # print("State type:", type(state))
         if not plt.fignum_exists(self.fig.number):
             #plot closed
             return
         self.num_updates += 1
         self.debug("vehicle","velocity",state.vehicle.v)
         self.debug("vehicle","front wheel angle",state.vehicle.front_wheel_angle)
+        
+        # Add pedestrian tracking
+        for agent_id, agent in state.agents.items():
+            if agent.type == AgentEnum.PEDESTRIAN:
+                self.debug(f"ped_{agent_id}", "x", agent.pose.x)
+                self.debug(f"ped_{agent_id}", "y", agent.pose.y)
+        
         time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(state.t))
         #frame=ObjectFrameEnum.CURRENT
         #state = state.to_frame(frame)
