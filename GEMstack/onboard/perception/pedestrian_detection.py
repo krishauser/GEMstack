@@ -401,6 +401,9 @@ class PedestrianDetector2D(Component):
             if (obj_centers[idx].size == 0) or (obj_dims[0].size == 0):
                 del obj_centers[idx]
                 del obj_dims[idx]
+            elif (obj_centers[idx].size != obj_dims[0].size):
+                del obj_centers[idx]
+                del obj_dims[idx]
         
         # Create list of agent states in current vehicle frame:
         agents = []
