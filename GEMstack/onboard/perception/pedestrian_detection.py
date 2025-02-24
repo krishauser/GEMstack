@@ -167,14 +167,11 @@ class PedestrianDetector2D(Component):
         if(self.current_agent_obj_dims == {}):
             return self.current_agents
         
-        print(f"Global state : {vehicle}")
+        
+        (f"Global state : {vehicle}")
 
         # Convert pose to start state. Need to use previous_vehicle state as pedestrian info is delayed
         vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START,self.previous_vehicle_state.pose,self.start_pose_abs)
-        print(f"Start state : {vehicle_start_pose}")
-
-        print(f"ped pose vehicle state = {self.current_agent_obj_dims['pose']}")
-        print(f"ped dimenstions vehicle state = {self.current_agent_obj_dims['dims']}")
 
         # converting to start frame
         for i,pose in enumerate(self.current_agent_obj_dims['pose']):
@@ -182,10 +179,6 @@ class PedestrianDetector2D(Component):
 
         for i,dims in enumerate(self.current_agent_obj_dims['dims']):
             self.current_agent_obj_dims['dims'][i] = np.array(vehicle_start_pose.apply(dims))
-
-
-        print(f"ped pose start state = {self.current_agent_obj_dims['pose']}")
-        print(f"ped dimenstions start state = {self.current_agent_obj_dims['dims']}")
 
         # Prepare variables for find_vels_and_ids
         self.prev_agents = self.current_agents.copy()
@@ -219,9 +212,18 @@ class PedestrianDetector2D(Component):
         # objects distance to ground we filtered from lidar, 
         # other heuristics to imrpove stability for find_ funcs ?
         clusters = [np.array(clust) for clust in clusters]
+        # x, y, z 1 value 
         dims = [np.array(()) if clust.size == 0 else np.max(clust, axis= 0) - np.min(clust, axis= 0) for clust in clusters]
+        # x, y, z convert to 2 values around origin
+        for i in range(len(dims)):
+            if dims[i].size() == 0: continue
+            else:
+                dims[i] = np.vstack(0-dims[i]/2, dims[i]/2)
+
+        # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
+        # Need that for transform
         return dims
-    
+
     # TODO: Separate debug/viz class, bbox and 2d 3d points funcs 
     def viz_object_states(self, cv_image, boxes, extracted_pts_all):
         # Extract 3D pedestrians points in lidar frame
@@ -305,6 +307,7 @@ class PedestrianDetector2D(Component):
         # TODO: Combine funcs for efficiency in C.
         #       Separate numpy prob still faster for now
         obj_centers = self.find_centers(pedestrians_3d_pts) # Centers are calculated in lidar frame here
+        # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
         obj_dims = self.find_dims(pedestrians_3d_pts)
         # Pose is stored in vehicle frame and converted to start frame in the update function 
         obj_centers_vehicle = []
@@ -318,8 +321,19 @@ class PedestrianDetector2D(Component):
         obj_centers = obj_centers_vehicle
 
         if(len(obj_center) != 0) and (len(obj_dims) != 0):
-            self.current_agent_obj_dims["pose"] = obj_center
-            self.current_agent_obj_dims["dims"] = obj_dims
+          obj_dims_vehicle = []
+          for obj_dim in obj_dims:
+              if len(obj_dim) > 0:
+                  obj_dim_min = np.array([obj_dim[0]])
+                  obj_dim_max = np.array([obj_dim[1]])
+                  obj_dim_min_vehicle = transform_lidar_points(obj_dim_min, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
+                  obj_dim_max_vehicle = transform_lidar_points(obj_dim_max, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
+              else: obj_dims_vehicle.append(np.array(()))
+          obj_dims = obj_dims_vehicle
+
+          self.current_agent_obj_dims["pose"] = obj_centers
+          self.current_agent_obj_dims["dims"] = obj_dims
+
 
     # TODO: Refactor to make more efficient
     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
@@ -392,14 +406,19 @@ class PedestrianDetector2D(Component):
         )
 
     def create_agent_states(self, obj_centers: List[np.ndarray], obj_dims: List[np.ndarray]) -> List[AgentState]:
+        # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
+
         # Gate to check whether dims and centers are empty (will happen if no pedestrians are scanned):
         for idx in range(len(obj_dims) -1, -1, -1):
             if (obj_centers[idx].size == 0) or (obj_dims[0].size == 0):
                 del obj_centers[idx]
                 del obj_dims[idx]
-            elif (obj_centers[idx].size != obj_dims[0].size):
-                del obj_centers[idx]
-                del obj_dims[idx]
+                
+        # Convert from 2 point to 1 point dims
+        obj_dims = [np.abs( dim[0] - dim[1])  for dim in obj_dims]   
+       #     elif (obj_centers[idx].size != obj_dims[0].size):
+       #         del obj_centers[idx]
+       #         del obj_dims[idx]
         # Create list of agent states in current vehicle frame:
         agents = []
         num_pairings = len(obj_centers)
@@ -413,7 +432,7 @@ class PedestrianDetector2D(Component):
                             # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
                             # (l, w, h)
                             # TODO: confirm (z -> l, x -> w, y -> h)
-                            dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]),  
+                            dimensions=(obj_dims[idx][2], obj_dims[idx][0], obj_centers[idx][1]),   # obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]
                             outline=None,
                             type=AgentEnum.PEDESTRIAN,
                             activity=AgentActivityEnum.UNDETERMINED, # Temporary
