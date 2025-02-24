@@ -381,8 +381,12 @@ class PedestrianDetector2D(Component):
         # TODO: confirm (z -> l, x -> w, y -> h)
 
         # Extract the corners of the agents:
-        (x1_min, x1_max), (y1_min, y1_max), (z1_min, z1_max) = curr_agent.bounds() # Bounds of current agent
-        (x2_min, x2_max), (y2_min, y2_max), (z2_min, z2_max) = prev_agent.bounds() # Bounds of previous agent
+        x1_min, x1_max = curr_agent.pose.x - curr_agent.dimensions[0] / 2.0, curr_agent.pose.x + curr_agent.dimensions[0] / 2.0
+        y1_min, y1_max = curr_agent.pose.y, curr_agent.pose.y + curr_agent.dimensions[1] # AGENT STATE CALCULATION
+        z1_min, z1_max = curr_agent.pose.z - curr_agent.dimensions[2] / 2.0, curr_agent.pose.z + curr_agent.dimensions[2] / 2.0
+        x2_min, x2_max = prev_agent.pose.x - prev_agent.dimensions[0] / 2.0, prev_agent.pose.x + prev_agent.dimensions[0] / 2.0
+        y2_min, y2_max = prev_agent.pose.y, prev_agent.pose.y + prev_agent.dimensions[1] # AGENT STATE CALCULATION
+        z2_min, z2_max = prev_agent.pose.z - prev_agent.dimensions[2] / 2.0, prev_agent.pose.z + prev_agent.dimensions[2] / 2.0
 
         # True if they overlap, false if not
         return (
@@ -407,13 +411,13 @@ class PedestrianDetector2D(Component):
             # Create agent in current frame:
             agents.append(AgentState(
                             track_id=0, # Temporary
-                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2] - obj_dims[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
+                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
                             # Beware: AgentState(PhysicalObject) builds bbox from 
                             # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
                             # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
                             # (l, w, h)
                             # TODO: confirm (z -> l, x -> w, y -> h)
-                            dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]),  
+                            dimensions=(obj_dims[idx][2], obj_dims[idx][0], obj_centers[idx][1] + obj_dims[idx][1]),
                             outline=None,
                             type=AgentEnum.PEDESTRIAN,
                             activity=AgentActivityEnum.UNDETERMINED, # Temporary
