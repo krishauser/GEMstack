@@ -1,0 +1,19 @@
+events:
+- description: Ctrl+C pressed, switching to recovery mode
+  time: 1740439106.6345985
+  vehicle_time: 1740439106.6160939
+- description: Mission execution ended
+  time: 1740439108.4062438
+  vehicle_time: 1740439108.3852332
+exit_reason: normal exit
+git_branch: teamB_control_planning
+git_commit_id: 3fd0f46e549f85ddf9fed2150415df832582f42b
+pipelines:
+- name: drive
+  time: 1740439005.3945208
+  vehicle_time: 1740439005.2943938
+- name: recovery
+  time: 1740439106.6387887
+  vehicle_time: 1740439106.6160939
+start_time: 1740439005.2803187
+start_time_human_readable: '2025-02-24 17:16:45'

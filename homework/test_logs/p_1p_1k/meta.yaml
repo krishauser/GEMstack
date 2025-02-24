@@ -1,0 +1,22 @@
+events:
+- description: Hardware fault override_active
+  time: 1740437692.485257
+  vehicle_time: 1740437692.485243
+- description: Ctrl+C pressed, switching to recovery mode
+  time: 1740437695.1880288
+  vehicle_time: 1740437695.1852252
+- description: Mission execution ended
+  time: 1740437695.1929321
+  vehicle_time: 1740437695.1852252
+exit_reason: normal exit
+git_branch: teamB_control_planning
+git_commit_id: 3fd0f46e549f85ddf9fed2150415df832582f42b
+pipelines:
+- name: drive
+  time: 1740437641.0805829
+  vehicle_time: 1740437640.9804435
+- name: recovery
+  time: 1740437695.189107
+  vehicle_time: 1740437695.1852252
+start_time: 1740437640.9674866
+start_time_human_readable: '2025-02-24 16:54:00'

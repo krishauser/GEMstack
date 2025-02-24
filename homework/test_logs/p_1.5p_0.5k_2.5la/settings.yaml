@@ -1,0 +1,316 @@
+control:
+  longitudinal_control:
+    pid_d: 0.0
+    pid_i: 0.1
+    pid_p: 1.5
+  pure_pursuit:
+    crosstrack_gain: 0.5
+    desired_speed: trajectory
+    lookahead: 2.5
+    lookahead_scale: 3.0
+  recovery:
+    brake_amount: 0.5
+    brake_speed: 2.0
+model_predictive_controller:
+  dt: 0.1
+  lookahead: 20
+run:
+  after:
+    show_log_folder: true
+  computation_graph:
+    components:
+    - state_estimation:
+        inputs: []
+        outputs:
+        - vehicle
+    - roadgraph_update:
+        inputs:
+        - vehicle
+        outputs:
+        - roadgraph
+    - obstacle_detection:
+        inputs:
+        - vehicle
+        outputs:
+        - obstacles
+    - agent_detection:
+        inputs:
+        - vehicle
+        outputs:
+        - agents
+    - lane_detection:
+        inputs:
+        - vehicle
+        - roadgraph
+        outputs:
+        - vehicle_lane
+    - sign_detection:
+        inputs:
+        - vehicle
+        - roadgraph
+        outputs:
+        - roadgraph.signs
+    - environment_detection:
+        inputs:
+        - vehicle
+        outputs:
+        - environment
+    - intent_estimation:
+        inputs:
+        - vehicle
+        - roadgraph
+        - agents
+        outputs:
+        - agent_intents
+    - relations_estimation:
+        inputs:
+        - vehicle
+        - roadgraph
+        - agents
+        - obstacles
+        outputs:
+        - relations
+    - predicate_evaluation:
+        inputs:
+        - vehicle
+        - roadgraph
+        - agents
+        - obstacles
+        outputs:
+        - predicates
+    - perception_normalization:
+        inputs:
+        - all
+        outputs: []
+    - mission_execution:
+        inputs: []
+        outputs:
+        - mission
+    - route_planning:
+        inputs:
+        - vehicle
+        - roadgraph
+        - mission
+        outputs:
+        - route
+    - driving_logic:
+        inputs: []
+        outputs:
+        - intent
+    - motion_planning:
+        inputs:
+        - all
+        outputs:
+        - trajectory
+    - trajectory_tracking:
+        inputs:
+        - vehicle
+        - trajectory
+        outputs: []
+    - signaling:
+        inputs:
+        - intent
+        outputs: []
+  description: Drive the GEM vehicle along a fixed route (currently xyhead_highbay_backlot_p.csv)
+  drive:
+    perception:
+      perception_normalization: StandardPerceptionNormalizer
+      state_estimation: GNSSStateEstimator
+    planning:
+      motion_planning:
+        args:
+        - null
+        type: RouteToTrajectoryPlanner
+      route_planning:
+        args:
+        - GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv
+        type: StaticRoutePlanner
+      trajectory_tracking:
+        args:
+          desired_speed: 2.5
+        print: false
+        type: pure_pursuit.PurePursuitTrajectoryTracker
+  log:
+    components:
+    - state_estimation
+    - trajectory_tracking
+    ros_topics:
+    - /septentrio_gnss/insnavgeod
+    vehicle_interface: true
+  mission_execution: StandardExecutor
+  mode: hardware
+  name: launch/fixed_route.yaml
+  recovery:
+    planning:
+      trajectory_tracking:
+        print: false
+        type: recovery.StopTrajectoryTracker
+  replay:
+    components: []
+    log: null
+    ros_topics: []
+  variants:
+    log_ros:
+      log:
+        ros_topics:
+        - /game_control/joy
+        - /front_radar/front_radar/objects
+        - /front_radar/front_radar/radar_tracks
+        - /lidar1/velodyne_points
+        - /novatel/inspva
+        - /novatel/imu
+        - /novatel/bestpos
+        - /zed2/zed_node/depth/camera_info
+        - /zed2/zed_node/depth/depth_registered
+        - /zed2/zed_node/rgb/camera_info
+        - /zed2/zed_node/rgb/image_rect_color
+        - /zed2/zed_node/imu/data
+        - /zed2/zed_node/imu/data_raw
+        - /zed2/zed_node/imu/mag
+        - /pacmod/as_rx/enable
+        - /pacmod/as_rx/accel_cmd
+        - /pacmod/as_rx/brake_cmd
+        - /pacmod/as_rx/shift_cmd
+        - /pacmod/as_rx/steer_cmd
+        - /pacmod/as_rx/turn_cmd
+        - /pacmod/as_rx/turn_signal_cmd
+        - /pacmod/as_rx/vehicle_speed_cmd
+        - /pacmod/as_tx/enable
+        - /pacmod/as_tx/global_rpt
+        - /pacmod/as_tx/accel_rpt
+        - /pacmod/as_tx/brake_rpt
+        - /pacmod/as_tx/shift_rpt
+        - /pacmod/as_tx/steer_rpt
+        - /pacmod/as_tx/turn_rpt
+        - /pacmod/as_tx/vehicle_speed_rpt
+    sim:
+      run:
+        drive:
+          perception:
+            agent_detection: OmniscientAgentDetector
+            state_estimation: OmniscientStateEstimator
+        mode: simulation
+        vehicle_interface:
+          args:
+            scene: scenes/xyhead_demo.yaml
+          type: gem_simulator.GEMDoubleIntegratorSimulationInterface
+        visualization:
+          args:
+            rate: 20
+            save_as: null
+          type: klampt_visualization.KlamptVisualization
+  vehicle_interface: gem_hardware.GEMHardwareInterface
+simulator:
+  dt: 0.01
+  gnss_emulator:
+    dt: 0.1
+  real_time_multiplier: 1.0
+vehicle:
+  calibration:
+    calibration_date: '2024-03-05'
+    front_camera:
+      center_position:
+      - 1.78
+      - 0
+      - 1.58
+      reference: rear_axle_center
+      rotation:
+      - - 0
+        - 0
+        - 1
+      - - -1
+        - 0
+        - 0
+      - - 0
+        - -1
+        - 0
+    gnss_location:
+    - 1.1
+    - 0
+    - 1.62
+    gnss_yaw: 0.0
+    rear_axle_height: 0.33
+    reference: rear_axle_center
+    top_lidar:
+      position:
+      - 1.1
+      - 0
+      - 2.03
+      reference: rear_axle_center
+      rotation:
+      - - 1
+        - 0
+        - 0
+      - - 0
+        - 1
+        - 0
+      - - 0
+        - 0
+        - 1
+  control_defaults:
+    accelerator_pedal_speed: 3.0
+    brake_pedal_speed: 3.0
+    steering_wheel_speed: 4.0
+  dynamics:
+    acceleration_deadband: 0.1
+    acceleration_model: hang_v1
+    accelerator_active_range:
+    - 0.2
+    - 1.0
+    aerodynamic_drag_coefficient: 0.01
+    brake_active_range:
+    - 0
+    - 1
+    gravity: 9.81
+    internal_dry_deceleration: 0.2
+    internal_viscous_deceleration: 0.05
+    lateral_friction: 1.0
+    longitudinal_friction: 1.0
+    mass: 300.0
+    max_accelerator_acceleration:
+    - 0.0
+    - 5.0
+    max_accelerator_acceleration_reverse: 2.5
+    max_accelerator_power:
+    - 0.0
+    - 10000.0
+    max_accelerator_power_reverse: 10000.0
+    max_brake_deceleration: 8.0
+  enable_through_joystick: true
+  geometry:
+    bounds:
+    - - -0.35
+      - 2.85
+    - - -0.85
+      - 0.85
+    - - 0
+      - 2.5
+    height: 2.5
+    length: 3.2
+    max_steering_angle: 11.0
+    max_wheel_angle: 0.6108
+    min_steering_angle: -11.0
+    min_wheel_angle: -0.6108
+    urdf_model: /home/gem/control_team_b/GEMstack/knowledge/vehicle/model/gem_e4.urdf
+    wheel_radius: 0.33
+    wheelbase: 2.56
+    width: 1.7
+  limits:
+    max_acceleration: 1.0
+    max_accelerator_pedal: 0.5
+    max_brake_pedal: 0.5
+    max_deceleration: 2.0
+    max_reverse_speed: 0.25
+    max_speed: 2.5
+    max_steering_rate: 2.0
+  max_command_rate: 10.0
+  max_gear: 1
+  name: GEM
+  num_wiper_settings: 1
+  sensors:
+    ros_topics:
+      front_camera: /oak/rgb/image_raw
+      front_depth: /oak/stereo/image_raw
+      gnss: /septentrio_gnss/insnavgeod
+      top_lidar: /ouster/points
+  version: e4
