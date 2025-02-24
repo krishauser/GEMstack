@@ -45,7 +45,7 @@ class PurePursuit(object):
         self.path_arg = path
         if len(path.points[0]) > 2:
             path = path.get_dims([0,1])
-        if not isinstance(path,Trajectory):
+        if not isinstance(path, Trajectory):
             self.path = path.arc_length_parameterize()
             self.trajectory = None
             self.current_traj_parameter = 0.0
