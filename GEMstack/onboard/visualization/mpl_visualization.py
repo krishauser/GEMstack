@@ -76,7 +76,7 @@ class MPLVisualization(Component):
             return
         self.num_updates += 1
         self.debug("vehicle","velocity",state.vehicle.v)
-        self.debug("vehicle","front wheel angle",state.vehicle.front_wheel_angle)
+        self.debug("vehicle","front wheel angle",state.vehicle.front_wheel_angle)        
         time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(state.t))
         #frame=ObjectFrameEnum.CURRENT
         #state = state.to_frame(frame)

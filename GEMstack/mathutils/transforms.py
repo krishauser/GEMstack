@@ -36,6 +36,14 @@ def vector_dist(v1, v2) -> float:
     """Euclidean distance between two vectors"""
     return vo.distance(v1,v2)
 
+def vector_dot(v1, v2) -> float:
+    """Dot product between two vectors"""
+    return vo.dot(v1,v2)
+
+def vector_cross(v1, v2) -> float:
+    """Cross product between two 2D vectors"""
+    return vo.cross(v1,v2)
+
 def vector2_angle(v1, v2 = None) -> float:
     """find the ccw angle bewtween two 2d vectors"""
     if v2 is None:
@@ -123,3 +131,16 @@ def xy_to_lat_lon(x_east : float, y_north : float, lat_reference : float, lon_re
     # convert GNSS waypoints into local fixed frame reprented in x and y
     lat, lon = axy.xy2ll(x_east, y_north, lat_reference, lon_reference)
     return lat, lon
+
+def quaternion_to_euler(x : float, y : float, z : float, w : float):
+    t0 = +2.0 * (w * x + y * z)
+    t1 = +1.0 - 2.0 * (x * x + y * y)
+    roll = np.arctan2(t0, t1)
+    t2 = +2.0 * (w * y - z * x)
+    t2 = +1.0 if t2 > +1.0 else t2
+    t2 = -1.0 if t2 < -1.0 else t2
+    pitch = np.arcsin(t2)
+    t3 = +2.0 * (w * z + x * y)
+    t4 = +1.0 - 2.0 * (y * y + z * z)
+    yaw = np.arctan2(t3, t4)
+    return [roll, pitch, yaw]
