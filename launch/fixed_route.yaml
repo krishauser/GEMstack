@@ -2,7 +2,7 @@ description: "Drive the GEM vehicle along a fixed route (currently xyhead_highba
 mode: hardware
 vehicle_interface: gem_hardware.GEMHardwareInterface
 mission_execution: StandardExecutor
-require_engaged: False
+# require_engaged: False
 # Recovery behavior after a component failure
 recovery: 
     planning: 
@@ -17,12 +17,13 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
-        motion_planning:
+            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] #forward_15mxyhead_highbay_backlot_p.csv
+        motion_planning: # longitudinal_planning.YieldTrajectoryPlanner
             type: RouteToTrajectoryPlanner
             args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
+            # args: [null]
             args: {desired_speed: 2.5}  #approximately 5mph
             print: False
 log:
@@ -33,7 +34,7 @@ log:
     # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
     #suffix : 'test3'  
     # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
-    ros_topics : []
+    ros_topics : ['/septentrio_gnss/insnavgeod']
     # Specify options to pass to rosbag record. Default is no options.
     #rosbag_options : '--split --size=1024' 
     # If True, then record all readings / commands of the vehicle interface. Default False

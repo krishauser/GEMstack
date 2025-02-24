@@ -19,7 +19,6 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
     """
     model = settings.get('vehicle.dynamics.acceleration_model','hang_v1')
     
-    model = 'hang_v1'
     # print("===============")
     # print(model)
     # print("===============")
@@ -43,11 +42,11 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
             brake_percent = brake_active_range[0] + -(acceleration+dry_decel)/max_brake * (brake_active_range[1]-brake_active_range[0])
             throttle_percent = 0
 
-        print("accel : {:.3f}".format(acceleration))
-        print("vel : {:.3f}".format(velocity))
-        print("gear : {}".format(gear))
-        print("gas : {:.2f}".format(throttle_percent))
-        print("brake : {:.2f}".format(brake_percent))
+        # print("accel : {:.3f}".format(acceleration))
+        # print("vel : {:.3f}".format(velocity))
+        # print("gear : {}".format(gear))
+        # print("gas : {:.2f}".format(throttle_percent))
+        # print("brake : {:.2f}".format(brake_percent))
 
         return (max(throttle_percent,0.0),max(brake_percent,0.0),1)
     
