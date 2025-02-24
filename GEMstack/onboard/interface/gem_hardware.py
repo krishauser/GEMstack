@@ -6,6 +6,7 @@ import math
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
 from sensor_msgs.msg import Image,PointCloud2
+import message_filters
 try:
     from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
 except ImportError:
@@ -55,6 +56,7 @@ class GEMHardwareInterface(GEMInterface):
         self.front_depth_sub = None
         self.top_lidar_sub = None
         self.stereo_sub = None
+        self.sync = None
         self.faults = []
 
         # -------------------- PACMod setup --------------------
@@ -177,6 +179,7 @@ class GEMHardwareInterface(GEMInterface):
                 else:
                     def callback_with_gnss_reading(msg: INSNavGeod):
                         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t = 0,
                                     x=msg.longitude,
                                     y=msg.latitude,
                                     z=msg.height,
@@ -227,6 +230,40 @@ class GEMHardwareInterface(GEMInterface):
                     cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="passthrough")
                     callback(cv_image)
                 self.front_depth_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+        elif name == 'sensor_fusion_Lidar_Camera_GNSS':
+            def callback_with_cv2_numpy_gnss(rgb_image_msg: Image, lidar_pc2_msg: PointCloud2, gnss_msg: INSNavGeod):
+                points = conversions.ros_PointCloud2_to_numpy(lidar_pc2_msg, want_rgb=False)
+                cv_image = conversions.ros_Image_to_cv2(rgb_image_msg, desired_encoding="bgr8")
+                pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t = 0,
+                                    x=gnss_msg.longitude,
+                                    y=gnss_msg.latitude,
+                                    z=gnss_msg.height,
+                                    yaw=math.radians(gnss_msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
+                                    roll=math.radians(gnss_msg.roll),
+                                    pitch=math.radians(gnss_msg.pitch),
+                                    )
+                speed = np.sqrt(gnss_msg.ve**2 + gnss_msg.vn**2)
+                callback(cv_image,points,GNSSReading(pose,speed,('error' if gnss_msg.error else 'ok')))
+            topic_camera = self.ros_sensor_topics['front_camera']
+            topic_lidar = self.ros_sensor_topics['top_lidar']
+            topic_gnss = self.ros_sensor_topics['gnss']
+            self.front_camera_sub = message_filters.Subscriber(topic_camera, Image)
+            self.top_lidar_sub = message_filters.Subscriber(topic_lidar, PointCloud2)
+            self.gnss_sub = message_filters.Subscriber(topic_gnss, INSNavGeod)
+            self.sync = message_filters.ApproximateTimeSynchronizer([self.front_camera_sub, self.top_lidar_sub,self.gnss_sub], queue_size=10, slop=0.1)
+            self.sync.registerCallback(callback_with_cv2_numpy_gnss)
+        elif name == 'sensor_fusion_Lidar_Camera':
+            def callback_with_cv2_numpy(rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
+                points = conversions.ros_PointCloud2_to_numpy(lidar_pc2_msg, want_rgb=False)
+                cv_image = conversions.ros_Image_to_cv2(rgb_image_msg, desired_encoding="bgr8")
+                callback(cv_image,points)
+            topic_camera = self.ros_sensor_topics['front_camera']
+            topic_lidar = self.ros_sensor_topics['top_lidar']
+            self.front_camera_sub = message_filters.Subscriber(topic_camera, Image)
+            self.top_lidar_sub = message_filters.Subscriber(topic_lidar, PointCloud2)
+            self.sync = message_filters.ApproximateTimeSynchronizer([self.front_camera_sub, self.top_lidar_sub], queue_size=10, slop=0.1)
+            self.sync.registerCallback(callback_with_cv2_numpy)
 
 
     # PACMod enable callback function
