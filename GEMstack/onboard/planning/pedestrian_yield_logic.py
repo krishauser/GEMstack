@@ -1,4 +1,4 @@
-from ...state import AgentState, AgentEnum, EntityRelation, EntityRelationEnum, ObjectFrameEnum
+from ...state import AgentState, AgentEnum, EntityRelation, EntityRelationEnum, ObjectFrameEnum, VehicleState
 from ..component import Component
 from typing import List, Dict
 
@@ -89,6 +89,10 @@ def check_collision_in_vehicle_frame(agent: AgentState, vehicle: VehicleState):
         xp, yp = np.dot(R, np.array([dx, dy]))
         vx, vy = np.dot(R, np.array([dvx, dvy]))
 
+    # If pedestrian alphas the car
+    if abs(xp) <= buffer[0] and abs(yp) <= buffer[1]:
+        return 'STOP', 0, 0, (xp, yp)
+    
     t_min, min_dist, pt_min = find_min_distance_and_time(xp, yp, vx, vy, buffer)
     # if the minimum distance between the position and the buffer area is less than 0, than a collision is expected
     check = None
