@@ -34,6 +34,7 @@ import os
 from typing import List, Dict
 from collections import defaultdict
 from datetime import datetime
+import copy
 # ROS, CV
 import rospy
 import message_filters
@@ -51,6 +52,7 @@ from ..interface.gem import GEMInterface, GNSSReading
 from ..component import Component
 from .IdTracker import IdTracker
 from scipy.spatial.transform import Rotation as R
+from septentrio_gnss_driver.msg import INSNavGeod
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -113,7 +115,7 @@ class PedestrianDetector2D(Component):
 
         # GEMStack Subscribers and sychronizers
         # LIDAR Camera fusion
-        self.vehicle_interface.subscribe_sensor('sensor_fusion_Lidar_Camera_GNSS',self.ouster_oak_callback)
+        self.vehicle_interface.subscribe_sensor('sensor_fusion_Lidar_Camera',self.ouster_oak_callback)
 
         # LIDAR Camera GNSS fusion
         # self.vehicle_interface.subscribe_sensor('sensor_fusion_Lidar_Camera_GNSS',self.ouster_oak_callback)
@@ -131,6 +133,7 @@ class PedestrianDetector2D(Component):
         self.t_start = datetime.now() # Estimated start frame time
         self.start_pose_abs = None # Get this from GNSS (GLOBAL frame)
         self.current_vehicle_state = None # Current vehicle state from GNSS in GLOBAL frame
+        self.previous_vehicle_state = None # Previous vehicle state from GNSS in GLOBAL frame
     
     def init_debug(self,) -> None:
          # Debug Publishers
@@ -139,32 +142,50 @@ class PedestrianDetector2D(Component):
         self.pub_bboxes_markers = rospy.Publisher("/markers/bboxes", MarkerArray, queue_size=10)
         self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
+    
+    # Test code to check gnss , can be removed
+    # Debugging
+    def gnss_test(self, cv_image: cv2.Mat, lidar_points: np.ndarray, vehicle_state: GNSSReading):
+        print(f"vehicle global state: {vehicle_state}")
+
+
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        # Convert to start state.
-        # self.current_vehicle_state | data from GNSS of vehicle pose in GLOBAL Frame
-        # self.start_pose_abs | data from GNSS of the first vehicle pose in GLOBAL Frame
-        vehicle.pose.to_frame(ObjectFrameEnum.START,self.current_vehicle_state.pose,self.start_pose_abs)
 
-        # Vehicle -> start frame
-        # TODO: See if there's way we can remove loop
-        start_frame_centers = []
-        start_frame_dims = [] # still 2 point dims [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
-        for center in self.current_agent_obj_dims["pose"]:
-            start_frame_centers.append(vehicle.pose.apply(center))
-        for dim in self.current_agent_obj_dims["dims"]:
-            dim_0 = vehicle.pose.apply(dim[0])
-            dim_1 = vehicle.pose.apply(dim[1])
-            start_frame_dims.append(np.array(dim_0, dim_1))
+        # Edge cases
 
-        # obj_centers = vehicle.pose.apply(self.current_agent_obj_dims["pose"])
-        # obj_dims = vehicle.pose.apply(self.current_agent_obj_dims["dims"])
+        if(self.current_vehicle_state == None and self.previous_vehicle_state == None):
+            self.current_vehicle_state = vehicle
+            # We get vehicle state from GNSS in global state
+            # Storing initial pose
+            if (self.start_pose_abs == None):
+                self.start_pose_abs = vehicle.pose
+            return self.current_agents
+        else:
+            self.previous_vehicle_state = self.current_vehicle_state
+            self.current_vehicle_state = vehicle
+
+        if(self.current_agent_obj_dims == {}):
+            return self.current_agents
+        
+        
+        (f"Global state : {vehicle}")
+
+        # Convert pose to start state. Need to use previous_vehicle state as pedestrian info is delayed
+        vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START,self.previous_vehicle_state.pose,self.start_pose_abs)
+
+        # converting to start frame
+        for i,pose in enumerate(self.current_agent_obj_dims['pose']):
+            self.current_agent_obj_dims['pose'][i] = np.array(vehicle_start_pose.apply(pose))
+
+        for i,dims in enumerate(self.current_agent_obj_dims['dims']):
+            self.current_agent_obj_dims['dims'][i] = np.array(vehicle_start_pose.apply(dims))
 
         # Prepare variables for find_vels_and_ids
-        self.prev_agents = self.current_agents.deepcopy()
+        self.prev_agents = self.current_agents.copy()
         self.current_agents.clear()
         # Note this below function will probably throw a type error. I think we'll need to index the 
         # tuples by index 0 in the lists but I'm not sure:
-        agents = self.create_agent_states(obj_centers=start_frame_centers, obj_dims=start_frame_dims)
+        agents = self.create_agent_states(obj_centers=self.current_agent_obj_dims['pose'], obj_dims=self.current_agent_obj_dims['dims'])
 
         # Calculating the velocity of agents and tracking their ids
         self.find_vels_and_ids(agents=agents)
@@ -263,7 +284,8 @@ class PedestrianDetector2D(Component):
         
 
     def update_object_states(self, track_result: List[Results], extracted_pts_all: List[np.ndarray]) -> None:
-        self.current_agent_obj_dims.clear()
+
+        # self.current_agent_obj_dims.clear()
         # Return if no track results available
         if track_result[0].boxes.id == None:
             return
@@ -287,7 +309,6 @@ class PedestrianDetector2D(Component):
         obj_centers = self.find_centers(pedestrians_3d_pts) # Centers are calculated in lidar frame here
         # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
         obj_dims = self.find_dims(pedestrians_3d_pts)
-
         # Pose is stored in vehicle frame and converted to start frame in the update function 
         obj_centers_vehicle = []
         for obj_center in obj_centers:
@@ -299,18 +320,19 @@ class PedestrianDetector2D(Component):
                 obj_centers_vehicle.append(np.array(()))
         obj_centers = obj_centers_vehicle
 
-        obj_dims_vehicle = []
-        for obj_dim in obj_dims:
-            if len(obj_dim) > 0:
-                obj_dim_min = np.array([obj_dim[0]])
-                obj_dim_max = np.array([obj_dim[1]])
-                obj_dim_min_vehicle = transform_lidar_points(obj_dim_min, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
-                obj_dim_max_vehicle = transform_lidar_points(obj_dim_max, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
-            else: obj_dims_vehicle.append(np.array(()))
-        obj_dims = obj_dims_vehicle
+        if(len(obj_center) != 0) and (len(obj_dims) != 0):
+          obj_dims_vehicle = []
+          for obj_dim in obj_dims:
+              if len(obj_dim) > 0:
+                  obj_dim_min = np.array([obj_dim[0]])
+                  obj_dim_max = np.array([obj_dim[1]])
+                  obj_dim_min_vehicle = transform_lidar_points(obj_dim_min, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
+                  obj_dim_max_vehicle = transform_lidar_points(obj_dim_max, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
+              else: obj_dims_vehicle.append(np.array(()))
+          obj_dims = obj_dims_vehicle
 
-        self.current_agent_obj_dims["pose"] = obj_centers
-        self.current_agent_obj_dims["dims"] = obj_dims
+          self.current_agent_obj_dims["pose"] = obj_centers
+          self.current_agent_obj_dims["dims"] = obj_dims
 
 
     # TODO: Refactor to make more efficient
@@ -372,15 +394,10 @@ class PedestrianDetector2D(Component):
         # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
         # TODO: confirm (z -> l, x -> w, y -> h)
 
-        # Calculate corners of obj_center and obj_dim pairing
-        x1_min, x1_max = curr_agent.pose.x - curr_agent.dimensions[0] / 2.0, curr_agent.pose.x + curr_agent.dimensions[0] / 2.0
-        y1_min, y1_max = curr_agent.pose.y, curr_agent.pose.y + curr_agent.dimensions[1] # AGENT STATE CALCULATION
-        z1_min, z1_max = curr_agent.pose.z - curr_agent.dimensions[2] / 2.0, curr_agent.pose.z + curr_agent.dimensions[2] / 2.0
+        # Extract the corners of the agents:
+        (x1_min, x1_max), (y1_min, y1_max), (z1_min, z1_max) = curr_agent.bounds() # Bounds of current agent
+        (x2_min, x2_max), (y2_min, y2_max), (z2_min, z2_max) = prev_agent.bounds() # Bounds of previous agent
 
-        x2_min, x2_max = prev_agent.pose.x - prev_agent.dimensions[0] / 2.0, prev_agent.pose.x + prev_agent.dimensions[0] / 2.0
-        y2_min, y2_max = prev_agent.pose.y, prev_agent.pose.y + prev_agent.dimensions[1] # AGENT STATE CALCULATION
-        z2_min, z2_max = prev_agent.pose.z - prev_agent.dimensions[2] / 2.0, prev_agent.pose.z + prev_agent.dimensions[2] / 2.0
-        
         # True if they overlap, false if not
         return (
             ( (x1_min <= x2_min and x2_min <= x1_max) or (x2_min <= x1_min and x1_min <= x2_max) ) and
@@ -396,9 +413,12 @@ class PedestrianDetector2D(Component):
             if (obj_centers[idx].size == 0) or (obj_dims[0].size == 0):
                 del obj_centers[idx]
                 del obj_dims[idx]
+                
         # Convert from 2 point to 1 point dims
         obj_dims = [np.abs( dim[0] - dim[1])  for dim in obj_dims]   
-        
+       #     elif (obj_centers[idx].size != obj_dims[0].size):
+       #         del obj_centers[idx]
+       #         del obj_dims[idx]
         # Create list of agent states in current vehicle frame:
         agents = []
         num_pairings = len(obj_centers)
@@ -406,13 +426,13 @@ class PedestrianDetector2D(Component):
             # Create agent in current frame:
             agents.append(AgentState(
                             track_id=0, # Temporary
-                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
+                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2] - obj_dims[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
                             # Beware: AgentState(PhysicalObject) builds bbox from 
                             # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
                             # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
                             # (l, w, h)
                             # TODO: confirm (z -> l, x -> w, y -> h)
-                            dimensions=(obj_dims[idx][2], obj_dims[idx][0], obj_centers[idx][1]),
+                            dimensions=(obj_dims[idx][2], obj_dims[idx][0], obj_centers[idx][1]),   # obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]
                             outline=None,
                             type=AgentEnum.PEDESTRIAN,
                             activity=AgentActivityEnum.UNDETERMINED, # Temporary
@@ -477,20 +497,14 @@ class PedestrianDetector2D(Component):
     #                 vels[prev_track_id] = (track_id_center_map[prev_track_id] - np.array([prev_agent.pose.x, prev_agent.pose.y, prev_agent.pose.z])) / (self.curr_time - self.prev_time)
     #     return vels
 
-    def ouster_oak_callback(self, cv_image: cv2.Mat, lidar_points: np.ndarray, vehicle_state: GNSSReading):
+    def ouster_oak_callback(self, cv_image: cv2.Mat, lidar_points: np.ndarray):
+
         # Update times for basic velocity calculation
         self.prev_time = self.curr_time
         self.curr_time = datetime.now()
 
-        # Getting start pose in GLOBAL Frame
-        if self.start_pose_abs == None and vehicle_state.status == 'ok':
-            self.start_pose_abs = vehicle_state.pose 
-
-        # Update current vehicle state and convert to START Frame
-        if (vehicle_state.status == 'ok'):
-            self.current_vehicle_state = vehicle_state
-        else:
-            raise Exception('Unable to get current pose of vehicle, lost GPS')
+        self.cv_image = cv_image
+        self.lidar_points = lidar_points
 
         # Convert to cv2 image and run detector
         # cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
