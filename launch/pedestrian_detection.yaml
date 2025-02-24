@@ -23,7 +23,11 @@ drive:
             type: longitudinal_planning.YieldTrajectoryPlanner
             args:
                 mode: 'real'
-                planner: 'dt' # 'milestone', 'dt', or 'dx'
+                params: {
+                    'planner':       'dt', # 'milestone', 'dt', or 'dx'
+                    'desired_speed': 1.0,  # m/s, 1.5 m/s seems max speed? Feb24
+                    'acceleration':  0.75  # m/s2, 0.5 is not enough to start moving. Feb24
+                    }
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
             print: False
