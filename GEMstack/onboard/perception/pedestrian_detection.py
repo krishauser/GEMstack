@@ -34,6 +34,7 @@ import os
 from typing import List, Dict
 from collections import defaultdict
 from datetime import datetime
+import copy
 # ROS, CV
 import rospy
 import message_filters
@@ -281,6 +282,7 @@ class PedestrianDetector2D(Component):
         
 
     def update_object_states(self, track_result: List[Results], extracted_pts_all: List[np.ndarray]) -> None:
+
         # self.current_agent_obj_dims.clear()
         # Return if no track results available
         if track_result[0].boxes.id == None:
@@ -304,7 +306,6 @@ class PedestrianDetector2D(Component):
         #       Separate numpy prob still faster for now
         obj_centers = self.find_centers(pedestrians_3d_pts) # Centers are calculated in lidar frame here
         obj_dims = self.find_dims(pedestrians_3d_pts)
-
         # Pose is stored in vehicle frame and converted to start frame in the update function 
         obj_centers_vehicle = []
         for obj_center in obj_centers:
@@ -379,15 +380,10 @@ class PedestrianDetector2D(Component):
         # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
         # TODO: confirm (z -> l, x -> w, y -> h)
 
-        # Calculate corners of obj_center and obj_dim pairing
-        x1_min, x1_max = curr_agent.pose.x - curr_agent.dimensions[0] / 2.0, curr_agent.pose.x + curr_agent.dimensions[0] / 2.0
-        y1_min, y1_max = curr_agent.pose.y, curr_agent.pose.y + curr_agent.dimensions[1] # AGENT STATE CALCULATION
-        z1_min, z1_max = curr_agent.pose.z - curr_agent.dimensions[2] / 2.0, curr_agent.pose.z + curr_agent.dimensions[2] / 2.0
+        # Extract the corners of the agents:
+        (x1_min, x1_max), (y1_min, y1_max), (z1_min, z1_max) = curr_agent.bounds() # Bounds of current agent
+        (x2_min, x2_max), (y2_min, y2_max), (z2_min, z2_max) = prev_agent.bounds() # Bounds of previous agent
 
-        x2_min, x2_max = prev_agent.pose.x - prev_agent.dimensions[0] / 2.0, prev_agent.pose.x + prev_agent.dimensions[0] / 2.0
-        y2_min, y2_max = prev_agent.pose.y, prev_agent.pose.y + prev_agent.dimensions[1] # AGENT STATE CALCULATION
-        z2_min, z2_max = prev_agent.pose.z - prev_agent.dimensions[2] / 2.0, prev_agent.pose.z + prev_agent.dimensions[2] / 2.0
-        
         # True if they overlap, false if not
         return (
             ( (x1_min <= x2_min and x2_min <= x1_max) or (x2_min <= x1_min and x1_min <= x2_max) ) and
@@ -404,7 +400,6 @@ class PedestrianDetector2D(Component):
             elif (obj_centers[idx].size != obj_dims[0].size):
                 del obj_centers[idx]
                 del obj_dims[idx]
-        
         # Create list of agent states in current vehicle frame:
         agents = []
         num_pairings = len(obj_centers)
@@ -412,13 +407,13 @@ class PedestrianDetector2D(Component):
             # Create agent in current frame:
             agents.append(AgentState(
                             track_id=0, # Temporary
-                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
+                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2] - obj_dims[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
                             # Beware: AgentState(PhysicalObject) builds bbox from 
                             # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
                             # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
                             # (l, w, h)
                             # TODO: confirm (z -> l, x -> w, y -> h)
-                            dimensions=(obj_dims[idx][2], obj_dims[idx][0], obj_centers[idx][1] + obj_dims[idx][1]),  
+                            dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]),  
                             outline=None,
                             type=AgentEnum.PEDESTRIAN,
                             activity=AgentActivityEnum.UNDETERMINED, # Temporary
