@@ -183,15 +183,9 @@ class GEMHardwareInterface(GEMInterface):
                 else:
                     def callback_with_gnss_reading(msg: INSNavGeod):
                         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-<<<<<<< HEAD
-                                    t=time.time(),
-                                    x=msg.longitude,
-                                    y=msg.latitude,
-=======
                                     t=self.time(),
                                     x=math.degrees(msg.longitude),   #Septentrio GNSS uses radians rather than degrees
                                     y=math.degrees(msg.latitude),
->>>>>>> origin/s2025_teamB
                                     z=msg.height,
                                     yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
                                     roll=math.radians(msg.roll),
