@@ -6,6 +6,7 @@ from ...state.vehicle import VehicleState,ObjectFrameEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
 from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
+from ..interface.gem_hardware import GEMHardwareInterface
 from ..component import Component
 import numpy as np
 
@@ -45,6 +46,9 @@ class PurePursuit(object):
         self.path_arg = path
         if len(path.points[0]) > 2:
             path = path.get_dims([0,1])
+        
+        # print("path : ", path)
+
         if not isinstance(path,Trajectory):
             self.path = path.arc_length_parameterize()
             self.trajectory = None
@@ -61,12 +65,17 @@ class PurePursuit(object):
         assert state.pose.frame != ObjectFrameEnum.CURRENT
         t = state.pose.t
 
+        # temp change
+        state.pose.frame = ObjectFrameEnum.START
+
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
+
+        # print("dt : ", dt)
   
-        curr_x = state.pose.x
-        curr_y = state.pose.y
+        curr_x = state.pose.x 
+        curr_y = state.pose.y  # state.pose.y 
         curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
         speed = state.v
 
@@ -105,8 +114,13 @@ class PurePursuit(object):
         else:
             desired_x,desired_y = self.path.eval(des_parameter)
         desired_yaw = np.arctan2(desired_y-curr_y,desired_x-curr_x)
-        #print("Desired point",(desired_x,desired_y)," with lookahead distance",self.look_ahead + self.look_ahead_scale * speed)
-        #print("Current yaw",curr_yaw,"desired yaw",desired_yaw)
+        print("Desired point",(desired_x,desired_y)," with lookahead distance",self.look_ahead + self.look_ahead_scale * speed)
+        print("Current x",curr_x,"current y",curr_y)
+        print("Current yaw",curr_yaw,"desired yaw",desired_yaw)
+        print("parameter : ", self.current_path_parameter)
+        print(" last index : ",  self.path.domain()[1])
+        # print(" length : ", len(self.path.points))
+        # print(" path : ", self.path.points)
 
         # distance between the desired point and the vehicle
         L = transforms.vector2_dist((desired_x,desired_y),(curr_x,curr_y))
@@ -124,6 +138,11 @@ class PurePursuit(object):
 
         f_delta = np.clip(angle, self.wheel_angle_range[0], self.wheel_angle_range[1])
         
+        print("angle : ", angle)
+        print("f delta : ", f_delta)
+        print(" alpha : ", alpha)
+
+
         #print("Closest point distance: " + str(L))
         print("Forward velocity: " + str(speed))
         ct_error = np.sin(alpha) * L
@@ -131,9 +150,11 @@ class PurePursuit(object):
         print("Front wheel angle: " + str(round(np.degrees(f_delta),2)) + " degrees")
         steering_angle = np.clip(front2steer(f_delta), self.steering_angle_range[0], self.steering_angle_range[1])
         print("Steering wheel angle: " + str(round(np.degrees(steering_angle),2)) + " degrees" )
-        
+        print("desired_speed_source : ", self.desired_speed_source)
         desired_speed = self.desired_speed
         feedforward_accel = 0.0
+
+
         if self.desired_speed_source in ['path','trajectory']:
             #determine desired speed from trajectory
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
@@ -167,6 +188,16 @@ class PurePursuit(object):
             desired_speed *= np.exp(-abs(ct_error)*0.4)
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
+        
+        # test
+        if self.current_path_parameter >= self.path.domain()[1]:
+            if component is not None:
+                component.debug_event('Past the end of trajectory')
+                #past the end, just stop
+            desired_speed = 0.0
+            feedforward_accel = -3.0
+
+
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
         if component is not None:
             component.debug('curr pt',(curr_x,curr_y))
@@ -188,12 +219,15 @@ class PurePursuit(object):
 
         self.t_last = t
         return (output_accel, f_delta)
+    
+        
 
 
 class PurePursuitTrajectoryTracker(Component):
-    def __init__(self,vehicle_interface=None, **args):
+    def __init__(self,vehicle_interface : None, **args):
         self.pure_pursuit = PurePursuit(**args)
         self.vehicle_interface = vehicle_interface
+        # print("==============")
 
     def rate(self):
         return 50.0
@@ -207,7 +241,8 @@ class PurePursuitTrajectoryTracker(Component):
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
         self.pure_pursuit.set_path(trajectory)
         accel,wheel_angle = self.pure_pursuit.compute(vehicle, self)
-        #print("Desired wheel angle",wheel_angle)
+        # print("Desired accel", accel)
+        # print("Desired wheel angle",wheel_angle)
         steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
         #print("Desired steering angle",steering_angle)
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
