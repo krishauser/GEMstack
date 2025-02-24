@@ -1184,126 +1184,125 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 ##### Patrick's Code #####
 ##########################
 
-# class YieldTrajectoryPlanner(Component):
-#     """Follows the given route.  Brakes if you have to yield or
-#     you are at the end of the route, otherwise accelerates to
-#     the desired speed.
-#     """
+class YieldTrajectoryPlanner(Component):
+    """Follows the given route.  Brakes if you have to yield or
+    you are at the end of the route, otherwise accelerates to
+    the desired speed.
+    """
 
-#     def __init__(self, mode : str = 'real', planner : str = 'milestone'):
-#         self.route_progress = None
-#         self.t_last = None
-#         self.acceleration = 0.5
-#         self.desired_speed = 1.0
-#         self.deceleration = 2.0
+    def __init__(self, mode : str = 'real', params : dict = {"planner": "dt", "desired_speed": 1.0, "acceleration": 0.5}):
+        self.route_progress = None
+        self.t_last = None
+        self.acceleration = params["acceleration"]
+        self.desired_speed = params["desired_speed"]
+        self.deceleration = 2.0
 
-#         self.min_deceleration = 1.0
-#         self.max_deceleration = 8.0
+        self.min_deceleration = 1.0
+        self.max_deceleration = 8.0
 
-#         self.mode = mode
-#         self.planner = planner
+        self.mode = mode
+        self.planner = params["planner"]
 
-#     def state_inputs(self):
-#         return ['all']
+    def state_inputs(self):
+        return ['all']
 
-#     def state_outputs(self) -> List[str]:
-#         return ['trajectory']
+    def state_outputs(self) -> List[str]:
+        return ['trajectory']
 
-#     def rate(self):
-#         return 10.0
+    def rate(self):
+        return 10.0
 
-#     def update(self, state : AllState):
-#         start_time = time.time()
+    def update(self, state : AllState):
+        start_time = time.time()
 
-#         vehicle = state.vehicle # type: VehicleState
-#         route = state.route   # type: Route
-#         t = state.t
+        vehicle = state.vehicle # type: VehicleState
+        route = state.route   # type: Route
+        t = state.t
 
-#         if self.t_last is None:
-#             self.t_last = t
-#         dt = t - self.t_last
+        if self.t_last is None:
+            self.t_last = t
+        dt = t - self.t_last
   
-#         # Position in vehicle frame (Start (0,0) to (15,0))
-#         curr_x = vehicle.pose.x
-#         curr_y = vehicle.pose.y
-#         curr_v = vehicle.v
+        # Position in vehicle frame (Start (0,0) to (15,0))
+        curr_x = vehicle.pose.x
+        curr_y = vehicle.pose.y
+        curr_v = vehicle.v
 
-#         abs_x = curr_x + state.start_vehicle_pose.x
-#         abs_y = curr_y + state.start_vehicle_pose.y
+        abs_x = curr_x + state.start_vehicle_pose.x
+        abs_y = curr_y + state.start_vehicle_pose.y
 
-#         ###############################################
-#         # print("@@@@@ VEHICLE STATE @@@@@")
-#         # print(vehicle)
-#         # print("@@@@@@@@@@@@@@@@@@@@@@@@@")
+        ###############################################
+        # print("@@@@@ VEHICLE STATE @@@@@")
+        # print(vehicle)
+        # print("@@@@@@@@@@@@@@@@@@@@@@@@@")
 
-#         if self.mode == 'real':
-#             # Position in vehicle frame (Start (0,0) to (15,0))
-#             curr_x = vehicle.pose.x * 20
-#             curr_y = vehicle.pose.y * 20
-#             curr_v = vehicle.v
-#             # print("@@@@@ PLAN", curr_x, curr_y, curr_v)
-#             abs_x = curr_x
-#             abs_y = curr_y
-#             # print("@@@@@ PLAN", abs_x, abs_y)
-#         ###############################################
+        if self.mode == 'real':
+            # Position in vehicle frame (Start (0,0) to (15,0))
+            # curr_x = vehicle.pose.x * 20
+            # curr_y = vehicle.pose.y * 20
+            # print("@@@@@ PLAN", curr_x, curr_y, curr_v)
+            abs_x = curr_x
+            abs_y = curr_y
+            # print("@@@@@ PLAN", abs_x, abs_y)
+        ###############################################
 
-#         #figure out where we are on the route
-#         if self.route_progress is None:
-#             self.route_progress = 0.0
-#         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
-#         self.route_progress = closest_parameter
+        #figure out where we are on the route
+        if self.route_progress is None:
+            self.route_progress = 0.0
+        closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
+        self.route_progress = closest_parameter
 
-#         lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
-#         route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
-#         print("Lookahead distance:", lookahead_distance)
+        lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
+        route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
+        print("Lookahead distance:", lookahead_distance)
 
-#         route_to_end = route.trim(closest_parameter, len(route.points) - 1)
+        route_to_end = route.trim(closest_parameter, len(route.points) - 1)
 
-#         should_yield = False
-#         yield_deceleration = 0.0
+        should_yield = False
+        yield_deceleration = 0.0
 
-#         print("Current Speed: ", curr_v)
+        print("Current Speed: ", curr_v)
 
-#         for r in state.relations:
-#             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
-#                 #get the object we are yielding to
-#                 obj = state.agents[r.obj2]
+        for r in state.relations:
+            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
+                #get the object we are yielding to
+                obj = state.agents[r.obj2]
 
-#                 if self.mode == 'real':
-#                     obj.pose.x = obj.pose.x + curr_x
-#                     obj.pose.y = obj.pose.y + curr_y
+                if self.mode == 'real':
+                    obj.pose.x = obj.pose.x + curr_x
+                    obj.pose.y = obj.pose.y + curr_y
 
-#                 detected, deceleration = detect_collision(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration, self.acceleration, self.desired_speed)
-#                 if isinstance(deceleration, list):
-#                     print("@@@@@ INPUT", deceleration)
-#                     time_collision = deceleration[1]
-#                     distance_collision = deceleration[0]
-#                     b = 3*time_collision - 2*curr_v
-#                     c = curr_v**2 - 3*distance_collision
-#                     desired_speed = (-b + (b**2 - 4*c)**0.5)/2
-#                     deceleration = 1.5
-#                     print("@@@@@ YIELDING", desired_speed)
-#                     route_with_lookahead = route.trim(closest_parameter,closest_parameter + distance_collision)
-#                     traj = longitudinal_plan(route_with_lookahead, self.acceleration, deceleration, desired_speed, curr_v)
-#                     return traj
-#                 else:
-#                     if detected and deceleration > 0:
-#                         yield_deceleration = max(deceleration, yield_deceleration)
-#                         should_yield = True
+                detected, deceleration = detect_collision(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration, self.acceleration, self.desired_speed)
+                if isinstance(deceleration, list):
+                    print("@@@@@ INPUT", deceleration)
+                    time_collision = deceleration[1]
+                    distance_collision = deceleration[0]
+                    b = 3*time_collision - 2*curr_v
+                    c = curr_v**2 - 3*distance_collision
+                    desired_speed = (-b + (b**2 - 4*c)**0.5)/2
+                    deceleration = 1.5
+                    print("@@@@@ YIELDING", desired_speed)
+                    route_with_lookahead = route.trim(closest_parameter,closest_parameter + distance_collision)
+                    traj = longitudinal_plan(route_with_lookahead, self.acceleration, deceleration, desired_speed, curr_v)
+                    return traj
+                else:
+                    if detected and deceleration > 0:
+                        yield_deceleration = max(deceleration, yield_deceleration)
+                        should_yield = True
                 
-#                 print("should yield: ", should_yield)
+                print("should yield: ", should_yield)
 
-#         should_accelerate = (not should_yield and curr_v < self.desired_speed)
+        should_accelerate = (not should_yield and curr_v < self.desired_speed)
 
-#         #choose whether to accelerate, brake, or keep at current velocity
-#         if should_accelerate:
-#             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, self.planner)
-#         elif should_yield:
-#             traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
-#         else:
-#             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, self.planner)
+        #choose whether to accelerate, brake, or keep at current velocity
+        if should_accelerate:
+            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, self.planner)
+        elif should_yield:
+            traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+        else:
+            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, self.planner)
 
-#         return traj 
+        return traj 
     
 
 # ########################
@@ -1316,11 +1315,11 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 #     the desired speed.
 #     """
 
-#     def __init__(self, mode : str = 'real', planner : str = 'milestone'):
+#     def __init__(self, mode : str = 'real', params : dict = {}):
 #         self.route_progress = None
 #         self.t_last = None
-#         self.acceleration = 0.75 # 0.5 is not enough to start
-#         self.desired_speed = 1.0 # cannot got more than 1.5 m/s
+#         self.acceleration = params["acceleration"]
+#         self.desired_speed = params["desired_speed"]
 
 #         # Yielding parameters
 #         # Yielding speed [..., 1.0, 0.8, ..., 0.2]
@@ -1331,7 +1330,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 
 #         # Planner mode
 #         self.mode = mode
-#         self.planner = planner
+#         self.planner = params["planner"]
 
 #     def state_inputs(self):
 #         return ['all']
@@ -1562,121 +1561,120 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 #         return traj 
 
 
-########################
-##### Henry's Code #####
-########################
-class YieldTrajectoryPlanner(Component):
-    """Follows the given route.  Brakes if you have to yield or
-    you are at the end of the route, otherwise accelerates to
-    the desired speed.
-    """
+# ########################
+# ##### Henry's Code #####
+# ########################
+# class YieldTrajectoryPlanner(Component):
+#     """Follows the given route.  Brakes if you have to yield or
+#     you are at the end of the route, otherwise accelerates to
+#     the desired speed.
+#     """
 
-    def __init__(self, mode : str = 'real', planner : str = 'milestone'):
-        self.route_progress = None
-        self.t_last = None
-        self.acceleration = 0.5
-        self.desired_speed = 1.0
-        self.deceleration = 2.0
+#     def __init__(self, mode : str = 'real', params : dict = {}):
+#         self.route_progress = None
+#         self.t_last = None
+#         self.acceleration = params["acceleration"]
+#         self.desired_speed = params["desired_speed"]
+#         self.deceleration = 2.0
 
-        self.min_deceleration = 1.0
-        self.max_deceleration = 8.0
+#         self.min_deceleration = 1.0
+#         self.max_deceleration = 8.0
 
-        self.mode = mode
-        self.planner = planner
+#         self.mode = mode
+#         self.planner = params["planner"]
 
-    def state_inputs(self):
-        return ['all']
+#     def state_inputs(self):
+#         return ['all']
 
-    def state_outputs(self) -> List[str]:
-        return ['trajectory']
+#     def state_outputs(self) -> List[str]:
+#         return ['trajectory']
 
-    def rate(self):
-        return 10.0
+#     def rate(self):
+#         return 10.0
 
-    def update(self, state : AllState):
-        start_time = time.time()
+#     def update(self, state : AllState):
+#         start_time = time.time()
 
-        vehicle = state.vehicle # type: VehicleState
-        route = state.route   # type: Route
-        t = state.t
+#         vehicle = state.vehicle # type: VehicleState
+#         route = state.route   # type: Route
+#         t = state.t
 
-        if self.t_last is None:
-            self.t_last = t
-        dt = t - self.t_last
+#         if self.t_last is None:
+#             self.t_last = t
+#         dt = t - self.t_last
   
-        # Position in vehicle frame (Start (0,0) to (15,0))
-        curr_x = vehicle.pose.x
-        curr_y = vehicle.pose.y
-        curr_v = vehicle.v
+#         # Position in vehicle frame (Start (0,0) to (15,0))
+#         curr_x = vehicle.pose.x
+#         curr_y = vehicle.pose.y
+#         curr_v = vehicle.v
 
-        abs_x = curr_x + state.start_vehicle_pose.x
-        abs_y = curr_y + state.start_vehicle_pose.y
+#         abs_x = curr_x + state.start_vehicle_pose.x
+#         abs_y = curr_y + state.start_vehicle_pose.y
 
-        ###############################################
-        # print("@@@@@ VEHICLE STATE @@@@@")
-        # print(vehicle)
-        # print("@@@@@@@@@@@@@@@@@@@@@@@@@")
+        # ###############################################
+        # # print("@@@@@ VEHICLE STATE @@@@@")
+        # # print(vehicle)
+        # # print("@@@@@@@@@@@@@@@@@@@@@@@@@")
 
-        if self.mode == 'real':
-            # Position in vehicle frame (Start (0,0) to (15,0))
-            curr_x = vehicle.pose.x * 20
-            curr_y = vehicle.pose.y * 20
-            curr_v = vehicle.v
-            # print("@@@@@ PLAN", curr_x, curr_y, curr_v)
-            abs_x = curr_x
-            abs_y = curr_y
-            # print("@@@@@ PLAN", abs_x, abs_y)
-        ###############################################
+        # if self.mode == 'real':
+        #     # Position in vehicle frame (Start (0,0) to (15,0))
+        #     # curr_x = vehicle.pose.x * 20
+        #     # curr_y = vehicle.pose.y * 20
+        #     # print("@@@@@ PLAN", curr_x, curr_y, curr_v)
+        #     abs_x = curr_x
+        #     abs_y = curr_y
+        #     # print("@@@@@ PLAN", abs_x, abs_y)
+        # ###############################################
 
-        #figure out where we are on the route
-        if self.route_progress is None:
-            self.route_progress = 0.0
-        closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
-        self.route_progress = closest_parameter
+#         #figure out where we are on the route
+#         if self.route_progress is None:
+#             self.route_progress = 0.0
+#         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
+#         self.route_progress = closest_parameter
 
-        lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
-        route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
-        print("Lookahead distance:", lookahead_distance)
+#         lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
+#         route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
+#         print("Lookahead distance:", lookahead_distance)
 
-        route_to_end = route.trim(closest_parameter, len(route.points) - 1)
+#         route_to_end = route.trim(closest_parameter, len(route.points) - 1)
 
-        should_yield = False
-        yield_deceleration = 0.0
+#         should_yield = False
+#         yield_deceleration = 0.0
 
-        print("Current Speed: ", curr_v)
+#         print("Current Speed: ", curr_v)
 
-        for r in state.relations:
-            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
-                #get the object we are yielding to
-                obj = state.agents[r.obj2]
+#         for r in state.relations:
+#             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
+#                 #get the object we are yielding to
+#                 obj = state.agents[r.obj2]
 
-                if self.mode == 'real':
-                    obj.pose.x = obj.pose.x + curr_x
-                    obj.pose.y = obj.pose.y + curr_y
+#                 if self.mode == 'real':
+#                     obj.pose.x = obj.pose.x + curr_x
+#                     obj.pose.y = obj.pose.y + curr_y
 
-                deceleration, r_pedestrain_x = get_minimum_deceleration_for_collision_avoidance(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
-                print("deceleration: ", deceleration)
-                if deceleration > 0:
-                    yield_deceleration = max(deceleration, yield_deceleration)
-                    should_yield = True
+#                 deceleration, r_pedestrain_x = get_minimum_deceleration_for_collision_avoidance(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
+#                 print("deceleration: ", deceleration)
+#                 if deceleration > 0:
+#                     yield_deceleration = max(deceleration, yield_deceleration)
+#                     should_yield = True
                 
-                print("should yield: ", should_yield)
+#                 print("should yield: ", should_yield)
                 
-        should_accelerate = (not should_yield and curr_v < self.desired_speed)
+#         should_accelerate = (not should_yield and curr_v < self.desired_speed)
 
-        #choose whether to accelerate, brake, or keep at current velocity
-        if should_accelerate:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
-        elif should_yield:
-            desired_speed = math.sqrt(-2 * yield_deceleration * r_pedestrain_x + curr_v**2)
-            desired_speed = max(desired_speed, 0)
-            # traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
-            if desired_speed > 0:
-                traj = longitudinal_plan(route_with_lookahead, 0, yield_deceleration, desired_speed, curr_v, "dt")
-            else:
-                traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
-        else:
-            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "dt")
+#         #choose whether to accelerate, brake, or keep at current velocity
+#         if should_accelerate:
+#             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
+#         elif should_yield:
+#             desired_speed = math.sqrt(-2 * yield_deceleration * r_pedestrain_x + curr_v**2)
+#             desired_speed = max(desired_speed, 0)
+#             # traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+#             if desired_speed > 0:
+#                 traj = longitudinal_plan(route_with_lookahead, 0, yield_deceleration, desired_speed, curr_v, "dt")
+#             else:
+#                 traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+#         else:
+#             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "dt")
 
-        return traj 
+#         return traj 
     
