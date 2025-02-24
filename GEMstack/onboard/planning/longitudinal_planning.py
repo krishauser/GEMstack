@@ -1262,9 +1262,8 @@ class YieldTrajectoryPlanner(Component):
 
         if self.mode == 'real':
             # Position in vehicle frame (Start (0,0) to (15,0))
-            curr_x = vehicle.pose.x * 20
-            curr_y = vehicle.pose.y * 20
-            curr_v = vehicle.v
+            # curr_x = vehicle.pose.x * 20
+            # curr_y = vehicle.pose.y * 20
             # print("@@@@@ PLAN", curr_x, curr_y, curr_v)
             abs_x = curr_x
             abs_y = curr_y
