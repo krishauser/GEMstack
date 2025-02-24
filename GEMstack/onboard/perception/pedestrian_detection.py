@@ -107,18 +107,9 @@ class PedestrianDetector2D(Component):
         self.t_vehicle_to_world = None
         self.t_vehicle_to_start = None
 
-        # Rospy Subscribers and sychronizers
-        # self.rgb_rosbag = message_filters.Subscriber('/oak/rgb/image_raw', Image)
-        # self.top_lidar_rosbag = message_filters.Subscriber('/ouster/points', PointCloud2)
-        # self.sync = message_filters.ApproximateTimeSynchronizer([self.rgb_rosbag, self.top_lidar_rosbag], queue_size=10, slop=0.1)
-        # self.sync.registerCallback(self.ouster_oak_callback)
-
         # GEMStack Subscribers and sychronizers
         # LIDAR Camera fusion
         self.vehicle_interface.subscribe_sensor('sensor_fusion_Lidar_Camera',self.ouster_oak_callback)
-
-        # LIDAR Camera GNSS fusion
-        # self.vehicle_interface.subscribe_sensor('sensor_fusion_Lidar_Camera_GNSS',self.ouster_oak_callback)
 
         # TF listener to get transformation from LiDAR to Camera
         self.tf_listener = tf.TransformListener()
@@ -142,13 +133,6 @@ class PedestrianDetector2D(Component):
         self.pub_bboxes_markers = rospy.Publisher("/markers/bboxes", MarkerArray, queue_size=10)
         self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
-    
-    # Test code to check gnss , can be removed
-    # Debugging
-    def gnss_test(self, cv_image: cv2.Mat, lidar_points: np.ndarray, vehicle_state: GNSSReading):
-        print(f"vehicle global state: {vehicle_state}")
-
-
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
 
         # Edge cases
@@ -168,7 +152,7 @@ class PedestrianDetector2D(Component):
             return self.current_agents
         
         
-        (f"Global state : {vehicle}")
+        # (f"Global state : {vehicle}")
 
         # Convert pose to start state. Need to use previous_vehicle state as pedestrian info is delayed
         vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START,self.previous_vehicle_state.pose,self.start_pose_abs)
@@ -432,7 +416,7 @@ class PedestrianDetector2D(Component):
                             # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
                             # (l, w, h)
                             # TODO: confirm (z -> l, x -> w, y -> h)
-                            dimensions=(obj_dims[idx][2], obj_dims[idx][0], obj_centers[idx][1]),   # obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]
+                            dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]),   # obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]
                             outline=None,
                             type=AgentEnum.PEDESTRIAN,
                             activity=AgentActivityEnum.UNDETERMINED, # Temporary
@@ -516,15 +500,12 @@ class PedestrianDetector2D(Component):
 
         # Downsample xyz point clouds
         downsampled_points = downsample_points(lidar_points)
-        # print("len downsampled_points", len(downsampled_points))
         
         # Transform LiDAR points into the camera coordinate frame.
         lidar_in_camera = transform_lidar_points(downsampled_points, self.R_lidar_to_oak, self.t_lidar_to_oak)
-        # print("len lidar_in_camera", len(lidar_in_camera))
 
         # Project the transformed points into the image plane.
         projected_pts = project_points(lidar_in_camera, self.K, downsampled_points)
-        # print("projected_pts", len(projected_pts))
 
         # Process bboxes
         boxes = track_result[0].boxes
