@@ -150,6 +150,8 @@ class PedestrianDetector2D(Component):
 
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
 
+        # Edge cases
+
         if(self.current_vehicle_state == None and self.previous_vehicle_state == None):
             self.current_vehicle_state = vehicle
             # We get vehicle state from GNSS in global state
@@ -166,8 +168,8 @@ class PedestrianDetector2D(Component):
         
         print(f"Global state : {vehicle}")
 
-        # Convert pose to start state.
-        vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START,vehicle.pose,self.start_pose_abs)
+        # Convert pose to start state. Need to use previous_vehicle state as pedestrian info is delayed
+        vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START,self.previous_vehicle_state.pose,self.start_pose_abs)
         print(f"Start state : {vehicle_start_pose}")
 
         print(f"ped pose vehicle state = {self.current_agent_obj_dims['pose']}")
@@ -314,8 +316,9 @@ class PedestrianDetector2D(Component):
                 obj_centers_vehicle.append(np.array(()))
         obj_centers = obj_centers_vehicle
 
-        self.current_agent_obj_dims["pose"] = obj_center
-        self.current_agent_obj_dims["dims"] = obj_dims
+        if(len(obj_center) != 0) and (len(obj_dims) != 0):
+            self.current_agent_obj_dims["pose"] = obj_center
+            self.current_agent_obj_dims["dims"] = obj_dims
 
     # TODO: Refactor to make more efficient
     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
