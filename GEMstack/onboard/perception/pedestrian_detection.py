@@ -34,7 +34,7 @@ import os
 from typing import List, Dict
 from collections import defaultdict
 from datetime import datetime
-import copy
+from copy import deepcopy
 # ROS, CV
 import rospy
 import message_filters
@@ -158,14 +158,17 @@ class PedestrianDetector2D(Component):
         vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START,self.previous_vehicle_state.pose,self.start_pose_abs)
 
         # converting to start frame
-        for i,pose in enumerate(self.current_agent_obj_dims['pose']):
-            self.current_agent_obj_dims['pose'][i] = np.array(vehicle_start_pose.apply(pose))
-
-        for i,dims in enumerate(self.current_agent_obj_dims['dims']):
-            self.current_agent_obj_dims['dims'][i] = np.array(vehicle_start_pose.apply(dims))
+        # for dim, pose in zip(self.current_agent_obj_dims['dims'], self.current_agent_obj_dims['pose']):
+        #     print("DIM: ", type(dim), dim)
+        #     print("POSE: ", type(pose), pose)
+        self.current_agent_obj_dims['pose'] = [np.array(vehicle_start_pose.apply(pose)) for pose in self.current_agent_obj_dims['pose']]
+        temp_dims = list()
+        for dim in self.current_agent_obj_dims['dims']:
+            temp_dims.append(np.array([vehicle_start_pose.apply(corner) for corner in dim]))
+        self.current_agent_obj_dims['dims'] = temp_dims 
 
         # Prepare variables for find_vels_and_ids
-        self.prev_agents = self.current_agents.copy()
+        self.prev_agents = deepcopy(self.current_agents)
         self.current_agents.clear()
         # Note this below function will probably throw a type error. I think we'll need to index the 
         # tuples by index 0 in the lists but I'm not sure:
@@ -174,11 +177,7 @@ class PedestrianDetector2D(Component):
         # Calculating the velocity of agents and tracking their ids
         self.find_vels_and_ids(agents=agents)
 
-        # Convert to current vehicle frame here for planning group.
-        # Create a new dictionary here which is a deepcopy of self.current_agents
-        # convert this new dictionary to current vehicle frame
-        # return this new dictionary
-        # OR just make planning group do the conversion. Depends on what data we want to log?
+        # Convert to current vehicle frame from starting frame here for planning group.
 
         return self.current_agents
 
@@ -198,11 +197,20 @@ class PedestrianDetector2D(Component):
         clusters = [np.array(clust) for clust in clusters]
         # x, y, z 1 value 
         dims = [np.array(()) if clust.size == 0 else np.max(clust, axis= 0) - np.min(clust, axis= 0) for clust in clusters]
-        # x, y, z convert to 2 values around origin
         for i in range(len(dims)):
-            if dims[i].size() == 0: continue
+            if dims[i].size == 0: continue
             else:
-                dims[i] = np.vstack(0-dims[i]/2, dims[i]/2)
+                # -dims[i]/2, dims[i]/2
+                # 8 point bbox
+                dims[i] = np.vstack([[-dims[i][0]/2.0, -dims[i][1]/2.0, -dims[i][2]/2.0],
+                                    [-dims[i][0]/2.0, -dims[i][1]/2.0, dims[i][2]/2.0],
+                                    [-dims[i][0]/2.0, dims[i][1]/2.0, -dims[i][2]/2.0],
+                                    [-dims[i][0]/2.0, dims[i][1]/2.0, dims[i][2]/2.0],
+                                    [dims[i][0]/2.0, -dims[i][1]/2.0, -dims[i][2]/2.0],
+                                    [dims[i][0]/2.0, -dims[i][1]/2.0, dims[i][2]/2.0],
+                                    [dims[i][0]/2.0, dims[i][1]/2.0, -dims[i][2]/2.0],
+                                    [dims[i][0]/2.0, dims[i][1]/2.0, dims[i][2]/2.0]]
+                                    )
 
         # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
         # Need that for transform
@@ -249,6 +257,8 @@ class PedestrianDetector2D(Component):
                 flattened_pedestrians_3d_pts_vehicle = transform_lidar_points(np.array(flattened_pedestrians_3d_pts), self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)
                 flattened_pedestrians_3d_pts = flattened_pedestrians_3d_pts_vehicle
 
+            
+
             # Create point cloud from extracted 3D points
             ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_pedestrians_3d_pts)
             self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
@@ -275,48 +285,50 @@ class PedestrianDetector2D(Component):
             return
 
         # Change pedestrians_3d_pts to dicts matching track_ids
-        track_ids = track_result[0].boxes.id.int().cpu().tolist()
-        num_objs = len(track_ids)
-        boxes = track_result[0].boxes
 
         # Extract 3D pedestrians points in lidar frame
         # ** These are camera frame after transform_lidar_points, right?
         # ** It was in camera frame before. I fixed it. Now they are in lidar frame!
         pedestrians_3d_pts = [[] if len(extracted_pts) == 0 else list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all] 
-        if len(pedestrians_3d_pts) != num_objs:
-            raise Exception('Perception - Camera detections, points clusters num. mismatch')
+        if len(pedestrians_3d_pts) != len(track_result[0].boxes):
+            raise Exception( f"Length of extracted pedestrian clusters ({len(pedestrians_3d_pts)}) and number of camera bboxes ({len(track_result[0].boxes)}) are not equal")
         
+
         # TODO: Slower but cleaner to pass dicts of AgentState
         #       or at least {track_ids: centers/pts/etc}
         # TODO: Combine funcs for efficiency in C.
         #       Separate numpy prob still faster for now
         obj_centers = self.find_centers(pedestrians_3d_pts) # Centers are calculated in lidar frame here
-        # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
-        obj_dims = self.find_dims(pedestrians_3d_pts)
+        obj_dims = self.find_dims(pedestrians_3d_pts)   # 8 point dims of bounding box
         # Pose is stored in vehicle frame and converted to start frame in the update function 
         obj_centers_vehicle = []
-        for obj_center in obj_centers:
-            if len(obj_center) > 0:
-                obj_center = np.array([obj_center])
-                obj_center_vehicle = transform_lidar_points(obj_center, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
-                obj_centers_vehicle.append(obj_center_vehicle)
-            else:
-                obj_centers_vehicle.append(np.array(()))
-        obj_centers = obj_centers_vehicle
+        if self.vehicle_frame:
+            for obj_center in obj_centers:
+                if obj_center.size > 0:
+                    obj_center = np.array([obj_center])
+                    obj_center_vehicle = transform_lidar_points(obj_center, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
+                    obj_centers_vehicle.append(obj_center_vehicle)
+                else:
+                    obj_centers_vehicle.append(np.array(()))
+            obj_centers = obj_centers_vehicle
 
-        if(len(obj_center) != 0) and (len(obj_dims) != 0):
-          obj_dims_vehicle = []
-          for obj_dim in obj_dims:
-              if len(obj_dim) > 0:
-                  obj_dim_min = np.array([obj_dim[0]])
-                  obj_dim_max = np.array([obj_dim[1]])
-                  obj_dim_min_vehicle = transform_lidar_points(obj_dim_min, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
-                  obj_dim_max_vehicle = transform_lidar_points(obj_dim_max, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
-              else: obj_dims_vehicle.append(np.array(()))
-          obj_dims = obj_dims_vehicle
+            if(len(obj_center) != 0) and (len(obj_dims) != 0):
+                obj_dims_vehicle = []
+                for obj_dim in obj_dims:
+                    if len(obj_dim) > 0:
+                        # obj_dim_min = np.array([obj_dim[0]])
+                        # obj_dim_max = np.array([obj_dim[1]])
+                        # obj_dim_min_vehicle = transform_lidar_points(obj_dim_min, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
+                        # obj_dim_max_vehicle = transform_lidar_points(obj_dim_max, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
+                        # # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
+                        # obj_dims_vehicle.append(np.vstack([obj_dim_min_vehicle, obj_dim_max_vehicle]))
+                        obj_dim_vehicle = transform_lidar_points(obj_dim, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)
+                        obj_dims_vehicle.append(obj_dim_vehicle)
+                    else: obj_dims_vehicle.append(np.array(()))
+            obj_dims = obj_dims_vehicle
 
-          self.current_agent_obj_dims["pose"] = obj_centers
-          self.current_agent_obj_dims["dims"] = obj_dims
+        self.current_agent_obj_dims["pose"] = obj_centers
+        self.current_agent_obj_dims["dims"] = obj_dims
 
 
     # TODO: Refactor to make more efficient
@@ -344,17 +356,17 @@ class PedestrianDetector2D(Component):
 
                     if self.prev_time == None:
                         # This will be triggered if the very first message has pedestrians in it
-                        vel = np.array([0, 0, 0])
+                        vel = [0, 0, 0]
                     else:
                         delta_t = self.curr_time - self.prev_time
-                        vel = (np.array([agents[idx].pose.x, agents[idx].pose.y, agents[idx].pose.z]) - np.array([prev_state.pose.x, prev_state.pose.y, prev_state.pose.z])) / delta_t.total_seconds()
-                    print("VELOCITY:")
-                    print(vel)
+                        vel = list((np.array([agents[idx].pose.x, agents[idx].pose.y, agents[idx].pose.z]) - np.array([prev_state.pose.x, prev_state.pose.y, prev_state.pose.z])) / delta_t.total_seconds())
+                    # print("VELOCITY:")
+                    # print(vel)
                     
                     # Fix start frame agent and store in this dict:
-                    agents[idx].track_id = prev_id
-                    agents[idx].activity = AgentActivityEnum.STOPPED if (np.all(vel == 0) or vel.size == 0) else AgentActivityEnum.MOVING
-                    agents[idx].velocity = (0, 0, 0) if vel.size == 0 else tuple(vel)
+                    # TODO: Use np.isclose
+                    agents[idx].activity = AgentActivityEnum.STOPPED if (np.all(vel == 0) or len(vel) == 0) else AgentActivityEnum.MOVING
+                    agents[idx].velocity = (0, 0, 0) if len(vel) == 0 else tuple(vel)
 
                     self.current_agents[prev_id] = agents[idx]
                     del self.prev_agents[prev_id] # Remove previous agent from previous agents so it doesn't get assigned multiple times on accident
@@ -365,7 +377,6 @@ class PedestrianDetector2D(Component):
                 id = self.id_tracker.get_new_id()
                 
                 # Fix start frame agent and store in this dict:
-                agents[idx].track_id = id
                 agents[idx].activity = AgentActivityEnum.UNDETERMINED
                 agents[idx].velocity = (0, 0, 0)
                 self.current_agents[id] = agents[idx]
@@ -394,34 +405,40 @@ class PedestrianDetector2D(Component):
 
         # Gate to check whether dims and centers are empty (will happen if no pedestrians are scanned):
         for idx in range(len(obj_dims) -1, -1, -1):
-            if (obj_centers[idx].size == 0) or (obj_dims[0].size == 0):
+            # print("type:", type(obj_centers[idx]), type(obj_dims[idx]))
+            if obj_centers[idx].size == 0 or obj_dims[idx].size == 0:
                 del obj_centers[idx]
                 del obj_dims[idx]
+        if (len(obj_centers) != len(obj_dims)):
+            raise Exception(f"Length of object centers ({len(obj_centers)}) and dimensions ({len(obj_dims)}) are not equal")
                 
         # Convert from 2 point to 1 point dims
-        obj_dims = [np.abs( dim[0] - dim[1])  for dim in obj_dims]   
+        # obj_dims = [np.abs( dim[0] - dim[1])  for dim in obj_dims]   
        #     elif (obj_centers[idx].size != obj_dims[0].size):
        #         del obj_centers[idx]
        #         del obj_dims[idx]
         # Create list of agent states in current vehicle frame:
+
+        xyz_lengths_start = [np.max(obj_dim, axis=0) - np.min(obj_dim, axis=0) for obj_dim in obj_dims]
+        xyz_lengths_start = [xyz_length.astype(float) for xyz_length in  xyz_lengths_start]
         agents = []
         num_pairings = len(obj_centers)
         for idx in range(num_pairings):
             # Create agent in current frame:
             agents.append(AgentState(
-                            track_id=0, # Temporary
-                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2] - obj_dims[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
+                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2] - xyz_lengths_start[idx][2]/2.0, yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
                             # Beware: AgentState(PhysicalObject) builds bbox from 
                             # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
                             # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
                             # (l, w, h)
                             # TODO: confirm (z -> l, x -> w, y -> h)
-                            dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]),   # obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]
+                            dimensions=(xyz_lengths_start[idx][0], xyz_lengths_start[idx][1], xyz_lengths_start[idx][2]),
                             outline=None,
                             type=AgentEnum.PEDESTRIAN,
-                            activity=AgentActivityEnum.UNDETERMINED, # Temporary
-                            velocity=None, # Temporary
-                            yaw_rate=0
+                            activity=AgentActivityEnum.UNDETERMINED, # TODO
+                            velocity=None, # TODO
+                            yaw_rate=0,
+                            track_id = None # TODO
                         ))
 
         return agents
