@@ -100,9 +100,9 @@ def check_collision_in_vehicle_frame(agent: AgentState, vehicle: VehicleState):
     check = None
     if min_dist is not None:
         if min_dist <= 0:
-            if t_min <= 1:
+            if t_min <= 0:
                 check = 'STOP'
-            elif t_min <= 5:
+            elif t_min <= 2:
                 check = 'YIELD'
             else:
                 check = 'RUN'
@@ -224,6 +224,10 @@ def find_min_distance_and_time(xp, yp, vx, vy, buffer):
                 else:
                     min_dist, pt_min = point_to_line(-x_buff, -y_buff, A, B, C)
                     t_min = (pt_min[0] - xp) / vx
+        elif xp >= -x_buff:
+            t_min = 0
+            min_dist = -1
+            pt_min = xp, yp
         else:   # rear position, should not be seen by the front camera
             t_min = None
             min_dist = None
