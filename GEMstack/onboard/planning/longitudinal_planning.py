@@ -211,7 +211,7 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
             # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
             # and the vehicle should be stopped exactly before the pedestrain's x position
             if abs(peak_y) > abs(r_pedestrain_y_temp):
-                minimum_deceleration =x abs(softest_accleration)
+                minimum_deceleration =abs(softest_accleration)
             # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
         if minimum_deceleration is None:
             minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
@@ -1012,11 +1012,16 @@ class YieldTrajectoryPlanner(Component):
         if should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
         elif should_yield:
-            desired_speed = math.sqrt(-2 * yield_deceleration * r_pedestrain_x + curr_v**2)
-            desired_speed = max(desired_speed, 0)
+            desired_speed_squared = -2 * yield_deceleration * r_pedestrain_x + curr_v**2
+            desired_speed = math.sqrt(max(desired_speed_squared, 0))
+            print('desired speed', desired_speed)
+            print('yield deceleration', yield_deceleration)
+            print('r_pedestrain_x', r_pedestrain_x)
+            print('curr_v', curr_v)
+            desired_speed = 0 if desired_speed < 0 else desired_speed
             # traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
             if desired_speed > 0:
-                traj = longitudinal_plan(route_with_lookahead, 0, yield_deceleration, desired_speed, curr_v, "dt")
+                traj = longitudinal_plan(route_with_lookahead, 0.1, yield_deceleration, desired_speed, curr_v, "dt")
             else:
                 traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
         else:
