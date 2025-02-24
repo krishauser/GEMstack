@@ -179,6 +179,7 @@ class GEMHardwareInterface(GEMInterface):
                 else:
                     def callback_with_gnss_reading(msg: INSNavGeod):
                         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t = 0,
                                     x=msg.longitude,
                                     y=msg.latitude,
                                     z=msg.height,
@@ -188,7 +189,7 @@ class GEMHardwareInterface(GEMInterface):
                                     )
                         speed = np.sqrt(msg.ve**2 + msg.vn**2)
                         callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
-                    self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+                    self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
@@ -234,6 +235,7 @@ class GEMHardwareInterface(GEMInterface):
                 points = conversions.ros_PointCloud2_to_numpy(lidar_pc2_msg, want_rgb=False)
                 cv_image = conversions.ros_Image_to_cv2(rgb_image_msg, desired_encoding="bgr8")
                 pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                    t = 0,
                                     x=gnss_msg.longitude,
                                     y=gnss_msg.latitude,
                                     z=gnss_msg.height,

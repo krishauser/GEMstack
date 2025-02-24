@@ -51,6 +51,7 @@ from ..interface.gem import GEMInterface, GNSSReading
 from ..component import Component
 from .IdTracker import IdTracker
 from scipy.spatial.transform import Rotation as R
+from septentrio_gnss_driver.msg import INSNavGeod
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -113,7 +114,7 @@ class PedestrianDetector2D(Component):
 
         # GEMStack Subscribers and sychronizers
         # LIDAR Camera fusion
-        self.vehicle_interface.subscribe_sensor('sensor_fusion_Lidar_Camera_GNSS',self.ouster_oak_callback)
+        self.vehicle_interface.subscribe_sensor('sensor_fusion_Lidar_Camera',self.ouster_oak_callback)
 
         # LIDAR Camera GNSS fusion
         # self.vehicle_interface.subscribe_sensor('sensor_fusion_Lidar_Camera_GNSS',self.ouster_oak_callback)
@@ -131,6 +132,7 @@ class PedestrianDetector2D(Component):
         self.t_start = datetime.now() # Estimated start frame time
         self.start_pose_abs = None # Get this from GNSS (GLOBAL frame)
         self.current_vehicle_state = None # Current vehicle state from GNSS in GLOBAL frame
+        self.previous_vehicle_state = None # Previous vehicle state from GNSS in GLOBAL frame
     
     def init_debug(self,) -> None:
          # Debug Publishers
@@ -139,22 +141,55 @@ class PedestrianDetector2D(Component):
         self.pub_bboxes_markers = rospy.Publisher("/markers/bboxes", MarkerArray, queue_size=10)
         self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
 
-    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        # Convert to start state.
-        # self.current_vehicle_state | data from GNSS of vehicle pose in GLOBAL Frame
-        # self.start_pose_abs | data from GNSS of the first vehicle pose in GLOBAL Frame
-        vehicle.pose.to_frame(ObjectFrameEnum.START,self.current_vehicle_state.pose,self.start_pose_abs)
+    
+    # Test code to check gnss , can be removed
+    # Debugging
+    def gnss_test(self, cv_image: cv2.Mat, lidar_points: np.ndarray, vehicle_state: GNSSReading):
+        print(f"vehicle global state: {vehicle_state}")
 
-        # Converting to start frame
-        obj_centers = vehicle.pose.apply(self.current_agent_obj_dims["pose"])
-        obj_dims = vehicle.pose.apply(self.current_agent_obj_dims["dims"])
+
+    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
+
+        if(self.current_vehicle_state == None and self.previous_vehicle_state == None):
+            self.current_vehicle_state = vehicle
+            # We get vehicle state from GNSS in global state
+            # Storing initial pose
+            if (self.start_pose_abs == None):
+                self.start_pose_abs = vehicle.pose
+            return self.current_agents
+        else:
+            self.previous_vehicle_state = self.current_vehicle_state
+            self.current_vehicle_state = vehicle
+
+        if(self.current_agent_obj_dims == {}):
+            return self.current_agents
+        
+        print(f"Global state : {vehicle}")
+
+        # Convert pose to start state.
+        vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START,vehicle.pose,self.start_pose_abs)
+        print(f"Start state : {vehicle_start_pose}")
+
+        print(f"ped pose vehicle state = {self.current_agent_obj_dims['pose']}")
+        print(f"ped dimenstions vehicle state = {self.current_agent_obj_dims['dims']}")
+
+        # converting to start frame
+        for i,pose in enumerate(self.current_agent_obj_dims['pose']):
+            self.current_agent_obj_dims['pose'][i] = np.array(vehicle_start_pose.apply(pose))
+
+        for i,dims in enumerate(self.current_agent_obj_dims['dims']):
+            self.current_agent_obj_dims['dims'][i] = np.array(vehicle_start_pose.apply(dims))
+
+
+        print(f"ped pose start state = {self.current_agent_obj_dims['pose']}")
+        print(f"ped dimenstions start state = {self.current_agent_obj_dims['dims']}")
 
         # Prepare variables for find_vels_and_ids
-        self.prev_agents = self.current_agents.deepcopy()
+        self.prev_agents = self.current_agents.copy()
         self.current_agents.clear()
         # Note this below function will probably throw a type error. I think we'll need to index the 
         # tuples by index 0 in the lists but I'm not sure:
-        agents = self.create_agent_states(obj_centers=obj_centers, obj_dims=obj_dims)
+        agents = self.create_agent_states(obj_centers=self.current_agent_obj_dims['pose'], obj_dims=self.current_agent_obj_dims['dims'])
 
         # Calculating the velocity of agents and tracking their ids
         self.find_vels_and_ids(agents=agents)
@@ -244,7 +279,7 @@ class PedestrianDetector2D(Component):
         
 
     def update_object_states(self, track_result: List[Results], extracted_pts_all: List[np.ndarray]) -> None:
-        self.current_agent_obj_dims.clear()
+        # self.current_agent_obj_dims.clear()
         # Return if no track results available
         if track_result[0].boxes.id == None:
             return
@@ -442,20 +477,14 @@ class PedestrianDetector2D(Component):
     #                 vels[prev_track_id] = (track_id_center_map[prev_track_id] - np.array([prev_agent.pose.x, prev_agent.pose.y, prev_agent.pose.z])) / (self.curr_time - self.prev_time)
     #     return vels
 
-    def ouster_oak_callback(self, cv_image: cv2.Mat, lidar_points: np.ndarray, vehicle_state: GNSSReading):
+    def ouster_oak_callback(self, cv_image: cv2.Mat, lidar_points: np.ndarray):
+
         # Update times for basic velocity calculation
         self.prev_time = self.curr_time
         self.curr_time = datetime.now()
 
-        # Getting start pose in GLOBAL Frame
-        if self.start_pose_abs == None and vehicle_state.status == 'ok':
-            self.start_pose_abs = vehicle_state.pose 
-
-        # Update current vehicle state and convert to START Frame
-        if (vehicle_state.status == 'ok'):
-            self.current_vehicle_state = vehicle_state
-        else:
-            raise Exception('Unable to get current pose of vehicle, lost GPS')
+        self.cv_image = cv_image
+        self.lidar_points = lidar_points
 
         # Convert to cv2 image and run detector
         # cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
