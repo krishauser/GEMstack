@@ -163,6 +163,7 @@ class PurePursuit(object):
                 #past the end, just stop
                 desired_speed = 0.0
                 feedforward_accel = -2.0
+                f_delta = 0
             else:
                 if self.desired_speed_source=='path':
                     current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
@@ -189,13 +190,14 @@ class PurePursuit(object):
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
         
-        # test
+        # # test
         if self.current_path_parameter >= self.path.domain()[1]:
             if component is not None:
                 component.debug_event('Past the end of trajectory')
                 #past the end, just stop
             desired_speed = 0.0
             feedforward_accel = -3.0
+            f_delta = 0
 
 
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
@@ -224,7 +226,7 @@ class PurePursuit(object):
 
 
 class PurePursuitTrajectoryTracker(Component):
-    def __init__(self,vehicle_interface : None, **args):
+    def __init__(self,vehicle_interface : GEMHardwareInterface, **args):
         self.pure_pursuit = PurePursuit(**args)
         self.vehicle_interface = vehicle_interface
         # print("==============")
@@ -239,7 +241,9 @@ class PurePursuitTrajectoryTracker(Component):
         return []
 
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
+        print("before puresuit set path")
         self.pure_pursuit.set_path(trajectory)
+        print("after set path")
         accel,wheel_angle = self.pure_pursuit.compute(vehicle, self)
         # print("Desired accel", accel)
         # print("Desired wheel angle",wheel_angle)

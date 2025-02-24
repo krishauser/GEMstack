@@ -17,8 +17,8 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] #forward_15mxyhead_highbay_backlot_p.csv
-        motion_planning: # longitudinal_planning.YieldTrajectoryPlanner
+            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] #forward_15m
+        motion_planning: #longitudinal_planning.YieldTrajectoryPlanner
             type: RouteToTrajectoryPlanner
             args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
@@ -34,7 +34,7 @@ log:
     # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
     #suffix : 'test3'  
     # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
-    ros_topics : ['/septentrio_gnss/insnavgeod']
+    ros_topics : ['/septentrio_gnss/insnavgeod','/pacmod/parsed_tx/vehicle_speed_rpt']
     # Specify options to pass to rosbag record. Default is no options.
     #rosbag_options : '--split --size=1024' 
     # If True, then record all readings / commands of the vehicle interface. Default False
@@ -58,7 +58,7 @@ computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.ya
 after:
     show_log_folder: True  #set to false to avoid showing the log folder
 
-#on load, variants will overload the settings structure
+#on load, variants will overload the settingsNone structure
 variants:
     #sim variant doesn't execute on the real vehicle 
     #real variant executes on the real robot

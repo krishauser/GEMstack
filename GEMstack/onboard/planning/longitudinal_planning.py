@@ -6,7 +6,7 @@ from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum,
 from ...utils import serialization
 from ...mathutils import transforms
 import numpy as np
-DEBUG = False  # Set to False to disable debug output
+DEBUG = True  # Set to False to disable debug output
 
 def generate_dense_points(points: List[Tuple[float, float]], density: int = 10) -> List[Tuple[float, float]]:
     if not points:
@@ -275,8 +275,8 @@ class YieldTrajectoryPlanner(Component):
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 0.5
-        self.desired_speed = 1.0
+        self.acceleration = 5
+        self.desired_speed = 2.0
         self.deceleration = 2.0
         self.emergency_brake = 8.0
 
