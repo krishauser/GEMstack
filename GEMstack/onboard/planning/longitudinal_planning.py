@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum, AgentState
 from ...utils import serialization
@@ -9,7 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
-
+from scipy.optimize import minimize
 
 
 ################################################################################
@@ -358,6 +358,107 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
 
     return True, [distance_to_move, time_to_pass]
 
+
+
+def detect_collision_analytical(r_pedestrain_x: float, r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float, lateral_buffer: float) -> Union[bool, str]:
+    """Detects if a collision will occur with the given object and return deceleration to avoid it. Analytical"""
+    if r_pedestrain_x < 0 and abs(r_pedestrain_y) > lateral_buffer:
+        return False
+    elif r_pedestrain_x < 0:
+        return 'max'
+    if r_pedestrain_y >= p_vehicle_left_y_after_t and r_pedestrain_y <= p_vehicle_right_y_after_t:
+        return True
+    
+    return False
+
+
+def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: float, curr_v: float, obj: AgentState, min_deceleration: float, max_deceleration: float) -> Tuple[bool, float]:
+    """Detects if a collision will occur with the given object and return deceleration to avoid it. Via Optimization"""
+
+    # Get the object's position and velocity
+    obj_x = obj.pose.x
+    obj_y = obj.pose.y
+    obj_v_x = obj.velocity[0]
+    obj_v_y = obj.velocity[1]
+
+
+    vehicle_length = 3
+    vehicle_width = 2
+
+    vehicle_buffer_x = 3.0
+    vehicle_buffer_y = 1.0
+
+    obj_x = obj_x - curr_x
+    obj_y = obj_y - curr_y
+
+    curr_x = curr_x - curr_x
+    curr_y = curr_y - curr_y
+
+    vehicle_front = curr_x + vehicle_length + vehicle_buffer_x
+    vehicle_back = curr_x
+    vehicle_left = curr_y - vehicle_width / 2
+    vehicle_right = curr_y + vehicle_width / 2
+
+    r_vehicle_front = vehicle_front - vehicle_front
+    r_vehicle_back = vehicle_back - vehicle_front
+    r_vehicle_left = vehicle_left - vehicle_buffer_y
+    r_vehicle_right = vehicle_right + vehicle_buffer_y
+    r_vehicle_v_x = curr_v
+    r_vehicle_v_y = 0
+
+    r_pedestrain_x = obj_x - vehicle_front
+    r_pedestrain_y = -obj_y
+    r_pedestrain_v_x = obj_v_x
+    r_pedestrain_v_y = -obj_v_y
+
+    r_velocity_x_from_vehicle = r_vehicle_v_x - r_pedestrain_v_x
+    r_velocity_y_from_vehicle = r_vehicle_v_y - r_pedestrain_v_y
+
+    t_to_r_pedestrain_x = (r_pedestrain_x - r_vehicle_front) / r_velocity_x_from_vehicle
+    
+    p_vehicle_left_y_after_t = r_vehicle_left + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
+    p_vehicle_right_y_after_t = r_vehicle_right + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
+
+    collision_flag = detect_collision_analytical(r_pedestrain_x, r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t, vehicle_buffer_y)
+    if collision_flag == False:
+        print("No collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
+        return 0.0, r_pedestrain_x
+    elif collision_flag == 'max':
+        return max_deceleration, r_pedestrain_x
+    
+    print("Collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
+    yaw = None
+    minimum_deceleration = None
+    if yaw is None:
+        if abs(r_velocity_y_from_vehicle) > 0.1:
+            if r_velocity_y_from_vehicle > 0.1:
+                # Vehicle Left would be used to yield
+                r_pedestrain_y_temp = r_pedestrain_y + abs(r_vehicle_left)
+            elif r_velocity_y_from_vehicle < -0.1:
+                # Vehicle Right would be used to yield
+                r_pedestrain_y_temp = r_pedestrain_y - abs(r_vehicle_right)
+            
+            softest_accleration = 2 * r_velocity_y_from_vehicle * (r_velocity_y_from_vehicle * r_pedestrain_x - r_velocity_x_from_vehicle * r_pedestrain_y_temp) / r_pedestrain_y_temp**2
+            peak_y = -(r_velocity_x_from_vehicle * r_velocity_y_from_vehicle) / softest_accleration
+            # if the peak is within the position of the pedestrian, 
+            # then it indicates the path had already collided with the pestrain, 
+            # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
+            # and the vehicle should be stopped exactly before the pedestrain's x position
+            if abs(peak_y) > abs(r_pedestrain_y_temp):
+                minimum_deceleration = abs(softest_accleration)
+            # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
+        if minimum_deceleration is None:
+            minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
+    else:
+        pass
+
+    print("calculatedminimum_deceleration: ", minimum_deceleration)
+
+    if minimum_deceleration < min_deceleration:
+        return 0.0, r_pedestrain_x
+    else:
+        return max(min(minimum_deceleration, max_deceleration), min_deceleration), r_pedestrain_x
+    
 
 
 ################################################################################
@@ -1079,6 +1180,9 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 ################################################################################
 
 
+##########################
+##### Patrick's Code #####
+##########################
 
 # class YieldTrajectoryPlanner(Component):
 #     """Follows the given route.  Brakes if you have to yield or
@@ -1202,6 +1306,265 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
 #         return traj 
     
 
+# ########################
+# ##### Yudai's Code #####
+# ########################
+
+# class YieldTrajectoryPlanner(Component):
+#     """Follows the given route.  Brakes if you have to yield or
+#     you are at the end of the route, otherwise accelerates to
+#     the desired speed.
+#     """
+
+#     def __init__(self, mode : str = 'real', planner : str = 'milestone'):
+#         self.route_progress = None
+#         self.t_last = None
+#         self.acceleration = 0.75 # 0.5 is not enough to start
+#         self.desired_speed = 1.0 # cannot got more than 1.5 m/s
+
+#         # Yielding parameters
+#         # Yielding speed [..., 1.0, 0.8, ..., 0.2]
+#         self.yield_speed        = [v for v in np.arange(self.desired_speed, 0.1, -0.25)]
+#         self.yield_deceleration = 0.5
+#         self.deceleration       = 2.0
+#         self.max_deceleration   = 8.0
+
+#         # Planner mode
+#         self.mode = mode
+#         self.planner = planner
+
+#     def state_inputs(self):
+#         return ['all']
+
+#     def state_outputs(self) -> List[str]:
+#         return ['trajectory']
+
+#     def rate(self):
+#         return 10.0
+
+#     def update(self, state : AllState):
+#         start_time = time.time()
+
+#         vehicle = state.vehicle # type: VehicleState
+#         route = state.route   # type: Route
+#         t = state.t
+
+#         if self.t_last is None:
+#             self.t_last = t
+#         dt = t - self.t_last
+  
+
+#         curr_x = vehicle.pose.x
+#         curr_y = vehicle.pose.y
+#         curr_v = vehicle.v
+
+#         abs_x = curr_x + state.start_vehicle_pose.x
+#         abs_y = curr_y + state.start_vehicle_pose.y
+
+#         ###############################################
+#         # # TODO: Fix the coordinate conversion of other files
+
+#         # print("@@@@@ VEHICLE STATE @@@@@")
+#         # print(vehicle)
+#         # print("@@@@@@@@@@@@@@@@@@@@@@@@@")
+
+#         if self.mode == 'real':
+#             # Position in vehicle frame (Start (0,0) to (15,0))
+#             # curr_x = vehicle.pose.x * 20
+#             # curr_y = vehicle.pose.y * 20
+#             # print("@@@@@ PLAN", curr_x, curr_y, curr_v)
+#             abs_x = curr_x
+#             abs_y = curr_y
+#             # print("@@@@@ PLAN", abs_x, abs_y)
+#         ###############################################
+
+
+#         #figure out where we are on the route
+#         if self.route_progress is None:
+#             self.route_progress = 0.0
+#         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
+#         self.route_progress = closest_parameter
+
+#         lookahead_distance = max(10, curr_v**2 / (2 * self.yield_deceleration))
+#         route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
+#         print("Lookahead distance:", lookahead_distance)
+#         #extract out a 10m segment of the route
+#         # route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
+
+
+#         # Default values
+#         should_brake = False
+#         input_values = [{"decel": self.deceleration, "desired_speed": self.desired_speed, "collision_distance": lookahead_distance}]
+
+#         print(state.relations)
+
+#         for r in state.relations:
+#             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
+#                 #yielding to something, brake
+
+#                 #=========================
+#                 """
+#                 Collision detection:
+#                     - Compute the lookahead distance required to avoid collision using:
+#                         d = v^2/(2*a)
+#                     - For many steps along the route (using a resolution that adapts if the
+#                     planner runs too slowly), simulate the vehicle's future positions.
+#                     - If a pedestrian is detected within 3m longitudinal and 1m lateral buffer,
+#                     determine the distance-to-collision. Then compute the required deceleration:
+#                         a = -(v^2)/(2*d_collision)
+#                     - For distant crossing pedestrians, apply a gentle deceleration based on the
+#                     perception-estimated pedestrian velocity.
+#                 """
+
+#                 print("#### YIELDING PLANNING ####")
+
+#                 # Vehicle parameters.
+#                 x1, y1 = abs_x, abs_y
+#                 v1 = [curr_v, 0]     # Vehicle speed vector
+
+#                 for n,a in state.agents.items():
+
+#                     """
+#                     class ObjectFrameEnum(Enum):
+#                         START = 0                  #position / yaw in m / radians relative to starting pose of vehicle 
+#                         CURRENT = 1                #position / yaw in m / radians relative to current pose of vehicle
+#                         GLOBAL = 2                 #position in longitude / latitude, yaw=heading in radians with respect to true north (used in GNSS)
+#                         ABSOLUTE_CARTESIAN = 3     #position / yaw  in m / radians relative to a global cartesian reference frame (used in simulation)
+#                     """
+#                     # print("@@@@@ AGENT STATE @@@@@")
+#                     # print(a)
+#                     # print("@@@@@@@@@@@@@@@@@@@@@@@")
+
+#                     # Pedestrian parameters.
+#                     x2, y2 = a.pose.x, a.pose.y
+#                     v2 = [a.velocity[0], a.velocity[1]]     # Pedestrian speed vector
+
+#                     if self.mode == 'real':
+#                         x2 = a.pose.x + curr_x
+#                         y2 = a.pose.y + curr_y
+
+#                     # Total simulation time
+#                     if v1[0] > 0.1:
+#                         total_time = min(10, lookahead_distance / v1[0])
+#                     else:
+#                         total_time = 10
+#                     print(f"Total time: {total_time:.2f} seconds")
+
+#                     # Create and run the simulation.
+#                     print(f"Vehicle: ({x1:.1f}, {y1:.1f}, ({v1[0]:.1f}, {v1[1]:.1f}))")
+#                     print(f"Pedestrian: ({x2:.1f}, {y2:.1f}, ({v2[0]:.1f}, {v2[1]:.1f}))")
+
+#                     # Simulate if a collision will occur when the vehicle accelerate to desired speed.
+#                     sim = CollisionDetector(x1, y1, 0, x2, y2, 0, v1, v2, total_time, self.desired_speed, self.acceleration)
+#                     collision_distance = sim.run()
+                    
+#                     # No collision detected with acceleration to desired speed.
+#                     if collision_distance < 0:
+#                         print("No collision detected.")
+#                         input_values.append({"decel": self.deceleration, "desired_speed": self.desired_speed, "collision_distance": collision_distance})
+#                         continue
+
+#                     # Collision detected with acceleration to desired speed.
+#                     # => Check if the vehicle can yield to the pedestrian with deceleration.
+#                     else:
+
+#                         ###############################################
+#                         # # UNCOMMENT NOT TO YIELD: JUST STOP FOR PART1
+#                         # print("The vehicle is Stopping.")
+#                         # print("@@@@@", a.pose.x)
+
+#                         # # Update the collision distance.
+#                         # if lookahead_distance_to_pedestrian > collision_distance:
+#                         #     lookahead_distance_to_pedestrian = collision_distance
+
+#                         # # Decide the deceleration based on the collision distance.
+#                         # # To stop perfectly, assume the vehicle is running at the desired speed. 
+#                         # brake_deceleration = max(self.deceleration, desired_speed**2 / (2 * (collision_distance)))
+#                         # if brake_deceleration > self.max_deceleration:
+#                         #     brake_deceleration = self.max_deceleration
+
+#                         # if brake_deceleration > decel:
+#                         #     decel = brake_deceleration if brake_deceleration > decel else decel
+#                         #     should_brake = True
+#                         # break
+#                         ###############################################
+
+#                         print("Collision detected. Try to find yielding speed.")
+
+#                         collision_distance_after_yield = -1
+
+#                         # Simulate with different yield speeds.
+#                         # Try to maximize the yield speed to avoid collision.
+#                         for v in self.yield_speed:
+#                             # Simulate if the vehicle can yield to the pedestrian with acceleration to yielding speed.
+#                             if v > v1[0]:
+#                                 sim.set_params(v, self.acceleration)
+#                             # Simulate if the vehicle can yield to the pedestrian with deceleration to yielding speed.
+#                             else:
+#                                 sim.set_params(v, self.yield_deceleration * -1.0)
+#                             collision_distance_after_yield = sim.run()
+#                             if collision_distance_after_yield < 0:
+#                                 print(f"Yielding at speed: {v}")
+#                                 input_values.append({"decel": self.yield_deceleration, "desired_speed": v, "collision_distance": collision_distance})
+#                                 break
+                        
+#                         # Collision detected with any yielding speed.
+#                         # => Brake to avoid collision.
+#                         if collision_distance_after_yield >= 0:
+#                             print("The vehicle is Stopping.")
+#                             # Decide the deceleration based on the collision distance.
+#                             brake_deceleration = max(self.deceleration, v1[0]**2 / (2 * (collision_distance)))
+#                             if brake_deceleration > self.max_deceleration:
+#                                 brake_deceleration = self.max_deceleration
+#                             input_values.append({"decel": brake_deceleration, "desired_speed": v1[0], "collision_distance": collision_distance})
+#                             should_brake = True
+
+#                 # You need to break state.relation loop to avoid unnecessary computation.
+#                 break
+
+#                 # # UNCOMMENT TO BRAKE FOR ALL PEDESTRIANS
+#                 # should_brake = True
+#                 # desired_speed = 0.0
+#                 # decel = self.deceleration
+
+#                 # # UNCOMMENT NOT TO BRAKE
+#                 # should_brake = False
+#                 # desired_speed = self.desired_speed
+#                 # decel = self.deceleration
+
+#                 #=========================
+
+#         # Choose the maximum deceleration from input_values.
+#         print("Input values:", input_values)
+#         decel = min(input_values, key=lambda x: x['desired_speed'])['decel']
+#         desired_speed = min(input_values, key=lambda x: x['desired_speed'])['desired_speed']
+#         collision_distance = min(input_values, key=lambda x: x['desired_speed'])['collision_distance']
+
+#         # Update the lookahead distance to pedestrian.
+#         route_with_lookahead = route.trim(closest_parameter,closest_parameter + collision_distance)
+
+#         print(f"Desired speed: {desired_speed:.2f} m/s")
+#         print(f"Deceleration: {decel:.2f} m/s^2")
+
+#         should_accelerate = (not should_brake and curr_v < self.desired_speed)
+
+#         # traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
+#         #choose whether to accelerate, brake, or keep at current velocity
+#         if should_accelerate:
+#             traj = longitudinal_plan(route_with_lookahead, self.acceleration, decel, desired_speed, curr_v, self.planner)
+#         elif should_brake:
+#             traj = longitudinal_brake(route_with_lookahead, decel, curr_v)
+#         else:
+#             traj = longitudinal_plan(route_with_lookahead, 0.0, decel, desired_speed, curr_v, self.planner)
+
+#         print(f"Simulation took {time.time() - start_time:.3f} seconds.")
+
+#         return traj 
+
+
+########################
+##### Henry's Code #####
+########################
 class YieldTrajectoryPlanner(Component):
     """Follows the given route.  Brakes if you have to yield or
     you are at the end of the route, otherwise accelerates to
@@ -1211,17 +1574,13 @@ class YieldTrajectoryPlanner(Component):
     def __init__(self, mode : str = 'real', planner : str = 'milestone'):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 0.75 # 0.5 is not enough to start
-        self.desired_speed = 1.0 # cannot got more than 1.5 m/s
+        self.acceleration = 0.5
+        self.desired_speed = 1.0
+        self.deceleration = 2.0
 
-        # Yielding parameters
-        # Yielding speed [..., 1.0, 0.8, ..., 0.2]
-        self.yield_speed        = [v for v in np.arange(self.desired_speed, 0.1, -0.25)]
-        self.yield_deceleration = 0.5
-        self.deceleration       = 2.0
-        self.max_deceleration   = 8.0
+        self.min_deceleration = 1.0
+        self.max_deceleration = 8.0
 
-        # Planner mode
         self.mode = mode
         self.planner = planner
 
@@ -1245,7 +1604,7 @@ class YieldTrajectoryPlanner(Component):
             self.t_last = t
         dt = t - self.t_last
   
-
+        # Position in vehicle frame (Start (0,0) to (15,0))
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
         curr_v = vehicle.v
@@ -1254,22 +1613,20 @@ class YieldTrajectoryPlanner(Component):
         abs_y = curr_y + state.start_vehicle_pose.y
 
         ###############################################
-        # # TODO: Fix the coordinate conversion of other files
-
         # print("@@@@@ VEHICLE STATE @@@@@")
         # print(vehicle)
         # print("@@@@@@@@@@@@@@@@@@@@@@@@@")
 
         if self.mode == 'real':
             # Position in vehicle frame (Start (0,0) to (15,0))
-            # curr_x = vehicle.pose.x * 20
-            # curr_y = vehicle.pose.y * 20
+            curr_x = vehicle.pose.x * 20
+            curr_y = vehicle.pose.y * 20
+            curr_v = vehicle.v
             # print("@@@@@ PLAN", curr_x, curr_y, curr_v)
             abs_x = curr_x
             abs_y = curr_y
             # print("@@@@@ PLAN", abs_x, abs_y)
         ###############################################
-
 
         #figure out where we are on the route
         if self.route_progress is None:
@@ -1277,178 +1634,49 @@ class YieldTrajectoryPlanner(Component):
         closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
         self.route_progress = closest_parameter
 
-        lookahead_distance = max(10, curr_v**2 / (2 * self.yield_deceleration))
+        lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
         route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
         print("Lookahead distance:", lookahead_distance)
-        #extract out a 10m segment of the route
-        # route_with_lookahead = route.trim(closest_parameter,closest_parameter+10.0)
 
+        route_to_end = route.trim(closest_parameter, len(route.points) - 1)
 
-        # Default values
-        should_brake = False
-        input_values = [{"decel": self.deceleration, "desired_speed": self.desired_speed, "collision_distance": lookahead_distance}]
+        should_yield = False
+        yield_deceleration = 0.0
 
-        print(state.relations)
+        print("Current Speed: ", curr_v)
 
         for r in state.relations:
             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
-                #yielding to something, brake
+                #get the object we are yielding to
+                obj = state.agents[r.obj2]
 
-                #=========================
-                """
-                Collision detection:
-                    - Compute the lookahead distance required to avoid collision using:
-                        d = v^2/(2*a)
-                    - For many steps along the route (using a resolution that adapts if the
-                    planner runs too slowly), simulate the vehicle's future positions.
-                    - If a pedestrian is detected within 3m longitudinal and 1m lateral buffer,
-                    determine the distance-to-collision. Then compute the required deceleration:
-                        a = -(v^2)/(2*d_collision)
-                    - For distant crossing pedestrians, apply a gentle deceleration based on the
-                    perception-estimated pedestrian velocity.
-                """
+                if self.mode == 'real':
+                    obj.pose.x = obj.pose.x + curr_x
+                    obj.pose.y = obj.pose.y + curr_y
 
-                print("#### YIELDING PLANNING ####")
+                deceleration, r_pedestrain_x = get_minimum_deceleration_for_collision_avoidance(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
+                print("deceleration: ", deceleration)
+                if deceleration > 0:
+                    yield_deceleration = max(deceleration, yield_deceleration)
+                    should_yield = True
+                
+                print("should yield: ", should_yield)
+                
+        should_accelerate = (not should_yield and curr_v < self.desired_speed)
 
-                # Vehicle parameters.
-                x1, y1 = abs_x, abs_y
-                v1 = [curr_v, 0]     # Vehicle speed vector
-
-                for n,a in state.agents.items():
-
-                    """
-                    class ObjectFrameEnum(Enum):
-                        START = 0                  #position / yaw in m / radians relative to starting pose of vehicle 
-                        CURRENT = 1                #position / yaw in m / radians relative to current pose of vehicle
-                        GLOBAL = 2                 #position in longitude / latitude, yaw=heading in radians with respect to true north (used in GNSS)
-                        ABSOLUTE_CARTESIAN = 3     #position / yaw  in m / radians relative to a global cartesian reference frame (used in simulation)
-                    """
-                    # print("@@@@@ AGENT STATE @@@@@")
-                    # print(a)
-                    # print("@@@@@@@@@@@@@@@@@@@@@@@")
-
-                    # Pedestrian parameters.
-                    x2, y2 = a.pose.x, a.pose.y
-                    v2 = [a.velocity[0], a.velocity[1]]     # Pedestrian speed vector
-
-                    if self.mode == 'real':
-                        x2 = a.pose.x + curr_x
-                        y2 = a.pose.y + curr_y
-
-                    # Total simulation time
-                    if v1[0] > 0.1:
-                        total_time = min(10, lookahead_distance / v1[0])
-                    else:
-                        total_time = 10
-                    print(f"Total time: {total_time:.2f} seconds")
-
-                    # Create and run the simulation.
-                    print(f"Vehicle: ({x1:.1f}, {y1:.1f}, ({v1[0]:.1f}, {v1[1]:.1f}))")
-                    print(f"Pedestrian: ({x2:.1f}, {y2:.1f}, ({v2[0]:.1f}, {v2[1]:.1f}))")
-
-                    # Simulate if a collision will occur when the vehicle accelerate to desired speed.
-                    sim = CollisionDetector(x1, y1, 0, x2, y2, 0, v1, v2, total_time, self.desired_speed, self.acceleration)
-                    collision_distance = sim.run()
-                    
-                    # No collision detected with acceleration to desired speed.
-                    if collision_distance < 0:
-                        print("No collision detected.")
-                        input_values.append({"decel": self.deceleration, "desired_speed": self.desired_speed, "collision_distance": collision_distance})
-                        continue
-
-                    # Collision detected with acceleration to desired speed.
-                    # => Check if the vehicle can yield to the pedestrian with deceleration.
-                    else:
-
-                        ###############################################
-                        # # UNCOMMENT NOT TO YIELD: JUST STOP FOR PART1
-                        # print("The vehicle is Stopping.")
-                        # print("@@@@@", a.pose.x)
-
-                        # # Update the collision distance.
-                        # if lookahead_distance_to_pedestrian > collision_distance:
-                        #     lookahead_distance_to_pedestrian = collision_distance
-
-                        # # Decide the deceleration based on the collision distance.
-                        # # To stop perfectly, assume the vehicle is running at the desired speed. 
-                        # brake_deceleration = max(self.deceleration, desired_speed**2 / (2 * (collision_distance)))
-                        # if brake_deceleration > self.max_deceleration:
-                        #     brake_deceleration = self.max_deceleration
-
-                        # if brake_deceleration > decel:
-                        #     decel = brake_deceleration if brake_deceleration > decel else decel
-                        #     should_brake = True
-                        # break
-                        ###############################################
-
-                        print("Collision detected. Try to find yielding speed.")
-
-                        collision_distance_after_yield = -1
-
-                        # Simulate with different yield speeds.
-                        # Try to maximize the yield speed to avoid collision.
-                        for v in self.yield_speed:
-                            # Simulate if the vehicle can yield to the pedestrian with acceleration to yielding speed.
-                            if v > v1[0]:
-                                sim.set_params(v, self.acceleration)
-                            # Simulate if the vehicle can yield to the pedestrian with deceleration to yielding speed.
-                            else:
-                                sim.set_params(v, self.yield_deceleration * -1.0)
-                            collision_distance_after_yield = sim.run()
-                            if collision_distance_after_yield < 0:
-                                print(f"Yielding at speed: {v}")
-                                input_values.append({"decel": self.yield_deceleration, "desired_speed": v, "collision_distance": collision_distance})
-                                break
-                        
-                        # Collision detected with any yielding speed.
-                        # => Brake to avoid collision.
-                        if collision_distance_after_yield >= 0:
-                            print("The vehicle is Stopping.")
-                            # Decide the deceleration based on the collision distance.
-                            brake_deceleration = max(self.deceleration, v1[0]**2 / (2 * (collision_distance)))
-                            if brake_deceleration > self.max_deceleration:
-                                brake_deceleration = self.max_deceleration
-                            input_values.append({"decel": brake_deceleration, "desired_speed": v1[0], "collision_distance": collision_distance})
-                            should_brake = True
-
-                # You need to break state.relation loop to avoid unnecessary computation.
-                break
-
-                # # UNCOMMENT TO BRAKE FOR ALL PEDESTRIANS
-                # should_brake = True
-                # desired_speed = 0.0
-                # decel = self.deceleration
-
-                # # UNCOMMENT NOT TO BRAKE
-                # should_brake = False
-                # desired_speed = self.desired_speed
-                # decel = self.deceleration
-
-                #=========================
-
-        # Choose the maximum deceleration from input_values.
-        print("Input values:", input_values)
-        decel = min(input_values, key=lambda x: x['desired_speed'])['decel']
-        desired_speed = min(input_values, key=lambda x: x['desired_speed'])['desired_speed']
-        collision_distance = min(input_values, key=lambda x: x['desired_speed'])['collision_distance']
-
-        # Update the lookahead distance to pedestrian.
-        route_with_lookahead = route.trim(closest_parameter,closest_parameter + collision_distance)
-
-        print(f"Desired speed: {desired_speed:.2f} m/s")
-        print(f"Deceleration: {decel:.2f} m/s^2")
-
-        should_accelerate = (not should_brake and curr_v < self.desired_speed)
-
-        # traj = longitudinal_plan(route_to_end, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
         #choose whether to accelerate, brake, or keep at current velocity
         if should_accelerate:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, decel, desired_speed, curr_v, self.planner)
-        elif should_brake:
-            traj = longitudinal_brake(route_with_lookahead, decel, curr_v)
+            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
+        elif should_yield:
+            desired_speed = math.sqrt(-2 * yield_deceleration * r_pedestrain_x + curr_v**2)
+            desired_speed = max(desired_speed, 0)
+            # traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+            if desired_speed > 0:
+                traj = longitudinal_plan(route_with_lookahead, 0, yield_deceleration, desired_speed, curr_v, "dt")
+            else:
+                traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
         else:
-            traj = longitudinal_plan(route_with_lookahead, 0.0, decel, desired_speed, curr_v, self.planner)
-
-        print(f"Simulation took {time.time() - start_time:.3f} seconds.")
+            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "dt")
 
         return traj 
+    
