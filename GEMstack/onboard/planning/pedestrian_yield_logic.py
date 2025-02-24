@@ -90,6 +90,8 @@ def check_collision_in_vehicle_frame(agent: AgentState, vehicle: VehicleState):
         vx, vy = np.dot(R, np.array([dvx, dvy]))
 
     # If pedestrian alphas the car
+    # condition to stop for ped in vehic. space
+    # still testing behavior
     if abs(xp) <= buffer[0] and abs(yp) <= buffer[1]:
         return 'STOP', 0, 0, (xp, yp)
     
