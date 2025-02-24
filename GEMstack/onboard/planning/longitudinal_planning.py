@@ -188,9 +188,9 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
     collision_flag = detect_collision_analytical(r_pedestrain_x, r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t, vehicle_buffer_y)
     if collision_flag == False:
         print("No collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
-        return 0.0
+        return 0.0, r_pedestrain_x
     elif collision_flag == 'max':
-        return max_deceleration
+        return max_deceleration, r_pedestrain_x
     
     print("Collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
     yaw = None
@@ -211,16 +211,19 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
             # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
             # and the vehicle should be stopped exactly before the pedestrain's x position
             if abs(peak_y) > abs(r_pedestrain_y_temp):
-                minimum_deceleration = abs(softest_accleration)
+                minimum_deceleration =x abs(softest_accleration)
             # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
-
         if minimum_deceleration is None:
             minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
     else:
         pass
 
     print("calculatedminimum_deceleration: ", minimum_deceleration)
-    return max(min(minimum_deceleration, max_deceleration), min_deceleration)
+
+    if minimum_deceleration < min_deceleration:
+        return 0.0, r_pedestrain_x
+    else:
+        return max(min(minimum_deceleration, max_deceleration), min_deceleration), r_pedestrain_x
 
 
 def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float,
@@ -995,7 +998,7 @@ class YieldTrajectoryPlanner(Component):
                 #get the object we are yielding to
                 obj = state.agents[r.obj2]
 
-                deceleration = get_minimum_deceleration_for_collision_avoidance(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
+                deceleration, r_pedestrain_x = get_minimum_deceleration_for_collision_avoidance(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
                 print("deceleration: ", deceleration)
                 if deceleration > 0:
                     yield_deceleration = max(deceleration, yield_deceleration)
@@ -1009,7 +1012,13 @@ class YieldTrajectoryPlanner(Component):
         if should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
         elif should_yield:
-            traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+            desired_speed = math.sqrt(-2 * yield_deceleration * r_pedestrain_x + curr_v**2)
+            desired_speed = max(desired_speed, 0)
+            # traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+            if desired_speed > 0:
+                traj = longitudinal_plan(route_with_lookahead, 0, yield_deceleration, desired_speed, curr_v, "dt")
+            else:
+                traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
         else:
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "dt")
 
