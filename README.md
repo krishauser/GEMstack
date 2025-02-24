@@ -24,6 +24,7 @@ You should also have the following Python dependencies installed, which you can 
 - Perception Dependencies
   - ultralytics
 
+
 In order to interface with the actual GEM e2 vehicle, you will need [PACMOD2](https://github.com/astuff/pacmod2) - Autonomoustuff's low level interface to vehicle. You will also need Autonomoustuff's [sensor message packages](https://github.com/astuff/astuff_sensor_msgs).  The onboard computer uses Ubuntu 20.04 with Python 3.8, CUDA 11.6, and NVIDIA driver 515, so to minimize compatibility issues you should ensure that these are installed on your development system.
 
 ## Running the stack on Ubuntu 20.04 without Docker
@@ -62,6 +63,29 @@ If you see the output, you are good to go. Otherwise, you will need to install t
 - For **Docker**, follow the instructions [here](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository).
   
 - For **Nvidia Container Toolkit**, run `setup/get_nvidia_container.sh` from this directory to install, or see [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more details.
+
+## Running the stack on Ubuntu 20.04 without Docker
+### Checking CUDA Version
+
+Before proceeding, check your Nvidia Driver and supported CUDA version:
+```bash
+nvidia-smi
+```
+This will show your NVIDIA driver version and the maximum supported CUDA version. Make sure you have CUDA 11.8 or 12+ installed.
+
+From Ubuntu 20.04 install [CUDA 11.6](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5) or [CUDA 12+](https://gist.github.com/ksopyla/ee744bf013c83e4aa3fc525634d893c9) based on your current Nvidia Driver versio.
+
+To check the currently installed CUDA version:
+```bash
+nvcc --version
+```
+you can install the dependencies or GEMstack by running `setup/setup_this_machine.sh` from the top-level GEMstack folder.
+
+## Running the stack on Ubuntu 20.04 or 22.04 with Docker
+> [!NOTE]
+> Make sure to check the Nvidia Driver and supported CUDA version before proceeding by following the steps in the previous section.
+
+For GPU support you will need the NVidia Container Toolkit (run `setup/get_nvidia_container.sh` from this directory to install, or see [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more details).
 
 ## Building the Docker image
 

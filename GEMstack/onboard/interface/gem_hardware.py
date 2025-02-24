@@ -2,6 +2,10 @@ from .gem import *
 from ...utils import settings
 import math
 import time
+<<<<<<< HEAD
+=======
+
+>>>>>>> s2025
 # ROS Headers
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
@@ -152,6 +156,7 @@ class GEMHardwareInterface(GEMInterface):
         if name == 'gnss':
             topic = self.ros_sensor_topics[name]
             if topic.endswith('inspva'):
+                #GEM e2 uses Novatel GNSS
                 if type is not None and (type is not Inspva and type is not GNSSReading):
                     raise ValueError("GEMHardwareInterface GEM e2 only supports Inspva/GNSSReading for GNSS")
                 if type is Inspva:
@@ -170,7 +175,7 @@ class GEMHardwareInterface(GEMInterface):
                         callback(GNSSReading(pose,speed,inspva_msg.status))
                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
             else:
-                #assume it's septentrio
+                #assume it's septentrio on GEM e4
                 if type is not None and (type is not INSNavGeod and type is not GNSSReading):
                     raise ValueError("GEMHardwareInterface GEM e4 only supports INSNavGeod/GNSSReading for GNSS")
                 if type is INSNavGeod:
@@ -178,9 +183,9 @@ class GEMHardwareInterface(GEMInterface):
                 else:
                     def callback_with_gnss_reading(msg: INSNavGeod):
                         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-                                    t = time.time(),
-                                    x=msg.longitude,
-                                    y=msg.latitude,
+                                    t=self.time(),
+                                    x=math.degrees(msg.longitude),   #Septentrio GNSS uses radians rather than degrees
+                                    y=math.degrees(msg.latitude),
                                     z=msg.height,
                                     yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
                                     roll=math.radians(msg.roll),

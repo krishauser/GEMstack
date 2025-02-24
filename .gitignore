@@ -168,4 +168,8 @@ cython_debug/
 
 .vscode/
 setup/zed_sdk.run
+
 cuda/
+#Ignore ROS bags
+*.bag
+
