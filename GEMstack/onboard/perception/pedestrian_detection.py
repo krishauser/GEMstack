@@ -185,9 +185,6 @@ class PedestrianDetector2D(Component):
         vehicle_agents = self.create_vehicle_dict(agents, backOrder)
         # Create a list containing the ids of the new agents in the vehicle frame agent's order
 
-        print("VEHICLE AGENTS")
-        print(vehicle_agents)
-
         return vehicle_agents
     
     def create_vehicle_dict(self, agents: List[AgentState], backOrder: List[int]):
