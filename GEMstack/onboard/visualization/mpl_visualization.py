@@ -78,7 +78,7 @@ class MPLVisualization(Component):
             return
         self.num_updates += 1
         self.debug("vehicle","velocity",state.vehicle.v)
-        self.debug("vehicle","front wheel angle",state.vehicle.front_wheel_angle)
+        self.debug("vehicle","front wheel angle",state.vehicle.front_wheel_angle)        
         
         # Add pedestrian tracking
         for agent_id, agent in state.agents.items():
