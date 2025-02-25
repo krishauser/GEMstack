@@ -1003,9 +1003,6 @@ class YieldTrajectoryPlanner(Component):
 
         route_to_end = route.trim(closest_parameter, len(route.points) - 1)
 
-        print("ROUTE_WITH_LOOKAHEAD", route_with_lookahead)
-        print("ROUTE_TO_END", route_to_end)
-
         should_yield = False
         yield_deceleration = 0.0
 
@@ -1404,17 +1401,17 @@ class YieldTrajectoryPlanner(Component):
 
 #         #choose whether to accelerate, brake, or keep at current velocity
 #         if should_accelerate:
-#             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
+#             traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, self.planner)
 #         elif should_yield:
 #             desired_speed = math.sqrt(-2 * yield_deceleration * r_pedestrain_x + curr_v**2)
 #             desired_speed = max(desired_speed, 0)
 #             # traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
 #             if desired_speed > 0:
-#                 traj = longitudinal_plan(route_with_lookahead, 0, yield_deceleration, desired_speed, curr_v, "dt")
+#                 traj = longitudinal_plan(route_with_lookahead, 0, yield_deceleration, desired_speed, curr_v, self.planner)
 #             else:
 #                 traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
 #         else:
-#             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "dt")
+#             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, self.planner)
 
 #         return traj 
     
