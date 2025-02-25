@@ -4,7 +4,7 @@ from scipy.spatial.transform import Rotation as R
 import matplotlib.pyplot as plt
 import numpy as np
 
-N = 4 #how many point pairs you want to select
+N = 8 #how many point pairs you want to select
 rgb_path = './data/color20.png'
 depth_path = './data/depth20.tif'
 lidar_path = './data/lidar20.npz'
