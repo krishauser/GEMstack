@@ -319,9 +319,19 @@ class PedestrianDetector2D(Component):
                 euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
                 yaw, pitch, roll = euler_angles_vehicle
                 refined_center = refined_center_vehicle  # Use vehicle frame for output
-
+                curr_x = vehicle.pose.x
+                curr_y = vehicle.pose.y
+                curr_yaw = vehicle.pose.yaw
+                curr_pitch = vehicle.pose.pitch
+                curr_roll = vehicle.pose.roll
+                refined_center[0] += curr_x
+                refined_center[1] += curr_y
+                refined_center[2] += curr_yaw
+                refined_center[3] += curr_pitch
+                refined_center[4] += curr_roll
                 rospy.loginfo(f"Detected human in vehicle frame - Pose: {euler_angles_vehicle}, "
                               f"Center: {refined_center_vehicle}, Dimensions: {dims}")
+
 
             # Create new pose in the vehicle frame
             new_pose = ObjectPose(
