@@ -2,10 +2,7 @@ from .gem import *
 from ...utils import settings
 import math
 import time
-<<<<<<< HEAD
-=======
 
->>>>>>> s2025
 # ROS Headers
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
