@@ -354,7 +354,7 @@ def main():
     print(f"Found {num_frames} matching frames.")
 
     # Process each frame
-    for i in range(48, 50):
+    for i in range(8, 10):
         print(f"\n--- Frame {i+1}/{num_frames} ---")
         image = cv2.imread(f'../data/color{i}.png')
         if image is None:
@@ -415,7 +415,7 @@ def main():
                 center_lidar = (T_v2l @ pose_vehicle)[:3]
 
                 # Add a green sphere at the agent center in LiDAR frame
-                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.2)
+                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.05)
                 sphere.translate(center_lidar)
                 sphere.paint_uniform_color([0, 1, 0])
                 geometries.append(sphere)
@@ -438,7 +438,7 @@ def main():
                 camera_origin = detector.camera_origin_in_lidar
                 points_line = [camera_origin, center_lidar]
                 lines = [[0, 1]]
-                colors = [[1, 1, 0]]
+                colors = [[0.7, 0.5, 0]]
                 ray_line = o3d.geometry.LineSet(
                     points=o3d.utility.Vector3dVector(points_line),
                     lines=o3d.utility.Vector2iVector(lines)
