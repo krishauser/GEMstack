@@ -90,13 +90,13 @@ def main(log_folder):
 
     w1, w2, w3 = 0.5, 0.3, 0.2
     comfort_index = w1 * rms_forward_acceleration + w2 * rms_jerk + w3 * rms_speed_error
-    print(f'=====Comfort Index: {comfort_index}=====')
+    print(f'===== Comfort Index: {comfort_index:.2f} =====')
 
     w1, w2, w3, w4, w5, w6, w7 = 0.2, 0.1, 0.15, 0.2, 0.15, 0.2, 0.1
     safety_index = (w1 * rmse_cte + w2 * rms_angular_jerk + w3 * rms_angular_acceleration + 
                     w4 * rms_forward_acceleration + w5 * rms_jerk + w6 * rms_speed_error + 
                     w7 * rms_yaw_error)
-    print(f'=====Safety Index: {safety_index}=====')
+    print(f'=====  Safety Index: {safety_index:.2f} =====')
 
     create_plot(t, y, yd, '$t$ (s)', '$y(t)$, $y_{d}(t)$ (m)', 'Actual and Desired y', ['Actual $y(t)$', 'Desired $y_{d}(t)$'], os.path.join(plots_folder, 'y_vs_yd.png') if save_figures else None)
     create_error_plot(t, np.array(y) - np.array(yd), '$t$ (s)', 'Error in $y(t)$ (m)', 'Error between Actual and Desired $y(t)$', os.path.join(plots_folder, 'error_y.png') if save_figures else None)
