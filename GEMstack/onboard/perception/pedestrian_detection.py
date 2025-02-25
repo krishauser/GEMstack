@@ -137,6 +137,7 @@ class PedestrianDetector2D(Component):
 
         # Edge cases
 
+        # Initial vehicle pose data
         if(self.current_vehicle_state == None and self.previous_vehicle_state == None):
             self.current_vehicle_state = vehicle
             # We get vehicle state from GNSS in global state
@@ -150,7 +151,12 @@ class PedestrianDetector2D(Component):
             self.previous_vehicle_state = self.current_vehicle_state
             self.current_vehicle_state = vehicle
 
+        # edge case to handle no pedestrian data
         if(self.current_agent_obj_dims == {}):
+            return self.current_agents
+
+        # edge case to handle empty lists and missing data
+        if(len(self.current_agent_obj_dims['pose']) == 0 or len(self.current_agent_obj_dims['dims'])) or (len(self.current_agent_obj_dims['pose']) != len(self.current_agent_obj_dims['dims'])):
             return self.current_agents
         
         # Update current time:
