@@ -129,10 +129,12 @@ def main():
         suffix = log_settings.get('suffix',default_suffix)
         logfolder = os.path.join(topfolder,prefix+suffix)
         print(EXECUTION_PREFIX,"Logging to",logfolder)
+        auto_plot = log_settings.get("auto_plot", False)
         os.makedirs(logfolder,exist_ok=True)
 
         #configure logging for components
         mission_executor.set_log_folder(logfolder)
+        mission_executor.set_auto_plot(auto_plot)
         #configure ROS logging
         log_topics = log_settings.get('ros_topics',[])
         rosbag_options = log_settings.get('rosbag_options','')
