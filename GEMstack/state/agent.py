@@ -27,10 +27,6 @@ class AgentState(PhysicalObject):
     activity : AgentActivityEnum
     velocity : Tuple[float,float,float]     #estimated velocity in x,y,z, m/s and in agent's local frame
     yaw_rate : float                        #estimated yaw rate, in radians/s
-    # Added by Perception for persistent objs across frames
-    # Check track_id to verify this is the same Agent you've
-    # seen before
-    track_id : int      
 
     def velocity_local(self) -> Tuple[float,float,float]:
         """Returns velocity in m/s in the agent's local frame."""
