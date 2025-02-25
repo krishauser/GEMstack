@@ -1,4 +1,4 @@
-# GEMstack Offboard Calibration Suite
+# GEMstack Offboard Calibration 
 
 This repository contains tools for offline calibration of LiDAR and camera sensors to the vehicle coordinate system on the GEM E4 platform. The calibration pipeline consists of three stages:
 
@@ -25,8 +25,8 @@ This repository contains tools for offline calibration of LiDAR and camera senso
   3. Compute translation (`tx`, `ty`) using vehicle dimensions  
 
 **Usage**:  
-# Edit LiDAR data paths in script
-python3 make_gem_e4_ouster_v2.py
+
+python3 make_gem_e4_ouster_v2.py      # Edit LiDAR data paths in script
 
 
 ### 2. CAMERA-to-Vehicle Calibration (`camera_to_vehicle_manual.py`)
@@ -49,8 +49,8 @@ python3 make_gem_e4_ouster_v2.py
   2. Multiply with LiDAR-to-Vehicle matrix
 
 **Usage**:
-# Ensure T_lidar_vehicle and T_camera_vehicle matrices are updated
-python3 lidar_to_camera.py
+
+python3 lidar_to_camera.py   # Ensure T_lidar_vehicle and T_camera_vehicle matrices are updated
 
 
 ### Visualization Tools
@@ -62,6 +62,9 @@ python3 lidar_to_camera.py
 **Projection Validation**:
  1. RGB image overlaid with transformed LiDAR points (Z-buffered)
  2. Frontal view comparison of camera and LiDAR data
+
+
+
 
 
 ### Assumption and Notes
