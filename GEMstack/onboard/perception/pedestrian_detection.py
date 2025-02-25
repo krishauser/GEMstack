@@ -254,7 +254,6 @@ class PedestrianDetector2D(Component):
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         # Process only if synchronized sensor data is available
         if self.latest_image is None or self.latest_lidar is None:
-            rospy.logwarn("Synchronized sensor data not available; skipping update.")
             return {}
 
         current_time = self.vehicle_interface.time()
@@ -283,7 +282,6 @@ class PedestrianDetector2D(Component):
             d = np.linalg.norm(intersection - self.camera_origin_in_lidar)
             physical_width = (w * d) / self.K[0, 0]
             physical_height = (h * d) / self.K[1, 1]
-            depth_margin = physical_width
             half_extents = np.array([0.4, 0.4, 1.25 * physical_height / 2])
 
             roi_points = extract_roi_box(lidar_pc, intersection, half_extents)
@@ -319,19 +317,19 @@ class PedestrianDetector2D(Component):
                 euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
                 yaw, pitch, roll = euler_angles_vehicle
                 refined_center = refined_center_vehicle  # Use vehicle frame for output
-                curr_x = vehicle.pose.x
-                curr_y = vehicle.pose.y
-                curr_yaw = vehicle.pose.yaw
-                curr_pitch = vehicle.pose.pitch
-                curr_roll = vehicle.pose.roll
+                vehicle_state = vehicle.to_frame(ObjectFrameEnum.GLOBAL)
+                curr_x = vehicle_state.pose.x
+                curr_y = vehicle_state.pose.y
+                # curr_yaw = vehicle.pose.yaw
+                # curr_pitch = vehicle.pose.pitch
+                # curr_roll = vehicle.pose.roll
+                # Note: Ensure refined_center has enough dimensions before adding these values.
                 refined_center[0] += curr_x
                 refined_center[1] += curr_y
-                refined_center[2] += curr_yaw
-                refined_center[3] += curr_pitch
-                refined_center[4] += curr_roll
-                rospy.loginfo(f"Detected human in vehicle frame - Pose: {euler_angles_vehicle}, "
-                              f"Center: {refined_center_vehicle}, Dimensions: {dims}")
-
+                # euler_angles_vehicle[0] += curr_yaw
+                # # If refined_center should only be 3D, remove or adjust the following lines:
+                # euler_angles_vehicle[1] += curr_pitch
+                # euler_angles_vehicle[2] += curr_roll
 
             # Create new pose in the vehicle frame
             new_pose = ObjectPose(
@@ -393,6 +391,11 @@ class PedestrianDetector2D(Component):
             del self.tracked_agents[agent_id]
 
         self.current_agents = agents
+
+        # ROS log for each agent: id, pose, and velocity
+        for agent_id, agent in agents.items():
+            rospy.loginfo(f"Agent ID: {agent_id}, Pose: {agent.pose}, Velocity: {agent.velocity}")
+
         return agents
 
 
