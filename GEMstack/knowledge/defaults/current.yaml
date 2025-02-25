@@ -20,6 +20,17 @@ control:
         pid_p: 1.0
         pid_i: 0.05
         pid_d: 0.0
+planning:
+    longitudinal_plan:
+        mode:               'real'
+        planner:            'dt' # 'milestone', 'dt', or 'dx'
+        desired_speed:      1.0
+        acceleration:       0.5
+        max_deceleration:   6.0
+        deceleration:       2.0
+        min_deceleration:   0.5
+        yield_deceleration: 0.5
+
 
 #configure the simulator, if using
 simulator:

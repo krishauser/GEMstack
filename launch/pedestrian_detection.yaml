@@ -15,12 +15,8 @@ drive:
         agent_detection : pedestrian_detection.PedestrianDetector2D
         perception_normalization : StandardPerceptionNormalizer
     planning:
-        relations_estimation: pedestrian_yield_logic.PedestrianYielder
-        route_planning:
-            type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
-        motion_planning:
-            type: longitudinal_planning.YieldTrajectoryPlanner
+        relations_estimation: 
+            type: pedestrian_yield_logic.PedestrianYielder
             args:
                 mode: 'real'
                 params: {
@@ -28,6 +24,10 @@ drive:
                     'desired_speed': 1.0,  # m/s, 1.5 m/s seems max speed? Feb24
                     'acceleration':  0.75  # m/s2, 0.5 is not enough to start moving. Feb24
                     }
+        route_planning:
+            type: StaticRoutePlanner
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
+        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
             print: False
@@ -106,7 +106,7 @@ variants:
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
                 planning:
-                    motion_planning:
-                        type: longitudinal_planning.YieldTrajectoryPlanner
+                    relations_estimation: 
+                        type: pedestrian_yield_logic.PedestrianYielder
                         args:
-                            mode: 'simulation'
+                            mode: 'sim'
