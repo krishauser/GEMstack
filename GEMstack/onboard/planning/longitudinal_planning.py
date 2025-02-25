@@ -36,6 +36,13 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
     obj_v_x = obj.velocity[0]
     obj_v_y = obj.velocity[1]
 
+    if obj.pose.frame == ObjectFrameEnum.CURRENT:
+        # Simulation: Current 
+        obj_x = obj.pose.x + curr_x
+        obj_y = obj.pose.y + curr_y
+        print("PEDESTRIAN", obj_x, obj_y)
+
+
     vehicle_front = curr_x + VEHICLE_LENGTH
     vehicle_back = curr_x
     vehicle_left = curr_y + VEHICLE_WIDTH / 2
@@ -173,6 +180,10 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
     obj_y = obj.pose.y
     obj_v_x = obj.velocity[0]
     obj_v_y = obj.velocity[1]
+
+    if obj.pose.frame == ObjectFrameEnum.CURRENT:
+        obj_x = obj.pose.x + curr_x
+        obj_y = obj.pose.y + curr_y
 
     obj_x = obj_x - curr_x
     obj_y = obj_y - curr_y
@@ -992,6 +1003,9 @@ class YieldTrajectoryPlanner(Component):
 
         route_to_end = route.trim(closest_parameter, len(route.points) - 1)
 
+        print("ROUTE_WITH_LOOKAHEAD", route_with_lookahead)
+        print("ROUTE_TO_END", route_to_end)
+
         should_yield = False
         yield_deceleration = 0.0
 
@@ -1001,10 +1015,6 @@ class YieldTrajectoryPlanner(Component):
             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
                 #get the object we are yielding to
                 obj = state.agents[r.obj2]
-
-                if self.mode == 'real':
-                    obj.pose.x = obj.pose.x + curr_x
-                    obj.pose.y = obj.pose.y + curr_y
 
                 detected, deceleration = detect_collision(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration, self.acceleration, self.desired_speed)
                 if isinstance(deceleration, list):
@@ -1381,10 +1391,6 @@ class YieldTrajectoryPlanner(Component):
 #             if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
 #                 #get the object we are yielding to
 #                 obj = state.agents[r.obj2]
-
-#                 if self.mode == 'real':
-#                     obj.pose.x = obj.pose.x + curr_x
-#                     obj.pose.y = obj.pose.y + curr_y
 
 #                 deceleration, r_pedestrain_x = get_minimum_deceleration_for_collision_avoidance(abs_x, abs_y, curr_v, obj, self.min_deceleration, self.max_deceleration)
 #                 print("deceleration: ", deceleration)
