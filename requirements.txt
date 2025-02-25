@@ -10,3 +10,5 @@ dacite
 
 # Perception
 ultralytics
+open3d
+sklearn
