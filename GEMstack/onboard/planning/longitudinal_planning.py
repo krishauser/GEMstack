@@ -290,10 +290,13 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
     3. if at any point you can't brake before hitting the end of the path,
        decelerate with accel = -deceleration until velocity goes to 0.
     """
+    # Extrapolation factor for the points
     factor = 5.0
     new_points = []
     for idx, point in enumerate(path.points[:-1]):
         next_point = path.points[idx+1] 
+        if point[0] == next_point[0]:
+            break
         xarange = np.arange(point[0], next_point[0], (next_point[0] - point[0])/factor)
         if point[1] == next_point[1]:
             yarange = [point[1]]*len(xarange)
@@ -302,7 +305,10 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
         for x, y in zip(xarange, yarange):
             new_points.append((x, y))
     
-    path = Path(path.frame, new_points)
+    if len(new_points) == 0:
+        pass
+    else:
+        path = Path(path.frame, new_points)
 
     path_normalized = path.arc_length_parameterize()
     points = [p for p in path_normalized.points]
