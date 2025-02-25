@@ -15,7 +15,7 @@ python3 GEMstack/onboard/perception/transform.py
 Terminal 3:
 ---------------
 source /opt/ros/noetic/setup.bash && source /catkin_ws/devel/setup.bash
-rosbag play -l ~/rosbags/vehicle.bag
+rosbag play -l ~/rosbags/moving_vehicle_stopping_pedestrian.bag --topics /oak/rgb/camera_info /oak/rgb/image_raw /ouster/points /septentrio_gnss/imu /septentrio_gnss/insnavgeod
 
 Terminal 4:
 ---------------
@@ -33,7 +33,7 @@ rviz
 import os
 from typing import List, Dict
 from collections import defaultdict
-from datetime import datetime
+# from datetime import datetime
 from copy import deepcopy
 # ROS, CV
 import rospy
@@ -121,7 +121,7 @@ class PedestrianDetector2D(Component):
         self.id_tracker = IdTracker()
         
         # Update function variables
-        self.t_start = datetime.now() # Estimated start frame time
+        self.t_start = None # Estimated start frame time
         self.start_pose_abs = None # Get this from GNSS (GLOBAL frame)
         self.current_vehicle_state = None # Current vehicle state from GNSS in GLOBAL frame
         self.previous_vehicle_state = None # Previous vehicle state from GNSS in GLOBAL frame
@@ -143,6 +143,8 @@ class PedestrianDetector2D(Component):
             # Storing initial pose
             if (self.start_pose_abs == None):
                 self.start_pose_abs = vehicle.pose
+            if self.t_start == None:
+                self.t_start = vehicle.pose.t
             return self.current_agents
         else:
             self.previous_vehicle_state = self.current_vehicle_state
@@ -151,6 +153,8 @@ class PedestrianDetector2D(Component):
         if(self.current_agent_obj_dims == {}):
             return self.current_agents
         
+        # Update current time:
+        self.curr_time = vehicle.pose.t
         
         # (f"Global state : {vehicle}")
 
@@ -175,11 +179,23 @@ class PedestrianDetector2D(Component):
         agents = self.create_agent_states(obj_centers=self.current_agent_obj_dims['pose'], obj_dims=self.current_agent_obj_dims['dims'])
 
         # Calculating the velocity of agents and tracking their ids
-        self.find_vels_and_ids(agents=agents)
+        backOrder = self.find_vels_and_ids(agents=agents)
 
-        # Convert to current vehicle frame from starting frame here for planning group.
+        # Create a dictionary of vehicle frame agents:
+        vehicle_agents = self.create_vehicle_dict(agents, backOrder)
+        # Create a list containing the ids of the new agents in the vehicle frame agent's order
 
-        return self.current_agents
+        return vehicle_agents
+    
+    def create_vehicle_dict(self, agents: List[AgentState], backOrder: List[int]):
+        vehicle_agents = {}
+
+        for idx in backOrder:
+            vehicle_agents[backOrder[idx]] = agents[idx]
+            vehicle_agents[backOrder[idx]].activity = self.current_agents[backOrder[idx]].activity
+            vehicle_agents[backOrder[idx]].velocity = self.current_agents[backOrder[idx]].velocity
+
+        return vehicle_agents
 
     # TODO: Improve Algo Knn, ransac, etc.
     def find_centers(self, clusters: List[List[np.ndarray]]) -> List[np.ndarray]:
@@ -302,6 +318,7 @@ class PedestrianDetector2D(Component):
         obj_dims = self.find_dims(pedestrians_3d_pts)   # 8 point dims of bounding box
         # Pose is stored in vehicle frame and converted to start frame in the update function 
         obj_centers_vehicle = []
+        obj_dims_vehicle = []
         if self.vehicle_frame:
             for obj_center in obj_centers:
                 if obj_center.size > 0:
@@ -313,7 +330,6 @@ class PedestrianDetector2D(Component):
             obj_centers = obj_centers_vehicle
 
             if(len(obj_center) != 0) and (len(obj_dims) != 0):
-                obj_dims_vehicle = []
                 for obj_dim in obj_dims:
                     if len(obj_dim) > 0:
                         # obj_dim_min = np.array([obj_dim[0]])
@@ -336,6 +352,11 @@ class PedestrianDetector2D(Component):
     def find_vels_and_ids(self, agents: List[AgentState]):
         # self.prev_agents was assigned a deepcopy of self.current_agents and then self.current_agents
         # was cleared before this function was called
+
+        # Create a list containing the ids of the new agents in the vehicle frame agent's order
+        backOrder = []
+        for each in agents:
+            backOrder.append(None)
         
         # Nothing was scanned, erase current (for current output) and previous list (for next time through because nothing was scanned)
         if (len(agents) == 0):
@@ -359,7 +380,7 @@ class PedestrianDetector2D(Component):
                         vel = [0, 0, 0]
                     else:
                         delta_t = self.curr_time - self.prev_time
-                        vel = list((np.array([agents[idx].pose.x, agents[idx].pose.y, agents[idx].pose.z]) - np.array([prev_state.pose.x, prev_state.pose.y, prev_state.pose.z])) / delta_t.total_seconds())
+                        vel = list((np.array([agents[idx].pose.x, agents[idx].pose.y, agents[idx].pose.z]) - np.array([prev_state.pose.x, prev_state.pose.y, prev_state.pose.z])) / delta_t)
                     # print("VELOCITY:")
                     # print(vel)
                     
@@ -369,6 +390,7 @@ class PedestrianDetector2D(Component):
                     agents[idx].velocity = (0, 0, 0) if len(vel) == 0 else tuple(vel)
 
                     self.current_agents[prev_id] = agents[idx]
+                    backOrder[idx] = prev_id
                     del self.prev_agents[prev_id] # Remove previous agent from previous agents so it doesn't get assigned multiple times on accident
                     break
             
@@ -380,6 +402,8 @@ class PedestrianDetector2D(Component):
                 agents[idx].activity = AgentActivityEnum.UNDETERMINED
                 agents[idx].velocity = (0, 0, 0)
                 self.current_agents[id] = agents[idx]
+                backOrder[idx] = id
+        return backOrder
 
     # Calculates whether 2 agents overlap. True if they do, false if not
     def agents_overlap(self, curr_agent: AgentState, prev_agent: AgentState) -> bool:
@@ -426,7 +450,7 @@ class PedestrianDetector2D(Component):
         for idx in range(num_pairings):
             # Create agent in current frame:
             agents.append(AgentState(
-                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2] - xyz_lengths_start[idx][2]/2.0, yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
+                            pose=ObjectPose(t=self.curr_time - self.t_start, x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2] - xyz_lengths_start[idx][2]/2.0, yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
                             # Beware: AgentState(PhysicalObject) builds bbox from 
                             # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
                             # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
@@ -435,10 +459,9 @@ class PedestrianDetector2D(Component):
                             dimensions=(xyz_lengths_start[idx][0], xyz_lengths_start[idx][1], xyz_lengths_start[idx][2]),
                             outline=None,
                             type=AgentEnum.PEDESTRIAN,
-                            activity=AgentActivityEnum.UNDETERMINED, # TODO
-                            velocity=None, # TODO
+                            activity=AgentActivityEnum.UNDETERMINED, # Temporary
+                            velocity=None, # Temporary
                             yaw_rate=0,
-                            track_id = None # TODO
                         ))
 
         return agents
@@ -502,7 +525,7 @@ class PedestrianDetector2D(Component):
 
         # Update times for basic velocity calculation
         self.prev_time = self.curr_time
-        self.curr_time = datetime.now()
+        # self.curr_time = datetime.now() # Updating in update function now
 
         self.cv_image = cv_image
         self.lidar_points = lidar_points
