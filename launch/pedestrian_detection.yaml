@@ -52,6 +52,8 @@ log:
     #state: ['all']
     # Specify the rate in Hz at which to record state to state.json. Default records at the pipeline's rate
     #state_rate: 10
+    # If True, then make plots of the recorded data specifically from PurePursuitTrajectoryTracker_debug.csv and report metrics. Default False
+    #auto_plot : True
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
     log: 
