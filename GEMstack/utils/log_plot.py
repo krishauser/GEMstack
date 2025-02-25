@@ -3,6 +3,8 @@ import pandas as pd
 import os
 import numpy as np
 
+# Most of the code in this file is copied from ./tuning_logs/log_plot.py by Mikayel Aramyan (mikayel2)
+
 def create_plot(t, actual, desired, xlabel, ylabel, title, legend, save_path=None):
     plt.figure()
     plt.plot(t, actual)
@@ -70,8 +72,12 @@ def main(log_folder):
     rms_jerk = np.sqrt(np.mean(jerk**2))
     print(f'RMS of Jerk: {rms_jerk}')
 
-    w1, w2 = 0.7, 0.3
-    comfort_index = w1 * rms_forward_acceleration + w2 * rms_jerk
+    speed_error = np.array(v) - np.array(vd)
+    rms_speed_error = np.sqrt(np.mean(speed_error**2))
+    print(f'RMS of Speed Error: {rms_speed_error}')
+
+    w1, w2, w3 = 0.5, 0.3, 0.2
+    comfort_index = w1 * rms_forward_acceleration + w2 * rms_jerk + w3 * rms_speed_error
     print(f'Comfort Index: {comfort_index}')
 
 
