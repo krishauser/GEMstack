@@ -76,10 +76,27 @@ def main(log_folder):
     rms_speed_error = np.sqrt(np.mean(speed_error**2))
     print(f'RMS of Speed Error: {rms_speed_error}')
 
+    angular_velocity = np.gradient(front_wheel_angle, dt)
+    angular_acceleration = np.gradient(angular_velocity, dt)
+    angular_jerk = np.gradient(angular_acceleration, dt)
+    rms_angular_acceleration = np.sqrt(np.mean(angular_acceleration**2))
+    rms_angular_jerk = np.sqrt(np.mean(angular_jerk**2))
+    print(f'RMS of Angular Acceleration: {rms_angular_acceleration}')
+    print(f'RMS of Angular Jerk: {rms_angular_jerk}')
+
+    yaw_error = np.array(yaw) - np.array(yawd)
+    rms_yaw_error = np.sqrt(np.mean(yaw_error**2))
+    print(f'RMS of Yaw Error: {rms_yaw_error}')
+
     w1, w2, w3 = 0.5, 0.3, 0.2
     comfort_index = w1 * rms_forward_acceleration + w2 * rms_jerk + w3 * rms_speed_error
-    print(f'Comfort Index: {comfort_index}')
+    print(f'=====Comfort Index: {comfort_index}=====')
 
+    w1, w2, w3, w4, w5, w6, w7 = 0.2, 0.1, 0.15, 0.2, 0.15, 0.2, 0.1
+    safety_index = (w1 * rmse_cte + w2 * rms_angular_jerk + w3 * rms_angular_acceleration + 
+                    w4 * rms_forward_acceleration + w5 * rms_jerk + w6 * rms_speed_error + 
+                    w7 * rms_yaw_error)
+    print(f'=====Safety Index: {safety_index}=====')
 
     create_plot(t, y, yd, '$t$ (s)', '$y(t)$, $y_{d}(t)$ (m)', 'Actual and Desired y', ['Actual $y(t)$', 'Desired $y_{d}(t)$'], os.path.join(plots_folder, 'y_vs_yd.png') if save_figures else None)
     create_error_plot(t, np.array(y) - np.array(yd), '$t$ (s)', 'Error in $y(t)$ (m)', 'Error between Actual and Desired $y(t)$', os.path.join(plots_folder, 'error_y.png') if save_figures else None)
