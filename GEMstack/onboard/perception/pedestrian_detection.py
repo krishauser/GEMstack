@@ -37,7 +37,6 @@ from collections import defaultdict
 from copy import deepcopy
 # ROS, CV
 import rospy
-import message_filters
 import tf
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image, PointCloud2
@@ -52,7 +51,7 @@ from ..interface.gem import GEMInterface, GNSSReading
 from ..component import Component
 from .IdTracker import IdTracker
 from scipy.spatial.transform import Rotation as R
-from septentrio_gnss_driver.msg import INSNavGeod
+
 
 def box_to_fake_agent(box):
     """Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -153,11 +152,16 @@ class PedestrianDetector2D(Component):
 
         # edge case to handle no pedestrian data
         if(self.current_agent_obj_dims == {}):
-            return self.current_agents
+            return {}
 
-        # edge case to handle empty lists and missing data
-        if(len(self.current_agent_obj_dims['pose']) == 0 or len(self.current_agent_obj_dims['dims'])) or (len(self.current_agent_obj_dims['pose']) != len(self.current_agent_obj_dims['dims'])):
-            return self.current_agents
+        # edge case to handle empty lists:
+        if(len(self.current_agent_obj_dims['pose']) == 0 or len(self.current_agent_obj_dims['dims']) == 0):
+            return {}
+
+        # Edge case to handle differently sized lists:
+        # TODO: Handle different lengths properly
+        if len(self.current_agent_obj_dims['pose']) != len(self.current_agent_obj_dims['dims']):
+            raise Exception( f"Length of extracted poses ({len(self.current_agent_obj_dims['pose'])}) and dimensions ({len(self.current_agent_obj_dims['dims'])}) are not equal")
         
         # Update current time:
         self.curr_time = vehicle.pose.t
