@@ -57,9 +57,11 @@ variants:
     detector_only:
         run:
             description: "Run the pedestrian detection code"
-        drive:
-            planning:
-                trajectory_tracking:
+            drive:
+                planning:
+                    trajectory_tracking:
+            visualization: [!include "mpl_visualization.yaml", !include "klampt_visualization.yaml"]
+
     real_sim:
         run:
             description: "Run the pedestrian detection code with real detection and fake simulation"
