@@ -25,6 +25,8 @@ VEHICLE_BUFFER_X = 3.0
 VEHICLE_BUFFER_Y = 1.5
 
 YIELD_BUFFER_Y = 1.0
+V_MAX = 5
+COMFORT_DECELERATION = 1.5
 
 
 def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentState, min_deceleration: float, max_deceleration: float, acceleration: float, max_speed: float) -> Tuple[bool, Union[float, List[float]]]:
@@ -144,20 +146,18 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
 
     distance_to_move = distance_with_buffer + time_to_pass * obj_v_y
 
-    # if curr_v**2/2*distance_to_pass >= 1.5:
-    #     return True, curr_v**2/2*distance_to_pass
-    time_to_max_v = (5 - curr_v)/0.5
+    if curr_v**2/(2*distance_to_move) >= COMFORT_DECELERATION:
+        return True, curr_v**2/(2*distance_to_move)
+    time_to_max_v = (max_speed - curr_v)/acceleration
 
     if time_to_max_v > time_to_pass:
-        if curr_v*time_to_pass + 0.25*time_to_pass**2 > distance_to_move:
+        if curr_v*time_to_pass + 0.5 * acceleration * time_to_pass**2 > distance_to_move:
             return False, 0.0
     else:
-        if (25 - curr_v**2)*4 + (time_to_pass - time_to_max_v) * 5 >= distance_to_move:
+        if (max_speed**2 - curr_v**2)/(2*acceleration) + (time_to_pass - time_to_max_v) * max_speed >= distance_to_move:
             return False, 0.0
 
-
     return True, [distance_to_move, time_to_pass]
-
 
 
 def detect_collision_analytical(r_pedestrain_x: float, r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float, lateral_buffer: float) -> Union[bool, str]:
@@ -1414,4 +1414,3 @@ class YieldTrajectoryPlanner(Component):
 #             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, self.planner)
 
 #         return traj 
-    
