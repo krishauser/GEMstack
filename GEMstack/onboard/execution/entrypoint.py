@@ -122,7 +122,7 @@ def main():
 
     #configure logging
     if log_settings:
-        topfolder = log_settings.get('log','logs')
+        topfolder = log_settings.get('folder','logs')
         prefix = log_settings.get('prefix','')
         from datetime import datetime
         default_suffix = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
