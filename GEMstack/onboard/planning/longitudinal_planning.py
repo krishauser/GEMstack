@@ -144,19 +144,12 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
         print("The object will pass through our front before we drive normally and reach it")
         return False, 0.0
 
-    distance_to_move = distance_with_buffer + time_to_pass * obj_v_y
+    distance_to_move = distance_with_buffer + time_to_pass * obj_v_x
 
     if curr_v**2/(2*distance_to_move) >= COMFORT_DECELERATION:
         return True, curr_v**2/(2*distance_to_move)
-    time_to_max_v = (max_speed - curr_v)/acceleration
-
-    if time_to_max_v > time_to_pass:
-        if curr_v*time_to_pass + 0.5 * acceleration * time_to_pass**2 > distance_to_move:
-            return False, 0.0
-    else:
-        if (max_speed**2 - curr_v**2)/(2*acceleration) + (time_to_pass - time_to_max_v) * max_speed >= distance_to_move:
-            return False, 0.0
-
+        
+    print("Calculating cruising speed")
     return True, [distance_to_move, time_to_pass]
 
 
@@ -1024,7 +1017,7 @@ class YieldTrajectoryPlanner(Component):
                     deceleration = 1.5
                     print("@@@@@ YIELDING", desired_speed)
                     route_yield = route.trim(closest_parameter,closest_parameter + distance_collision)
-                    traj = longitudinal_plan(route_yield, self.acceleration, deceleration, desired_speed, curr_v)
+                    traj = longitudinal_plan(route_yield, self.acceleration, deceleration, desired_speed, curr_v, self.planner)
                     return traj
                 else:
                     if detected and deceleration > 0:
