@@ -163,7 +163,7 @@ def validate_components(components : Dict[str,ComponentExecutor], provided : Lis
             else:
                 assert provided_all or i in provided, "Component {} input {} is not provided by previous components".format(k,i)
                 if i not in state:
-                    executor_debug_print("Component {} input {} does not exist in AllState object",k,i)
+                    executor_debug_print(0,"Component {} input {} does not exist in AllState object",k,i)
                 if possible_inputs != ['all']:
                     assert i in possible_inputs, "Component {} is not supposed to receive input {}".format(k,i)
         outputs = c.c.state_outputs()
@@ -176,7 +176,7 @@ def validate_components(components : Dict[str,ComponentExecutor], provided : Lis
             if 'all' != o:
                 provided.add(o)
                 if o not in state:
-                    executor_debug_print("Component {} output {} does not exist in AllState object",k,o)
+                    executor_debug_print(0,"Component {} output {} does not exist in AllState object",k,o)
             else:
                 provided_all = True
     for k,c in components.items():
@@ -481,6 +481,10 @@ class ExecutorBase:
         global LOGGING_MANAGER
         LOGGING_MANAGER = self.logging_manager  #kludge! should refactor to avoid global variables
 
+        def signal_handler(sig, frame):
+            print("Received SIGINT! Cleaning up...")
+            sys.exit(0)
+
         #sanity checking
         if self.current_pipeline not in self.pipelines:
             executor_debug_print(0,"Initial pipeline {} not found",self.current_pipeline)
@@ -528,6 +532,8 @@ class ExecutorBase:
                 try:
                     executor_debug_print(1,"Executing pipeline {}",self.current_pipeline)
                     next = self.run_until_switch()
+                    import signal
+                    signal.signal(signal.SIGINT, signal_handler)
                     if next is None:
                         #done
                         self.set_exit_reason("normal exit")

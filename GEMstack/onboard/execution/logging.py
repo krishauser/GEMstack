@@ -13,6 +13,7 @@ from msal import PublicClientApplication
 import json
 import rosbag
 import rospy
+
 class LoggingManager:
     """A top level manager of the logging process.  This is responsible for
     creating log folders, log metadata files, and for replaying components from log
@@ -36,6 +37,7 @@ class LoggingManager:
         self.vehicle_time = None
         self.start_vehicle_time = None
         self.debug_messages = {}
+        self.onedrive_manager = None
 
     def logging(self) -> bool:
         return self.log_folder is not None
@@ -199,14 +201,14 @@ class LoggingManager:
                 os.mkdir(folder)
             filename = os.path.join(folder,item+'_%03d.npz'%len(self.debug_messages[component][item]))
             np.savez(filename,value)
-        # elif isinstance(value,cv2.Mat):
-        #     #if really large, save as png
-        #     folder = os.path.join(self.log_folder,'debug_{}'.format(component))
-        #     if item not in self.debug_messages[component]:
-        #         self.debug_messages[component][item] = []
-        #         os.mkdir(folder)
-        #     filename = os.path.join(folder,item+'_%03d.png'%len(self.debug_messages[component][item]))
-        #     cv2.imwrite(filename,value)
+        elif isinstance(value,cv2.Mat):
+            #if really large, save as png
+            folder = os.path.join(self.log_folder,'debug_{}'.format(component))
+            if item not in self.debug_messages[component]:
+                self.debug_messages[component][item] = []
+                os.mkdir(folder)
+            filename = os.path.join(folder,item+'_%03d.png'%len(self.debug_messages[component][item]))
+            cv2.imwrite(filename,value)
         else:
             if item not in self.debug_messages[component]:
                 self.debug_messages[component][item] = []
@@ -311,21 +313,18 @@ class LoggingManager:
             print('Log file size in MegaBytes is {}'.format(loginfo.st_size / (1024 * 1024)))
             print('-------------------------------------------')
             self.rosbag_process = None
-
-
             
             record_bag = input("Do you want to upload this Rosbag? Y/N (default: Y): ") or "Y"
-            
-
             if(record_bag not in ["N", "no", "n", "No"]):
-                self.upload_to_onedrive()
+                self.onedrive_manager = OneDriveManager()
+                self.onedrive_manager.upload_to_onedrive(self.log_folder)
                 
 
     
     def __del__(self):
         self.close()
             
-class OneDrive():
+class OneDriveManager():
     def __init__(self):
         self.config_found = False
         try:
@@ -341,12 +340,7 @@ class OneDrive():
             print("No Onedrive config file found")
 
 
-    def upload_to_onedrive(self):
-        
-
-
-        # Not private but for reusability in future semesters:
-        # Retrieve values from the config
+    def upload_to_onedrive(self, log_folder):
        
 
         AUTHORITY = f'https://login.microsoftonline.com/{self.TENANT_ID}'
@@ -369,8 +363,8 @@ class OneDrive():
                 'Authorization': f'Bearer {access_token}',
                 'Content-Type': 'application/octet-stream'
             }
-            file_path = os.path.join(self.log_folder,  'vehicle.bag')
-            file_name = self.log_folder[5:]+ "_" +  os.path.basename(file_path)
+            file_path = os.path.join(log_folder,  'vehicle.bag')
+            file_name = log_folder[5:]+ "_" +  os.path.basename(file_path)
             upload_url = (
             f'https://graph.microsoft.com/v1.0/drives/{self.DRIVE_ID}/items/'
             f'{self.ITEM_ID}:/{file_name}:/content'
@@ -386,7 +380,6 @@ class OneDrive():
         else:
             print("❌ Authentication failed.")
 
-    
 
 class LogReplay(Component):
     """Substitutes the output of a component with replayed data from a log file.
@@ -478,7 +471,7 @@ class RosbagPlayer:
             #rospy.loginfo(f'Publishing {msg} to {topic}')
             if topic in self.publishers:  # Only publish selected topics
                 self.publishers[topic].publish(msg)
-            rospy.sleep(0.01)  # Simulate real-time playback
+            #rospy.sleep(0.01)  # Simulate real-time playback
 
             self.current_time = t.to_sec()   # Update current position
 
