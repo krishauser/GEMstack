@@ -57,9 +57,9 @@ variants:
     detector_only:
         run:
             description: "Run the pedestrian detection code"
-            drive:
-                planning:
-                    trajectory_tracking:
+        drive:
+            planning:
+                trajectory_tracking:
     real_sim:
         run:
             description: "Run the pedestrian detection code with real detection and fake simulation"
