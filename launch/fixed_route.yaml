@@ -74,8 +74,7 @@ variants:
                 perception:
                     state_estimation : OmniscientStateEstimator
                     agent_detection : OmniscientAgentDetector
-            visualization: !include "klampt_visualization.yaml"
-            #visualization: !include "mpl_visualization.yaml"
+            visualization: [!include "klampt_visualization.yaml", !include "mpl_visualization.yaml"]
     log_ros:
         log:
             ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"
