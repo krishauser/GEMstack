@@ -45,7 +45,7 @@ log:
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
     log: 
-    ros_topics : ['/ouster/points']
+    ros_topics : []
     components : []
 
 #usually can keep this constant

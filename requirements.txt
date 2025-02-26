@@ -16,3 +16,4 @@ open3d
 #infra
 msal
 parameterized
+requests

@@ -1,5 +1,4 @@
 from .serialization import deserialize,serialize,deserialize_collection,serialize_collection
-import json
 from typing import Union,Tuple
 
 class Logfile:

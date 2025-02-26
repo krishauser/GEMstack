@@ -481,10 +481,6 @@ class ExecutorBase:
         global LOGGING_MANAGER
         LOGGING_MANAGER = self.logging_manager  #kludge! should refactor to avoid global variables
 
-        def signal_handler(sig, frame):
-            print("Received SIGINT! Cleaning up...")
-            sys.exit(0)
-
         #sanity checking
         if self.current_pipeline not in self.pipelines:
             executor_debug_print(0,"Initial pipeline {} not found",self.current_pipeline)
@@ -532,8 +528,6 @@ class ExecutorBase:
                 try:
                     executor_debug_print(1,"Executing pipeline {}",self.current_pipeline)
                     next = self.run_until_switch()
-                    import signal
-                    signal.signal(signal.SIGINT, signal_handler)
                     if next is None:
                         #done
                         self.set_exit_reason("normal exit")
@@ -574,7 +568,6 @@ class ExecutorBase:
             executor_debug_print(2,"Stopping",k)
             c.stop()
 
-        
         self.logging_manager.close()
         executor_debug_print(0,"Done with execution loop")
 
