@@ -7,7 +7,7 @@ from visualizer import visualizer
 
 N = 8 #how many point pairs you want to select
 
-# Update depending on where data is stored
+# Update Depending on Where Data Stored
 rgb_path = './data/color32.png'
 depth_path = './data/depth32.tif'
 lidar_path = './data/lidar32.npz'
@@ -59,7 +59,7 @@ def crop(pc,ix=None,iy=None,iz=None):
 
 lidar_post = np.pad(lidar_points,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
 lidar_post = crop(lidar_post,ix=(0,10),iy=(-5,5))
-vis(notebook=False).add_pc(lidar_post).show()
+# vis(notebook=False).add_pc(lidar_post).show()
 
 #%%
 def pick_n_img(img,n=4):
@@ -161,13 +161,3 @@ print('vehicle->camera:',v2c)
 c2v = np.linalg.inv(v2c)
 print('camera->vehicle:',c2v)
 
-v=vis(notebook=False)
-v.add_pc(lidar_post,color='blue')
-v.add_pc(np.pad(camera_points,((0,0),(0,1)),constant_values=1)@c2v.T[:,:3],color='red')
-v.show()
-
-v=vis(notebook=False)
-# v.add_pc(np.pad(lidar_post,((0,0),(0,1)),constant_values=1)@v2c.T[:,:3],color='blue')
-v.add_pc(camera_points,color='red')
-v.show()
-# %%

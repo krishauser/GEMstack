@@ -95,7 +95,8 @@ def pc_diff(pc0,pc1,tol=0.1):
 #================================================================
 
 #%% load scene for ground plane
-sc = load_scene('/mount/wp/GEMstack/data/lidar1.npz')
+# Update depending on where data is stored
+sc = load_scene('./data/lidar1.npz')
 
 # %% we crop to keep the ground
 cropped_sc = crop(sc,iz = (-3,-2))
@@ -133,9 +134,9 @@ if VIS:
 rot = R.from_euler('xyz',[rx,ry,0]).as_matrix()
 
 if False: # True to use the diff method to extract object.
-    # load data
-    sc0 = load_scene('/mount/wp/GEMstack/data/lidar70.npz')
-    sc1 = load_scene('/mount/wp/GEMstack/data/lidar78.npz')
+    # load data: update depending on where data is stored
+    sc0 = load_scene('./data/lidar70.npz')
+    sc1 = load_scene('./data/lidar78.npz')
 
     sc0 = sc0 @ rot.T + [0,0,tz]
     sc1 = sc1 @ rot.T + [0,0,tz]
@@ -151,7 +152,8 @@ if False: # True to use the diff method to extract object.
     objects = pc_diff(cropped0,cropped1)
 
 else: #False to use only cropping
-    sc1 = load_scene('/mount/wp/GEMstack/data/lidar1.npz')
+    # Update depending on where data is stored
+    sc1 = load_scene('./data/lidar1.npz')
 
     objects = sc1 @ rot.T + [0,0,tz]
 
