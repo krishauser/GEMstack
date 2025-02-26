@@ -283,13 +283,33 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
     3. if at any point you can't brake before hitting the end of the path,
        decelerate with accel = -deceleration until velocity goes to 0.
     """
+    # Extrapolation factor for the points
+    factor = 5.0
+    new_points = []
+    for idx, point in enumerate(path.points[:-1]):
+        next_point = path.points[idx+1] 
+        if point[0] == next_point[0]:
+            break
+        xarange = np.arange(point[0], next_point[0], (next_point[0] - point[0])/factor)
+        if point[1] == next_point[1]:
+            yarange = [point[1]]*len(xarange)
+        else:
+            yarange = np.arange(point[1], next_point[1], (next_point[1] - point[1])/factor)
+        print(yarange)
+        for x, y in zip(xarange, yarange):
+            new_points.append((x, y))
+    new_points.append(path.points[-1])
+    
+    print("new points", new_points)
+    path = Path(path.frame, new_points)
+
     path_normalized = path.arc_length_parameterize()
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
     #=============================================
 
     print("-----LONGITUDINAL PLAN-----")
-    print("path length: ", path.length())
+    #print("path length: ", path.length())
     length = path.length()
 
     # If the path is too short, just return the path for preventing sudden halt of simulation
@@ -331,7 +351,6 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
 
         # If we cannot stop before or stop exactly at the final position requested
         if cur_point[0] + min_delta_x_stop >= points[-1][0]:
-            print("In case one")
             # put on the breaks
 
             # Calculate the next point in a special manner because of too-little time to stop 
@@ -512,7 +531,6 @@ def compute_time_triangle(x0 : float, xf: float,  v0: float, vf : float, acceler
     roots = quad_root(0.5*acceleration + acceleration**2/deceleration - 0.5*acceleration**2/deceleration,
                       v0+2*acceleration*v0/deceleration - acceleration*v0/deceleration,
                       x0 - xf + v0**2/deceleration - 0.5*v0**2/deceleration)
-    print(roots)
     t1 = max(roots)
     assert t1 > 0
     return t1
@@ -581,13 +599,18 @@ def longitudinal_plan_dt(path, acceleration: float, deceleration: float, max_spe
     t = 0
     times = []
     s_vals = []
+    velocities = [] # for graphing and debugging purposes
+
     num_time_steps = 0
+    speed = current_speed
     while t < t_final:
         times.append(t)
+        velocities.append(speed)
         if profile_type == "trapezoidal":
             if t < t_accel:
                 # Acceleration phase.
                 s = current_speed * t + 0.5 * acceleration * t**2
+                speed = current_speed + acceleration * t
             elif t < t_accel + t_cruise:
                 # Cruise phase.
                 s = d_accel + max_speed * (t - t_accel)
@@ -595,14 +618,17 @@ def longitudinal_plan_dt(path, acceleration: float, deceleration: float, max_spe
                 # Deceleration phase.
                 t_decel_phase = t - (t_accel + t_cruise)
                 s = total_length - 0.5 * deceleration * (t_decel - t_decel_phase)**2
+                speed = speed - deceleration * (t_decel-t_decel_phase)
         else:  # Triangular profile.
             if t < t_accel:
                 # Acceleration phase.
                 s = current_speed * t + 0.5 * acceleration * t**2
+                speed = current_speed + acceleration * t
             else:
                 t_decel_phase = t - t_accel
                 s_accel = current_speed * t_accel + 0.5 * acceleration * t_accel**2
                 s = s_accel + peak_speed * t_decel_phase - 0.5 * deceleration * t_decel_phase**2
+                speed = speed - deceleration * t_decel_phase
 
         s_vals.append(min(s, total_length))
         if s >= total_length:
@@ -671,7 +697,7 @@ def longitudinal_plan_dt(path, acceleration: float, deceleration: float, max_spe
 
 
 
-    trajectory = Trajectory(path_norm.frame, points, list(times))
+    trajectory = Trajectory(path_norm.frame, points, list(times),velocities=velocities)
     return trajectory
 
 
