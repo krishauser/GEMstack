@@ -16,6 +16,79 @@ from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
 import time     
 
+
+def find_human_center_in_bbox(lidar_pc, bbox, T_l2c, K, camera_origin, eps=0.15, min_samples=10):
+    """
+    Maps LiDAR points to the image frame and retains those within the bounding box.
+    Clusters these points and returns the center of the cluster that is closest to the camera.
+
+    Args:
+        lidar_pc (np.ndarray): LiDAR points in LiDAR frame, shape (N, 3).
+        bbox (tuple): Bounding box in image coordinates (cx, cy, w, h).
+        T_l2c (np.ndarray): 4x4 transformation matrix from LiDAR to camera frame.
+        K (np.ndarray): 3x3 camera intrinsic matrix.
+        camera_origin (np.ndarray): The camera's origin in LiDAR frame.
+        eps (float): DBSCAN eps parameter.
+        min_samples (int): DBSCAN min_samples parameter.
+
+    Returns:
+        refined_candidate (np.ndarray): The estimated 3D center (in LiDAR frame) of the chosen cluster.
+        best_cluster (np.ndarray): Points belonging to the chosen cluster.
+        (None): For compatibility with the previous API.
+    """
+    cx, cy, w, h = bbox
+    x_min = cx - w / 2
+    x_max = cx + w / 2
+    y_min = cy - h / 2
+    y_max = cy + h / 2
+
+    valid_points = []
+    for point in lidar_pc:
+        # Convert point to homogeneous coordinates
+        p_hom = np.append(point, 1.0)
+        # Transform point from LiDAR to camera frame
+        p_cam = T_l2c @ p_hom
+        # Discard points behind the camera
+        if p_cam[2] <= 0:
+            continue
+        # Project to image plane using intrinsics
+        u = (K[0, 0] * p_cam[0] / p_cam[2]) + K[0, 2]
+        v = (K[1, 1] * p_cam[1] / p_cam[2]) + K[1, 2]
+        # Keep points that lie inside the bounding box
+        if x_min <= u <= x_max and y_min <= v <= y_max:
+            valid_points.append(point)
+
+    if len(valid_points) == 0:
+        return None, None, None
+
+    valid_points = np.array(valid_points)
+
+    # Cluster the valid points using DBSCAN
+    clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(valid_points)
+    labels = clustering.labels_
+    clusters = []
+    for label in set(labels):
+        if label == -1:  # Noise
+            continue
+        cluster_points = valid_points[labels == label]
+        clusters.append(cluster_points)
+
+    if len(clusters) == 0:
+        return None, None, None
+
+    # Select the cluster whose center is closest to the camera origin
+    best_cluster = None
+    best_distance = float('inf')
+    for cluster in clusters:
+        cluster_center = np.mean(cluster, axis=0)
+        distance = np.linalg.norm(cluster_center - camera_origin)
+        if distance < best_distance:
+            best_distance = distance
+            best_cluster = cluster
+
+    refined_candidate = np.mean(best_cluster, axis=0)
+    return refined_candidate, best_cluster, None
+
 # ----- Helper Functions -----
 def match_existing_pedestrian(
     new_center: np.ndarray,
@@ -266,15 +339,12 @@ class PedestrianDetector2D(Component):
 
         for i, box in enumerate(boxes):
             cx, cy, w, h = box
-            # Convert pixel center to a ray in LiDAR frame
-            ray_dir_cam = backproject_pixel(cx, cy, self.K)
-            ray_dir_lidar = self.R_c2l @ ray_dir_cam
-            ray_dir_lidar /= np.linalg.norm(ray_dir_lidar)
 
-            intersection, _, _ = find_human_center_on_ray(
-                lidar_pc, self.camera_origin_in_lidar, ray_dir_lidar,
-                t_min=0.4, t_max=20.0, t_step=0.1,
-                distance_threshold=0.3, min_points=5, ransac_threshold=0.05
+            # Instead of using the ray-based approach, use the bounding box method.
+            bbox = (cx, cy, w, h)
+            intersection, cluster, _ = find_human_center_in_bbox(
+                lidar_pc, bbox, self.T_l2c, self.K, self.camera_origin_in_lidar,
+                eps=0.15, min_samples=10
             )
             if intersection is None:
                 continue
@@ -284,6 +354,7 @@ class PedestrianDetector2D(Component):
             physical_height = (h * d) / self.K[1, 1]
             half_extents = np.array([0.4, 0.4, 1.25 * physical_height / 2])
 
+            # (Optional) You can still extract an ROI and refine the cluster if needed:
             roi_points = extract_roi_box(lidar_pc, intersection, half_extents)
             if roi_points.shape[0] < 10:
                 refined_cluster = roi_points
@@ -316,20 +387,12 @@ class PedestrianDetector2D(Component):
                 R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                 euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
                 yaw, pitch, roll = euler_angles_vehicle
-                refined_center = refined_center_vehicle  # Use vehicle frame for output
+                refined_center = refined_center_vehicle
                 vehicle_state = vehicle.to_frame(ObjectFrameEnum.GLOBAL)
                 curr_x = vehicle_state.pose.x
                 curr_y = vehicle_state.pose.y
-                # curr_yaw = vehicle.pose.yaw
-                # curr_pitch = vehicle.pose.pitch
-                # curr_roll = vehicle.pose.roll
-                # Note: Ensure refined_center has enough dimensions before adding these values.
                 refined_center[0] += curr_x
                 refined_center[1] += curr_y
-                # euler_angles_vehicle[0] += curr_yaw
-                # # If refined_center should only be 3D, remove or adjust the following lines:
-                # euler_angles_vehicle[1] += curr_pitch
-                # euler_angles_vehicle[2] += curr_roll
 
             # Create new pose in the vehicle frame
             new_pose = ObjectPose(
@@ -343,7 +406,7 @@ class PedestrianDetector2D(Component):
                 frame=ObjectFrameEnum.CURRENT
             )
 
-            # Attempt to match with an existing pedestrian
+            # Match with an existing pedestrian if possible
             existing_id = match_existing_pedestrian(
                 new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
                 new_dims=dims,
@@ -385,7 +448,7 @@ class PedestrianDetector2D(Component):
 
         # Remove stale agents that haven't been updated for more than 3 seconds.
         stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
-                     if current_time - agent.pose.t > 3.0]
+                     if current_time - agent.pose.t > 5.0]
         for agent_id in stale_ids:
             rospy.loginfo(f"Removing stale agent: {agent_id}")
             del self.tracked_agents[agent_id]
