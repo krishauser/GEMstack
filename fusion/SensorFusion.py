@@ -77,6 +77,15 @@ if __name__ == '__main__':
 
 
 
+"""
+roscore
+rosbag play -l logs/three_02_05_25/vehicle.bag
+roslaunch fusion sensors.launch 
+
+cd fusion
+python3 pointcloud2image.py
+"""
+
 
 
 
