@@ -11,7 +11,7 @@ This repository contains tools for offline calibration of LiDAR and camera senso
 
 ## Calibration Pipeline
 
-### 1. LiDAR-to-Vehicle Calibration (`make_gem_e4_ouster_v2.py`)
+### 1. LiDAR-to-Vehicle Calibration (`lidar_to_vehicle.py`)
 **Method**:  
 - **Ground Plane Detection**:  
   1. Crop LiDAR points near ground (Z ∈ [-3, -2])  
