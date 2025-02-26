@@ -1,11 +1,14 @@
 #%%
-import os
 import sys
 import math
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-os.getcwd()
+import pyvista as pv
+import matplotlib.pyplot as plt
+from visualizer import visualizer
+
 VIS = False # True to show visuals
+VIS = True # True to show visuals
 
 #%% things to extract
 tx,ty,tz,rx,ry,rz = [None] * 6
@@ -13,41 +16,10 @@ tx,ty,tz,rx,ry,rz = [None] * 6
 #%%==============================================================
 #======================= util functions =========================
 #================================================================
-if VIS:
-    import pyvista as pv
-    import matplotlib.pyplot as plt
 def vis(title='', ratio=1):
     print(title)
     pv.set_jupyter_backend('client')
-    plotter = pv.Plotter(notebook=True)
-    plotter.camera.position = (-20*ratio,0,20*ratio)
-    plotter.camera.focal_point = (0,0,0)
-    plotter.show_axes()
-    class foo:
-        def add_pc(self,pc,ratio=ratio,**kargs):
-            plotter.add_mesh(
-                pv.PolyData(pc*ratio), 
-                render_points_as_spheres=True, 
-                point_size=2,
-                **kargs)
-            return self
-        def add_line(self,p1,p2,ratio=ratio,**kargs):
-            plotter.add_mesh(
-                pv.Line(p1*ratio,p2*ratio), 
-                **kargs,
-                line_width=1)
-            return self
-        def add_box(self,bound,trans,ratio=ratio):
-            l,w,h = map(lambda x:x*ratio,bound)
-            box = pv.Box(bounds=(-l/2,l/2,-w/2,w/2,-h/2,h/2))
-            box = box.translate(list(map(lambda x:x*ratio,trans)))
-            plotter.add_mesh(box, color='yellow')
-            return self
-        def show(self):
-            plotter.show()
-            return self
-
-    return foo()
+    return visualizer().set_cam()
 def load_scene(path):
     sc = np.load(path)['arr_0'] 
     sc = sc[~np.all(sc == 0, axis=1)] # remove (0,0,0)'s
@@ -75,7 +47,7 @@ def fit_plane_ransac(pc,tol=0.01):
     model.fit(pc[:,:-1], pc[:,-1]) 
     a = model.estimator_.coef_
     inter = model.estimator_.intercept_
-    class foo:
+    class visual:
         def plot(self):
             inliers = pc[model.inlier_mask_]
             if pc.shape[1] == 2:
@@ -92,7 +64,7 @@ def fit_plane_ransac(pc,tol=0.01):
             # return: array(D-1), float, array(N,3)
             # ^: , coeffs, intercept toward the plane, inliers of the fit
             return a,inter
-    return foo()
+    return visual()
 
 from scipy.spatial import cKDTree
 def pc_diff(pc0,pc1,tol=0.1):
@@ -123,7 +95,8 @@ def pc_diff(pc0,pc1,tol=0.1):
 #================================================================
 
 #%% load scene for ground plane
-sc = load_scene('/mount/wp/GEMstack/data/lidar70.npz')
+# Update depending on where data is stored
+sc = load_scene('./data/lidar1.npz')
 
 # %% we crop to keep the ground
 cropped_sc = crop(sc,iz = (-3,-2))
@@ -161,9 +134,9 @@ if VIS:
 rot = R.from_euler('xyz',[rx,ry,0]).as_matrix()
 
 if False: # True to use the diff method to extract object.
-    # load data
-    sc0 = load_scene('/mount/wp/GEMstack/data/lidar70.npz')
-    sc1 = load_scene('/mount/wp/GEMstack/data/lidar78.npz')
+    # load data: update depending on where data is stored
+    sc0 = load_scene('./data/lidar70.npz')
+    sc1 = load_scene('./data/lidar78.npz')
 
     sc0 = sc0 @ rot.T + [0,0,tz]
     sc1 = sc1 @ rot.T + [0,0,tz]
@@ -179,7 +152,8 @@ if False: # True to use the diff method to extract object.
     objects = pc_diff(cropped0,cropped1)
 
 else: #False to use only cropping
-    sc1 = load_scene('/mount/wp/GEMstack/data/lidar1.npz')
+    # Update depending on where data is stored
+    sc1 = load_scene('./data/lidar1.npz')
 
     objects = sc1 @ rot.T + [0,0,tz]
 
@@ -204,9 +178,9 @@ if VIS:
 # tx = ty = 0
 # hx,hy = np.median(diff,axis=0)[:2]
 # rz = -np.arctan2(hy,hx)
-tx = - (2.56 - 1.46) # https://publish.illinois.edu/robotics-autonomy-resources/gem-e4/hardware/
-ty = - inter
 rz = - math.atan(c)
+tx = 2.56 - 1.46 # https://publish.illinois.edu/robotics-autonomy-resources/gem-e4/hardware/
+ty = - inter * math.cos(rz)
 
 if VIS:
     p1 = (0,inter,0)
@@ -224,10 +198,9 @@ if VIS:
     rot = R.from_euler('xyz',[rx,ry,rz]).as_matrix()
 
     cal_sc1 = sc1 @ rot.T + [tx,ty,tz]
-    # projection
-    # cal_sc1[:,1] = 0
     v = vis(ratio=100)
-    v.add_pc(cal_sc1*[0,1,1],color='blue')
+    proj = [1,1,1]
+    v.add_pc(cal_sc1*proj,color='blue')
     v.add_box((2.56,.61*2,2.03+height_axel),[2.56/2,0,(2.03+height_axel)/2])
     v.show() 
     # the yellow box should be 11 inches above the ground
