@@ -49,9 +49,11 @@ def fit_ground_plane(points):
     Returns the normalized plane normal and the centroid.
     Here, points is an (N,3) NumPy array.
     """
-    centroid = np.mean(points, axis=0)
+    centroid = np.mean(points, axis=0, dtype=np.float32)
+
     # SVD on the centered data
-    _, _, Vt = np.linalg.svd(points - centroid)
+    _, _, Vt = np.linalg.svd((points - centroid).astype(np.float32))
+
     normal = Vt[-1, :]   # The smallest singular value gives the normal direction
     # Ensure the normal points upward (z>0 in vehicle frame)
     if normal[2] < 0:
@@ -145,7 +147,8 @@ def save_calibration(filename, T_toplidar_vehicle, T_frontcamera_vehicle, vehicl
 def main(args):
     # For ground calibration, load a LiDAR scan file that covers a flat floor.
     # It is assumed that the file contains points that belong to the ground.
-    ground_points = np.load(args.ground_lidar_points)
+    ground_points = np.load(args.ground_lidar_points).astype(np.float32)
+
     print("Loaded ground LiDAR points with shape:", ground_points.shape)
     
     # Compute T_toplidar^vehicle from ground plane and measurements.
@@ -172,17 +175,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="Absolute Calibration of Vehicle Frame: Compute transforms T_toplidar^vehicle and T_frontcamera^vehicle."
     )
-    parser.add_argument("--ground_lidar_points", type=str, required=True,
+    parser.add_argument("--ground_lidar_points", default = "./data/ground_points.npy", type=str,
                         help="Path to LiDAR scan file with ground points (e.g., ground_points.npy)")
-    parser.add_argument("--toplidar_frontcamera", type=str, required=True,
+    parser.add_argument("--toplidar_frontcamera", default = "./data/extrinsics.npz", type=str,
                         help="Path to sensor calibration file for T_toplidar^frontcamera (e.g., extrinsics.npz)")
-    parser.add_argument("--rear_axle_height", type=float, required=True,
+    parser.add_argument("--rear_axle_height", default = 0.33, type=float,
                         help="Measured rear axle height above the ground (in meters)")
-    parser.add_argument("--yaw_offset", type=float, required=True,
+    parser.add_argument("--yaw_offset",default = 0.12, type=float,
                         help="Measured yaw offset (in degrees) from calibration objects on the vehicle centerline")
-    parser.add_argument("--vehicle", type=str, required=True,
+    parser.add_argument("--vehicle", default = "gem_e4", type=str,
                         help="Vehicle identifier (e.g., gem_e4)")
-    parser.add_argument("--output_yaml", type=str, required=True,
+    parser.add_argument("--output_yaml", default = "gem_e4.yaml",type=str,
                         help="Output YAML file path (e.g., gem_e4.yaml)")
     args = parser.parse_args()
     main(args)
