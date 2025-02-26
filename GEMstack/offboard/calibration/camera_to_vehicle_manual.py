@@ -3,8 +3,11 @@ import cv2
 from scipy.spatial.transform import Rotation as R
 import matplotlib.pyplot as plt
 import numpy as np
+from visualizer import visualizer
 
 N = 8 #how many point pairs you want to select
+
+# Update depending on where data is stored
 rgb_path = './data/color32.png'
 depth_path = './data/depth32.tif'
 lidar_path = './data/lidar32.npz'
@@ -38,40 +41,8 @@ import pyvista as pv
 def vis(title='', ratio=1,notebook=False):
     print(title)
     pv.set_jupyter_backend('client')
-    plotter = pv.Plotter(notebook=notebook)
-    plotter.show_axes()
-    class foo:
-        def set_cam(self,pos=(-20*ratio,0,20*ratio),foc=(0,0,0)):
-            plotter.camera.position = pos
-            plotter.camera.focal_point = foc
-            return self
-        def add_pc(self,pc,ratio=ratio,**kargs):
-            plotter.add_mesh(
-                pv.PolyData(pc*ratio), 
-                render_points_as_spheres=True, 
-                point_size=2,
-                **kargs)
-            return self
-        def add_line(self,p1,p2,ratio=ratio,**kargs):
-            plotter.add_mesh(
-                pv.Line(p1*ratio,p2*ratio), 
-                **kargs,
-                line_width=1)
-            return self
-        def add_box(self,bound,trans,ratio=ratio):
-            l,w,h = map(lambda x:x*ratio,bound)
-            box = pv.Box(bounds=(-l/2,l/2,-w/2,w/2,-h/2,h/2))
-            box = box.translate(list(map(lambda x:x*ratio,trans)))
-            plotter.add_mesh(box, color='yellow')
-            return self
-        def show(self):
-            plotter.show()
-            return self
-        def close(self):
-            plotter.close()
-            return None
 
-    return foo().set_cam()
+    return visualizer().set_cam()
 def crop(pc,ix=None,iy=None,iz=None):
     # crop a subrectangle in a pointcloud
     # usage: crop(pc, ix = (x_min,x_max), ...)

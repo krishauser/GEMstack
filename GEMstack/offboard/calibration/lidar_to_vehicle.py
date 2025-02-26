@@ -5,6 +5,8 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 import pyvista as pv
 import matplotlib.pyplot as plt
+from visualizer import visualizer
+
 VIS = False # True to show visuals
 VIS = True # True to show visuals
 
@@ -17,40 +19,7 @@ tx,ty,tz,rx,ry,rz = [None] * 6
 def vis(title='', ratio=1):
     print(title)
     pv.set_jupyter_backend('client')
-    plotter = pv.Plotter(notebook=False)
-    plotter.show_axes()
-    class foo:
-        def set_cam(self,pos=(-20*ratio,0,20*ratio),foc=(0,0,0)):
-            plotter.camera.position = pos
-            plotter.camera.focal_point = foc
-            return self
-        def add_pc(self,pc,ratio=ratio,**kargs):
-            plotter.add_mesh(
-                pv.PolyData(pc*ratio), 
-                render_points_as_spheres=True, 
-                point_size=2,
-                **kargs)
-            return self
-        def add_line(self,p1,p2,ratio=ratio,**kargs):
-            plotter.add_mesh(
-                pv.Line(p1*ratio,p2*ratio), 
-                **kargs,
-                line_width=1)
-            return self
-        def add_box(self,bound,trans,ratio=ratio):
-            l,w,h = map(lambda x:x*ratio,bound)
-            box = pv.Box(bounds=(-l/2,l/2,-w/2,w/2,-h/2,h/2))
-            box = box.translate(list(map(lambda x:x*ratio,trans)))
-            plotter.add_mesh(box, color='yellow')
-            return self
-        def show(self):
-            plotter.show()
-            return self
-        def close(self):
-            plotter.close()
-            return None
-
-    return foo().set_cam()
+    return visualizer().set_cam()
 def load_scene(path):
     sc = np.load(path)['arr_0'] 
     sc = sc[~np.all(sc == 0, axis=1)] # remove (0,0,0)'s
@@ -78,7 +47,7 @@ def fit_plane_ransac(pc,tol=0.01):
     model.fit(pc[:,:-1], pc[:,-1]) 
     a = model.estimator_.coef_
     inter = model.estimator_.intercept_
-    class foo:
+    class visual:
         def plot(self):
             inliers = pc[model.inlier_mask_]
             if pc.shape[1] == 2:
@@ -95,7 +64,7 @@ def fit_plane_ransac(pc,tol=0.01):
             # return: array(D-1), float, array(N,3)
             # ^: , coeffs, intercept toward the plane, inliers of the fit
             return a,inter
-    return foo()
+    return visual()
 
 from scipy.spatial import cKDTree
 def pc_diff(pc0,pc1,tol=0.1):
