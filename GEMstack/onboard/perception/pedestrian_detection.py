@@ -163,9 +163,6 @@ class PedestrianDetector2D(Component):
         if len(self.current_agent_obj_dims['pose']) != len(self.current_agent_obj_dims['dims']):
             raise Exception( f"Length of extracted poses ({len(self.current_agent_obj_dims['pose'])}) and dimensions ({len(self.current_agent_obj_dims['dims'])}) are not equal")
         
-        # Update current time:
-        self.curr_time = vehicle.pose.t
-        
         # (f"Global state : {vehicle}")
 
         # Convert pose to start state. Need to use previous_vehicle state as pedestrian info is delayed
@@ -536,10 +533,9 @@ class PedestrianDetector2D(Component):
     #     return vels
 
     def ouster_oak_callback(self, cv_image: cv2.Mat, lidar_points: np.ndarray):
-
         # Update times for basic velocity calculation
-        # self.prev_time = self.curr_t
-        # self.curr_time = datetime.now() # Updating in update function now
+        self.prev_time = self.curr_time
+        self.curr_time = self.current_vehicle_state.pose.t
 
         self.cv_image = cv_image
         self.lidar_points = lidar_points
