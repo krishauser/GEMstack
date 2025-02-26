@@ -20,3 +20,5 @@ internal_dry_deceleration: 0.2      #m/s^2: deceleration due to internal dry fri
 internal_viscous_deceleration: 0.05  #1/s: scales the current velocity to get deceleration due to internal viscous friction (speed dependent)
 aerodynamic_drag_coefficient: 0.01  #units in s, scaled by velocity^2 to get deceleration due to aerodynamic drag
 acceleration_deadband: 0.1          #m/s^2: minimum acceleration to be considered non-zero
+velocity_scaling_factor: 0.0           # Velocity * this scalar will be added to brake and throttle percent. 
+pedal_mapping_function: linear
