@@ -182,9 +182,10 @@ def plot_position(axis, x_actual, y_actual, x_desired, y_desired, safe_thresh=1,
 
 def plot_pedestrian_dist(axis, pedestrian_times, pedestrian_distances, safe_thresh=5.0, unsafe_thresh=2.0):
     """Plots pedestrian distance to vehicle vs. time"""
-    safety_scores = np.vectorize(compute_safety_factor)(pedestrian_distances, safe_thresh, unsafe_thresh, flip=True)
-    axis.plot(pedestrian_times, pedestrian_distances, color="black", linewidth=0.8, alpha=0.5)
-    axis.scatter(pedestrian_times, pedestrian_distances, c=safety_scores, cmap=CMAP, vmin=0, vmax=1, edgecolors="black")
+    if len(pedestrian_times) > 0:
+        safety_scores = np.vectorize(compute_safety_factor)(pedestrian_distances, safe_thresh, unsafe_thresh, flip=True)
+        axis.plot(pedestrian_times, pedestrian_distances, color="black", linewidth=0.8, alpha=0.5)
+        axis.scatter(pedestrian_times, pedestrian_distances, c=safety_scores, cmap=CMAP, vmin=0, vmax=1, edgecolors="black")
     
     axis.set_xlabel("Time (s)")
     axis.set_ylabel("Pedestrian Distance (m)")
@@ -231,4 +232,5 @@ if __name__=='__main__':
         
     print("RMS Jerk:", np.sqrt(np.mean(jerk**2)), "m/s³")
     print("RMS Heading Acceleration:", np.sqrt(np.mean(heading_acc**2)), "rad/s²")
-    print("Minimum Pedestrian Distance:", np.min(ped_distances), "m")
+    if len(ped_distances) > 0:
+        print("Minimum Pedestrian Distance:", np.min(ped_distances), "m")
