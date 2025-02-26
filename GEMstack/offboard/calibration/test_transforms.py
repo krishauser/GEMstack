@@ -11,12 +11,15 @@ image = cv2.imread("./data/color1.png")  # Update filename if needed
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
 
 # Transformation Matrix
+import numpy as np
+
 T_lidar_camera = np.array([
-    [0.001090, -0.999489, -0.031941,  0.149698],
-    [-0.007664,  0.031932, -0.999461, -0.397813],
-    [0.999970,  0.001334, -0.007625, -0.691405],
-    [0.000000,  0.000000,  0.000000,  1.000000]
+    [ 2.89748006e-02, -9.99580136e-01,  3.68439439e-05, -3.07300513e-02],
+    [-9.49930618e-03, -3.12215512e-04, -9.99954834e-01, -3.86689354e-01],
+    [ 9.99534999e-01,  2.89731321e-02, -9.50437214e-03, -6.71425124e-01],
+    [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]
 ])
+
 
 # Convert LiDAR points to homogeneous coordinates
 num_points = lidar_points.shape[0]
