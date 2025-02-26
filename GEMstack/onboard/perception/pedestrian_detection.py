@@ -415,6 +415,8 @@ class PedestrianDetector2D(Component):
                 agents[idx].velocity = (0, 0, 0)
                 self.current_agents[id] = agents[idx]
                 backOrder[idx] = id
+        print("BACKORDER")
+        print(backOrder)
         return backOrder
 
     # Calculates whether 2 agents overlap. True if they do, false if not
@@ -536,7 +538,7 @@ class PedestrianDetector2D(Component):
     def ouster_oak_callback(self, cv_image: cv2.Mat, lidar_points: np.ndarray):
 
         # Update times for basic velocity calculation
-        self.prev_time = self.curr_time
+        # self.prev_time = self.curr_t
         # self.curr_time = datetime.now() # Updating in update function now
 
         self.cv_image = cv_image

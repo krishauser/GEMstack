@@ -18,10 +18,10 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] #forward_15m
-        motion_planning: #longitudinal_planning.YieldTrajectoryPlanner
-            type: RouteToTrajectoryPlanner
-            args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
+        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+            # type: RouteToTrajectoryPlanner
+            # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
             # args: [null]

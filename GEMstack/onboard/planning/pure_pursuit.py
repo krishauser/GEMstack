@@ -21,6 +21,8 @@ class PurePursuit(object):
         self.wheel_angle_range = [settings.get('vehicle.geometry.min_wheel_angle'),settings.get('vehicle.geometry.max_wheel_angle')]
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         
+        self.max_decel = 100
+
         if desired_speed is not None:
             self.desired_speed_source = desired_speed
         else:
