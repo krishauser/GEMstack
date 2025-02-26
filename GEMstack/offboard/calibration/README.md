@@ -39,7 +39,8 @@ python3 lidar_to_vehicle.py      # Edit LiDAR data paths in script
   1. Get camera intrinsics:
     rosrun offboard\calibration\camera_info.py  # Prints intrinsic matrix
   2. Update camera_in in script with intrinsics
-  3. Run calibration:
+  3. Update data paths in script
+  4. Run calibration:
     python3 camera_to_vehicle_manual.py
 
 
