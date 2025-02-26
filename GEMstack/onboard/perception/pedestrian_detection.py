@@ -8,6 +8,9 @@ import os
 import rospy
 from sensor_msgs.msg import Image
 from typing import Dict
+import json
+import open3d as o3d
+
 
 def box_to_fake_agent(box):
 	"""Creates a fake agent state from an (x,y,w,h) bounding box.
@@ -23,8 +26,11 @@ def box_to_fake_agent(box):
 class PedestrianDetector2D(Component):
 	"""Detects pedestrians."""
 	def __init__(self,vehicle_interface : GEMInterface):
+		# 初始化函数，传入参数vehicle_interface，类型为GEMInterface
 		self.vehicle_interface = vehicle_interface
+		# 将传入的vehicle_interface赋值给self.vehicle_interface
 		self.detector = YOLO(f"{os.getcwd()}/knowledge/detection/yolo11n.pt")
+		# 初始化YOLO对象，传入参数为当前工作目录下的knowledge/detection/yolo11n.pt文件路径
 		self.last_person_boxes = []
 
 	def rate(self):

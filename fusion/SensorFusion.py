@@ -67,9 +67,9 @@ OAK_RGB_EXTRINSIC = np.linalg.inv(T_OAK_2_BASE_FOOTPRINT)
 
 if __name__ == '__main__':
 
-    print(T_OUSTER_2_BASE_FOOTPRINT)
-    print(T_LIVOX_2_BASE_FOOTPRINT)
-    print(T_OAK_2_BASE_FOOTPRINT)
+    print(f"T_OUSTER_2_BASE_FOOTPRINT : \n{T_OUSTER_2_BASE_FOOTPRINT}")
+    print(f"T_LIVOX_2_BASE_FOOTPRINT : \n{T_LIVOX_2_BASE_FOOTPRINT}")
+    print(f"T_OAK_2_BASE_FOOTPRINT : \n{T_OAK_2_BASE_FOOTPRINT}")
     
     # np.save("top_lidar_2_vehicle.npy", T_OUSTER_2_BASE_FOOTPRINT)
     # mat = np.load("top_lidar_2_vehicle.npy")
