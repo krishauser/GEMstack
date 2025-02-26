@@ -11,7 +11,7 @@ This repository contains tools for offline calibration of LiDAR and camera senso
 
 ## Calibration Pipeline
 
-### 1. LiDAR-to-Vehicle Calibration (`make_gem_e4_ouster_v2.py`)
+### 1. LiDAR-to-Vehicle Calibration (`lidar_to_vehicle.py`)
 **Method**:  
 - **Ground Plane Detection**:  
   1. Crop LiDAR points near ground (Z ∈ [-3, -2])  
@@ -26,7 +26,7 @@ This repository contains tools for offline calibration of LiDAR and camera senso
 
 **Usage**:  
 
-python3 make_gem_e4_ouster_v2.py      # Edit LiDAR data paths in script
+python3 lidar_to_vehicle.py      # Edit LiDAR data paths in script
 
 
 ### 2. CAMERA-to-Vehicle Calibration (`camera_to_vehicle_manual.py`)
@@ -57,11 +57,13 @@ python3 lidar_to_camera.py   # Ensure T_lidar_vehicle and T_camera_vehicle matri
 
 **3D Alignment Check**:
  1. Use vis() function in scripts to view calibrated LiDAR/camera clouds
- 2. Toggle VIS = True in make_gem_e4_ouster_v2.py for ground plane/object visualization
+ 2. Toggle VIS = True in lidar_to_vehicle.py for ground plane/object visualization
+ 3. Use test_transforms.py to visualize lidar point cloud on top of png image. Helps verify accuracy of lidar->camera.
 
 **Projection Validation**:
  1. RGB image overlaid with transformed LiDAR points (Z-buffered)
  2. Frontal view comparison of camera and LiDAR data
+
 
 
 

@@ -6,6 +6,7 @@ from scipy.spatial.transform import Rotation as R
 import pyvista as pv
 import matplotlib.pyplot as plt
 VIS = False # True to show visuals
+VIS = True # True to show visuals
 
 #%% things to extract
 tx,ty,tz,rx,ry,rz = [None] * 6
@@ -16,7 +17,7 @@ tx,ty,tz,rx,ry,rz = [None] * 6
 def vis(title='', ratio=1):
     print(title)
     pv.set_jupyter_backend('client')
-    plotter = pv.Plotter(notebook=True)
+    plotter = pv.Plotter(notebook=False)
     plotter.show_axes()
     class foo:
         def set_cam(self,pos=(-20*ratio,0,20*ratio),foc=(0,0,0)):
