@@ -45,9 +45,9 @@ log:
     #state_rate: 10
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
-    log: 'logs/test3'
+    log: 
     # For replaying sensor data, try !include "../knowledge/defaults/standard_sensor_ros_topics.yaml"
-    ros_topics : ['/dummy_topic', '/webcam']
+    ros_topics : []
     components : []
 
 #usually can keep this constant
