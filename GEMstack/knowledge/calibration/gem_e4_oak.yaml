@@ -1,5 +1,5 @@
 reference: rear_axle_center  # rear axle center
-rotation: [[-0.025131,   -0.0304479,   0.99922038],
-          [-0.99892897,  0.0396095,  -0.0239167],
-          [-0.0388504,  -0.99875123, -0.03141071]] # rotation matrix mapping z to forward, x to left, y to down, guesstimated
-center_position: [1.78251567,0.18649424,1.5399846] # meters, center camera, guesstimated
+rotation: [[ 0.00349517, -0.03239524, 0.99946903],
+          [-0.99996547,  0.00742285,  0.0037375],
+          [-0.00753999, -0.99944757, -0.03236817]] # rotation matrix mapping z to forward, x to left, y to down, guesstimated
+center_position: [ 1.75864913, 0.01238124, 1.54408419] # meters, center camera, guesstimated
