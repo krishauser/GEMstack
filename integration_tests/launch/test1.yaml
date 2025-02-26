@@ -45,7 +45,7 @@ log:
     #state_rate: 10
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
-    log: 'logs/test5'
+    log: 'logs/test_control'
     # For replaying sensor data, try !include "../knowledge/defaults/standard_sensor_ros_topics.yaml"
     ros_topics : ['/septentrio_gnss/insnavgeod']
     components : ['state_estimation']

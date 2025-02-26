@@ -435,9 +435,12 @@ class LogReplay(Component):
 
 
 class RosbagPlayer:
+    '''
+    Class which manages Ros bag replay. Note that this does not work unless the executor is running
+    '''
     def __init__(self, bag_path, topics):
         self.bag = rosbag.Bag(os.path.join(bag_path, 'vehicle.bag'), 'r')
-        self.current_time = None  # Track current position in bag
+        self.current_time = None 
         self.offset = -1
 
         self.publishers = {}
@@ -451,29 +454,26 @@ class RosbagPlayer:
 
     def update_topics(self, target_timestamp):
         """
-        Plays from the current position in the bag to the given timestamp.
-        :param target_timestamp: ROS time (rospy.Time) to play until
+        Plays from the current position in the bag to the target timestamp.
+        :param target_timestamp: gem stack time to play until. 
+        Will remember the currenttime and only play from current time to the target timestamp
         """
-        self.prev_timestamp = target_timestamp
         if self.offset <0:
             self.offset = target_timestamp - self.bag.get_start_time()
         if self.current_time is None:
             self.current_time = self.bag.get_start_time()
 
         first_message = True
-        #rospy.loginfo(f"Playing from {self.current_time} to {target_timestamp}")
         for topic, msg, t in self.bag.read_messages(start_time=rospy.Time(self.current_time )):
             if t.to_sec() + self.offset > target_timestamp:
                 break  # Stop when reaching the target time
             if first_message and t.to_sec() == self.current_time:
                 first_message = False
                 continue
-            #rospy.loginfo(f'Publishing {msg} to {topic}')
-            if topic in self.publishers:  # Only publish selected topics
+            if topic in self.publishers:
                 self.publishers[topic].publish(msg)
-            #rospy.sleep(0.01)  # Simulate real-time playback
 
-            self.current_time = t.to_sec()   # Update current position
+            self.current_time = t.to_sec()  
 
     def close(self):
         self.bag.close()

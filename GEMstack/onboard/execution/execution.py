@@ -645,7 +645,7 @@ class ExecutorBase:
         """Runs a pipeline until a switch is requested."""
         if self.current_pipeline == 'recovery':        
             self.state.mission.type = MissionEnum.RECOVERY_STOP
-        
+
         (perception_components,planning_components,other_components) = self.pipelines[self.current_pipeline]
         components = list(perception_components.values()) + list(planning_components.values()) + list(other_components.values()) + list(self.always_run_components.values())
         dt_min = min([c.dt for c in components if c.dt != 0.0])

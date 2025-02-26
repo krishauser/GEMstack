@@ -26,7 +26,12 @@ log:
     # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
     #suffix : 'test3'  
     # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
-    ros_topics : []
+    ros_topics : ['/oak/left/image_raw',
+        '/oak/rgb/image_raw',
+        '/oak/right/image_raw',
+        '/oak/stereo/image_raw',
+        '/ouster/points',
+        '/livox/lidar ']
     # Specify options to pass to rosbag record. Default is no options.
     #rosbag_options : '--split --size=1024' 
     # If True, then record all readings / commands of the vehicle interface. Default False
