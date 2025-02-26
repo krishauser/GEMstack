@@ -284,6 +284,8 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
        decelerate with accel = -deceleration until velocity goes to 0.
     """
     # Extrapolation factor for the points
+    # @TODO this should be moved to a parameter/allow dx to handle the case
+    # where we need more points
     factor = 5.0
     new_points = []
     for idx, point in enumerate(path.points[:-1]):
