@@ -302,13 +302,13 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
             yarange = [point[1]]*len(xarange)
         else:
             yarange = np.arange(point[1], next_point[1], (next_point[1] - point[1])/factor)
+        print(yarange)
         for x, y in zip(xarange, yarange):
             new_points.append((x, y))
+    new_points.append(path.points[-1])
     
-    if len(new_points) == 0:
-        pass
-    else:
-        path = Path(path.frame, new_points)
+    print("new points", new_points)
+    path = Path(path.frame, new_points)
 
     path_normalized = path.arc_length_parameterize()
     points = [p for p in path_normalized.points]
@@ -502,9 +502,9 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
         
     points = new_points
     times = new_times
-    #print("[PLAN] Computed points:", points)
-    #print("[TIME] Computed time:", times)
-    #print("[Velocities] Computed velocities:", velocities)
+    print("[PLAN] Computed points:", points)
+    print("[TIME] Computed time:", times)
+    print("[Velocities] Computed velocities:", velocities)
 
     #=============================================
 
