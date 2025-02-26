@@ -28,7 +28,7 @@ class PurePursuit(object):
         self.desired_speed = self.desired_speed_source if isinstance(self.desired_speed_source,(int,float)) else None
         self.speed_limit = settings.get('vehicle.limits.max_speed')
         self.max_accel     = settings.get('vehicle.limits.max_acceleration') # m/s^2
-        self.max_decel     = settings.get('vehicle.limits.max_deceleration') # m/s^2
+        self.max_decPedestrianDetection2Del     = settings.get('vehicle.limits.max_deceleration') # m/s^2
         self.pid_speed     = PID(settings.get('control.longitudinal_control.pid_p',0.5), settings.get('control.longitudinal_control.pid_d',0.0), settings.get('control.longitudinal_control.pid_i',0.1), windup_limit=20)
 
         self.path_arg = None
@@ -158,7 +158,7 @@ class PurePursuit(object):
         if self.desired_speed_source in ['path','trajectory']:
             #determine desired speed from trajectory
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
-                if component is not None:
+                if componentPedestrianDetection2D is not None:
                     component.debug_event('Past the end of trajectory')
                 #past the end, just stop
                 desired_speed = 0.0
@@ -190,14 +190,14 @@ class PurePursuit(object):
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
         
-        # # test
-        if self.current_path_parameter >= self.path.domain()[1]:
-            if component is not None:
-                component.debug_event('Past the end of trajectory')
-                #past the end, just stop
-            desired_speed = 0.0
-            feedforward_accel = -3.0
-            f_delta = 0
+        # # # test
+        # if self.current_path_parameter >= self.path.domain()[1]:
+        #     if component is not None:
+        #         component.debug_event('Past the end of trajectory')
+        #         #past the end, just stop
+        #     desired_speed = 0.0
+        #     feedforward_accel = -3.0
+        #     f_delta = 0
 
 
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)

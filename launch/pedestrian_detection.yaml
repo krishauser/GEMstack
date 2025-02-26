@@ -83,7 +83,7 @@ variants:
             description: "Run the yielding trajectory planner on the real vehicle with faked perception"
             drive:
                 perception:
-                    agent_detection : pedestrian_detection.FakePedestrianDetector2D
+                    agent_detection : pedestrian_detection.PedestrianDetector2D
 
     fake_sim:
         run:

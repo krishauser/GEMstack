@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
-from ..interface.gem import GEMInterface
-from ..component import Component
-#from ultralytics import YOLO
-#import cv2
-from typing import Dict
-=======
 """
 Top ouster lidar + Oak front camera fusion, object detection
 """
@@ -73,13 +65,6 @@ def box_to_fake_agent(box):
 
 
 class PedestrianDetector2D(Component):
-<<<<<<< HEAD
-    """Detects pedestrians."""
-    def __init__(self,vehicle_interface : GEMInterface):
-        self.vehicle_interface = vehicle_interface
-        #self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
-        self.last_person_boxes = []
-=======
     # TODO: Pull params into a JSON/yaml
     # TODO: Convert some lists into np.arrays, vectorize calculations
     # TODO: Implement logging instead of print, cleanup comments
@@ -608,7 +593,6 @@ class PedestrianDetector2D(Component):
         self.update_object_states(track_result, extracted_pts_all)
         if self.debug: self.viz_object_states(cv_image, boxes, extracted_pts_all)
 
->>>>>>> origin/s2025_teamB
 
     def rate(self):
         return 4.0
@@ -618,32 +602,6 @@ class PedestrianDetector2D(Component):
     
     def state_outputs(self):
         return ['agents']
-<<<<<<< HEAD
-    
-    def initialize(self):
-        #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        #self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
-        pass
-    
-    #def image_callback(self, image : cv2.Mat):
-    #    detection_result = self.detector(image)
-    #    self.last_person_boxes = []
-    #    #uncomment if you want to debug the detector...
-    #    #for bb in self.last_person_boxes:
-    #    #    x,y,w,h = bb
-    #    #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
-    #    #cv2.imwrite("pedestrian_detections.png",image)
-    
-    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        res = {}
-        for i,b in enumerate(self.last_person_boxes):
-            x,y,w,h = b
-            res['pedestrian'+str(i)] = box_to_fake_agent(b)
-        if len(res) > 0:
-            print("Detected",len(res),"pedestrians")
-        return res
-=======
->>>>>>> origin/s2025_teamB
 
 
 class FakePedestrianDetector2D(Component):
