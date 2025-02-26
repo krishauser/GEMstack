@@ -211,7 +211,7 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
             # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
             # and the vehicle should be stopped exactly before the pedestrain's x position
             if abs(peak_y) > abs(r_pedestrain_y_temp):
-                minimum_deceleration =abs(softest_accleration)
+                minimum_deceleration = abs(softest_accleration)
             # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
         if minimum_deceleration is None:
             minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
@@ -256,22 +256,36 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
     3. if at any point you can't brake before hitting the end of the path,
        decelerate with accel = -deceleration until velocity goes to 0.
     """
-    path_normalized = path.arc_length_parameterize()
+    # Extrapolation factor for the points
+    factor = 2.0
+    new_points = []
+    for idx, point in enumerate(path.points[:-1]):
+        next_point = path.points[idx+1] 
+        if point[0] == next_point[0]:
+            break
+        xarange = np.arange(point[0], next_point[0], (next_point[0] - point[0])/factor)
+        if point[1] == next_point[1]:
+            yarange = [point[1]]*len(xarange)
+        else:
+            yarange = np.arange(point[1], next_point[1], (next_point[1] - point[1])/factor)
+        for x, y in zip(xarange, yarange):
+            new_points.append((x, y))
 
-    #TODO: actually do something to points and times
+    new_points.append(path.points[-1])
+    path = Path(path.frame, new_points)
+
+    path_normalized = path.arc_length_parameterize()
     points = [p for p in path_normalized.points]
     times = [t for t in path_normalized.times]
     #=============================================
 
     print("-----LONGITUDINAL PLAN-----")
-    print("path length: ", path.length())
+    #print("path length: ", path.length())
     length = path.length()
 
     # If the path is too short, just return the path for preventing sudden halt of simulation
     if length < 0.05:
         return Trajectory(path.frame, points, times)
-
-    # This assumes that the time denomination cannot be changed
 
     # Starting point
     x0 = points[0][0]
@@ -290,7 +304,7 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
         new_points.append(cur_point)
         new_times.append(cur_time)
         velocities.append(current_speed)
-        print("=====================================")
+        # print("=====================================")
         # print("new points: ", new_points)
         # print("current index: ", cur_index)
         # print("current speed: ", current_speed)
@@ -304,12 +318,10 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
         # print(min_delta_x_stop)
         assert min_delta_x_stop >= 0
 
-
         # Check if we are done
 
         # If we cannot stop before or stop exactly at the final position requested
         if cur_point[0] + min_delta_x_stop >= points[-1][0]:
-            print("In case one")
             # put on the breaks
 
             # Calculate the next point in a special manner because of too-little time to stop 
@@ -1010,7 +1022,7 @@ class YieldTrajectoryPlanner(Component):
 
         #choose whether to accelerate, brake, or keep at current velocity
         if should_accelerate:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "milestone")
+            traj = longitudinal_plan(route_with_lookahead, self.acceleration, self.deceleration, self.desired_speed, curr_v, "dt")
         elif should_yield:
             desired_speed_squared = -2 * yield_deceleration * r_pedestrain_x + curr_v**2
             desired_speed = math.sqrt(max(desired_speed_squared, 0))
@@ -1020,11 +1032,12 @@ class YieldTrajectoryPlanner(Component):
             print('curr_v', curr_v)
             desired_speed = 0 if desired_speed < 0 else desired_speed
             # traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
-            if desired_speed > 0:
-                traj = longitudinal_plan(route_with_lookahead, 0.1, yield_deceleration, desired_speed, curr_v, "dt")
-            else:
-                traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+            # if desired_speed > 0:
+            traj = longitudinal_plan(route_with_lookahead, self.acceleration, yield_deceleration, desired_speed, curr_v, "milestone")
+            # else:
+            #     traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+            #     print('Got brake trajectory')
         else:
-            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "dt")
+            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "milestone")
 
         return traj 
