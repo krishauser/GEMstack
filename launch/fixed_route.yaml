@@ -14,6 +14,7 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
+        agent_detection : pedestrian_detection.PedestrianDetector2D
     planning:
         route_planning:
             type: StaticRoutePlanner
