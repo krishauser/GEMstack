@@ -46,11 +46,11 @@ This section explains tools for offline calibration of LiDAR and camera sensors 
 
 **Usage**:  
 
-Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. Choose x depending on what data sample you want to use for calibration. 
+Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. x is chosen using the --index flag seen below. Set it based on what data sample you want to use for calibration. 
 
 python3 lidar_to_vehicle.py --data_path "path to data folder" --index INDEX_NUM
 
-Use --vis flag for visualizations throughout the computation process
+Optionally, use --vis flag for visualizations throughout the computation process
 
 
 ### 2. CAMERA-to-Vehicle Calibration (`camera_to_vehicle_manual.py`)
@@ -63,8 +63,11 @@ Use --vis flag for visualizations throughout the computation process
   1. Get camera intrinsics:
     rosrun offboard\calibration\camera_info.py  # Prints intrinsic matrix
   2. Update camera_in in script with intrinsics
-  3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. Choose x depending on what data sample you want to use for calibration. The script also reads the lidar_to_vehicle matrix from the gem_e4_ouster.yaml file so ensure that is up to date.
+  3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. Choose x depending on what data sample you want to use for calibration. 
+  
+  The script also reads the lidar_to_vehicle matrix from the gem_e4_ouster.yaml file so ensure that is up to date.
   4. Run calibration:
+    
     python3 camera_to_vehicle_manual.py --data_path "path to data folder" --index INDEX_NUM --config "path to gem_e4_ouster.yaml"
 
 
