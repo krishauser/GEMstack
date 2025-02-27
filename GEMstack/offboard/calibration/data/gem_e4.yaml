@@ -49,15 +49,6 @@ T_toplidar_vehicle:
   - 0.0
   - 0.0
   - 1.0
-date: '2025-02-25 22:31:02.057447'
 calibration_type: absolute_vehicle_calibration
-gnss_location:
-- 1.1
-- 0
-- 1.62
-gnss_yaw: 0.0
-rear_axle_height: 0.33
-reference: rear_axle_center
+date: '2025-02-25 22:31:02.057447'
 vehicle: gem_e4
-top_lidar: !include "gem_e4_ouster.yaml"
-front_camera: !include "gem_e4_oak.yaml"

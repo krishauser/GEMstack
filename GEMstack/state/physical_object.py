@@ -77,6 +77,7 @@ class ObjectPose:
         
         If point is 2D, then the pitch and roll are ignored.
         """
+        # print("apply: ", type(point), point)
         assert len(point) in [2,3],"Must provide a 2D or 3D point"
         oz = self.z if self.z is not None else 0.0
         if self.frame == ObjectFrameEnum.GLOBAL:
