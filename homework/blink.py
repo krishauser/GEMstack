@@ -17,8 +17,43 @@ class BlinkDistress:
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
         
-        pass
-
+        rospy.init_node("blink_node",anonymous=True)
+        rospy.Rate(5)
+        
+        self.sub_accel = rospy.Subscriber("/pacmod/parsed_tx/accel_rpt",SystemRptFloat,self.cb_accel,queue_size=1)
+        self.sub_brake = rospy.Subscriber("/pacmod/parsed_tx/brake_rpt",SystemRptFloat,self.cb_brake,queue_size=1)
+        
+        self.pub_turn_cmd = rospy.Publisher("/pacmod/as_rx/turn_cmd", PacmodCmd,queue_size=1)
+        
+        
+        self.msg_accel = SystemRptFloat()
+        self.msg_brake = SystemRptFloat()
+        
+        # 0 right, 1 off, 2 left
+        self.msg_signal = PacmodCmd()
+        self.msg_signal.ui16_cmd = 2
+        
+        rospy.sleep(2)
+        
+        self.prev_time = rospy.get_time()
+        
+        while not rospy.is_shutdown():
+            self.curr_time = rospy.get_time()
+            # change signal every 2 secs
+            if (self.curr_time - self.prev_time > 2):
+                self.msg_signal.ui16_cmd = (self.msg_signal.ui16_cmd + 1) % 3
+                self.prev_time = self.curr_time
+            # publish cmd
+            self.update()
+    
+    def cb_accel(self,msg):
+        self.msg_accel = msg
+        print("accel output is {}".format(self.msg_accel.output))
+        
+    def cb_brake(self,msg):
+        self.msg_brake = msg
+        print("brake output is {}".format(self.msg_brake.output))
+        
     def rate(self):
         """Requested update frequency, in Hz"""
         return 0.5
@@ -36,7 +71,8 @@ class BlinkDistress:
         # TODO: Implement your control loop here
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
-        pass
+        
+        self.pub_turn_cmd.publish(self.msg_signal)
        
     def healthy(self):
         """Returns True if the element is in a stable state."""

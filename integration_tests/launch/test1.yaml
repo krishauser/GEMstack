@@ -1,0 +1,79 @@
+description: "Drive the GEM vehicle along a fixed route (currently xyhead_highbay_backlot_p.csv)"
+mode: hardware
+vehicle_interface: gem_hardware.GEMHardwareInterface
+mission_execution: StandardExecutor
+# Recovery behavior after a component failure
+recovery: 
+    planning: 
+        trajectory_tracking:
+            type: recovery.StopTrajectoryTracker
+            print: False
+# Driving behavior for the GEM vehicle following a fixed route
+drive: 
+    perception:
+        state_estimation : GNSSStateEstimator
+        perception_normalization : StandardPerceptionNormalizer
+    planning:
+        route_planning:
+            type: StaticRoutePlanner
+            args: [!relative_path '../../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
+        motion_planning:
+            type: RouteToTrajectoryPlanner
+            args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+        trajectory_tracking:
+            type: pure_pursuit.PurePursuitTrajectoryTracker
+            args: {desired_speed: 2.5}  #approximately 5mph
+            print: False
+log:
+    # Specify the top-level folder to save the log files.  Default is 'logs'
+    #folder : 'logs' 
+    # If prefix is Sspecified, then the log folder will be named with the prefix followed by the date and time. Default no prefix
+    #prefix : 'fixed_route_'  
+    # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
+    #suffix : 'test3'  
+    # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
+    ros_topics : []
+    # Specify options to pass to rosbag record. Default is no options.
+    #rosbag_options : '--split --size=1024' 
+    # If True, then record all readings / commands of the vehicle interface. Default False
+    vehicle_interface : True
+    # Specify which components to record to behavior.json. Default records nothing
+    components : ['state_estimation']
+    # Specify which components of state to record to state.json. Default records nothing 
+    #state: ['all']
+    # Specify the rate in Hz at which to record state to state.json. Default records at the pipeline's rate
+    #state_rate: 10
+replay:  # Add items here to set certain topics / inputs to be replayed from logs
+    # Specify which log folder to replay from
+    log: 'logs/test_control'
+    # For replaying sensor data, try !include "../knowledge/defaults/standard_sensor_ros_topics.yaml"
+    ros_topics : ['/septentrio_gnss/insnavgeod']
+    components : ['state_estimation']
+
+#usually can keep this constant
+computation_graph: !include "../../GEMstack/knowledge/defaults/computation_graph.yaml"
+
+after:
+    show_log_folder: True  #set to false to avoid showing the log folder
+
+#on load, variants will overload the settings structure
+variants:
+    #sim variant doesn't execute on the real vehicle 
+    #real variant executes on the real robot
+    sim:
+        run:
+            mode: simulation
+            vehicle_interface:
+                type: gem_simulator.GEMDoubleIntegratorSimulationInterface
+                args:
+                    scene: !relative_path '../scenes/highbay.yaml'
+
+            drive: 
+                perception:
+                    state_estimation : OmniscientStateEstimator
+                    agent_detection : OmniscientAgentDetector
+            visualization: !include "klampt_visualization.yaml"
+            #visualization: !include "mpl_visualization.yaml"
+    log_ros:
+        log:
+            ros_topics : !include "../../GEMstack/knowledge/defaults/standard_ros_topics.yaml"

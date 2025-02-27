@@ -163,7 +163,7 @@ def validate_components(components : Dict[str,ComponentExecutor], provided : Lis
             else:
                 assert provided_all or i in provided, "Component {} input {} is not provided by previous components".format(k,i)
                 if i not in state:
-                    executor_debug_print("Component {} input {} does not exist in AllState object",k,i)
+                    executor_debug_print(0,"Component {} input {} does not exist in AllState object",k,i)
                 if possible_inputs != ['all']:
                     assert i in possible_inputs, "Component {} is not supposed to receive input {}".format(k,i)
         outputs = c.c.state_outputs()
@@ -176,7 +176,7 @@ def validate_components(components : Dict[str,ComponentExecutor], provided : Lis
             if 'all' != o:
                 provided.add(o)
                 if o not in state:
-                    executor_debug_print("Component {} output {} does not exist in AllState object",k,o)
+                    executor_debug_print(0,"Component {} output {} does not exist in AllState object",k,o)
             else:
                 provided_all = True
     for k,c in components.items():
@@ -389,7 +389,7 @@ class ExecutorBase:
                 raise
             if not isinstance(component,Component):
                 raise RuntimeError("Component {} is not a subclass of Component".format(component_name))
-            replacement = self.logging_manager.component_replayer(component_name, component)
+            replacement = self.logging_manager.component_replayer(self.vehicle_interface, component_name, component)
             if replacement is not None:
                 executor_debug_print(1,"Replaying component {} from long {} with outputs {}",component_name,replacement.logfn,component.state_outputs())
                 component = replacement
@@ -455,6 +455,14 @@ class ExecutorBase:
         LogReplay objects.
         """
         self.logging_manager.replay_components(replayed_components,replay_folder)
+    
+    def replay_topics(self, replayed_topics : list, replay_folder : str):
+        """Declare that the given components should be replayed from a log folder.
+
+        Further make_component calls to this component will be replaced with
+        LogReplay objects.
+        """
+        self.logging_manager.replay_topics(replayed_topics,replay_folder)
 
     def event(self,event_description : str, event_print_string : str = None):
         """Logs an event to the metadata and prints a message to the console."""
@@ -494,7 +502,7 @@ class ExecutorBase:
         #start running components
         for k,c in self.all_components.items():
             c.start()
-
+        
         #start running mission
         self.state = AllState.zero()
         self.state.mission.type = MissionEnum.IDLE
@@ -559,7 +567,7 @@ class ExecutorBase:
         for k,c in self.all_components.items():
             executor_debug_print(2,"Stopping",k)
             c.stop()
-        
+
         self.logging_manager.close()
         executor_debug_print(0,"Done with execution loop")
 
@@ -630,7 +638,7 @@ class ExecutorBase:
         """Runs a pipeline until a switch is requested."""
         if self.current_pipeline == 'recovery':        
             self.state.mission.type = MissionEnum.RECOVERY_STOP
-        
+
         (perception_components,planning_components,other_components) = self.pipelines[self.current_pipeline]
         components = list(perception_components.values()) + list(planning_components.values()) + list(other_components.values()) + list(self.always_run_components.values())
         dt_min = min([c.dt for c in components if c.dt != 0.0])
@@ -639,6 +647,9 @@ class ExecutorBase:
             self.state.t = self.vehicle_interface.time()
             self.logging_manager.set_vehicle_time(self.state.t)
             self.last_loop_time = time.time()
+            #publish ros topics 
+            if(self.logging_manager.rosbag_player):
+                self.logging_manager.rosbag_player.update_topics(self.state.t)
 
             #check for vehicle faults
             self.check_for_hardware_faults()

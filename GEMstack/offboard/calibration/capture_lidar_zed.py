@@ -68,7 +68,7 @@ def save_scan(lidar_fn,color_fn,depth_fn):
 
 def main(folder='data',start_index=1):
     rospy.init_node("capture_lidar_zed",disable_signals=True)
-    lidar_sub = rospy.Subscriber("/lidar1/velodyne_points", PointCloud2, lidar_callback)
+    lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
     camera_sub = rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image, camera_callback)
     depth_sub = rospy.Subscriber("/zed2/zed_node/depth/depth_registered", Image, depth_callback)
     index = start_index
@@ -94,12 +94,17 @@ def main(folder='data',start_index=1):
                     files = [os.path.join(folder,'lidar{}.npz'.format(index)),
                         os.path.join(folder,'color{}.png'.format(index)),
                         os.path.join(folder,'depth{}.tif'.format(index))]
-                    save_scan(*files)
+                    #Lpath = "GEMstack/data/scans/lidar_scan/" + str(index) + ".npz"
+                    #Cpath = "GEMstack/data/scans/color_image/" + str(index) + ".png"
+                    #Dpath = "GEMstack/data/scans/depth_image/" + str(index) + ".tif"
+                    save_scan(files[0],files[1],files[2])
                     index += 1
 
 if __name__ == '__main__':
     import sys
-    folder = 'data'
+    folder = '/home/karteek/GEMstack/data/li_zed/scans/'
+    if not os.path.exists(folder):
+        os.makedirs(folder)
     start_index = 1
     if len(sys.argv) >= 2:
         folder = sys.argv[1]

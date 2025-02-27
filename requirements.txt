@@ -10,3 +10,10 @@ dacite
 
 # Perception
 ultralytics
+lap==0.5.12
+open3d
+
+#infra
+msal
+parameterized
+requests

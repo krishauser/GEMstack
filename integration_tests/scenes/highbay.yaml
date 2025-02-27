@@ -1,0 +1,11 @@
+#TODO: change visualization to display highbay map for replaying/visualization of recorded data
+vehicle_state: [0.0, 0.0, 200.0, 0.0, 0.0]
+agents:
+  ped1:
+    type: pedestrian
+    position: [15.0, 2.0]
+    nominal_velocity: 0.5
+    target: [15.0,10.0]
+    behavior: loop
+    
+    
