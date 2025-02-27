@@ -17,8 +17,8 @@ class BlinkDistress:
         # ROS message type, and you can find out what this is by either reading the documentation or running
         # "rostopic info /pacmod/parsed_tx/X" on the command line.
         
-        rospy.init_node("blink_node",anonymous=True)
-        rospy.Rate(5)
+        # rospy.init_node("blink_node",anonymous=True)
+        # rospy.Rate(5)
         
         self.sub_accel = rospy.Subscriber("/pacmod/parsed_tx/accel_rpt",SystemRptFloat,self.cb_accel,queue_size=1)
         self.sub_brake = rospy.Subscriber("/pacmod/parsed_tx/brake_rpt",SystemRptFloat,self.cb_brake,queue_size=1)
