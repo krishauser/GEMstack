@@ -171,6 +171,11 @@ cython_debug/
 .vscode/
 setup/zed_sdk.run
 cuda/
+onedrive_config.json
+zed_sdk.run
+ZED_SDK_Ubuntu20_cuda11.8_v4.0.8.zstd.run
+ros.asc
+
 homework/yolov8n.pt
 homework/yolo11n.pt
 GEMstack/knowledge/detection/yolov8n.pt
