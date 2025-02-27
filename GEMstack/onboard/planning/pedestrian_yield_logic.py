@@ -571,7 +571,7 @@ class PedestrianYielder(Component):
                 ##########################
 
                 # Switch between different yielder methods
-                if self.yielder == 'expart':
+                if self.yielder == 'expert':
                     ######################################
                     ##### Patrick and Animesh's Code #####
                     ######################################

@@ -31,7 +31,7 @@ The `pedetrian_detecion.yaml` file includes:
 args:
     mode: 'real'
     params: {
-        'yielder':       'expart', # 'expart', 'analytic', or 'simulation'
+        'yielder':       'expert', # 'expert', 'analytic', or 'simulation'
         'planner':       'milestone', # 'milestone', 'dt', or 'dx'
         'desired_speed': 1.0,  # m/s
         'acceleration':  0.75  # m/s2
