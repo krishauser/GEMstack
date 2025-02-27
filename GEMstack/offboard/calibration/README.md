@@ -56,7 +56,7 @@ Use --vis flag for visualizations throughout the computation process
 ### 2. CAMERA-to-Vehicle Calibration (`camera_to_vehicle_manual.py`)
 **Method**:  
   1. Capture camera intrinsics using camera_info.py (ROS node)  
-  2. Manually select 4 matching points in RGB image and LiDAR cloud
+  2. Manually select 4 matching points in RGB image and LiDAR cloud (can adjust variable to select more pairs)
   3. Solve PnP problem to compute camera extrinsics  
 
 **Usage**:
@@ -82,7 +82,7 @@ python3 lidar_to_camera.py   # Ensure T_lidar_vehicle and T_camera_vehicle matri
 
 **3D Alignment Check**:
  1. Use vis() function in scripts to view calibrated LiDAR/camera clouds
- 2. Toggle VIS = True in lidar_to_vehicle.py for ground plane/object visualization
+ 2. Use --vis flag when running lidar_to_vehicle.py for ground plane/object visualization
  3. Use test_transforms.py to visualize lidar point cloud on top of png image. Helps verify accuracy of lidar->camera.
 
 **Projection Validation**:
