@@ -64,7 +64,7 @@ Optionally, use --vis flag for visualizations throughout the computation process
   1. Get camera intrinsics:
     rosrun offboard\calibration\camera_info.py  # Prints intrinsic matrix
   2. Update camera_in in script with intrinsics
-  3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. x is chosen using the --index flag seen below. Set it based on what data sample you want to use for calibration.Choose x depending on what data sample you want to use for calibration. 
+  3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. x is chosen using the --index flag seen below. Set it based on what data sample you want to use for calibration. 
   
   The script also reads the lidar_to_vehicle matrix from the gem_e4_ouster.yaml file so ensure that is up to date.
   4. Run calibration:
@@ -78,9 +78,9 @@ Optionally, use --vis flag for visualizations throughout the computation process
   2. Multiply with LiDAR-to-Vehicle matrix
 
 **Usage**:
-
+```
 python3 lidar_to_camera.py   # Ensure T_lidar_vehicle and T_camera_vehicle matrices are updated
-
+```
 
 ### Visualization Tools
 
