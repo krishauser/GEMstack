@@ -17,7 +17,7 @@ control:
         crosstrack_gain: 0.5 # default: 1
         desired_speed: trajectory
     longitudinal_control:
-        pid_p: 1.0
+        pid_p: 1.5
         pid_i: 0.1
         pid_d: 0.0
 

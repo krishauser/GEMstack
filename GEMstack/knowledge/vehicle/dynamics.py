@@ -18,11 +18,6 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
     Returns tuple (accelerator_pedal_position, brake_pedal_position, desired_gear)
     """
     model = settings.get('vehicle.dynamics.acceleration_model','hang_v1')
-    
-    model = 'hang_v1'
-    # print("===============")
-    # print(model)
-    # print("===============")
 
     if model == 'hang_v1':
         if gear != 1:
