@@ -3,9 +3,35 @@ from ..component import Component
 from typing import List, Dict
 
 import numpy as np
-from scipy.optimize import minimize_scalar
 
-DEBUG = True  # Set to False to disable debug output
+
+DEBUG = True    # Set to False to disable debug output
+
+""" Vehicle Configuration """
+GEM_MODEL = 'e4'    # e2 or e4
+buffer_x, buffer_y = 3, 1
+if GEM_MODEL == 'e2':
+    # e2 axle dimensions, refer to GEMstack/knowledge/vehicle/model/gem_e2.urdf
+    size_x, size_y = 2.53, 1.35         # measured from base_link.STL
+    lx_f2r = 0.88 + 0.87                # distance between front axle and rear axle, from gem_e2.urdf wheel_links
+    ly_axle = 0.6 * 2                   # length of axle
+    l_rear_axle_to_front = 1.28 + 0.87  # measured from base_link.STL
+    l_rear_axle_to_rear = size_x - l_rear_axle_to_front
+elif GEM_MODEL == 'e4':
+    # e4 axle dimensions, refer to GEMstack/knowledge/vehicle/model/gem_e4.urdf
+    size_x, size_y = 3.35, 1.35         # measured from base_link.STL
+    lx_f2r = 1.2746 + 1.2904            # distance between front axle and rear axle, from gem_e4.urdf wheel_links
+    ly_axle = 0.6545 * 2                # length of front and rear axles, from gem_e4.urdf wheel_links
+    l_rear_axle_to_front = 1.68 + 1.29  # measured from base_link.STL
+    l_rear_axle_to_rear = size_x - l_rear_axle_to_front
+# add buffer to outer dimensions, defined by half of the x, y buffer area dimensions
+buffer_front = l_rear_axle_to_front + buffer_x
+buffer_rear = -(l_rear_axle_to_rear + buffer_x)
+buffer_left = size_y / 2 + buffer_y
+buffer_right = -(size_y / 2 + buffer_y)
+# comfortable deceleration for lookahead time calculation
+comfort_decel = 2.0
+
 
 class PedestrianYielder(Component):
     """Yields for all pedestrians in the scene.
@@ -14,7 +40,7 @@ class PedestrianYielder(Component):
     """
 
     def rate(self):
-        return 4.0
+        return None
 
     def state_inputs(self):
         return ['agents', 'vehicle']
@@ -22,7 +48,7 @@ class PedestrianYielder(Component):
     def state_outputs(self):
         return ['relations']
 
-    def update(self, agents: Dict[str, AgentState], vehicle : VehicleState) -> List[EntityRelation]:
+    def update(self, agents: Dict[str, AgentState], vehicle: VehicleState) -> List[EntityRelation]:
         if DEBUG:
             print("PedestrianYielder vehicle pose:", vehicle.pose, vehicle.v)
         res = []
@@ -34,7 +60,8 @@ class PedestrianYielder(Component):
             if a.type == AgentEnum.PEDESTRIAN:
                 check, t_min, min_dist, pt_min = check_collision_in_vehicle_frame(a, vehicle)
                 if DEBUG:
-                    print(f"[DEBUG] ID: {n}\trelation:{check}, minimum distance:{min_dist}, time to min_dist: {t_min}, point of min_dist:{pt_min}")
+                    print(
+                        f"[DEBUG] ID {n}, relation:{check}, minimum distance:{min_dist}, time to min_dist: {t_min}, point of min_dist:{pt_min}")
                 # collision may occur, slow down
                 if check == 'YIELD':
                     res.append(EntityRelation(type=EntityRelationEnum.YIELDING, obj1='', obj2=n))
@@ -45,75 +72,51 @@ class PedestrianYielder(Component):
         return res
 
 
-# """ Vehicle Dimensions """
-# vehicle_model = "e2"  # e2 or e4
-# # vehicle dimensions and buffer area
-# if vehicle_model == 'e2':
-#     # e2 axle dimensions, refer to GEMstack/knowledge/vehicle/model/gem_e2.urdf
-#     size_x, size_y = 2.53, 1.35         # measured from base_link.STL
-#     lx_f2r = 0.88 + 0.87                # distance between front axle and rear axle, from gem_e2.urdf wheel_links
-#     ly_axle = 0.6 * 2                   # length of axle
-#     l_rear_axle_to_front = 1.28 + 0.87  # measured from base_link.STL
-#     l_rear_axle_to_rear = size_y - l_rear_axle_to_front
-# elif vehicle_model == 'e4':
-#     # e4 axle dimensions, refer to GEMstack/knowledge/vehicle/model/gem_e4.urdf
-#     size_x, size_y = 3.35, 1.35         # measured from base_link.STL
-#     lx_f2r = 1.2746 + 1.2904            # distance between front axle and rear axle, from gem_e4.urdf wheel_links
-#     ly_axle = 0.6545 * 2                # length of front and rear axles, from gem_e4.urdf wheel_links
-#     l_rear_axle_to_front = 1.68 + 1.29  # measured from base_link.STL
-#     l_rear_axle_to_rear = size_y - l_rear_axle_to_front
-# # add buffer to outer dimensions, defined by half of the x, y buffer area dimensions
-# buffer_x, buffer_y = 3, 1
-# buffer = size_x / 2 + buffer_x, size_y / 2 + buffer_y
-
-
 """ Planning in vehicle frame without waypoints """
 def check_collision_in_vehicle_frame(agent: AgentState, vehicle: VehicleState):
-    buffer = 2.53 / 2 + 3, 1.35 / 2 + 1  # e2 buffer area
-    time_scale = 100  # TODO: adjust if necessary
     xp, yp = agent.pose.x, agent.pose.y
     vx, vy = agent.velocity[:2]
+    xv = vehicle.pose.x
+    yv = vehicle.pose.y
+    yaw = vehicle.pose.yaw
+    vel = vehicle.v
+    # time to stop from current velocity with comfortable deceleration
+    t_look = vel / comfort_decel
     # calculate relative pedestrian position and velocity in vehicle frame
     if agent.pose.frame == ObjectFrameEnum.CURRENT:
         # xp, yp, vx, vy are already in vehicle frame
         pass
     elif agent.pose.frame == ObjectFrameEnum.START:
         # convert xp, yp, vx, vy to vehicle frame
-        xv = vehicle.pose.x
-        yv = vehicle.pose.y
-        yaw = vehicle.pose.yaw
-        vel = vehicle.v
         R = np.array([[np.cos(yaw), np.sin(yaw)], [-np.sin(yaw), np.cos(yaw)]], dtype=np.float32)
         dx, dy = xp - xv, yp - yv
-        dvx, dvy = vx - vel*np.cos(yaw), vy - vel*np.sin(yaw)
+        dvx, dvy = vx - vel * np.cos(yaw), vy - vel * np.sin(yaw)
+        # pedestrian pose and velocity in vehicle frame
         xp, yp = np.dot(R, np.array([dx, dy]))
         vx, vy = np.dot(R, np.array([dvx, dvy]))
 
-    # If pedestrian alphas the car
-    # condition to stop for ped in vehic. space
-    # still testing behavior
-    if abs(xp) <= buffer[0] and abs(yp) <= buffer[1]:
+    # If pedestrian already in buffer area
+    if buffer_rear <= xp <= buffer_front and buffer_right <= yp <= buffer_left:
         return 'STOP', 0, 0, (xp, yp)
-    
-    t_min, min_dist, pt_min = find_min_distance_and_time(xp, yp, vx, vy, buffer)
+    t_min, min_dist, pt_min = find_min_distance_and_time(xp, yp, vx, vy)
     # if the minimum distance between the position and the buffer area is less than 0, than a collision is expected
-    check = None
     if min_dist is not None:
         if min_dist <= 0:
             if t_min <= 0:
                 check = 'STOP'
-            elif t_min <= 2:
+            elif t_min <= t_look:
                 check = 'YIELD'
             else:
                 check = 'RUN'
         else:
-            check = 'run'
+            check = 'RUN'
+    else:
+        check = 'RUN'
     return check, t_min, min_dist, pt_min
 
 
-def find_min_distance_and_time(xp, yp, vx, vy, buffer):
+def find_min_distance_and_time(xp, yp, vx, vy):
     # path function: Ax + By + C = vy * x - vx * y + (yp * vx - xp * vy) = 0
-    x_buff, y_buff = buffer
     vx = vx if vx != 0 else 1e-6
     vy = vy if vy != 0 else 1e-6
     A = vy
@@ -133,102 +136,102 @@ def find_min_distance_and_time(xp, yp, vx, vy, buffer):
         return np.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
 
     """ Compute intersections at the front, left and right edge """
-    if xp >= x_buff:
+    if xp >= buffer_front:
         # front edge intersection: x = x_buff = xt = xp + vx * t_f
-        t_f = (x_buff - xp) / vx
+        t_f = (buffer_front - xp) / vx
         yt = yp + vy * t_f
-        if t_f < 0:    # object moving away with higher speed than vehicle, start point has minimum distance
+        if t_f < 0:  # object moving away with higher speed than vehicle, start point has minimum distance
             t_min = 0
             pt_min = xp, yp
-            if -y_buff <= yp <= y_buff:
-                min_dist = xp - x_buff    # the distance to the front edge
-            elif yt > y_buff:
-                min_dist = point_dist(xp, yp, x_buff, y_buff)     # the distance to front left corner
+            if buffer_right <= yp <= buffer_left:
+                min_dist = xp - buffer_front  # the distance to the front edge
+            elif yt > buffer_left:
+                min_dist = point_dist(xp, yp, buffer_front, buffer_left)  # the distance to front left corner
             else:
-                min_dist = point_dist(xp, yp, x_buff, -y_buff)    # the distance to front right corner
+                min_dist = point_dist(xp, yp, buffer_front, buffer_right)  # the distance to front right corner
         else:
-            if -y_buff <= yt <= y_buff:  # intersect at front edge, is collision
+            if buffer_right <= yt <= buffer_left:  # intersect at front edge, is collision
                 t_min = t_f
                 min_dist = 0
-                pt_min = x_buff, yt
-            elif yt > y_buff:  # intersect at front left
+                pt_min = buffer_front, yt
+            elif yt > buffer_left:  # intersect at front left
                 if yp <= yt:
-                    min_dist, pt_min = point_to_line(x_buff, y_buff, A, B, C)
-                    t_min = (pt_min[0] - xp) / vx
-                else:   # left edge interaction: y = y_buff = yt = yp + vy * t_l
-                    t_l = (y_buff - yp) / vy
-                    xt = xp + vx * t_l
-                    if -x_buff <= xt <= x_buff:     # intersect at left edge, is collision
-                        t_min = t_l
-                        min_dist = 0
-                        pt_min = xt, y_buff
-                    else:
-                        min_dist, pt_min = point_to_line(-x_buff, y_buff, A, B, C)
-                        t_min = (pt_min[0] - xp) / vx
-            else:   # intersect at front right
-                if yp >= yt:
-                    min_dist, pt_min = point_to_line(x_buff, -y_buff, A, B, C)
+                    min_dist, pt_min = point_to_line(buffer_front, buffer_left, A, B, C)
                     t_min = (pt_min[0] - xp) / vx
                 else:  # left edge interaction: y = y_buff = yt = yp + vy * t_l
-                    t_r = (-y_buff - yp) / vy
+                    t_l = (buffer_left - yp) / vy
+                    xt = xp + vx * t_l
+                    if buffer_rear <= xt <= buffer_front:  # intersect at left edge, is collision
+                        t_min = t_l
+                        min_dist = 0
+                        pt_min = xt, buffer_left
+                    else:
+                        min_dist, pt_min = point_to_line(buffer_rear, buffer_left, A, B, C)
+                        t_min = (pt_min[0] - xp) / vx
+            else:  # intersect at front right
+                if yp >= yt:
+                    min_dist, pt_min = point_to_line(buffer_front, buffer_right, A, B, C)
+                    t_min = (pt_min[0] - xp) / vx
+                else:  # right edge interaction: y = y_buff = yt = yp + vy * t_l
+                    t_r = (buffer_right - yp) / vy
                     xt = xp + vx * t_r
-                    if -x_buff <= xt <= x_buff:  # intersect at left edge, is collision
+                    if buffer_rear <= xt <= buffer_front:  # intersect at right edge, is collision
                         t_min = t_r
                         min_dist = 0
-                        pt_min = xt, -y_buff
+                        pt_min = xt, buffer_right
                     else:
-                        min_dist, pt_min = point_to_line(-x_buff, -y_buff, A, B, C)
+                        min_dist, pt_min = point_to_line(buffer_rear, buffer_right, A, B, C)
                         t_min = (pt_min[0] - xp) / vx
     else:
-        if yp >= y_buff:
+        if yp >= buffer_left:
             # left edge interaction: y = y_buff = yt = yp + vy * t_l
-            t_l = (y_buff - yp) / vy
+            t_l = (buffer_left - yp) / vy
             xt = xp + vx * t_l
-            if t_l < 0:    # object moving away, start point has minimum distance
+            if t_l < 0:  # object moving away, start point has minimum distance
                 t_min = 0
                 pt_min = xp, yp
-                if -x_buff <= xp <= x_buff:
-                    min_dist = yp - y_buff  # the distance to the left edge
+                if buffer_rear <= xp <= buffer_front:
+                    min_dist = yp - buffer_left  # the distance to the left edge
                 else:
-                    min_dist = point_dist(xp, yp, -x_buff, y_buff)  # the distance to rear right corner
+                    min_dist = point_dist(xp, yp, buffer_rear, buffer_left)  # the distance to rear right corner
             else:
-                if -x_buff <= xt <= x_buff:  # intersect at left edge, is collision
+                if buffer_rear <= xt <= buffer_front:  # intersect at left edge, is collision
                     t_min = t_l
                     min_dist = 0
-                    pt_min = xt, y_buff
-                elif xt > x_buff:
-                    min_dist, pt_min = point_to_line(x_buff, y_buff, A, B, C)
+                    pt_min = xt, buffer_left
+                elif xt > buffer_front:
+                    min_dist, pt_min = point_to_line(buffer_front, buffer_left, A, B, C)
                     t_min = (pt_min[0] - xp) / vx
                 else:
-                    min_dist, pt_min = point_to_line(-x_buff, y_buff, A, B, C)
+                    min_dist, pt_min = point_to_line(buffer_rear, buffer_left, A, B, C)
                     t_min = (pt_min[0] - xp) / vx
-        elif yp <= -y_buff:
+        elif yp <= buffer_right:
             # right edge interaction: y = -y_buff = yt = yp + vy * t_l
-            t_r = (-y_buff - yp) / vy
+            t_r = (buffer_right - yp) / vy
             xt = xp + vx * t_r
-            if t_r < 0:    # object moving away, start point has minimum distance
+            if t_r < 0:  # object moving away, start point has minimum distance
                 t_min = 0
                 pt_min = xp, yp
-                if -x_buff <= xp <= x_buff:
-                    min_dist = -yp - y_buff  # the distance to the right edge
+                if buffer_rear<= xp <= buffer_front:
+                    min_dist = -yp - buffer_right  # the distance to the right edge
                 else:
-                    min_dist = point_dist(xp, yp, -x_buff, y_buff)  # the distance to rear right corner
+                    min_dist = point_dist(xp, yp, buffer_rear, buffer_right)  # the distance to rear right corner
             else:
-                if -x_buff <= xt <= x_buff:  # intersect at left edge, is collision
+                if buffer_rear <= xt <= buffer_front:  # intersect at left edge, is collision
                     t_min = t_r
                     min_dist = 0
-                    pt_min = xt, -y_buff
-                elif xt > x_buff:
-                    min_dist, pt_min = point_to_line(x_buff, -y_buff, A, B, C)
+                    pt_min = xt, buffer_right
+                elif xt > buffer_front:
+                    min_dist, pt_min = point_to_line(buffer_front, buffer_right, A, B, C)
                     t_min = (pt_min[0] - xp) / vx
                 else:
-                    min_dist, pt_min = point_to_line(-x_buff, -y_buff, A, B, C)
+                    min_dist, pt_min = point_to_line(buffer_rear, buffer_right, A, B, C)
                     t_min = (pt_min[0] - xp) / vx
-        elif xp >= -x_buff:
+        elif xp >= buffer_rear:
             t_min = 0
             min_dist = -1
             pt_min = xp, yp
-        else:   # rear position, should not be seen by the front camera
+        else:  # rear position, should not be seen by the front camera
             t_min = None
             min_dist = None
             pt_min = None
@@ -236,7 +239,8 @@ def find_min_distance_and_time(xp, yp, vx, vy, buffer):
     return t_min, min_dist, pt_min
 
 
-# def find_min_distance_and_time(xp, yp, vx, vy, buffer, time_scale):
+# def find_min_distance_and_time_by_optimizer(xp, yp, vx, vy, buffer, time_scale):
+#     from scipy.optimize import minimize_scalar
 #     def pos_t(t):
 #         xt, yt = xp + vx * t, yp + vy * t
 #         return shortest_distance_to_buffer_in_vehicle_frame((xt, yt), buffer)
@@ -250,52 +254,8 @@ def find_min_distance_and_time(xp, yp, vx, vy, buffer):
 #         return None, None
 
 
-# # Calculate the shortest distance from an object to vehicle buffer area in vehicle frame
-# def shortest_distance_to_buffer_in_vehicle_frame(position, buffer):
-#     """
-#     Calculate the distance between a pedestrian's position and the vehicle with buffer
-#     """
-#     x_buff, y_buff = buffer
-#     # consider 2D geometry
-#     x_p, y_p = position
-#     # initiate distance and collision
-#     dist = 0
-#     collision = False
-#
-#     # calculate distance
-#     # front
-#     if -y_buff <= y_p <= y_buff and x_p > x_buff:
-#         dist = x_p - x_buff
-#     # left front
-#     elif y_p > y_buff and x_p > x_buff:
-#         dist = np.sqrt((x_p - x_buff) ** 2 + (y_p - y_buff) ** 2)
-#     # right front
-#     elif y_p < -y_buff and x_p > x_buff:
-#         dist = np.sqrt((x_p - x_buff) ** 2 + (y_p + y_buff) ** 2)
-#     # left
-#     elif y_p > y_buff and -x_buff <= x_p <= x_buff:
-#         dist = y_p - y_buff
-#     # right
-#     elif y_p < -y_buff and -x_buff <= x_p <= x_buff:
-#         dist = y_p + y_buff
-#     # rear
-#     elif -y_buff <= y_p <= y_buff and x_p < -x_buff:
-#         dist = x_p + x_buff
-#     # left rear
-#     elif y_p > y_buff and x_p < -x_buff:
-#         dist = np.sqrt((x_p - x_buff) ** 2 + (y_p - y_buff) ** 2)
-#     # right rear
-#     elif y_p < -y_buff and x_p < -x_buff:
-#         dist = np.sqrt((x_p - x_buff) ** 2 + (y_p + y_buff) ** 2)
-#     # intersect
-#     else:
-#         dist = 0
-#
-#     return dist
-
-
 """ Planning in start frame with waypoints """
-# # TODO: how to get further unreached waypoints only
+# # TODO: to get further unreached waypoints only
 # def get_waypoint_arc_and_new_yaw(curr_x, curr_y, curr_yaw, waypoint):
 #     """
 #     Input:
@@ -331,7 +291,7 @@ def find_min_distance_and_time(xp, yp, vx, vy, buffer):
 #         is_crossing: boolean, if the pedestrian is crossing the path
 #         arc_dist_collision: distance from start_point to the closest pedestrian enter or exit point mapped to the path
 #     """
-#     # TODO: compute pedestrian path with yaw_rate?
+#     # TODO: consider pedestrian path with yaw_rate
 #     xp, yp = pose.x, pose.y
 #     vx, vy = velocity
 #     xc, yc = center
@@ -447,7 +407,6 @@ def find_min_distance_and_time(xp, yp, vx, vy, buffer):
 #     """
 #     All calculations are in start frame, origin reference: rear_axle_center (refer to GEMstack/knowledge/calibration)
 #     """
-#     # TODO: confirm origin reference with calibration team
 #     # current states
 #     vehicle = state.vehicle
 #     curr_x = vehicle.pose.x
@@ -456,11 +415,9 @@ def find_min_distance_and_time(xp, yp, vx, vy, buffer):
 #     curr_v = vehicle.v
 #
 #     # determine lookahead distance using current velocity and a decent deceleration
-#     decel_decent = 2.0  # TODO: adjust for a decent deceleration if necessary
-#     t_brake = curr_v / decel_decent  # time to brake down to zero
+#     t_brake = curr_v / comfort_decel  # time to brake down to zero
 #     dist_lookahead = curr_v * t_brake
 #
-#     # TODO: check if it works with straight line waypoints
 #     distance = 0
 #     temp_x, temp_y, temp_yaw = curr_x, curr_y, curr_yaw
 #     is_collision = False
@@ -498,83 +455,3 @@ def find_min_distance_and_time(xp, yp, vx, vy, buffer):
 #             break
 #
 #     return is_collision, dist_collision
-
-
-""" Assume the vehicle move straight forward """
-# def compute_intersect(A1, B1, C1, A2, B2, C2):
-#     """
-#     calculate intersection point of two lines
-#     A1*x + B1*y + C1 = 0 and A2*x + B2*y + C2 = 0
-#     """
-#     if A1*B2 - A2*B1 == 0:
-#         if C1 == C2:
-#             return "conincide"
-#         else:
-#             return "parallel"
-#     else:
-#         x_inter = (B1*C2 - B2*C1) / (A1*B2 - A2*B1)
-#         y_inter = (C1*A2 - C2*A1) / (A1*B2 - A2*B1)
-#         return x_inter, y_inter
-#
-# def yield_in_ego_frame(pedestrian_position_ego, pedestrian_velocity_ego, dist_lookahead, buffer):
-#     """
-#     Calculate the intersection of the pedestrian's path and vehicle path with buffer
-#     Yield if the intersection is in front of the vehicle and within lookahead distance
-#     """
-#     x_buff, y_buff = buffer
-#     # consider 2D geometry
-#     x_p, y_p = pedestrian_position_ego[:2]
-#     v_x, v_y = pedestrian_velocity_ego[:2]
-#     # initiate yielding and distance
-#     yielding = False
-#     distance = None
-#
-#     # line expression: A*x + B*y + C = 0
-#     # pedestrian's path: v_y * x - v_x * y + (v_x * y_p - v_y * x_p) = 0
-#     A_p, B_p, C_p = v_y, -v_x, v_x * y_p - v_y * x_p
-#     # buffer area: y = y_buff, y = - y_buff
-#     A_left, B_left, C_left = 0, 1, -y_buff
-#     A_right, B_right, C_right = 0, 1, y_buff
-#
-#     # deal with parallel first
-#     if A_p*B_left - A_left*B_p == 0:
-#         if -y_buff <= y_p <= y_buff:
-#             yielding = True
-#             distance = x_p
-#         else:
-#             yielding = False
-#             distance = None
-#     # compute intersection
-#     else:
-#         left_inter_x, left_inter_y = compute_intersect(A_p, B_p, C_p, A_left, B_left, C_left)
-#         right_inter_x, right_inter_y = compute_intersect(A_p, B_p, C_p, A_right, B_right, C_right)
-#         if -x_buff <= left_inter_x <= dist_lookahead or -x_buff <= right_inter_x <= dist_lookahead:
-#             yielding = True
-#         else:
-#             yielding = False
-#         distance = min(left_inter_x, right_inter_x)
-#
-#     return yielding, distance
-#
-# vehicle = state.vehicle
-# curr_x = vehicle.pose.x
-# curr_y = vehicle.pose.y
-# curr_yaw = vehicle.pose.yaw
-# curr_v = vehicle.v
-#
-# # 2D transformation from start frame to ego frame
-# R_start2ego = np.array([[np.cos(curr_yaw),-np.sin(curr_yaw)],[np.sin(curr_yaw),np.cos(curr_yaw)]])
-# t_start2ego = np.array([curr_x, curr_y])
-#
-# # check collision distance and break if going to collide
-# dist_min = np.inf
-# for ped in pedestrians:
-#     # pedestrian states from perception
-#     pos_p =  ped.state.pose    # both vectors are x, y in vehicle frame
-#     v_p = ped.state.v
-#     pos_start2ego = R_start2ego @ pos_p + t_start2ego
-#     v_start2ego = v_p @ pos_p + t_start2ego
-#     yielding, distance = yield_in_ego_frame(pos_start2ego,v_start2ego, dist_lookahead, buffer)
-#     if yielding == True and distance is not None:
-#         if distance < dist_min:
-#             dist_min = distance
