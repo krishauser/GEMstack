@@ -4,26 +4,42 @@ from scipy.spatial.transform import Rotation as R
 import matplotlib.pyplot as plt
 import numpy as np
 from visualizer import visualizer
+import argparse
+import yaml
+
+parser = argparse.ArgumentParser(description='Select corresponding lidar, color, depth files based on index')
+parser.add_argument('--data_path', type=str, required=True, help='Path to the dataset')
+parser.add_argument('--index', type=int, required=True, help='Index for selecting the files')
+parser.add_argument('--config', type=str, required=True, help='Path to YAML configuration file')
+args = parser.parse_args()
+args = parser.parse_args()
+
+# Construct file paths based on the provided index
+lidar_path = f'{args.data_path}/lidar{args.index}.bin'
+rgb_path = f'{args.data_path}/color{args.index}.jpg'
+depth_path = f'{args.data_path}/depth{args.index}.png'
 
 N = 8 #how many point pairs you want to select
-
-# Update Depending on Where Data Stored
-rgb_path = './data/color32.png'
-depth_path = './data/depth32.tif'
-lidar_path = './data/lidar32.npz'
 
 img = cv2.imread(rgb_path, cv2.IMREAD_UNCHANGED)
 
 lidar_points = np.load(lidar_path)['arr_0']
 lidar_points = lidar_points[~np.all(lidar_points== 0, axis=1)] # remove (0,0,0)'s
 
-rx,ry,rz = 0.006898647163954201, 0.023800082245145304, -0.025318355743942974
-tx,ty,tz = 1.1, 0.037735827433173136, 1.953202227766785
-rot = R.from_euler('xyz',[rx,ry,rz]).as_matrix()
-lidar_ex = np.hstack([rot,[[tx],[ty],[tz]]])
-lidar_ex = np.vstack([lidar_ex,[0,0,0,1]])
 
-camera_in = np.array([
+
+# Load transformation parameters from YAML file
+with open(args.config, 'r') as yaml_file:
+    config = yaml.safe_load(yaml_file)
+
+tx, ty, tz = config['position']
+rot = np.array(config['rotation'])
+
+# Construct transformation matrix
+lidar_ex = np.hstack([rot, np.array([[tx], [ty], [tz]])])
+lidar_ex = np.vstack([lidar_ex, [0, 0, 0, 1]])
+
+camera_in = np.array([ # Update intrinsics if necessary
     [684.83331299,   0.        , 573.37109375],
     [  0.        , 684.60968018, 363.70092773],
     [  0.        ,   0.        ,   1.        ]
