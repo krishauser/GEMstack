@@ -25,7 +25,13 @@ This section explains tools for offline calibration of LiDAR and camera sensors 
 
 1. **LiDAR-to-Vehicle**  
 2. **Camera-to-Vehicle**  
-3. **LiDAR-to-Camera**  
+3. **LiDAR-to-Camera**
+
+## Dependencies
+
+```
+pip install opencv-python scipy numpy matplotlib argparse pyyaml pyvis
+```
 
 ---
 
@@ -72,6 +78,10 @@ Optionally, use --vis flag for visualizations throughout the computation process
     
     python3 camera_to_vehicle_manual.py --data_path "path to data folder" --index INDEX_NUM --config "path to gem_e4_ouster.yaml"
 
+  5. There will be a pop-up of the rgb image depending on the data index you chose. Left click and select as many points as manually specified in the script.
+  6. The window will automatically close and reveal a pop-up of the lidar point cloud.
+  7. Choose the corresponding lidar points with hovering over the point and right-clicking, or pressing P
+  8. Once selected all corresponding points, close the window and the output will be printed.
 
 ### 3. LIDAR-to-CAMERA Calibration (`lidar_to_camera.py`)
 **Method**:  
