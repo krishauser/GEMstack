@@ -11,7 +11,7 @@ Set up on vehicle:
 
 Script usage:
 
-python3 capture_ouster_oak.py
+    python3 capture_ouster_oak.py
 
 1. To specify directory to save data, use --folder "path to save location" (default save folder is data)
 2. To specify frequency of data capture, use --frequency put_frequency_in_hz_here (default is 2 hz)
@@ -48,7 +48,7 @@ This section explains tools for offline calibration of LiDAR and camera sensors 
 
 Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. x is chosen using the --index flag seen below. Set it based on what data sample you want to use for calibration. 
 
-python3 lidar_to_vehicle.py --data_path "path to data folder" --index INDEX_NUM
+    python3 lidar_to_vehicle.py --data_path "path to data folder" --index INDEX_NUM
 
 Optionally, use --vis flag for visualizations throughout the computation process
 
@@ -63,7 +63,7 @@ Optionally, use --vis flag for visualizations throughout the computation process
   1. Get camera intrinsics:
     rosrun offboard\calibration\camera_info.py  # Prints intrinsic matrix
   2. Update camera_in in script with intrinsics
-  3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. Choose x depending on what data sample you want to use for calibration. 
+  3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. x is chosen using the --index flag seen below. Set it based on what data sample you want to use for calibration.Choose x depending on what data sample you want to use for calibration. 
   
   The script also reads the lidar_to_vehicle matrix from the gem_e4_ouster.yaml file so ensure that is up to date.
   4. Run calibration:
@@ -86,7 +86,13 @@ python3 lidar_to_camera.py   # Ensure T_lidar_vehicle and T_camera_vehicle matri
 **3D Alignment Check**:
  1. Use vis() function in scripts to view calibrated LiDAR/camera clouds
  2. Use --vis flag when running lidar_to_vehicle.py for ground plane/object visualization
- 3. Use test_transforms.py to visualize lidar point cloud on top of png image. Helps verify accuracy of lidar->camera.
+ 3. Use test_transforms.py to visualize the transformed lidar point cloud to camera frame on top of the corresponding png image. Helps verify accuracy of lidar->camera.
+
+Usage of test_transforms.py:
+```
+python3 test_transforms.py --data_path "path to data folder" --index INDEX_NUM
+```
+Data path is the directory where lidar npz and color png files are located, index number is whichever lidar/png pair you want to evaluate. Ex. lidar1.npz color1.png where INDEX_NUM is 1 (--index 1)
 
 **Projection Validation**:
  1. RGB image overlaid with transformed LiDAR points (Z-buffered)
