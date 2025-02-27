@@ -1,5 +1,7 @@
+# Calibration Date: 02/25/2025 05:09
+
 reference: rear_axle_center  # rear axle center
-rotation: [[ 0.00349517, -0.03239524, 0.99946903],
+rotation: [[ 0.00349517, -0.03239524, 0.99946903], # rotation camera -> vehicle
           [-0.99996547,  0.00742285,  0.0037375],
           [-0.00753999, -0.99944757, -0.03236817]] # rotation matrix mapping z to forward, x to left, y to down, guesstimated
-center_position: [ 1.75864913, 0.01238124, 1.54408419] # meters, center camera, guesstimated
+center_position: [ 1.75864913, 0.01238124, 1.54408419] # translation camera -> vehicle meters, center camera, guesstimated
