@@ -126,11 +126,11 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentStat
 
         return True, deceleration
     
-def detect_collision_analytical(r_pedestrain_x: float, r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float, lateral_buffer: float) -> Union[bool, str]:
+def detect_collision_analytical(r_pedestrain_x: float, r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float, lateral_buffer: float, longitudinal_buffer: float) -> Union[bool, str]:
     """Detects if a collision will occur with the given object and return deceleration to avoid it. Analytical"""
     if r_pedestrain_x < 0 and abs(r_pedestrain_y) > lateral_buffer:
-        return False
-    elif r_pedestrain_x < 0:
+        return 'maintain'
+    elif r_pedestrain_x < 0 and abs(r_pedestrain_x) < longitudinal_buffer:
         return 'max'
     if r_pedestrain_y >= p_vehicle_left_y_after_t and r_pedestrain_y <= p_vehicle_right_y_after_t:
         return True
@@ -185,10 +185,12 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
     p_vehicle_left_y_after_t = r_vehicle_left + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
     p_vehicle_right_y_after_t = r_vehicle_right + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
 
-    collision_flag = detect_collision_analytical(r_pedestrain_x, r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t, vehicle_buffer_y)
+    collision_flag = detect_collision_analytical(r_pedestrain_x, r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t, vehicle_buffer_y, vehicle_buffer_x)
     if collision_flag == False:
         print("No collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
         return 0.0, r_pedestrain_x
+    elif collision_flag == 'maintain':
+        return -1.0, r_pedestrain_x
     elif collision_flag == 'max':
         return max_deceleration, r_pedestrain_x
     
@@ -1015,6 +1017,9 @@ class YieldTrajectoryPlanner(Component):
                 if deceleration > 0:
                     yield_deceleration = max(deceleration, yield_deceleration)
                     should_yield = True
+                elif deceleration < 0:
+                    should_accelerate = False
+                    should_yield = False
                 
                 print("should yield: ", should_yield)
 
@@ -1033,11 +1038,11 @@ class YieldTrajectoryPlanner(Component):
             desired_speed = 0 if desired_speed < 0 else desired_speed
             # traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
             # if desired_speed > 0:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, yield_deceleration, desired_speed, curr_v, "milestone")
+            # traj = longitudinal_plan(route_with_lookahead, self.acceleration, yield_deceleration, desired_speed, curr_v, "milestone")
             # else:
-            #     traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
+            traj = longitudinal_brake(route_with_lookahead, yield_deceleration, curr_v)
             #     print('Got brake trajectory')
         else:
-            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "milestone")
+            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, "dt")
 
         return traj 
