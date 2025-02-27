@@ -4,12 +4,13 @@
 
 Usage:
 
-Run roscore in a terminal
-Run catkin_make in gem stack 
-Run source /demo_ws/devel/setup.bash
-Run roslaunch basic_launch sensor_init.launch to get all sensors running
+1. Run roscore in a terminal
+2. Run catkin_make in gem stack
+3. Run source /demo_ws/devel/setup.bash
+4. Run roslaunch basic_launch sensor_init.launch to get all sensors running
 
 To run script:
+
 python3 capture_ouster_oak.py
 To specify directory to save data, use --folder "path to save location" (default save folder is data)
 To specify frequency of data capture, use --frequency put_frequency_in_hz_here (default is 2 hz)
