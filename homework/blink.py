@@ -37,14 +37,14 @@ class BlinkDistress:
         
         self.prev_time = rospy.get_time()
         
-        while not rospy.is_shutdown():
-            self.curr_time = rospy.get_time()
-            # change signal every 2 secs
-            if (self.curr_time - self.prev_time > 2):
-                self.msg_signal.ui16_cmd = (self.msg_signal.ui16_cmd + 1) % 3
-                self.prev_time = self.curr_time
-            # publish cmd
-            self.update()
+        # while not rospy.is_shutdown():
+        #     self.curr_time = rospy.get_time()
+        #     # change signal every 2 secs
+        #     if (self.curr_time - self.prev_time > 2):
+        #         self.msg_signal.ui16_cmd = (self.msg_signal.ui16_cmd + 1) % 3
+        #         self.prev_time = self.curr_time
+        #     # publish cmd
+        #     self.update()
     
     def cb_accel(self,msg):
         self.msg_accel = msg
@@ -72,6 +72,13 @@ class BlinkDistress:
         # You will need to publish a PacmodCmd() to /pacmod/as_rx/turn_cmd.  Read the documentation to see
         # what the data in the message indicates.
         
+        self.curr_time = rospy.get_time()
+        
+        # change signal every 2 secs
+        if (self.curr_time - self.prev_time > 2):
+            self.msg_signal.ui16_cmd = (self.msg_signal.ui16_cmd + 1) % 3
+            self.prev_time = self.curr_time
+    
         self.pub_turn_cmd.publish(self.msg_signal)
        
     def healthy(self):
