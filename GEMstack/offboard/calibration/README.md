@@ -1,6 +1,24 @@
+# Data Capture
+
+### Data Capture Script (`capture_ouster_oak.py`)
+
+Usage:
+
+Run roscore in a terminal
+Run catkin_make in gem stack 
+Run source /demo_ws/devel/setup.bash
+Run roslaunch basic_launch sensor_init.launch to get all sensors running
+
+To run script:
+python3 capture_ouster_oak.py
+To specify directory to save data, use --folder "path to save location" (default save folder is data)
+To specify frequency of data capture, use --frequency put_frequency_in_hz_here (default is 2 hz)
+To specify the what index the data should start being saved as, use --start_index desired_index_here (default is 1)
+
+
 # GEMstack Offboard Calibration 
 
-This repository contains tools for offline calibration of LiDAR and camera sensors to the vehicle coordinate system on the GEM E4 platform. The calibration pipeline consists of three stages:
+This section explains tools for offline calibration of LiDAR and camera sensors to the vehicle coordinate system on the GEM E4 platform. The calibration pipeline consists of three stages:
 
 1. **LiDAR-to-Vehicle**  
 2. **Camera-to-Vehicle**  
