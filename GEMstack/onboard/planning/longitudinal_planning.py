@@ -59,12 +59,10 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
             yarange = [point[1]]*len(xarange)
         else:
             yarange = np.arange(point[1], next_point[1], (next_point[1] - point[1])/factor)
-        print(yarange)
         for x, y in zip(xarange, yarange):
             new_points.append((x, y))
     new_points.append(path.points[-1])
     
-    print("new points", new_points)
     path = Path(path.frame, new_points)
 
     path_normalized = path.arc_length_parameterize()
@@ -92,26 +90,19 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
 
     while current_speed > 0 or cur_index == 0:
         # we want to iterate through all the points and add them
-        # to the new points. However, we also want to add "critical points"
+        # to the new points. However, we also want to add "switch points"
         # where we reach top speed, begin decelerating, and stop
         new_points.append(cur_point)
         new_times.append(cur_time)
         velocities.append(current_speed)
-        # print("=====================================")
-        # print("new points: ", new_points)
-        # print("current index: ", cur_index)
-        # print("current speed: ", current_speed)
-        # print("current position: ", cur_point)
 
         # Information we will need: 
-            # Calculate how much time it would take to stop
-            # Calculate how much distance it would take to stop
+        # Calculate how much time it would take to stop
+        # Calculate how much distance it would take to stop
         min_delta_t_stop = current_speed/deceleration
         min_delta_x_stop = current_speed*min_delta_t_stop - 0.5*deceleration*min_delta_t_stop**2
         # print(min_delta_x_stop)
         assert min_delta_x_stop >= 0
-
-        # Check if we are done
 
         # If we cannot stop before or stop exactly at the final position requested
         if cur_point[0] + min_delta_x_stop >= points[-1][0]:
@@ -147,7 +138,6 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
         # because the first if-statement covers for when we decelerating,
         # the only time current_speed < max_speed is when we are accelerating 
         elif current_speed < max_speed:
-            # print("In case two")
             # next point 
             next_point = points[cur_index+1]
             # accelerate to max speed
@@ -168,7 +158,7 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
             # just move to the next point and update the current speed and time
             if next_point[0] + delta_x_to_stop_from_next_point < points[-1][0] and \
                 cur_point[0] + delta_x_to_max_speed >= next_point[0]:
-                # ("go to next point")
+                # go to next point
                 # accelerate to max speed
                 delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, acceleration)
                 cur_time += delta_t_to_next_x
@@ -179,13 +169,8 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
             # This is the case where we would need to start breaking before reaching 
             # top speed and before the next point (i.e. triangle shape velocity)
             elif cur_point[0] + delta_x_to_max_speed + delta_x_to_stop_from_max_speed >= points[-1][0]:
-                # print(delta_x_to_max_speed)
-                # print(delta_x_to_stop_from_max_speed)
                 # Add a new point at the point where we should start breaking 
-                # print("Adding new point to start breaking")
                 delta_t_to_next_x = compute_time_triangle(cur_point[0], points[-1][0], current_speed, 0, acceleration, deceleration)
-                # print(delta_t_to_next_x)
-                #delta_t_to_next_x = compute_time_to_x(cur_point[0], points[-1][0] - min_delta_x_stop, current_speed, acceleration)
                 next_x = cur_point[0] + current_speed*delta_t_to_next_x + 0.5*acceleration*delta_t_to_next_x**2
                 cur_time += delta_t_to_next_x
                 cur_point = [next_x, 0]
@@ -194,7 +179,6 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
             # this is the case where we would reach max speed before the next point
             # we need to create a new point where we would reach max speed 
             else:
-                # print("adding new point")
                 # we would need to add a new point at max speed
                 cur_time += delta_t_to_max_speed
                 cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
@@ -207,17 +191,14 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
         elif current_speed == max_speed:
             next_point = points[cur_index+1]
             # continue on with max speed
-            # print("In case three")
             
             # add point to start decelerating
             if next_point[0] + min_delta_x_stop >= points[-1][0]:
-                # print("Adding new point to start decelerating")
                 cur_time += (points[-1][0] - min_delta_x_stop - cur_point[0])/current_speed
                 cur_point = [points[-1][0] - min_delta_x_stop,0]
                 current_speed = max_speed
             else:
                 # Continue on to next point
-                # print("Continuing on to next point")
                 cur_time += (next_point[0] - cur_point[0])/current_speed
                 cur_point = next_point
                 cur_index += 1
@@ -228,7 +209,6 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
             # We need to hit the breaks 
 
             next_point = points[cur_index+1]
-            # print("In case four")
             # slow down to max speed 
             delta_t_to_max_speed = (current_speed - max_speed)/deceleration
             delta_x_to_max_speed = current_speed*delta_t_to_max_speed - 0.5*deceleration*delta_t_to_max_speed**2
