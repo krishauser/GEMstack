@@ -6,9 +6,15 @@ from scipy.spatial.transform import Rotation as R
 import pyvista as pv
 import matplotlib.pyplot as plt
 from visualizer import visualizer
+import argparse
 
-VIS = False # True to show visuals
-VIS = True # True to show visuals
+parser = argparse.ArgumentParser(description='Process LiDAR data with calibration.')
+parser.add_argument('--data_path', type=str, required=True, help='Path to the dataset')
+parser.add_argument('--index', type=int, required=True, help='Index for selecting the files')
+parser.add_argument('--vis', action='store_true', help='Enable visualization')
+args = parser.parse_args()
+
+VIS = args.vis
 
 #%% things to extract
 tx,ty,tz,rx,ry,rz = [None] * 6
@@ -24,6 +30,9 @@ def load_scene(path):
     sc = np.load(path)['arr_0'] 
     sc = sc[~np.all(sc == 0, axis=1)] # remove (0,0,0)'s
     return sc
+
+sc1 = load_scene(f'{args.data_path}/lidar{args.index}.npz')
+
 def crop(pc,ix=None,iy=None,iz=None):
     # crop a subrectangle in a pointcloud
     # usage: crop(pc, ix = (x_min,x_max), ...)
@@ -153,7 +162,6 @@ if False: # True to use the diff method to extract object.
 
 else: #False to use only cropping
     # Update depending on where data is stored
-    sc1 = load_scene('./data/lidar1.npz')
 
     objects = sc1 @ rot.T + [0,0,tz]
 
