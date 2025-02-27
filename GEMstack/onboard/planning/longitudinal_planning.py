@@ -389,60 +389,7 @@ def longitudinal_plan_dt(path, acceleration: float, deceleration: float, max_spe
 
     # Compute trajectory points
     points = [path_norm.eval(s) for s in s_vals]
-    print("Number of time steps is --------------------", num_time_steps)
-
-    # return Trajectory(path_norm.frame, points, times)
-
-
-    # # Plot: update a single window
-    # import matplotlib.pyplot as plt
-    # plt.figure("Distance vs Time")
-    # plt.clf()  # Clear the current figure
-    # plt.plot(times, s_vals)
-    # plt.xlabel("Time (s)")
-    # plt.ylabel("Distance (m)")
-    # plt.title("Distance vs Time")
-    # plt.draw()
-    # plt.pause(0.001)
-
-    
-
-    # 4. Create a time grid.
-    # dt = 0.1  # adjust based on computation
-    # times = np.arange(0, t_final + dt, dt)
-    # num_time_steps = 0
-
-    # # 5. Compute the distance s(t) for each time step.
-    # s_vals = []
-    # for t in times:
-    #     if profile_type == "trapezoidal":
-    #         if t < t_accel:
-    #             # Acceleration phase.
-    #             s = current_speed * t + 0.5 * acceleration * t**2
-    #         elif t < t_accel + t_cruise:
-    #             # Cruise phase.
-    #             s = d_accel + max_speed * (t - t_accel)
-    #         else:
-    #             # Deceleration phase.
-    #             t_decel_phase = t - (t_accel + t_cruise)
-    #             # Compute the remaining distance using the deceleration equation.
-    #             s = total_length - 0.5 * deceleration * (t_decel - t_decel_phase)**2
-    #     else:  # Triangular profile.
-    #         if t < t_accel:
-    #             # Acceleration phase.
-    #             s = current_speed * t + 0.5 * acceleration * t**2
-    #         else:
-    #             t_decel_phase = t - t_accel
-    #             s_accel = current_speed * t_accel + 0.5 * acceleration * t_accel**2
-    #             s = s_accel + peak_speed * t_decel_phase - 0.5 * deceleration * t_decel_phase**2
-    #     num_time_steps +=1
-
-    #     # should not exceed total path length
-    #     s_vals.append(min(s, total_length))
-    # print("NUmber of time steps -----------",num_time_steps)
-    # print("T FInal ----------------------------", t_final)
-    # points = [path_norm.eval(s) for s in s_vals]
-
+  
     trajectory = Trajectory(path_norm.frame, points, list(times),velocities=velocities)
     return trajectory
 
