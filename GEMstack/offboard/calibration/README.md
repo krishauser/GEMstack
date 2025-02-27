@@ -57,7 +57,7 @@ Optionally, use --vis flag for visualizations throughout the computation process
 ### 2. CAMERA-to-Vehicle Calibration (`camera_to_vehicle_manual.py`)
 **Method**:  
   1. Capture camera intrinsics using camera_info.py (ROS node)  
-  2. Manually select 4 matching points in RGB image and LiDAR cloud (can adjust variable to select more pairs)
+  2. Manually select 8 matching points in RGB image and LiDAR cloud (can adjust variable to select more pairs)
   3. Solve PnP problem to compute camera extrinsics  
 
 **Usage**:
