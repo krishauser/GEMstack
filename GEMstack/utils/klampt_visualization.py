@@ -7,8 +7,8 @@ from . import settings
 from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,AgentEnum,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
 
 #KH: there is a bug on some system where the visualization crashes with an OpenGL error when drawing curves
-#this is a workaround.  We really should find the source of the bug!
-MAX_POINTS_IN_CURVE = 30
+#this is a workaround.  We really should find the source of the bug! Change to 30 if still not working
+MAX_POINTS_IN_CURVE = 50
 
 OBJECT_COLORS = {
     AgentEnum.CAR : (1,1,0,1),

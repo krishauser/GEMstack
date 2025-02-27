@@ -6,7 +6,7 @@ from parameterized import parameterized
 import time
 import signal
 from abc import ABC, abstractmethod
-# Configuration of each test case. 
+# Configuration of each test case. Order is Name, variant, launch file location, runtime
 TEST_CONFIGS = [
     ("test1", "sim", "integration_tests/launch/test1.yaml", 10),
     ("test2", "real_sim", "integration_tests/launch/test2.yaml", 25),
@@ -70,6 +70,7 @@ class IntegrationTestSuite(unittest.TestCase):
     def test_command_execution(self, name, variant, config_path, runtime):
         command = ["python3", "main.py", f"--variant={variant}", config_path]
         process = subprocess.Popen(command, text=True,  stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        #Uncomment to debug output from execution
         # for line in iter(process.stdout.readline, ''):
         #     print(line, end='') 
         time.sleep(runtime) 
