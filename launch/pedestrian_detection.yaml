@@ -20,7 +20,8 @@ drive:
             args:
                 mode: 'real'
                 params: {
-                    'planner':       'dt', # 'milestone', 'dt', or 'dx'
+                    'yielder':       'expart', # 'expart', 'analytic', or 'simulation'
+                    'planner':       'milestone', # 'milestone', 'dt', or 'dx'
                     'desired_speed': 1.0,  # m/s, 1.5 m/s seems max speed? Feb24
                     'acceleration':  0.75  # m/s2, 0.5 is not enough to start moving. Feb24
                     }
@@ -84,7 +85,11 @@ variants:
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-
+                planning:
+                    relations_estimation: 
+                        type: pedestrian_yield_logic.PedestrianYielder
+                        args:
+                            mode: 'sim'
 
     fake_real:
         run:

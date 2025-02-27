@@ -12,6 +12,221 @@ from ...utils import settings
 ########## Collisiong Detection ################################################
 ################################################################################
 
+######################################
+##### Patrick and Animesh's Code #####
+######################################
+# Global variables
+PEDESTRIAN_LENGTH = 0.5
+PEDESTRIAN_WIDTH = 0.5
+
+VEHICLE_LENGTH = 3.5
+VEHICLE_WIDTH = 2
+
+VEHICLE_BUFFER_X = 3.0
+VEHICLE_BUFFER_Y = 1.5
+
+YIELD_BUFFER_Y = 1.0
+COMFORT_DECELERATION = 1.5
+
+def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj_x: float, obj_y: float, obj_v_x: float, obj_v_y: float, min_deceleration: float, max_deceleration: float, acceleration: float, max_speed: float) -> Tuple[bool, Union[float, List[float]]]:
+    """Detects if a collision will occur with the given object and return deceleration to avoid it."""
+    
+    vehicle_front = curr_x + VEHICLE_LENGTH
+    vehicle_back = curr_x
+    vehicle_left = curr_y + VEHICLE_WIDTH / 2
+    vehicle_right = curr_y - VEHICLE_WIDTH / 2
+
+    pedestrian_front = obj_x + PEDESTRIAN_LENGTH / 2
+    pedestrian_back = obj_x - PEDESTRIAN_LENGTH / 2
+    pedestrian_left = obj_y + PEDESTRIAN_WIDTH / 2
+    pedestrian_right = obj_y - PEDESTRIAN_WIDTH / 2
+
+    # Check if the object is in front of the vehicle
+    if vehicle_front > pedestrian_back:
+        if vehicle_back > pedestrian_front:
+            # The object is behind the vehicle
+            print("Object is behind the vehicle")
+            return False, 0.0
+        if vehicle_right - VEHICLE_BUFFER_Y > pedestrian_left or vehicle_left + VEHICLE_BUFFER_Y < pedestrian_right:
+            # The object is to the side of the vehicle
+            print("Object is to the side of the vehicle")
+            return False, 0.0
+        # The object overlaps with the vehicle's buffer
+        return True, max_deceleration
+    
+    if vehicle_right - VEHICLE_BUFFER_Y > pedestrian_left and obj_v_y <= 0:
+        # The object is to the right of the vehicle and moving away
+        print("Object is to the right of the vehicle and moving away")
+        return False, 0.0
+    
+    if vehicle_left + VEHICLE_BUFFER_Y < pedestrian_right and obj_v_y >= 0:
+        # The object is to the left of the vehicle and moving away
+        print("Object is to the left of the vehicle and moving away")
+        return False, 0.0
+    
+    if vehicle_front + VEHICLE_BUFFER_X >= pedestrian_back and (vehicle_right - VEHICLE_BUFFER_Y <= pedestrian_left and vehicle_left + VEHICLE_BUFFER_Y >= pedestrian_right):
+        # The object is in front of the vehicle and within the buffer
+        print("Object is in front of the vehicle and within the buffer")
+        return True, max_deceleration
+    
+    # Calculate the deceleration needed to avoid a collision
+    print("Object is in front of the vehicle and outside the buffer")
+    distance = pedestrian_back - vehicle_front
+    distance_with_buffer = pedestrian_back - vehicle_front - VEHICLE_BUFFER_X
+
+    relative_v = curr_v - obj_v_x
+    if relative_v <= 0:
+        return False, 0.0
+
+    if obj_v_y == 0:
+        # The object is in front of the vehicle blocking it
+        deceleration = relative_v ** 2 / (2 * distance_with_buffer)
+        if deceleration > max_deceleration:
+            return True, max_deceleration
+        if deceleration < min_deceleration:
+            return False, 0.0
+
+        return True, deceleration
+    
+    print(relative_v, distance_with_buffer)
+
+    if obj_v_y > 0:
+        # The object is to the right of the vehicle and moving towards it
+        time_to_get_close = (vehicle_right - VEHICLE_BUFFER_Y - YIELD_BUFFER_Y - pedestrian_left) / abs(obj_v_y)
+        time_to_pass = (vehicle_left + VEHICLE_BUFFER_Y + YIELD_BUFFER_Y - pedestrian_right) / abs(obj_v_y)
+    else:
+        # The object is to the left of the vehicle and moving towards it
+        time_to_get_close = (pedestrian_right - vehicle_left - VEHICLE_BUFFER_Y - YIELD_BUFFER_Y) / abs(obj_v_y)
+        time_to_pass = (pedestrian_left - vehicle_right + VEHICLE_BUFFER_Y + YIELD_BUFFER_Y) / abs(obj_v_y)
+
+    time_to_accel_to_max_speed = (max_speed - curr_v) / acceleration
+    distance_to_accel_to_max_speed = (max_speed + curr_v - 2 * obj_v_x) * time_to_accel_to_max_speed / 2 #area of trapezoid
+    
+    if distance_to_accel_to_max_speed > distance_with_buffer:
+        # The object will reach the buffer before reaching max speed
+        time_to_buffer_when_accel = (-relative_v + (relative_v * relative_v + 2 * distance_with_buffer * acceleration) ** 0.5) / acceleration
+    else:
+        # The object will reach the buffer after reaching max speed
+        time_to_buffer_when_accel = time_to_accel_to_max_speed + (distance_with_buffer - distance_to_accel_to_max_speed) / (max_speed - obj_v_x)
+
+    if distance_to_accel_to_max_speed > distance:
+        # We will collide before reaching max speed
+        time_to_collide_when_accel = (-relative_v + (relative_v * relative_v + 2 * distance * acceleration) ** 0.5) / acceleration
+    else:
+        # We will collide after reaching max speed
+        time_to_collide_when_accel = time_to_accel_to_max_speed + (distance - distance_to_accel_to_max_speed) / (max_speed - obj_v_x)
+
+    if time_to_get_close > time_to_collide_when_accel:
+        # We can do normal driving and will pass the object before it gets in our way
+        print("We can do normal driving and will pass the object before it gets in our way")
+        return False, 0.0
+
+    if vehicle_front + VEHICLE_BUFFER_X >= pedestrian_back:
+        # We cannot move pass the pedestrian before it reaches the buffer from side
+        return True, max_deceleration
+
+    if time_to_pass < time_to_buffer_when_accel:
+        # The object will pass through our front before we drive normally and reach it
+        print("The object will pass through our front before we drive normally and reach it")
+        return False, 0.0
+
+    distance_to_move = distance_with_buffer + time_to_pass * obj_v_x
+
+    if curr_v**2/(2*distance_to_move) >= COMFORT_DECELERATION:
+        return True, curr_v**2/(2*distance_to_move)
+        
+    print("Calculating cruising speed")
+    return True, [distance_to_move, time_to_pass]
+
+########################
+##### Henry's Code #####
+########################
+def detect_collision_analytical(r_pedestrain_x: float, r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float, lateral_buffer: float) -> Union[bool, str]:
+    """Detects if a collision will occur with the given object and return deceleration to avoid it. Analytical"""
+    if r_pedestrain_x < 0 and abs(r_pedestrain_y) > lateral_buffer:
+        return False
+    elif r_pedestrain_x < 0:
+        return 'max'
+    if r_pedestrain_y >= p_vehicle_left_y_after_t and r_pedestrain_y <= p_vehicle_right_y_after_t:
+        return True
+    
+    return False
+
+
+def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: float, curr_v: float, obj_x: float, obj_y: float, obj_v_x: float, obj_v_y: float, min_deceleration: float, max_deceleration: float) -> Tuple[bool, float]:
+    """Detects if a collision will occur with the given object and return deceleration to avoid it. Via Optimization"""
+
+    obj_x = obj_x - curr_x
+    obj_y = obj_y - curr_y
+
+    curr_x = curr_x - curr_x
+    curr_y = curr_y - curr_y
+
+    vehicle_front = curr_x + VEHICLE_LENGTH + VEHICLE_BUFFER_X
+    vehicle_back = curr_x
+    vehicle_left = curr_y - VEHICLE_WIDTH / 2
+    vehicle_right = curr_y + VEHICLE_WIDTH / 2
+
+    r_vehicle_front = vehicle_front - vehicle_front
+    r_vehicle_back = vehicle_back - vehicle_front
+    r_vehicle_left = vehicle_left - VEHICLE_BUFFER_Y
+    r_vehicle_right = vehicle_right + VEHICLE_BUFFER_Y
+    r_vehicle_v_x = curr_v
+    r_vehicle_v_y = 0
+
+    r_pedestrain_x = obj_x - vehicle_front
+    r_pedestrain_y = -obj_y
+    r_pedestrain_v_x = obj_v_x
+    r_pedestrain_v_y = -obj_v_y
+
+    r_velocity_x_from_vehicle = r_vehicle_v_x - r_pedestrain_v_x
+    r_velocity_y_from_vehicle = r_vehicle_v_y - r_pedestrain_v_y
+
+    t_to_r_pedestrain_x = (r_pedestrain_x - r_vehicle_front) / r_velocity_x_from_vehicle
+    
+    p_vehicle_left_y_after_t = r_vehicle_left + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
+    p_vehicle_right_y_after_t = r_vehicle_right + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
+
+    collision_flag = detect_collision_analytical(r_pedestrain_x, r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t, VEHICLE_BUFFER_Y)
+    if collision_flag == False:
+        print("No collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
+        return 0.0, r_pedestrain_x
+    elif collision_flag == 'max':
+        return max_deceleration, r_pedestrain_x
+    
+    print("Collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
+
+    minimum_deceleration = None
+    if abs(r_velocity_y_from_vehicle) > 0.1:
+        if r_velocity_y_from_vehicle > 0.1:
+            # Vehicle Left would be used to yield
+            r_pedestrain_y_temp = r_pedestrain_y + abs(r_vehicle_left)
+        elif r_velocity_y_from_vehicle < -0.1:
+            # Vehicle Right would be used to yield
+            r_pedestrain_y_temp = r_pedestrain_y - abs(r_vehicle_right)
+        
+        softest_accleration = 2 * r_velocity_y_from_vehicle * (r_velocity_y_from_vehicle * r_pedestrain_x - r_velocity_x_from_vehicle * r_pedestrain_y_temp) / r_pedestrain_y_temp**2
+        peak_y = -(r_velocity_x_from_vehicle * r_velocity_y_from_vehicle) / softest_accleration
+        # if the peak is within the position of the pedestrian, 
+        # then it indicates the path had already collided with the pedestrian, 
+        # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
+        # and the vehicle should be stopped exactly before the pedestrain's x position
+        if abs(peak_y) > abs(r_pedestrain_y_temp):
+            minimum_deceleration = abs(softest_accleration)
+        # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
+    if minimum_deceleration is None:
+        minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
+
+    print("calculated minimum deceleration: ", minimum_deceleration)
+
+    if minimum_deceleration < min_deceleration:
+        return 0.0, r_pedestrain_x
+    else:
+        return max(min(minimum_deceleration, max_deceleration), min_deceleration), r_pedestrain_x
+    
+########################
+##### Yudai's Code #####
+########################
 class CollisionDetector:
     """
     Simulation class to update positions of two rectangles (vehicle and pedestrian)
@@ -214,250 +429,77 @@ class CollisionDetector:
 
         return collision_distance
 
+def calculate_yielding_parameters(curr_x, curr_y, curr_v, a_x, a_y, a_v, desired_speed, acceleration, deceleration, max_deceleration, yield_deceleration):
+    """
+    Calculate yielding parameters using Yudai's simulation code.
+    Returns a tuple (output_decel, output_dist, output_speed).
+    """
 
+    # Simulate if a collision will occur when the vehicle accelerates to the desired speed.
+    sim = CollisionDetector(curr_x, curr_y, 0, a_x, a_y, 0, curr_v, a_v, total_time=10.0, desired_speed=desired_speed, acceleration=acceleration)
+    collision_distance = sim.run()
 
-def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj: AgentState, min_deceleration: float, max_deceleration: float, acceleration: float, max_speed: float) -> Tuple[bool, float]:
-    """Detects if a collision will occur with the given object and return deceleration to avoid it."""
-    
-    # Get the object's position and velocity
-    obj_x = obj.pose.x
-    # obj_x = 0.0
-    obj_y = obj.pose.y
-    obj_v_x = obj.velocity[0]
-    obj_v_y = obj.velocity[1]
+    # No collision detected: use default deceleration and desired speed.
+    if collision_distance < 0:
+        print("No collision detected.")
+        output_decel = deceleration
+        output_speed = desired_speed
+        output_dist  = collision_distance
 
-    pedestrian_length = 0.5
-    pedestrian_width = 0.5
-
-    vehicle_length = 3.5
-    vehicle_width = 2
-
-    vehicle_buffer_x = 3.0
-    vehicle_buffer_y = 1.5
-
-    yield_buffer_y = 1.0
-
-    vehicle_front = curr_x + vehicle_length
-    vehicle_back = curr_x
-    vehicle_left = curr_y + vehicle_width / 2
-    vehicle_right = curr_y - vehicle_width / 2
-
-    pedestrian_front = obj_x + pedestrian_length / 2
-    pedestrian_back = obj_x - pedestrian_length / 2
-    pedestrian_left = obj_y + pedestrian_width / 2
-    pedestrian_right = obj_y - pedestrian_width / 2
-
-    # Check if the object is in front of the vehicle
-    if vehicle_front > pedestrian_back:
-        if vehicle_back > pedestrian_front:
-            # The object is behind the vehicle
-            print("Object is behind the vehicle")
-            return False, 0.0
-        if vehicle_right - vehicle_buffer_y > pedestrian_left or vehicle_left + vehicle_buffer_y < pedestrian_right:
-            # The object is to the side of the vehicle
-            print("Object is to the side of the vehicle")
-            return False, 0.0
-        # The object overlaps with the vehicle's buffer
-        return True, max_deceleration
-    
-    if vehicle_right - vehicle_buffer_y > pedestrian_left and obj_v_y <= 0:
-        # The object is to the right of the vehicle and moving away
-        print("Object is to the right of the vehicle and moving away")
-        return False, 0.0
-    
-    if vehicle_left + vehicle_buffer_y < pedestrian_right and obj_v_y >= 0:
-        # The object is to the left of the vehicle and moving away
-        print("Object is to the left of the vehicle and moving away")
-        return False, 0.0
-    
-    if vehicle_front + vehicle_buffer_x >= pedestrian_back and (vehicle_right - vehicle_buffer_y <= pedestrian_left and vehicle_left + vehicle_buffer_y >= pedestrian_right):
-        # The object is in front of the vehicle and within the buffer
-        print("Object is in front of the vehicle and within the buffer")
-        return True, max_deceleration
-    
-    # Calculate the deceleration needed to avoid a collision
-    print("Object is in front of the vehicle and outside the buffer")
-    distance = pedestrian_back - vehicle_front
-    distance_with_buffer = pedestrian_back - vehicle_front - vehicle_buffer_x
-
-    relative_v = curr_v - obj_v_x
-    if relative_v <= 0:
-        return False, 0.0
-
-    if obj_v_y == 0:
-        # The object is in front of the vehicle blocking it
-        deceleration = relative_v ** 2 / (2 * distance_with_buffer)
-        if deceleration > max_deceleration:
-            return True, max_deceleration
-        if deceleration < min_deceleration:
-            return False, 0.0
-
-        return True, deceleration
-    
-    print(relative_v, distance_with_buffer)
-
-    if obj_v_y > 0:
-        # The object is to the right of the vehicle and moving towards it
-        time_to_get_close = (vehicle_right - vehicle_buffer_y - yield_buffer_y - pedestrian_left) / abs(obj_v_y)
-        time_to_pass = (vehicle_left + vehicle_buffer_y + yield_buffer_y - pedestrian_right) / abs(obj_v_y)
+    # Collision detected: try to find a yielding speed.
     else:
-        # The object is to the left of the vehicle and moving towards it
-        time_to_get_close = (pedestrian_right - vehicle_left - vehicle_buffer_y - yield_buffer_y) / abs(obj_v_y)
-        time_to_pass = (pedestrian_left - vehicle_right + vehicle_buffer_y + yield_buffer_y) / abs(obj_v_y)
+        print("Collision detected. Try to find yielding speed.")
+        output_decel = None
+        output_speed = None
+        collision_distance_after_yield = -1
 
-    time_to_accel_to_max_speed = (max_speed - curr_v) / acceleration
-    distance_to_accel_to_max_speed = (max_speed + curr_v - 2 * obj_v_x) * time_to_accel_to_max_speed / 2 #area of trapezoid
-    
-    if distance_to_accel_to_max_speed > distance_with_buffer:
-        # The object will reach the buffer before reaching max speed
-        time_to_buffer_when_accel = (-relative_v + (relative_v * relative_v + 2 * distance_with_buffer * acceleration) ** 0.5) / acceleration
-    else:
-        # The object will reach the buffer after reaching max speed
-        time_to_buffer_when_accel = time_to_accel_to_max_speed + (distance_with_buffer - distance_to_accel_to_max_speed) / (max_speed - obj_v_x)
+        # Generate yielding speeds from desired speed down to a low speed.
+        yield_speed = [v for v in np.arange(desired_speed, 0.1, -0.25)]
+        for v in yield_speed:
+            # If trying to accelerate (v > current vehicle speed)
+            if v > curr_v[0]:
+                sim.set_params(v, acceleration)
+            # Otherwise apply deceleration to yield
+            else:
+                sim.set_params(v, yield_deceleration * -1.0)
+            collision_distance_after_yield = sim.run()
+            if collision_distance_after_yield < 0:
+                print(f"Yielding at speed: {v}")
+                output_decel = yield_deceleration
+                output_dist  = collision_distance
+                output_speed = v
+                break
 
-    if distance_to_accel_to_max_speed > distance:
-        # We will collide before reaching max speed
-        time_to_collide_when_accel = (-relative_v + (relative_v * relative_v + 2 * distance * acceleration) ** 0.5) / acceleration
-    else:
-        # We will collide after reaching max speed
-        time_to_collide_when_accel = time_to_accel_to_max_speed + (distance - distance_to_accel_to_max_speed) / (max_speed - obj_v_x)
+        # Collision detected for any yielding speed: brake to avoid collision.
+        if collision_distance_after_yield >= 0:
+            print("The vehicle is Stopping.")
+            brake_deceleration = max(deceleration, curr_v[0]**2 / (2 * (collision_distance)))
+            if brake_deceleration > max_deceleration:
+                brake_deceleration = max_deceleration
+            output_decel = brake_deceleration
+            output_dist  = collision_distance
+            output_speed = 0.0
 
-    if time_to_get_close > time_to_collide_when_accel:
-        # We can do normal driving and will pass the object before it gets in our way
-        print("We can do normal driving and will pass the object before it gets in our way")
-        return False, 0.0
-
-    if vehicle_front + vehicle_buffer_x >= pedestrian_back:
-        # We cannot move pass the pedestrian before it reaches the buffer from side
-        return True, max_deceleration
-
-    if time_to_pass < time_to_buffer_when_accel:
-        # The object will pass through our front before we drive normally and reach it
-        print("The object will pass through our front before we drive normally and reach it")
-        return False, 0.0
-
-    distance_to_move = distance_with_buffer + time_to_pass * obj_v_y
-
-    # if curr_v**2/2*distance_to_pass >= 1.5:
-    #     return True, curr_v**2/2*distance_to_pass
-    time_to_max_v = (5 - curr_v)/0.5
-
-    if time_to_max_v > time_to_pass:
-        if curr_v*time_to_pass + 0.25*time_to_pass**2 > distance_to_move:
-            return False, 0.0
-    else:
-        if (25 - curr_v**2)*4 + (time_to_pass - time_to_max_v) * 5 >= distance_to_move:
-            return False, 0.0
-
-
-    return True, [distance_to_move, time_to_pass]
+    return output_decel, output_dist, output_speed
 
 
 
-def detect_collision_analytical(r_pedestrain_x: float, r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float, lateral_buffer: float) -> Union[bool, str]:
-    """Detects if a collision will occur with the given object and return deceleration to avoid it. Analytical"""
-    if r_pedestrain_x < 0 and abs(r_pedestrain_y) > lateral_buffer:
-        return False
-    elif r_pedestrain_x < 0:
-        return 'max'
-    if r_pedestrain_y >= p_vehicle_left_y_after_t and r_pedestrain_y <= p_vehicle_right_y_after_t:
-        return True
-    
-    return False
 
 
-def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: float, curr_v: float, obj: AgentState, min_deceleration: float, max_deceleration: float) -> Tuple[bool, float]:
-    """Detects if a collision will occur with the given object and return deceleration to avoid it. Via Optimization"""
-
-    # Get the object's position and velocity
-    obj_x = obj.pose.x
-    obj_y = obj.pose.y
-    obj_v_x = obj.velocity[0]
-    obj_v_y = obj.velocity[1]
 
 
-    vehicle_length = 3
-    vehicle_width = 2
 
-    vehicle_buffer_x = 3.0
-    vehicle_buffer_y = 1.0
 
-    obj_x = obj_x - curr_x
-    obj_y = obj_y - curr_y
 
-    curr_x = curr_x - curr_x
-    curr_y = curr_y - curr_y
 
-    vehicle_front = curr_x + vehicle_length + vehicle_buffer_x
-    vehicle_back = curr_x
-    vehicle_left = curr_y - vehicle_width / 2
-    vehicle_right = curr_y + vehicle_width / 2
 
-    r_vehicle_front = vehicle_front - vehicle_front
-    r_vehicle_back = vehicle_back - vehicle_front
-    r_vehicle_left = vehicle_left - vehicle_buffer_y
-    r_vehicle_right = vehicle_right + vehicle_buffer_y
-    r_vehicle_v_x = curr_v
-    r_vehicle_v_y = 0
 
-    r_pedestrain_x = obj_x - vehicle_front
-    r_pedestrain_y = -obj_y
-    r_pedestrain_v_x = obj_v_x
-    r_pedestrain_v_y = -obj_v_y
 
-    r_velocity_x_from_vehicle = r_vehicle_v_x - r_pedestrain_v_x
-    r_velocity_y_from_vehicle = r_vehicle_v_y - r_pedestrain_v_y
 
-    t_to_r_pedestrain_x = (r_pedestrain_x - r_vehicle_front) / r_velocity_x_from_vehicle
-    
-    p_vehicle_left_y_after_t = r_vehicle_left + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
-    p_vehicle_right_y_after_t = r_vehicle_right + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
-
-    collision_flag = detect_collision_analytical(r_pedestrain_x, r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t, vehicle_buffer_y)
-    if collision_flag == False:
-        print("No collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
-        return 0.0, r_pedestrain_x
-    elif collision_flag == 'max':
-        return max_deceleration, r_pedestrain_x
-    
-    print("Collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
-    yaw = None
-    minimum_deceleration = None
-    if yaw is None:
-        if abs(r_velocity_y_from_vehicle) > 0.1:
-            if r_velocity_y_from_vehicle > 0.1:
-                # Vehicle Left would be used to yield
-                r_pedestrain_y_temp = r_pedestrain_y + abs(r_vehicle_left)
-            elif r_velocity_y_from_vehicle < -0.1:
-                # Vehicle Right would be used to yield
-                r_pedestrain_y_temp = r_pedestrain_y - abs(r_vehicle_right)
-            
-            softest_accleration = 2 * r_velocity_y_from_vehicle * (r_velocity_y_from_vehicle * r_pedestrain_x - r_velocity_x_from_vehicle * r_pedestrain_y_temp) / r_pedestrain_y_temp**2
-            peak_y = -(r_velocity_x_from_vehicle * r_velocity_y_from_vehicle) / softest_accleration
-            # if the peak is within the position of the pedestrian, 
-            # then it indicates the path had already collided with the pestrain, 
-            # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
-            # and the vehicle should be stopped exactly before the pedestrain's x position
-            if abs(peak_y) > abs(r_pedestrain_y_temp):
-                minimum_deceleration = abs(softest_accleration)
-            # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
-        if minimum_deceleration is None:
-            minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
-    else:
-        pass
-
-    print("calculatedminimum_deceleration: ", minimum_deceleration)
-
-    if minimum_deceleration < min_deceleration:
-        return 0.0, r_pedestrain_x
-    else:
-        return max(min(minimum_deceleration, max_deceleration), min_deceleration), r_pedestrain_x
-    
 
 ################################################################################
 ########## Pedestrian Yielder ##################################################
 ################################################################################
-
 
 class PedestrianYielder(Component):
     """Yields for all pedestrians in the scene.
@@ -467,12 +509,14 @@ class PedestrianYielder(Component):
     def __init__(self, mode : str = 'real', params : dict = {}):
         # Planner mode
         self.mode = mode
+        self.yielder = params["yielder"]
         self.planner = params["planner"]
         self.acceleration = params["acceleration"]
         self.desired_speed = params["desired_speed"]
 
-        # Update current.yaml settings with the given parameters in yaml
+        # Update current.yaml settings with the given parameters in pedestrian_detection.yaml
         settings.set("planning.longitudinal_plan.mode", self.mode)
+        settings.set("planning.longitudinal_plan.yielder", self.yielder)
         settings.set("planning.longitudinal_plan.planner", self.planner)
         settings.set("planning.longitudinal_plan.acceleration", self.acceleration)
         settings.set("planning.longitudinal_plan.desired_speed", self.desired_speed)
@@ -497,120 +541,80 @@ class PedestrianYielder(Component):
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
         curr_v = vehicle.v
-
-       # Yielding speed [..., 1.0, 0.8, ..., 0.2]
-        yield_speed        = [v for v in np.arange(self.desired_speed, 0.1, -0.25)]
  
         for n,a in agents.items():
             if a.type == AgentEnum.PEDESTRIAN:
-
-                ##### Henry's Code #####
-                # output_decel, output_dist = get_minimum_deceleration_for_collision_avoidance(curr_x, curr_y, curr_v, a, self.min_deceleration, self.max_deceleration)
-                # output_speed = None
-
-                ##### Yudai's Code #####
-                x1, y1 = curr_x, curr_y
-                v1 = [curr_v, 0]     # Vehicle speed vector
-                x2, y2 = a.pose.x, a.pose.y
-                v2 = [a.velocity[0], a.velocity[1]]     # Pedestrian speed vector
                 """
-                class ObjectFrameEnum(Enum):
-                    START = 0                  #position / yaw in m / radians relative to starting pose of vehicle 
-                    CURRENT = 1                #position / yaw in m / radians relative to current pose of vehicle
-                    GLOBAL = 2                 #position in longitude / latitude, yaw=heading in radians with respect to true north (used in GNSS)
-                    ABSOLUTE_CARTESIAN = 3     #position / yaw  in m / radians relative to a global cartesian reference frame (used in simulation)
-                """
-                # If the pedestrian's frame is ABSOLUTE, convert the pedestrian's position to START.
-                if a.pose.frame == ObjectFrameEnum.ABSOLUTE_CARTESIAN:
-                    x1 = curr_x + state.start_vehicle_pose.x
-                    y1 = curr_y + state.start_vehicle_pose.y
-
-                # If the pedestrian's frame is CURRENT, convert the pedestrian's position to START.
-                if a.pose.frame == ObjectFrameEnum.CURRENT:
-                    x2 = a.pose.x + curr_x
-                    y2 = a.pose.y + curr_y
-
-                # Create and run the simulation.
-                print(f"Vehicle: ({x1:.1f}, {y1:.1f}, ({v1[0]:.1f}, {v1[1]:.1f}))")
-                print(f"Pedestrian: ({x2:.1f}, {y2:.1f}, ({v2[0]:.1f}, {v2[1]:.1f}))")
-
-                # Simulate if a collision will occur when the vehicle accelerate to desired speed.
-                sim = CollisionDetector(x1, y1, 0, x2, y2, 0, v1, v2, 10.0, self.desired_speed, self.acceleration)
-                collision_distance = sim.run()
-                
-                # No collision detected with acceleration to desired speed.
-                if collision_distance < 0:
-                    print("No collision detected.")
-                    output_decel = self.deceleration
-                    output_speed = self.desired_speed
-                    output_dist  = collision_distance
-
-                # Collision detected with acceleration to desired speed.
-                # => Check if the vehicle can yield to the pedestrian with deceleration.
-                else:
-
-                    ###############################################
-                    # # UNCOMMENT NOT TO YIELD: JUST STOP FOR PART1
-                    # # Decide the deceleration based on the collision distance.
-                    # # To stop perfectly, assume the vehicle is running at the desired speed. 
-                    # brake_deceleration = max(self.deceleration, self.desired_speed**2 / (2 * (collision_distance)))
-                    # if brake_deceleration > self.max_deceleration:
-                    #     brake_deceleration = self.max_deceleration
-                    # if brake_deceleration > self.deceleration:
-                    #     print("The vehicle is Stopping.")
-                    #     output_decel = brake_deceleration
-                    #     output_dist  = collision_distance
-                    #     output_speed = 0.0
-                    #     res.append(EntityRelation(type=EntityRelationEnum.YIELDING,obj1='',obj2=n,
-                    #         yield_decel=round(output_decel, 2),
-                    #         yield_dist=round(output_dist, 2),
-                    #         yield_speed=round(output_speed, 2)))       
-                    # continue
-                    ###############################################
-
-                    print("Collision detected. Try to find yielding speed.")
-
-                    collision_distance_after_yield = -1
-
-                    # Simulate with different yield speeds.
-                    # Try to maximize the yield speed to avoid collision.
-                    for v in yield_speed:
-                        # Simulate if the vehicle can yield to the pedestrian with acceleration to yielding speed.
-                        if v > v1[0]:
-                            sim.set_params(v, self.acceleration)
-                        # Simulate if the vehicle can yield to the pedestrian with deceleration to yielding speed.
-                        else:
-                            sim.set_params(v, self.yield_deceleration * -1.0)
-                        collision_distance_after_yield = sim.run()
-                        if collision_distance_after_yield < 0:
-                            print(f"Yielding at speed: {v}")
-                            output_decel = self.yield_deceleration
-                            output_dist  = collision_distance
-                            output_speed = v
-                            break
-                    
-                    # Collision detected with any yielding speed.
-                    # => Brake to avoid collision.
-                    if collision_distance_after_yield >= 0:
-                        print("The vehicle is Stopping.")
-                        # Decide the deceleration based on the collision distance.
-                        brake_deceleration = max(self.deceleration, v1[0]**2 / (2 * (collision_distance)))
-                        if brake_deceleration > self.max_deceleration:
-                            brake_deceleration = self.max_deceleration
-                        output_decel = brake_deceleration
-                        output_dist  = collision_distance
-                        output_speed = 0.0
-                        should_brake = True
-
-                """                
                 yield_decel : float # Deceleration at which obj1 yields to obj2
                 yield_dist  : float # Distance at which obj1 yields to obj2
                 yield_speed : float # Speed at which obj1 yields to obj2
                 """
+                output_decel, output_dist, output_speed = None, None, None
+
+                # Get the pedestrian's position and velocity
+                a_x, a_y = a.pose.x, a.pose.y
+                a_v_x, a_v_y = a.velocity[0], a.velocity[1]  # Pedestrian speed vector
+
+                # If the pedestrian's frame is ABSOLUTE, convert the vehicle's frame to ABSOLUTE.
+                if a.pose.frame == ObjectFrameEnum.ABSOLUTE_CARTESIAN:
+                    curr_x = curr_x + state.start_vehicle_pose.x
+                    curr_y = curr_y + state.start_vehicle_pose.y
+
+                # If the pedestrian's frame is CURRENT, convert the pedestrian's frame to START.
+                elif a.pose.frame == ObjectFrameEnum.CURRENT:
+                    a_x = a.pose.x + curr_x
+                    a_y = a.pose.y + curr_y
+                    a_v_x = a_v_x - curr_v
+
+                ##########################
+                ##### Yielding Part ######
+                ##########################
+
+                # Switch between different yielder methods
+                if self.yielder == 'expart':
+                    ######################################
+                    ##### Patrick and Animesh's Code #####
+                    ######################################
+                    detected, deceleration = detect_collision(curr_x, curr_y, curr_v, a_x, a_y, a_v_x, a_v_y, self.min_deceleration, self.max_deceleration, self.acceleration, self.desired_speed)
+                    if isinstance(deceleration, list):
+                        print("@@@@@ INPUT", deceleration)
+                        time_collision = deceleration[1]
+                        distance_collision = deceleration[0]
+                        b = 3*time_collision - 2*curr_v
+                        c = curr_v**2 - 3*distance_collision
+                        output_speed = (-b + (b**2 - 4*c)**0.5)/2
+                        output_decel = 1.5
+                        output_dist = distance_collision
+                    else:
+                        if detected and deceleration > 0:
+                            output_speed = 0 # Brake to Stop                    
+                            output_decel = deceleration
+                            output_dist = None
+
+                elif self.yielder == 'analytic':
+                    #########################
+                    ##### Henry's Code ######
+                    #########################
+                    deceleration, output_dist = get_minimum_deceleration_for_collision_avoidance(curr_x, curr_y, curr_v, a_x, a_y, a_v_x, a_v_y, self.min_deceleration, self.max_deceleration)
+                    if deceleration > 0:
+                        output_decel = deceleration
+                    output_speed = math.sqrt(-2 * output_decel * output_dist + curr_v**2)
+                    output_speed = max(output_speed, 0)
+
+                elif self.yielder == 'simulation':
+                    ########################
+                    ##### Yudai's Code #####
+                    ########################
+                    output_decel, output_dist, output_speed = calculate_yielding_parameters(curr_x, curr_y, [curr_v, 0], a_x, a_y, [a_v_x, a_v_y], self.desired_speed, self.acceleration, self.deceleration, self.max_deceleration, self.yield_deceleration)
+
+                else:
+                    raise ValueError(f"Yielder {self.yielder} is not supported.")
+
+                # Add the relation to the list
                 res.append(EntityRelation(type=EntityRelationEnum.YIELDING, obj1='', obj2=n,
-                                          yield_decel=round(output_decel, 2),
-                                          yield_dist=round(output_dist, 2),
-                                          yield_speed=round(output_speed, 2)))
+                                          yield_decel=output_decel,
+                                          yield_dist=output_dist,
+                                          yield_speed=output_speed))
                 
                 # res.append(EntityRelation(type=EntityRelationEnum.YIELDING,obj1='',obj2=n))
         

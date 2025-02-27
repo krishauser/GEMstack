@@ -22,7 +22,8 @@ control:
         pid_d: 0.0
 planning:
     longitudinal_plan:
-        mode:               'real'
+        mode:               'real' # 'real' or 'sim'
+        yielder:            'expart' # 'expart', 'analytic', or 'simulation'
         planner:            'dt' # 'milestone', 'dt', or 'dx'
         desired_speed:      1.0
         acceleration:       0.5

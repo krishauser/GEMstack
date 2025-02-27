@@ -4,18 +4,10 @@ import os
 sys.path.append(os.getcwd())
 import time
 
-from typing import List, Tuple, Union
-from ..component import Component
-from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum, AgentState
-from ...utils import serialization
-from ...mathutils.transforms import vector_madd
-
-import time
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import math
-from scipy.optimize import minimize
 
 
 ################################################################################
@@ -230,7 +222,7 @@ if __name__ == "__main__":
     # Pedestrian parameters. x, y, theta (angle in radians)
     x2, y2, t2 = 15.0, 2.1, 0
     # Velocity vectors: [vx, vy]
-    v1 = [0.1, 0]     # Vehicle speed vector
+    v1 = [1.0, 0]     # Vehicle speed vector
     v2 = [0, 0.5]     # Pedestrian speed vector
     # Total simulation time
     total_time = 10.0
