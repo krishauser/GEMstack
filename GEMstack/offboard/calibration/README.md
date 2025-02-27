@@ -33,7 +33,7 @@ This section explains tools for offline calibration of LiDAR and camera sensors 
 pip install opencv-python scipy numpy matplotlib argparse pyyaml pyvis
 
 # If getting some issues, try:
-pip install trame, ipywidgets, trame-vuetify
+pip install trame ipywidgets trame-vuetify
 ```
 
 ---
