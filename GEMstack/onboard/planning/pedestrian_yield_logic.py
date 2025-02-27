@@ -139,6 +139,7 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj_x: float, 
 ########################
 ##### Henry's Code #####
 ########################
+
 def detect_collision_analytical(r_pedestrain_x: float, r_pedestrain_y: float, p_vehicle_left_y_after_t: float, p_vehicle_right_y_after_t: float, lateral_buffer: float) -> Union[bool, str]:
     """Detects if a collision will occur with the given object and return deceleration to avoid it. Analytical"""
     if r_pedestrain_x < 0 and abs(r_pedestrain_y) > lateral_buffer:
@@ -154,21 +155,27 @@ def detect_collision_analytical(r_pedestrain_x: float, r_pedestrain_y: float, p_
 def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: float, curr_v: float, obj_x: float, obj_y: float, obj_v_x: float, obj_v_y: float, min_deceleration: float, max_deceleration: float) -> Tuple[bool, float]:
     """Detects if a collision will occur with the given object and return deceleration to avoid it. Via Optimization"""
 
+    vehicle_length = 3
+    vehicle_width = 2
+
+    vehicle_buffer_x = 3.0
+    vehicle_buffer_y = 1.0
+
     obj_x = obj_x - curr_x
     obj_y = obj_y - curr_y
 
     curr_x = curr_x - curr_x
     curr_y = curr_y - curr_y
 
-    vehicle_front = curr_x + VEHICLE_LENGTH + VEHICLE_BUFFER_X
+    vehicle_front = curr_x + vehicle_length + vehicle_buffer_x
     vehicle_back = curr_x
-    vehicle_left = curr_y - VEHICLE_WIDTH / 2
-    vehicle_right = curr_y + VEHICLE_WIDTH / 2
+    vehicle_left = curr_y - vehicle_width / 2
+    vehicle_right = curr_y + vehicle_width / 2
 
     r_vehicle_front = vehicle_front - vehicle_front
     r_vehicle_back = vehicle_back - vehicle_front
-    r_vehicle_left = vehicle_left - VEHICLE_BUFFER_Y
-    r_vehicle_right = vehicle_right + VEHICLE_BUFFER_Y
+    r_vehicle_left = vehicle_left - vehicle_buffer_y
+    r_vehicle_right = vehicle_right + vehicle_buffer_y
     r_vehicle_v_x = curr_v
     r_vehicle_v_y = 0
 
@@ -185,42 +192,43 @@ def get_minimum_deceleration_for_collision_avoidance(curr_x: float, curr_y: floa
     p_vehicle_left_y_after_t = r_vehicle_left + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
     p_vehicle_right_y_after_t = r_vehicle_right + r_velocity_y_from_vehicle * t_to_r_pedestrain_x
 
-    collision_flag = detect_collision_analytical(r_pedestrain_x, r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t, VEHICLE_BUFFER_Y)
+    collision_flag = detect_collision_analytical(r_pedestrain_x, r_pedestrain_y, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t, vehicle_buffer_y)
     if collision_flag == False:
         print("No collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
-        return 0.0, r_pedestrain_x
+        return 0.0
     elif collision_flag == 'max':
-        return max_deceleration, r_pedestrain_x
+        return max_deceleration
     
     print("Collision", curr_x, curr_y, r_pedestrain_x, r_pedestrain_y, r_vehicle_left, r_vehicle_right, p_vehicle_left_y_after_t, p_vehicle_right_y_after_t)
-
+    yaw = None
     minimum_deceleration = None
-    if abs(r_velocity_y_from_vehicle) > 0.1:
-        if r_velocity_y_from_vehicle > 0.1:
-            # Vehicle Left would be used to yield
-            r_pedestrain_y_temp = r_pedestrain_y + abs(r_vehicle_left)
-        elif r_velocity_y_from_vehicle < -0.1:
-            # Vehicle Right would be used to yield
-            r_pedestrain_y_temp = r_pedestrain_y - abs(r_vehicle_right)
-        
-        softest_accleration = 2 * r_velocity_y_from_vehicle * (r_velocity_y_from_vehicle * r_pedestrain_x - r_velocity_x_from_vehicle * r_pedestrain_y_temp) / r_pedestrain_y_temp**2
-        peak_y = -(r_velocity_x_from_vehicle * r_velocity_y_from_vehicle) / softest_accleration
-        # if the peak is within the position of the pedestrian, 
-        # then it indicates the path had already collided with the pedestrian, 
-        # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
-        # and the vehicle should be stopped exactly before the pedestrain's x position
-        if abs(peak_y) > abs(r_pedestrain_y_temp):
-            minimum_deceleration = abs(softest_accleration)
-        # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
-    if minimum_deceleration is None:
-        minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
+    if yaw is None:
+        if abs(r_velocity_y_from_vehicle) > 0.1:
+            if r_velocity_y_from_vehicle > 0.1:
+                # Vehicle Left would be used to yield
+                r_pedestrain_y_temp = r_pedestrain_y + abs(r_vehicle_left)
+            elif r_velocity_y_from_vehicle < -0.1:
+                # Vehicle Right would be used to yield
+                r_pedestrain_y_temp = r_pedestrain_y - abs(r_vehicle_right)
+            
+            softest_accleration = 2 * r_velocity_y_from_vehicle * (r_velocity_y_from_vehicle * r_pedestrain_x - r_velocity_x_from_vehicle * r_pedestrain_y_temp) / r_pedestrain_y_temp**2
+            peak_y = -(r_velocity_x_from_vehicle * r_velocity_y_from_vehicle) / softest_accleration
+            # if the peak is within the position of the pedestrian, 
+            # then it indicates the path had already collided with the pestrain, 
+            # and so the softest acceleration should be the one the peak of the path is the same as the pedestrain's x position
+            # and the vehicle should be stopped exactly before the pedestrain's x position
+            if abs(peak_y) > abs(r_pedestrain_y_temp):
+                minimum_deceleration = abs(softest_accleration)
+            # else: the vehicle should be stopped exactly before the pedestrain's x position the same case as the pedestrain barely move laterally
 
-    print("calculated minimum deceleration: ", minimum_deceleration)
-
-    if minimum_deceleration < min_deceleration:
-        return 0.0, r_pedestrain_x
+        if minimum_deceleration is None:
+            minimum_deceleration = r_velocity_x_from_vehicle**2 / (2 * r_pedestrain_x)
     else:
-        return max(min(minimum_deceleration, max_deceleration), min_deceleration), r_pedestrain_x
+        pass
+
+    print("calculatedminimum_deceleration: ", minimum_deceleration)
+    return max(min(minimum_deceleration, max_deceleration), min_deceleration)
+
     
 ########################
 ##### Yudai's Code #####
@@ -240,10 +248,10 @@ class CollisionDetector:
         self.pedestrian_y = y2
 
         # Vehicle parameters with buffer adjustments
-        self.vehicle_size_x = 3.2
-        self.vehicle_size_y = 1.7
-        self.vehicle_buffer_x = 3.0 + 1.0
-        self.vehicle_buffer_y = 2.0
+        self.vehicle_size_x = VEHICLE_LENGTH
+        self.vehicle_size_y = VEHICLE_WIDTH
+        self.vehicle_buffer_x = VEHICLE_BUFFER_X
+        self.vehicle_buffer_y = VEHICLE_BUFFER_Y * 2.0  # Double the buffer for both sides
 
         # Vehicle rectangle
         self.x1 = self.vehicle_x + (self.vehicle_size_x + self.vehicle_buffer_x)*0.5 # Offset for buffer (remains constant)
@@ -593,12 +601,12 @@ class PedestrianYielder(Component):
                     #########################
                     ##### Henry's Code ######
                     #########################
-                    deceleration, output_dist = get_minimum_deceleration_for_collision_avoidance(curr_x, curr_y, curr_v, a_x, a_y, a_v_x, a_v_y, self.min_deceleration, self.max_deceleration)
+                    deceleration = get_minimum_deceleration_for_collision_avoidance(curr_x, curr_y, curr_v, a_x, a_y, a_v_x, a_v_y, self.min_deceleration, self.max_deceleration)
                     if deceleration > 0:
                         output_decel = deceleration
-                    output_speed = math.sqrt(-2 * output_decel * output_dist + curr_v**2)
-                    output_speed = max(output_speed, 0)
-
+                        output_speed = 0
+                        output_dist  = None
+                        
                 elif self.yielder == 'simulation':
                     ########################
                     ##### Yudai's Code #####
@@ -614,6 +622,4 @@ class PedestrianYielder(Component):
                                           yield_dist=output_dist,
                                           yield_speed=output_speed))
                 
-                # res.append(EntityRelation(type=EntityRelationEnum.YIELDING,obj1='',obj2=n))
-        
         return res
