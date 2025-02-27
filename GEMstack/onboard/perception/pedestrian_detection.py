@@ -16,6 +16,191 @@ from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
 import time
 
+'''
+The following function is contributed by Aavi Deora
+Essentially this method is simliar to teamB's method, i.e. transform point cloud from lidar to image frame
+Though we find this calculation is heavy, this method have potential usage in other parts, e.g. replacing DBSCAN
+'''
+
+# def get_average_cam_point_from_lidar(bbox, point_cloud):
+#     """
+#     Given a bounding box (x, y, w, h) in image coordinates and a lidar point cloud (in the lidar frame),
+#     this function:
+#       1. Converts the point cloud to homogeneous coordinates.
+#       2. Transforms the points into the camera frame using LIDAR_TO_CAMERA_TRANSFORM.
+#       3. Projects the points into the image using the camera intrinsics.
+#       4. Selects points that fall inside the bounding box.
+#       5. Returns the average 3D point (in the camera frame) of those points.
+#
+#     Returns:
+#         avg_point: A NumPy array [x_cam, y_cam, z_cam] in the camera frame,
+#                    or None if no points are found inside the bbox.
+#     """
+#     x, y, w, h = bbox
+#     if point_cloud is None or point_cloud.shape[0] == 0:
+#         return None
+#
+#     # Convert the point cloud (assumed shape (N,3)) to homogeneous coordinates (N,4)
+#     ones = np.ones((point_cloud.shape[0], 1))
+#     points_homog = np.hstack((point_cloud, ones))  # shape (N,4)
+#
+#     # Transform points from lidar frame to camera frame
+#     cam_points_homog = (LIDAR_TO_CAMERA_TRANSFORM @ points_homog.T).T  # shape (N,4)
+#     cam_points = cam_points_homog[:, :3]  # (x_cam, y_cam, z_cam)
+#
+#     # Only consider points in front of the camera (z_cam > 0)
+#     valid_mask = cam_points[:, 2] > 0
+#     cam_points = cam_points[valid_mask]
+#     if cam_points.shape[0] == 0:
+#         return None
+#
+#     # Project points into the image using the pinhole camera model:
+#     # u = fx * (x_cam / z_cam) + cx, v = fy * (y_cam / z_cam) + cy
+#     u = CAMERA_INTRINSICS['fx'] * (cam_points[:, 0] / cam_points[:, 2]) + CAMERA_INTRINSICS['cx']
+#     v = CAMERA_INTRINSICS['fy'] * (cam_points[:, 1] / cam_points[:, 2]) + CAMERA_INTRINSICS['cy']
+#
+#     # Create a mask for points that fall within the bounding box.
+#     in_bbox_mask = (u >= x) & (u <= x + w) & (v >= y) & (v <= y + h)
+#     if np.sum(in_bbox_mask) == 0:
+#         return None
+#
+#     selected_points = cam_points[in_bbox_mask]
+#     return selected_points
+
+
+'''
+The following function is contributed by Shuning Liu. 
+Since the height and velocity detection is not entirely stable, we are not using this matching logic currently.
+But we may also test a more robust version of this in future on board test.
+'''
+
+# def match_existing_pedestrian(
+#     new_center: np.ndarray,
+#     new_dims: tuple,
+#     existing_agents: Dict[str, AgentState],
+#     prev_velocities: Dict[str, np.ndarray],
+#     distance_threshold: float = 1.0,
+#     size_threshold: float = 0.5,
+#     height_threshold: float = 0.3,
+#     velocity_threshold: float = 2.0
+# ) -> str:
+#     """
+#     Match a newly detected pedestrian with an existing one using:
+#     - Euclidean distance
+#     - Bounding box similarity
+#     - Height consistency
+#     - Velocity consistency
+#
+#     Returns the best-matching agent_id or None if no good match is found.
+#     """
+#     best_agent_id = None
+#     best_score = float('inf')
+#
+#     for agent_id, agent_state in existing_agents.items():
+#         old_center = np.array([agent_state.pose.x, agent_state.pose.y, agent_state.pose.z])
+#         old_dims = agent_state.dimensions
+#
+#         # 1. Euclidean Distance Check
+#         dist = np.linalg.norm(new_center - old_center)
+#         if dist > distance_threshold:
+#             continue  # Skip if too far away
+#
+#         # 2. Bounding Box Size Similarity (with Zero-Division Handling)
+#         size_norm = np.linalg.norm(np.array(old_dims))
+#         if size_norm > 0:
+#             size_change = np.linalg.norm(np.array(new_dims) - np.array(old_dims)) / size_norm
+#         else:
+#             size_change = float('inf')  # Prevent invalid matching
+#
+#         if size_change > size_threshold:
+#             continue  # Skip if bounding box changes too much
+#
+#         # 3. Height Consistency Check
+#         height_change = abs(new_dims[2] - old_dims[2]) / old_dims[2] if old_dims[2] > 0 else 0
+#         if height_change > height_threshold:
+#             continue  # Skip if height changes drastically
+#
+#         # 4. Velocity Consistency Check
+#         if agent_id in prev_velocities:
+#             prev_velocity = prev_velocities[agent_id]
+#             estimated_velocity = (new_center - old_center)
+#             velocity_change = np.linalg.norm(estimated_velocity - prev_velocity)
+#
+#             if velocity_change > velocity_threshold:
+#                 continue  # Skip if unrealistic velocity jump
+#
+#         # Score: Lower score = better match (distance is primary factor)
+#         score = dist
+#         if score < best_score:
+#             best_score = score
+#             best_agent_id = agent_id
+#
+#     return best_agent_id
+
+'''
+The following function is contributed by Justin Li. An alternative to basic distance-based matching
+We plan to test this new tracking logic in the next on board test
+'''
+
+class BoundingBox:
+    """
+    center: center of bounding box in x, y, z coordinates
+    dimensions: dimensions of bounding box in x, y, z format
+    orientation: 3x3 rotation matrix
+    """
+
+    def __init__(
+        self,
+        center: tuple[float, float, float],
+        dimensions: tuple[float, float, float],
+        orientation: list[list[float]],
+    ):
+        self.center = np.array(center)
+        self.dimensions = np.array(dimensions)
+        self.orientation = np.array(orientation)
+
+def obb_collision(box1: BoundingBox, box2: BoundingBox):
+    """
+    Checks if two oriented bounding boxes (OBBs) collide using the Separating Axis Theorem (SAT).
+
+    :param box1: Box with 'center' (x, y, z), 'dimensions' (dx, dy, dz), and 'orientation' (3x3 rotation matrix)
+    :param box2: Box with 'center' (x, y, z), 'dimensions' (dx, dy, dz), and 'orientation' (3x3 rotation matrix)
+    :return: Boolean indicating whether the two OBBs collide
+    """
+
+    def get_axes(rotation_matrix):
+        """Extracts the axes from the rotation matrix."""
+        return [rotation_matrix[:, i] for i in range(3)]
+
+    def project_obb(obb: BoundingBox, axis):
+        """Projects the OBB onto a given axis and returns the min and max values."""
+        center_proj = np.dot(obb.center, axis)
+        extents = np.abs(np.dot(obb.orientation, np.diag(obb.dimensions / 2.0)))
+        radius = np.sum(extents * np.abs(axis))
+        return center_proj - radius, center_proj + radius
+
+    def overlap_on_axis(axis, box1, box2):
+        """Checks if the projections of two OBBs overlap on the given axis."""
+        min1, max1 = project_obb(box1, axis)
+        min2, max2 = project_obb(box2, axis)
+        return max1 >= min2 and max2 >= min1
+
+    # Get OBB axes
+    axes1 = get_axes(box1.orientation)
+    axes2 = get_axes(box2.orientation)
+
+    # Compute cross products of axes for possible separating axes
+    cross_axes = [np.cross(a1, a2) for a1 in axes1 for a2 in axes2]
+
+    # Test all axes
+    for axis in axes1 + axes2 + cross_axes:
+        if np.linalg.norm(axis) > 1e-6:  # Avoid near-zero axes
+            axis = axis / np.linalg.norm(axis)  # Normalize
+            if not overlap_on_axis(axis, box1, box2):
+                return False  # Separating axis found, no collision
+
+    return True  # No separating axis found, collision detected
+
 
 # ----- Helper Functions -----
 
@@ -483,6 +668,14 @@ class PedestrianDetector2D(Component):
                 Planning function has access to Allstate instead of just Vehicle state,
                 therefore it is easier to specify which coordinate system to use
                 '''
+                '''
+                i.e. Simliar function is implemented in GEMstack/onboard/planning/pedestrian_yield_logic.py L569-573
+                # If the pedestrian's frame is CURRENT, convert the pedestrian's frame to START.
+                elif a.pose.frame == ObjectFrameEnum.CURRENT:
+                    a_x = a.pose.x + curr_x
+                    a_y = a.pose.y + curr_y
+                    a_v_x = a_v_x - curr_v
+                '''
                 # curr_x = vehicle.pose.x
                 # curr_y = vehicle.pose.y
                 # curr_yaw = vehicle.pose.yaw
@@ -511,13 +704,17 @@ class PedestrianDetector2D(Component):
                 new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
                 new_dims=dims,
                 existing_agents=self.tracked_agents,
-                distance_threshold=1.0
+                distance_threshold=2.0
             )
 
             if existing_id is not None:
                 # Update the state of the matched pedestrian using the computed velocity.
                 old_agent_state = self.tracked_agents[existing_id]
                 dt = new_pose.t - old_agent_state.pose.t
+                '''
+                We found that the velocity calculated here is not entirely stable. 
+                We are implementing a more stable method, e.g. kalman filter based one
+                '''
                 vx, vy, vz = compute_velocity(old_agent_state.pose, new_pose, dt)
 
                 updated_agent = AgentState(
@@ -550,6 +747,11 @@ class PedestrianDetector2D(Component):
 
         self.current_agents = agents
 
+        stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
+                     if current_time - agent.pose.t > 5.0]
+        for agent_id in stale_ids:
+            rospy.loginfo(f"Removing stale agent: {agent_id}")
+            del self.tracked_agents[agent_id]
         # Log the details of each detected agent.
         for agent_id, agent in agents.items():
             rospy.loginfo(f"Agent ID: {agent_id}, Pose: {agent.pose}, Velocity: {agent.velocity}")
