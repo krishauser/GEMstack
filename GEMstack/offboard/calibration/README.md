@@ -26,7 +26,11 @@ This repository contains tools for offline calibration of LiDAR and camera senso
 
 **Usage**:  
 
-python3 lidar_to_vehicle.py      # Edit LiDAR data paths in script
+Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. Choose x depending on what data sample you want to use for calibration. 
+
+python3 lidar_to_vehicle.py --data_path "path to data folder" --index INDEX_NUM
+
+Use --vis flag for visualizations throughout the computation process
 
 
 ### 2. CAMERA-to-Vehicle Calibration (`camera_to_vehicle_manual.py`)
@@ -39,9 +43,9 @@ python3 lidar_to_vehicle.py      # Edit LiDAR data paths in script
   1. Get camera intrinsics:
     rosrun offboard\calibration\camera_info.py  # Prints intrinsic matrix
   2. Update camera_in in script with intrinsics
-  3. Update data paths in script
+  3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. Choose x depending on what data sample you want to use for calibration. The script also reads the lidar_to_vehicle matrix from the gem_e4_ouster.yaml file so ensure that is up to date.
   4. Run calibration:
-    python3 camera_to_vehicle_manual.py
+    python3 camera_to_vehicle_manual.py --data_path "path to data folder" --index INDEX_NUM --config "path to gem_e4_ouster.yaml"
 
 
 ### 3. LIDAR-to-CAMERA Calibration (`lidar_to_camera.py`)
