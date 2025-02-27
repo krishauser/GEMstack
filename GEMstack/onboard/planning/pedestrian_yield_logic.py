@@ -29,7 +29,7 @@ YIELD_BUFFER_Y = 1.0
 COMFORT_DECELERATION = 1.5
 
 def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj_x: float, obj_y: float, obj_v_x: float, obj_v_y: float, min_deceleration: float, max_deceleration: float, acceleration: float, max_speed: float) -> Tuple[bool, Union[float, List[float]]]:
-    """Detects if a collision will occur with the given object and return deceleration to avoid it."""
+    """Detects if a collision will occur with the given object and return deceleration to avoid it or info for computing cruising speed"""
     
     vehicle_front = curr_x + VEHICLE_LENGTH
     vehicle_back = curr_x
@@ -88,8 +88,6 @@ def detect_collision(curr_x: float, curr_y: float, curr_v: float, obj_x: float, 
 
         return True, deceleration
     
-    print(relative_v, distance_with_buffer)
-
     if obj_v_y > 0:
         # The object is to the right of the vehicle and moving towards it
         time_to_get_close = (vehicle_right - VEHICLE_BUFFER_Y - YIELD_BUFFER_Y - pedestrian_left) / abs(obj_v_y)
