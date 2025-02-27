@@ -15,9 +15,9 @@ args = parser.parse_args()
 args = parser.parse_args()
 
 # Construct file paths based on the provided index
-lidar_path = f'{args.data_path}/lidar{args.index}.bin'
-rgb_path = f'{args.data_path}/color{args.index}.jpg'
-depth_path = f'{args.data_path}/depth{args.index}.png'
+lidar_path = f'{args.data_path}/lidar{args.index}.npz'
+rgb_path = f'{args.data_path}/color{args.index}.png'
+depth_path = f'{args.data_path}/depth{args.index}.tif'
 
 N = 8 #how many point pairs you want to select
 
