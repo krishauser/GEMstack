@@ -4,6 +4,8 @@ from sensor_msgs.msg import Image,PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 import ctypes
 import struct
+import argparse
+
 
 # OpenCV and cv2 bridge
 import cv2
@@ -70,12 +72,12 @@ def save_scan(lidar_fn,color_fn,depth_fn):
     dimage = dimage.astype(np.uint16)
     cv2.imwrite(depth_fn,dimage)
 
-def main(folder='data',start_index=1):
+def main(folder='data',start_index=1, frequency=2):
     rospy.init_node("capture_ouster_oak",disable_signals=True)
     lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
     camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
     depth_sub = rospy.Subscriber("/oak/stereo/image_raw", Image, depth_callback)
-    index = 0
+    index = start_index
     print(" Storing lidar point clouds as npz")
     print(" Storing color images as png")
     print(" Storing depth images as tif")
@@ -83,7 +85,7 @@ def main(folder='data',start_index=1):
     while True:
         if camera_image and depth_image:
             cv2.imshow("result",bridge.imgmsg_to_cv2(camera_image))
-            time.sleep(.5)
+            time.sleep(1.0/frequency)
             files = [
                         os.path.join(folder,'lidar{}.npz'.format(index)),
                         os.path.join(folder,'color{}.png'.format(index)),
@@ -93,10 +95,9 @@ def main(folder='data',start_index=1):
 
 if __name__ == '__main__':
     import sys
-    folder = 'data'
-    start_index = 1
-    if len(sys.argv) >= 2:
-        folder = sys.argv[1]
-    if len(sys.argv) >= 3:
-        start_index = int(sys.argv[2])
-    main(folder,start_index)
+    parser = argparse.ArgumentParser(description='Capture LiDAR and camera data.')
+    parser.add_argument('--folder', type=str, default='data', help='Directory to store data')
+    parser.add_argument('--start_index', type=int, default=1, help='Starting index for saved files')
+    parser.add_argument('--frequency', type=float, default=2.0, help='Capture frequency in Hz')
+    args = parser.parse_args()
+    main(args.folder, args.start_index, args.frequency)
