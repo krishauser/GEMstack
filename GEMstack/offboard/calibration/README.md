@@ -118,7 +118,7 @@ Data path is the directory where lidar npz and color png files are located, inde
 ### Results
 
 Our resultant transformation matrices are the following:
-
+```
 T_camera_vehicle = np.array([[ 0.00349517, -0.03239524,  0.99946903, 1.75864913],
                              [-0.99996547,  0.00742285,  0.0037375, 0.01238124],
                              [-0.00753999, -0.99944757, -0.03236817, 1.54408419],
@@ -135,7 +135,11 @@ T_lidar_camera = np.array([
         [ 9.99534999e-01,  2.89731321e-02, -9.50437214e-03, -6.71425124e-01],
         [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]
     ])
-
+```
 We find that these matrices are very accurate and worked well with perceptions task of identifying pedestrains using camera and lidar. Perception team makes use of our lidar->camera matrix. Below is an image showcasing the effectiveness of our lidar->camera matrix. You can see the lidar pointcloud corresponds very well to the pixels in the image.
 
 <img width="260" alt="Screenshot 2025-02-26 at 11 07 16 PM" src="https://github.com/user-attachments/assets/65322674-c715-47d4-bbef-880022ba1a5d" />
+
+We calculate this lidar->camera matrix by doing a matrix multiplication between the inverted camera->vehicle matrix and lidar->vehicle matrix. To evaluate the effectiveness of both of these matrices individually, we use visualizations in their respective calculations scripts.
+
+For basic sanity check purposes, we also ensure that the determinant of the rotation matrices we get is 1.
