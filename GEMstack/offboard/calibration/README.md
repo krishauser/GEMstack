@@ -115,7 +115,27 @@ Data path is the directory where lidar npz and color png files are located, inde
 4. Validation: Use pyvista visualizations to verify alignment
 
 
+### Results
 
+Our resultant transformation matrices are the following:
 
+T_camera_vehicle = np.array([[ 0.00349517, -0.03239524,  0.99946903, 1.75864913],
+                             [-0.99996547,  0.00742285,  0.0037375, 0.01238124],
+                             [-0.00753999, -0.99944757, -0.03236817, 1.54408419],
+                             [0.000000000,  0.00000000,  0.00000000, 1.0]])
 
+T_lidar_vehicle = np.array([[ 0.99941328,  0.02547416,  0.02289458, 1.1],
+                            [-0.02530855,  0.99965159, -0.00749488, 0.03773044170906172],
+                            [-0.02307753,  0.00691106,  0.99970979, 1.9525244316515322],
+                            [0.000000000,  0.00000000,  0,00000000, 1.0]])
 
+T_lidar_camera = np.array([
+        [ 2.89748006e-02, -9.99580136e-01,  3.68439439e-05, -3.07300513e-02],
+        [-9.49930618e-03, -3.12215512e-04, -9.99954834e-01, -3.86689354e-01],
+        [ 9.99534999e-01,  2.89731321e-02, -9.50437214e-03, -6.71425124e-01],
+        [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]
+    ])
+
+We find that these matrices are very accurate and worked well with perceptions task of identifying pedestrains using camera and lidar. Perception team makes use of our lidar->camera matrix. Below is an image showcasing the effectiveness of our lidar->camera matrix. You can see the lidar pointcloud corresponds very well to the pixels in the image.
+
+<img width="260" alt="Screenshot 2025-02-26 at 11 07 16 PM" src="https://github.com/user-attachments/assets/65322674-c715-47d4-bbef-880022ba1a5d" />
