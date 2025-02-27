@@ -2,19 +2,20 @@
 
 ### Data Capture Script (`capture_ouster_oak.py`)
 
-Usage:
+Set up on vehicle:
 
 1. Run roscore in a terminal
 2. Run catkin_make in gem stack
 3. Run source /demo_ws/devel/setup.bash
 4. Run roslaunch basic_launch sensor_init.launch to get all sensors running
 
-To run script:
+Script usage:
 
 python3 capture_ouster_oak.py
-To specify directory to save data, use --folder "path to save location" (default save folder is data)
-To specify frequency of data capture, use --frequency put_frequency_in_hz_here (default is 2 hz)
-To specify the what index the data should start being saved as, use --start_index desired_index_here (default is 1)
+
+1. To specify directory to save data, use --folder "path to save location" (default save folder is data)
+2. To specify frequency of data capture, use --frequency put_frequency_in_hz_here (default is 2 hz)
+3. To specify the what index the data should start being saved as, use --start_index desired_index_here (default is 1)
 
 
 # GEMstack Offboard Calibration 
