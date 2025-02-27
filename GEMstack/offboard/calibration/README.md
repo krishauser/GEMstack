@@ -67,6 +67,7 @@ Optionally, use --vis flag for visualizations throughout the computation process
   3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. x is chosen using the --index flag seen below. Set it based on what data sample you want to use for calibration. 
   
   The script also reads the lidar_to_vehicle matrix from the gem_e4_ouster.yaml file so ensure that is up to date.
+  
   4. Run calibration:
     
     python3 camera_to_vehicle_manual.py --data_path "path to data folder" --index INDEX_NUM --config "path to gem_e4_ouster.yaml"
