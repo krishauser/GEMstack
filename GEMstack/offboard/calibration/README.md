@@ -1,6 +1,26 @@
+# Data Capture
+
+### Data Capture Script (`capture_ouster_oak.py`)
+
+Set up on vehicle:
+
+1. Run roscore in a terminal
+2. Run catkin_make in gem stack
+3. Run source /demo_ws/devel/setup.bash
+4. Run roslaunch basic_launch sensor_init.launch to get all sensors running
+
+Script usage:
+
+python3 capture_ouster_oak.py
+
+1. To specify directory to save data, use --folder "path to save location" (default save folder is data)
+2. To specify frequency of data capture, use --frequency put_frequency_in_hz_here (default is 2 hz)
+3. To specify the what index the data should start being saved as, use --start_index desired_index_here (default is 1)
+
+
 # GEMstack Offboard Calibration 
 
-This repository contains tools for offline calibration of LiDAR and camera sensors to the vehicle coordinate system on the GEM E4 platform. The calibration pipeline consists of three stages:
+This section explains tools for offline calibration of LiDAR and camera sensors to the vehicle coordinate system on the GEM E4 platform. The calibration pipeline consists of three stages:
 
 1. **LiDAR-to-Vehicle**  
 2. **Camera-to-Vehicle**  
@@ -26,22 +46,26 @@ This repository contains tools for offline calibration of LiDAR and camera senso
 
 **Usage**:  
 
-python3 lidar_to_vehicle.py      # Edit LiDAR data paths in script
+Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. Choose x depending on what data sample you want to use for calibration. 
+
+python3 lidar_to_vehicle.py --data_path "path to data folder" --index INDEX_NUM
+
+Use --vis flag for visualizations throughout the computation process
 
 
 ### 2. CAMERA-to-Vehicle Calibration (`camera_to_vehicle_manual.py`)
 **Method**:  
   1. Capture camera intrinsics using camera_info.py (ROS node)  
-  2. Manually select 4 matching points in RGB image and LiDAR cloud
+  2. Manually select 4 matching points in RGB image and LiDAR cloud (can adjust variable to select more pairs)
   3. Solve PnP problem to compute camera extrinsics  
 
 **Usage**:
   1. Get camera intrinsics:
     rosrun offboard\calibration\camera_info.py  # Prints intrinsic matrix
   2. Update camera_in in script with intrinsics
-  3. Update data paths in script
+  3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. Choose x depending on what data sample you want to use for calibration. The script also reads the lidar_to_vehicle matrix from the gem_e4_ouster.yaml file so ensure that is up to date.
   4. Run calibration:
-    python3 camera_to_vehicle_manual.py
+    python3 camera_to_vehicle_manual.py --data_path "path to data folder" --index INDEX_NUM --config "path to gem_e4_ouster.yaml"
 
 
 ### 3. LIDAR-to-CAMERA Calibration (`lidar_to_camera.py`)
@@ -58,7 +82,7 @@ python3 lidar_to_camera.py   # Ensure T_lidar_vehicle and T_camera_vehicle matri
 
 **3D Alignment Check**:
  1. Use vis() function in scripts to view calibrated LiDAR/camera clouds
- 2. Toggle VIS = True in lidar_to_vehicle.py for ground plane/object visualization
+ 2. Use --vis flag when running lidar_to_vehicle.py for ground plane/object visualization
  3. Use test_transforms.py to visualize lidar point cloud on top of png image. Helps verify accuracy of lidar->camera.
 
 **Projection Validation**:
