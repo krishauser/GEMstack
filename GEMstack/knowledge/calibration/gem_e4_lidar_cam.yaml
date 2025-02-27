@@ -1,3 +1,6 @@
+# Calibration for top lidar->front rgb camera on GEM e4
+# Calibration Date: 02/25/2025 05:09
+
 lidar_to_camera: [
                   [ 2.89748006e-02, -9.99580136e-01,  3.68439439e-05, -3.07300513e-02],
                   [-9.49930618e-03, -3.12215512e-04, -9.99954834e-01, -3.86689354e-01],
