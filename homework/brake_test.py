@@ -13,6 +13,9 @@ from your_package.state import VehicleState, ObjectPose, ObjectFrameEnum
 from your_package.knowledge.vehicle.dynamics import pedal_positions_to_acceleration
 from your_package.hardware.vehicle.gem import GEMInterface, GEMVehicleCommand, GEMVehicleReading
 
+# CHANGE THIS BETWEEN RUNS 
+PRESET_BRAKE_POS = 0.1
+
 class BrakeTestRecorder:
     def __init__(self):
         rospy.init_node('brake_test_recorder', anonymous=True)
@@ -37,9 +40,9 @@ class BrakeTestRecorder:
         reading = self.gem.get_reading()
         rospy.loginfo(f"Current speed: {reading.speed} m/s, waiting for {self.target_speed} m/s")
         
-        while reading.speed < self.target_speed - 0.5:  # Allow 0.5 m/s tolerance
+        while reading.speed < self.target_speed - 0.1:  # Allow 0.1 m/s tolerance
             rospy.loginfo(f"Current speed: {reading.speed} m/s, waiting for {self.target_speed} m/s")
-            time.sleep(1.0)
+            time.sleep(.1)
             reading = self.gem.get_reading()
         
         rospy.loginfo(f"Starting brake test from {reading.speed} m/s")
@@ -47,17 +50,14 @@ class BrakeTestRecorder:
         
         rate = rospy.Rate(1/self.test_interval)  # 10 Hz for 0.1s intervals
         
-        # Initialize with current state but zero accelerator and full brake
-        brake_position = 0.0
-        
+
+        # Set brake Position once per Tests 
+        # measure deceleration from 8.33 m/s to 0 m/s at that brake psitions 
+        brake_position = PRESET_BRAKE_POS
+                
         # Continue until vehicle is nearly stopped
-        while reading.speed > 0.5:  # Consider stopped below 0.5 m/s
+        while reading.speed > 0.01:  # Consider stopped below 0.01 m/s
             current_time = rospy.get_time() - self.start_time
-            
-            # Increase brake gradually 
-            brake_position += 0.1
-            if brake_position > 1.0:
-                brake_position = 1.0
                 
             # Create and send command with full brake
             cmd = self.gem.command_from_reading(reading)
