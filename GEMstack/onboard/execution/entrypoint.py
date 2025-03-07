@@ -46,8 +46,9 @@ def main():
     #initialize ros node
     has_ros = False
     try:
-        import rospy
-        rospy.init_node('GEM_executor',disable_signals=True)
+        import rclpy
+        rclpy.init(args=sys.argv)
+        rclpy.create_node('GEM_executor')#,disable_signals=True)
         has_ros = True
     except (ImportError,ModuleNotFoundError):
         if mode == 'simulation':
@@ -160,7 +161,7 @@ def main():
 
     if has_ros:
         #need manual ros node shutdown due to disable_signals=True
-        rospy.signal_shutdown('GEM_executor finished')
+        rclpy.shutdown()
     
     print(EXECUTION_PREFIX,"---------------- DONE ----------------")
     if log_settings and settings.get('run.after.show_log_folder',False):

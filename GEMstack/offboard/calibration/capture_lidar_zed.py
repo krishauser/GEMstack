@@ -1,5 +1,5 @@
 # ROS Headers
-import rospy
+import rclpy
 from sensor_msgs.msg import Image,PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 import ctypes
@@ -67,10 +67,11 @@ def save_scan(lidar_fn,color_fn,depth_fn):
     cv2.imwrite(depth_fn,dimage)
 
 def main(folder='data',start_index=1):
-    rospy.init_node("capture_lidar_zed",disable_signals=True)
-    lidar_sub = rospy.Subscriber("/lidar1/velodyne_points", PointCloud2, lidar_callback)
-    camera_sub = rospy.Subscriber("/zed2/zed_node/rgb/image_rect_color", Image, camera_callback)
-    depth_sub = rospy.Subscriber("/zed2/zed_node/depth/depth_registered", Image, depth_callback)
+    rclpy.init(args=sys.argv)
+    node = rclpy.create_node("capture_lidar_zed",disable_signals=True)
+    lidar_sub = node.create_subscription(PointCloud2, "/lidar1/velodyne_points", lidar_callback)
+    camera_sub = node.create_subscription(Image, "/zed2/zed_node/rgb/image_rect_color", camera_callback)
+    depth_sub = node.create_subscription(Image, "/zed2/zed_node/depth/depth_registered", depth_callback)
     index = start_index
     print("Press any key to:")
     print("  store lidar point clouds as npz")
