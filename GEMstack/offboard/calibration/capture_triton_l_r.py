@@ -14,11 +14,28 @@ import numpy as np
 import os
 import time
 
-lidar_points = None
+lidar_front_points = None
+lidar_top_points = None
+front_cam = None
 camera_image = None
 depth = None
 camera_right_img = None
+camera_r_right_img = None
+camera_r_left = None
 bridge = CvBridge()
+
+def camera_callback(img : Image):
+    global front_cam
+    front_cam = img
+
+
+def lidar_front_callback(lidar : PointCloud2):
+    global lidar_front_points
+    lidar_front_points = lidar
+
+def lidar_top_callback(lidar : PointCloud2):
+    global lidar_top_points
+    lidar_top_points = lidar
 
 def camera_left_callback(img : Image):
     global camera_image
@@ -28,25 +45,79 @@ def camera_right_callback(img : Image):
     global camera_right_img
     camera_right_img = img
 
-def save_scan(left,right):
+def camera_rear_left_callback(img : Image):
+    global camera_r_left
+    camera_r_left = img
+
+def camera_rear_right_callback(img : Image):
+    global camera_r_right_img
+    camera_r_right_img = img
+
+def pc2_to_numpy(pc2_msg, want_rgb = False):
+    gen = pc2.read_points(pc2_msg, skip_nans=True)
+    if want_rgb:
+        xyzpack = np.array(list(gen),dtype=np.float32)
+        if xyzpack.shape[1] != 4:
+            raise ValueError("PointCloud2 does not have points")
+        xyzrgb = np.empty((xyzpack.shape[0],6))
+        xyzrgb[:,:3] = xyzpack[:,:3]
+        for i,x in enumerate(xyzpack):
+            rgb = x[3] 
+            # cast float32 to int so that bitwise operations are possible
+            s = struct.pack('>f' ,rgb)
+            i = struct.unpack('>l',s)[0]
+            # you can get back the float value by the inverse operations
+            pack = ctypes.c_uint32(i).value
+            r = (pack & 0x00FF0000)>> 16
+            g = (pack & 0x0000FF00)>> 8
+            b = (pack & 0x000000FF)
+            #r,g,b values in the 0-255 range
+            xyzrgb[i,3:] = (r,g,b)
+        return xyzrgb
+    else:
+        return np.array(list(gen),dtype=np.float32)[:,:3]
+
+
+def save_scan(left,right,rear_left, rear_right, front, front_lidar, top_lidar):
     cv2.imwrite(left,bridge.imgmsg_to_cv2(camera_image))
     cv2.imwrite(right,bridge.imgmsg_to_cv2(camera_right_img))
+    cv2.imwrite(rear_left,bridge.imgmsg_to_cv2(camera_r_left))
+    cv2.imwrite(rear_right,bridge.imgmsg_to_cv2(camera_r_right_img))
+    cv2.imwrite(front,bridge.imgmsg_to_cv2(front_cam))
+    pc = pc2_to_numpy(lidar_front_points,want_rgb=False) # convert lidar feed to numpy
+    np.savez(front_lidar,pc)
+
+    pc_top = pc2_to_numpy(lidar_top_points,want_rgb=False) # convert lidar feed to numpy
+    np.savez(top_lidar,pc_top)
+
+
 
 
 def main(folder='data',start_index=1, frequency=2):
     rospy.init_node("capture_triton_l_r",disable_signals=True)
+    top_lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_top_callback)
+    front_lidar_sub = rospy.Subscriber("/livox/lidar", PointCloud2, lidar_front_callback)
+    front_cam_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
     camera_sub_left = rospy.Subscriber("/camera_fl/arena_camera_node/image_raw", Image, camera_left_callback)
     camera_sub_right = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, camera_right_callback)
+    camera_rear_sub_left = rospy.Subscriber("/camera_rl/arena_camera_node/image_raw", Image, camera_rear_left_callback)
+    camera_rear_sub_right = rospy.Subscriber("/camera_rr/arena_camera_node/image_raw", Image, camera_rear_right_callback)
     index = start_index
     print(" Storing images as png")
     print(" Ctrl+C to quit")
     while True:
-        if camera_image and camera_right_img:
+        if camera_image and camera_right_img and camera_r_right_img and camera_r_left and front_cam and lidar_front_points and lidar_top_points:
             cv2.imshow("result",bridge.imgmsg_to_cv2(camera_image))
             time.sleep(1.0/frequency)
             files = [
-                        os.path.join(folder,'left{}.png'.format(index)),
-                        os.path.join(folder,'right{}.png'.format(index))]
+                        os.path.join(folder,'camera_fl{}.png'.format(index)),
+                        os.path.join(folder,'camera_fr{}.png'.format(index)), 
+                        os.path.join(folder,'camera_rl{}.png'.format(index)),
+                        os.path.join(folder,'camera_rr{}.png'.format(index)),
+                        os.path.join(folder,'front_cam{}.png'.format(index)),
+                        os.path.join(folder,'lidar_front{}.npz'.format(index)),
+                        os.path.join(folder,'lidar_top{}.npz'.format(index))
+                        ]
             save_scan(*files)
             index += 1
 
