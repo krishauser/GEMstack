@@ -1,6 +1,6 @@
 # ROS Headers
 import rospy
-from sensor_msgs.msg import Image,PointCloud2
+from sensor_msgs.msg import Image,PointCloud2,NavSatFix
 import sensor_msgs.point_cloud2 as pc2
 import ctypes
 import struct
@@ -12,12 +12,15 @@ import numpy as np
 import os
 import time
 
+# TODO: change these arrays to use dictionaries, format eg. {filename: data}
 lidar_points = []
 camera_images = []
 depth_images = []
+gnss_locations = []
 lidar_filetype = ".npz"
 camera_filetype = ".png"
 depth_filetype = ".tif"
+gnss_filetype = ".npy"
 bridge = CvBridge()
 
 def lidar_callback(lidar : PointCloud2):
@@ -31,6 +34,10 @@ def camera_callback(img : Image):
 def depth_callback(img : Image):
     global depth_images
     depth_images.append(img)
+
+def gnss_callback(sat_fix : NavSatFix):
+    global gnss_locations
+    gnss_locations.append(sat_fix)
 
 def pc2_to_numpy(pc2_msg, want_rgb = False):
     gen = pc2.read_points(pc2_msg, skip_nans=True)
@@ -63,8 +70,11 @@ def clear_scan():
     camera_images = []
     global depth_images
     depth_images = []
+    global gnss_locations
+    gnss_locations = []
 
-def save_scan(lidar_filenames, camera_filenames, depth_filenames, index):
+# TODO: when data is stored in dictionaries, change to only save files which exist and change error checking
+def save_scan(lidar_filenames, camera_filenames, depth_filenames, gnss_filenames, index):
     if len(lidar_filenames) != len(lidar_points) or len(camera_filenames) != len(camera_images) or len(depth_filenames) != len(depth_images):
         print("Missing data, scan", index, "cannot be saved")
         return
@@ -91,6 +101,12 @@ def save_scan(lidar_filenames, camera_filenames, depth_filenames, index):
         # print("Depth pixel range",np.min(dimage),np.max(dimage))
         dimage = dimage.astype(np.uint16)
         cv2.imwrite(depth_fn,dimage)
+    
+    for i in range(len(gnss_locations)):
+        sat_fix = gnss_locations[i]
+        gnss_fn = gnss_filenames + str(index) + gnss_filetype
+        coordinates = np.array(sat_fix.latitude, sat_fix.longitude)
+        np.save(gnss_fn, coordinates)
 
 def main(folder='data',start_index=0):
     # Initialize node and establish subscribers
@@ -103,6 +119,7 @@ def main(folder='data',start_index=0):
     cam_rl_sub = rospy.Subscriber("/camera_rl/arena_camera_node/image_raw", Image, camera_callback)
     cam_rr_sub = rospy.Subscriber("/camera_rr/arena_camera_node/image_raw", Image, camera_callback)
     depth_sub = rospy.Subscriber("/oak/stereo/image_raw", Image, depth_callback)
+    gnss_sub = rospy.Subscriber("/septentrio_gnss/navsatfix", NavSatFix, gnss_callback)
 
     # Store scans
     index = start_index
@@ -119,7 +136,8 @@ def main(folder='data',start_index=0):
                             os.path.join(folder, 'fl'), os.path.join(folder, 'fr'),
                             os.path.join(folder, 'rl'), os.path.join(folder, 'rr')]
             depth_files = [os.path.join(folder, 'depth')]
-            save_scan(lidar_files, camera_files, depth_files, index)
+            gnss_files = [os.path.join(folder, 'septentrio')]
+            save_scan(lidar_files, camera_files, depth_files, gnss_files, index)
             clear_scan()
             index += 1
 
