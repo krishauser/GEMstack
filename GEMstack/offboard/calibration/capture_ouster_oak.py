@@ -5,6 +5,9 @@ import sensor_msgs.point_cloud2 as pc2
 import ctypes
 import struct
 
+from ...state import VehicleState, ObjectPose
+from ...onboard import Component
+
 # OpenCV and cv2 bridge
 import cv2
 from cv_bridge import CvBridge
@@ -17,6 +20,7 @@ lidar_points = []
 camera_images = []
 depth_images = []
 gnss_locations = []
+frame_position = None
 lidar_filetype = ".npz"
 camera_filetype = ".png"
 depth_filetype = ".tif"
@@ -80,6 +84,11 @@ def save_scan(lidar_filenames, camera_filenames, depth_filenames, gnss_filenames
         return
     print("Saving scan", index)
 
+    if frame_position != None:
+        np.save("state" + str(index), frame_position)
+    else:
+        print("No state found")
+
     for i in range(len(lidar_points)):
         current_lidar = lidar_points[i]
         lidar_fn = lidar_filenames[i] + str(index) + lidar_filetype
@@ -140,6 +149,15 @@ def main(folder='data',start_index=0):
             save_scan(lidar_files, camera_files, depth_files, gnss_files, index)
             clear_scan()
             index += 1
+
+class StateTracker(Component):
+    def rate(self):
+        return 4.0 # Hz
+    def state_inputs(self):
+        return ['vehicle']
+    def update(self, vehicle : VehicleState):
+        global frame_position
+        frame_position = np.array(vehicle.pose.frame, vehicle.pose.t, vehicle.pose.x, vehicle.pose.y)
 
 if __name__ == '__main__':
     import sys
