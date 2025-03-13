@@ -12,23 +12,25 @@ import numpy as np
 import os
 import time
 
-lidar_points = None
-camera_image = None
-depth = None
-depth_image = None
+lidar_points = []
+camera_images = []
+depth_images = []
+lidar_filetype = ".npz"
+camera_filetype = ".png"
+depth_filetype = ".tif"
 bridge = CvBridge()
 
 def lidar_callback(lidar : PointCloud2):
     global lidar_points
-    lidar_points = lidar
+    lidar_points.append(lidar)
 
 def camera_callback(img : Image):
-    global camera_image
-    camera_image = img
+    global camera_images
+    camera_images.append(img)
 
 def depth_callback(img : Image):
-    global depth_image
-    depth_image = img
+    global depth_images
+    depth_images.append(img)
 
 def pc2_to_numpy(pc2_msg, want_rgb = False):
     gen = pc2.read_points(pc2_msg, skip_nans=True)
@@ -54,41 +56,71 @@ def pc2_to_numpy(pc2_msg, want_rgb = False):
     else:
         return np.array(list(gen),dtype=np.float32)[:,:3]
 
-def save_scan(lidar_fn,color_fn,depth_fn):
-    print("Saving scan to",lidar_fn,color_fn)
+def clear_scan():
+    global lidar_points
+    lidar_points = []
+    global camera_images
+    camera_images = []
+    global depth_images
+    depth_images = []
 
-    pc = pc2_to_numpy(lidar_points,want_rgb=False) # convert lidar feed to numpy
-    np.savez(lidar_fn,pc)
-    cv2.imwrite(color_fn,bridge.imgmsg_to_cv2(camera_image))
+def save_scan(lidar_filenames, camera_filenames, depth_filenames, index):
+    if len(lidar_filenames) != len(lidar_points) or len(camera_filenames) != len(camera_images) or len(depth_filenames) != len(depth_images):
+        print("Missing data, scan", index, "cannot be saved")
+        return
+    print("Saving scan", index)
 
-    dimage = bridge.imgmsg_to_cv2(depth_image)
-    dimage_non_nan = dimage[np.isfinite(dimage)]
-    print("Depth range",np.min(dimage_non_nan),np.max(dimage_non_nan))
-    dimage = np.nan_to_num(dimage,nan=0,posinf=0,neginf=0)
-    dimage = (dimage/4000*0xffff)
-    print("Depth pixel range",np.min(dimage),np.max(dimage))
-    dimage = dimage.astype(np.uint16)
-    cv2.imwrite(depth_fn,dimage)
+    for i in range(len(lidar_points)):
+        current_lidar = lidar_points[i]
+        lidar_fn = lidar_filenames[i] + str(index) + lidar_filetype
+        pc = pc2_to_numpy(current_lidar,want_rgb=False) # convert lidar feed to numpy
+        np.savez(lidar_fn,pc)
 
-def main(folder='data',start_index=1):
+    for i in range(len(camera_images)):
+        current_camera = camera_images[i]
+        camera_fn = camera_filenames[i] + str(index) + camera_filetype
+        cv2.imwrite(camera_fn,bridge.imgmsg_to_cv2(current_camera))
+
+    for i in range(len(depth_images)):
+        dimage = bridge.imgmsg_to_cv2(depth_images[i])
+        depth_fn = depth_filenames[i] + str(index) + depth_filetype
+        dimage_non_nan = dimage[np.isfinite(dimage)]
+        # print("Depth range",np.min(dimage_non_nan),np.max(dimage_non_nan))
+        dimage = np.nan_to_num(dimage,nan=0,posinf=0,neginf=0)
+        dimage = (dimage/4000*0xffff)
+        # print("Depth pixel range",np.min(dimage),np.max(dimage))
+        dimage = dimage.astype(np.uint16)
+        cv2.imwrite(depth_fn,dimage)
+
+def main(folder='data',start_index=0):
+    # Initialize node and establish subscribers
     rospy.init_node("capture_ouster_oak",disable_signals=True)
-    lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
-    camera_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
+    ouster_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
+    livox_sub = rospy.Subscriber("/livox/lidar", PointCloud2, lidar_callback)
+    oak_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
+    cam_fl_sub = rospy.Subscriber("/camera_fl/arena_camera_node/image_raw", Image, camera_callback)
+    cam_fr_sub = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, camera_callback)
+    cam_rl_sub = rospy.Subscriber("/camera_rl/arena_camera_node/image_raw", Image, camera_callback)
+    cam_rr_sub = rospy.Subscriber("/camera_rr/arena_camera_node/image_raw", Image, camera_callback)
     depth_sub = rospy.Subscriber("/oak/stereo/image_raw", Image, depth_callback)
-    index = 0
-    print(" Storing lidar point clouds as npz")
-    print(" Storing color images as png")
-    print(" Storing depth images as tif")
+
+    # Store scans
+    index = start_index
+    print(" Storing lidar point clouds as", lidar_filetype)
+    print(" Storing color images as", camera_filetype)
+    print(" Storing depth images as", depth_filetype)
     print(" Ctrl+C to quit")
     while True:
-        if camera_image and depth_image:
-            cv2.imshow("result",bridge.imgmsg_to_cv2(camera_image))
+        if len(camera_images) > 0:
+            cv2.imshow("result",bridge.imgmsg_to_cv2(camera_images[0]))
             time.sleep(.5)
-            files = [
-                        os.path.join(folder,'lidar{}.npz'.format(index)),
-                        os.path.join(folder,'color{}.png'.format(index)),
-                        os.path.join(folder,'depth{}.tif'.format(index))]
-            save_scan(*files)
+            lidar_files = [os.path.join(folder, 'ouster'), os.path.join(folder, 'livox')]
+            camera_files = [os.path.join(folder, 'oak'),
+                            os.path.join(folder, 'fl'), os.path.join(folder, 'fr'),
+                            os.path.join(folder, 'rl'), os.path.join(folder, 'rr')]
+            depth_files = [os.path.join(folder, 'depth')]
+            save_scan(lidar_files, camera_files, depth_files, index)
+            clear_scan()
             index += 1
 
 if __name__ == '__main__':
