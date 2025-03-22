@@ -1,66 +1,12 @@
 #%%
+import pyvista as pv
+import argparse
 import cv2
 from scipy.spatial.transform import Rotation as R
 import matplotlib.pyplot as plt
 import numpy as np
-from visualizer import visualizer
-
-N = 8 #how many point pairs you want to select
-
-# Update Depending on Where Data Stored
-rgb_path = './data/color32.png'
-depth_path = './data/depth32.tif'
-lidar_path = './data/lidar32.npz'
-
-img = cv2.imread(rgb_path, cv2.IMREAD_UNCHANGED)
-
-lidar_points = np.load(lidar_path)['arr_0']
-lidar_points = lidar_points[~np.all(lidar_points== 0, axis=1)] # remove (0,0,0)'s
-
-rx,ry,rz = 0.006898647163954201, 0.023800082245145304, -0.025318355743942974
-tx,ty,tz = 1.1, 0.037735827433173136, 1.953202227766785
-rot = R.from_euler('xyz',[rx,ry,rz]).as_matrix()
-lidar_ex = np.hstack([rot,[[tx],[ty],[tz]]])
-lidar_ex = np.vstack([lidar_ex,[0,0,0,1]])
-
-camera_in = np.array([
-    [684.83331299,   0.        , 573.37109375],
-    [  0.        , 684.60968018, 363.70092773],
-    [  0.        ,   0.        ,   1.        ]
-], dtype=np.float32)
-
-
-#%%
-# blurred = cv2.GaussianBlur(img, (5, 5), 0)
-# edges = cv2.Canny(blurred, threshold1=50, threshold2=150)
-# plt.imshow(edges)
-plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
-
-#%%
-import pyvista as pv
-def vis(title='', ratio=1,notebook=False):
-    print(title)
-    pv.set_jupyter_backend('client')
-
-    return visualizer().set_cam()
-def crop(pc,ix=None,iy=None,iz=None):
-    # crop a subrectangle in a pointcloud
-    # usage: crop(pc, ix = (x_min,x_max), ...)
-    # return: array(N,3)
-    mask = True
-    for dim,intervel in zip([0,1,2],[ix,iy,iz]):
-        if not intervel: continue
-        d,u = intervel
-        mask &= pc[:,dim] >= d
-        mask &= pc[:,dim] <= u 
-        print(f'points left after cropping {dim}\'th dim',mask.sum())
-    return pc[mask]
-
-
-lidar_post = np.pad(lidar_points,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
-lidar_post = crop(lidar_post,ix=(0,10),iy=(-5,5))
-# vis(notebook=False).add_pc(lidar_post).show()
-
+from tools.save_cali import load_ex,save_ex,load_in,save_in
+from tools.visualizer import visualizer
 #%%
 def pick_n_img(img,n=4):
     corners = []  # Reset the corners list
@@ -82,8 +28,6 @@ def pick_n_img(img,n=4):
     cv2.destroyAllWindows()
     
     return corners
-cpoints = np.array(pick_n_img(img,N)).astype(float)
-print(cpoints)
 
 #%%
 def pick_n_pc(point_cloud,n=4):
@@ -101,63 +45,60 @@ def pick_n_pc(point_cloud,n=4):
         plotter.show()
     return points
 
-lpoints = np.array(pick_n_pc(lidar_post,N))
-print(lpoints)
-# %%
-success, rvec, tvec = cv2.solvePnP(lpoints, cpoints, camera_in, None)
-R, _ = cv2.Rodrigues(rvec)
-
-T = np.eye(4)
-T[:3, :3] = R
-T[:3, 3] = tvec.flatten()
-print(T)
-
-
 #%%
-def depth_to_points(depth_img: np.ndarray, intrinsics: np.ndarray):
-    """
-    Convert a single-channel depth image into an Nx3 array of 3D points
-    in the camera coordinate system.
-    - depth_img: 2D array of type uint16 or float with depth values
-    - intrinsics: 3x3 camera matrix
-    """
-    fx = intrinsics[0,0]
-    fy = intrinsics[1,1]
-    cx = intrinsics[0,2]
-    cy = intrinsics[1,2]
+def main():
+    parser = argparse.ArgumentParser(description='register image into point cloud using manual feature selection',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--img_path', type=str, required=True,
+                       help='Path to PNG image')
+    parser.add_argument('--pc_path', type=str, required=True,
+                       help='Path to NPZ point cloud file')
+    parser.add_argument('--pc_transform_path', type=str, required=False,
+                       help='Path to ymal file for lidar calibration')
+    parser.add_argument('--img_intrinsics_path', type=str, required=True,
+                       help='Path to ymal file for image intrinsics')
+    parser.add_argument('--out_path', type=str, required=False,
+                       help='Path to output ymal file for image extrinsics')
+    parser.add_argument('--n_features', type=int, required=False, default=8,
+                       help='number of features to select and math')
+    
 
-    # Indices of each pixel
-    h, w = depth_img.shape
-    i_range = np.arange(h)
-    j_range = np.arange(w)
-    jj, ii = np.meshgrid(j_range, i_range)  # shape (h,w)
+    args = parser.parse_args()
 
-    # Flatten
-    ii = ii.flatten().astype(np.float32)
-    jj = jj.flatten().astype(np.float32)
-    depth = depth_img.flatten().astype(np.float32)
+    # Load data
+    N = args.n_features
+    img = cv2.imread(args.img_path, cv2.IMREAD_UNCHANGED)
+    pc = np.load(args.pc_path)['arr_0']
+    pc = pc[~np.all(pc == 0, axis=1)] # remove (0,0,0)'s
 
-    # Filter out zero / invalid depths
-    valid_mask = (depth > 0)
-    ii = ii[valid_mask]
-    jj = jj[valid_mask]
-    depth = depth[valid_mask]
+    camera_in = load_in(args.img_intrinsics_path,mode='matrix')
 
-    z = depth / 10000
-    x = (jj - cx) * z / fx
-    y = (ii - cy) * z / fy
-    points3d = np.stack((x, y, z), axis=-1)  # shape (N,3)
+    if args.pc_transform_path is not None:
+        lidar_ex = load_ex(args.pc_transform_path,mode='matrix')
+        pc = np.pad(pc,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
+    
+    cpoints = np.array(pick_n_img(img,N)).astype(float)
+    print(cpoints)
 
-    return points3d
+    lpoints = np.array(pick_n_pc(pc,N))
+    print(lpoints)
+
+    success, rvec, tvec = cv2.solvePnP(lpoints, cpoints, camera_in, None)
+    R, _ = cv2.Rodrigues(rvec)
+
+    T=np.eye(4)
+    T[:3, :3] = R
+    T[:3, 3] = tvec.flatten()
+    print(T)
+
+    v2c = T
+    print('vehicle->camera:',v2c)
+    c2v = np.linalg.inv(v2c)
+    print('camera->vehicle:',c2v)
+
+    if args.out_path is not None:
+        save_ex(args.out_path,matrix=c2v)
 
 
-
-depth_img = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
-camera_points = depth_to_points(depth_img, camera_in)
-
-#%%
-v2c = T
-print('vehicle->camera:',v2c)
-c2v = np.linalg.inv(v2c)
-print('camera->vehicle:',c2v)
-
+if __name__ == "__main__":
+    main()
