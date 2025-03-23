@@ -254,7 +254,7 @@ def compute_velocity(old_pose: ObjectPose, new_pose: ObjectPose, dt: float) -> t
     vz = (new_pose.z - old_pose.z) / dt
     return (vx, vy, vz)
 
-def exponential_smooth_velocity(self, raw_vel, old_smooth_vel, alpha=0.3):
+def exponential_smooth_velocity(raw_vel, old_smooth_vel, alpha=0.3):
     """
     Applies exponential smoothing to the raw velocity.
 
@@ -592,6 +592,65 @@ class PedestrianDetector2D(Component):
             self.latest_image = None
         self.latest_lidar = pc2_to_numpy(lidar_msg, want_rgb=False)
 
+
+    def downsample_points(self,points: np.ndarray, voxel_size=0.1) -> np.ndarray:
+        """
+        Downsample a point cloud using Open3D's voxel downsampling.
+        points: Nx3 numpy array
+        voxel_size: size of each voxel grid, e.g. 0.1
+        """
+        if points.shape[0] == 0:
+            return points
+
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        downsampled_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
+        return np.asarray(downsampled_pcd.points)
+    
+    def transform_lidar_to_camera(self,points_lidar: np.ndarray, T_l2c: np.ndarray) -> np.ndarray:
+        """
+        Transform Nx3 lidar points into the camera frame using T_l2c (4x4).
+        Returns an Nx3 array in camera coordinates.
+        """
+        if points_lidar.shape[0] == 0:
+            return points_lidar
+
+        # Convert Nx3 into Nx4 homogeneous
+        ones = np.ones((points_lidar.shape[0], 1), dtype=np.float32)
+        points_hom = np.hstack((points_lidar, ones))  # shape (N,4)
+
+        # Transform
+        points_cam_hom = (T_l2c @ points_hom.T).T  # shape (N,4)
+        # Extract X, Y, Z
+        points_cam = points_cam_hom[:, :3]
+        return points_cam
+    
+    def project_points_to_image(self,points_cam: np.ndarray, K: np.ndarray) -> np.ndarray:
+        """
+        Project Nx3 camera-frame points onto 2D image plane using intrinsics K.
+        Returns an Nx5 array: [u, v, X, Y, Z].
+        Only includes points with Z>0 (in front of the camera).
+        """
+        if points_cam.shape[0] == 0:
+            return np.empty((0, 5), dtype=np.float32)
+
+        # Prepare output list
+        projected = []
+        fx, fy = K[0, 0], K[1, 1]
+        cx, cy = K[0, 2], K[1, 2]
+
+        for pt in points_cam:
+            X, Y, Z = pt
+            if Z <= 0:
+                continue  # behind the camera, skip
+            u = fx * (X / Z) + cx
+            v = fy * (Y / Z) + cy
+            projected.append([u, v, X, Y, Z])
+
+        return np.array(projected, dtype=np.float32)
+    
+
+
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         """
         Process the latest synchronized sensor data to detect pedestrians and estimate their 3D poses.
@@ -619,91 +678,52 @@ class PedestrianDetector2D(Component):
 
         agents = {}
         lidar_pc = self.latest_lidar.copy()
+        lidar_pc_down = self.downsample_points(lidar_pc, voxel_size=0.1)
+        points_cam = self.transform_lidar_to_camera(lidar_pc_down, self.T_l2c)
+        projected_points = self.project_points_to_image(points_cam, self.K)
+
 
         for i, box in enumerate(boxes):
             cx, cy, w, h = box
-            # Backproject the 2D pixel center into a 3D ray in the LiDAR coordinate frame.
-            ray_dir_cam = backproject_pixel(cx, cy, self.K)
-            ray_dir_lidar = self.R_c2l @ ray_dir_cam
-            ray_dir_lidar /= np.linalg.norm(ray_dir_lidar)
-
-            # Attempt to locate the pedestrian's center along the ray using LiDAR data.
-            intersection, _, _ = find_human_center_on_ray(
-                lidar_pc, self.camera_origin_in_lidar, ray_dir_lidar,
-                t_min=0.4, t_max=25.0, t_step=0.1,
-                distance_threshold=0.5, min_points=5, ransac_threshold=0.05
+            left   = int(cx - w/2)
+            right  = int(cx + w/2)
+            top    = int(cy - h/2)
+            bottom = int(cy + h/2)
+            in_bbox_mask = (
+                (projected_points[:, 0] >= left) &
+                (projected_points[:, 0] <= right) &
+                (projected_points[:, 1] >= top) &
+                (projected_points[:, 1] <= bottom)
             )
-            if intersection is None:
-                # If no valid intersection is found, update the positions of already tracked agents
-                # based on the vehicle's forward velocity and time elapsed.
-                for agent in self.tracked_agents.values():
-                    dt = current_time - agent.pose.t
-                    agent.pose.x -= vehicle.v * dt  # Adjust x-coordinate assuming vehicle moves forward along x.
-                    agent.pose.t = current_time
+            subset_2d = projected_points[in_bbox_mask]
+            if subset_2d.shape[0] == 0:
+            # No LiDAR points are inside this bounding box, skip
                 continue
+            points_cam_3d = subset_2d[:, 2:5]  # just [X_cam, Y_cam, Z_cam]
+            ones = np.ones((points_cam_3d.shape[0], 1), dtype=np.float32)
+            points_cam_hom = np.hstack((points_cam_3d, ones))
+            # Invert T_l2c => T_c2l
+            T_c2l = np.linalg.inv(self.T_l2c)
+            points_lidar_hom = (T_c2l @ points_cam_hom.T).T
+            points_lidar_cluster = points_lidar_hom[:, :3]  # shape (K, 3) in LiDAR frame
 
-            # Estimate the pedestrian's physical dimensions using the detection box size and distance.
-            d = np.linalg.norm(intersection - self.camera_origin_in_lidar)
-            physical_width = (w * d) / self.K[0, 0]
-            physical_height = (h * d) / self.K[1, 1]
-            # Since the depth (x-direction) measurement is less reliable, use an empirical value.
-            half_extents = np.array([0.4, 1.1 * physical_width / 2, 1.1 * physical_height / 2])
-
-            # Extract LiDAR points within the ROI box around the estimated intersection.
-            roi_points = extract_roi_box(lidar_pc, intersection, half_extents)
-            if roi_points.shape[0] < 10:
-                refined_cluster = roi_points
-            else:
-                refined_cluster = refine_cluster(roi_points, intersection, eps=0.15, min_samples=10)
-
-            # Remove ground points from the refined cluster.
-            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
+            # 8) (Optional) refine cluster by removing ground, DBSCAN, etc.
+            # e.g., remove ground with min z-range
+            refined_cluster = remove_ground_by_min_range(points_lidar_cluster, z_range=0.03)
             if refined_cluster is None or refined_cluster.shape[0] == 0:
-                # Fallback to the initial intersection if no valid cluster remains.
-                refined_center = intersection
-                dims = (0, 0, 0)
-                yaw, pitch, roll = 0, 0, 0
-            elif refined_cluster.shape[0] <= 5:
-                # Skip detections with insufficient LiDAR points.
                 continue
-            else:
-                # Create an Open3D point cloud from the refined cluster and compute its oriented bounding box.
-                pcd = o3d.geometry.PointCloud()
-                pcd.points = o3d.utility.Vector3dVector(refined_cluster)
-                obb = pcd.get_oriented_bounding_box()
-                refined_center = obb.center
-                dims = tuple(obb.extent)
-                R_lidar = obb.R.copy()
-
-                # Transform the refined center from LiDAR coordinates to the vehicle frame.
-                refined_center_lidar_hom = np.array([refined_center[0],
-                                                     refined_center[1],
-                                                     refined_center[2],
-                                                     1.0])
-                refined_center_vehicle_hom = self.T_l2v @ refined_center_lidar_hom
-                refined_center_vehicle = refined_center_vehicle_hom[:3]
-
-                # Compute the orientation (yaw, pitch, roll) in the vehicle frame.
-                R_vehicle = self.T_l2v[:3, :3] @ R_lidar
-                euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
-                yaw, pitch, roll = euler_angles_vehicle
-                refined_center = refined_center_vehicle  # Use vehicle frame coordinates for output
-
-                '''
-                Note that this part can be used for converting the speed relative to vehicle -> speed relative to START frame
-                However, the VehicleState may read in Global coordinate (i.e. long and lat) instead of relative to START frame
-                In order to avoid this issue, we found it is actually easier to implement this in the planning code.
-                Planning function has access to Allstate instead of just Vehicle state,
-                therefore it is easier to specify which coordinate system to use
-                '''
-                '''
-                i.e. Simliar function is implemented in GEMstack/onboard/planning/pedestrian_yield_logic.py L569-573
-                # If the pedestrian's frame is CURRENT, convert the pedestrian's frame to START.
-                elif a.pose.frame == ObjectFrameEnum.CURRENT:
-                    a_x = a.pose.x + curr_x
-                    a_y = a.pose.y + curr_y
-                    a_v_x = a_v_x - curr_v
-                '''
+              # e.g., DBSCAN refinement
+            intersection = np.mean(refined_cluster, axis=0)  # approximate center
+            refined_cluster = refine_cluster(refined_cluster, intersection, eps=0.15, min_samples=10)
+            if refined_cluster.shape[0] <= 5:
+            # skip if cluster is too small
+                continue
+            center, dims = get_bounding_box_center_and_dimensions(refined_cluster)
+            if center is None:
+                continue
+            center_lidar_hom = np.array([center[0], center[1], center[2], 1.0])
+            center_vehicle_hom = self.T_l2v @ center_lidar_hom
+            center_vehicle = center_vehicle_hom[:3]  # (x, y, z) in vehicle frame
                 # curr_x = vehicle.pose.x
                 # curr_y = vehicle.pose.y
                 # curr_yaw = vehicle.pose.yaw
@@ -718,12 +738,12 @@ class PedestrianDetector2D(Component):
             # Create a new pose for the detected pedestrian in the vehicle frame.
             new_pose = ObjectPose(
                 t=current_time,
-                x=refined_center[0],
-                y=refined_center[1],
-                z=refined_center[2],
-                yaw=yaw,
-                pitch=pitch,
-                roll=roll,
+                x=center_vehicle[0],
+                y=center_vehicle[1],
+                z=center_vehicle[2],
+                yaw=0,
+                pitch=0,
+                roll=0,
                 frame=ObjectFrameEnum.CURRENT
             )
 
@@ -748,7 +768,7 @@ class PedestrianDetector2D(Component):
 
                 # 4) Exponential smoothing
                 alpha = 0.3  # Tweak this to find a good balance
-                vx_smooth, vy_smooth, vz_smooth = self.exponential_smooth_velocity(
+                vx_smooth, vy_smooth, vz_smooth = exponential_smooth_velocity(
                     (vx_raw, vy_raw, vz_raw),
                     old_smooth_vel,
                     alpha=alpha
