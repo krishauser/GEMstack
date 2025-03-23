@@ -254,6 +254,29 @@ def compute_velocity(old_pose: ObjectPose, new_pose: ObjectPose, dt: float) -> t
     vz = (new_pose.z - old_pose.z) / dt
     return (vx, vy, vz)
 
+def exponential_smooth_velocity(self, raw_vel, old_smooth_vel, alpha=0.3):
+    """
+    Applies exponential smoothing to the raw velocity.
+
+    v_smoothed = alpha * v_raw + (1 - alpha) * v_old_smooth
+
+    Args:
+        raw_vel (tuple): The raw velocity (vx, vy, vz).
+        old_smooth_vel (tuple): The previously smoothed velocity (vx_smooth, vy_smooth, vz_smooth).
+        alpha (float): The smoothing factor in [0,1].
+
+    Returns:
+        tuple: The new smoothed velocity (vx_smooth, vy_smooth, vz_smooth).
+    """
+    vx_raw, vy_raw, vz_raw = raw_vel
+    vx_old, vy_old, vz_old = old_smooth_vel
+
+    vx_new = alpha * vx_raw + (1 - alpha) * vx_old
+    vy_new = alpha * vy_raw + (1 - alpha) * vy_old
+    vz_new = alpha * vz_raw + (1 - alpha) * vz_old
+
+    return (vx_new, vy_new, vz_new)
+
 
 def extract_roi_box(lidar_pc, center, half_extents):
     """
@@ -495,6 +518,11 @@ class PedestrianDetector2D(Component):
         self.current_agents = {}
         self.tracked_agents = {}
         self.pedestrian_counter = 0
+
+        # Add a dictionary to hold smoothed velocities:
+        # Key: agent_id, Value: (vx_smooth, vy_smooth, vz_smooth)
+        self.smoothed_velocities = {} 
+
         # Variables to store the most recent synchronized sensor data:
         self.latest_image = None
         self.latest_lidar = None
@@ -708,26 +736,42 @@ class PedestrianDetector2D(Component):
             )
 
             if existing_id is not None:
-                # Update the state of the matched pedestrian using the computed velocity.
+                # 1) Get the old agent state
                 old_agent_state = self.tracked_agents[existing_id]
                 dt = new_pose.t - old_agent_state.pose.t
-                '''
-                We found that the velocity calculated here is not entirely stable. 
-                We are implementing a more stable method, e.g. kalman filter based one
-                '''
-                vx, vy, vz = compute_velocity(old_agent_state.pose, new_pose, dt)
 
+                # 2) Compute raw velocity
+                vx_raw, vy_raw, vz_raw = compute_velocity(old_agent_state.pose, new_pose, dt)
+
+                # 3) Retrieve the old smoothed velocity (or initialize if not available)
+                old_smooth_vel = self.smoothed_velocities.get(existing_id, (0.0, 0.0, 0.0))
+
+                # 4) Exponential smoothing
+                alpha = 0.3  # Tweak this to find a good balance
+                vx_smooth, vy_smooth, vz_smooth = self.exponential_smooth_velocity(
+                    (vx_raw, vy_raw, vz_raw),
+                    old_smooth_vel,
+                    alpha=alpha
+                )
+
+                # 5) Update the dictionary with the new smoothed velocity
+                self.smoothed_velocities[existing_id] = (vx_smooth, vy_smooth, vz_smooth)
+
+                # 6) Create the updated agent with the smoothed velocity
                 updated_agent = AgentState(
                     pose=new_pose,
                     dimensions=dims,
                     outline=None,
                     type=AgentEnum.PEDESTRIAN,
                     activity=AgentActivityEnum.MOVING,
-                    velocity=(vx, vy, vz),
+                    velocity=(vx_smooth, vy_smooth, vz_smooth),
                     yaw_rate=0
                 )
+
+                # 7) Save it in both the local dict and self.tracked_agents
                 agents[existing_id] = updated_agent
                 self.tracked_agents[existing_id] = updated_agent
+
             else:
                 # If no match is found, create a new pedestrian agent.
                 agent_id = f"pedestrian{self.pedestrian_counter}"
@@ -744,6 +788,7 @@ class PedestrianDetector2D(Component):
                 )
                 agents[agent_id] = new_agent
                 self.tracked_agents[agent_id] = new_agent
+                self.smoothed_velocities[agent_id] = (0.0, 0.0, 0.0)
 
         self.current_agents = agents
 
