@@ -8,6 +8,7 @@ from pathlib import Path
 from scipy.spatial.transform import Rotation as R
 from tools.save_cali import load_ex, save_ex, load_in, save_in
 from tools.visualizer import visualizer as vis
+
 def pc_relative(pc0,pc1):
     #get relative translation and rotation from pc0 to pc1
     #in: Nx3 array, Nx3 array
@@ -140,7 +141,6 @@ def load_scene(path):
 #%%
 #%%
 # get lidar pointcloud
-from save_cali import load_ex
 sc = load_scene(root + f"/data/calib1/pc/ouster1.npz")
 lidar_ex = load_ex(root + "/GEMstack/knowledge/calibration/gem_e4_ouster.yaml",mode='matrix')
 sc = np.pad(sc,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
@@ -148,7 +148,6 @@ sc = np.pad(sc,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
 #%%
 pc = np.array([p.xyz for p in rec.points3D.values()])
 #%%
-from visualizer import visualizer as vis
 #import os
 #os.environ['DISPLAY'] = ':0'
 #%%
