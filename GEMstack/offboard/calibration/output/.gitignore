@@ -1,0 +1,4 @@
+*
+
+# track just these files
+!.gitignore
