@@ -1,6 +1,4 @@
 import pyvista as pv
-import os
-os.environ['DISPLAY'] = ':0'
 class visualizer:
     def __init__(self):
         self.plotter = pv.Plotter(notebook=False)
