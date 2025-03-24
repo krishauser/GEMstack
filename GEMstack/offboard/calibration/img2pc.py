@@ -2,11 +2,8 @@
 import pyvista as pv
 import argparse
 import cv2
-from scipy.spatial.transform import Rotation as R
-import matplotlib.pyplot as plt
 import numpy as np
 from tools.save_cali import load_ex,save_ex,load_in,save_in
-from tools.visualizer import visualizer
 #%%
 def pick_n_img(img,n=4):
     corners = []  # Reset the corners list
