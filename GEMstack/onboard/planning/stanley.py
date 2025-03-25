@@ -142,8 +142,6 @@ class StanleyController(object):
             "Heading Error (deg)": round(np.degrees(theta_e), 2),
             "Front Wheel Angle (deg)": round(np.degrees(f_delta), 2),
             "Steering Angle (deg)": round(np.degrees(steering_angle), 2),
-            "Desired Speed (m/s)": round(desired_speed, 2),
-            "Output Acceleration (m/s^2)": round(output_accel, 2)
         }
         for k, v in debug_info.items():
             print(f"{k}: {v}")
