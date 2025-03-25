@@ -10,4 +10,9 @@ This dashboard can be used to browse GEMSTACK logs in a web browser.
 
 - Upon visualizing behavior.json, you see the trajectory length, and a plot of the trajectory driven.
 
+To run the code:
+1. pip install -r requirements.txt
+2. Run python app.py
+3. Go to 127.0.0.1:5000
+
 
