@@ -74,12 +74,19 @@ class StanleyController(object):
         curr_x = state.pose.x
         curr_y = state.pose.y
         curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
-        speed = state.v
+        
+        # speed = state.v
+        # Protect against divide-by-zero issues
+        # I think there is arctan(k * e / v) in Stanley
+        speed = max(state.v, 0.01)
 
+        # if self.path is None:
+        #     # just stop
+        #     accel = self.pid_speed.advance(0.0, t)
+        #     raise RuntimeError("Behavior without path not implemented")
         if self.path is None:
-            # just stop
-            accel = self.pid_speed.advance(0.0, t)
-            raise RuntimeError("Behavior without path not implemented")
+            print("[StanleyController] Warning: No path set. Sending zero commands.")
+            return (0.0, 0.0)
 
         if self.path.frame != state.pose.frame:
             print("Transforming path from", self.path.frame.name, "to", state.pose.frame.name)
@@ -121,12 +128,25 @@ class StanleyController(object):
         f_delta = theta_e + crosstrack_term
         f_delta = np.clip(f_delta, self.wheel_angle_range[0], self.wheel_angle_range[1])
 
+        # # Debug outputs
+        # print("Crosstrack Error: " + str(round(e, 3)))
+        # print("Heading Error: " + str(round(np.degrees(theta_e), 2)) + " degrees")
+        # print("Front wheel angle: " + str(round(np.degrees(f_delta), 2)) + " degrees")
+        # steering_angle = np.clip(front2steer(f_delta), self.steering_angle_range[0], self.steering_angle_range[1])
+        # print("Steering wheel angle: " + str(round(np.degrees(steering_angle), 2)) + " degrees")
+
         # Debug outputs
-        print("Crosstrack Error: " + str(round(e, 3)))
-        print("Heading Error: " + str(round(np.degrees(theta_e), 2)) + " degrees")
-        print("Front wheel angle: " + str(round(np.degrees(f_delta), 2)) + " degrees")
         steering_angle = np.clip(front2steer(f_delta), self.steering_angle_range[0], self.steering_angle_range[1])
-        print("Steering wheel angle: " + str(round(np.degrees(steering_angle), 2)) + " degrees")
+        debug_info = {
+            "Crosstrack Error (m)": round(e, 3),
+            "Heading Error (deg)": round(np.degrees(theta_e), 2),
+            "Front Wheel Angle (deg)": round(np.degrees(f_delta), 2),
+            "Steering Angle (deg)": round(np.degrees(steering_angle), 2),
+            "Desired Speed (m/s)": round(desired_speed, 2),
+            "Output Acceleration (m/s^2)": round(output_accel, 2)
+        }
+        for k, v in debug_info.items():
+            print(f"{k}: {v}")
 
         # Speed control (same as PurePursuit)
         desired_speed = self.desired_speed
@@ -135,8 +155,14 @@ class StanleyController(object):
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
                 if component is not None:
                     component.debug_event('Past the end of trajectory')
-                desired_speed = 0.0
-                feedforward_accel = -2.0
+                # desired_speed = 0.0
+                # feedforward_accel = -2.0
+
+                # Try smooth deceleration
+                desired_speed *= 0.5
+                if desired_speed < 0.1:
+                    desired_speed = 0.0
+                    feedforward_accel = -2.0  # Full stop
             else:
                 if self.desired_speed_source == 'path':
                     current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
@@ -206,3 +232,16 @@ class StanleyTrajectoryTracker(Component):
     
     def healthy(self):
         return self.stanley.path is not None
+
+
+def is_goal_reached(self, state: VehicleState, threshold=0.5):
+    """
+    Checks if the vehicle is near the end of the path.
+    Used to trigger stop, mode switch, or task completion.
+    """
+    if self.path is None:
+        return False
+    end_point = self.path.eval(self.path.domain()[1])
+    dx = state.pose.x - end_point[0]
+    dy = state.pose.y - end_point[1]
+    return np.hypot(dx, dy) < threshold
