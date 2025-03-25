@@ -124,7 +124,7 @@ class StanleyController(object):
         # Debug outputs
         print("Crosstrack Error: " + str(round(e, 3)))
         print("Heading Error: " + str(round(np.degrees(theta_e), 2)) + " degrees")
-        print("Front wheel angle: " + str(round(np.degrees(f_delta), 2) + " degrees")
+        print("Front wheel angle: " + str(round(np.degrees(f_delta), 2)) + " degrees")
         steering_angle = np.clip(front2steer(f_delta), self.steering_angle_range[0], self.steering_angle_range[1])
         print("Steering wheel angle: " + str(round(np.degrees(steering_angle), 2)) + " degrees")
 
@@ -202,6 +202,7 @@ class StanleyTrajectoryTracker(Component):
         )
         self.vehicle_interface.send_command(
             self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
+        )
     
     def healthy(self):
         return self.stanley.path is not None
