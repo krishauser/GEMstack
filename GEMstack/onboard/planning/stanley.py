@@ -195,10 +195,13 @@ class StanleyTrajectoryTracker(Component):
     def update(self, vehicle: VehicleState, trajectory: Trajectory):
         self.stanley.set_path(trajectory)
         accel, wheel_angle = self.stanley.compute(vehicle, self)
-        steering_angle = np.clip(front2steer(wheel_angle), 
-                              self.stanley.steering_angle_range[0], 
-                              self.stanley.steering_angle_range[1])
-        self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel, steering_angle, vehicle))
+        steering_angle = np.clip(
+            front2steer(wheel_angle),
+            self.stanley.steering_angle_range[0],
+            self.stanley.steering_angle_range[1]
+        )
+        self.vehicle_interface.send_command(
+            self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
     
     def healthy(self):
         return self.stanley.path is not None
