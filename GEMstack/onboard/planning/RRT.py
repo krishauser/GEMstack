@@ -81,7 +81,7 @@ def LocalPlanner(nearest_p,sample_p, step_size=0.5):
     return new_p
 
 class BiRRT:
-    def __init__(self, start : list, goal : list, obstacles : list, map : list):
+    def __init__(self, start : list, goal : list, obstacles : list, MAP_SIZE : list):
         
         self.path = []
         self.tree_from_start = []
@@ -98,20 +98,18 @@ class BiRRT:
         self.step_size = 0.5 # meter
         self.search_r = 1.3 # meter
         self.heading_limit = math.pi/6 # limit the heading change in route
-        self.goal_sample_rate = 0.1 # rate to check area near end-goal
         
         # Map boundary
-        self.MAP_X_LOW = map[0] # meter
-        self.MAP_X_HIGH = map[1] # meter
-        self.MAP_Y_LOW = map[2] # meter
-        self.MAP_Y_HIGH = map[3] # meter
+        self.MAP_X_LOW = MAP_SIZE[0] # meter
+        self.MAP_X_HIGH = MAP_SIZE[1] # meter
+        self.MAP_Y_LOW = MAP_SIZE[2] # meter
+        self.MAP_Y_HIGH = MAP_SIZE[3] # meter
         
     def search(self):
         # initialize two tree
         self.tree_from_start.append(self.start_point)
         self.tree_from_end.append(self.end_point)
         
-        # self.start_time = time.time()
         # perform search within max number of iterration
         for iterration in range(self.MAX_Iteration):
             # uniformly sample a point within in the map
@@ -230,11 +228,11 @@ class BiRRT:
             point_b = point_temp
             
         while point_a is not None:
-            path_start.append(point_a)
+            path_start.append([point_a.x,point_a.y,point_a.heading])
             point_a = point_a.parent
         while point_b is not None:
             point_b.heading = angle_inverse(point_b.heading)
-            path_end.append(point_b)
+            path_end.append([point_b.x,point_b.y,point_b.heading])
             point_b = point_b.parent
             
         self.path = path_start[::-1] + path_end
