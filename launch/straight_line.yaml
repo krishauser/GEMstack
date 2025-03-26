@@ -1,0 +1,4 @@
+route_file: "GEMstack/knowledge/routes/straight_line_10m.csv"
+execution:
+  type: "multiprocess"
+  update_rate: 50 
