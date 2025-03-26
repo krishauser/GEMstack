@@ -99,7 +99,7 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
                     print(f"[DEBUG] Initial Decel: s = {s:.2f}, v = {v:.2f}, t = {t:.2f}")
 
             elif s <= initial_decel_distance + cruise_distance:  # Phase 2: Cruise at max_speed
-                s_in_cruise = s - initial_decel_distance
+                s_in_cruise = s - initial_decel_distance    
                 t = initial_decel_time + s_in_cruise / max_speed
                 if DEBUG:  # Print every 10m
                     print(f"[DEBUG] Cruise: s = {s:.2f}, v = {max_speed:.2f}, t = {t:.2f}")
@@ -372,7 +372,8 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float, em
 class YieldTrajectoryPlanner(Component):
     """Follows the given route. Brakes if the ego–vehicle must yield
     (e.g. to a pedestrian) or if the end of the route is near; otherwise,
-    it accelerates (or cruises) toward a desired speed.
+    it accelerates (or cruises) toward a desired speed. Also handles
+    maintaining safe distance from pedestrians by accelerating or decelerating.
     """
 
     def __init__(self):
@@ -382,6 +383,8 @@ class YieldTrajectoryPlanner(Component):
         self.desired_speed = 2.0
         self.deceleration = 2.0
         self.emergency_brake = 8.0
+        self.follow_acceleration = 3.0  # Slightly gentler acceleration for following
+        self.follow_deceleration = 1.5  # Slightly gentler deceleration for following
 
     def state_inputs(self):
         return ['all']
@@ -438,22 +441,35 @@ class YieldTrajectoryPlanner(Component):
                 break
             pointSet.add(tuple(route_with_lookahead.points[i]))
 
+        # Check for different relation types
         should_brake = any(
             r.type == EntityRelationEnum.STOPPING_AT and r.obj1 == ''
             for r in state.relations
         )
+        
+        # Only check for yielding if not already braking
         should_decelerate = any(
-            r.type == EntityRelationEnum.YIELDING and r.obj1 == ''
+            (r.type == EntityRelationEnum.YIELDING) and r.obj1 == ''
             for r in state.relations
-        ) if should_brake == False else False
-
-        should_accelerate = (not should_brake and not should_decelerate and curr_v < self.desired_speed)
+        ) if not should_brake else False
+        
+        # Check if we need to accelerate to maintain safe distance
+        should_accelerate_for_distance = any(
+            r.type == EntityRelationEnum.ACCELERATING and r.obj1 == ''
+            for r in state.relations
+        ) if not (should_brake or should_decelerate) else False
+        
+        # Normal acceleration if below desired speed and no other constraints
+        should_accelerate = (not should_brake and not should_decelerate and 
+                            not should_accelerate_for_distance and 
+                            curr_v < self.desired_speed)
 
         if DEBUG:
             print("[DEBUG] YieldTrajectoryPlanner.update: stay_braking =", stay_braking)
             print("[DEBUG] YieldTrajectoryPlanner.update: should_brake =", should_brake)
             print("[DEBUG] YieldTrajectoryPlanner.update: should_accelerate =", should_accelerate)
             print("[DEBUG] YieldTrajectoryPlanner.update: should_decelerate =", should_decelerate)
+            print("[DEBUG] YieldTrajectoryPlanner.update: should_accelerate_for_distance =", should_accelerate_for_distance)
 
         if stay_braking:
             traj = longitudinal_brake(route_with_lookahead, 0.0, 0.0, 0.0)
@@ -462,16 +478,24 @@ class YieldTrajectoryPlanner(Component):
         elif should_brake:
             traj = longitudinal_brake(route_with_lookahead, self.emergency_brake, curr_v)
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake (emergency).")
         elif should_decelerate:
-            traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+            # Use standard deceleration for yielding, gentler for distance maintenance
+            decel_value = self.deceleration
+            traj = longitudinal_brake(route_with_lookahead, decel_value, curr_v)
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+                print(f"[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake with decel={decel_value}.")
+        elif should_accelerate_for_distance:
+            # Accelerate to maintain proper following distance
+            traj = longitudinal_plan(route_with_lookahead, self.follow_acceleration,
+                                    self.deceleration, self.desired_speed, curr_v)
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan (accelerate for distance).")
         elif should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration,
-                                     self.deceleration, self.desired_speed, curr_v)
+                                    self.deceleration, self.desired_speed, curr_v)
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan (accelerate).")
+                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan (normal accelerate).")
         else:
             # Maintain current speed if not accelerating or braking.
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
