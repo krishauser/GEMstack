@@ -56,28 +56,28 @@ def get_intrinsics(folder):
     model = image_geometry.PinholeCameraModel()
     model.fromCameraInfo(oak_info)
     with open(os.path.join(folder, "oak.txt"), "w") as f:
-        f.write(model.intrinsicMatrix())
+        f.write(str(model.intrinsicMatrix()))
     model.fromCameraInfo(stereo_info)
     with open(os.path.join(folder, "stereo.txt"), "w") as f:
-        f.write(model.intrinsicMatrix())
+        f.write(str(model.intrinsicMatrix()))
     model.fromCameraInfo(right_info)
     with open(os.path.join(folder, "right.txt"), "w") as f:
-        f.write(model.intrinsicMatrix())
+        f.write(str(model.intrinsicMatrix()))
     model.fromCameraInfo(left_info)
     with open(os.path.join(folder, "left.txt"), "w") as f:
-        f.write(model.intrinsicMatrix())
+        f.write(str(model.intrinsicMatrix()))
     model.fromCameraInfo(fl_info)
     with open(os.path.join(folder, "fl.txt"), "w") as f:
-        f.write(model.intrinsicMatrix())
+        f.write(str(model.intrinsicMatrix()))
     model.fromCameraInfo(fr_info)
     with open(os.path.join(folder, "fr.txt"), "w") as f:
-        f.write(model.intrinsicMatrix())
+        f.write(str(model.intrinsicMatrix()))
     model.fromCameraInfo(rl_info)
     with open(os.path.join(folder, "rl.txt"), "w") as f:
-        f.write(model.intrinsicMatrix())
+        f.write(str(model.intrinsicMatrix()))
     model.fromCameraInfo(rr_info)
     with open(os.path.join(folder, "rr.txt"), "w") as f:
-        f.write(model.intrinsicMatrix())
+        f.write(str(model.intrinsicMatrix()))
 
 def main(folder='data'):
     rospy.init_node("capture_cam_info",disable_signals=True)
