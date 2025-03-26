@@ -239,9 +239,9 @@ def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration 
         
     points = new_points
     times = new_times
-    print("[PLAN] Computed points:", points)
-    print("[TIME] Computed time:", times)
-    print("[Velocities] Computed velocities:", velocities)
+    # print("[PLAN] Computed points:", points)
+    # print("[TIME] Computed time:", times)
+    # print("[Velocities] Computed velocities:", velocities)
 
     #=============================================
 
@@ -596,9 +596,9 @@ def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float
         
     points = new_points
     times = new_times
-    print("[PLAN] Computed points:", points)
-    print("[TIME] Computed time:", times)
-    print("[Velocities] Computed velocities:", velocities)
+    # print("[PLAN] Computed points:", points)
+    # print("[TIME] Computed time:", times)
+    # print("[Velocities] Computed velocities:", velocities)
 
     #=============================================
 
@@ -632,7 +632,7 @@ def longitudinal_brake(path : Path, deceleration : float, current_speed : float)
         new_points.append([x, 0])
         velocities.append(current_speed - deceleration * t)
     points = new_points
-    print("[BRAKE] Computed points:", points)
+    # print("[BRAKE] Computed points:", points)
 
     #=============================================
 
@@ -725,6 +725,13 @@ class YieldTrajectoryPlanner(Component):
 
         print(f"Desired speed: {desired_speed:.2f} m/s")
         print(f"Deceleration: {decel:.2f} m/s^2")
+
+        # Handle lead vehicle for ACC
+        for r in state.relations:
+            if r.type == EntityRelationEnum.FOLLOWING and r.obj1 == '':
+                if r.acceleration < 0:
+                    should_brake = True
+                    decel = -r.acceleration    
 
         should_accelerate = (not should_brake and curr_v < self.desired_speed)
 

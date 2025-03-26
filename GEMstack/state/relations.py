@@ -15,6 +15,7 @@ class EntityRelationEnum(Enum):
     YIELDING = 6                # obj1 is yielding to obj2, allowing obj2 to pass
     MERGING_AHEAD = 7           # obj1 is merging / lane changing ahead of a obj2
     MERGING_BEHIND = 8          # obj1 is merging / lane changing behind of obj2
+    FOLLOWING = 9               # obj1 is following obj2 
 
 
 @dataclass
@@ -23,9 +24,10 @@ class EntityRelation:
     type : EntityRelationEnum
     obj1 : str                  # Named object in the scene. '' indicates ego-vehicle
     obj2 : str                  # Named object in the scene. '' indicates ego-vehicle
-    yield_dist  : float         # Distance at which obj1 yields to obj2
-    yield_speed : float         # Speed at which obj1 yields to obj2
-    yield_decel : float         # Deceleration at which obj1 yields to obj2
+    yield_dist  : float = 0.0   # Distance at which obj1 yields to obj2
+    yield_speed : float = 0.0   # Speed at which obj1 yields to obj2
+    yield_decel : float = 0.0   # Deceleration at which obj1 yields to obj2
+    acceleration : float = 0.0  # Acceleration of obj1
     
 
 class EntityRelationGraph:
