@@ -96,11 +96,11 @@ def generate_route_free_run(current_pose, goal_position, roadgraph, roadgraph_ty
     waypoints = []
     for _ in range(try_times):
         waypoints = searcher.search()
-        # print("waypoints:", waypoints)
-        if not waypoints:
-            raise RuntimeError('No waypoints found')
-        else:
+        if waypoints:
             break
+    print("waypoints:", waypoints)
+    if not waypoints:
+        raise RuntimeError('No waypoints found')
     return waypoints
 
 
@@ -126,7 +126,7 @@ class SummoningRoutePlanner(Component):
         return ['route']
 
     def rate(self):
-        return 1.0
+        return 10.0
 
     def update(self, vehicle: VehicleState):
         self.current_pose = vehicle.pose
