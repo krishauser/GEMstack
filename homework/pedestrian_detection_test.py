@@ -39,6 +39,8 @@ class AgentState:
 # 2) Helper Functions
 # -----------------------------
 
+
+
 def match_existing_pedestrian(new_center, new_dims, existing_agents, distance_threshold=1.0):
     """
     Return the agent_id of the best match if within distance_threshold; otherwise None.
@@ -139,6 +141,33 @@ def remove_ground_by_min_range(cluster, z_range=0.05):
     return cluster[cluster[:, 2] > (min_z + z_range)]
 
 
+def display_reprojected_cluster(image, refined_cluster, T_l2c, K):
+
+    # 确保 refined_cluster 至少有一个点
+    if refined_cluster is None or refined_cluster.shape[0] == 0:
+        return image
+
+    # 将 refined_cluster 转换为齐次坐标 (N, 4)
+    N = refined_cluster.shape[0]
+    pts_hom = np.hstack((refined_cluster, np.ones((N, 1))))
+
+    # 利用 T_l2c 将 LiDAR 坐标转换到相机坐标系
+    pts_cam = (T_l2c @ pts_hom.T).T  # (N, 4)
+    pts_cam = pts_cam[:, :3]  # 取前三列
+
+    # 遍历每个点，投影到图像平面并绘制蓝色圆点 (BGR: (255,0,0))
+    for p in pts_cam:
+        X, Y, Z = p
+        if Z <= 0:  # 只投影前方点
+            continue
+        u = int((K[0, 0] * X / Z) + K[0, 2])
+        v = int((K[1, 1] * Y / Z) + K[1, 2])
+        cv2.circle(image, (u, v), 2, (255, 0, 0), -1)
+
+    # 显示带投影点的图像
+    cv2.imshow("Reprojected Cluster", image)
+    cv2.waitKey(0)
+    return image
 # -----------------------------
 # 3) PedestrianDetector2D
 # -----------------------------
@@ -236,6 +265,7 @@ class PedestrianDetector2D:
             # Remove ground points
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
             # If no points remain, or too few, just skip
+            display_reprojected_cluster(image, refined_cluster, self.T_l2c, self.K)
 
             if refined_cluster is None or refined_cluster.shape[0] == 0:
                 refined_center = intersection
@@ -321,7 +351,7 @@ class PedestrianDetector2D:
                 )
                 agents[agent_id] = new_agent
                 self.tracked_agents[agent_id] = new_agent
-        print("THISIS", time.time() - start)
+        # print("THISIS", time.time() - start)
         return agents
 
 def load_lidar_from_npz(file_path):
@@ -354,7 +384,7 @@ def main():
     print(f"Found {num_frames} matching frames.")
 
     # Process each frame
-    for i in range(8, 10):
+    for i in range(36, 43):
         print(f"\n--- Frame {i+1}/{num_frames} ---")
         image = cv2.imread(f'../data/color{i}.png')
         if image is None:
@@ -363,7 +393,6 @@ def main():
         try:
             lidar_points = load_lidar_from_npz(f'../data/lidar{i}.npz')
         except Exception as e:
-            print(f"加载 {lidar_files[i]} 时出错：{e}")
             continue
 
         # A simple “timestamp” or frame index
@@ -377,7 +406,7 @@ def main():
             print(f"Detected {len(agents)} agents:")
             for agent_id, agent_state in agents.items():
                 p = agent_state.pose
-                print(f"  {agent_id}: pos=({p.x:.2f},{p.y:.2f},{p.z:.2f}), yaw={p.yaw:.1f} deg")
+                print(f"  {agent_id}: pos=({p.x:.2f},{p.y:.2f},{p.z:.2f})")
         else:
             print("No agents detected in this frame.")
 
