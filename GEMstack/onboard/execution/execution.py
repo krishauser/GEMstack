@@ -593,41 +593,59 @@ class ExecutorBase:
 
         self.last_hardware_faults = set(faults)
 
-    def validate_sensors(self,numsteps=None):
+    def validate_sensors(self, numsteps=None):
         """Verifies sensors are working"""
-        (perception_components,planning_components,other_components) = self.pipelines[self.current_pipeline]
+        (perception_components, planning_components, other_components) = self.pipelines[self.current_pipeline]
+        
         if len(perception_components) == 0:
+            print("No perception components available. Skipping sensor validation.")
             return True
+
         components = list(perception_components.values()) + list(self.always_run_components.values())
         dt_min = min([c.dt for c in components if c.dt != 0.0])
-        looper = TimedLooper(dt_min,name="main executor")
+        looper = TimedLooper(dt_min, name="main executor")
         sensors_working = False
         num_attempts = 0
         t0 = time.time()
         next_print_time = t0 + 1.0
+
         while looper and not sensors_working:
             self.state.t = self.vehicle_interface.time()
             self.logging_manager.set_vehicle_time(self.state.t)
             self.last_loop_time = time.time()
 
-            #check for vehicle faults
+            # Check for vehicle faults
             self.check_for_hardware_faults()
 
-            self.update_components(perception_components,self.state)
+            # Update perception components
+            self.update_components(perception_components, self.state)
+            
+            # Check the health of each perception component
+            for name, component in perception_components.items():
+                healthy = component.healthy()
+                print(f"Sensor '{name}' health status: {'Healthy' if healthy else 'Not Healthy'}")
+
+            # Determine if all sensors are working
             sensors_working = all([c.healthy() for c in perception_components.values()])
 
-            self.update_components(self.always_run_components,self.state,force=True)
+            # Update always-run components
+            self.update_components(self.always_run_components, self.state, force=True)
             always_run_working = all([c.healthy() for c in self.always_run_components.values()])
+            
             if not always_run_working:
-                executor_debug_print(1,"Always-run components not working, ignoring")
+                executor_debug_print(1, "Always-run components not working, ignoring")
 
             num_attempts += 1
             if numsteps is not None and num_attempts >= numsteps:
+                print("Maximum number of attempts reached. Exiting sensor validation.")
                 return False
+            
             if time.time() > next_print_time:
-                executor_debug_print(1,"Waiting for sensors to be healthy...")
+                executor_debug_print(1, "Waiting for sensors to be healthy...")
                 next_print_time += 1.0
-        return True
+
+        print("Sensor validation completed. All sensors healthy." if sensors_working else "Sensor validation failed.")
+        return sensors_working
 
     def run_until_switch(self):
         """Runs a pipeline until a switch is requested."""
