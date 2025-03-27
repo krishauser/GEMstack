@@ -26,7 +26,9 @@ log:
     # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
     #suffix : 'test3'  
     # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
-    ros_topics : []
+    ros_topics : [
+        '/oak/rgb/image_raw',
+        ]
     # Specify options to pass to rosbag record. Default is no options.
     #rosbag_options : '--split --size=1024' 
     # If True, then record all readings / commands of the vehicle interface. Default False
@@ -37,8 +39,6 @@ log:
     #state: ['all']
     # Specify the rate in Hz at which to record state to state.json. Default records at the pipeline's rate
     #state_rate: 10
-    # If True, then make plots of the recorded data specifically from PurePursuitTrajectoryTracker_debug.csv and report metrics. Default False
-    #auto_plot : True
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
     log: 
