@@ -9,6 +9,10 @@ from rclpy.node import Node
 from rclpy.clock import Clock
 from std_msgs.msg import String, Bool, Float32, Float64
 from sensor_msgs.msg import Image,PointCloud2
+
+import threading
+from rclpy.executors import MultiThreadedExecutor
+
 try:
     from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
 except ImportError:
@@ -29,7 +33,7 @@ import cv2
 import numpy as np
 from ...utils import conversions
 
-from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
+from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy, QoSLivelinessPolicy
 
 # Define a default QoS profile
 qos_profile = QoSProfile(
@@ -116,6 +120,10 @@ class GEMHardwareInterface(GEMInterface):
         
         #subscribers should go last because the callback might be called before the object is initialized
         self.enable_sub = self.node.create_subscription(Bool, '/pacmod/as_tx/enable', self.pacmod_enable_callback, qos_profile)
+        executor = MultiThreadedExecutor()
+        executor.add_node(self.node)
+        executor_thread = threading.Thread(target=executor.spin, daemon=True)
+        executor_thread.start()
 
 
     def start(self):
@@ -184,6 +192,7 @@ class GEMHardwareInterface(GEMInterface):
                     self.gnss_sub = self.node.create_subscription(Inspva, topic, callback_with_gnss_reading, qos_profile)
             else:
                 #assume it's septentrio on GEM e4
+                print("type",type)
                 if type is not None and (type is not INSNavGeod and type is not GNSSReading):
                     raise ValueError("GEMHardwareInterface GEM e4 only supports INSNavGeod/GNSSReading for GNSS")
                 if type is INSNavGeod:
@@ -201,7 +210,18 @@ class GEMHardwareInterface(GEMInterface):
                                     )
                         speed = np.sqrt(msg.ve**2 + msg.vn**2)
                         callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
-                    self.gnss_sub = self.node.create_subscription(INSNavGeod, topic, callback_with_gnss_reading, qos_profile)
+                    # gnss_qos_profile = QoSProfile(
+                    #     reliability=QoSReliabilityPolicy.RELIABLE,
+                    #     history=QoSHistoryPolicy.KEEP_LAST,
+                    #     depth=10,
+                    #     durability=QoSDurabilityPolicy.VOLATILE,
+                    #     liveliness=QoSLivelinessPolicy.AUTOMATIC
+                    # )
+                    self.gnss_sub = self.node.create_subscription(INSNavGeod, topic, callback_with_gnss_reading, QoSProfile(
+                reliability=QoSReliabilityPolicy.RELIABLE,
+                durability=QoSDurabilityPolicy.VOLATILE,
+                depth=10
+            ))
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
@@ -210,7 +230,7 @@ class GEMHardwareInterface(GEMInterface):
                 self.top_lidar_sub = self.node.create_subscription(PointCloud2, topic, callback, qos_profile)
             else:
                 def callback_with_numpy(msg : Image):
-                    #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
+                    # print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
                     points = conversions.ros_PointCloud2_to_numpy(msg, want_rgb=False)
                     callback(points)
                 self.top_lidar_sub = self.node.create_subscription(PointCloud2, topic, callback_with_numpy, qos_profile)
@@ -305,7 +325,8 @@ class GEMHardwareInterface(GEMInterface):
         self.accel_cmd.f64_cmd = command.accelerator_pedal_position
         if command.brake_pedal_position > 0.0:
             self.accel_cmd.f64_cmd = 0.0
-        self.brake_cmd.f64_cmd = command.brake_pedal_position
+        print("command.brake_pedal_position",command.brake_pedal_position)
+        self.brake_cmd.f64_cmd = float(command.brake_pedal_position)
         self.steer_cmd.angular_position = command.steering_wheel_angle
         self.steer_cmd.angular_velocity_limit = command.steering_wheel_speed
         print("**************************")

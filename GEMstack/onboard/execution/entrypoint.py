@@ -47,16 +47,17 @@ def main():
     has_ros = False
     try:
         import rclpy
+        from rclpy.executors import MultiThreadedExecutor
+        import threading
         rclpy.init(args=sys.argv)
-        rclpy.create_node('GEM_executor')#,disable_signals=True)
         has_ros = True
     except (ImportError,ModuleNotFoundError):
+
         if mode == 'simulation':
             print(EXECUTION_PREFIX,"Warning, ROS not found, but simulation mode requested")
         else:
             print(EXECUTION_PREFIX,"Error, ROS not found on system.")
             raise
-
     #create top-level components
     vehicle_interface = make_class(vehicle_interface_settings,'default','GEMstack.onboard.interface')
     mission_executor = make_class(mission_executor_settings,'execution','GEMstack.onboard.execution',{'vehicle_interface':vehicle_interface})
@@ -160,8 +161,10 @@ def main():
         vehicle_interface.stop()
 
     if has_ros:
-        #need manual ros node shutdown due to disable_signals=True
-        rclpy.shutdown()
+        executor = MultiThreadedExecutor()
+        executor.add_node(vehicle_interface.node)
+        executor_thread = threading.Thread(target=executor.spin, daemon=True)
+        executor_thread.start()
     
     print(EXECUTION_PREFIX,"---------------- DONE ----------------")
     if log_settings and settings.get('run.after.show_log_folder',False):

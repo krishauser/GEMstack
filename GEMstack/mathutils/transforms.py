@@ -1,8 +1,8 @@
-
 import numpy as np
 from klampt.math import vectorops as vo
 from klampt.math import so2
 from typing import Tuple
+import math
 
 def normalize_angle(angle : float) -> float:
     """Normalizes an angle to be in the range [0,2pi]"""
@@ -112,24 +112,54 @@ def yaw_to_heading(yaw : float, degrees=True) -> float:
     else:
         return np.radians(heading_degrees)
 
-def lat_lon_to_xy(lat : float, lon : float, lat_reference : float, lon_reference : float):
-    """ Conversion of Lat & Lon to X & Y.
-
-    Returns (x,y), where x is east in m, y is north in m.
+def lat_lon_to_xy(lat: float, lon: float, lat_ref: float, lon_ref: float) -> Tuple[float, float]:
+    """Convert geographic coordinates to local Cartesian coordinates.
+    
+    Args:
+        lat, lon: Target point (degrees)
+        lat_ref, lon_ref: Reference origin point (degrees)
+        
+    Returns:
+        (east_x, north_y) in meters
     """
-    import alvinxy.alvinxy as axy 
-    # convert GNSS waypoints into local fixed frame reprented in x and y
-    east_x, north_y = axy.ll2xy(lat, lon, lat_reference, lon_reference)
-    return east_x, north_y
+    # Earth radius in meters
+    R = 6371000.0  
+    
+    # Convert reference latitude to radians
+    lat_ref_rad = math.radians(lat_ref)
+    
+    # Calculate deltas in degrees
+    delta_lat = lat - lat_ref
+    delta_lon = lon - lon_ref
+    
+    # Convert to meters
+    x = R * math.radians(delta_lon) * math.cos(lat_ref_rad)
+    y = R * math.radians(delta_lat)
+    
+    return x, y
 
-def xy_to_lat_lon(x_east : float, y_north : float, lat_reference : float, lon_reference : float):
-    """ Conversion of X & Y to Lat & Lon.
-
-    Returns (lat,lon), where lat and lon are in degrees.
+def xy_to_lat_lon(x: float, y: float, lat_ref: float, lon_ref: float) -> Tuple[float, float]:
+    """Convert local Cartesian coordinates back to geographic coordinates.
+    
+    Args:
+        x: Easting in meters
+        y: Northing in meters
+        lat_ref, lon_ref: Reference origin point (degrees)
+        
+    Returns:
+        (latitude, longitude) in degrees
     """
-    import alvinxy.alvinxy as axy 
-    # convert GNSS waypoints into local fixed frame reprented in x and y
-    lat, lon = axy.xy2ll(x_east, y_north, lat_reference, lon_reference)
+    R = 6371000.0
+    lat_ref_rad = math.radians(lat_ref)
+    
+    # Convert meters to degrees
+    delta_lon = x / (R * math.cos(lat_ref_rad))
+    delta_lat = y / R
+    
+    # Calculate final coordinates
+    lat = lat_ref + math.degrees(delta_lat)
+    lon = lon_ref + math.degrees(delta_lon)
+    
     return lat, lon
 
 def quaternion_to_euler(x : float, y : float, z : float, w : float):
