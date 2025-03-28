@@ -196,7 +196,7 @@ def visualize_geometries(geometries, window_name="Open3D", width=800, height=600
 
 def main():
     # Load the color image.
-    idx = 7
+    idx = 9
 
     img = cv2.imread(f"../data/color{idx}.png")
     if img is None:

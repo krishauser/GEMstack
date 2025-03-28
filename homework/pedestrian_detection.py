@@ -188,12 +188,17 @@ class PedestrianDetector2D(Component):
 
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
+<<<<<<< HEAD
         self.current_agents = {}
         self.tracked_agents = {}
         self.pedestrian_counter = 0
         # Variables to store synchronized sensor data:
         self.latest_image = None
         self.latest_lidar = None
+=======
+        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
+        self.last_person_boxes = []
+>>>>>>> af6089cb57e0b929e85028039fb16c4d4e151ddb
 
     def rate(self) -> float:
         return 4.0
@@ -205,6 +210,7 @@ class PedestrianDetector2D(Component):
         return ['agents']
 
     def initialize(self):
+<<<<<<< HEAD
         # Instead of individual subscriptions, use message_filters to synchronize
         self.rgb_sub = Subscriber('/oak/rgb/image_raw', Image)
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
@@ -304,6 +310,34 @@ class PedestrianDetector2D(Component):
                                                      1.0])
                 refined_center_vehicle_hom = self.T_l2v @ refined_center_lidar_hom
                 refined_center_vehicle = refined_center_vehicle_hom[:3]
+=======
+        #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
+        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
+        pass
+    
+    def image_callback(self, image : cv2.Mat):
+        detection_result = self.detector(image)
+        self.last_person_boxes = []
+        for result in detection_result:
+            for box in result.boxes:
+                if int(box.cls[0]) == 0: # check if bounding box is a person
+                    x, y, w, h = box.xywh[0].int().tolist()
+                    self.last_person_boxes.append((x, y, w, h))
+        #uncomment if you want to debug the detector...
+        #for bb in self.last_person_boxes:
+        #    x,y,w,h = bb
+        #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
+        #cv2.imwrite("pedestrian_detections.png",image)
+    
+    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
+        res = {}
+        for i,b in enumerate(self.last_person_boxes):
+            x,y,w,h = b
+            res['pedestrian'+str(i)] = box_to_fake_agent(b)
+        if len(res) > 0:
+            print("Detected",len(res),"pedestrians")
+        return res
+>>>>>>> af6089cb57e0b929e85028039fb16c4d4e151ddb
 
                 R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                 euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)

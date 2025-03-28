@@ -1,25 +1,22 @@
-#from ultralytics import YOLO
+from ultralytics import YOLO
 import cv2
 import sys
 from ultralytics import YOLO
 import numpy as np
 
+model = YOLO("yolov8n.pt")
 
-def person_detector(img: cv2.Mat) -> list[tuple[float, float, float, float]]:
-    """Detect persons in an image and return their bounding boxes in xywh format.
+def person_detector(img : cv2.Mat):
+    #TODO: implement me to produce a list of (x,y,w,h) bounding boxes of people in the image
+    bboxes = []
+    results = model(img)
 
-    Args:
-        img (cv2.Mat): Input image in OpenCV BGR format
-
-    Returns:
-        List of bounding box tuples (x_center, y_center, width, height)
-    """
-    # Initialize YOLOv11 model
-    model = YOLO("yolov8n.pt")
-
-    results = model.predict(img, conf=0.5, classes=[0])  # detect only person (class id: 0)
-    boxes = results[0].boxes.xywh.tolist()  # each box: [x, y, w, h]
-    return boxes
+    for result in results:
+        for box in result.boxes:
+            if int(box.cls[0]) == 0: # check if bounding box is a person
+                x, y, w, h = box.xywh[0].int().tolist()
+                bboxes.append((x, y, w, h))
+    return bboxes
 
 def main(fn):
     image = cv2.imread(fn)
