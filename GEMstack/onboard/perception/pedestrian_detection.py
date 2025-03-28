@@ -16,6 +16,7 @@ from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
 import time
 import math
+import ros_numpy
 
 
 # ----- Helper Functions -----
@@ -62,16 +63,38 @@ def extract_roi_box(lidar_pc, center, half_extents):
     return lidar_pc[mask]
 
 
+# def pc2_to_numpy(pc2_msg, want_rgb=False):
+#     """
+#     Convert a ROS PointCloud2 message into a numpy array.
+#     This function extracts the x, y, z coordinates from the point cloud.
+#     """
+#     start = time.time()
+#     gen = pc2.read_points(pc2_msg, skip_nans=True)
+#     end = time.time()
+#     print('Read lidar points: ', end - start)
+#     start = time.time()
+#     pts = np.array(list(gen), dtype=np.float16)
+#     pts = pts[:, :3]  # Only x, y, z coordinates
+#     mask = (pts[:, 0] > 0) & (pts[:, 2] < 2.5)
+#     end = time.time()
+#     print('Convert to numpy: ', end - start)
+#     return pts[mask]
+
 def pc2_to_numpy(pc2_msg, want_rgb=False):
     """
-    Convert a ROS PointCloud2 message into a numpy array.
+    Convert a ROS PointCloud2 message into a numpy array quickly using ros_numpy.
     This function extracts the x, y, z coordinates from the point cloud.
     """
-    gen = pc2.read_points(pc2_msg, skip_nans=True)
-    pts = np.array(list(gen), dtype=np.float32)
-    pts = pts[:, :3]  # Only x, y, z coordinates
+    # Convert the ROS message to a numpy structured array
+    pc = ros_numpy.point_cloud2.pointcloud2_to_array(pc2_msg)
+    # Convert each field to a 1D array and stack along axis 1 to get (N, 3)
+    pts = np.stack((np.array(pc['x']).ravel(),
+                    np.array(pc['y']).ravel(),
+                    np.array(pc['z']).ravel()), axis=1)
+    # Apply filtering (for example, x > 0 and z < 2.5)
     mask = (pts[:, 0] > 0) & (pts[:, 2] < 2.5)
     return pts[mask]
+
 
 
 def backproject_pixel(u, v, K):
@@ -191,16 +214,24 @@ def pose_to_matrix(pose):
     Assumes pose has attributes: x, y, z, yaw, pitch, roll,
     where the angles are given in degrees.
     """
-    # Convert Euler angles from degrees to radians
-    yaw = math.radians(pose.yaw)
-    pitch = math.radians(pose.pitch)
-    roll = math.radians(pose.roll)
-    # Create rotation matrix using 'zyx' convention
+    # Use default values if any are None (e.g. if the car is not moving)
+    x = pose.x if pose.x is not None else 0.0
+    y = pose.y if pose.y is not None else 0.0
+    z = pose.z if pose.z is not None else 0.0
+    if pose.yaw is not None and pose.pitch is not None and pose.roll is not None:
+        yaw = math.radians(pose.yaw)
+        pitch = math.radians(pose.pitch)
+        roll = math.radians(pose.roll)
+    else:
+        yaw = 0.0
+        pitch = 0.0
+        roll = 0.0
     R_mat = R.from_euler('zyx', [yaw, pitch, roll]).as_matrix()
     T = np.eye(4)
     T[:3, :3] = R_mat
-    T[:3, 3] = np.array([pose.x, pose.y, pose.z])
+    T[:3, 3] = np.array([x, y, z])
     return T
+
 
 def transform_points_l2c(lidar_points, T_l2c):
     N = lidar_points.shape[0]
@@ -291,12 +322,16 @@ class PedestrianDetector2D(Component):
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
     def synchronized_callback(self, image_msg, lidar_msg):
+        step1 = time.time()
         try:
             self.latest_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
         except Exception as e:
             rospy.logerr("Failed to convert image: {}".format(e))
             self.latest_image = None
+        step2 = time.time()
         self.latest_lidar = pc2_to_numpy(lidar_msg, want_rgb=False)
+        step3 = time.time()
+        print('image callback: ', step2-step1, 'lidar callback ', step3- step2)
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         downsample = False
@@ -316,11 +351,18 @@ class PedestrianDetector2D(Component):
 
         else:
             # New approach: project the entire LiDAR point cloud to the image plane
-            pts_cam = transform_points_l2c(self.latest_lidar, self.T_l2c)
-            projected_pts = project_points(pts_cam, self.K, self.latest_lidar)  # shape (N,5): [u, v, X, Y, Z]
+            step00 = time.time()
+            lidar_down = self.latest_lidar.copy()
+            step01 = time.time()
+            pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
+            step02 = time.time()
+            projected_pts = project_points(pts_cam, self.K, lidar_down)  # shape (N,5): [u, v, X, Y, Z]
+            step03 = time.time()
+            print(f'copy lidar data {step01-step00}s, transoforming to camear {step02-step01}s, transforming to image {step03-step02}s')
 
         # For each 2D bounding box, filter projected points instead of ray-casting
         for i, box in enumerate(boxes):
+            start = time.time()
             cx, cy, w, h = box
             left = int(cx - w / 2)
             right = int(cx + w / 2)
@@ -340,6 +382,8 @@ class PedestrianDetector2D(Component):
             # Cluster the points and remove ground
             refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=10)
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
+            end1 = time.time()
+            print('refine cluster: ', end1-start)
             if refined_cluster.shape[0] < 5:
                 continue
 
@@ -350,7 +394,8 @@ class PedestrianDetector2D(Component):
             refined_center = obb.center
             dims = tuple(obb.extent)
             R_lidar = obb.R.copy()
-
+            end2 = time.time()
+            print('compute bounding box ', end2-end1)
             # Transform the refined center from LiDAR to Vehicle frame
             refined_center_hom = np.append(refined_center, 1)
             refined_center_vehicle_hom = self.T_l2v @ refined_center_hom
@@ -428,10 +473,16 @@ class PedestrianDetector2D(Component):
         stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
                      if current_time - agent.pose.t > 5.0]
         for agent_id in stale_ids:
-            rospy.loginfo(f"Removing stale agent: {agent_id}")
-            del self.tracked_agents[agent_id]
+            rospy.loginfo(f"Removing stale agent: {agent_id}\n")
         for agent_id, agent in agents.items():
-            rospy.loginfo(f"Agent ID: {agent_id}, Pose: {agent.pose}, Velocity: {agent.velocity}")
+            p = agent.pose
+            # Format pose and velocity with 3 decimals (or as needed)
+            rospy.loginfo(
+                f"Agent ID: {agent_id}\n"
+                f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
+                f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
+                f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
+    )
         return agents
 
 
