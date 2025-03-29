@@ -26,7 +26,7 @@ from radar_msgs.msg import RadarTracks
 from tf_transformations import euler_from_quaternion, quaternion_from_euler
 
 # GEM PACMod Headers
-from pacmod2_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt, GlobalRpt
+from pacmod2_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt, GlobalRpt, SystemCmdInt, SystemCmdFloat
 
 # OpenCV and cv2 bridge
 import cv2
@@ -62,9 +62,9 @@ class GEMHardwareInterface(GEMInterface):
         self.last_reading.wiper_level = 0
         self.last_reading.headlights_on = False
         
-        self.speed_sub  = self.node.create_subscription(VehicleSpeedRpt, "/pacmod/parsed_tx/vehicle_speed_rpt", self.speed_callback, qos_profile)
-        self.steer_sub = self.node.create_subscription(SystemRptFloat, "/pacmod/parsed_tx/steer_rpt", self.steer_callback, qos_profile)
-        self.global_sub = self.node.create_subscription(GlobalRpt, "/pacmod/parsed_tx/global_rpt", self.global_callback, qos_profile)
+        self.speed_sub  = self.node.create_subscription(VehicleSpeedRpt, "/pacmod/vehicle_speed_rpt", self.speed_callback, qos_profile)
+        self.steer_sub = self.node.create_subscription(SystemRptFloat, "/pacmod/steering_rpt", self.steer_callback, qos_profile)
+        self.global_sub = self.node.create_subscription(GlobalRpt, "/pacmod/global_rpt", self.global_callback, qos_profile)
         self.gnss_sub = None
         self.imu_sub = None
         self.front_radar_sub = None
@@ -76,50 +76,50 @@ class GEMHardwareInterface(GEMInterface):
 
         # -------------------- PACMod setup --------------------
         # GEM vehicle enable
-        self.enable_pub = self.node.create_publisher(Bool, '/pacmod/as_rx/enable', 1)
-        self.pacmod_enable = False
+        # self.enable_pub = self.node.create_publisher(Bool, '/pacmod/enable', 1)
+        self.pacmod_enable = True
 
         # GEM vehicle gear control, neutral, forward and reverse, publish once
-        self.gear_pub = self.node.create_publisher(PacmodCmd, '/pacmod/as_rx/shift_cmd', 1)
-        self.gear_cmd = PacmodCmd()
-        self.gear_cmd.enable = True
-        self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_NEUTRAL 
+        self.gear_pub = self.node.create_publisher(SystemCmdInt, '/pacmod/shift_cmd', 1)
+        self.gear_cmd = SystemCmdInt()
+        # self.gear_cmd.enable = True
+        self.gear_cmd.command = SystemCmdInt.SHIFT_NEUTRAL 
 
         # GEM vehicle brake control
-        self.brake_pub = self.node.create_publisher(PacmodCmd, '/pacmod/as_rx/brake_cmd', 1)
-        self.brake_cmd = PacmodCmd()
-        self.brake_cmd.enable = False
-        self.brake_cmd.clear  = True
-        self.brake_cmd.ignore = True
+        self.brake_pub = self.node.create_publisher(SystemCmdFloat, '/pacmod/brake_cmd', 1)
+        self.brake_cmd = SystemCmdFloat()
+        # self.brake_cmd.enable = False
+        # self.brake_cmd.clear  = True
+        # self.brake_cmd.ignore = True
 
         # GEM vehicle forward motion control
-        self.accel_pub = self.node.create_publisher(PacmodCmd, '/pacmod/as_rx/accel_cmd', 1)
-        self.accel_cmd = PacmodCmd()
-        self.accel_cmd.enable = False
-        self.accel_cmd.clear  = True
-        self.accel_cmd.ignore = True
+        self.accel_pub = self.node.create_publisher(SystemCmdFloat, '/pacmod/accel_cmd', 1)
+        self.accel_cmd = SystemCmdFloat()
+        # self.accel_cmd.enable = False
+        # self.accel_cmd.clear  = True
+        # self.accel_cmd.ignore = True
 
         # GEM vehicle turn signal control
-        self.turn_pub = self.node.create_publisher(PacmodCmd, '/pacmod/as_rx/turn_cmd', 1)
-        self.turn_cmd = PacmodCmd()
-        self.turn_cmd.ui16_cmd = 1 # None
+        self.turn_pub = self.node.create_publisher(SystemCmdInt, '/pacmod/turn_cmd', 1)
+        self.turn_cmd = SystemCmdInt()
+        self.turn_cmd.command = 1 # None
 
         # GEM vechile steering wheel control
-        self.steer_pub = self.node.create_publisher(PositionWithSpeed, '/pacmod/as_rx/steer_cmd', 1)
+        self.steer_pub = self.node.create_publisher(PositionWithSpeed, '/pacmod/steering_cmd', 1)
         self.steer_cmd = PositionWithSpeed()
         self.steer_cmd.angular_position = 0.0 # radians, -: clockwise, +: counter-clockwise
         self.steer_cmd.angular_velocity_limit = 2.0 # radians/second
 
         """TODO: other commands
-        /pacmod/as_rx/headlight_cmd
-        /pacmod/as_rx/horn_cmd
-        /pacmod/as_rx/wiper_cmd
+        /pacmod/headlight_cmd
+        /pacmod/horn_cmd
+        /pacmod/wiper_cmd
         """
 
         #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
         
         #subscribers should go last because the callback might be called before the object is initialized
-        self.enable_sub = self.node.create_subscription(Bool, '/pacmod/as_tx/enable', self.pacmod_enable_callback, qos_profile)
+        # self.enable_sub = self.node.create_subscription(Bool, '/pacmod/enabled', self.pacmod_enable_callback, qos_profile)
         executor = MultiThreadedExecutor()
         executor.add_node(self.node)
         executor_thread = threading.Thread(target=executor.spin, daemon=True)
@@ -133,7 +133,7 @@ class GEMHardwareInterface(GEMInterface):
             print("ENABLING PACMOD")
             enable_cmd = Bool()
             enable_cmd.data = True
-            self.enable_pub.publish(enable_cmd)
+            # self.enable_pub.publish(enable_cmd)
             #this doesn't seem to work super well, need to send enable command multiple times
     
     def time(self):
@@ -150,20 +150,20 @@ class GEMHardwareInterface(GEMInterface):
         self.faults = []
         if msg.override_active:
             self.faults.append("override_active")
-        if msg.config_fault_active:
-            self.faults.append("config_fault_active")
-        if msg.user_can_timeout:
+        # if msg.config_fault_active:
+        #     self.faults.append("config_fault_active")
+        if msg.usr_can_timeout:
             self.faults.append("user_can_timeout")
         if msg.user_can_read_errors:
             self.faults.append("user_can_read_errors")
-        if msg.brake_can_timeout:
+        if msg.brk_can_timeout:
             self.faults.append("brake_can_timeout")
-        if msg.steering_can_timeout:
+        if msg.str_can_timeout:
             self.faults.append("steering_can_timeout")
-        if msg.vehicle_can_timeout:
+        if msg.veh_can_timeout:
             self.faults.append("vehicle_can_timeout")
-        if msg.subsystem_can_timeout:
-            self.faults.append("subsystem_can_timeout")
+        # if msg.subsystem_can_timeout:
+        #     self.faults.append("subsystem_can_timeout")
 
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading
@@ -265,13 +265,13 @@ class GEMHardwareInterface(GEMInterface):
 
 
     # PACMod enable callback function
-    def pacmod_enable_callback(self, msg):
-        if self.pacmod_enable == False and msg.data == True:
-            print("PACMod enabled, enabling gear, brake, accel, steer, and turn")
-            self.send_first_command()
-        elif self.pacmod_enable == True and msg.data == False:
-            print("PACMod disabled")
-        self.pacmod_enable = msg.data
+    # def pacmod_enable_callback(self, msg):
+    #     if self.pacmod_enable == False and msg.data == True:
+    #         print("PACMod enabled, enabling gear, brake, accel, steer, and turn")
+    #         self.send_first_command()
+    #     elif self.pacmod_enable == True and msg.data == False:
+    #         print("PACMod disabled")
+    #     self.pacmod_enable = msg.data
 
     def hardware_faults(self) -> List[str]:
         if self.pacmod_enable == False:
@@ -282,22 +282,22 @@ class GEMHardwareInterface(GEMInterface):
         # ---------- Enable PACMod ----------
 
         # enable forward gear
-        self.gear_cmd.enable = True
-        self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_FORWARD
+        # self.gear_cmd.enable = True
+        self.gear_cmd.command = SystemCmdInt.SHIFT_FORWARD
         #helps debug whether gear command is being sent since you'll hear the backup beep
         #self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_REVERSE
 
         # enable brake
-        self.brake_cmd.enable  = True
-        self.brake_cmd.clear   = False
-        self.brake_cmd.ignore  = False
-        self.brake_cmd.f64_cmd = 0.0
+        # self.brake_cmd.enable  = True
+        # self.brake_cmd.clear   = False
+        # self.brake_cmd.ignore  = False
+        self.brake_cmd.command = 0.0
 
         # enable gas 
-        self.accel_cmd.enable  = True
-        self.accel_cmd.clear   = False
-        self.accel_cmd.ignore  = False
-        self.accel_cmd.f64_cmd = 0.0
+        # self.accel_cmd.enable  = True
+        # self.accel_cmd.clear   = False
+        # self.accel_cmd.ignore  = False
+        self.accel_cmd.command = 0.0
 
         self.gear_pub.publish(self.gear_cmd)
         self.turn_pub.publish(self.turn_cmd)
@@ -314,44 +314,44 @@ class GEMHardwareInterface(GEMInterface):
         self.last_command_time = t
         
         if command.left_turn_signal and command.right_turn_signal:
-            self.turn_cmd.ui16_cmd = PacmodCmd.TURN_HAZARDS
+            self.turn_cmd.command = SystemCmdInt.TURN_HAZARDS
         elif command.left_turn_signal:
-            self.turn_cmd.ui16_cmd = PacmodCmd.TURN_LEFT 
+            self.turn_cmd.command = SystemCmdInt.TURN_LEFT 
         elif command.right_turn_signal:
-            self.turn_cmd.ui16_cmd = PacmodCmd.TURN_RIGHT
+            self.turn_cmd.command = SystemCmdInt.TURN_RIGHT
         else:
-            self.turn_cmd.ui16_cmd = PacmodCmd.TURN_NONE
+            self.turn_cmd.command = SystemCmdInt.TURN_NONE
 
-        self.accel_cmd.f64_cmd = command.accelerator_pedal_position
+        self.accel_cmd.command = command.accelerator_pedal_position
         if command.brake_pedal_position > 0.0:
-            self.accel_cmd.f64_cmd = 0.0
+            self.accel_cmd.command = 0.0
         print("command.brake_pedal_position",command.brake_pedal_position)
-        self.brake_cmd.f64_cmd = float(command.brake_pedal_position)
+        self.brake_cmd.command = float(command.brake_pedal_position)
         self.steer_cmd.angular_position = command.steering_wheel_angle
         self.steer_cmd.angular_velocity_limit = command.steering_wheel_speed
         print("**************************")
         print("Steer cmd angular position {} velocity limit {}".format(self.steer_cmd.angular_position,self.steer_cmd.angular_velocity_limit))
-        print("Accel pedal position {} brake position {}".format(self.accel_cmd.f64_cmd,self.brake_cmd.f64_cmd))
+        print("Accel pedal position {} brake position {}".format(self.accel_cmd.command,self.brake_cmd.command))
         maxacc = settings.get('vehicle.limits.max_accelerator_pedal')
         maxbrake = settings.get('vehicle.limits.max_brake_pedal')
-        if self.accel_cmd.f64_cmd > maxacc:
+        if self.accel_cmd.command > maxacc:
             print("Warning: commanded acceleration exceeded accel pedal limit")
-            self.accel_cmd.f64_cmd = maxacc
-        if self.brake_cmd.f64_cmd > maxbrake:
+            self.accel_cmd.command = maxacc
+        if self.brake_cmd.command > maxbrake:
             print("Warning: commanded braking exceeded brake pedal limit")
-            self.brake_cmd.f64_cmd = maxbrake
+            self.brake_cmd.command = maxbrake
         print("**************************")
 
-        self.brake_cmd.enable  = True
-        self.brake_cmd.clear   = False
-        self.brake_cmd.ignore  = False
+        # self.brake_cmd.enable  = True
+        # self.brake_cmd.clear   = False
+        # self.brake_cmd.ignore  = False
 
-        self.accel_cmd.enable  = True
-        self.accel_cmd.clear   = False
-        self.accel_cmd.ignore  = False
+        # self.accel_cmd.enable  = True
+        # self.accel_cmd.clear   = False
+        # self.accel_cmd.ignore  = False
         
-        self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_FORWARD
-        self.gear_cmd.enable = True
+        self.gear_cmd.command = SystemCmdInt.SHIFT_FORWARD
+        # self.gear_cmd.enable = True
         self.gear_pub.publish(self.gear_cmd)
         self.accel_pub.publish(self.accel_cmd)
         self.brake_pub.publish(self.brake_cmd)

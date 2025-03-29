@@ -13,20 +13,20 @@
 - /zed2/zed_node/imu/data
 - /zed2/zed_node/imu/data_raw
 - /zed2/zed_node/imu/mag
-- /pacmod/as_rx/enable
-- /pacmod/as_rx/accel_cmd
-- /pacmod/as_rx/brake_cmd
-- /pacmod/as_rx/shift_cmd
-- /pacmod/as_rx/steer_cmd
-- /pacmod/as_rx/turn_cmd
-- /pacmod/as_rx/turn_signal_cmd
-- /pacmod/as_rx/vehicle_speed_cmd
-- /pacmod/as_tx/enable
-- /pacmod/as_tx/global_rpt
-- /pacmod/as_tx/accel_rpt
-- /pacmod/as_tx/brake_rpt
-- /pacmod/as_tx/shift_rpt
-- /pacmod/as_tx/steer_rpt
-- /pacmod/as_tx/turn_rpt
-- /pacmod/as_tx/vehicle_speed_rpt
+# - /pacmod/enabled
+- /pacmod/accel_cmd
+- /pacmod/brake_cmd
+- /pacmod/shift_cmd
+- /pacmod/steering_cmd
+- /pacmod/turn_cmd
+- /pacmod/turn_signal_cmd
+- /pacmod/vehicle_speed_cmd
+- /pacmod/enabled
+- /pacmod/global_rpt
+- /pacmod/accel_rpt
+- /pacmod/brake_rpt
+- /pacmod/shift_rpt
+- /pacmod/steering_rpt
+- /pacmod/turn_rpt
+- /pacmod/vehicle_speed_rpt
 
