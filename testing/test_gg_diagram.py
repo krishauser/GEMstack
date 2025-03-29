@@ -48,8 +48,7 @@ def parse_behavior_log(filename):
 def parse_tracker_csv(filename):
     """
     Parses the pure pursuit tracker log file and extracts the following data:
-      - vehicle time (from column index 18)
-      - Crosstrack error (from column index 20)
+      - vehicle time (from column index 19)
       - X position actual (from column index 2)
       - Y position actual (from column index 5)
       - X position desired (from column index 11)
@@ -57,11 +56,12 @@ def parse_tracker_csv(filename):
     """
 
     data = np.genfromtxt(filename, delimiter=',', skip_header=1)
-    vehicle_time = data[:, 18]
+    vehicle_time = data[:, 19]
     cte = data[:, 20]
     x_actual, y_actual = data[:, 2], data[:, 5]
     x_desired, y_desired = data[:, 11], data[:, 14]
-    return vehicle_time, cte, x_actual, y_actual, x_desired, y_desired
+    speed_actual = data[:, -1]
+    return vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual
 
 def compute_derivative(times, values):
     """
@@ -74,16 +74,17 @@ def compute_derivative(times, values):
     return times[1:], derivative
 
 def compute_gs(times, xs, ys):
-    print(times)
-    print(xs)
     xtimes, vxs = compute_derivative(times, xs)
     ytimes, vys = compute_derivative(times, ys)
-    axtimes, axs = compute_derivative(times[1:], vxs)
-    aytimes, ays = compute_derivative(times[1:], vys)
+    vs = np.sqrt(vxs**2 + vys**2)
+    long_times, long_accels = compute_derivative(times[1:], vs)
+    psis = np.arctan2(vys, vxs)
+    yaw_rate_times, yaw_rates = compute_derivative(times[1:], psis)
+    lat_accels = yaw_rates * vs[1:]
     g = 9.81
-    longitudinal_gs = axs / g
-    lateral_gs = ays / g
-    return longitudinal_gs, lateral_gs
+    longitudinal_gs = long_accels / g
+    lateral_gs = lat_accels / g
+    return longitudinal_gs, lateral_gs, vs, lat_accels, long_accels
 
 def plot_position(axis, x_actual, y_actual, x_desired, y_desired, safe_thresh=1, unsafe_thresh=2.5):
     """Plots vehicle actual and desired positions vs. time"""
@@ -97,6 +98,23 @@ def plot_position(axis, x_actual, y_actual, x_desired, y_desired, safe_thresh=1,
     axis.set_xlabel("Y Position (m)")
     axis.set_ylabel("X Position (m)")
     axis.set_title("Vehicle Position vs. Desired Position")
+    axis.legend()
+    axis.grid(True)
+
+def plot_speeds(axis, speed_actual, comptued_speed, time):
+    axis.plot(time, comptued_speed, label='computed speed')
+    axis.plot(time, speed_actual, linestyle="--", label='current speed')
+    axis.set_xlabel("time")
+    axis.set_ylabel("speed m/s")
+    axis.set_title("current speed vs computed speed")
+    axis.legend()
+    axis.grid(True)
+
+def plot_accelerations(axis, accelerations, time):
+    axis.plot(time, accelerations, label='accelerationn')
+    axis.set_xlabel("time")
+    axis.set_ylabel("accel m/s^2")
+    axis.set_title("long accelerations")
     axis.legend()
     axis.grid(True)
 
@@ -139,13 +157,15 @@ if __name__=='__main__':
 
     # Pure pursuit tracker file exists: parse and plot all metrics
     if os.path.exists(tracker_file):
-        vehicle_time, cte, x_actual, y_actual, x_desired, y_desired = parse_tracker_csv(tracker_file)
+        vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual = parse_tracker_csv(tracker_file)
         
-        longitudinal_gs, lateral_gs = compute_gs(vehicle_time, x_actual, y_actual)
+        longitudinal_gs, lateral_gs, calculated_speed, lat_accels, long_accels = compute_gs(vehicle_time, x_actual, y_actual)
         # print(longitudinal_gs)
-        fig, axs = plt.subplots(1, 2, figsize=(12, 4))
-        plot_gg_diagram(axs[0], longitudinal_gs, lateral_gs)
-        plot_position(axs[1], x_actual, y_actual, x_desired, y_desired)
+        fig, axs = plt.subplots(2, 2, figsize=(12, 4))
+        plot_gg_diagram(axs[0, 0], longitudinal_gs, lateral_gs)
+        plot_position(axs[0, 1], x_actual, y_actual, x_desired, y_desired)
+        plot_speeds(axs[1, 0], speed_actual[1:], calculated_speed, vehicle_time[1:])
+        plot_accelerations(axs[1, 1], long_accels, vehicle_time[2:])
         plt.show()
     # Pure pursuit tracker file is missing: plot only behavior.json metrics
     else:
