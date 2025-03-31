@@ -22,8 +22,10 @@ control:
     
     # Stanley controller parameters (fine tune this)
     stanley:
-        k_gain: 2.5                      # Main gain parameter for crosstrack error correction
-        soft_gain: 0.1                   # Softening term to prevent aggressive steering at low speeds
+        control_gain: 1.0
+        softening_gain: 1.0
+        yaw_rate_gain: 0.0
+        steering_damp_gain: 0.0
         desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
     
     # Shared longitudinal control parameters
