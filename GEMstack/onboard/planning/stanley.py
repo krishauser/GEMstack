@@ -227,17 +227,24 @@ class Stanley(object):
             output_accel = 0.0
 
         # Debug
-        if component:
-            component.debug("Stanley: fx, fy", (fx, fy))
+        if component is not None:
+            # component.debug("Stanley: fx, fy", (fx, fy))
+            component.debug('curr pt',(curr_x,curr_y))
             component.debug("Stanley: path param", self.current_path_parameter)
             component.debug("Stanley: crosstrack dist", closest_dist)
-            component.debug("Stanley: cross_track_error", cross_track_error)
+            component.debug("crosstrack error", cross_track_error)
             component.debug("Stanley: yaw_error", yaw_error)
+            component.debug('steering_angle', desired_steering_angle)
             component.debug("Stanley: desired_speed (m/s)", desired_speed)
             component.debug("Stanley: feedforward_accel (m/s^2)", feedforward_accel)
             component.debug("Stanley: output_accel (m/s^2)", output_accel)
-            component.debug("Stanley: current speed (m/s)", speed)
 
+        if output_accel > self.max_accel:
+            output_accel = self.max_accel
+
+        if output_accel < -self.max_decel:
+            output_accel = -self.max_decel
+            
         self.t_last = t
         return (output_accel, desired_steering_angle)
 
