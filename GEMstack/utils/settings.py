@@ -37,14 +37,14 @@ def load_settings():
 
 def settings():
     """Returns all global settings, loading them if necessary."""
-    global SETTINGS
+    #global SETTINGS
     load_settings()
     return SETTINGS
 
 
 def get(path : Union[str,List[str]], defaultValue=KeyError) -> Any:
     """Retrieves a setting by a list of keys or a '.'-separated string."""
-    global SETTINGS
+    #global SETTINGS
     load_settings()
     if isinstance(path,str):
         path = path.split('.')
@@ -65,7 +65,7 @@ def set(path : Union[str,List[str]], value : Any, leaf_only=True) -> None:
     If leaf_only=True (default), we prevent inadvertently deleting parts of the
     settings dictionary.
     """
-    global SETTINGS
+    #global SETTINGS
     load_settings()
     if isinstance(path,str):
         path = path.split('.')
