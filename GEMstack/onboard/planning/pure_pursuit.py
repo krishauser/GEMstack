@@ -167,6 +167,18 @@ class PurePursuit(object):
             desired_speed *= np.exp(-abs(ct_error)*0.8)
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
+
+
+        # # braking for 50m dash test
+        if self.current_path_parameter >= self.path.domain()[1]:
+            if component is not None:
+                component.debug_event('Past the end of trajectory')
+                #past the end, just stop
+            desired_speed = 0.0
+            feedforward_accel = -3.0
+            f_delta = 0
+
+
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
         if component is not None:
             component.debug('curr pt',(curr_x,curr_y))
