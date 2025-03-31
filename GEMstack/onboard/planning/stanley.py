@@ -41,8 +41,6 @@ class Stanley(object):
         self,
         control_gain=None,
         softening_gain=None,
-        yaw_rate_gain=None,
-        steering_damp_gain=None,
         desired_speed=None
     ):
         """
@@ -54,25 +52,22 @@ class Stanley(object):
         """
 
         # 1) Lower Gains
-        #    Reduced from 2.5 to 1.0 by default, to mitigate oscillations
-        self.k = control_gain if control_gain is not None else settings.get('control.stanley.control_gain', 1.0)
-        self.k_soft = softening_gain if softening_gain is not None else settings.get('control.stanley.softening_gain', 1.0)
-        self.k_yaw_rate = yaw_rate_gain if yaw_rate_gain is not None else settings.get('control.stanley.yaw_rate_gain', 0.0)
-        self.k_damp_steer = steering_damp_gain if steering_damp_gain is not None else settings.get('control.stanley.steering_damp_gain', 0.0)
+        self.k = control_gain if control_gain is not None else settings.get('control.stanley.control_gain')
+        self.k_soft = softening_gain if softening_gain is not None else settings.get('control.stanley.softening_gain')
 
         # Typically, this is the max front-wheel steering angle in radians
-        self.max_steer = settings.get('vehicle.geometry.max_wheel_angle', np.deg2rad(24))
-        self.wheelbase = settings.get('vehicle.geometry.wheelbase', 2.0)
+        self.max_steer = settings.get('vehicle.geometry.max_wheel_angle')
+        self.wheelbase = settings.get('vehicle.geometry.wheelbase')
 
         # Basic longitudinal constraints
-        self.speed_limit = settings.get('vehicle.limits.max_speed', 10.0)
-        self.max_accel   = settings.get('vehicle.limits.max_acceleration', 2.0)
-        self.max_decel   = settings.get('vehicle.limits.max_deceleration', 2.0)
+        self.speed_limit = settings.get('vehicle.limits.max_speed')
+        self.max_accel   = settings.get('vehicle.limits.max_acceleration')
+        self.max_decel   = settings.get('vehicle.limits.max_deceleration')
 
         # PID for longitudinal speed tracking
-        p = settings.get('control.longitudinal_control.pid_p', 0.5)
-        d = settings.get('control.longitudinal_control.pid_d', 0.0)
-        i = settings.get('control.longitudinal_control.pid_i', 0.1)
+        p = settings.get('control.longitudinal_control.pid_p')
+        d = settings.get('control.longitudinal_control.pid_d')
+        i = settings.get('control.longitudinal_control.pid_i')
         self.pid_speed = PID(p, d, i, windup_limit=20)
 
         # Speed source: numeric or derived from path/trajectory
@@ -93,12 +88,6 @@ class Stanley(object):
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
-
-        # 2) Steering damping memory
-        self.prev_steering_angle = 0.0
-
-        # 3) Low-pass filter memory: final front-wheel angle
-        self.prev_front_wheel_angle = 0.0
 
     def set_path(self, path: Path):
         """Sets the path or trajectory to track."""
@@ -184,34 +173,6 @@ class Stanley(object):
         cross_term = atan2(self.k * cross_track_error, self.k_soft + speed)
         desired_steering_angle = yaw_error + cross_term
 
-        # 5.1) Yaw-rate damping (optional if k_yaw_rate != 0)
-        #      This term penalizes high yaw rates, helps reduce overshoot
-        yaw_rate_damping = self.k_yaw_rate * (-speed * sin(desired_steering_angle)) / self.wheelbase
-        desired_steering_angle += yaw_rate_damping
-
-        # 5.2) Steering damping (penalize rapid changes)
-        #      Resist big steering jumps from one cycle to the next
-        steering_damp_term = self.k_damp_steer * (desired_steering_angle - self.prev_steering_angle)
-        desired_steering_angle += steering_damp_term
-
-        # 6) Clip the raw desired steering
-        unfiltered_steering = np.clip(desired_steering_angle, -self.max_steer, self.max_steer)
-
-        # 7) Low-pass filter for final steering
-        #    alpha in [0..1], smaller -> more smoothing
-        alpha = 0.2
-        final_steering = alpha * unfiltered_steering + (1.0 - alpha) * self.prev_front_wheel_angle
-        final_steering = np.clip(final_steering, -self.max_steer, self.max_steer)
-
-        # Update memories
-        self.prev_steering_angle = unfiltered_steering
-        self.prev_front_wheel_angle = final_steering
-
-        ################################################################
-        # Speed Logic - Slightly gentler on cornering deceleration
-        ################################################################
-
-        # 8) Determine desired_speed from path/trajectory or fallback
         desired_speed = self.desired_speed
         feedforward_accel = 0.0
 
@@ -247,19 +208,11 @@ class Stanley(object):
             # Cross-track-based slowdown (less aggressive than before).
             desired_speed *= np.exp(-abs(cross_track_error) * 0.6)
 
-        # Steering-based slowdown: reduce speed if the steering angle is large
-        angle_ratio = abs(final_steering) / self.max_steer
-        # If angle_ratio is 1.0, we'll cut speed to ~ 50% of original
-        speed_scale = 1.0 - 0.5 * angle_ratio
-        # Keep speed_scale at least 0.4
-        speed_scale = max(speed_scale, 0.4)
-        desired_speed *= speed_scale
-
         # Clip to speed limit
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit
 
-        # 9) PID for longitudinal control
+        # PID for longitudinal control
         speed_error = desired_speed - speed
         output_accel = self.pid_speed.advance(e=speed_error, t=t, feedforward_term=feedforward_accel)
 
@@ -280,17 +233,13 @@ class Stanley(object):
             component.debug("Stanley: crosstrack dist", closest_dist)
             component.debug("Stanley: cross_track_error", cross_track_error)
             component.debug("Stanley: yaw_error", yaw_error)
-            component.debug("Stanley: unfiltered_steering (rad)", unfiltered_steering)
-            component.debug("Stanley: final_steering (rad)", final_steering)
-            component.debug("Stanley: angle_ratio", angle_ratio)
-            component.debug("Stanley: speed_scale", speed_scale)
             component.debug("Stanley: desired_speed (m/s)", desired_speed)
             component.debug("Stanley: feedforward_accel (m/s^2)", feedforward_accel)
             component.debug("Stanley: output_accel (m/s^2)", output_accel)
             component.debug("Stanley: current speed (m/s)", speed)
 
         self.t_last = t
-        return (output_accel, final_steering)
+        return (output_accel, desired_steering_angle)
 
 #####################################
 # 3. Tracker component
