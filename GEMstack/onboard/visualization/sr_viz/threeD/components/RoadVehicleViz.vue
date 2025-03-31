@@ -11,76 +11,87 @@
 <script setup>
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import Car from "@/components/Car.js";
-import Human from "@/components/Human.js";
 import TrafficLight from "@/components/TrafficLight.js";
+import {
+    CAR_MODEL_PATH,
+    TRAFFIC_LIGHT_MODEL_PATH,
+} from "../utils/constants.js";
 
 const container = ref(null);
 const camera = ref(null);
 let scene, renderer, controls;
 
+let car, trafficLight1, roadGeometry, roadMaterial;
+let roadTileGroup = [];
+const NUM_TILES = 5;
+const TILE_LENGTH = 50;
+const ROAD_SIZE = 20;
+const GRID_SIZE = 3;
+
+const keys = { forward: false, backward: false, left: false, right: false };
+
 onMounted(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
     initScene();
+    car = new Car(CAR_MODEL_PATH, { x: 0, y: 0, z: 0 }, (loadedCar) => {
+        scene.add(loadedCar.group);
+    });
+
+    trafficLight1 = new TrafficLight(
+        TRAFFIC_LIGHT_MODEL_PATH,
+        { x: 0, y: 0, z: 5 },
+        (loadedLight) => {
+            scene.add(loadedLight.group);
+        }
+    );
+
     animate();
 });
 
-function addTrafficLines() {
-    const lineMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
-
-    for (let i = -24; i < 25; i += 4) {
-        const lineGeometry = new THREE.PlaneGeometry(0.2, 2);
-        const line = new THREE.Mesh(lineGeometry, lineMaterial);
-        line.rotation.x = -Math.PI / 2;
-        line.position.set(0, 0.01, i);
-        scene.add(line);
+function handleKeyDown(event) {
+    switch (event.code) {
+        case "ArrowUp":
+        case "KeyW":
+            keys.forward = true;
+            break;
+        case "ArrowDown":
+        case "KeyS":
+            keys.backward = true;
+            break;
+        case "ArrowLeft":
+        case "KeyA":
+            keys.left = true;
+            break;
+        case "ArrowRight":
+        case "KeyD":
+            keys.right = true;
+            break;
     }
-
-    const sideLineMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-    });
-
-    const leftLineGeometry = new THREE.PlaneGeometry(0.2, 50);
-    const rightLineGeometry = new THREE.PlaneGeometry(0.2, 50);
-
-    const leftLine = new THREE.Mesh(leftLineGeometry, sideLineMaterial);
-    leftLine.rotation.x = -Math.PI / 2;
-    leftLine.position.set(-4.5, 0.01, 0);
-
-    const rightLine = new THREE.Mesh(rightLineGeometry, sideLineMaterial);
-    rightLine.rotation.x = -Math.PI / 2;
-    rightLine.position.set(4.5, 0.01, 0);
-
-    scene.add(leftLine, rightLine);
 }
 
-function createTrafficLight(position) {
-    const lightGroup = new THREE.Group();
-    const poleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3);
-    const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x555555 });
-    const pole = new THREE.Mesh(poleGeometry, poleMaterial);
-    pole.position.y = 1.5;
-    lightGroup.add(pole);
-
-    const lightGeometry = new THREE.SphereGeometry(0.2);
-    const redLightMaterial = new THREE.MeshStandardMaterial({
-        color: 0xff0000,
-    });
-    const redLight = new THREE.Mesh(lightGeometry, redLightMaterial);
-    redLight.position.set(0, 2.7, 0);
-    lightGroup.add(redLight);
-
-    lightGroup.position.set(position.x, 0, position.z);
-    scene.add(lightGroup);
-}
-
-function createPedestrian(position) {
-    const pedestrianGeometry = new THREE.SphereGeometry(0.3);
-    const pedestrianMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ff00,
-    });
-    const pedestrian = new THREE.Mesh(pedestrianGeometry, pedestrianMaterial);
-    pedestrian.position.set(position.x, 0.3, position.z);
-    scene.add(pedestrian);
+function handleKeyUp(event) {
+    switch (event.code) {
+        case "ArrowUp":
+        case "KeyW":
+            keys.forward = false;
+            break;
+        case "ArrowDown":
+        case "KeyS":
+            keys.backward = false;
+            break;
+        case "ArrowLeft":
+        case "KeyA":
+            keys.left = false;
+            break;
+        case "ArrowRight":
+        case "KeyD":
+            keys.right = false;
+            break;
+    }
 }
 
 function initScene() {
@@ -105,35 +116,53 @@ function initScene() {
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(5, 10, 5);
     scene.add(light);
-    const light2 = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
-    scene.add(light2);
+    scene.add(new THREE.HemisphereLight(0xffffbb, 0x080820, 1));
 
-    const roadGeometry = new THREE.PlaneGeometry(10, 50);
-    const roadMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
-    const road = new THREE.Mesh(roadGeometry, roadMaterial);
-    road.rotation.x = -Math.PI / 2;
-    scene.add(road);
-    addTrafficLines();
-
-    const car1 = new Car(0xff0000, { x: -2, z: 5 });
-    const car2 = new Car(0x0000ff, { x: 2, z: -5 }, Math.PI);
-    scene.add(car1.group);
-    scene.add(car2.group);
-
-    const trafficLight1 = new TrafficLight({ x: 0, z: 10 }, Math.PI);
-    const trafficLight2 = new TrafficLight({ x: 0, z: -10 });
-    scene.add(trafficLight1.group, trafficLight2.group);
-
-    const human1 = new Human(0xff0000, { x: -3, y: 0, z: 1 });
-    const human2 = new Human(0x0000ff, { x: 3, y: 0, z: -1 });
-    scene.add(human1.group, human2.group);
+    loadRoad();
 
     window.addEventListener("resize", onWindowResize, false);
 }
+function loadRoad() {
+    const textureLoader = new THREE.TextureLoader();
+
+    const diffuseTexture = textureLoader.load(
+        "/textures/ground_grey_diff_1k.jpg"
+    );
+    const normalTexture = textureLoader.load(
+        "/textures/ground_grey_nor_gl_1k.jpg"
+    );
+    const roughnessTexture = textureLoader.load(
+        "/textures/ground_grey_rough_1k.jpg"
+    );
+
+    roadMaterial = new THREE.MeshStandardMaterial({
+        map: diffuseTexture,
+        normalMap: normalTexture,
+        roughnessMap: roughnessTexture,
+        roughness: 0.7,
+    });
+    roadMaterial.map.wrapS = THREE.RepeatWrapping;
+    roadMaterial.map.wrapT = THREE.RepeatWrapping;
+    roadMaterial.map.repeat.set(2, 2);
+
+    roadGeometry = new THREE.PlaneGeometry(50, 50);
+    const roadMesh = new THREE.Mesh(roadGeometry, roadMaterial);
+    roadMesh.rotation.x = -Math.PI / 2;
+
+    roadMesh.position.set(0, 0, 0);
+
+    scene.add(roadMesh);
+    roadTileGroup.push(roadMesh);
+}
+
+function updateRoadTiles() {}
 
 function animate() {
     requestAnimationFrame(animate);
-
+    if (car) {
+        car.update(keys);
+    }
+    // updateRoadTiles();
     controls.update();
     renderer.render(scene, camera.value);
 }
