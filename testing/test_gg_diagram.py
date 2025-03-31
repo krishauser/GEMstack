@@ -73,14 +73,21 @@ def compute_derivative(times, values):
     derivative = dv / dt
     return times[1:], derivative
 
-def compute_gs(times, xs, ys):
-    xtimes, vxs = compute_derivative(times, xs)
-    ytimes, vys = compute_derivative(times, ys)
+def compute_gs(times, xs, ys, speeds):
+    # xtimes, vxs = compute_derivative(times, xs)
+    # ytimes, vys = compute_derivative(times, ys)
+    vxs = np.gradient(xs, times)
+    vys  = np.gradient(ys, times)
     vs = np.sqrt(vxs**2 + vys**2)
-    long_times, long_accels = compute_derivative(times[1:], vs)
+    # print(speeds)
+    # vs = speeds
+    # long_times, long_accels = compute_derivative(times[1:], vs)
+    long_accels = np.gradient(vs, times)
     psis = np.arctan2(vys, vxs)
-    yaw_rate_times, yaw_rates = compute_derivative(times[1:], psis)
-    lat_accels = yaw_rates * vs[1:]
+    # yaw_rate_times, yaw_rates = compute_derivative(times[1:], psis)
+    yaw_rates = np.gradient(psis, times)
+    # lat_accels = yaw_rates * vs[1:]
+    lat_accels = yaw_rates * vs
     g = 9.81
     longitudinal_gs = long_accels / g
     lateral_gs = lat_accels / g
@@ -159,13 +166,17 @@ if __name__=='__main__':
     if os.path.exists(tracker_file):
         vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual = parse_tracker_csv(tracker_file)
         
-        longitudinal_gs, lateral_gs, calculated_speed, lat_accels, long_accels = compute_gs(vehicle_time, x_actual, y_actual)
+        longitudinal_gs, lateral_gs, calculated_speed, lat_accels, long_accels = compute_gs(vehicle_time, x_actual, y_actual, speed_actual)
         # print(longitudinal_gs)
-        fig, axs = plt.subplots(2, 2, figsize=(12, 4))
+        fig, axs = plt.subplots(2, 2)
         plot_gg_diagram(axs[0, 0], longitudinal_gs, lateral_gs)
         plot_position(axs[0, 1], x_actual, y_actual, x_desired, y_desired)
-        plot_speeds(axs[1, 0], speed_actual[1:], calculated_speed, vehicle_time[1:])
-        plot_accelerations(axs[1, 1], long_accels, vehicle_time[2:])
+        # plot_speeds(axs[1, 0], speed_actual[1:], calculated_speed, vehicle_time[1:])
+        plot_speeds(axs[1, 0], speed_actual, calculated_speed, vehicle_time)
+
+        # plot_accelerations(axs[1, 1], long_accels, vehicle_time[2:])
+        plot_accelerations(axs[1, 1], long_accels, vehicle_time)
+
         plt.show()
     # Pure pursuit tracker file is missing: plot only behavior.json metrics
     else:
