@@ -15,12 +15,15 @@ import numpy as np
 import math
 import unittest
 
-def gen_obstacle():
-    pose = ObjectPose(frame=ObjectFrameEnum(3),
-                      t=0, x = 2.5, y=2.5)
-    dimensions = (1,1,1)
+def gen_obstacle(num_obstacles = 1, xrange = 5, yrange=5):
+    obstacles = []
+    for _ in range(num_obstacles):
+        pose = ObjectPose(frame=ObjectFrameEnum(3),
+                        t=0, x = np.random.uniform(0,xrange), y=np.random.uniform(0,yrange))
+        dimensions = (1,1,1)
+        obstacles.append(PhysicalObject(pose, dimensions, None))
 
-    return [PhysicalObject(pose, dimensions, None)]
+    return obstacles
 
 class ParkingSolver(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
@@ -30,11 +33,11 @@ class ParkingSolver(AStar):
         self.obstacles = obstacles
 
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, .5, 0.1)
+        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1, 0.1)
         self.actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1)]
 
     def is_goal_reached(self, current, goal):
-        return np.linalg.norm(np.array(current) - np.array(goal)) < 0.5
+        return np.linalg.norm(np.array(current) - np.array(goal)) < .5
     
     def heuristic_cost_estimate(self, n1, n2):
         """computes the 'direct' distance between two (x,y) tuples"""
@@ -67,53 +70,53 @@ class ParkingSolver(AStar):
         """
         for obstacle in self.obstacles:
             for point in path:
-                print(point)
-                print(obstacle.polygon_parent())
+                # print(point)
+                # print(obstacle.polygon_parent())
                 if collisions.circle_intersects_polygon_2d(point[:-1], 1, obstacle.polygon_parent()):
                     return False
-        
         return True
     
 def solve():
     # generate obstacle
-    obstacles = gen_obstacle()
+    obstacles = gen_obstacle(3)
 
-    start = (1, 1, 0)  # we choose to start at the upper left corner
+    start = (0, 0, 0)  # we choose to start at the upper left corner
     goal = (5, 5, 0)  # we want to reach the lower right corner
 
     # let's solve it
     foundPath = list(ParkingSolver(obstacles).astar(start, goal))
 
-    plot_path(obstacles[0], foundPath)
+    plot_path(obstacles, foundPath)
 
     return list(foundPath)
 
-def plot_path(obstacle, path):
-    import matplotlib.pyplot as plt
+def plot_path(obstacles, path):
     x = [point[0] for point in path]
     y = [point[1] for point in path]
     plt.plot(x,y)
 
-    l, w, h = obstacle.dimensions
-    center = [obstacle.pose.x, obstacle.pose.y]
+    for obstacle in obstacles:
+        l, w, h = obstacle.dimensions
+        center = [obstacle.pose.x, obstacle.pose.y]
 
-    vertices = np.array([
-    [center[0] - w / 2, center[1] - l / 2],  # Bottom-left
-    [center[0] + w / 2, center[1] - l / 2],  # Bottom-right
-    [center[0] + w / 2, center[1] + l / 2],  # Top-right
-    [center[0] - w / 2, center[1] + l / 2],  # Top-left
-    [center[0] - w / 2, center[1] - l / 2]   # Close the polygon
-])
+        vertices = np.array([
+        [center[0] - w / 2, center[1] - l / 2],  # Bottom-left
+        [center[0] + w / 2, center[1] - l / 2],  # Bottom-right
+        [center[0] + w / 2, center[1] + l / 2],  # Top-right
+        [center[0] - w / 2, center[1] + l / 2],  # Top-left
+        [center[0] - w / 2, center[1] - l / 2]   # Close the polygon
+    ])
 
-    # Plot the polygon
-    plt.plot(vertices[:, 0], vertices[:, 1], 'b-', linewidth=2)
-    plt.fill(vertices[:, 0], vertices[:, 1], 'b', alpha=0.3)  # Optional fill
-    plt.scatter(*center, color='red', label="Center")  # Mark the center
+        # Plot the polygon
+        plt.plot(vertices[:, 0], vertices[:, 1], 'b-', linewidth=2)
+        plt.fill(vertices[:, 0], vertices[:, 1], 'b', alpha=0.3)  # Optional fill
+        #plt.scatter(*center, color='red', label="Center")  # Mark the center
+        
     plt.axis('equal')
-    plt.legend()
+    #plt.legend()
     plt.grid(True)
     plt.show()
 
 if __name__ == '__main__':
     solution = solve()
-    print(solve())
+    print(solution)
