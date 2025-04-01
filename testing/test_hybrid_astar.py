@@ -67,9 +67,9 @@ class ParkingSolver(AStar):
         """
         for obstacle in self.obstacles:
             for point in path:
-                # print(point)
-                # print(obstacle.polygon())
-                if collisions.circle_intersects_polygon_2d(point[:-1], 1, obstacle.polygon()):
+                print(point)
+                print(obstacle.polygon_parent())
+                if collisions.circle_intersects_polygon_2d(point[:-1], 1, obstacle.polygon_parent()):
                     return False
         
         return True
@@ -94,15 +94,15 @@ def plot_path(obstacle, path):
     y = [point[1] for point in path]
     plt.plot(x,y)
 
-    l, w = obstacle.dimensions
+    l, w, h = obstacle.dimensions
     center = [obstacle.pose.x, obstacle.pose.y]
 
     vertices = np.array([
-    [x - w / 2, y - l / 2],  # Bottom-left
-    [x + w / 2, y - l / 2],  # Bottom-right
-    [x + w / 2, y + l / 2],  # Top-right
-    [x - w / 2, y + l / 2],  # Top-left
-    [x - w / 2, y - l / 2]   # Close the polygon
+    [center[0] - w / 2, center[1] - l / 2],  # Bottom-left
+    [center[0] + w / 2, center[1] - l / 2],  # Bottom-right
+    [center[0] + w / 2, center[1] + l / 2],  # Top-right
+    [center[0] - w / 2, center[1] + l / 2],  # Top-left
+    [center[0] - w / 2, center[1] - l / 2]   # Close the polygon
 ])
 
     # Plot the polygon
@@ -112,8 +112,6 @@ def plot_path(obstacle, path):
     plt.axis('equal')
     plt.legend()
     plt.grid(True)
-    plt.show()
-
     plt.show()
 
 if __name__ == '__main__':
