@@ -6,8 +6,9 @@ sys.path.append(os.getcwd())
 from GEMstack.state import Path, ObjectFrameEnum
 from GEMstack.onboard.planning.hybrid_astar import Astar, AstarHybrid
 from GEMstack.onboard.planning.astar import AStar
-from GEMstack.mathutils.dubins import DubinsCar, DubinsCarIntegrator
+from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCarIntegrator
 from GEMstack.state.physical_object import PhysicalObject, ObjectPose, ObjectFrameEnum
+from GEMstack.mathutils.dynamics import IntegratorControlSpace
 import GEMstack.mathutils.collisions as collisions
 
 import matplotlib.pyplot as plt
@@ -25,7 +26,7 @@ def gen_obstacle(num_obstacles = 1, xrange = 5, yrange=5):
 
     return obstacles
 
-class ParkingSolver(AStar):
+class ParkingSolverFirstOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
     and a 'node' is just a (x,y) tuple that represents a reachable position"""
 
@@ -75,16 +76,72 @@ class ParkingSolver(AStar):
                 if collisions.circle_intersects_polygon_2d(point[:-1], 1, obstacle.polygon_parent()):
                     return False
         return True
+
+class ParkingSolverSecondOrderDubins(AStar):
+    """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
+    and a 'node' is just a (x,y) tuple that represents a reachable position"""
+
+    def __init__(self, obstacles):
+        self.obstacles = obstacles
+
+        self.vehicle = SecondOrderDubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
+        self.vehicle_sim = IntegratorControlSpace(self.vehicle, 1, 0.1)
+        self.actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1),
+                        (-1, -1), (-1, -0.5), (-1,0), (-1, 0.5), (-1,1)]
+
+    def is_goal_reached(self, current, goal):
+        if current[3] > 0: return False # car must be stopped, this equality will only work in simulation  
+        return np.linalg.norm(np.array(current[:2]) - np.array(goal[:2])) < 1
     
+    def heuristic_cost_estimate(self, n1, n2):
+        """computes the 'direct' distance between two (x,y) tuples"""
+        (x1, y1, theta1, v1, dtheta1) = n1
+        (x2, y2, theta2, v2, dtheta2) = n2
+        return math.hypot(x2 - x1, y2 - y1)
+        #return math.hypot(x2 - x1, y2 - y1, theta2 - theta1, v2-v1, dtheta2-dtheta1)
+
+    def distance_between(self, n1, n2):
+        """this method always returns 1, as two 'neighbors' are always adajcent"""
+        return 1
+
+    def neighbors(self, node):
+        """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
+            nodes that can be reached (=any adjacent coordinate that is not a wall)
+        """
+        neighbors = []
+        print(node)
+        for control in self.actions:
+            next_state = self.vehicle_sim.nextState(node, control)
+            next_state = np.round(next_state, 3)
+            if self.is_valid_neighbor([next_state]):
+                neighbors.append(tuple(next_state))
+        return neighbors
+    
+    def is_valid_neighbor(self, path):
+        """check if any points along the path are in collision
+        with any of the known obstacles
+
+        Args:
+            path (_type_): _description_
+        """
+        for obstacle in self.obstacles:
+            for point in path:
+                print(point)
+                print(obstacle.polygon_parent())
+                if collisions.circle_intersects_polygon_2d(point[:-1], 1, obstacle.polygon_parent()):
+                    #polygon_intersects_polygon_2d when we have the acutal car geometry
+                    return False
+        return True
+   
 def solve():
     # generate obstacle
     obstacles = gen_obstacle(3)
 
-    start = (0, 0, 0)  # we choose to start at the upper left corner
-    goal = (5, 5, 0)  # we want to reach the lower right corner
+    start = (0, 0, 0, 0, 0)  # we choose to start at the upper left corner
+    goal = (5, 5, 0, 0, 0)  # we want to reach the lower right corner
 
     # let's solve it
-    foundPath = list(ParkingSolver(obstacles).astar(start, goal))
+    foundPath = list(ParkingSolverSecondOrderDubins(obstacles).astar(start, goal))
 
     plot_path(obstacles, foundPath)
 
