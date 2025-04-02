@@ -44,7 +44,6 @@ pycolmap.extract_features(
     sift_options=extract_options,
     # device=pycolmap._core.Device.cuda
 )
-
 # 2. Feature matching. match_sequential tries matching only on pairs close in filename ordering 
 match_options = pycolmap.SequentialMatchingOptions()
 match_options.overlap = 3   # how many subsequent images should be tried matching. 
@@ -138,7 +137,6 @@ def load_scene(path):
     sc = sc[~np.all(sc == 0, axis=1)] # remove (0,0,0)'s
     return sc
 
-#%%
 #%%
 # get lidar pointcloud
 sc = load_scene(root + f"/data/calib1/pc/ouster1.npz")
