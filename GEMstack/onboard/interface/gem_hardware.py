@@ -101,6 +101,13 @@ class GEMHardwareInterface(GEMInterface):
         /pacmod/as_rx/wiper_cmd
         """
 
+        # Launch Control Timing
+        # 0 - 5 Seconds 100% brake 0% throttle
+        # 5 - 6 Seconds 100% brake 100% throttle
+        # 6 - 7 Seconds 0% brake 100% throttle 
+        # TODO add option launch control
+        self.start_time = rospy.get_time()   
+
         #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
         
         #subscribers should go last because the callback might be called before the object is initialized
@@ -318,6 +325,22 @@ class GEMHardwareInterface(GEMInterface):
         self.accel_cmd.enable  = True
         self.accel_cmd.clear   = False
         self.accel_cmd.ignore  = False
+
+        # Launch control 
+        currTime = rospy.get_time() - self.start_time
+        if currTime < 5:
+            self.brake_cmd.f64_cmd = maxbrake
+            self.accel_cmd.f64_cmd = 0
+        elif  currTime < 6:
+            self.brake_cmd.f64_cmd = maxbrake
+            self.accel_cmd.f64_cmd = maxacc
+        elif currTime < 10:
+            self.brake_cmd.f64_cmd = 0
+            self.accel_cmd.f64_cmd = maxacc
+
+        # self.brake_cmd.f64_cmd = maxbrake
+        # self.accel_cmd.f64_cmd = 0
+        
         
         self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_FORWARD
         self.gear_cmd.enable = True

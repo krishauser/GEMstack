@@ -16,6 +16,7 @@ control:
         lookahead_scale: 2.0
         crosstrack_gain: 0.3
         desired_speed: trajectory
+        launch_control:     1   # to enable racing features put launch_control to 1 
     longitudinal_control:
         pid_p: 0.8
         pid_i: 0.03
@@ -30,8 +31,7 @@ planning:
         max_deceleration:   6.0
         deceleration:       2.0
         min_deceleration:   0.5
-        yield_deceleration: 0.5
-
+        yield_deceleration: 0.5        
 
 #configure the simulator, if using
 simulator:
