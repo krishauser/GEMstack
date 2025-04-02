@@ -28,20 +28,37 @@ export default class Human {
 
         const armGeometry = new THREE.CylinderGeometry(HUMAN_ARM_LENGTH / 6, HUMAN_ARM_LENGTH / 6, HUMAN_ARM_LENGTH);
         const armMaterial = new THREE.MeshStandardMaterial({ color });
+
+        this.leftShoulderPivot = new THREE.Group();
+        this.leftShoulderPivot.position.set(
+            (HUMAN_BODY_LENGTH / 1.2) / 2 + HUMAN_ARM_LENGTH / 6,
+            HUMAN_LEG_LENGTH + HUMAN_BODY_LENGTH - HUMAN_ARM_LENGTH / 1.7,
+            0
+        );
+        this.group.add(this.leftShoulderPivot);
+
         this.leftArm = new THREE.Mesh(armGeometry, armMaterial);
+        // this.leftArm.position.set(0, -HUMAN_ARM_LENGTH / 2, 0);
+        this.leftShoulderPivot.add(this.leftArm);
+
+        this.rightShoulderPivot = new THREE.Group();
+        this.rightShoulderPivot.position.set(
+            -(HUMAN_BODY_LENGTH / 1.2) / 2 - HUMAN_ARM_LENGTH / 6,
+            HUMAN_LEG_LENGTH + HUMAN_BODY_LENGTH - HUMAN_ARM_LENGTH / 1.7,
+            0
+        );
+        this.group.add(this.rightShoulderPivot);
+
         this.rightArm = new THREE.Mesh(armGeometry, armMaterial);
-        const armX = (HUMAN_BODY_LENGTH / 1.2) / 2 + HUMAN_ARM_LENGTH / 6;
-        const armY = HUMAN_LEG_LENGTH + HUMAN_BODY_LENGTH - HUMAN_ARM_LENGTH / 1.7;
-        this.leftArm.position.set(armX, armY, 0);
-        this.rightArm.position.set(-armX, armY, 0);
-        this.group.add(this.leftArm, this.rightArm);
+        // this.rightArm.position.set(0, -HUMAN_ARM_LENGTH / 2, 0);
+        this.rightShoulderPivot.add(this.rightArm);
 
         const legGeometry = new THREE.CylinderGeometry(HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH);
         const legMaterial = new THREE.MeshStandardMaterial({ color: HUMAN_LEG_COLOR });
         this.leftLeg = new THREE.Mesh(legGeometry, legMaterial);
         this.rightLeg = new THREE.Mesh(legGeometry, legMaterial);
-        this.leftLeg.position.set(-0.2, HUMAN_LEG_LENGTH / 2, 0);
-        this.rightLeg.position.set(0.2, HUMAN_LEG_LENGTH / 2, 0);
+        this.leftLeg.position.set(-HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH / 2, 0);
+        this.rightLeg.position.set(HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH / 2, 0);
         this.group.add(this.leftLeg, this.rightLeg);
 
         this.group.position.set(position.x, position.y, position.z);
@@ -55,8 +72,8 @@ export default class Human {
 
         const swingAmount = Math.PI / 6;
 
-        this.leftArm.rotation.x = Math.sin(this.walkingPhase) * swingAmount;
-        this.rightArm.rotation.x = -Math.sin(this.walkingPhase) * swingAmount;
+        this.leftShoulderPivot.rotation.x = Math.sin(this.walkingPhase) * swingAmount;
+        this.rightShoulderPivot.rotation.x = -Math.sin(this.walkingPhase) * swingAmount;
 
         this.leftLeg.rotation.x = -Math.sin(this.walkingPhase) * swingAmount;
         this.rightLeg.rotation.x = Math.sin(this.walkingPhase) * swingAmount;
