@@ -77,9 +77,9 @@ export default class TrafficLight {
         const loader = new GLTFLoader();
         loader.load(
             modelPath,
-            (fbx) => {
-                this.group = fbx.scene;
-                
+            (gltf) => {
+                this.group = gltf.scene;
+
                 this.group.position.set(this.position.x, this.position.y, this.position.z);
                 this.group.scale.set(SCALE_RATE, SCALE_RATE, SCALE_RATE);
 
@@ -90,6 +90,6 @@ export default class TrafficLight {
         );
     }
     // update() {
-        
+
     // }
 }

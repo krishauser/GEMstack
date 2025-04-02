@@ -11,8 +11,7 @@
 <script setup>
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import Car from "@/components/Car.js";
+import { Car, CAR_WIDTH, CAR_HEIGHT, CAR_LENGTH } from "@/components/Car.js";
 import TrafficLight from "@/components/TrafficLight.js";
 import {
     CAR_MODEL_PATH,
@@ -21,36 +20,44 @@ import {
 
 const container = ref(null);
 const camera = ref(null);
+const cameraMode = ref("free");
 let scene, renderer, controls;
 
 let car, trafficLight1, roadGeometry, roadMaterial;
-let roadTileGroup = [];
-const NUM_TILES = 5;
-const TILE_LENGTH = 50;
-const ROAD_SIZE = 20;
-const GRID_SIZE = 3;
+let lastTime = performance.now();
 
 const keys = { forward: false, backward: false, left: false, right: false };
 
 onMounted(() => {
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("keypress", handleKeyPress);
 
     initScene();
-    car = new Car(CAR_MODEL_PATH, { x: 0, y: 0, z: 0 }, (loadedCar) => {
-        scene.add(loadedCar.group);
-    });
+    car = new Car(CAR_MODEL_PATH, { x: 0, y: 0, z: 0 }, loadCallBack);
 
     trafficLight1 = new TrafficLight(
         TRAFFIC_LIGHT_MODEL_PATH,
         { x: 0, y: 0, z: 5 },
-        (loadedLight) => {
-            scene.add(loadedLight.group);
-        }
+        loadCallBack
     );
 
     animate();
 });
+
+function loadCallBack(object) {
+    scene.add(object.group);
+}
+
+function handleKeyPress(event) {
+    if (event.key === "c" || event.key === "C") {
+        if (cameraMode.value === "free") {
+            cameraMode.value = "follow";
+        } else {
+            cameraMode.value = "free";
+        }
+    }
+}
 
 function handleKeyDown(event) {
     switch (event.code) {
@@ -139,30 +146,52 @@ function loadRoad() {
         map: diffuseTexture,
         normalMap: normalTexture,
         roughnessMap: roughnessTexture,
-        roughness: 0.7,
+        roughness: 1,
     });
     roadMaterial.map.wrapS = THREE.RepeatWrapping;
     roadMaterial.map.wrapT = THREE.RepeatWrapping;
-    roadMaterial.map.repeat.set(2, 2);
+    roadMaterial.map.repeat.set(100, 100);
 
-    roadGeometry = new THREE.PlaneGeometry(50, 50);
+    roadGeometry = new THREE.PlaneGeometry(1000, 1000);
     const roadMesh = new THREE.Mesh(roadGeometry, roadMaterial);
     roadMesh.rotation.x = -Math.PI / 2;
 
     roadMesh.position.set(0, 0, 0);
 
     scene.add(roadMesh);
-    roadTileGroup.push(roadMesh);
 }
 
-function updateRoadTiles() {}
+function updateCamera() {
+    if (!car || !car.group) return;
+    if (cameraMode.value === "free") return;
+
+    const carPosition = car.group.position;
+    const carDirection = new THREE.Vector3();
+    car.group.getWorldDirection(carDirection);
+
+    camera.value.position.set(
+        carPosition.x - carDirection.x * 2 * CAR_LENGTH,
+        carPosition.y + 3 * CAR_HEIGHT,
+        carPosition.z - carDirection.z * 2 * CAR_LENGTH
+    );
+
+    controls.target.set(
+        carPosition.x + carDirection.x * 10 * CAR_LENGTH,
+        carPosition.y + CAR_HEIGHT / 2,
+        carPosition.z + carDirection.z * 10 * CAR_LENGTH
+    );
+}
 
 function animate() {
     requestAnimationFrame(animate);
+    const currentTime = performance.now();
+    const dt = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+
     if (car) {
-        car.update(keys);
+        car.update(keys, dt);
     }
-    // updateRoadTiles();
+    updateCamera();
     controls.update();
     renderer.render(scene, camera.value);
 }
