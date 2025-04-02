@@ -1,4 +1,8 @@
 """ generic A-Star path searching algorithm (https://github.com/jrialland/python-astar/blob/master/tests/basic/test_basic.py) """
+# @TODO make it so we return the best path as discussed in class
+# In class, we discussed that we should have a terminal function
+# which approximates the cost_to_go and returns the path to the node 
+# with the least cost_to_go + terminal_cost
 
 from abc import ABC, abstractmethod
 from typing import Callable, Dict, Iterable, Union, TypeVar, Generic

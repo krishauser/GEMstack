@@ -86,14 +86,18 @@ class ParkingSolverSecondOrderDubins(AStar):
 
         self.vehicle = SecondOrderDubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
         self.vehicle_sim = IntegratorControlSpace(self.vehicle, 1, 0.1)
+        #@TODO create a more standardized way to define the actions
         self.actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1),
                         (-1, -1), (-1, -0.5), (-1,0), (-1, 0.5), (-1,1)]
 
     def is_goal_reached(self, current, goal):
+        # @TODO Currently, the threshold is just a random number, get rid of magic constants
+
         if current[3] > 0: return False # car must be stopped, this equality will only work in simulation  
         return np.linalg.norm(np.array(current[:2]) - np.array(goal[:2])) < 1
     
     def heuristic_cost_estimate(self, n1, n2):
+        # @TODO Consider creating a more sophisticated heuristic
         """computes the 'direct' distance between two (x,y) tuples"""
         (x1, y1, theta1, v1, dtheta1) = n1
         (x2, y2, theta2, v2, dtheta2) = n2
@@ -120,6 +124,10 @@ class ParkingSolverSecondOrderDubins(AStar):
     def is_valid_neighbor(self, path):
         """check if any points along the path are in collision
         with any of the known obstacles
+        @TODO We are not currently using the geometry of the vehicle,
+        define a geometry for the vehicle and then use polygon_itersects_polygon
+        @TODO Consider performing a linear search on the trajectory 
+        and checking for collission on each of these configurations
 
         Args:
             path (_type_): _description_
