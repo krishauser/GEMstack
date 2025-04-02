@@ -39,13 +39,14 @@ onMounted(() => {
     window.addEventListener("keypress", handleKeyPress);
 
     initScene();
-    car = createCar(0, 0, 0);
+    car = createCar(0, 0, 0, Math.PI / 2);
     for (let i = 0; i < 4; i++) {
         const offset = (i + 1) * 10;
         createCar(
-            (i % 2 === 0 ? -1 : 1) * (Math.random() * 5 + offset),
+            offset,
             0,
-            offset
+            (i % 2 === 0 ? -1 : 1) * (Math.random() * 5),
+            Math.PI / 2
         );
     }
     createTrafficLight(0, 0, 5);
@@ -54,8 +55,8 @@ onMounted(() => {
     animate();
 });
 
-function createCar(x, y, z) {
-    const newCar = new Car(CAR_MODEL_PATH, { x: x, y: y, z: z }, loadCallBack);
+function createCar(x, y, z, heading) {
+    const newCar = new Car(CAR_MODEL_PATH, { x: x, y: y, z: z }, heading, loadCallBack);
     cars.push(newCar);
     return newCar;
 }
@@ -175,6 +176,7 @@ function initScene() {
 
     window.addEventListener("resize", onWindowResize, false);
 }
+
 function loadRoad() {
     const textureLoader = new THREE.TextureLoader();
 
@@ -205,6 +207,41 @@ function loadRoad() {
     roadMesh.position.set(0, 0, 0);
 
     scene.add(roadMesh);
+    
+    createRoadLines();
+}
+
+function createRoadLines() {
+    const lineMaterialSolid = new THREE.LineBasicMaterial({ color: 0xffff00 });
+    const lineMaterialDashed = new THREE.LineDashedMaterial({
+        color: 0xffffff,
+        dashSize: 5,
+        gapSize: 5,
+    });
+
+    const roadWidth = 20;
+    
+    const centerLineGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-500, 0.1, 0),
+        new THREE.Vector3(500, 0.1, 0),
+    ]);
+    const centerLine = new THREE.Line(centerLineGeometry, lineMaterialDashed);
+    centerLine.computeLineDistances();
+    scene.add(centerLine);
+
+    const leftLineGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-500, 0.1, roadWidth / 2),
+        new THREE.Vector3(500, 0.1, roadWidth / 2),
+    ]);
+    const leftLine = new THREE.Line(leftLineGeometry, lineMaterialSolid);
+    scene.add(leftLine);
+
+    const rightLineGeometry = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-500, 0.1, -roadWidth / 2),
+        new THREE.Vector3(500, 0.1, -roadWidth / 2),
+    ]);
+    const rightLine = new THREE.Line(rightLineGeometry, lineMaterialSolid);
+    scene.add(rightLine);
 }
 
 function updateCamera() {

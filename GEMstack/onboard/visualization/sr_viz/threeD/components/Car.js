@@ -9,11 +9,11 @@ export const CAR_HEIGHT = CAR_Y * SCALE_RATE;
 export const CAR_LENGTH = CAR_Z * SCALE_RATE;
 
 export class Car {
-    constructor(modelPath, position = { x: 0, y: 0, z: 0 }, onLoadCallback) {
+    constructor(modelPath, position = { x: 0, y: 0, z: 0 }, heading = Math.PI / 2, onLoadCallback) {
         this.position = new THREE.Vector3(position.x, position.y, position.z);
-        this.heading = Math.PI / 2;
+        this.heading = heading;
         this.velocity = 0;
-        this.wheelBase = CAR_LENGTH * 5 / 8; // Distance between front and rear axles
+        this.wheelBase = CAR_LENGTH * 5 / 8;
         this.maxSpeed = 20;
         this.acceleration = 0.5;
         this.friction = 0.98;
@@ -27,6 +27,7 @@ export class Car {
                 this.group = gltf.scene;
                 this.group.position.set(this.position.x, this.position.y, this.position.z);
                 this.group.scale.set(SCALE_RATE, SCALE_RATE, SCALE_RATE);
+                this.group.rotation.y = this.heading;
 
                 if (onLoadCallback) onLoadCallback(this);
             },
@@ -42,41 +43,41 @@ export class Car {
         if (keys.backward) this.velocity = Math.max(this.velocity - this.acceleration, -this.maxSpeed);
         this.velocity *= this.friction;
 
-        if (keys.left) this.steerAngle = Math.max(this.steerAngle - 0.02, -this.maxSteerAngle);
-        if (keys.right) this.steerAngle = Math.min(this.steerAngle + 0.02, this.maxSteerAngle);
+        if (keys.right) this.steerAngle = Math.max(this.steerAngle - 0.02, -this.maxSteerAngle);
+        if (keys.left) this.steerAngle = Math.min(this.steerAngle + 0.02, this.maxSteerAngle);
         if (!keys.left && !keys.right) this.steerAngle *= 0.9;
 
         const frontWheel = this.position.clone().add(new THREE.Vector3(
-            Math.cos(this.heading) * (this.wheelBase / 2) + Math.sin(this.heading) * (CAR_WIDTH / 2),
+            Math.sin(this.heading) * (this.wheelBase / 2) - Math.cos(this.heading) * (CAR_WIDTH / 2),
             0,
-            Math.sin(this.heading) * (this.wheelBase / 2) - Math.cos(this.heading) * (CAR_WIDTH / 2)
+            Math.cos(this.heading) * (this.wheelBase / 2) + Math.sin(this.heading) * (CAR_WIDTH / 2)
         ));
         const backWheel = this.position.clone().add(new THREE.Vector3(
-            -Math.cos(this.heading) * (this.wheelBase / 2) + Math.sin(this.heading) * (CAR_WIDTH / 2),
+            -Math.sin(this.heading) * (this.wheelBase / 2) - Math.cos(this.heading) * (CAR_WIDTH / 2),
             0,
-            -Math.sin(this.heading) * (this.wheelBase / 2) - Math.cos(this.heading) * (CAR_WIDTH / 2)
+            -Math.cos(this.heading) * (this.wheelBase / 2) + Math.sin(this.heading) * (CAR_WIDTH / 2)
         ));
 
         backWheel.add(new THREE.Vector3(
-            Math.cos(this.heading) * this.velocity * dt,
+            Math.sin(this.heading) * this.velocity * dt,
             0,
-            Math.sin(this.heading) * this.velocity * dt
+            Math.cos(this.heading) * this.velocity * dt
         ));
         frontWheel.add(new THREE.Vector3(
-            Math.cos(this.heading + this.steerAngle) * this.velocity * dt,
+            Math.sin(this.heading + this.steerAngle) * this.velocity * dt,
             0,
-            Math.sin(this.heading + this.steerAngle) * this.velocity * dt
+            Math.cos(this.heading + this.steerAngle) * this.velocity * dt
         ));
 
         this.position = frontWheel.clone().add(backWheel).multiplyScalar(0.5).add(new THREE.Vector3(
-            -Math.sin(this.heading) * (CAR_WIDTH / 2),
+            Math.cos(this.heading) * (CAR_WIDTH / 2),
             0,
-            Math.cos(this.heading) * (CAR_WIDTH / 2)
+            -Math.sin(this.heading) * (CAR_WIDTH / 2)
         ));
-        this.heading = Math.atan2(frontWheel.z - backWheel.z, frontWheel.x - backWheel.x);
+        this.heading = Math.atan2(frontWheel.x - backWheel.x, frontWheel.z - backWheel.z);
 
         this.group.position.copy(this.position);
-        this.group.rotation.y = -this.heading + Math.PI / 2;
+        this.group.rotation.y = this.heading;
     }
 
 
