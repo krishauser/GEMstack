@@ -38,7 +38,6 @@ export default class Human {
         this.group.add(this.leftShoulderPivot);
 
         this.leftArm = new THREE.Mesh(armGeometry, armMaterial);
-        // this.leftArm.position.set(0, -HUMAN_ARM_LENGTH / 2, 0);
         this.leftShoulderPivot.add(this.leftArm);
 
         this.rightShoulderPivot = new THREE.Group();
@@ -50,7 +49,6 @@ export default class Human {
         this.group.add(this.rightShoulderPivot);
 
         this.rightArm = new THREE.Mesh(armGeometry, armMaterial);
-        // this.rightArm.position.set(0, -HUMAN_ARM_LENGTH / 2, 0);
         this.rightShoulderPivot.add(this.rightArm);
 
         const legGeometry = new THREE.CylinderGeometry(HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH);
