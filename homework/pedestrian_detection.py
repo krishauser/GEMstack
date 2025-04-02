@@ -5,6 +5,7 @@ from ultralytics import YOLO
 import cv2
 from typing import Dict
 import open3d as o3d
+from numpy import linalg as la
 import numpy as np
 from sklearn.cluster import DBSCAN
 from scipy.spatial.transform import Rotation as R
@@ -13,6 +14,7 @@ from sensor_msgs.msg import PointCloud2, Image
 import sensor_msgs.point_cloud2 as pc2
 import struct, ctypes
 from message_filters import Subscriber, ApproximateTimeSynchronizer
+from typing import Tuple
 
 # ----- Helper Functions -----
 def match_existing_pedestrian(
@@ -37,16 +39,52 @@ def match_existing_pedestrian(
 
     return best_agent_id
 
-def compute_velocity(old_pose: ObjectPose, new_pose: ObjectPose, dt: float) -> tuple:
+# def compute_velocity(old_pose: ObjectPose, new_pose: ObjectPose, dt: float) -> tuple:
+#     """
+#     Returns a (vx, vy, vz) velocity in the same frame as old_pose/new_pose.
+#     """
+#     if dt <= 0:
+#         return (0, 0, 0)
+#     vx = (new_pose.x - old_pose.x) / dt
+#     vy = (new_pose.y - old_pose.y) / dt
+#     vz = (new_pose.z - old_pose.z) / dt
+#     return (vx, vy, vz)
+
+def update_velocity(old_pose: ObjectPose, new_pose: ObjectPose, old_velocity: tuple, old_covariance: np.ndarray, dt: float, process_noise: float = 1e-4, meas_noise: float = .1) -> Tuple[tuple, np.ndarray]:
     """
-    Returns a (vx, vy, vz) velocity in the same frame as old_pose/new_pose.
+    Returns a (vx, vy, vz) velocity and updates covariance matrix P calculated using Kalman filtering.
     """
     if dt <= 0:
-        return (0, 0, 0)
+        return ((0, 0, 0), old_covariance)
+
+    x = np.array(old_velocity).reshape(3, 1) 
+    F = np.eye(3)  
+    H = np.eye(3)  
+    Q = np.eye(3) * process_noise
+    R = np.eye(3) * meas_noise
+    P = old_covariance
+
+    #Predict
+    x_pred = F @ x
+    P_pred = F @ P @ F.T + Q
+
+    #Kalman gain
+    S = H @ P @ H.T + R
+    K = P_pred @ H.T @ np.la.inv(S)    
+
+    #Update
     vx = (new_pose.x - old_pose.x) / dt
     vy = (new_pose.y - old_pose.y) / dt
     vz = (new_pose.z - old_pose.z) / dt
-    return (vx, vy, vz)
+    
+    z = np.array([vx, vy, vz])
+    y = z - H @ x_pred
+    x_new = x_pred + K @ y
+    P_new = (np.eye(3) - K @ H) @ P_pred
+
+    updated_velocity = tuple(x_new.flatten())
+    return (updated_velocity, P_new)
+    
 
 def extract_roi_box(lidar_pc, center, half_extents):
     lower = center - half_extents
@@ -188,17 +226,12 @@ class PedestrianDetector2D(Component):
 
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
-<<<<<<< HEAD
         self.current_agents = {}
         self.tracked_agents = {}
         self.pedestrian_counter = 0
         # Variables to store synchronized sensor data:
         self.latest_image = None
         self.latest_lidar = None
-=======
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
-        self.last_person_boxes = []
->>>>>>> af6089cb57e0b929e85028039fb16c4d4e151ddb
 
     def rate(self) -> float:
         return 4.0
@@ -210,7 +243,6 @@ class PedestrianDetector2D(Component):
         return ['agents']
 
     def initialize(self):
-<<<<<<< HEAD
         # Instead of individual subscriptions, use message_filters to synchronize
         self.rgb_sub = Subscriber('/oak/rgb/image_raw', Image)
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
@@ -310,34 +342,6 @@ class PedestrianDetector2D(Component):
                                                      1.0])
                 refined_center_vehicle_hom = self.T_l2v @ refined_center_lidar_hom
                 refined_center_vehicle = refined_center_vehicle_hom[:3]
-=======
-        #tell the vehicle to use image_callback whenever 'front_camera' gets a reading, and it expects images of type cv2.Mat
-        self.vehicle_interface.subscribe_sensor('front_camera',self.image_callback,cv2.Mat)
-        pass
-    
-    def image_callback(self, image : cv2.Mat):
-        detection_result = self.detector(image)
-        self.last_person_boxes = []
-        for result in detection_result:
-            for box in result.boxes:
-                if int(box.cls[0]) == 0: # check if bounding box is a person
-                    x, y, w, h = box.xywh[0].int().tolist()
-                    self.last_person_boxes.append((x, y, w, h))
-        #uncomment if you want to debug the detector...
-        #for bb in self.last_person_boxes:
-        #    x,y,w,h = bb
-        #    cv2.rectangle(image, (int(x-w/2), int(y-h/2)), (int(x+w/2), int(y+h/2)), (255, 0, 255), 3)
-        #cv2.imwrite("pedestrian_detections.png",image)
-    
-    def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
-        res = {}
-        for i,b in enumerate(self.last_person_boxes):
-            x,y,w,h = b
-            res['pedestrian'+str(i)] = box_to_fake_agent(b)
-        if len(res) > 0:
-            print("Detected",len(res),"pedestrians")
-        return res
->>>>>>> af6089cb57e0b929e85028039fb16c4d4e151ddb
 
                 R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                 euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
@@ -370,7 +374,7 @@ class PedestrianDetector2D(Component):
             if existing_id is not None:
                 old_agent_state = self.tracked_agents[existing_id]
                 dt = new_pose.t - old_agent_state.pose.t
-                vx, vy, vz = compute_velocity(old_agent_state.pose, new_pose, dt)
+                (vx, vy, vz), P  = update_velocity(old_agent_state.pose, new_pose, old_agent_state.velocity, old_agent_state.covariance, dt)
 
                 updated_agent = AgentState(
                     pose=new_pose,
@@ -379,7 +383,8 @@ class PedestrianDetector2D(Component):
                     type=AgentEnum.PEDESTRIAN,
                     activity=AgentActivityEnum.MOVING,
                     velocity=(vx, vy, vz),
-                    yaw_rate=0
+                    yaw_rate=0,
+                    covariance = P
                 )
                 agents[existing_id] = updated_agent
                 self.tracked_agents[existing_id] = updated_agent
@@ -394,7 +399,8 @@ class PedestrianDetector2D(Component):
                     type=AgentEnum.PEDESTRIAN,
                     activity=AgentActivityEnum.MOVING,
                     velocity=(0, 0, 0),
-                    yaw_rate=0
+                    yaw_rate=0,
+                    covariance = np.eye(3)
                 )
                 agents[agent_id] = new_agent
                 self.tracked_agents[agent_id] = new_agent
