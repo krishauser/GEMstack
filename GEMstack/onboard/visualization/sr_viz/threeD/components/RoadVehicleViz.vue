@@ -13,6 +13,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Car, CAR_WIDTH, CAR_HEIGHT, CAR_LENGTH } from "@/components/Car.js";
 import TrafficLight from "@/components/TrafficLight.js";
+import Human from "@/components/Human.js";
 import {
     CAR_MODEL_PATH,
     TRAFFIC_LIGHT_MODEL_PATH,
@@ -23,8 +24,12 @@ const camera = ref(null);
 const cameraMode = ref("free");
 let scene, renderer, controls;
 
-let car, trafficLight1, roadGeometry, roadMaterial;
+let car, roadGeometry, roadMaterial;
 let lastTime = performance.now();
+let cars = [];
+let humans = [];
+let trafficLights = [];
+let carIdx = 0;
 
 const keys = { forward: false, backward: false, left: false, right: false };
 
@@ -34,28 +39,69 @@ onMounted(() => {
     window.addEventListener("keypress", handleKeyPress);
 
     initScene();
-    car = new Car(CAR_MODEL_PATH, { x: 0, y: 0, z: 0 }, loadCallBack);
-
-    trafficLight1 = new TrafficLight(
-        TRAFFIC_LIGHT_MODEL_PATH,
-        { x: 0, y: 0, z: 5 },
-        loadCallBack
-    );
-
+    car = createCar(0, 0, 0);
+    for (let i = 0; i < 4; i++) {
+        const offset = (i + 1) * 10;
+        createCar(
+            (i % 2 === 0 ? -1 : 1) * (Math.random() * 5 + offset),
+            0,
+            offset
+        );
+    }
+    createTrafficLight(0, 0, 5);
+    createHuman(-3, 0, 4);
+    createHuman(2, 0, 6);
     animate();
 });
+
+function createCar(x, y, z) {
+    const newCar = new Car(CAR_MODEL_PATH, { x: x, y: y, z: z }, loadCallBack);
+    cars.push(newCar);
+    return newCar;
+}
+
+function createTrafficLight(x, y, z) {
+    const newTrafficLight = new TrafficLight(
+        TRAFFIC_LIGHT_MODEL_PATH,
+        { x: x, y: y, z: z },
+        loadCallBack
+    );
+    trafficLights.push(newTrafficLight);
+    return newTrafficLight;
+}
+
+function createHuman(x, y, z) {
+    const color = Math.random() * 0xffffff;
+    const newHuman = new Human(color, { x: x, y: y, z: z });
+    scene.add(newHuman.group);
+    humans.push(newHuman);
+    return newHuman;
+}
 
 function loadCallBack(object) {
     scene.add(object.group);
 }
 
 function handleKeyPress(event) {
-    if (event.key === "c" || event.key === "C") {
-        if (cameraMode.value === "free") {
-            cameraMode.value = "follow";
-        } else {
-            cameraMode.value = "free";
-        }
+    switch (event.key) {
+        case "c":
+        case "C":
+            if (cameraMode.value === "free") {
+                cameraMode.value = "follow";
+            } else {
+                cameraMode.value = "free";
+            }
+            break;
+        case "q":
+            carIdx = (carIdx - 1 + cars.length) % cars.length;
+            car = cars[carIdx];
+            break;
+        case "e":
+            carIdx = (carIdx + 1) % cars.length;
+            car = cars[carIdx];
+            break;
+        default:
+            break;
     }
 }
 
@@ -191,6 +237,9 @@ function animate() {
     if (car) {
         car.update(keys, dt);
     }
+    // for (const h of humans) {
+    //     h.walk();
+    // }
     updateCamera();
     controls.update();
     renderer.render(scene, camera.value);
