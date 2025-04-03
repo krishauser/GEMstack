@@ -6,6 +6,7 @@ import piexif
 import numpy as np
 import math
 import os
+from datetime import datetime
 
 def rad_to_deg(rad):
     """Convert radians to degrees"""
@@ -41,8 +42,8 @@ def interpolate_position(gnss_times, gnss_data, target_time):
     # Convert to degrees
     return rad_to_deg(lat_rad), rad_to_deg(lon_rad)
 
-def convert_gps_to_exif_format(latitude, longitude):
-    """Convert GPS coordinates to EXIF format"""
+def convert_gps_to_exif_format(latitude, longitude, altitude):
+    """Convert GPS coordinates and altitude to EXIF format"""
     def decimal_to_dms(decimal):
         decimal = float(decimal)
         degrees = int(decimal)
@@ -55,7 +56,12 @@ def convert_gps_to_exif_format(latitude, longitude):
     lat_ref = 'N' if latitude >= 0 else 'S'
     lon_ref = 'E' if longitude >= 0 else 'W'
     
-    return lat_dms, lon_dms, lat_ref, lon_ref
+    # Convert altitude to EXIF format (rational number)
+    alt_ref = 0 if altitude >= 0 else 1  # 0 = above sea level, 1 = below sea level
+    altitude = abs(altitude)
+    alt_ratio = (int(altitude * 100), 100)  # Multiply by 100 for 2 decimal precision
+    
+    return lat_dms, lon_dms, lat_ref, lon_ref, alt_ratio, alt_ref
 
 # Create images directory if it doesn't exist
 os.makedirs('images', exist_ok=True)
@@ -95,18 +101,54 @@ for topic, msg, t in bag.read_messages(topics=['/camera_fl/arena_camera_node/ima
     image_time = t.to_sec()
     lat, lon = interpolate_position(gnss_times, gnss_messages, image_time)
     
-    # Convert GPS coordinates to EXIF format
-    lat_dms, lon_dms, lat_ref, lon_ref = convert_gps_to_exif_format(lat, lon)
+    # Get altitude from GNSS message (you'll need to interpolate this as well)
+    altitude = gnss_messages[np.searchsorted(gnss_times, image_time)].height
     
-    # Create EXIF data
+    # Convert GPS coordinates to EXIF format
+    lat_dms, lon_dms, lat_ref, lon_ref, alt_ratio, alt_ref = convert_gps_to_exif_format(lat, lon, altitude)
+    
+    timestamp = datetime.fromtimestamp(t.to_sec())
+    
     exif_dict = {
-        "GPS": {
-            piexif.GPSIFD.GPSLatitudeRef: lat_ref.encode(),
-            piexif.GPSIFD.GPSLatitude: lat_dms,
-            piexif.GPSIFD.GPSLongitudeRef: lon_ref.encode(),
-            piexif.GPSIFD.GPSLongitude: lon_dms
-        }
+    "0th": {
+        piexif.ImageIFD.Make: "FLIR".encode(),
+        piexif.ImageIFD.Model: "Blackfly S BFS-U3-16S2C".encode(),
+        piexif.ImageIFD.Software: "ROS".encode(),
+        piexif.ImageIFD.DateTime: timestamp.strftime("%Y:%m:%d %H:%M:%S").encode(),
+        piexif.ImageIFD.ImageDescription: "Captured with ROS and FLIR Blackfly S".encode(),
+        piexif.ImageIFD.XResolution: (msg.width, 1),
+        piexif.ImageIFD.YResolution: (msg.height, 1),
+        piexif.ImageIFD.ResolutionUnit: 2,  # inches
+    },
+    "Exif": {
+        piexif.ExifIFD.DateTimeOriginal: timestamp.strftime("%Y:%m:%d %H:%M:%S").encode(),
+        piexif.ExifIFD.DateTimeDigitized: timestamp.strftime("%Y:%m:%d %H:%M:%S").encode(),
+        piexif.ExifIFD.ExposureTime: (1, 100),  # 1/100 second
+        piexif.ExifIFD.FNumber: (16, 10),  # f/1.6
+        piexif.ExifIFD.ExposureProgram: 1,  # Manual
+        piexif.ExifIFD.ISOSpeedRatings: 100,
+        piexif.ExifIFD.ExifVersion: b'0230',
+        piexif.ExifIFD.ComponentsConfiguration: b'\x01\x02\x03\x00',  # RGB
+        piexif.ExifIFD.FocalLength: (16, 1),  # 16mm
+        piexif.ExifIFD.ColorSpace: 1,  # sRGB
+        piexif.ExifIFD.PixelXDimension: msg.width,
+        piexif.ExifIFD.PixelYDimension: msg.height,
+        piexif.ExifIFD.ExposureMode: 1,  # Manual exposure
+        piexif.ExifIFD.WhiteBalance: 1,  # Manual white balance
+        piexif.ExifIFD.SceneCaptureType: 0,  # Standard
+    },
+    "GPS": {
+        piexif.GPSIFD.GPSLatitudeRef: lat_ref.encode(),
+        piexif.GPSIFD.GPSLatitude: lat_dms,
+        piexif.GPSIFD.GPSLongitudeRef: lon_ref.encode(),
+        piexif.GPSIFD.GPSLongitude: lon_dms,
+        piexif.GPSIFD.GPSAltitudeRef: alt_ref,
+        piexif.GPSIFD.GPSAltitude: alt_ratio,
+        piexif.GPSIFD.GPSTimeStamp: tuple(map(lambda x: (int(x), 1), timestamp.strftime("%H:%M:%S").split(":"))),
+        piexif.GPSIFD.GPSDateStamp: timestamp.strftime("%Y:%m:%d").encode(),
+        piexif.GPSIFD.GPSVersionID: (2, 3, 0, 0),
     }
+}
     
     # Convert to bytes
     exif_bytes = piexif.dump(exif_dict)
