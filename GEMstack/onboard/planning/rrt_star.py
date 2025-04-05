@@ -4,7 +4,8 @@ import cv2
 import matplotlib.pyplot as plt
 
 class RRT:
-    def __init__(self, start, goal, x_bounds, y_bounds, step_size, max_iter, occupancy_grid=None, neighbor_radius=None):
+    def __init__(self, start, goal, x_bounds, y_bounds, step_size, max_iter, occupancy_grid=None, neighbor_radius=None, 
+                 collision_sample_count=50, inflation_radius=1):
         self.start = np.array(start)
         self.goal = np.array(goal)
         self.x_bounds = x_bounds
@@ -16,6 +17,12 @@ class RRT:
         self.cost = {tuple(start): 0}  # Maintain cost to reach each node
         # Set neighbor radius (if not provided, default to 5 * step_size)
         self.neighbor_radius = neighbor_radius if neighbor_radius is not None else step_size * 5
+
+        # Number of collision samples along a line
+        self.collision_sample_count = collision_sample_count 
+        
+        # Buffer around obstacles in cell units
+        self.inflation_radius = inflation_radius
 
     def random_point(self):
         if np.random.rand() < 0.1:
@@ -49,13 +56,31 @@ class RRT:
         if self.occupancy_grid is None:
             return True
         x, y = int(node[0]), int(node[1])
-        ok_coords = (0 <= x < self.occupancy_grid.shape[0] and 0 <= y < self.occupancy_grid.shape[1])
-        return ok_coords and self.occupancy_grid[x, y] == 0
+        # ok_coords = (0 <= x < self.occupancy_grid.shape[0] and 0 <= y < self.occupancy_grid.shape[1])
+
+        if not (0 <= x < self.occupancy_grid.shape[0] and 0 <= y < self.occupancy_grid.shape[1]):
+            return False
+        
+        # return ok_coords and self.occupancy_grid[x, y] == 0
+
+        # Check a neighborhood around the point for obstacle inflation.
+        # This prevents the path from getting too close to obstacles.
+        for dx in range(-self.inflation_radius, self.inflation_radius + 1):
+            for dy in range(-self.inflation_radius, self.inflation_radius + 1):
+                nx = x + dx
+                ny = y + dy
+                if 0 <= nx < self.occupancy_grid.shape[0] and 0 <= ny < self.occupancy_grid.shape[1]:
+                    if self.occupancy_grid[nx, ny] != 0:
+                        return False
+        return True
+
 
     def check_line_collision(self, from_node, to_node):
         x1, y1 = int(from_node[0]), int(from_node[1])
         x2, y2 = int(to_node[0]), int(to_node[1])
-        points = np.linspace((x1, y1), (x2, y2), num=20)
+        # points = np.linspace((x1, y1), (x2, y2), num=20)
+        # NEW: Use a configurable (and increased) number of sample points for finer collision checking
+        points = np.linspace((x1, y1), (x2, y2), num=self.collision_sample_count)
         return all(self.is_collision_free(pt) for pt in points)
 
     def plan(self):
@@ -117,8 +142,8 @@ class RRT:
         
 class TestRRT(unittest.TestCase):
     def setUp(self):
-        self.occupancy_grid = np.zeros((10, 10), dtype=int)
-        self.rrt = RRT(start=(0, 0), goal=(9, 9), x_bounds=(0, 10), y_bounds=(0, 10),
+        self.occupancy_grid = np.zeros((100, 100), dtype=int)
+        self.rrt = RRT(start=(0, 0), goal=(99, 25), x_bounds=(0, 100), y_bounds=(0, 100),
                        step_size=1.0, max_iter=1000, occupancy_grid=self.occupancy_grid)
     
     def test_random_point_within_bounds(self):
@@ -141,21 +166,22 @@ class TestRRT(unittest.TestCase):
         np.testing.assert_almost_equal(new_point, expected, decimal=2)
     
     def test_is_goal_reached(self):
-        self.assertFalse(self.rrt.is_goal_reached((5, 5)))
-        self.assertTrue(self.rrt.is_goal_reached((9, 9)))
+        self.assertFalse(self.rrt.is_goal_reached((90, 90)))
+        self.assertTrue(self.rrt.is_goal_reached((99, 25)))
     
     def test_plan(self):
         path = self.rrt.plan()
         self.assertIsNotNone(path, "RRT failed to find a path")
         self.assertEqual(path[0], (0, 0))  # Start point
-        self.assertEqual(path[-1], (9, 9))  # Goal point
+        self.assertEqual(path[-1], (99, 25))  # Goal point
         self.rrt.visualize(path)
     
     def test_plan_with_obstacles(self):
         print("TESTING OBSTACLES")
-        self.occupancy_grid[5, :8] = 1  # Add an obstacle in the middle
-        self.rrt = RRT(start=(0, 0), goal=(9, 9), x_bounds=(0, 10), y_bounds=(0, 10),
-                       step_size=1.0, max_iter=1000, occupancy_grid=self.occupancy_grid)
+        self.occupancy_grid[10, :30] = 1  # Add an obstacle in the middle
+        self.occupancy_grid[45, 15:75] = 1
+        self.rrt = RRT(start=(0, 0), goal=(99, 25), x_bounds=(0, 100), y_bounds=(0, 100),
+                       step_size=1.0, max_iter=10000, occupancy_grid=self.occupancy_grid, neighbor_radius=3, inflation_radius=5)
         path = self.rrt.plan()
         self.assertIsNotNone(path, "RRT failed to find a path with obstacles")
         for node in path:
