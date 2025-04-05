@@ -41,9 +41,8 @@ def parse_behavior_log(filename):
                     times.append(t)
                     accelerations.append(acceleration)
                     heading_rates.append(heading_rate)
-                    speeds.append(speed)
-    return (np.array(times), np.array(accelerations), np.array(heading_rates), 
-            np.array(speeds))
+                    # speeds.append(speed)
+    return (np.array(times), np.array(accelerations), np.array(heading_rates))
 
 def parse_tracker_csv(filename):
     """
@@ -74,19 +73,13 @@ def compute_derivative(times, values):
     return times[1:], derivative
 
 def compute_gs(times, xs, ys, speeds):
-    # xtimes, vxs = compute_derivative(times, xs)
-    # ytimes, vys = compute_derivative(times, ys)
     vxs = np.gradient(xs, times)
     vys  = np.gradient(ys, times)
     vs = np.sqrt(vxs**2 + vys**2)
-    # print(speeds)
-    # vs = speeds
-    # long_times, long_accels = compute_derivative(times[1:], vs)
+
     long_accels = np.gradient(vs, times)
     psis = np.arctan2(vys, vxs)
-    # yaw_rate_times, yaw_rates = compute_derivative(times[1:], psis)
     yaw_rates = np.gradient(psis, times)
-    # lat_accels = yaw_rates * vs[1:]
     lat_accels = yaw_rates * vs
     g = 9.81
     longitudinal_gs = long_accels / g
@@ -96,11 +89,9 @@ def compute_gs(times, xs, ys, speeds):
 def plot_position(axis, x_actual, y_actual, x_desired, y_desired, safe_thresh=1, unsafe_thresh=2.5):
     """Plots vehicle actual and desired positions vs. time"""
     position_error = np.sqrt((x_desired - x_actual) ** 2 + (y_desired - y_actual) ** 2)
-    # safety_scores = np.vectorize(compute_safety_factor)(position_error, safe_thresh, unsafe_thresh)
     
     axis.plot(y_desired, x_desired, linestyle='--', color='blue', label='Desired')
     axis.plot(y_actual, x_actual, color="black", linewidth=0.8, alpha=0.5, label='Actual')
-    # axis.scatter(y_actual, x_actual, c=safety_scores, cmap=CMAP, vmin=0, vmax=1, edgecolors="black")
     
     axis.set_xlabel("Y Position (m)")
     axis.set_ylabel("X Position (m)")
@@ -118,7 +109,7 @@ def plot_speeds(axis, speed_actual, comptued_speed, time):
     axis.grid(True)
 
 def plot_accelerations(axis, accelerations, time):
-    axis.plot(time, accelerations, label='accelerationn')
+    axis.plot(time, accelerations, linestyle='--',label='accelerationn')
     axis.set_xlabel("time")
     axis.set_ylabel("accel m/s^2")
     axis.set_title("long accelerations")
@@ -158,7 +149,7 @@ if __name__=='__main__':
         sys.exit(1)
     
     # Parse behavior log file and compute metrics
-    times, accelerations, heading_rates, speeds = parse_behavior_log(behavior_file)
+    times, accelerations, heading_rates = parse_behavior_log(behavior_file)
     time_jerk, jerk = compute_derivative(times, accelerations)
     time_heading_acc, heading_acc = compute_derivative(times, heading_rates)
 
@@ -167,14 +158,11 @@ if __name__=='__main__':
         vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual = parse_tracker_csv(tracker_file)
         
         longitudinal_gs, lateral_gs, calculated_speed, lat_accels, long_accels = compute_gs(vehicle_time, x_actual, y_actual, speed_actual)
-        # print(longitudinal_gs)
         fig, axs = plt.subplots(2, 2)
         plot_gg_diagram(axs[0, 0], longitudinal_gs, lateral_gs)
         plot_position(axs[0, 1], x_actual, y_actual, x_desired, y_desired)
-        # plot_speeds(axs[1, 0], speed_actual[1:], calculated_speed, vehicle_time[1:])
         plot_speeds(axs[1, 0], speed_actual, calculated_speed, vehicle_time)
 
-        # plot_accelerations(axs[1, 1], long_accels, vehicle_time[2:])
         plot_accelerations(axs[1, 1], long_accels, vehicle_time)
 
         plt.show()
