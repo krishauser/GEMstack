@@ -24,6 +24,11 @@ class RRT:
         # Buffer around obstacles in cell units
         self.inflation_radius = inflation_radius
 
+        # OPTIMIZATION: Precompute inflation offsets for vectorized collision checking.
+        self.inflation_offsets = np.array([[dx, dy] 
+                                           for dx in range(-self.inflation_radius, self.inflation_radius + 1)
+                                           for dy in range(-self.inflation_radius, self.inflation_radius + 1)])
+
     def random_point(self):
         if np.random.rand() < 0.1:
             return self.goal
@@ -32,15 +37,18 @@ class RRT:
         return np.array([x, y])
 
     def nearest_neighbor(self, point):
-        return min(self.tree.keys(), key=lambda node: np.linalg.norm(np.array(node) - point))
+        # OPTIMIZATION: Vectorized computation of distances to all tree nodes.
+        nodes = np.array(list(self.tree.keys()))
+        dists = np.linalg.norm(nodes - point, axis=1)
+        idx = np.argmin(dists)
+        return tuple(nodes[idx])
     
-    # get nearby nodes within a given radius
     def get_near_nodes(self, point, radius):
-        near_nodes = []
-        for node in self.tree.keys():
-            if np.linalg.norm(np.array(node) - point) < radius:
-                near_nodes.append(node)
-        return near_nodes
+        # OPTIMIZATION: Vectorized search for nodes within the given radius.
+        nodes = np.array(list(self.tree.keys()))
+        dists = np.linalg.norm(nodes - point, axis=1)
+        near_nodes = nodes[dists < radius]
+        return [tuple(node) for node in near_nodes]
 
     def steer(self, from_node, to_point):
         direction = to_point - np.array(from_node)
@@ -56,31 +64,27 @@ class RRT:
         if self.occupancy_grid is None:
             return True
         x, y = int(node[0]), int(node[1])
-        # ok_coords = (0 <= x < self.occupancy_grid.shape[0] and 0 <= y < self.occupancy_grid.shape[1])
-
-        if not (0 <= x < self.occupancy_grid.shape[0] and 0 <= y < self.occupancy_grid.shape[1]):
+        h, w = self.occupancy_grid.shape
+        if not (0 <= x < h and 0 <= y < w):
             return False
         
-        # return ok_coords and self.occupancy_grid[x, y] == 0
-
-        # Check a neighborhood around the point for obstacle inflation.
-        # This prevents the path from getting too close to obstacles.
-        for dx in range(-self.inflation_radius, self.inflation_radius + 1):
-            for dy in range(-self.inflation_radius, self.inflation_radius + 1):
-                nx = x + dx
-                ny = y + dy
-                if 0 <= nx < self.occupancy_grid.shape[0] and 0 <= ny < self.occupancy_grid.shape[1]:
-                    if self.occupancy_grid[nx, ny] != 0:
-                        return False
+        # OPTIMIZATION: Use vectorized check for the neighborhood around the point.
+        # Compute the neighbor coordinates by adding precomputed offsets.
+        neighbors = self.inflation_offsets + np.array([x, y])
+        # Filter neighbors that are within grid bounds.
+        valid = (neighbors[:, 0] >= 0) & (neighbors[:, 0] < h) & (neighbors[:, 1] >= 0) & (neighbors[:, 1] < w)
+        valid_neighbors = neighbors[valid]
+        # Check if any of the valid neighbor cells are obstacles (non-zero)
+        if np.any(self.occupancy_grid[valid_neighbors[:, 0], valid_neighbors[:, 1]] != 0):
+            return False
         return True
-
 
     def check_line_collision(self, from_node, to_node):
         x1, y1 = int(from_node[0]), int(from_node[1])
         x2, y2 = int(to_node[0]), int(to_node[1])
-        # points = np.linspace((x1, y1), (x2, y2), num=20)
-        # NEW: Use a configurable (and increased) number of sample points for finer collision checking
+        # Use a configurable number of sample points for finer collision checking
         points = np.linspace((x1, y1), (x2, y2), num=self.collision_sample_count)
+        # Check each sampled point using the vectorized collision check in is_collision_free
         return all(self.is_collision_free(pt) for pt in points)
 
     def plan(self):
@@ -178,10 +182,11 @@ class TestRRT(unittest.TestCase):
     
     def test_plan_with_obstacles(self):
         print("TESTING OBSTACLES")
-        self.occupancy_grid[10, :30] = 1  # Add an obstacle in the middle
+        self.occupancy_grid[10, :30] = 1 
         self.occupancy_grid[45, 15:75] = 1
+        self.occupancy_grid[80, :90] = 1
         self.rrt = RRT(start=(0, 0), goal=(99, 25), x_bounds=(0, 100), y_bounds=(0, 100),
-                       step_size=1.0, max_iter=10000, occupancy_grid=self.occupancy_grid, neighbor_radius=3, inflation_radius=5)
+                       step_size=1.0, max_iter=100000, occupancy_grid=self.occupancy_grid, neighbor_radius=3, inflation_radius=5)
         path = self.rrt.plan()
         self.assertIsNotNone(path, "RRT failed to find a path with obstacles")
         for node in path:
@@ -190,3 +195,4 @@ class TestRRT(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
