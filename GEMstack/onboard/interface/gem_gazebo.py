@@ -336,6 +336,17 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         self.stereo_sub = None
         self.faults = []
 
+        self.dubins = SecondOrderDubinsCar(
+            wheelAngleMin=settings.get('vehicle.geometry.min_wheel_angle'),
+            wheelAngleMax=settings.get('vehicle.geometry.max_wheel_angle'),
+            velocityMin=-settings.get('vehicle.limits.max_reverse_speed'),
+            velocityMax=settings.get('vehicle.limits.max_speed'),
+            accelMin=-settings.get('vehicle.limits.max_acceleration'),
+            accelMax=settings.get('vehicle.limits.max_deceleration'),
+            wheelAngleRateMin=-settings.get('vehicle.limits.max_steering_rate'),
+            wheelAngleRateMax=settings.get('vehicle.limits.max_steering_rate'),
+            wheelBase=settings.get('vehicle.geometry.wheelbase'))
+
 
         # # -------------------- PACMod setup --------------------
         # # GEM vehicle enable
@@ -538,6 +549,8 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
 
         phi  = ?????
 
+        
+
         accelerator_pedal_position = np.clip(command.accelerator_pedal_position,0.0,1.0)
         brake_pedal_position = np.clip(command.brake_pedal_position,0.0,1.0)
         acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,1)
@@ -557,7 +570,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         msg = AckermannDrive()
         msg.acceleration = acceleration
         msg.speed = acceleration * self.dt  #float('inf') if acceleration >0 else  float('-inf') 
-        msg.steering_angle = command.steering_wheel_angle
+        msg.steering_angle = phides
         msg.steering_angle_velocity = steering_angle_rate
 
 
