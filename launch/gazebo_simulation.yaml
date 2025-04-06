@@ -13,7 +13,7 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : object_detection.ObjectDetection
+        #agent_detection : object_detection.ObjectDetection
         perception_normalization : StandardPerceptionNormalizer
     planning:
         # relations_estimation: pedestrian_yield_logic.PedestrianYielder
@@ -73,7 +73,16 @@ variants:
                 #     state_estimation : OmniscientStateEstimator
                 #     agent_detection : OmniscientAgentDetector
                 planning:
-                  trajectory_tracking:
+                    route_planning:
+                        type: StaticRoutePlanner
+                        args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
+                    motion_planning:
+                        type: RouteToTrajectoryPlanner
+                        args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+                    trajectory_tracking:
+                        type: pure_pursuit.PurePursuitTrajectoryTracker
+                        args: {desired_speed: 2.5}  #approximately 5mph
+                        print: False
             # visualization: !include "klampt_visualization.yaml"
             # visualization: !include "mpl_visualization.yaml"
     log_ros:

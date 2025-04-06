@@ -14,6 +14,9 @@ from ...utils.loops import TimedLooper
 from dataclasses import replace
 from threading import Thread,Lock
 
+from gazebo_msgs.srv import GetModelState, GetModelStateResponse
+from gazebo_msgs.msg import ModelState
+
 from ackermann_msgs.msg import AckermannDrive
 import roslaunch
 # ROS Headers
@@ -88,6 +91,7 @@ class AgentSimulation:
         self.start = self.position[:]
         self.yaw = config.get('yaw',0)
 
+
     def to_agent_state(self) -> AgentState:
         pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=time.time(),x=self.position[0],y=self.position[1],yaw=self.yaw)
         activity = AgentActivityEnum.MOVING if self.velocity[0] != 0 or self.velocity[1] != 0 else AgentActivityEnum.STOPPED
@@ -130,6 +134,7 @@ class AgentSimulation:
             v -= AGENT_NOMINAL_ACCELERATION[self.type]*dt
         self.velocity = [v*direction[0],v*direction[1]]
         self.position = transforms.vector_madd(self.position,self.velocity,dt)
+    
 
 
 # class GEMDoubleIntegratorSimulation:
@@ -335,6 +340,8 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         self.top_lidar_sub = None
         self.stereo_sub = None
         self.faults = []
+        self.dt = settings.get('simulator.dt',0.01)
+
 
         self.dubins = SecondOrderDubinsCar(
             wheelAngleMin=settings.get('vehicle.geometry.min_wheel_angle'),
@@ -386,7 +393,21 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
 
 
         self.ackermann_pub = rospy.Publisher("ackermann_cmd", AckermannDrive, queue_size=1)
-
+    def getModelState(self):
+            # Get the current state of the vehicle
+            # Input: None
+            # Output: ModelState, the state of the vehicle, contain the
+            #   position, orientation, linear velocity, angular velocity
+            #   of the vehicle
+        rospy.wait_for_service('/gazebo/get_model_state')
+        try:
+            serviceResponse = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
+            resp = serviceResponse(model_name='gem_e4')
+        except rospy.ServiceException as exc:
+            rospy.loginfo("Service did not process request: "+str(exc))
+            resp = GetModelStateResponse()
+            resp.success = False
+        return resp
     
 
     # Need to double check on this time
@@ -538,16 +559,37 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         
     def send_command(self, command : GEMVehicleCommand):
 
-
+        print(command)
         t = self.time()
         if t < self.last_command_time + 1.0/self.max_send_rate:
             #skip command, PACMod can't handle commands this fast
             return
         self.last_command_time = t
 
-        #x,y,theta,v,phi = self.cur_vehicle_state
+        def extract_vehicle_info( currentPose):
+            def quaternion_to_euler(x, y, z, w):
+                t0 = +2.0 * (w * x + y * z)
+                t1 = +1.0 - 2.0 * (x * x + y * y)
+                roll = np.arctan2(t0, t1)
+                t2 = +2.0 * (w * y - z * x)
+                t2 = +1.0 if t2 > +1.0 else t2
+                t2 = -1.0 if t2 < -1.0 else t2
+                pitch = np.arcsin(t2)
+                t3 = +2.0 * (w * z + x * y)
+                t4 = +1.0 - 2.0 * (y * y + z * z)
+                yaw = np.arctan2(t3, t4)
+                return [roll, pitch, yaw]
+            pos_x, pos_y, vel, yaw = 0, 0, 0, 0
 
-        phi  = ?????
+            pos_x = currentPose.pose.position.x
+            pos_y = currentPose.pose.position.y
+            vel =  np.linalg.norm([currentPose.twist.linear.x, currentPose.twist.linear.y, currentPose.twist.linear.z])
+            _,_, yaw = quaternion_to_euler(currentPose.pose.orientation.x, currentPose.pose.orientation.y, currentPose.pose.orientation.z, currentPose.pose.orientation.w)
+
+
+            return pos_x, pos_y, vel, yaw # note that yaw is in radian
+        #what is phi>>
+        x,y,v,phi = extract_vehicle_info(self.getModelState())
 
         
 
@@ -564,12 +606,14 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         steering_angle_rate = front_wheel_angle_rate if phides > phi + phi_deadband else \
             (-front_wheel_angle_rate if phides < phi - phi_deadband else 0.0)
         
-        if command.brake_pedal_position > 0.0:
-            acceleration = 0.0
+        # if command.brake_pedal_position > 0.0:
+        #     acceleration = 0.0
+
+        
 
         msg = AckermannDrive()
         msg.acceleration = acceleration
-        msg.speed = acceleration * self.dt  #float('inf') if acceleration >0 else  float('-inf') 
+        msg.speed = float('inf') if acceleration >0 else  float('-inf')  #acceleration * self.dt 
         msg.steering_angle = phides
         msg.steering_angle_velocity = steering_angle_rate
 
