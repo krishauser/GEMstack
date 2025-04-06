@@ -5,7 +5,7 @@ from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
 from ...state.vehicle import VehicleState,ObjectFrameEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
 from ...knowledge.vehicle.geometry import front2steer
-from ..interface.gem import GEMVehicleCommand
+from ..interface.gem import GEMVehicleCommand,GEMInterface
 from ..component import Component
 import numpy as np
 
@@ -56,6 +56,8 @@ class PurePursuit(object):
             self.trajectory = path
             self.current_traj_parameter = self.trajectory.domain()[0]
         self.current_path_parameter = 0.0
+        self.last_point_on_path = path.points[-1]
+        
 
     def compute(self, state : VehicleState, component : Component = None):
         assert state.pose.frame != ObjectFrameEnum.CURRENT
@@ -181,6 +183,7 @@ class PurePursuit(object):
             component.debug('current yaw (rad)', curr_yaw)
             component.debug('current speed (m/s)', speed)
         print("Output accel: " + str(output_accel) + " m/s^2")
+        print("self.last_point_on_path",self.last_point_on_path)
 
         if output_accel > self.max_accel:
             output_accel = self.max_accel
@@ -190,15 +193,17 @@ class PurePursuit(object):
 
         self.t_last = t
 
-        if desired_speed == 0 and speed == 0 and output_accel < 0.0:
-            print("Stopping. Set accel", output_accel, "to 0")
-            output_accel = 0.0
+
+        # if desired_speed == 0 and speed == 0 and output_accel < 0.0:
+        #     print("Stopping. Set accel", output_accel, "to 0")
+        #     output_accel = 0.0
+       
 
         return (output_accel, f_delta)
 
 
 class PurePursuitTrajectoryTracker(Component):
-    def __init__(self,vehicle_interface=None, **args):
+    def __init__(self,vehicle_interface = None, **args):
         self.pure_pursuit = PurePursuit(**args)
         self.vehicle_interface = vehicle_interface
 
@@ -214,9 +219,19 @@ class PurePursuitTrajectoryTracker(Component):
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
         self.pure_pursuit.set_path(trajectory)
         accel,wheel_angle = self.pure_pursuit.compute(vehicle, self)
-        #print("Desired wheel angle",wheel_angle)
+        self.pure_pursuit.last_point_on_path
+
+        # check distance to final trajectory point
+        dx = vehicle.pose.x - self.pure_pursuit.last_point_on_path[0]
+        dy = vehicle.pose.y - self.pure_pursuit.last_point_on_path[1]
+        dist_to_goal = np.hypot(dx, dy)
+        # TODO: store threshold in settings
+        if dist_to_goal < 0.3:  
+           # full braking, wheels straight
+           accel = -self.pure_pursuit.max_decel
+           wheel_angle = 0.0
+
         steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
-        #print("Desired steering angle",steering_angle)
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
     
     def healthy(self):
