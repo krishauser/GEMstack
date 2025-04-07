@@ -4,6 +4,7 @@ from ..utils.serialization import register
 from ..mathutils import transforms,collisions
 from .physical_object import ObjectFrameEnum, convert_point
 import math
+import numpy as np
 from typing import List,Tuple,Optional,Union
 
 @dataclass
@@ -214,50 +215,56 @@ class Path:
 
     def _fit_circle_to_points(self, points: List[List[float]]) -> Tuple[float, float, float]:
         """
-        Fits a circle to a set of 2D points using least squares method.
-        
+        Approximates a circle from a set of 2D points using the circumcircle of the first three points.
+
         Args:
-            points: List of [x, y] coordinates
-            
+            points: List of [x, y] coordinates. Must contain at least 3 points.
+
         Returns:
             Tuple[float, float, float]: Center coordinates (h, k) and radius r
         """
-        # Number of points
-        n = len(points)
-        
-        # Compute means of x and y coordinates
-        x_mean = sum(p[0] for p in points) / n
-        y_mean = sum(p[1] for p in points) / n
-        
-        # Compute sums for least squares fitting
-        sum_x = sum((p[0] - x_mean) ** 2 for p in points)
-        sum_y = sum((p[1] - y_mean) ** 2 for p in points)
-        sum_xy = sum((p[0] - x_mean) * (p[1] - y_mean) for p in points)
-        sum_x2y = sum((p[0] - x_mean) ** 2 * (p[1] - y_mean) for p in points)
-        sum_xy2 = sum((p[0] - x_mean) * (p[1] - y_mean) ** 2 for p in points)
-        sum_x3 = sum((p[0] - x_mean) ** 3 for p in points)
-        sum_y3 = sum((p[1] - y_mean) ** 3 for p in points)
-        
-        # Matrix coefficients
-        a = sum_x2y - sum_x * sum_xy / n
-        b = sum_xy2 - sum_y * sum_xy / n
-        c = sum_x3 + sum_xy2 - (sum_x * sum_x + sum_xy) / n * sum_x
-        d = sum_y3 + sum_x2y - (sum_y * sum_y + sum_xy) / n * sum_y
-        
-        # Compute circle parameters
-        # If the points are collinear or nearly so, determinant will be near zero
-        # leading to unstable solutions, in which case we'll raise an exception
-        det = a * d - b * c
-        if abs(det) < 1e-10:
-            raise ValueError("Points are collinear or near-collinear")
-        
-        # Circle center coordinates
-        h = (d * sum_x - b * sum_y) / (2 * det) + x_mean
-        k = (-c * sum_x + a * sum_y) / (2 * det) + y_mean
-        
-        # Compute radius as average distance from center to all points
-        r = sum(math.sqrt((p[0] - h) ** 2 + (p[1] - k) ** 2) for p in points) / n
-        
+        if len(points) < 3:
+            raise ValueError("At least 3 points are required to fit a circle")
+
+        p1, p2, p3 = points[0], points[1], points[2]
+
+        # Build matrices for determinant calculation
+        def det(matrix):
+            return np.linalg.det(np.array(matrix))
+
+        A = [
+            [p1[0], p1[1], 1],
+            [p2[0], p2[1], 1],
+            [p3[0], p3[1], 1]
+        ]
+        D = det(A)
+        if abs(D) < 1e-10:
+            raise ValueError("Points are collinear or nearly collinear")
+
+        a = p1[0]**2 + p1[1]**2
+        b = p2[0]**2 + p2[1]**2
+        c = p3[0]**2 + p3[1]**2
+
+        M11 = [
+            [a, p1[1], 1],
+            [b, p2[1], 1],
+            [c, p3[1], 1]
+        ]
+        M12 = [
+            [a, p1[0], 1],
+            [b, p2[0], 1],
+            [c, p3[0], 1]
+        ]
+        M13 = [
+            [a, p1[0], p1[1]],
+            [b, p2[0], p2[1]],
+            [c, p3[0], p3[1]]
+        ]
+
+        h = 0.5 * det(M11) / D
+        k = -0.5 * det(M12) / D
+        r = math.sqrt(h**2 + k**2 + det(M13) / D)
+
         return h, k, r
 
 
