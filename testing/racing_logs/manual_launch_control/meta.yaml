@@ -1,0 +1,19 @@
+events:
+- description: Ctrl+C pressed, switching to recovery mode
+  time: 1744061258.339312
+  vehicle_time: 1744061258.2645006
+- description: Mission execution ended
+  time: 1744061258.3477583
+  vehicle_time: 1744061258.2645006
+exit_reason: normal exit
+git_branch: racing
+git_commit_id: 2e36aeb7a55246289008a8f0a7de7f84bdbec5e6
+pipelines:
+- name: drive
+  time: 1744061246.6633348
+  vehicle_time: 1744061246.563198
+- name: recovery
+  time: 1744061258.3413317
+  vehicle_time: 1744061258.2645006
+start_time: 1744061246.5398777
+start_time_human_readable: '2025-04-07 16:27:26'

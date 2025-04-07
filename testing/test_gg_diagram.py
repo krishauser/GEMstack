@@ -109,11 +109,11 @@ def compute_gs(accelerations, heading_rates, speeds):
 
     return longitudinal_gs, lateral_gs#s, vs, lat_accels, long_accels, times, valid_mask
 
-def plot_position(axis, x_actual, y_actual, x_desired, y_desired, safe_thresh=1, unsafe_thresh=2.5):
+def plot_position(axis, x_actual, y_actual, x_desired=None, y_desired=None, safe_thresh=1, unsafe_thresh=2.5):
     """Plots vehicle actual and desired positions vs. time"""
     # position_error = np.sqrt((x_desired - x_actual) ** 2 + (y_desired - y_actual) ** 2)
     
-    axis.plot(y_desired, x_desired, linestyle='--', color='blue', label='Desired')
+    #axis.plot(y_desired, x_desired, linestyle='--', color='blue', label='Desired')
     axis.plot(y_actual, x_actual, color="black", linewidth=0.8, alpha=0.5, label='Actual')
     
     axis.set_xlabel("Y Position (m)")
@@ -179,12 +179,12 @@ if __name__=='__main__':
 
     longitudinal_gs, lateral_gs = compute_gs(accelerations, heading_rates, speeds)
 
-    vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual = parse_tracker_csv(tracker_file)
+    #vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual = parse_tracker_csv(tracker_file)
 
 
     fig, axs = plt.subplots(2, 2)
     plot_gg_diagram(axs[0, 0], longitudinal_gs, lateral_gs)
-    plot_position(axs[0, 1], xs, ys, x_desired, y_desired)
+    plot_position(axs[0, 1], xs, ys)#, x_desired, y_desired)
     plot_speeds(axs[1, 0], times, speeds)
     plot_accelerations(axs[1, 1], accelerations, times)
     plt.show()
