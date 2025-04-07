@@ -314,7 +314,7 @@ class GEMHardwareInterface(GEMInterface):
             print("Warning: commanded acceleration exceeded accel pedal limit")
             self.accel_cmd.f64_cmd = maxacc
         if self.brake_cmd.f64_cmd > maxbrake:
-            print("Warning: commanded braking exceeded brake pedal limit")
+            print("Warning: commanded braking exceed   0   # to ed brake pedal limit")
             self.brake_cmd.f64_cmd = maxbrake
         print("**************************")
 
