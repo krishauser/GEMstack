@@ -1,133 +1,183 @@
-from typing import List
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-import time
+import asyncio
+import json
+import logging
+import websockets
 import uuid
+from datetime import datetime
+from message_constants import ClientRole, MessageType, MissionEnum
 
-# import jwt
-
-SECRET_KEY = "CHANGE_ME_TO_SOMETHING_SECURE"
-
-app = FastAPI(title="GemStack Car‑Summon API (Mock)")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost", "http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[logging.StreamHandler()]
 )
 
-### MODELS ###
+# store connected clients with their roles
+connected_clients = {}  # {websocket: {"id": client_id, "role": role}}
+# store active summoning missions
+active_missions = {}
+# track executed summons to prevent duplicates
+executed_summons = set()  # set of coordinate tuples (x, y)
 
+async def handle_client(websocket):
+    """handle a client connection."""
+    client_id = str(uuid.uuid4())
+    client_role = ClientRole.UNKNOWN
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+    # wait for initial registration message to determine role
+    try:
+        # set a timeout for registration
+        registration_message = await asyncio.wait_for(websocket.recv(), timeout=10.0)
+        data = json.loads(registration_message)
 
+        if "role" in data:
+            role_str = data["role"].lower()
+            if role_str == "webapp":
+                client_role = ClientRole.WEBAPP
+            elif role_str == "server":
+                client_role = ClientRole.SERVER
+            elif role_str == "gemstack":
+                client_role = ClientRole.GEMSTACK
 
-class CoordinatesRequest(BaseModel):
-    lat: float = Field(..., ge=-90, le=90)
-    lon: float = Field(..., ge=-180, le=180)
+        logging.info(f"new client connected: {client_id} with role {client_role}")
 
+        # send acknowledgment
+        await websocket.send(json.dumps({
+            "type": MessageType.REGISTRATION_RESPONSE,
+            "client_id": client_id,
+            "role": client_role,
+            "status": "connected"
+        }))
 
-class CoordinatesResponse(BaseModel):
-    current_position: CoordinatesRequest
-    optimized_route: List[CoordinatesRequest]
-    eta: str
+        # store client with role
+        connected_clients[websocket] = {"id": client_id, "role": client_role}
 
+        # process messages
+        async for message in websocket:
+            logging.info(f"received message from {client_id} ({client_role}): {message}")
 
-class SummonResponse(BaseModel):
-    launch_status: str
-    launch_id: str
+            try:
+                data = json.loads(message)
 
+                # add source role to the message for processing
+                data["source_role"] = client_role
+                data["source_id"] = client_id
 
-class CancelRequest(BaseModel):
-    launch_id: str
+                # handle different message types
+                if "type" in data:
+                    msg_type = data["type"]
+                    if msg_type == MessageType.SUMMON:
+                        await handle_summon_request(websocket, data, client_id, client_role)
+                    else:
+                        logging.warning(f"unknown or unimplemented message type: {msg_type}")
+                else:
+                    logging.warning("message missing 'type' field")
 
+            except json.JSONDecodeError:
+                logging.error(f"invalid JSON: {message}")
+                await websocket.send(json.dumps({
+                    "type": MessageType.ERROR,
+                    "message": "invalid JSON format"
+                }))
 
-class CancelResponse(BaseModel):
-    launch_id: str
-    status: str
+    except asyncio.TimeoutError:
+        logging.warning(f"client {client_id} registration timed out")
+        await websocket.send(json.dumps({
+            "type": MessageType.ERROR,
+            "message": "registration timed out. please identify your role."
+        }))
+        return
+    except websockets.exceptions.ConnectionClosed:
+        logging.info(f"client disconnected during registration: {client_id}")
+    except Exception as e:
+        logging.error(f"error during client handling: {str(e)}")
+    finally:
+        if websocket in connected_clients:
+            del connected_clients[websocket]
+            logging.info(f"client removed: {client_id} ({client_role})")
 
+async def handle_summon_request(websocket, data, client_id, client_role):
+    """process a summoning request with coordinates."""
+    # note: this is a temporary check to ensure the request is coming from a trusted source
+    # TODO: remove this check when we have a proper authentication mechanism
+    if client_role != ClientRole.WEBAPP and client_role != ClientRole.SERVER:
+        logging.error(f"unauthorized role ({client_role}) for summon request")
+        await websocket.send(json.dumps({
+            "type": MessageType.ERROR,
+            "message": f"unauthorized role ({client_role}) for summon request"
+        }))
+        return
 
-class StreamPosition(BaseModel):
-    current_position: CoordinatesRequest
-    launch_status: str
-    eta: str
+    if "coordinates" not in data:
+        await websocket.send(json.dumps({
+            "type": MessageType.ERROR,
+            "message": "missing coordinates in summon request"
+        }))
+        return
 
+    coords = data["coordinates"]
+    # validate coordinates format
+    if not all(k in coords for k in ["x", "y"]):
+        logging.error(f"invalid coordinates: {coords}")
+        await websocket.send(json.dumps({
+            "type": MessageType.ERROR,
+            "message": "coordinates must include x and y values"
+        }))
+        return
 
-class Coordinates(BaseModel):
-    lat: float
-    lng: float
+    # check if these coordinates have already been executed
+    coord_tuple = (coords["x"], coords["y"])
+    if coord_tuple in executed_summons:
+        logging.error(f"summon to coordinates {coord_tuple} was already executed")
+        await websocket.send(json.dumps({
+            "type": MessageType.ERROR,
+            "message": f"summon to coordinates {coord_tuple} was already executed",
+            "source_role": ClientRole.SERVER
+        }))
+        return
 
+    # create a new mission
+    mission_id = str(uuid.uuid4())
+    timestamp = datetime.now().isoformat()
 
-### HELPERS ###
+    mission = {
+        "id": mission_id,
+        "client_id": client_id,
+        "client_role": client_role,
+        "coordinates": coords,
+        "mission_enum": MissionEnum.DRIVE.value,
+        "timestamp": timestamp
+    }
 
-# def create_jwt(username: str) -> str:
-#     payload = {"sub": username, "jti": str(uuid.uuid4())}
-#     return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    active_missions[mission_id] = mission
+    executed_summons.add(coord_tuple)
 
-### ENDPOINTS ###
+    # send response to client
+    await websocket.send(json.dumps({
+        "type": MessageType.SUMMON_RESPONSE,
+        "mission_id": mission_id,
+        "mission_enum": MissionEnum.DRIVE.value,
+        "timestamp": timestamp,
+        "source_role": ClientRole.SERVER
+    }))
 
-# @app.post("/api/login")
-# def login(req: LoginRequest):
-#     if req.username == "admin" and req.password == "password":
-#         return {"token": create_jwt(req.username)}
-#     raise HTTPException(status_code=401, detail="Invalid credentials")
+    # Note: Not implementing broadcast to GEMstack clients yet
+    logging.info(f"summon request processed for mission {mission_id} to coordinates ({coords['x']}, {coords['y']})")
 
+async def main():
+    """start the websocket server."""
+    host = "localhost"
+    port = 8765
 
-@app.post("/api/coordinates", response_model=CoordinatesResponse)
-def get_coordinates(req: CoordinatesRequest):
-    # Mock “optimized route” as a straight line of 3 waypoints
-    route = [
-        CoordinatesRequest(lat=req.lat + 0.001 * i, lon=req.lon + 0.001 * i)
-        for i in range(1, 4)
-    ]
-    return CoordinatesResponse(
-        current_position=CoordinatesRequest(lat=req.lat, lon=req.lon),
-        optimized_route=route,
-        eta="5 min",
-    )
+    # updated serve call for newer websockets versions
+    async with websockets.serve(handle_client, host, port):
+        logging.info(f"websocket server started at ws://{host}:{port}")
+        # keep the server running indefinitely
+        await asyncio.Future()  # run forever
 
-
-@app.post("/api/summon", response_model=SummonResponse)
-def summon(req: CoordinatesRequest):
-    launch_id = str(uuid.uuid4())
-    return SummonResponse(launch_status="launched", launch_id=launch_id)
-
-
-@app.get("/api/stream_position/{launch_id}")
-def stream_position(launch_id: str):
-    def event_generator():
-        lat, lon = 40.0930, -88.2350
-        for i in range(5):
-            time.sleep(1)
-            lat += 0.0005
-            lon += 0.0005
-            yield f"data: {StreamPosition(current_position=CoordinatesRequest(lat=lat, lon=lon), launch_status='navigating', eta=f'{5-i} min').json()}\n\n"
-        yield 'data: {"launch_status":"arrived"}\n\n'
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
-
-@app.post("/api/cancel", response_model=CancelResponse)
-def cancel(req: CancelRequest):
-    return CancelResponse(launch_id=req.launch_id, status="cancelled")
-
-
-bounding_box = None
-
-
-@app.post("/api/inspect", status_code=201)
-def get_bounding_box(coords: list[Coordinates]):
-    global bounding_box
-    bounding_box = coords
-    return "Successfully retrieved bounding box coords!"
-
-
-@app.get("/api/inspect", response_model=list[Coordinates] | None, status_code=200)
-def send_bounding_box():
-    return bounding_box
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("server shutdown initiated by user")
