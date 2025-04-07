@@ -1,6 +1,7 @@
 from typing import List
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import time
 import uuid
@@ -10,6 +11,14 @@ import uuid
 SECRET_KEY = "CHANGE_ME_TO_SOMETHING_SECURE"
 
 app = FastAPI(title="GemStack Car‑Summon API (Mock)")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost", "http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 ### MODELS ###
 
@@ -52,7 +61,7 @@ class StreamPosition(BaseModel):
 
 class Coordinates(BaseModel):
     lat: float
-    lon: float
+    lng: float
 
 
 ### HELPERS ###
@@ -114,10 +123,11 @@ bounding_box = None
 
 @app.post("/api/inspect", status_code=201)
 def get_bounding_box(coords: list[Coordinates]):
+    global bounding_box
     bounding_box = coords
     return "Successfully retrieved bounding box coords!"
 
 
-@app.get("/api/inspect", response_model=list[Coordinates], status_code=200)
+@app.get("/api/inspect", response_model=list[Coordinates] | None, status_code=200)
 def send_bounding_box():
     return bounding_box
