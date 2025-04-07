@@ -176,4 +176,5 @@ cuda/
 
 **/rosbag/*
 **/logs/*
+**/*.bag
 
