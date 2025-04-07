@@ -444,7 +444,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         if msg.subsystem_can_timeout:
             self.faults.append("subsystem_can_timeout")
         
-    # Maybe need to change for controls? idk
+    #TODO: Start gazebo
     def start(self):
         # assert self.thread is None
         # print("Running simulator thread...")
@@ -562,13 +562,10 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
     def send_command(self, command : GEMVehicleCommand):
 
         rospy.loginfo(f"got command: {command}")
-        t = self.time()
-        if t < self.last_command_time + 1.0/self.max_send_rate:
-            #skip command, PACMod can't handle commands this fast
-            return
-        self.last_command_time = t
 
         def extract_vehicle_info( currentPose):
+
+            #TODO: replace with already proviced function and make sure convention is correct
             def quaternion_to_euler(x, y, z, w):
                 t0 = +2.0 * (w * x + y * z)
                 t1 = +1.0 - 2.0 * (x * x + y * y)
@@ -585,7 +582,13 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
 
             pos_x = currentPose.pose.position.x
             pos_y = currentPose.pose.position.y
+
             vel =  np.linalg.norm([currentPose.twist.linear.x, currentPose.twist.linear.y, currentPose.twist.linear.z])
+
+            #TODO: figure out velocity sign Is this correct
+
+            # if currentPose.twist.linear.x<0:
+            #   vel = -vel
             _,_, yaw = quaternion_to_euler(currentPose.pose.orientation.x, currentPose.pose.orientation.y, currentPose.pose.orientation.z, currentPose.pose.orientation.w)
 
 
@@ -608,8 +611,6 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         steering_angle_rate = front_wheel_angle_rate if phides > phi + phi_deadband else \
             (-front_wheel_angle_rate if phides < phi - phi_deadband else 0.0)
         
-        # if command.brake_pedal_position > 0.0:
-        #     acceleration = 0.0
 
         
 
