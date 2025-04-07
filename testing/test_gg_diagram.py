@@ -8,6 +8,7 @@ sys.path.append(os.getcwd())
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+from GEMstack.mathutils.transforms import lat_lon_to_xy
 
 def parse_behavior_log(filename):
     """
@@ -23,9 +24,11 @@ def parse_behavior_log(filename):
     speeds = []
     xs = []
     ys = []
+    ref_lat = 0.0
+    ref_long = 0.0
     
     with open(filename, 'r') as f:
-        for line in f:
+        for idx, line in enumerate(f):
             try:
                 entry = json.loads(line)
             except json.JSONDecodeError:
@@ -43,6 +46,10 @@ def parse_behavior_log(filename):
                 frame = vehicle_data["pose"].get("frame")
                 x = vehicle_data["pose"].get("x")
                 y = vehicle_data["pose"].get("y")
+                if idx == 0:
+                    ref_lat = x
+                    ref_long = y
+                x, y = lat_lon_to_xy(x,y,ref_lat,ref_long)
                 # Only add if all fields are available
                 if None not in (t, acceleration, heading_rate, speed)  and frame != 3:
                     times.append(t)
@@ -143,7 +150,7 @@ def plot_accelerations(axis, accelerations, time):
 def plot_gg_diagram(axis, longitudinal_gs, lateral_gs):
     """Plots gg diagram"""
     # Plot G-G diagram
-    axis.scatter(longitudinal_gs, lateral_gs, alpha=0.5, label="Data Points")
+    axis.scatter(lateral_gs, longitudinal_gs, alpha=0.5, label="Data Points")
 
     # Draw friction ellipse (assuming µ = 1.0)
     mu = 1.0

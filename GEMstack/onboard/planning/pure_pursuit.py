@@ -171,16 +171,17 @@ class PurePursuit(object):
             curve_radius = self.path.fit_curve_radius((curr_x,curr_y), curve_points)
             # map curve radius to desired_speed. Note curve_radius can be inf if all points are colinear
             print("curve_radius: ", curve_radius)
-            if curve_radius < 10:
-                desired_speed = 2.5
-            elif curve_radius < 15:
-                desired_speed = 3
-            elif curve_radius < 20:
-                desired_speed = 4
-            elif curve_radius < 30:
-                desired_speed = 5
-            else:
-                desired_speed = 10
+            #if curve_radius < 10:
+            #    desired_speed = 2.5
+            #elif curve_radius < 15:
+            #    desired_speed = 3
+            #elif curve_radius < 20:
+            #    desired_speed = 4
+            #elif curve_radius < 30:
+            #    desired_speed = 5
+            #else:
+            #    desired_speed = 10
+            desired_speed = (.5*curve_radius)**.5
         else:
             #decay speed when crosstrack error is high
             desired_speed *= np.exp(-abs(ct_error)*0.4)
