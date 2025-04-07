@@ -14,7 +14,6 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         #agent_detection : object_detection.ObjectDetection
-        perception_normalization : StandardPerceptionNormalizer
     planning:
         # relations_estimation: pedestrian_yield_logic.PedestrianYielder
         # route_planning:
@@ -66,16 +65,17 @@ variants:
             vehicle_interface:
                 type: gem_gazebo.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+                    scene: !relative_path '../scenes/gazebo.yaml'
 
             drive: 
-                # perception:
-                #     state_estimation : OmniscientStateEstimator
-                #     agent_detection : OmniscientAgentDetector
+                perception:
+                    state_estimation : GNSSStateEstimator
+                    perception_normalization : StandardPerceptionNormalizer
+
                 planning:
                     route_planning:
                         type: StaticRoutePlanner
-                        args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
+                        args: [!relative_path '../GEMstack/knowledge/routes/gazebo.csv']
                     motion_planning:
                         type: RouteToTrajectoryPlanner
                         args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker

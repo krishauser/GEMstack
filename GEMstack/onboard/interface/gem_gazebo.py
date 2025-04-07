@@ -46,6 +46,8 @@ import numpy as np
 
 
 
+
+
 AGENT_DIMENSIONS = {
     'pedestrian' : (0.5,0.5,1.6),
     'bicyclist' : (1.8,0.5,1.6),
@@ -559,7 +561,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         
     def send_command(self, command : GEMVehicleCommand):
 
-        print(command)
+        rospy.loginfo(f"got command: {command}")
         t = self.time()
         if t < self.last_command_time + 1.0/self.max_send_rate:
             #skip command, PACMod can't handle commands this fast
@@ -588,10 +590,10 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
 
 
             return pos_x, pos_y, vel, yaw # note that yaw is in radian
-        #what is phi>>
-        x,y,v,phi = extract_vehicle_info(self.getModelState())
-
         
+
+        _,_,v,phi = extract_vehicle_info(self.getModelState())
+
 
         accelerator_pedal_position = np.clip(command.accelerator_pedal_position,0.0,1.0)
         brake_pedal_position = np.clip(command.brake_pedal_position,0.0,1.0)
@@ -613,9 +615,9 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
 
         msg = AckermannDrive()
         msg.acceleration = acceleration
-        msg.speed = float('inf') if acceleration >0 else  float('-inf')  #acceleration * self.dt 
-        msg.steering_angle = phides
-        msg.steering_angle_velocity = steering_angle_rate
+        msg.speed = float('inf') if acceleration >0 else 0  #acceleration * self.dt 
+        msg.steering_angle = -phides
+        msg.steering_angle_velocity = -steering_angle_rate
 
 
         self.ackermann_pub.publish(msg)
