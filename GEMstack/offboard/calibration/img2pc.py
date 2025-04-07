@@ -74,6 +74,7 @@ def main():
         lidar_ex = load_ex(args.pc_transform_path,mode='matrix')
         pc = np.pad(pc,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
     
+    
     cpoints = np.array(pick_n_img(img,N)).astype(float)
     print(cpoints)
 

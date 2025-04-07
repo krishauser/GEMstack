@@ -40,7 +40,7 @@ def save_ex(path,rotation=None,translation=None,matrix=None,ref='rear_axle_cente
     with open(path,'w') as stream:
         yaml.dump(ret,stream,Dumper=SafeDumper,default_flow_style=False)
 
-def load_in(path,mode='matrix'):
+def load_in(path,mode='matrix',return_distort=False):
     with open(path) as stream:
         y = yaml.safe_load(stream)
     if mode == 'matrix':
@@ -48,18 +48,26 @@ def load_in(path,mode='matrix'):
         ret[0,0],ret[1,1] = y['focal']
         ret[0:2,2] = y['center']
         return ret
+    if 'skew' not in y: y['skew'] = 0
+    if 'distort' not in y: y['distort'] = [0,0,0,0,0]
     elif mode == 'tuple':
-        return np.array(y['focal']),np.array(y['center'])
+        return {'focal':np.array(y['focal']),
+                'center':np.array(y['center']),
+                'skew':np.array(y['skew']),
+                'distort':np.array(y['distort'])}
 
-def save_in(path,focal=None,center=None,matrix=None):
+def save_in(path,focal=None,center=None,skew=None,distort=None,matrix=None):
     if matrix is not None:
         focal = matrix.diagonal()[0,-1]
+        skew = matrix[0,1]
         center = matrix[0:2,2]
         save_in(path,focal,center)
         return
     ret = {}
     ret['focal'] = focal
     ret['center'] = center
+    ret['skew'] = skew or 0
+    ret['distort'] = distort or [0,0,0,0,0]
     for i in ret:
         if type(ret[i]) == np.ndarray:
             ret[i] = ret[i].tolist()
