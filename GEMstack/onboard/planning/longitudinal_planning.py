@@ -1,739 +1,411 @@
-from typing import List, Tuple, Union
-from ..component import Component
-from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, ObjectFrameEnum, AgentState
-from ...utils import serialization, settings
-from ...mathutils.transforms import vector_madd
-from ...mathutils.quadratic_equation import quad_root
-
-import numpy as np
+# File: GEMstack/onboard/planning/longitudinal_planning.py
+from typing import List, Tuple
 import math
+from ..component import Component
+from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, \
+    ObjectFrameEnum, VehicleIntentEnum, MissionEnum
+from ...utils import serialization
+from ...mathutils import transforms
+import numpy as np
+
+DEBUG = False  # Set to False to disable debug output
 
 
-################################################################################
-########## Longitudinal Planning ###############################################
-################################################################################
+def generate_dense_points(points: List[Tuple[float]], density: int = 10) -> List[Tuple[float]]:
+    if not points:
+        return []
+    if len(points) == 1:
+        return points.copy()
 
-def longitudinal_plan(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float,
-                      method : str) -> Trajectory:
-    """Generates a longitudinal trajectory for a path with a
-    trapezoidal velocity profile. 
-    
-    1. accelerates from current speed toward max speed
-    2. travel along max speed
-    3. if at any point you can't brake before hitting the end of the path,
-       decelerate with accel = -deceleration until velocity goes to 0.
-    """
+    dense_points = [points[0]]
 
-    if method == "milestone":
-        return longitudinal_plan_milestone(path, acceleration, deceleration, max_speed, current_speed)
-    elif method == "dt":
-        return longitudinal_plan_dt(path, acceleration, deceleration, max_speed, current_speed)
-    elif method == "dx":
-        return longitudinal_plan_dx(path, acceleration, deceleration, max_speed, current_speed)
-    else:
-        raise NotImplementedError("Invalid method, only milestone, dt, adn dx are implemented.")
-    
-########################
-##### Simon's Code #####
-########################
-def longitudinal_plan_milestone(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
-    """Generates a longitudinal trajectory for a path with a
-    trapezoidal velocity profile. 
-    
-    1. accelerates from current speed toward max speed
-    2. travel along max speed
-    3. if at any point you can't brake before hitting the end of the path,
-       decelerate with accel = -deceleration until velocity goes to 0.
-    """
-    # Extrapolation factor for the points
-    # @TODO this should be moved to a parameter/allow dx to handle the case
-    # where we need more points
-    factor = 5.0
-    new_points = []
-    for idx, point in enumerate(path.points[:-1]):
-        next_point = path.points[idx+1] 
-        if point[0] == next_point[0]:
-            break
-        xarange = np.arange(point[0], next_point[0], (next_point[0] - point[0])/factor)
-        if point[1] == next_point[1]:
-            yarange = [point[1]]*len(xarange)
-        else:
-            yarange = np.arange(point[1], next_point[1], (next_point[1] - point[1])/factor)
-        for x, y in zip(xarange, yarange):
-            new_points.append((x, y))
-    new_points.append(path.points[-1])
-    
-    path = Path(path.frame, new_points)
+    for i in range(len(points) - 1):
+        p0 = points[i]
+        p1 = points[i + 1]
+        dx = p1[0] - p0[0]
+        dy = p1[1] - p0[1]
+        seg_length = math.hypot(dx, dy)
 
+        n_interp = int(round(seg_length * density))
+
+        for j in range(1, n_interp + 1):
+            fraction = j / (n_interp + 1)
+            x_interp = p0[0] + fraction * dx
+            y_interp = p0[1] + fraction * dy
+            dense_points.append((x_interp, y_interp))
+
+        dense_points.append(p1)
+
+    return dense_points
+
+
+def compute_cumulative_distances(points: List[List[float]]) -> List[float]:
+    s_vals = [0.0]
+    for i in range(1, len(points)):
+        dx = points[i][0] - points[i - 1][0]
+        dy = points[i][1] - points[i - 1][1]
+        ds = math.hypot(dx, dy)
+        s_vals.append(s_vals[-1] + ds)
+
+    if DEBUG:
+        print("[DEBUG] compute_cumulative_distances: s_vals =", s_vals)
+
+    return s_vals
+
+
+def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed):
     path_normalized = path.arc_length_parameterize()
-    points = [p for p in path_normalized.points]
-    times = [t for t in path_normalized.times]
-    #=============================================
+    points = list(path_normalized.points)
+    dense_points = generate_dense_points(points)
+    s_vals = compute_cumulative_distances(dense_points)
+    L = s_vals[-1]  # Total path length
+    stopping_distance = (current_speed ** 2) / (2 * deceleration)
 
-    print("-----LONGITUDINAL PLAN-----")
-    #print("path length: ", path.length())
-    length = path.length()
+    if DEBUG:
+        print("[DEBUG] compute_cumulative_distances: s_vals =", s_vals)
+        print("[DEBUG] longitudinal_plan: Total path length L =", L)
+        print("[DEBUG] longitudinal_plan: Braking distance needed =", stopping_distance)
 
-    # If the path is too short, just return the path for preventing sudden halt of simulation
-    if length < 0.05:
-        return Trajectory(path.frame, points, times)
+    if stopping_distance > L:  # Case where there is not enough stopping distance to stop before path ends (calls emergency brake)
+        return longitudinal_brake(path, deceleration, current_speed)
 
-    # Starting point
-    x0 = points[0][0]
-    cur_point = points[0]
-    cur_time = times[0]
-    cur_index = 0
+    if current_speed > max_speed:  # Case where car is exceeding the max speed so we need to slow down (do initial slowdown)
+        if DEBUG:
+            print(f"[DEBUG] Handling case where current_speed ({current_speed:.2f}) > max_speed ({max_speed:.2f})")
 
-    new_points = []
-    new_times = []
-    velocities = [] # for graphing and debugging purposes
+        # Initial deceleration phase to reach max_speed
+        initial_decel_distance = (current_speed ** 2 - max_speed ** 2) / (2 * deceleration)
+        initial_decel_time = (current_speed - max_speed) / deceleration
+        remaining_distance = L - initial_decel_distance
 
-    while current_speed > 0 or cur_index == 0:
-        # we want to iterate through all the points and add them
-        # to the new points. However, we also want to add "switch points"
-        # where we reach top speed, begin decelerating, and stop
-        new_points.append(cur_point)
-        new_times.append(cur_time)
-        velocities.append(current_speed)
+        if DEBUG:
+            print(
+                f"[DEBUG] Phase 1 - Initial Decel: distance = {initial_decel_distance:.2f}, time = {initial_decel_time:.2f}")
+            print(f"[DEBUG] Remaining distance after reaching max_speed: {remaining_distance:.2f}")
 
-        # Information we will need: 
-        # Calculate how much time it would take to stop
-        # Calculate how much distance it would take to stop
-        min_delta_t_stop = current_speed/deceleration
-        min_delta_x_stop = current_speed*min_delta_t_stop - 0.5*deceleration*min_delta_t_stop**2
-        # print(min_delta_x_stop)
-        assert min_delta_x_stop >= 0
+        # Calculate final deceleration distance needed to stop from max_speed
+        final_decel_distance = (max_speed ** 2) / (2 * deceleration)
+        cruise_distance = remaining_distance - final_decel_distance
 
-        # If we cannot stop before or stop exactly at the final position requested
-        if cur_point[0] + min_delta_x_stop >= points[-1][0]:
-            # put on the breaks
+        if DEBUG:
+            print(f"[DEBUG] Phase 2 - Cruise: distance = {cruise_distance:.2f}")
+            print(f"[DEBUG] Phase 3 - Final Decel: distance = {final_decel_distance:.2f}")
 
-            # Calculate the next point in a special manner because of too-little time to stop 
-            if cur_index == len(points)-1:
-                # the next point in this instance would be when we stop
-                next_point = (cur_point[0] + min_delta_x_stop, 0)
-            else:
-                next_point = points[cur_index+1]
+        times = []
+        for s in s_vals:
+            if s <= initial_decel_distance:  # Phase 1: Initial deceleration to max_speed
+                v = math.sqrt(current_speed ** 2 - 2 * deceleration * s)
+                t = (current_speed - v) / deceleration
+                if DEBUG:  # Print every 10m
+                    print(f"[DEBUG] Initial Decel: s = {s:.2f}, v = {v:.2f}, t = {t:.2f}")
 
-            # keep breaking until the next milestone in path
-            if next_point[0] <= points[-1][0]:
-                # print("continuing to next point")
-                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
-                cur_time += delta_t_to_next_x
-                cur_point = next_point
-                current_speed -= deceleration*delta_t_to_next_x
-                cur_index += 1
-            else:
-                # continue to the point in which we would stop (current_velocity = 0)
-                # update to the next point 
-                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
-                cur_point = next_point
-                cur_time += delta_t_to_next_x
-                # current_speed would not be exactly zero error would be less than 1e-4 but perfer to just set to zero
-                #current_speed -= delta_t_to_next_x*deceleration
-                current_speed = 0
-                assert current_speed == 0
+            elif s <= initial_decel_distance + cruise_distance:  # Phase 2: Cruise at max_speed
+                s_in_cruise = s - initial_decel_distance
+                t = initial_decel_time + s_in_cruise / max_speed
+                if DEBUG:  # Print every 10m
+                    print(f"[DEBUG] Cruise: s = {s:.2f}, v = {max_speed:.2f}, t = {t:.2f}")
 
-        # This is the case where we are accelerating to max speed
-        # because the first if-statement covers for when we decelerating,
-        # the only time current_speed < max_speed is when we are accelerating 
-        elif current_speed < max_speed:
-            # next point 
-            next_point = points[cur_index+1]
-            # accelerate to max speed
+            else:  # Phase 3: Final deceleration to stop
+                s_in_final_decel = s - (initial_decel_distance + cruise_distance)
+                v = math.sqrt(max(max_speed ** 2 - 2 * deceleration * s_in_final_decel, 0.0))
+                t = initial_decel_time + cruise_distance / max_speed + (max_speed - v) / deceleration
+                if DEBUG:  # Print every 10m
+                    print(f"[DEBUG] Final Decel: s = {s:.2f}, v = {v:.2f}, t = {t:.2f}")
 
-            # calculate the time it would take to reach max speed
-            delta_t_to_max_speed = (max_speed - current_speed)/acceleration
-            # calculate the distance it would take to reach max speed
-            delta_x_to_max_speed = current_speed*delta_t_to_max_speed + 0.5*acceleration*delta_t_to_max_speed**2
-            
-            delta_t_to_stop_from_max_speed = max_speed/deceleration
-            delta_x_to_stop_from_max_speed = max_speed*delta_t_to_stop_from_max_speed - 0.5*deceleration*delta_t_to_stop_from_max_speed**2
-            
-            delta_t_to_next_point = compute_time_to_x(cur_point[0], next_point[0], current_speed, acceleration)
-            velocity_at_next_point = current_speed + delta_t_to_next_point*acceleration
-            time_to_stop_from_next_point = velocity_at_next_point/deceleration
-            delta_x_to_stop_from_next_point = velocity_at_next_point*time_to_stop_from_next_point - 0.5*deceleration*time_to_stop_from_next_point**2
-            # if we would reach max speed after the next point, 
-            # just move to the next point and update the current speed and time
-            if next_point[0] + delta_x_to_stop_from_next_point < points[-1][0] and \
-                cur_point[0] + delta_x_to_max_speed >= next_point[0]:
-                # go to next point
-                # accelerate to max speed
-                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, acceleration)
-                cur_time += delta_t_to_next_x
-                cur_point = [next_point[0], 0]
-                current_speed += delta_t_to_next_x*acceleration
-                cur_index += 1
-                
-            # This is the case where we would need to start breaking before reaching 
-            # top speed and before the next point (i.e. triangle shape velocity)
-            elif cur_point[0] + delta_x_to_max_speed + delta_x_to_stop_from_max_speed >= points[-1][0]:
-                # Add a new point at the point where we should start breaking 
-                delta_t_to_next_x = compute_time_triangle(cur_point[0], points[-1][0], current_speed, 0, acceleration, deceleration)
-                next_x = cur_point[0] + current_speed*delta_t_to_next_x + 0.5*acceleration*delta_t_to_next_x**2
-                cur_time += delta_t_to_next_x
-                cur_point = [next_x, 0]
-                current_speed += delta_t_to_next_x*acceleration
-            
-            # this is the case where we would reach max speed before the next point
-            # we need to create a new point where we would reach max speed 
-            else:
-                # we would need to add a new point at max speed
-                cur_time += delta_t_to_max_speed
-                cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
-                current_speed = max_speed
+            times.append(t)
 
-        # This is the case where we are at max speed
-        # special functionality is that this block must 
-        # add a point where we would need to start declerating to reach
-        # the final point
-        elif current_speed == max_speed:
-            next_point = points[cur_index+1]
-            # continue on with max speed
-            
-            # add point to start decelerating
-            if next_point[0] + min_delta_x_stop >= points[-1][0]:
-                cur_time += (points[-1][0] - min_delta_x_stop - cur_point[0])/current_speed
-                cur_point = [points[-1][0] - min_delta_x_stop,0]
-                current_speed = max_speed
-            else:
-                # Continue on to next point
-                cur_time += (next_point[0] - cur_point[0])/current_speed
-                cur_point = next_point
-                cur_index += 1
-        
-        # This is an edge case and should only be reach 
-        # if the initial speed is greater than the max speed
-        elif current_speed > max_speed:
-            # We need to hit the breaks 
+        if DEBUG:
+            print("[DEBUG] Trajectory complete: Three phases executed")
+            print(f"[DEBUG] Total time: {times[-1]:.2f}")
 
-            next_point = points[cur_index+1]
-            # slow down to max speed 
-            delta_t_to_max_speed = (current_speed - max_speed)/deceleration
-            delta_x_to_max_speed = current_speed*delta_t_to_max_speed - 0.5*deceleration*delta_t_to_max_speed**2
+        return Trajectory(frame=path.frame, points=dense_points, times=times)
 
-            # If we would reach the next point before slowing down to max speed
-            # keep going until we reach the next point
-            if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
-                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
-                cur_time += delta_t_to_next_x
-                cur_point = [next_point[0], 0]
-                current_speed -= delta_t_to_next_x*deceleration
-                cur_index += 1
-            else:
-            # We would reach max speed before the next point
-            # we need to add a new point at the point where we
-            # would reach max speed
-                cur_time += delta_t_to_max_speed
-                cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
-                current_speed = max_speed
+    if acceleration <= 0:
+        if DEBUG:
+            print(f"[DEBUG] No acceleration allowed. Current speed: {current_speed:.2f}")
 
-        else:
-            # not sure what falls here
-            raise ValueError("LONGITUDINAL PLAN ERROR: Not sure how we ended up here")
-        
-    new_points.append(cur_point)
-    new_times.append(cur_time)
-    velocities.append(current_speed)
-        
-    points = new_points
-    times = new_times
-    print("[PLAN] Computed points:", points)
-    print("[TIME] Computed time:", times)
-    print("[Velocities] Computed velocities:", velocities)
+        # Pure deceleration phase
+        s_decel = (current_speed ** 2) / (2 * deceleration)
+        T_decel = current_speed / deceleration
 
-    #=============================================
+        if DEBUG:
+            print(f"[DEBUG] Will maintain speed until s_decel: {s_decel:.2f}")
+            print(f"[DEBUG] Total deceleration time will be: {T_decel:.2f}")
 
-    trajectory = Trajectory(path.frame,points,times,velocities)
-    return trajectory
+        times = []
+        for s in s_vals:
+            if s <= L - s_decel:  # Maintain current speed until deceleration point
+                t_point = s / current_speed
+                if DEBUG:
+                    print(f"[DEBUG] Constant Speed Phase: s = {s:.2f}, v = {current_speed:.2f}, t = {t_point:.2f}")
+            else:  # Deceleration phase
+                s_in_decel = s - (L - s_decel)
+                v = math.sqrt(max(current_speed ** 2 - 2 * deceleration * s_in_decel, 0.0))
+                t_point = (L - s_decel) / current_speed + (current_speed - v) / deceleration
+                if DEBUG:
+                    print(f"[DEBUG] Deceleration Phase: s = {s:.2f}, v = {v:.2f}, t = {t_point:.2f}")
 
-def compute_time_to_x(x0 : float, x1 : float, v : float, a : float) -> float:
-    """Computes the time to go from x0 to x1 with initial velocity v0 and final velocity v1
-    with constant acceleration a. I am assuming that we will always have a solution by settings
-    discriminant equal to zero, i'm not sure if this is an issue."""
+            times.append(t_point)
 
-    """Consider changing the system to use linear operators instead of explicitly calculating because of instances here"""
+        return Trajectory(frame=path.frame, points=dense_points, times=times)
 
-    t1 = (-v + max(0,(v**2 - 2*a*(x0-x1)))**0.5)/a
-    t2 = (-v - max(0,(v**2 - 2*a*(x0-x1)))**0.5)/a
+    # Determine max possible peak speed given distance
+    v_peak_possible = math.sqrt(
+        (2 * acceleration * deceleration * L + deceleration * current_speed ** 2) / (acceleration + deceleration))
+    v_target = min(max_speed, v_peak_possible)
 
-    if math.isnan(t1): t1 = 0
-    if math.isnan(t2): t2 = 0
+    if DEBUG:
+        print("[DEBUG] longitudinal_plan: v_peak_possible =", v_peak_possible, "v_target =", v_target)
 
-    valid_times = [n for n in [t1, t2] if n > 0]
-    if valid_times:
-        return min(valid_times)
-    else:
-        return 0.0
+    # Compute acceleration phase
+    s_accel = max(0.0, (v_target ** 2 - current_speed ** 2) / (2 * acceleration))
+    t_accel = max(0.0, (v_target - current_speed) / acceleration)
 
-def compute_time_triangle(x0 : float, xf: float,  v0: float, vf : float, acceleration : float, deceleration : float) -> float:
-    """
-    Compute the time to go from current point assuming we are accelerating to the point at which
-    we would need to start breaking in order to reach the final point with velocity 0.
-    """
-    roots = quad_root(0.5*acceleration + acceleration**2/deceleration - 0.5*acceleration**2/deceleration,
-                      v0+2*acceleration*v0/deceleration - acceleration*v0/deceleration,
-                      x0 - xf + v0**2/deceleration - 0.5*v0**2/deceleration)
-    t1 = max(roots)
-    assert t1 > 0
-    return t1
+    # Compute deceleration phase
+    s_decel = max(0.0, (v_target ** 2) / (2 * deceleration))
+    t_decel = max(0.0, v_target / deceleration)
 
+    # Compute cruise phase
+    s_cruise = max(0.0, L - s_accel - s_decel)
+    t_cruise = s_cruise / v_target if v_target > 0 else 0.0
 
+    if DEBUG:
+        print("[DEBUG] longitudinal_plan: s_accel =", s_accel, "t_accel =", t_accel)
+        print("[DEBUG] longitudinal_plan: s_decel =", s_decel, "t_decel =", t_decel)
+        print("[DEBUG] longitudinal_plan: s_cruise =", s_cruise, "t_cruise =", t_cruise)
 
-########################
-##### Rohit's Code #####
-########################
-def solve_for_v_peak(v0: float, acceleration: float, deceleration: float, total_length: float) -> float:
-    
-    if acceleration <= 0 or deceleration <= 0:
-        raise ValueError("Acceleration and deceleration cant be negative")
-
-    #Formuala: (v_peak^2 - v0^2)/(2*a) + v_peak^2/(2*d) = total_length
-    numerator = deceleration * v0**2 + 2 * acceleration * deceleration * total_length
-    denominator = acceleration + deceleration
-    v_peak_sq = numerator / denominator
-
-    if v_peak_sq < 0:
-        return 0.0
-
-    return math.sqrt(v_peak_sq)
-
-
-def compute_dynamic_dt(acceleration, speed, k=0.01, a_min=0.5):
-    position_step = k * max(speed, 1.0)  # Ensures position step is speed-dependent
-    return np.sqrt(2 * position_step / max(acceleration, a_min))
-
-
-def longitudinal_plan_dt(path, acceleration: float, deceleration: float, max_speed: float, current_speed: float):
-    # 1 parametrizatiom.
-    path_norm = path.arc_length_parameterize(speed=1.0)
-    total_length = path.length()
-
-    # -------------------
-    # If the path is too short, just return the path for preventing sudden halt of simulation
-    if total_length < 0.05:
-        points = [p for p in path_norm.points]
-        times = [t for t in path_norm.times]
-        return Trajectory(path.frame, points, times)
-    # -------------------
-
-    # 2. Compute distances for d_accel,d_decel
-    if max_speed > current_speed:
-        d_accel = (max_speed**2 - current_speed**2) / (2 * acceleration)
-    else:
-        d_accel = 0.0  # Already at or above max_speed
-
-    d_decel = (max_speed**2) / (2 * deceleration)
-
-    # 3. trapezoidal or triangle?
-    if d_accel + d_decel <= total_length:
-        t_accel = (max_speed - current_speed) / acceleration if max_speed > current_speed else 0.0
-        t_decel = max_speed / deceleration
-        d_cruise = total_length - d_accel - d_decel
-        t_cruise = d_cruise / max_speed if max_speed != 0 else 0.0
-        t_final = t_accel + t_cruise + t_decel
-        profile_type = "trapezoidal"
-    else:
-        # Triangular profile: not enough distance to reach max_speed so we will calculate peak speed.
-        peak_speed = solve_for_v_peak(current_speed, acceleration, deceleration, total_length)
-        # choose the min just in case
-        peak_speed = min(peak_speed, max_speed)
-        t_accel = (peak_speed - current_speed) / acceleration if peak_speed > current_speed else 0.0
-        t_decel = peak_speed / deceleration
-        t_final = t_accel + t_decel
-        profile_type = "triangular"
-
-    t = 0
     times = []
-    s_vals = []
-    velocities = [] # for graphing and debugging purposes
+    for s in s_vals:
+        if s <= s_accel:  # Acceleration phase
+            v = math.sqrt(current_speed ** 2 + 2 * acceleration * s)
+            t_point = (v - current_speed) / acceleration
 
-    num_time_steps = 0
-    speed = current_speed
-    while t < t_final:
-        times.append(t)
-        velocities.append(speed)
-        if profile_type == "trapezoidal":
-            if t < t_accel:
-                # Acceleration phase.
-                s = current_speed * t + 0.5 * acceleration * t**2
-                speed = current_speed + acceleration * t
-            elif t < t_accel + t_cruise:
-                # Cruise phase.
-                s = d_accel + max_speed * (t - t_accel)
-            else:
-                # Deceleration phase.
-                t_decel_phase = t - (t_accel + t_cruise)
-                s = total_length - 0.5 * deceleration * (t_decel - t_decel_phase)**2
-                speed = speed - deceleration * (t_decel-t_decel_phase)
-        else:  # Triangular profile.
-            if t < t_accel:
-                # Acceleration phase.
-                s = current_speed * t + 0.5 * acceleration * t**2
-                speed = current_speed + acceleration * t
-            else:
-                t_decel_phase = t - t_accel
-                s_accel = current_speed * t_accel + 0.5 * acceleration * t_accel**2
-                s = s_accel + peak_speed * t_decel_phase - 0.5 * deceleration * t_decel_phase**2
-                speed = speed - deceleration * t_decel_phase
+            if DEBUG:
+                print(f"[DEBUG] Acceleration Phase: s = {s:.2f}, v = {v:.2f}, t = {t_point:.2f}")
 
-        s_vals.append(min(s, total_length))
-        if s >= total_length:
-            break
+        elif s <= s_accel + s_cruise:  # Cruise phase
+            t_point = t_accel + (s - s_accel) / v_target
 
-        dt = compute_dynamic_dt(acceleration if t < t_accel else deceleration,current_speed)
-        t = t + dt
+            if DEBUG:
+                print(f"[DEBUG] Cruise Phase: s = {s:.2f}, t = {t_point:.2f}")
 
-        num_time_steps +=1
+        else:  # Deceleration phase
+            s_decel_phase = s - s_accel - s_cruise
+            v_decel = math.sqrt(max(v_target ** 2 - 2 * deceleration * s_decel_phase, 0.0))
+            t_point = t_accel + t_cruise + (v_target - v_decel) / deceleration
 
-    # Compute trajectory points
-    points = [path_norm.eval(s) for s in s_vals]
-  
-    trajectory = Trajectory(path_norm.frame, points, list(times),velocities=velocities)
-    return trajectory
+            if t_point < times[-1]:  # Ensure time always increases
+                t_point = times[-1] + 0.01  # Small time correction step
+
+            if DEBUG:
+                print(f"[DEBUG] Deceleration Phase: s = {s:.2f}, v = {v_decel:.2f}, t = {t_point:.2f}")
+
+        times.append(t_point)
+
+    if DEBUG:
+        print("[DEBUG] longitudinal_plan: Final times =", times)
+
+    return Trajectory(frame=path.frame, points=dense_points, times=times)
 
 
+def longitudinal_brake(path: Path, deceleration: float, current_speed: float,
+                       emergency_decel: float = 8.0) -> Trajectory:
+    # Vehicle already stopped - maintain position
+    if current_speed <= 0:
+        print("[DEBUG] longitudinal_brake: Zero velocity case! ", [path.points[0]] * len(path.points))
+        return Trajectory(
+            frame=path.frame,
+            points=[path.points[0]] * len(path.points),
+            times=[float(i) for i in range(len(path.points))]
+        )
 
-#########################
-##### Hansen's Code #####
-#########################
-def longitudinal_plan_dx(path : Path, acceleration : float, deceleration : float, max_speed : float, current_speed : float) -> Trajectory:
-    """Generates a longitudinal trajectory for a path with a
-    trapezoidal velocity profile. 
-    
-    1. accelerates from current speed toward max speed
-    2. travel along max speed
-    3. if at any point you can't brake before hitting the end of the path,
-       decelerate with accel = -deceleration until velocity goes to 0.
-    """
-    path_normalized = path.arc_length_parameterize()
-    points = [p for p in path_normalized.points]
-    times = [t for t in path_normalized.times]
+    # Get total path length
+    path_length = sum(
+        np.linalg.norm(np.array(path.points[i + 1]) - np.array(path.points[i]))
+        for i in range(len(path.points) - 1)
+    )
 
-    #=============================================
-    # Adjust these two numbers to choose between computation speed or smoothness
-    rq = 0.1  # Smaller, smoother
-    multi = 5 # Larger, smoother
-    print("-----LONGITUDINAL PLAN-----")
-    print("path length: ", path.length())
-    length = path.length()
+    # Calculate stopping distance with normal deceleration
+    T_stop_normal = current_speed / deceleration
+    s_stop_normal = current_speed * T_stop_normal - 0.5 * deceleration * (T_stop_normal ** 2)
 
-    # If the path is too short, just return the path for preventing sudden halt of simulation
-    if length < 0.05:
-        return Trajectory(path.frame, points, times)
+    # Check if emergency braking is needed
+    if s_stop_normal > path_length:
+        if DEBUG:
+            print("[DEBUG] longitudinal_brake: Emergency braking needed!")
+            print(f"[DEBUG] longitudinal_brake: Normal stopping distance: {s_stop_normal:.2f}m")
+            print(f"[DEBUG] longitudinal_brake: Available distance: {path_length:.2f}m")
 
-    # This assumes that the time denomination cannot be changed
+        # Calculate emergency braking parameters
+        T_stop = current_speed / emergency_decel
+        s_stop = current_speed * T_stop - 0.5 * emergency_decel * (T_stop ** 2)
 
-    # Starting point
-    x0 = points[0][0]
-    cur_point = points[0]
-    cur_time = times[0]
-    cur_index = 0
-    acc = 0
+        if DEBUG:
+            print(f"[DEBUG] longitudinal_brake: Emergency stopping distance: {s_stop:.2f}m")
+            print(f"[DEBUG] longitudinal_brake: Emergency stopping time: {T_stop:.2f}s")
 
-    new_points = []
-    new_times = []
-    velocities = [] # for graphing and debugging purposes
+        decel_to_use = emergency_decel
 
-    while current_speed > 0 or cur_index == 0:
-        # we want to iterate through all the points and add them
-        # to the new points. However, we also want to add "critical points"
-        # where we reach top speed, begin decelerating, and stop
-        new_points.append(cur_point)
-        new_times.append(cur_time)
-        velocities.append(current_speed)
-        print("=====================================")
-        print("new points: ", new_points)
-        print("current index: ", cur_index)
-        print("current speed: ", current_speed)
+    else:
+        if DEBUG:
+            print("[DEBUG] longitudinal_brake: Normal braking sufficient")
+        T_stop = T_stop_normal
+        decel_to_use = deceleration
 
-        # Information we will need: 
-            # Calculate how much time it would take to stop
-            # Calculate how much distance it would take to stop
-        min_delta_t_stop = current_speed/deceleration
-        min_delta_x_stop = current_speed*min_delta_t_stop - 0.5*deceleration*min_delta_t_stop**2
-        assert min_delta_x_stop >= 0
+    # Generate time points (use more points for smoother trajectory)
+    num_points = max(len(path.points), 50)
+    times = np.linspace(0, T_stop, num_points)
 
-        # Check if we are done
+    # Calculate distances at each time point using physics equation
+    distances = current_speed * times - 0.5 * decel_to_use * (times ** 2)
 
-        # If we cannot stop before or stop exactly at the final position requested
-        if cur_point[0] + min_delta_x_stop >= points[-1][0] - 0.0001:
-            acc = deceleration
-            flag = 1
-            print("In case one")
-            # put on the breaks
-            # Calculate the next point in a special manner because of too-little time to stop 
-            if cur_index >= len(points)-1:
-                # the next point in this instance would be when we stop
-                print(1)
-                if min_delta_x_stop < rq * acc:
-                    next_point = (cur_point[0] + min_delta_x_stop, 0)
-                else:
-                    next_point = (cur_point[0] + (min_delta_x_stop / (acc * multi)), 0)
-                    flag = 0
-            else:
-                print(2)
-                next_point = points[cur_index+1]
-                if next_point[0] - cur_point[0] > rq * acc:
-                    tmp = cur_point[0] + (next_point[0] - cur_point[0]) / (acc * multi)
-                    flag = 0
-                    next_point = [tmp, next_point[1]]
-
-            # keep breaking until the next milestone in path
-            print("continuing to next point")
-            delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
-            cur_time += delta_t_to_next_x
-            cur_point = next_point
-            current_speed -= deceleration*delta_t_to_next_x
-            if flag:
-                cur_index += 1
-
-        # This is the case where we are accelerating to max speed
-        # because the first if-statement covers for when we decelerating,
-        # the only time current_speed < max_speed is when we are accelerating 
-        elif current_speed < max_speed:
-            print("In case two")
-            print(current_speed)
-            acc = acceleration
-            flag = 1
-            # next point 
-            next_point = points[cur_index+1]
-            if next_point[0] - cur_point[0] > rq * acc:
-                tmp = cur_point[0] + (next_point[0] - cur_point[0]) / (acc * multi)
-                flag = 0
-                next_point = [tmp, next_point[1]]
-            # accelerate to max speed
-
-            # calculate the time it would take to reach max speed
-            delta_t_to_max_speed = (max_speed - current_speed)/acceleration
-            # calculate the distance it would take to reach max speed
-            delta_x_to_max_speed = current_speed*delta_t_to_max_speed + 0.5*acceleration*delta_t_to_max_speed**2
-            
-            # if we would reach max speed after the next point, 
-            # just move to the next point and update the current speed and time
-            if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
-                print("go to next point")
-                # accelerate to max speed
-                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, acceleration)
-                cur_time += delta_t_to_next_x
-                cur_point = [next_point[0], 0]
-                current_speed += delta_t_to_next_x*acceleration
-                if flag:
-                    cur_index += 1
-            
-            # this is the case where we would reach max speed before the next point
-            # we need to create a new point where we would reach max speed 
-            else:
-                print("adding new point")
-                # we would need to add a new point at max speed
-                cur_time += delta_t_to_max_speed
-                cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
-                current_speed = max_speed
-
-        # This is the case where we are at max speed
-        # special functionality is that this block must 
-        # add a point where we would need to start declerating to reach
-        # the final point
-        elif current_speed == max_speed:
-            next_point = points[cur_index+1]
-            # continue on with max speed
-            print("In case three")
-            
-            # add point to start decelerating
-            if next_point[0] + min_delta_x_stop >= points[-1][0]:
-                print("Adding new point to start decelerating")
-                cur_time += (points[-1][0] - min_delta_x_stop - cur_point[0])/current_speed
-                cur_point = [points[-1][0] - min_delta_x_stop,0]
-                current_speed = max_speed
-            else:
-                # Continue on to next point
-                print("Continuing on to next point")
-                cur_time += (next_point[0] - cur_point[0])/current_speed
-                cur_point = next_point
-                cur_index += 1
-        
-        # This is an edge case and should only be reach 
-        # if the initial speed is greater than the max speed
-        elif current_speed > max_speed:
-            # We need to hit the breaks 
-            acc = deceleration
-            flag = 1
-            # next point 
-            next_point = points[cur_index+1]
-            if next_point[0] - cur_point[0] > rq * acc:
-                tmp = cur_point[0] + (next_point[0] - cur_point[0]) / (acc * multi)
-                flag = 0
-                next_point = [tmp, next_point[1]]
-            print("In case four")
-            # slow down to max speed 
-            delta_t_to_max_speed = (current_speed - max_speed)/deceleration
-            delta_x_to_max_speed = current_speed*delta_t_to_max_speed - 0.5*deceleration*delta_t_to_max_speed**2
-
-            # If we would reach the next point before slowing down to max speed
-            # keep going until we reach the next point
-            if cur_point[0] + delta_x_to_max_speed >= next_point[0]:
-                delta_t_to_next_x = compute_time_to_x(cur_point[0], next_point[0], current_speed, -deceleration)
-                cur_time += delta_t_to_next_x
-                cur_point = [next_point[0], 0]
-                current_speed -= delta_t_to_next_x*deceleration
-                cur_index += 1
-            else:
-            # We would reach max speed before the next point
-            # we need to add a new point at the point where we
-            # would reach max speed
-                cur_time += delta_t_to_max_speed
-                cur_point = [cur_point[0] + delta_x_to_max_speed, 0]
-                current_speed = max_speed
-
+    # Generate points along the path
+    points = []
+    for d in distances:
+        if d <= path_length:
+            points.append(path.eval(d))
         else:
-            # not sure what falls here
-            raise ValueError("LONGITUDINAL PLAN ERROR: Not sure how we ended up here")
-        
-    new_points.append(cur_point)
-    new_times.append(cur_time)
-    velocities.append(current_speed)
-        
-    points = new_points
-    times = new_times
-    print("[PLAN] Computed points:", points)
-    print("[TIME] Computed time:", times)
-    print("[Velocities] Computed velocities:", velocities)
+            points.append(path.eval(d))
 
-    #=============================================
+    if DEBUG:
+        print(f"[DEBUG] longitudinal_brake: Using deceleration of {decel_to_use:.2f} m/s²")
+        print(f"[DEBUG] longitudinal_brake: Final stopping time: {T_stop:.2f}s")
 
-    trajectory = Trajectory(path.frame,points,times)
-    return trajectory
-
-def longitudinal_brake(path : Path, deceleration : float, current_speed : float) -> Trajectory:
-    """Generates a longitudinal trajectory for braking along a path."""
-    path_normalized = path.arc_length_parameterize()
-    points = [p for p in path_normalized.points]
-    times = [t for t in path_normalized.times]
-
-    #=============================================
-
-    print("=====LONGITUDINAL BRAKE=====")
-    print("path length: ", path.length())
-    length = path.length()
-
-    x0 = points[0][0]
-    t_stop = current_speed / deceleration
-    x_stop = x0 + current_speed * t_stop - 0.5 * deceleration * t_stop**2
-
-    new_points = []
-    velocities = []
-
-    for t in times:
-        if t <= t_stop:
-            x = x0 + current_speed * t - 0.5 * deceleration * t**2
-        else:
-            x = x_stop
-        new_points.append([x, 0])
-        velocities.append(current_speed - deceleration * t)
-    points = new_points
-    print("[BRAKE] Computed points:", points)
-
-    #=============================================
-
-    trajectory = Trajectory(path.frame,points,times,velocities)
-    return trajectory
+    return Trajectory(frame=path.frame, points=points, times=times.tolist())
 
 
-
-################################################################################
-########## Yield Trajectory Planner ############################################
-################################################################################
-
-#####################################################
-##### Patrick, Animesh, Henry, and Yudai's Code #####
-#####################################################
 class YieldTrajectoryPlanner(Component):
-    """Follows the given route.  Brakes if you have to yield or
-    you are at the end of the route, otherwise accelerates to
-    the desired speed.
+    """Follows the given route. Brakes if the ego–vehicle must yield
+    (e.g. to a pedestrian) or if the end of the route is near; otherwise,
+    it accelerates (or cruises) toward a desired speed.
     """
 
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-
-        self.mode = settings.get("planning.longitudinal_plan.mode")
-        self.planner = settings.get("planning.longitudinal_plan.planner")
-        self.acceleration = settings.get("planning.longitudinal_plan.acceleration")
-        self.deceleration = settings.get("planning.longitudinal_plan.deceleration")
-        self.desired_speed = settings.get("planning.longitudinal_plan.desired_speed")
-        self.yield_deceleration = settings.get("planning.longitudinal_plan.yield_deceleration")
+        self.acceleration = 5
+        self.desired_speed = 2.0
+        self.deceleration = 2.0
+        self.emergency_brake = 8.0
 
     def state_inputs(self):
         return ['all']
 
     def state_outputs(self) -> List[str]:
-        return ['trajectory']
+        return ['trajectory', 'mission']
 
     def rate(self):
         return 10.0
 
-    def update(self, state : AllState):
-        vehicle = state.vehicle # type: VehicleState
-        route = state.route   # type: Route
+    def update(self, state: AllState):
+        vehicle = state.vehicle  # type: VehicleState
+        route = state.route  # type: Route
+        mission = state.mission
         t = state.t
 
-        if self.t_last is None:
+        print('Input:')
+        print(mission)
+
+        traj = None
+        if route:
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: t =", t)
+
+            if self.t_last is None:
+                self.t_last = t
+            dt = t - self.t_last
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: dt =", dt)
+
+            curr_x = vehicle.pose.x
+            curr_y = vehicle.pose.y
+            curr_v = vehicle.v
+            if DEBUG:
+                print(f"[DEBUG] YieldTrajectoryPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}, ")
+
+            # Determine progress along the route.
+            if self.route_progress is None:
+                self.route_progress = 0.0
+
+            _, closest_parameter = route.closest_point_local(
+                [curr_x, curr_y],
+                (self.route_progress - 5.0, self.route_progress + 5.0)
+            )
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: Closest parameter on route =", closest_parameter)
+            self.route_progress = closest_parameter
+
+            # Extract a 10 m segment of the route for planning lookahead.
+            route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
+
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
+                print("[DEBUG] state", state.relations)
+
+            # Check whether any yield relations (e.g. due to pedestrians) require braking.
+            stay_braking = False
+            pointSet = set()
+            for i in range(len(route_with_lookahead.points)):
+                if tuple(route_with_lookahead.points[i]) in pointSet:
+                    stay_braking = True
+                    break
+                pointSet.add(tuple(route_with_lookahead.points[i]))
+
+            should_brake = any(
+                r.type == EntityRelationEnum.STOPPING_AT and r.obj1 == ''
+                for r in state.relations
+            )
+            should_decelerate = any(
+                r.type == EntityRelationEnum.YIELDING and r.obj1 == ''
+                for r in state.relations
+            ) if should_brake == False else False
+
+            should_accelerate = (not should_brake and not should_decelerate and curr_v < self.desired_speed)
+
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: stay_braking =", stay_braking)
+                print("[DEBUG] YieldTrajectoryPlanner.update: should_brake =", should_brake)
+                print("[DEBUG] YieldTrajectoryPlanner.update: should_accelerate =", should_accelerate)
+                print("[DEBUG] YieldTrajectoryPlanner.update: should_decelerate =", should_decelerate)
+
+            if stay_braking:
+                traj = longitudinal_brake(route_with_lookahead, 0.0, 0.0, 0.0)
+                if DEBUG:
+                    print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake (stay braking).")
+            elif should_brake:
+                traj = longitudinal_brake(route_with_lookahead, self.emergency_brake, curr_v)
+                if DEBUG:
+                    print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+            elif should_decelerate:
+                traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+                if DEBUG:
+                    print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+            elif should_accelerate:
+                traj = longitudinal_plan(route_with_lookahead, self.acceleration,
+                                         self.deceleration, self.desired_speed, curr_v)
+                if DEBUG:
+                    print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan (accelerate).")
+            else:
+                # Maintain current speed if not accelerating or braking.
+                traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
+                if DEBUG:
+                    print(
+                        "[DEBUG] YieldTrajectoryPlanner.update: Maintaining current speed with longitudinal_plan (0 accel).")
+
             self.t_last = t
-        dt = t - self.t_last
-        print("Elapsed time:", int(dt*1000), "ms")
-        self.t_last = t
- 
-        curr_x = vehicle.pose.x
-        curr_y = vehicle.pose.y
-        curr_v = vehicle.v
+            if DEBUG:
+                print('[DEBUG] Current Velocity of the Car: LOOK!', curr_v, self.desired_speed)
+                print("[DEBUG] YieldTrajectoryPlanner.update: Returning trajectory with", len(traj.points), "points.")
 
-        #figure out where we are on the route
-        if self.route_progress is None:
-            self.route_progress = 0.0
-        closest_dist,closest_parameter = state.route.closest_point_local((curr_x,curr_y),[self.route_progress-5.0,self.route_progress+5.0])
-        self.route_progress = closest_parameter
+            if len(traj.points) < 2:
+                mission.type = MissionEnum.PARK
 
-        # Compute the lookahead distance
-        lookahead_distance = max(10, curr_v**2 / (2 * self.yield_deceleration))
-        print("Lookahead distance:", lookahead_distance)
-        route_with_lookahead = route.trim(closest_parameter,closest_parameter + lookahead_distance)
-
-        # Default values
-        should_brake = False
-        input_values = [{"decel": self.deceleration, "desired_speed": self.desired_speed, "collision_distance": lookahead_distance}]
-
-        # Extract yielding information from all YIELDING agents.
-        for r in state.relations:
-            if r.type == EntityRelationEnum.YIELDING and r.obj1 == '':
-                input_values.append({"decel": r.yield_decel, "desired_speed": r.yield_speed, "collision_distance": r.yield_dist})
-
-        print("Input values:", input_values)
-        # Choose minimum desired speed and extract deceleration and collision distance from input_values.
-        valid_input_values = [val for val in input_values if val['desired_speed'] is not None]
-        desired_speed      = min(valid_input_values, key=lambda x: x['desired_speed'])['desired_speed'] if not None else self.desired_speed
-        decel              = min(valid_input_values, key=lambda x: x['desired_speed'])['decel'] if not None else self.deceleration
-        # If desired_speed is 0, we should brake to stop.
-        if desired_speed == 0.0:
-            should_brake = True
         else:
-            collision_distance = min(valid_input_values, key=lambda x: x['desired_speed'])['collision_distance'] if not None else lookahead_distance
-            # Update the lookahead distance to pedestrian.
-            route_with_lookahead = route.trim(closest_parameter,closest_parameter + collision_distance)
-            print(f"Collision distance: {collision_distance:.2f} m")
+            frame = vehicle.pose.frame
+            zero_path = [[0, 0, 0]]
+            traj = Trajectory(frame=frame, points=zero_path, times=[0])
 
-        print(f"Desired speed: {desired_speed:.2f} m/s")
-        print(f"Deceleration: {decel:.2f} m/s^2")
+        print('Output:')
+        print(mission)
 
-        should_accelerate = (not should_brake and curr_v < self.desired_speed)
-
-        #choose whether to accelerate, brake, or keep at current velocity
-        if should_accelerate:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration, decel, desired_speed, curr_v, self.planner)
-        elif should_brake:
-            traj = longitudinal_brake(route_with_lookahead, decel, curr_v)
-        else:
-            traj = longitudinal_plan(route_with_lookahead, 0.0, decel, desired_speed, curr_v, self.planner)
-
-        return traj 
+        return traj, mission

@@ -12,6 +12,9 @@ from .trajectory import Trajectory
 from .predicates import PredicateValues
 from typing import Dict,List,Optional
 
+from .task import TaskPhase
+
+
 @dataclass
 @register
 class AllState(SceneState):
@@ -25,6 +28,8 @@ class AllState(SceneState):
     predicates : PredicateValues = field(default_factory=PredicateValues)
     
     # planner-output state
+    task : TaskPhase = field(default_factory=TaskPhase)   # added by summoning team
+
     mission : MissionObjective = field(default_factory=MissionObjective)
     intent : VehicleIntent = field(default_factory=VehicleIntent)
     route : Optional[Route] = None

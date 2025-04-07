@@ -40,15 +40,27 @@ components:
       inputs: all
   - mission_execution:
       outputs: mission
+  - mission_planning:   # added by summoning team
+      inputs: all
+      outputs: [mission, task]
+  - parking_planning:   # added by summoning team
+      inputs: all
+      outputs: intent
+  - parking_trajectory_planning:  # added by summoning team
+      inputs: all
+      outputs: [trajectory, intent, mission]
+  - leave_parking_trajectory_planning:  # added by summoning team
+      inputs: all
+      outputs: [trajectory, intent, mission]
   - route_planning:
-      inputs: [vehicle, roadgraph, mission]
-      outputs: route
+      inputs: all
+      outputs: [route, mission]
   - driving_logic:
       inputs: all
       outputs: intent
   - motion_planning:
       inputs: all
-      outputs: trajectory
+      outputs: [trajectory, mission]
   - trajectory_tracking:
       inputs: [vehicle, trajectory]
       outputs: 

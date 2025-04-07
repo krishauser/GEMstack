@@ -154,24 +154,24 @@ if __name__ == '__main__':
     roadgraph = Roadgraph(frame=frame)
 
     # Create lane segments
-    roadgraph.lanes['0'] = create_straight_lane(left_back=(0.0, 1.0, 0.0), left_forward=(20.0, 1.0, 0.0),
-                                                right_back=(0.0, -1.0, 0.0), right_forward=(20.0, -1.0, 0.0),
+    roadgraph.lanes['0'] = create_straight_lane(left_back=(0.0, 1.5, 0.0), left_forward=(20, 1.5, 0.0),
+                                                right_back=(0.0, -1.5, 0.0), right_forward=(20.0, -1.5, 0.0),
                                                 resolution=resolution,
                                                 crossable=True,
                                                 route_name='')
-    roadgraph.lanes['1'] = create_arc_lane(left_back=(20.0, 1.0, 0.0), left_forward=(20.0, 9.0, 0.0), left_radius=4.0,
-                                           right_back=(20.0, -1.0, 0.0), right_forward=(20.0, 11.0, 0.0), right_radius=6.0,
+    roadgraph.lanes['1'] = create_arc_lane(left_back=(20.0, 1.5, 0.0), left_forward=(20.0, 9.5, 0.0), left_radius=4.0,
+                                           right_back=(20.0, -1.5, 0.0), right_forward=(20.0, 12.5, 0.0), right_radius=7.0,
                                            direction='ccw',
                                            resolution=resolution,
                                            crossable=True,
                                            route_name='')
-    roadgraph.lanes['2'] = create_straight_lane(left_back=(20.0, 9.0, 0.0), left_forward=(0.0, 9.0, 0.0),
-                                                right_back=(20.0, 11.0, 0.0), right_forward=(0.0, 11.0, 0.0),
+    roadgraph.lanes['2'] = create_straight_lane(left_back=(20.0, 9.5, 0.0), left_forward=(0.0, 9.5, 0.0),
+                                                right_back=(20.0, 12.5, 0.0), right_forward=(0.0, 12.5, 0.0),
                                                 resolution=resolution,
                                                 crossable=True,
                                                 route_name='')
-    roadgraph.lanes['4'] = create_arc_lane(left_back=(0.0, 9.0, 0.0), left_forward=(0.0, 1.0, 0.0), left_radius=4.0,
-                                           right_back=(0.0, 11.0, 0.0), right_forward=(0.0, -1.0, 0.0), right_radius=6.0,
+    roadgraph.lanes['4'] = create_arc_lane(left_back=(0.0, 9.5, 0.0), left_forward=(0.0, 1.5, 0.0), left_radius=4.0,
+                                           right_back=(0.0, 12.5, 0.0), right_forward=(0.0, -1.5, 0.0), right_radius=7.0,
                                            direction='ccw',
                                            resolution=resolution,
                                            crossable=True,

@@ -4,6 +4,8 @@ import numpy as np
 import random  
 import math
 
+DEBUG = False
+
 class Obstacle:
     def __init__(self,x=0,y=0,r=0.2):
         self.x = x
@@ -79,8 +81,9 @@ class BiRRT:
                 tree_a = self.tree_from_end
                 tree_b = self.tree_from_start
                 Direction = "backward"
-            
-            print(Direction + " AT {} Interation".format(iterration))
+
+            if DEBUG:
+                print(Direction + " AT {} Interation".format(iterration))
             # find nearest point in the tree 
             nearest_point_a = self.Nearest(tree_a, sample_p)
             # use local planner to move one step size

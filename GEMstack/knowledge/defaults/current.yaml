@@ -13,32 +13,20 @@ control:
         brake_speed : 2.0
     pure_pursuit:
         lookahead: 2.0
-        lookahead_scale: 2.0
-        crosstrack_gain: 0.3
+        lookahead_scale: 3.0
+        crosstrack_gain: 1.0
         desired_speed: trajectory
     longitudinal_control:
-        pid_p: 0.8
-        pid_i: 0.03
+        pid_p: 1.0
+        pid_i: 0.1
         pid_d: 0.0
-planning:
-    longitudinal_plan:
-        mode:               'real' # 'real' or 'sim'
-        yielder:            'expert' # 'expert', 'analytic', or 'simulation'
-        planner:            'dt' # 'milestone', 'dt', or 'dx'
-        desired_speed:      1.0
-        acceleration:       0.5
-        max_deceleration:   6.0
-        deceleration:       2.0
-        min_deceleration:   0.5
-        yield_deceleration: 0.5
-
 
 #configure the simulator, if using
 simulator:
     dt: 0.01
     real_time_multiplier: 1.0    # make the simulator run faster than real time by making this > 1
-    gnss_emulator: 
-        dt: 0.05    #10Hz
+    gnss_emulator:
+        dt: 0.1    #10Hz
         #position_noise: 0.1  #10cm noise
         #orientation_noise: 0.04  #2.3 degrees noise
         #velocity_noise:

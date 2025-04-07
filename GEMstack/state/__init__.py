@@ -17,6 +17,7 @@ __all__ = ['PhysicalObject','ObjectPose','ObjectFrameEnum',
            'AgentIntent',
            'EntityRelationEnum','EntityRelation','EntityRelationGraph',
            'MissionEnum','MissionObjective',
+           'TaskPhase', 'TaskEnum',
            'Route',
            'PredicateValues',
            'AllState']
@@ -36,3 +37,5 @@ from .mission import MissionEnum,MissionObjective
 from .route import Route
 from .predicates import PredicateValues
 from .all import AllState
+
+from .task import TaskPhase, TaskEnum

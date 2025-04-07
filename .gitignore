@@ -175,3 +175,4 @@ cuda/
 #Ignore ROS bags
 *.bag
 
+zed_sdk.run
