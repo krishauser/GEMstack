@@ -4,6 +4,7 @@ from ..utils.serialization import register
 from ..mathutils import transforms,collisions
 from .physical_object import ObjectFrameEnum, convert_point
 import math
+import numpy as np
 from typing import List,Tuple,Optional,Union
 
 @dataclass
