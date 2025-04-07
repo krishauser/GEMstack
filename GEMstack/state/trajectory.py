@@ -162,6 +162,99 @@ class Path:
         s = self.eval(start)
         e = self.eval(end)
         return replace(self,points=[s]+self.points[sind+1:eind]+[e])
+    
+
+    def fit_curve_radius(self, vehicle_position: List[float], n_points: int) -> float:
+        """
+        Calculates the curve radius over the next 3 intervals and returns the largest.
+        
+        Args:
+            vehicle_position: Current position of the vehicle [x, y, ...]
+            n_points: Number of points to sample ahead. Must be >= 5 to allow 3 intervals.
+
+        Returns:
+            float: Min radius among 3 consecutive 3-point intervals. Returns float('inf') if not enough data.
+        """
+        _, closest_point_idx_float = self.closest_point(vehicle_position)
+        closest_point_idx = int(math.ceil(closest_point_idx_float))
+        
+        # Require at least 5 points to form 3 overlapping triplets
+        total_needed = max(n_points, 5)
+        end_idx = min(closest_point_idx + total_needed, len(self.points))
+
+        if end_idx - closest_point_idx < 5:
+            return float('0')
+
+        # Get the next chunk of points
+        points_to_check = self.points[closest_point_idx:end_idx]
+
+        # Convert to 2D
+        points_2d = [[p[0], p[1]] for p in points_to_check]
+
+        radii = []
+        for i in range(len(points_2d) - 2):  # Slide a window of 3
+            triplet = points_2d[i:i+3]
+            try:
+                _, _, r = self._fit_circle_to_points(triplet)
+                radii.append(r)
+            except:
+                radii.append(float('inf'))  # Treat failed fits as straight line
+
+        return min(radii) if radii else float('0')
+
+    def _fit_circle_to_points(self, points: List[List[float]]) -> Tuple[float, float, float]:
+        """
+        Approximates a circle from a set of 2D points using the circumcircle of the first three points.
+
+        Args:
+            points: List of [x, y] coordinates. Must contain at least 3 points.
+
+        Returns:
+            Tuple[float, float, float]: Center coordinates (h, k) and radius r
+        """
+        if len(points) < 3:
+            raise ValueError("At least 3 points are required to fit a circle")
+
+        p1, p2, p3 = points[0], points[1], points[2]
+
+        # Build matrices for determinant calculation
+        def det(matrix):
+            return np.linalg.det(np.array(matrix))
+
+        A = [
+            [p1[0], p1[1], 1],
+            [p2[0], p2[1], 1],
+            [p3[0], p3[1], 1]
+        ]
+        D = det(A)
+        if abs(D) < 1e-10:
+            raise ValueError("Points are collinear or nearly collinear")
+
+        a = p1[0]**2 + p1[1]**2
+        b = p2[0]**2 + p2[1]**2
+        c = p3[0]**2 + p3[1]**2
+
+        M11 = [
+            [a, p1[1], 1],
+            [b, p2[1], 1],
+            [c, p3[1], 1]
+        ]
+        M12 = [
+            [a, p1[0], 1],
+            [b, p2[0], 1],
+            [c, p3[0], 1]
+        ]
+        M13 = [
+            [a, p1[0], p1[1]],
+            [b, p2[0], p2[1]],
+            [c, p3[0], p3[1]]
+        ]
+
+        h = 0.5 * det(M11) / D
+        k = -0.5 * det(M12) / D
+        r = math.sqrt(h**2 + k**2 + det(M13) / D)
+
+        return h, k, r
 
 
 @dataclass
