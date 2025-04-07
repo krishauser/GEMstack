@@ -91,6 +91,7 @@ class PurePursuit(object):
         #TODO: calculate parameter that is look_ahead distance away from the closest point?
         #(rather than just advancing the parameter)
         des_parameter = closest_parameter + self.look_ahead + self.look_ahead_scale * speed
+        print("desired speed source is:", self.desired_speed_source)
         print("Closest parameter: " + str(closest_parameter),"distance to path",closest_dist)
         if closest_dist > 0.1:
             print("Closest point",self.path.eval(closest_parameter),"vs",(curr_x,curr_y))
@@ -163,6 +164,23 @@ class PurePursuit(object):
                     print("Desired speed",desired_speed,"m/s",", trying to reach desired",next_desired_speed,"m/s")
                 feedforward_accel= np.clip(feedforward_accel, -self.max_decel, self.max_accel)
                 print("Feedforward accel: " + str(feedforward_accel) + " m/s^2")
+        elif self.desired_speed_source == 'racing':
+            # get radius of the upcoming curve_points
+            # right now we can only use 3 points
+            curve_points = 3
+            curve_radius = self.path.fit_curve_radius((curr_x,curr_y), curve_points)
+            # map curve radius to desired_speed. Note curve_radius can be inf if all points are colinear
+            print("curve_radius: ", curve_radius)
+            if curve_radius < 10:
+                desired_speed = 2.5
+            elif curve_radius < 15:
+                desired_speed = 3
+            elif curve_radius < 20:
+                desired_speed = 4
+            elif curve_radius < 30:
+                desired_speed = 5
+            else:
+                desired_speed = 10
         else:
             #decay speed when crosstrack error is high
             desired_speed *= np.exp(-abs(ct_error)*0.8)

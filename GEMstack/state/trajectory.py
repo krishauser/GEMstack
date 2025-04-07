@@ -4,6 +4,7 @@ from ..utils.serialization import register
 from ..mathutils import transforms,collisions
 from .physical_object import ObjectFrameEnum, convert_point
 import math
+import numpy as np
 from typing import List,Tuple,Optional,Union
 
 @dataclass
@@ -162,6 +163,109 @@ class Path:
         s = self.eval(start)
         e = self.eval(end)
         return replace(self,points=[s]+self.points[sind+1:eind]+[e])
+    
+
+    def fit_curve_radius(self, vehicle_position: List[float], n_points: int) -> float:
+        """
+        Fits a circular curve to n upcoming points from the vehicle's current position
+        and returns the radius of that curve.
+        
+        Args:
+            vehicle_position: Current position of the vehicle [x, y, ...]
+            n_points: Number of upcoming points to consider for curve fitting
+            
+        Returns:
+            float: Radius of the fitted circular curve. Returns float('inf') for
+                straight lines or when insufficient points are available.
+        """
+        # Find the closest point on the path to the vehicle position
+        _, closest_point_idx_float = self.closest_point(vehicle_position)
+
+        # I use ceil here because we want to be looking forward to the next set of points
+        closest_point_idx = int(math.ceil(closest_point_idx_float))
+        
+        # Get indices for n upcoming points
+        start_idx = closest_point_idx
+        end_idx = min(start_idx + n_points, len(self.points) - 1)
+        
+        # If we don't have enough points for fitting, return infinite radius (straight line)
+        if end_idx - start_idx < 2:
+            return float('inf')
+        
+
+        # Extract upcoming points for fitting
+        points_to_fit = self.points[start_idx:end_idx+1]
+        
+        # Ensure we have at least 3 points for circle fitting
+        if len(points_to_fit) < 3:
+            return float('inf')
+        
+        # For now, we'll focus on 2D paths
+        # If points are higher dimensional, we'll use only x,y coordinates
+        points_2d = [[p[0], p[1]] for p in points_to_fit]
+        
+        # Fit circle to points using least squares method
+        try:
+            # Center of circle (h, k) and radius r
+            h, k, r = self._fit_circle_to_points(points_2d)
+            return r
+        except:
+            # If fitting fails (e.g., collinear points), return infinite radius
+            return float('inf')
+
+    def _fit_circle_to_points(self, points: List[List[float]]) -> Tuple[float, float, float]:
+        """
+        Approximates a circle from a set of 2D points using the circumcircle of the first three points.
+
+        Args:
+            points: List of [x, y] coordinates. Must contain at least 3 points.
+
+        Returns:
+            Tuple[float, float, float]: Center coordinates (h, k) and radius r
+        """
+        if len(points) < 3:
+            raise ValueError("At least 3 points are required to fit a circle")
+
+        p1, p2, p3 = points[0], points[1], points[2]
+
+        # Build matrices for determinant calculation
+        def det(matrix):
+            return np.linalg.det(np.array(matrix))
+
+        A = [
+            [p1[0], p1[1], 1],
+            [p2[0], p2[1], 1],
+            [p3[0], p3[1], 1]
+        ]
+        D = det(A)
+        if abs(D) < 1e-10:
+            raise ValueError("Points are collinear or nearly collinear")
+
+        a = p1[0]**2 + p1[1]**2
+        b = p2[0]**2 + p2[1]**2
+        c = p3[0]**2 + p3[1]**2
+
+        M11 = [
+            [a, p1[1], 1],
+            [b, p2[1], 1],
+            [c, p3[1], 1]
+        ]
+        M12 = [
+            [a, p1[0], 1],
+            [b, p2[0], 1],
+            [c, p3[0], 1]
+        ]
+        M13 = [
+            [a, p1[0], p1[1]],
+            [b, p2[0], p2[1]],
+            [c, p3[0], p3[1]]
+        ]
+
+        h = 0.5 * det(M11) / D
+        k = -0.5 * det(M12) / D
+        r = math.sqrt(h**2 + k**2 + det(M13) / D)
+
+        return h, k, r
 
 
 @dataclass
