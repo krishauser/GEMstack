@@ -44,7 +44,8 @@ def load_in(path,mode='matrix'):
     with open(path) as stream:
         y = yaml.safe_load(stream)
     if mode == 'matrix':
-        ret = np.diag(y['focal'])
+        ret = np.zeros((3,3))
+        ret[0,0],ret[1,1] = y['focal']
         ret[0:2,2] = y['center']
         return ret
     elif mode == 'tuple':
@@ -52,7 +53,7 @@ def load_in(path,mode='matrix'):
 
 def save_in(path,focal=None,center=None,matrix=None):
     if matrix is not None:
-        focal = matrix.diagonal()
+        focal = matrix.diagonal()[0,-1]
         center = matrix[0:2,2]
         save_in(path,focal,center)
         return
