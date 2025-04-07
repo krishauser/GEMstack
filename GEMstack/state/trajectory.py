@@ -162,6 +162,103 @@ class Path:
         s = self.eval(start)
         e = self.eval(end)
         return replace(self,points=[s]+self.points[sind+1:eind]+[e])
+    
+
+    def fit_curve_radius(self, vehicle_position: List[float], n_points: int) -> float:
+        """
+        Fits a circular curve to n upcoming points from the vehicle's current position
+        and returns the radius of that curve.
+        
+        Args:
+            vehicle_position: Current position of the vehicle [x, y, ...]
+            n_points: Number of upcoming points to consider for curve fitting
+            
+        Returns:
+            float: Radius of the fitted circular curve. Returns float('inf') for
+                straight lines or when insufficient points are available.
+        """
+        # Find the closest point on the path to the vehicle position
+        _, closest_point_idx_float = self.closest_point(vehicle_position)
+
+        # I use ceil here because we want to be looking forward to the next set of points
+        closest_point_idx = int(math.ceil(closest_point_idx_float))
+        
+        # Get indices for n upcoming points
+        start_idx = closest_point_idx
+        end_idx = min(start_idx + n_points, len(self.points) - 1)
+        
+        # If we don't have enough points for fitting, return infinite radius (straight line)
+        if end_idx - start_idx < 2:
+            return float('inf')
+        
+
+        # Extract upcoming points for fitting
+        points_to_fit = self.points[start_idx:end_idx+1]
+        
+        # Ensure we have at least 3 points for circle fitting
+        if len(points_to_fit) < 3:
+            return float('inf')
+        
+        # For now, we'll focus on 2D paths
+        # If points are higher dimensional, we'll use only x,y coordinates
+        points_2d = [[p[0], p[1]] for p in points_to_fit]
+        
+        # Fit circle to points using least squares method
+        try:
+            # Center of circle (h, k) and radius r
+            h, k, r = self._fit_circle_to_points(points_2d)
+            return r
+        except:
+            # If fitting fails (e.g., collinear points), return infinite radius
+            return float('inf')
+
+    def _fit_circle_to_points(self, points: List[List[float]]) -> Tuple[float, float, float]:
+        """
+        Fits a circle to a set of 2D points using least squares method.
+        
+        Args:
+            points: List of [x, y] coordinates
+            
+        Returns:
+            Tuple[float, float, float]: Center coordinates (h, k) and radius r
+        """
+        # Number of points
+        n = len(points)
+        
+        # Compute means of x and y coordinates
+        x_mean = sum(p[0] for p in points) / n
+        y_mean = sum(p[1] for p in points) / n
+        
+        # Compute sums for least squares fitting
+        sum_x = sum((p[0] - x_mean) ** 2 for p in points)
+        sum_y = sum((p[1] - y_mean) ** 2 for p in points)
+        sum_xy = sum((p[0] - x_mean) * (p[1] - y_mean) for p in points)
+        sum_x2y = sum((p[0] - x_mean) ** 2 * (p[1] - y_mean) for p in points)
+        sum_xy2 = sum((p[0] - x_mean) * (p[1] - y_mean) ** 2 for p in points)
+        sum_x3 = sum((p[0] - x_mean) ** 3 for p in points)
+        sum_y3 = sum((p[1] - y_mean) ** 3 for p in points)
+        
+        # Matrix coefficients
+        a = sum_x2y - sum_x * sum_xy / n
+        b = sum_xy2 - sum_y * sum_xy / n
+        c = sum_x3 + sum_xy2 - (sum_x * sum_x + sum_xy) / n * sum_x
+        d = sum_y3 + sum_x2y - (sum_y * sum_y + sum_xy) / n * sum_y
+        
+        # Compute circle parameters
+        # If the points are collinear or nearly so, determinant will be near zero
+        # leading to unstable solutions, in which case we'll raise an exception
+        det = a * d - b * c
+        if abs(det) < 1e-10:
+            raise ValueError("Points are collinear or near-collinear")
+        
+        # Circle center coordinates
+        h = (d * sum_x - b * sum_y) / (2 * det) + x_mean
+        k = (-c * sum_x + a * sum_y) / (2 * det) + y_mean
+        
+        # Compute radius as average distance from center to all points
+        r = sum(math.sqrt((p[0] - h) ** 2 + (p[1] - k) ** 2) for p in points) / n
+        
+        return h, k, r
 
 
 @dataclass

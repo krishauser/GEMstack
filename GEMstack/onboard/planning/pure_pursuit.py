@@ -39,6 +39,7 @@ class PurePursuit(object):
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
+        print("desired speed source is:", self.desired_speed_source)
 
     def set_path(self, path : Path):
         if path == self.path_arg:
@@ -163,6 +164,13 @@ class PurePursuit(object):
                     print("Desired speed",desired_speed,"m/s",", trying to reach desired",next_desired_speed,"m/s")
                 feedforward_accel= np.clip(feedforward_accel, -self.max_decel, self.max_accel)
                 print("Feedforward accel: " + str(feedforward_accel) + " m/s^2")
+        elif self.desired_speed_source == 'racing':
+            print("this ran")
+            # get radius of the upcoming curve_points
+            curve_points = 5
+            curve_radius = self.trajectory.fit_curve_radius((curr_x,curr_y), curve_points)
+            # map curve radius to desired_speed. Note curve_radius can be inf if all points are colinear
+
         else:
             #decay speed when crosstrack error is high
             desired_speed *= np.exp(-abs(ct_error)*0.8)
