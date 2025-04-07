@@ -167,51 +167,41 @@ class Path:
 
     def fit_curve_radius(self, vehicle_position: List[float], n_points: int) -> float:
         """
-        Fits a circular curve to n upcoming points from the vehicle's current position
-        and returns the radius of that curve.
+        Calculates the curve radius over the next 3 intervals and returns the largest.
         
         Args:
             vehicle_position: Current position of the vehicle [x, y, ...]
-            n_points: Number of upcoming points to consider for curve fitting
-            
-        Returns:
-            float: Radius of the fitted circular curve. Returns float('inf') for
-                straight lines or when insufficient points are available.
-        """
-        # Find the closest point on the path to the vehicle position
-        _, closest_point_idx_float = self.closest_point(vehicle_position)
+            n_points: Number of points to sample ahead. Must be >= 5 to allow 3 intervals.
 
-        # I use ceil here because we want to be looking forward to the next set of points
+        Returns:
+            float: Min radius among 3 consecutive 3-point intervals. Returns float('inf') if not enough data.
+        """
+        _, closest_point_idx_float = self.closest_point(vehicle_position)
         closest_point_idx = int(math.ceil(closest_point_idx_float))
         
-        # Get indices for n upcoming points
-        start_idx = closest_point_idx
-        end_idx = min(start_idx + n_points, len(self.points) - 1)
-        
-        # If we don't have enough points for fitting, return infinite radius (straight line)
-        if end_idx - start_idx < 2:
-            return float('inf')
-        
+        # Require at least 5 points to form 3 overlapping triplets
+        total_needed = max(n_points, 5)
+        end_idx = min(closest_point_idx + total_needed, len(self.points))
 
-        # Extract upcoming points for fitting
-        points_to_fit = self.points[start_idx:end_idx+1]
-        
-        # Ensure we have at least 3 points for circle fitting
-        if len(points_to_fit) < 3:
-            return float('inf')
-        
-        # For now, we'll focus on 2D paths
-        # If points are higher dimensional, we'll use only x,y coordinates
-        points_2d = [[p[0], p[1]] for p in points_to_fit]
-        
-        # Fit circle to points using least squares method
-        try:
-            # Center of circle (h, k) and radius r
-            h, k, r = self._fit_circle_to_points(points_2d)
-            return r
-        except:
-            # If fitting fails (e.g., collinear points), return infinite radius
-            return float('inf')
+        if end_idx - closest_point_idx < 5:
+            return float('0')
+
+        # Get the next chunk of points
+        points_to_check = self.points[closest_point_idx:end_idx]
+
+        # Convert to 2D
+        points_2d = [[p[0], p[1]] for p in points_to_check]
+
+        radii = []
+        for i in range(len(points_2d) - 2):  # Slide a window of 3
+            triplet = points_2d[i:i+3]
+            try:
+                _, _, r = self._fit_circle_to_points(triplet)
+                radii.append(r)
+            except:
+                radii.append(float('inf'))  # Treat failed fits as straight line
+
+        return min(radii) if radii else float('0')
 
     def _fit_circle_to_points(self, points: List[List[float]]) -> Tuple[float, float, float]:
         """
