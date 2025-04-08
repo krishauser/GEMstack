@@ -234,6 +234,11 @@ def pose_to_matrix(pose):
     T[:3, 3] = np.array([x, y, z])
     return T
 
+def transform_lidar_points(lidar_points, transform):
+    ones_column = np.ones((lidar_points.shape[0], 1))
+    lidar_points_extended = np.hstack((lidar_points, ones_column))
+    lidar_points_transformed = ((transform @ (lidar_points_extended.T)).T)
+    return lidar_points_transformed[:, :3]
 
 def transform_points_l2c(lidar_points, T_l2c):
     N = lidar_points.shape[0]
@@ -308,8 +313,10 @@ class ConeDetector3D(Component):
         self.sync.registerCallback(self.synchronized_callback)
 
         # Publishers
+        self.pub_lidar_top_vehicle_pc2 = rospy.Publisher("point_cloud/lidar_top_vehicle", PointCloud2, queue_size=10)
         self.pub_cones_image_detection = rospy.Publisher("cones/image_detection", Image, queue_size=1)
         self.pub_cones_bboxes_markers = rospy.Publisher("cones/markers/bboxes", MarkerArray, queue_size=10)
+        self.pub_vehicle_marker = rospy.Publisher("vehicle/marker", MarkerArray, queue_size=10)
 
         # Detection model
         self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/cone.pt'
@@ -342,6 +349,11 @@ class ConeDetector3D(Component):
             if agent.dimensions != None and agent.dimensions[0] != None and agent.dimensions[1] != None and agent.dimensions[2] != None:
                 cone_3d_dims.append(agent.dimensions)
 
+        # Transform top lidar pointclouds to vehicle frame for visualization
+        latest_lidar_vehicle = transform_lidar_points(self.latest_lidar, self.T_l2v)
+        ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "lidar_top")
+        self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
+
         # Draw 2D bboxes
         for ind, bbox in enumerate(boxes):
             xywh = bbox.xywh[0].tolist()
@@ -349,12 +361,16 @@ class ConeDetector3D(Component):
         ros_img = self.bridge.cv2_to_imgmsg(cv_image, 'bgr8')
         self.pub_cones_image_detection.publish(ros_img)  
 
+        # Create vehicle marker
+        ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (1.0, 0.0, 0.0, 1), "lidar_top")
+        self.pub_vehicle_marker.publish(ros_vehicle_marker)
         # Draw 3D cone centers and dimensions
         if len(cone_3d_centers) > 0 and len(cone_3d_dims) > 0:
-            # Create bbox markers from cone dimensions
+            # Delete previous markers
             ros_delete_bboxes_markers = delete_bbox_marker()
             self.pub_cones_bboxes_markers.publish(ros_delete_bboxes_markers)
-            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, "lidar_top")
+            # Create bbox markers from cone dimensions
+            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, (0.0, 1.0, 15, 0.2), "lidar_top")
             self.pub_cones_bboxes_markers.publish(ros_cones_bboxes_markers)
           
                
@@ -468,7 +484,7 @@ class ConeDetector3D(Component):
                 yaw=yaw,
                 pitch=pitch,
                 roll=roll,
-                frame=ObjectFrameEnum.START
+                frame=ObjectFrameEnum.CURRENT
             )
 
             existing_id = match_existing_cone(

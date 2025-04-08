@@ -41,13 +41,13 @@ def vis_2d_bbox(image, xywh, box):
     cv2.putText(image, label, (text_x, text_y - baseline), font, font_scale, font_color, text_thickness)
     return image
 
-def create_point_cloud(points, color=(255, 0, 0)):
+def create_point_cloud(points, color=(255, 0, 0), ref_frame="map"):
     """
     Converts a list of (x, y, z) points into a PointCloud2 message.
     """
     header = rospy.Header()
     header.stamp = rospy.Time.now()
-    header.frame_id = "os_sensor"  # Change to your TF frame
+    header.frame_id = ref_frame  # Change to your TF frame
 
     fields = [
         PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
@@ -64,7 +64,7 @@ def create_point_cloud(points, color=(255, 0, 0)):
 
     return pc2.create_cloud(header, fields, point_cloud_data)
 
-def create_bbox_marker(centroids, dimensions, ref_frame="map"):
+def create_bbox_marker(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ref_frame="map"):
     """
     Create 3D bbox markers from centroids and dimensions
     """
@@ -78,7 +78,7 @@ def create_bbox_marker(centroids, dimensions, ref_frame="map"):
         marker = Marker()
         marker.header.frame_id = ref_frame  # Reference frame
         marker.header.stamp = rospy.Time.now()
-        marker.ns = "bounding_boxes"
+        marker.ns = "markers"
         marker.id = i  # Unique ID for each marker
         marker.type = Marker.CUBE  # Cube for bounding box
         marker.action = Marker.ADD
@@ -108,10 +108,11 @@ def create_bbox_marker(centroids, dimensions, ref_frame="map"):
         marker.scale.z = d_z
 
         # Random colors for each bounding box
-        marker.color.r = 0.0  # Varying colors
-        marker.color.g = 1.0
-        marker.color.b = 1.5
-        marker.color.a = 0.2  # Transparency
+        r, g, b, a = color
+        marker.color.r = r  # Varying colors
+        marker.color.g = g
+        marker.color.b = b
+        marker.color.a = a  # Transparency
 
         marker.lifetime = rospy.Duration()  # Persistent
         marker_array.markers.append(marker)
@@ -125,7 +126,7 @@ def delete_bbox_marker():
     marker_array = MarkerArray()
     for i in range(15):
         marker = Marker()
-        marker.ns = "bounding_boxes"
+        marker.ns = "markers"
         marker.id = i
         marker.action = Marker.DELETE
         marker_array.markers.append(marker)
