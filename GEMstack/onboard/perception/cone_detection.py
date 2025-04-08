@@ -21,6 +21,17 @@ import ros_numpy
 
 # ----- Helper Functions -----
 
+def undistort_image(image, K, D):
+    """
+    对图像进行畸变校正，返回校正后的图像及新的内参矩阵。
+    其中 K 为原始内参，D 为畸变参数。
+    """
+    h, w = image.shape[:2]
+    newK, _ = cv2.getOptimalNewCameraMatrix(K, D, (w, h), 1, (w, h))
+    undistorted = cv2.undistort(image, K, D, None, newK)
+    return undistorted, newK
+
+
 def match_existing_cone(
         new_center: np.ndarray,
         new_dims: tuple,
@@ -63,23 +74,6 @@ def extract_roi_box(lidar_pc, center, half_extents):
     return lidar_pc[mask]
 
 
-# def pc2_to_numpy(pc2_msg, want_rgb=False):
-#     """
-#     Convert a ROS PointCloud2 message into a numpy array.
-#     This function extracts the x, y, z coordinates from the point cloud.
-#     """
-#     start = time.time()
-#     gen = pc2.read_points(pc2_msg, skip_nans=True)
-#     end = time.time()
-#     print('Read lidar points: ', end - start)
-#     start = time.time()
-#     pts = np.array(list(gen), dtype=np.float16)
-#     pts = pts[:, :3]  # Only x, y, z coordinates
-#     mask = (pts[:, 0] > 0) & (pts[:, 2] < 2.5)
-#     end = time.time()
-#     print('Convert to numpy: ', end - start)
-#     return pts[mask]
-
 def pc2_to_numpy(pc2_msg, want_rgb=False):
     """
     Convert a ROS PointCloud2 message into a numpy array quickly using ros_numpy.
@@ -87,14 +81,13 @@ def pc2_to_numpy(pc2_msg, want_rgb=False):
     """
     # Convert the ROS message to a numpy structured array
     pc = ros_numpy.point_cloud2.pointcloud2_to_array(pc2_msg)
-    # Convert each field to a 1D array and stack along axis 1 to get (N, 3)
+    # Stack x,y,z fields to a (N,3) array
     pts = np.stack((np.array(pc['x']).ravel(),
                     np.array(pc['y']).ravel(),
                     np.array(pc['z']).ravel()), axis=1)
-    # Apply filtering (for example, x > 0 and z < 2.5)
-    mask = (pts[:, 0] > 0) & (pts[:, 2] < 2.5)
+    # Apply filtering (for example, x > 0 and z in a specified range)
+    mask = (pts[:, 0] > 0) & (pts[:, 2] < -1.5) & (pts[:, 2] > -2.7)
     return pts[mask]
-
 
 
 def backproject_pixel(u, v, K):
@@ -179,14 +172,15 @@ def create_ray_line_set(start, end):
     line_set.colors = o3d.utility.Vector3dVector([[1, 1, 0]])
     return line_set
 
+
 def downsample_points(lidar_points, voxel_size=0.15):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(lidar_points)
     down_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
     return np.asarray(down_pcd.points)
 
-def filter_depth_points(lidar_points, max_human_depth=0.9):
 
+def filter_depth_points(lidar_points, max_human_depth=0.9):
     if lidar_points.shape[0] == 0:
         return lidar_points
     lidar_points_dist = lidar_points[:, 0]
@@ -194,6 +188,7 @@ def filter_depth_points(lidar_points, max_human_depth=0.9):
     max_possible_dist = min_dist + max_human_depth
     filtered_array = lidar_points[lidar_points_dist < max_possible_dist]
     return filtered_array
+
 
 def visualize_geometries(geometries, window_name="Open3D", width=800, height=600, point_size=5.0):
     """
@@ -208,13 +203,13 @@ def visualize_geometries(geometries, window_name="Open3D", width=800, height=600
     vis.run()
     vis.destroy_window()
 
+
 def pose_to_matrix(pose):
     """
     Compose a 4x4 transformation matrix from a pose state.
     Assumes pose has attributes: x, y, z, yaw, pitch, roll,
     where the angles are given in degrees.
     """
-    # Use default values if any are None (e.g. if the car is not moving)
     x = pose.x if pose.x is not None else 0.0
     y = pose.y if pose.y is not None else 0.0
     z = pose.z if pose.z is not None else 0.0
@@ -238,6 +233,7 @@ def transform_points_l2c(lidar_points, T_l2c):
     pts_hom = np.hstack((lidar_points, np.ones((N, 1))))  # (N,4)
     pts_cam = (T_l2c @ pts_hom.T).T  # (N,4)
     return pts_cam[:, :3]
+
 
 # ----- New: Vectorized projection function -----
 def project_points(pts_cam, K, original_lidar_points):
@@ -302,19 +298,29 @@ class ConeDetector3D(Component):
         self.sync.registerCallback(self.synchronized_callback)
         self.detector = YOLO('../../knowledge/detection/cone.pt')
         self.detector.to('cuda')
-        self.K = np.array([[684.83331299, 0., 573.37109375],
-                           [0., 684.60968018, 363.70092773],
-                           [0., 0., 1.]])
+        # self.K = np.array([[1230.144096, 0., 978.828508],
+        #                    [0., 1230.630424, 605.794034],
+        #                    [0., 0., 1.]])
+
+
+        # Below is the distortion vector; here we set it to all zeros (i.e. no distortion)
+        # self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        self.D = [-0.23751890570984993, 0.08452214195986749, -0.00035324203850054794, -0.0003762498910536819, 0.0]
         self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
                                [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
                                [-0.02379784, 0.00689664, 0.999693, 1.95320223],
                                [0., 0., 0., 1.]])
-        self.T_l2c = np.array([
-            [0.001090, -0.999489, -0.031941, 0.149698],
-            [-0.007664, 0.031932, -0.999461, -0.397813],
-            [0.999970, 0.001334, -0.007625, -0.691405],
-            [0., 0., 0., 1.000000]
-        ])
+        # self.T_l2c = np.array([
+        #     [0.001090, -0.999489, -0.031941, 0.149698],
+        #     [-0.007664, 0.031932, -0.999461, -0.397813],
+        #     [0.999970, 0.001334, -0.007625, -0.691405],
+        #     [0., 0., 0., 1.000000]
+        # ])
+
+        self.T_l2c = np.array([[ 0.71082304, -0.70305212, -0.02608284,  0.17771596],
+       [-0.13651802, -0.10076507, -0.98505595, -0.36321222],
+       [ 0.68915595,  0.70388118, -0.1678969 , -0.62027912],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])
         self.T_c2l = np.linalg.inv(self.T_l2c)
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
@@ -329,7 +335,7 @@ class ConeDetector3D(Component):
         step2 = time.time()
         self.latest_lidar = pc2_to_numpy(lidar_msg, want_rgb=False)
         step3 = time.time()
-        print('image callback: ', step2-step1, 'lidar callback ', step3- step2)
+        print('image callback: ', step2 - step1, 'lidar callback ', step3 - step2)
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         downsample = False
@@ -337,8 +343,12 @@ class ConeDetector3D(Component):
             return {}
 
         current_time = self.vehicle_interface.time()
-        # Run YOLO to obtain 2D detections (class 0: persons)
-        #TODO Change class to cones
+
+        undistorted_img, current_K = undistort_image(self.latest_image, self.K, self.D)
+        self.current_K = current_K
+        self.latest_image = undistorted_img
+
+        # Run YOLO to obtain 2D detections (class 0: cones)
         results = self.detector(self.latest_image, conf=0.3, classes=[0])
         boxes = np.array(results[0].boxes.xywh.cpu())
         agents = {}
@@ -346,18 +356,17 @@ class ConeDetector3D(Component):
         if downsample == True:
             lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
             pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
-            projected_pts = project_points(pts_cam, self.K, lidar_down)
-
+            projected_pts = project_points(pts_cam, self.current_K, lidar_down)
         else:
-            # New approach: project the entire LiDAR point cloud to the image plane
             step00 = time.time()
             lidar_down = self.latest_lidar.copy()
             step01 = time.time()
             pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
             step02 = time.time()
-            projected_pts = project_points(pts_cam, self.K, lidar_down)  # shape (N,5): [u, v, X, Y, Z]
+            projected_pts = project_points(pts_cam, self.current_K, lidar_down)  # shape (N,5): [u, v, X, Y, Z]
             step03 = time.time()
-            print(f'copy lidar data {step01-step00}s, transoforming to camear {step02-step01}s, transforming to image {step03-step02}s')
+            print(
+                f'copy lidar data {step01 - step00}s, transforming to camera {step02 - step01}s, projecting to image {step03 - step02}s')
 
         # For each 2D bounding box, filter projected points instead of ray-casting
         for i, box in enumerate(boxes):
@@ -376,13 +385,11 @@ class ConeDetector3D(Component):
             points_3d = roi_pts[:, 2:5]
             points_3d = filter_depth_points(points_3d, max_human_depth=0.3)
 
-
-
             # Cluster the points and remove ground
-            refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=10)
+            refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=5)
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.01)
             end1 = time.time()
-            print('refine cluster: ', end1-start)
+            print('refine cluster: ', end1 - start)
             if refined_cluster.shape[0] < 5:
                 continue
 
@@ -394,7 +401,7 @@ class ConeDetector3D(Component):
             dims = tuple(obb.extent)
             R_lidar = obb.R.copy()
             end2 = time.time()
-            print('compute bounding box ', end2-end1)
+            print('compute bounding box ', end2 - end1)
             # Transform the refined center from LiDAR to Vehicle frame
             refined_center_hom = np.append(refined_center, 1)
             refined_center_vehicle_hom = self.T_l2v @ refined_center_hom
@@ -405,18 +412,11 @@ class ConeDetector3D(Component):
             yaw, pitch, roll = euler_vehicle
             refined_center = refined_center_vehicle
 
-            # Convert from Vehicle frame to START frame
             if self.start_pose_abs is None:
-                self.start_pose_abs = vehicle.pose  # Initialize once
+                self.start_pose_abs = vehicle.pose
 
-            # Obtain the vehicle's pose in the START frame as a pose state.
-            # Assume vehicle.pose.to_frame returns a pose state with attributes x, y, z, yaw, pitch, roll.
             vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START, vehicle.pose, self.start_pose_abs)
-
-            # Compose the 4x4 transformation matrix from the vehicle_start_pose
             T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
-
-            # Transform the refined center (in Vehicle frame) to the START frame
             refined_center_hom_vehicle = np.append(refined_center, 1)
             refined_center_start = (T_vehicle_to_start @ refined_center_hom_vehicle)[:3]
 
@@ -475,17 +475,15 @@ class ConeDetector3D(Component):
             rospy.loginfo(f"Removing stale agent: {agent_id}\n")
         for agent_id, agent in agents.items():
             p = agent.pose
-            # Format pose and velocity with 3 decimals (or as needed)
             rospy.loginfo(
                 f"Agent ID: {agent_id}\n"
                 f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                 f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
                 f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
-    )
+            )
         return agents
 
-
-# ----- Fake Cone Detector 2D (for Testing Purposes) -----
+    # ----- Fake Cone Detector 2D (for Testing Purposes) -----
 
 class FakConeDetector(Component):
     def __init__(self, vehicle_interface: GEMInterface):
@@ -513,7 +511,6 @@ class FakConeDetector(Component):
                 rospy.loginfo("Detected a Cone (simulated)")
         return res
 
-
 def box_to_fake_agent(box):
     x, y, w, h = box
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
@@ -521,7 +518,6 @@ def box_to_fake_agent(box):
     return AgentState(pose=pose, dimensions=dims, outline=None,
                       type=AgentEnum.CONE, activity=AgentActivityEnum.MOVING,
                       velocity=(0, 0, 0), yaw_rate=0)
-
 
 if __name__ == '__main__':
     pass
