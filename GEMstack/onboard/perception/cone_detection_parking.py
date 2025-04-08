@@ -14,9 +14,11 @@ import sensor_msgs.point_cloud2 as pc2
 import struct, ctypes
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
+from .visualization_utils import *
 import time
 import math
 import ros_numpy
+import os
 
 
 # ----- Helper Functions -----
@@ -295,13 +297,26 @@ class ConeDetector3D(Component):
         return ['agents']
 
     def initialize(self):
-        self.rgb_sub = Subscriber('/camera_fl/arena_camera_node/image_raw', Image)
-        self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
+        # Real Subscribers
+        # self.rgb_sub = Subscriber('/camera_fl/arena_camera_node/image_raw', Image)
+        # self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
+        # Rosbag Subscribers
+        self.rgb_sub = Subscriber('/camera/fl/image_raw', Image)
+        self.lidar_sub = Subscriber('/lidar/top/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub],
                                                 queue_size=10, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
-        self.detector = YOLO('../../knowledge/detection/cone.pt')
+
+        # Publishers
+        self.pub_cones_image_detection = rospy.Publisher("cones/image_detection", Image, queue_size=1)
+        self.pub_cones_bboxes_markers = rospy.Publisher("cones/markers/bboxes", MarkerArray, queue_size=10)
+
+        # Detection model
+        self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/cone.pt'
+        self.detector = YOLO(self.model_path)
         self.detector.to('cuda')
+
+        # Transformations
         self.K = np.array([[1180.753, 0., 934.8594],
                            [0., 1177.034, 607.26],
                            [0., 0., 1.]])
@@ -317,6 +332,32 @@ class ConeDetector3D(Component):
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
+    def viz_object_states(self, cv_image, boxes):
+        cone_3d_centers = list()
+        cone_3d_dims = list()
+
+        for track_id, agent in self.current_agents.items():
+            if agent.pose.x != None and agent.pose.y != None and agent.pose.z != None:
+               cone_3d_centers.append((agent.pose.x, agent.pose.y, agent.pose.z))
+            if agent.dimensions != None and agent.dimensions[0] != None and agent.dimensions[1] != None and agent.dimensions[2] != None:
+                cone_3d_dims.append(agent.dimensions)
+
+        # Draw 2D bboxes
+        for ind, bbox in enumerate(boxes):
+            xywh = bbox.xywh[0].tolist()
+            cv_image = vis_2d_bbox(cv_image, xywh, bbox)
+        ros_img = self.bridge.cv2_to_imgmsg(cv_image, 'bgr8')
+        self.pub_cones_image_detection.publish(ros_img)  
+
+        # Draw 3D cone centers and dimensions
+        if len(cone_3d_centers) > 0 and len(cone_3d_dims) > 0:
+            # Create bbox markers from cone dimensions
+            ros_delete_bboxes_markers = delete_bbox_marker()
+            self.pub_cones_bboxes_markers.publish(ros_delete_bboxes_markers)
+            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims)
+            self.pub_cones_bboxes_markers.publish(ros_cones_bboxes_markers)
+          
+               
     def synchronized_callback(self, image_msg, lidar_msg):
         step1 = time.time()
         try:
@@ -329,6 +370,7 @@ class ConeDetector3D(Component):
         step3 = time.time()
         print('image callback: ', step2-step1, 'lidar callback ', step3- step2)
 
+
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         downsample = False
         if self.latest_image is None or self.latest_lidar is None:
@@ -338,7 +380,8 @@ class ConeDetector3D(Component):
         # Run YOLO to obtain 2D detections (class 0: persons)
         #TODO Change class to cones
         results = self.detector(self.latest_image, conf=0.3, classes=[0])
-        boxes = np.array(results[0].boxes.xywh.cpu())
+        bboxes = results[0].boxes
+        boxes = np.array(bboxes.xywh.cpu())
         agents = {}
 
         if downsample == True:
@@ -370,11 +413,10 @@ class ConeDetector3D(Component):
             roi_pts = projected_pts[mask]
             if roi_pts.shape[0] < 5:
                 continue
+
             # Extract the LiDAR 3D points corresponding to the ROI
             points_3d = roi_pts[:, 2:5]
             points_3d = filter_depth_points(points_3d, max_human_depth=0.3)
-
-
 
             # Cluster the points and remove ground
             refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=10)
@@ -403,26 +445,26 @@ class ConeDetector3D(Component):
             yaw, pitch, roll = euler_vehicle
             refined_center = refined_center_vehicle
 
-            # Convert from Vehicle frame to START frame
-            if self.start_pose_abs is None:
-                self.start_pose_abs = vehicle.pose  # Initialize once
+            # # Convert from Vehicle frame to START frame
+            # if self.start_pose_abs is None:
+            #     self.start_pose_abs = vehicle.pose  # Initialize once
 
-            # Obtain the vehicle's pose in the START frame as a pose state.
-            # Assume vehicle.pose.to_frame returns a pose state with attributes x, y, z, yaw, pitch, roll.
-            vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START, vehicle.pose, self.start_pose_abs)
+            # # Obtain the vehicle's pose in the START frame as a pose state.
+            # # Assume vehicle.pose.to_frame returns a pose state with attributes x, y, z, yaw, pitch, roll.
+            # vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START, vehicle.pose, self.start_pose_abs)
 
-            # Compose the 4x4 transformation matrix from the vehicle_start_pose
-            T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
+            # # Compose the 4x4 transformation matrix from the vehicle_start_pose
+            # T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
 
-            # Transform the refined center (in Vehicle frame) to the START frame
-            refined_center_hom_vehicle = np.append(refined_center, 1)
-            refined_center_start = (T_vehicle_to_start @ refined_center_hom_vehicle)[:3]
+            # # Transform the refined center (in Vehicle frame) to the START frame
+            # refined_center_hom_vehicle = np.append(refined_center, 1)
+            # refined_center_start = (T_vehicle_to_start @ refined_center_hom_vehicle)[:3]
 
             new_pose = ObjectPose(
                 t=current_time,
-                x=refined_center_start[0],
-                y=refined_center_start[1],
-                z=refined_center_start[2],
+                x=refined_center[0],
+                y=refined_center[1],
+                z=refined_center[2],
                 yaw=yaw,
                 pitch=pitch,
                 roll=roll,
@@ -479,7 +521,12 @@ class ConeDetector3D(Component):
                 f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                 f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
                 f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
-    )
+            )
+
+        # Add Visualization
+        cv_image = self.latest_image.copy()
+        self.viz_object_states(cv_image, bboxes)
+
         return agents
 
 
