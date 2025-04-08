@@ -14,7 +14,11 @@ from ...utils.loops import TimedLooper
 from dataclasses import replace
 from threading import Thread,Lock
 
+from gazebo_msgs.srv import GetModelState, GetModelStateResponse
+from gazebo_msgs.msg import ModelState
 
+from ackermann_msgs.msg import AckermannDrive
+import roslaunch
 # ROS Headers
 import rospy
 from std_msgs.msg import String, Bool, Float32, Float64
@@ -39,6 +43,8 @@ from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, Vehicl
 # OpenCV and cv2 bridge
 import cv2
 import numpy as np
+
+
 
 
 
@@ -87,6 +93,7 @@ class AgentSimulation:
         self.start = self.position[:]
         self.yaw = config.get('yaw',0)
 
+
     def to_agent_state(self) -> AgentState:
         pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=time.time(),x=self.position[0],y=self.position[1],yaw=self.yaw)
         activity = AgentActivityEnum.MOVING if self.velocity[0] != 0 or self.velocity[1] != 0 else AgentActivityEnum.STOPPED
@@ -129,153 +136,154 @@ class AgentSimulation:
             v -= AGENT_NOMINAL_ACCELERATION[self.type]*dt
         self.velocity = [v*direction[0],v*direction[1]]
         self.position = transforms.vector_madd(self.position,self.velocity,dt)
+    
 
 
-class GEMDoubleIntegratorSimulation:
-    """Standard simulation of a second-order Dubins car with a double
-    integrator controller.  The simulation is deterministic and accepts
-    GEMVehicleReading and GEMVehicleCommand objects.
+# class GEMDoubleIntegratorSimulation:
+#     """Standard simulation of a second-order Dubins car with a double
+#     integrator controller.  The simulation is deterministic and accepts
+#     GEMVehicleReading and GEMVehicleCommand objects.
 
-    Gear switching is instantaneous.  Signals are activated instantly.
-    """
-    def __init__(self, scene : str = None):
-        self.dubins = SecondOrderDubinsCar(
-            wheelAngleMin=settings.get('vehicle.geometry.min_wheel_angle'),
-            wheelAngleMax=settings.get('vehicle.geometry.max_wheel_angle'),
-            velocityMin=-settings.get('vehicle.limits.max_reverse_speed'),
-            velocityMax=settings.get('vehicle.limits.max_speed'),
-            accelMin=-settings.get('vehicle.limits.max_acceleration'),
-            accelMax=settings.get('vehicle.limits.max_deceleration'),
-            wheelAngleRateMin=-settings.get('vehicle.limits.max_steering_rate'),
-            wheelAngleRateMax=settings.get('vehicle.limits.max_steering_rate'),
-            wheelBase=settings.get('vehicle.geometry.wheelbase'))
+#     Gear switching is instantaneous.  Signals are activated instantly.
+#     """
+#     def __init__(self, scene : str = None):
+#         self.dubins = SecondOrderDubinsCar(
+#             wheelAngleMin=settings.get('vehicle.geometry.min_wheel_angle'),
+#             wheelAngleMax=settings.get('vehicle.geometry.max_wheel_angle'),
+#             velocityMin=-settings.get('vehicle.limits.max_reverse_speed'),
+#             velocityMax=settings.get('vehicle.limits.max_speed'),
+#             accelMin=-settings.get('vehicle.limits.max_acceleration'),
+#             accelMax=settings.get('vehicle.limits.max_deceleration'),
+#             wheelAngleRateMin=-settings.get('vehicle.limits.max_steering_rate'),
+#             wheelAngleRateMax=settings.get('vehicle.limits.max_steering_rate'),
+#             wheelBase=settings.get('vehicle.geometry.wheelbase'))
         
-        self.dt = settings.get('simulator.dt',0.01)
-        self.roadgraph = None
-        self.agents = []
-        if scene is None:
-            scene = settings.get('simulator.scene',None)
-        if isinstance(scene,str):
-            print("Loading simulator from scene",scene)
-            scene = config.load_config_recursive(scene)
-        self.agents = {}
-        if scene is None:
-            self.simulation_time = time.time()
-            self.start_state = (0.0,0.0,0.0)
-        else:
-            self.simulation_time = scene.get('time',time.time())
-            start_state = scene.get('vehicle_state',[0.0,0.0,0.0,0.0,0.0])
-            while len(start_state) < 5:
-                start_state.append(0.0)
-            for k,a in scene.get('agents',{}).items():
-                self.agents[k] = AgentSimulation(a)
-        self.cur_vehicle_state = np.array(start_state,dtype=float)
+#         self.dt = settings.get('simulator.dt',0.01)
+#         self.roadgraph = None
+#         self.agents = []
+#         if scene is None:
+#             scene = settings.get('simulator.scene',None)
+#         if isinstance(scene,str):
+#             print("Loading simulator from scene",scene)
+#             scene = config.load_config_recursive(scene)
+#         self.agents = {}
+#         if scene is None:
+#             self.simulation_time = time.time()
+#             self.start_state = (0.0,0.0,0.0)
+#         else:
+#             self.simulation_time = scene.get('time',time.time())
+#             start_state = scene.get('vehicle_state',[0.0,0.0,0.0,0.0,0.0])
+#             while len(start_state) < 5:
+#                 start_state.append(0.0)
+#             for k,a in scene.get('agents',{}).items():
+#                 self.agents[k] = AgentSimulation(a)
+#         self.cur_vehicle_state = np.array(start_state,dtype=float)
 
-        self.last_reading = GEMVehicleReading()
-        self.last_reading.speed = 0.0
-        self.last_reading.steering_wheel_angle = 0.0
-        self.last_reading.accelerator_pedal_position = 0.0
-        self.last_reading.brake_pedal_position = 0.0
-        self.last_reading.gear = 0
-        self.last_reading.left_turn_signal = False
-        self.last_reading.right_turn_signal = False
-        self.last_reading.horn_on = False
-        self.last_reading.wiper_level = 0
-        self.last_reading.headlights_on = False
-        #initialize last command
-        gear = -2 if self.cur_vehicle_state[3] == 0 else -1 if self.cur_vehicle_state[3] < 0 else 1
-        steering_wheel_angle = front2steer(self.cur_vehicle_state[4])
-        self.last_command = GEMVehicleCommand(gear,0,0,0,0,steering_wheel_angle,0)
+#         self.last_reading = GEMVehicleReading()
+#         self.last_reading.speed = 0.0
+#         self.last_reading.steering_wheel_angle = 0.0
+#         self.last_reading.accelerator_pedal_position = 0.0
+#         self.last_reading.brake_pedal_position = 0.0
+#         self.last_reading.gear = 0
+#         self.last_reading.left_turn_signal = False
+#         self.last_reading.right_turn_signal = False
+#         self.last_reading.horn_on = False
+#         self.last_reading.wiper_level = 0
+#         self.last_reading.headlights_on = False
+#         #initialize last command
+#         gear = -2 if self.cur_vehicle_state[3] == 0 else -1 if self.cur_vehicle_state[3] < 0 else 1
+#         steering_wheel_angle = front2steer(self.cur_vehicle_state[4])
+#         self.last_command = GEMVehicleCommand(gear,0,0,0,0,steering_wheel_angle,0)
     
-    def time(self) -> float:
-        return self.simulation_time
+#     def time(self) -> float:
+#         return self.simulation_time
 
-    def simulate(self, T : float, command : Optional[GEMVehicleCommand]):
-        if command is not None:
-            self.last_command = command
-        for k,a in self.agents.items():
-            a.advance(T)
-        x,y,theta,v,phi = self.cur_vehicle_state
-        #print("x %.2f y %.2f theta %.2f v %.2f" % (x,y,theta,v))
-        #simulate actuators
-        accelerator_pedal_position = np.clip(self.last_command.accelerator_pedal_position,0.0,1.0)
-        brake_pedal_position = np.clip(self.last_command.brake_pedal_position,0.0,1.0)
-        acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,1)
-        acceleration = np.clip(acceleration,*self.dubins.accelRange)
-        phides = steer2front(self.last_command.steering_wheel_angle)
-        phides = np.clip(phides,*self.dubins.wheelAngleRange)
-        h = 0.01  #just for finite differencing
-        front_wheel_angle_rate = (steer2front(self.last_command.steering_wheel_angle + h*self.last_command.steering_wheel_speed) - steer2front(self.last_command.steering_wheel_angle)) / h
-        front_wheel_angle_rate_max = 2.0  #TODO: get from vehicle model
-        phi_deadband = 2*self.dt*front_wheel_angle_rate_max
-        steering_angle_rate = front_wheel_angle_rate if phides > phi + phi_deadband else \
-            (-front_wheel_angle_rate if phides < phi - phi_deadband else 0.0)
+#     def simulate(self, T : float, command : Optional[GEMVehicleCommand]):
+#         if command is not None:
+#             self.last_command = command
+#         for k,a in self.agents.items():
+#             a.advance(T)
+#         x,y,theta,v,phi = self.cur_vehicle_state
+#         #print("x %.2f y %.2f theta %.2f v %.2f" % (x,y,theta,v))
+#         #simulate actuators
+#         accelerator_pedal_position = np.clip(self.last_command.accelerator_pedal_position,0.0,1.0)
+#         brake_pedal_position = np.clip(self.last_command.brake_pedal_position,0.0,1.0)
+#         acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,1)
+#         acceleration = np.clip(acceleration,*self.dubins.accelRange)
+#         phides = steer2front(self.last_command.steering_wheel_angle)
+#         phides = np.clip(phides,*self.dubins.wheelAngleRange)
+#         h = 0.01  #just for finite differencing
+#         front_wheel_angle_rate = (steer2front(self.last_command.steering_wheel_angle + h*self.last_command.steering_wheel_speed) - steer2front(self.last_command.steering_wheel_angle)) / h
+#         front_wheel_angle_rate_max = 2.0  #TODO: get from vehicle model
+#         phi_deadband = 2*self.dt*front_wheel_angle_rate_max
+#         steering_angle_rate = front_wheel_angle_rate if phides > phi + phi_deadband else \
+#             (-front_wheel_angle_rate if phides < phi - phi_deadband else 0.0)
         
-        #simulate dynamics
-        u = np.array([acceleration,steering_angle_rate])  #acceleration, steering angle rate
-        #print("Accel %.2f, steering angle current %.2f, desired %.2f, rate %.2f" % (acceleration,phi,phides,steering_angle_rate))
-        next = simulate(self.dubins, self.cur_vehicle_state, (lambda x,t: u), T, self.dt)
-        next_state = next['x'][-1]
-        #braking deadband
-        if v > 0 and next_state[3] < 0:
-            next_state[3] = 0
-        if v < 0 and next_state[3] > 0:
-            next_state[3] = 0
-        x,y,theta,v,phi = next_state
-        v = np.clip(v,*self.dubins.velocityRange)
-        next_state = np.array([x,y,theta,v,phi])
+#         #simulate dynamics
+#         u = np.array([acceleration,steering_angle_rate])  #acceleration, steering angle rate
+#         #print("Accel %.2f, steering angle current %.2f, desired %.2f, rate %.2f" % (acceleration,phi,phides,steering_angle_rate))
+#         next = simulate(self.dubins, self.cur_vehicle_state, (lambda x,t: u), T, self.dt)
+#         next_state = next['x'][-1]
+#         #braking deadband
+#         if v > 0 and next_state[3] < 0:
+#             next_state[3] = 0
+#         if v < 0 and next_state[3] > 0:
+#             next_state[3] = 0
+#         x,y,theta,v,phi = next_state
+#         v = np.clip(v,*self.dubins.velocityRange)
+#         next_state = np.array([x,y,theta,v,phi])
 
-        #simulate sensors
-        reading = copy.copy(self.last_reading)
-        reading.steering_wheel_angle = front2steer(phi)
-        if acceleration > 0:
-            reading.brake_pedal_position = 0.0
-            reading.accelerator_pedal_position = accelerator_pedal_position
-        else:
-            reading.brake_pedal_position = brake_pedal_position
-            reading.accelerator_pedal_position = 0
-        reading.speed = v
-        if v > 0:
-            reading.gear = 1
-        else:
-            reading.gear = -1
-        #copy signals
-        reading.left_turn_signal = self.last_command.left_turn_signal
-        reading.right_turn_signal = self.last_command.right_turn_signal
-        reading.headlights_on = self.last_command.headlights_on
-        reading.horn_on = self.last_command.horn_on
-        reading.wiper_level = self.last_command.wiper_level
-        self.last_reading = reading
+#         #simulate sensors
+#         reading = copy.copy(self.last_reading)
+#         reading.steering_wheel_angle = front2steer(phi)
+#         if acceleration > 0:
+#             reading.brake_pedal_position = 0.0
+#             reading.accelerator_pedal_position = accelerator_pedal_position
+#         else:
+#             reading.brake_pedal_position = brake_pedal_position
+#             reading.accelerator_pedal_position = 0
+#         reading.speed = v
+#         if v > 0:
+#             reading.gear = 1
+#         else:
+#             reading.gear = -1
+#         #copy signals
+#         reading.left_turn_signal = self.last_command.left_turn_signal
+#         reading.right_turn_signal = self.last_command.right_turn_signal
+#         reading.headlights_on = self.last_command.headlights_on
+#         reading.horn_on = self.last_command.horn_on
+#         reading.wiper_level = self.last_command.wiper_level
+#         self.last_reading = reading
 
-        self.cur_vehicle_state = next_state
-        self.simulation_time += T
+#         self.cur_vehicle_state = next_state
+#         self.simulation_time += T
 
-    def pose(self) -> ObjectPose: 
-        x,y,theta,v,phi = self.cur_vehicle_state
-        return ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=self.simulation_time,x=x,y=y,yaw=theta)
+#     def pose(self) -> ObjectPose: 
+#         x,y,theta,v,phi = self.cur_vehicle_state
+#         return ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=self.simulation_time,x=x,y=y,yaw=theta)
 
-    def state(self) -> VehicleState:
-        return self.last_reading.to_state(self.pose())
+#     def state(self) -> VehicleState:
+#         return self.last_reading.to_state(self.pose())
 
-    def set_pose(self,pose : ObjectPose):
-        self.cur_vehicle_state[0] = pose.x
-        self.cur_vehicle_state[1] = pose.y
-        self.cur_vehicle_state[2] = pose.yaw
+#     def set_pose(self,pose : ObjectPose):
+#         self.cur_vehicle_state[0] = pose.x
+#         self.cur_vehicle_state[1] = pose.y
+#         self.cur_vehicle_state[2] = pose.yaw
     
-    def set_state(self,state : VehicleState):
-        self.set_pose(state.pose)
-        self.cur_vehicle_state[3] = state.v
-        self.cur_vehicle_state[4] = state.front_wheel_angle
+#     def set_state(self,state : VehicleState):
+#         self.set_pose(state.pose)
+#         self.cur_vehicle_state[3] = state.v
+#         self.cur_vehicle_state[4] = state.front_wheel_angle
     
-    def advance_vehicle_state(self, state : AllState, command : GEMVehicleCommand, T : float) -> AllState:
-        """Advances the vehicle state by the given amount of time T
-        under the given command.  Agents are not touched.
-        """
-        self.simulation_time = state.t
-        abs_pose = state.vehicle.to_frame(ObjectFrameEnum.ABSOLUTE_CARTESIAN, state.vehicle.pose, state.start_vehicle_pose)
-        self.set_state(abs_pose)
-        self.simulate(T, command)
-        return replace(state,t=self.simulation_time,vehicle=self.state())
+#     def advance_vehicle_state(self, state : AllState, command : GEMVehicleCommand, T : float) -> AllState:
+#         """Advances the vehicle state by the given amount of time T
+#         under the given command.  Agents are not touched.
+#         """
+#         self.simulation_time = state.t
+#         abs_pose = state.vehicle.to_frame(ObjectFrameEnum.ABSOLUTE_CARTESIAN, state.vehicle.pose, state.start_vehicle_pose)
+#         self.set_state(abs_pose)
+#         self.simulate(T, command)
+#         return replace(state,t=self.simulation_time,vehicle=self.state())
 
 
 
@@ -288,7 +296,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
     """
     def __init__(self, scene : str = None):
         GEMInterface.__init__(self)
-        self.simulator = GEMDoubleIntegratorSimulation(scene)
+        #self.simulator = GEMDoubleIntegratorSimulation(scene)
         self.real_time_multiplier = settings.get('simulator.real_time_multiplier',1.0)
         self.gnss_emulator_settings = settings.get('simulator.gnss_emulator',{})
         self.imu_emulator_settings = settings.get('simulator.imu_emulator',{})
@@ -297,7 +305,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         self.imu_dt = self.imu_emulator_settings.get('dt',0.05)
         self.agent_dt = self.agent_emulator_settings.get('dt',0.1)
         # self.last_reading = self.simulator.last_reading
-        # self.last_command = self.simulator.last_command
+        # self.last_command =GEMRealSensorsWithSimMotionInterface self.simulator.last_command
         self.last_gnss_time = 0
         self.last_imu_time = 0
         self.last_agent_time = 0
@@ -334,43 +342,74 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         self.top_lidar_sub = None
         self.stereo_sub = None
         self.faults = []
+        self.dt = settings.get('simulator.dt',0.01)
 
 
-        # -------------------- PACMod setup --------------------
-        # GEM vehicle enable
-        self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
-        self.pacmod_enable = False
+        self.dubins = SecondOrderDubinsCar(
+            wheelAngleMin=settings.get('vehicle.geometry.min_wheel_angle'),
+            wheelAngleMax=settings.get('vehicle.geometry.max_wheel_angle'),
+            velocityMin=-settings.get('vehicle.limits.max_reverse_speed'),
+            velocityMax=settings.get('vehicle.limits.max_speed'),
+            accelMin=-settings.get('vehicle.limits.max_acceleration'),
+            accelMax=settings.get('vehicle.limits.max_deceleration'),
+            wheelAngleRateMin=-settings.get('vehicle.limits.max_steering_rate'),
+            wheelAngleRateMax=settings.get('vehicle.limits.max_steering_rate'),
+            wheelBase=settings.get('vehicle.geometry.wheelbase'))
 
-        # GEM vehicle gear control, neutral, forward and reverse, publish once
-        self.gear_pub = rospy.Publisher('/pacmod/as_rx/shift_cmd', PacmodCmd, queue_size=1)
-        self.gear_cmd = PacmodCmd()
-        self.gear_cmd.enable = True
-        self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_NEUTRAL 
 
-        # GEM vehicle brake control
-        self.brake_pub = rospy.Publisher('/pacmod/as_rx/brake_cmd', PacmodCmd, queue_size=1)
-        self.brake_cmd = PacmodCmd()
-        self.brake_cmd.enable = False
-        self.brake_cmd.clear  = True
-        self.brake_cmd.ignore = True
+        # # -------------------- PACMod setup --------------------
+        # # GEM vehicle enable
+        # self.enable_pub = rospy.Publisher('/pacmod/as_rx/enable', Bool, queue_size=1)
+        # self.pacmod_enable = False
 
-        # GEM vehicle forward motion control
-        self.accel_pub = rospy.Publisher('/pacmod/as_rx/accel_cmd', PacmodCmd, queue_size=1)
-        self.accel_cmd = PacmodCmd()
-        self.accel_cmd.enable = False
-        self.accel_cmd.clear  = True
-        self.accel_cmd.ignore = True
+        # # GEM vehicle gear control, neutral, forward and reverse, publish once
+        # self.gear_pub = rospy.Publisher('/pacmod/as_rx/shift_cmd', PacmodCmd, queue_size=1)
+        # self.gear_cmd = PacmodCmd()
+        # self.gear_cmd.enable = True
+        # self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_NEUTRAL 
 
-        # GEM vehicle turn signal control
-        self.turn_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=1)
-        self.turn_cmd = PacmodCmd()
-        self.turn_cmd.ui16_cmd = 1 # None
+        # # GEM vehicle brake control
+        # self.brake_pub = rospy.Publisher('/pacmod/as_rx/brake_cmd', PacmodCmd, queue_size=1)
+        # self.brake_cmd = PacmodCmd()
+        # self.brake_cmd.enable = False
+        # self.brake_cmd.clear  = True
+        # self.brake_cmd.ignore = True
 
-        # GEM vechile steering wheel control
-        self.steer_pub = rospy.Publisher('/pacmod/as_rx/steer_cmd', PositionWithSpeed, queue_size=1)
-        self.steer_cmd = PositionWithSpeed()
-        self.steer_cmd.angular_position = 0.0 # radians, -: clockwise, +: counter-clockwise
-        self.steer_cmd.angular_velocity_limit = 2.0 # radians/second
+        # # GEM vehicle forward motion control
+        # self.accel_pub = rospy.Publisher('/pacmod/as_rx/accel_cmd', PacmodCmd, queue_size=1)
+        # self.accel_cmd = PacmodCmd()
+        # self.accel_cmd.enable = False
+        # self.accel_cmd.clear  = True
+        # self.accel_cmd.ignore = True
+
+        # # GEM vehicle turn signal control
+        # self.turn_pub = rospy.Publisher('/pacmod/as_rx/turn_cmd', PacmodCmd, queue_size=1)
+        # self.turn_cmd = PacmodCmd()
+        # self.turn_cmd.ui16_cmd = 1 # None
+
+        # # GEM vechile steering wheel control
+        # self.steer_pub = rospy.Publisher('/pacmod/as_rx/steer_cmd', PositionWithSpeed, queue_size=1)
+        # self.steer_cmd = PositionWithSpeed()
+        # self.steer_cmd.angular_position = 0.0 # radians, -: clockwise, +: counter-clockwise
+        # self.steer_cmd.angular_velocity_limit = 2.0 # radians/second
+
+
+        self.ackermann_pub = rospy.Publisher("ackermann_cmd", AckermannDrive, queue_size=1)
+    def getModelState(self):
+            # Get the current state of the vehicle
+            # Input: None
+            # Output: ModelState, the state of the vehicle, contain the
+            #   position, orientation, linear velocity, angular velocity
+            #   of the vehicle
+        rospy.wait_for_service('/gazebo/get_model_state')
+        try:
+            serviceResponse = rospy.ServiceProxy('/gazebo/get_model_state', GetModelState)
+            resp = serviceResponse(model_name='gem_e4')
+        except rospy.ServiceException as exc:
+            rospy.loginfo("Service did not process request: "+str(exc))
+            resp = GetModelStateResponse()
+            resp.success = False
+        return resp
     
 
     # Need to double check on this time
@@ -405,17 +444,24 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         if msg.subsystem_can_timeout:
             self.faults.append("subsystem_can_timeout")
         
-    # Maybe need to change for controls? idk
+    #TODO: Start gazebo
     def start(self):
         # assert self.thread is None
         # print("Running simulator thread...")
         # self.thread_data['stop'] = False
         # self.thread = Thread(target=self.simulate,args=(self.thread_lock,self.thread_data))
         # self.thread.start()
-        print("ENABLING PACMOD")
-        enable_cmd = Bool()
-        enable_cmd.data = True
-        self.enable_pub.publish(enable_cmd)
+        # rospy.init_node("gazebo_launcher", anonymous=True)
+        # uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+        # roslaunch.configure_logging(uuid)
+        # launch = roslaunch.parent.ROSLaunchParent(
+        #     uuid, ["/path/to/your/launch/file.launch"]
+        # )
+        # launch.start()
+        # rospy.loginfo("Gazebo started via Python launch.")
+
+        # rospy.spin()
+        pass
 
     def stop(self):
         print("Stopping simulator thread...")
@@ -514,26 +560,92 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
 
         
     def send_command(self, command : GEMVehicleCommand):
+
+        rospy.loginfo(f"got command: {command}")
+
+        def extract_vehicle_info( currentPose):
+
+            #TODO: replace with already proviced function and make sure convention is correct
+            def quaternion_to_euler(x, y, z, w):
+                t0 = +2.0 * (w * x + y * z)
+                t1 = +1.0 - 2.0 * (x * x + y * y)
+                roll = np.arctan2(t0, t1)
+                t2 = +2.0 * (w * y - z * x)
+                t2 = +1.0 if t2 > +1.0 else t2
+                t2 = -1.0 if t2 < -1.0 else t2
+                pitch = np.arcsin(t2)
+                t3 = +2.0 * (w * z + x * y)
+                t4 = +1.0 - 2.0 * (y * y + z * z)
+                yaw = np.arctan2(t3, t4)
+                return [roll, pitch, yaw]
+            pos_x, pos_y, vel, yaw = 0, 0, 0, 0
+
+            pos_x = currentPose.pose.position.x
+            pos_y = currentPose.pose.position.y
+
+            vel =  np.linalg.norm([currentPose.twist.linear.x, currentPose.twist.linear.y, currentPose.twist.linear.z])
+
+            #TODO: figure out velocity sign Is this correct
+
+            # if currentPose.twist.linear.x<0:
+            #   vel = -vel
+            _,_, yaw = quaternion_to_euler(currentPose.pose.orientation.x, currentPose.pose.orientation.y, currentPose.pose.orientation.z, currentPose.pose.orientation.w)
+
+
+            return pos_x, pos_y, vel, yaw # note that yaw is in radian
+        
+
+        _,_,v,phi = extract_vehicle_info(self.getModelState())
+
+
+        accelerator_pedal_position = np.clip(command.accelerator_pedal_position,0.0,1.0)
+        brake_pedal_position = np.clip(command.brake_pedal_position,0.0,1.0)
+        acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,1)
+        acceleration = np.clip(acceleration,*self.dubins.accelRange)
+        phides = steer2front(command.steering_wheel_angle)
+        phides = np.clip(phides,*self.dubins.wheelAngleRange)
+        h = 0.01  #just for finite differencing
+        front_wheel_angle_rate = (steer2front(command.steering_wheel_angle + h*command.steering_wheel_speed) - steer2front(command.steering_wheel_angle)) / h
+        front_wheel_angle_rate_max = 2.0  #TODO: get from vehicle model
+        phi_deadband = 2*self.dt*front_wheel_angle_rate_max
+        steering_angle_rate = front_wheel_angle_rate if phides > phi + phi_deadband else \
+            (-front_wheel_angle_rate if phides < phi - phi_deadband else 0.0)
+        
+
+        
+
+        msg = AckermannDrive()
+        msg.acceleration = acceleration
+        msg.speed = float('inf') if acceleration >0 else 0  #acceleration * self.dt 
+        msg.steering_angle = -phides
+        msg.steering_angle_velocity = -steering_angle_rate
+
+
+        self.ackermann_pub.publish(msg)
+        rospy.loginfo(f"Published AckermannDrive: {msg}")
         self.last_command = command
+
+
+
         # incorporate controller publisher
 
     def get_reading(self) -> GEMVehicleReading:
         """Returns current read state of the vehicle"""
         return self.last_reading
     
-    # PACMod enable callback function
-    def pacmod_enable_callback(self, msg):
-        if self.pacmod_enable == False and msg.data == True:
-            print("PACMod enabled, enabling gear, brake, accel, steer, and turn")
-            self.send_first_command()
-        elif self.pacmod_enable == True and msg.data == False:
-            print("PACMod disabled")
-        self.pacmod_enable = msg.data
+    # # PACMod enable callback function
+    # def pacmod_enable_callback(self, msg):
+    #     if self.pacmod_enable == False and msg.data == True:
+    #         print("PACMod enabled, enabling gear, brake, accel, steer, and turn")
+    #         self.send_first_command()
+    #     elif self.pacmod_enable == True and msg.data == False:
+    #         print("PACMod disabled")
+    #     self.pacmod_enable = msg.data
 
-    def hardware_faults(self) -> List[str]:
-        if self.pacmod_enable == False:
-            return self.faults + ["disengaged"]
-        return self.faults
+    # def hardware_faults(self) -> List[str]:
+    #     if self.pacmod_enable == False:
+    #         return self.faults + ["disengaged"]
+    #     return self.faults
 
     # def simulate(self,lock : Lock, data : dict):
     #     looper = TimedLooper(self.simulator.dt / self.real_time_multiplier,name="Simulation thread")
