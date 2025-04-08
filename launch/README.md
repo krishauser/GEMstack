@@ -7,6 +7,15 @@ Contains launch scripts for use in the standard executor, e.g., `python main.py 
 
 Head over here to setup gazebo docker container to run the simulation
 
+Install dependency packages
+
+```
+sudo apt-get install -y ros-noetic-ros-controllers ros-noetic-gazebo-ros-control ros-noetic-ackermann-msgs
+
+```
+
+    
+
 
 ## Running GEM Stack with Gazebo
 
