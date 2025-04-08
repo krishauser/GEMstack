@@ -45,7 +45,7 @@ class ObjectDetection(Component):
 
         # yolo model
         self.detector = YOLO(os.getcwd()+'/GEMstack/knowledge/detection/yolov8n.pt')
-        self.confidence = 0.7
+        self.confidence = 0.1
         self.classes_to_detect = 0
 
    
@@ -60,6 +60,18 @@ class ObjectDetection(Component):
 
 
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
+
+        print(f"VEHICLE State at time: {vehicle.pose.t}")
+
+        print(f"x: {vehicle.pose.x}")
+        print(f"y: {vehicle.pose.y}")
+
+        print(f"z: {vehicle.pose.z}")
+        print(f"roll: {vehicle.pose.roll}")
+        print(f"pitch: {vehicle.pose.pitch}")
+        print(f"yaw: {vehicle.pose.yaw}")
+        print(f"speed: {vehicle.v}")
+
 
         return {}
 

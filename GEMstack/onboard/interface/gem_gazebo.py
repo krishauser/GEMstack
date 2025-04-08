@@ -21,8 +21,9 @@ from ackermann_msgs.msg import AckermannDrive
 import roslaunch
 # ROS Headers
 import rospy
+import message_filters
 from std_msgs.msg import String, Bool, Float32, Float64
-from sensor_msgs.msg import Image,PointCloud2,NavSatFix
+from sensor_msgs.msg import Image,PointCloud2,NavSatFix,Imu
 try:
     from novatel_gps_msgs.msg import NovatelPosition, NovatelXYZ, Inspva
 except ImportError:
@@ -335,6 +336,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         self.steer_sub = rospy.Subscriber("/pacmod/parsed_tx/steer_rpt", SystemRptFloat, self.steer_callback)
         self.global_sub = rospy.Subscriber("/pacmod/parsed_tx/global_rpt", GlobalRpt, self.global_callback)
         self.gnss_sub = None
+        self.gps_sub = None
         self.imu_sub = None
         self.front_radar_sub = None
         self.front_camera_sub = None
@@ -343,6 +345,10 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         self.stereo_sub = None
         self.faults = []
         self.dt = settings.get('simulator.dt',0.01)
+
+        # Gazebo Speed calc
+        self.last_time = rospy.get_time()
+        self.initial_velocity = 0
 
 
         self.dubins = SecondOrderDubinsCar(
@@ -395,6 +401,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
 
 
         self.ackermann_pub = rospy.Publisher("ackermann_cmd", AckermannDrive, queue_size=1)
+
     def getModelState(self):
             # Get the current state of the vehicle
             # Input: None
@@ -475,45 +482,55 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
     
     def sensors(self):
         #TODO: simulate other sensors?
-        return ['gnss','imu','agent_detector']
+        return ['gnss','top_lidar','front_radar']
+
 
     def subscribe_sensor(self, name, callback, type = None):
-        if name == 'gnss':
-            topic = self.ros_sensor_topics[name]
-            if topic.endswith('fix'):
-                print("Working")
-                #GEM e2 Gazebo Simulator
-                if type is not None and (type is not GNSSReading and type is not NavSatFix):
-                    raise ValueError("Gazebo GEM e2 only supports NavSatFix for GNSS")
-                if type is NavSatFix:
-                    self.gnss_sub = rospy.Subscriber(topic, NavSatFix, callback)
-                else:
-                    def callback_with_gnss_reading(NavSatFix_msg: NavSatFix):
-                        # pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-                        #             x=NavSatFix_msg.longitude,
-                        #             y=NavSatFix_msg.latitude,
-                        #             z=NavSatFix_msg.altitude,
-                        #             yaw=math.radians(NavSatFix_msg.azimuth),  #heading from north in degrees
-                        #             roll=math.radians(NavSatFix_msg.roll),
-                        #             pitch=math.radians(NavSatFix_msg.pitch),
-                        #             )
-                        # speed = np.sqrt(NavSatFix_msg.east_velocity**2 + NavSatFix_msg.north_velocity**2)
 
-                        # unknown roll, pitch, yaw and speed
-                        pose = ObjectPose(ObjectFrameEnum.GLOBAL,
-                                    x=NavSatFix_msg.longitude,
-                                    y=NavSatFix_msg.latitude,
-                                    z=NavSatFix_msg.altitude,
-                                    yaw=math.radians(0),  #heading from north in degrees
-                                    roll=math.radians(0),
-                                    pitch=math.radians(0),
-                                    t = 0
-                                    )
-                        speed = 0
-                        callback(GNSSReading(pose,speed,NavSatFix_msg.status))
-                    self.gnss_sub = rospy.Subscriber(topic, NavSatFix, callback_with_gnss_reading)
+        if name == 'gnss':
+            topic_gps = self.ros_sensor_topics['gps']
+            topic_imu = self.ros_sensor_topics['imu']
+            
+
+            if type is not None and (type is not GNSSReading and type is not NavSatFix):
+                raise ValueError("Gazebo GEM e2 only supports NavSatFix/GNSSReading for GNSS")
+            if type is NavSatFix:
+                self.gnss_sub = rospy.Subscriber(topic, NavSatFix, callback)
             else:
-                print("not Working")
+                def callback_with_gnss_reading(NavSatFix_msg: NavSatFix, Imu_msg: Imu):
+
+
+                    # roll, pitch, yaw calculation
+                    orientation_q      = Imu_msg.orientation
+                    angular_velocity   = Imu_msg.angular_velocity
+                    linear_accel       = Imu_msg.linear_acceleration
+                    orientation_list   = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+                    (roll, pitch, yaw) = euler_from_quaternion(orientation_list)
+
+                    # speed calculation
+                    current_time = self.time()
+                    dt = current_time - self.last_time
+                    self.last_time = current_time
+
+                    ax = linear_accel.x
+                    self.initial_velocity += ax * dt
+                    
+                    pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+                                t = self.time(),
+                                x=NavSatFix_msg.longitude,
+                                y=NavSatFix_msg.latitude,
+                                z=NavSatFix_msg.altitude,
+                                yaw=math.radians(roll),  
+                                roll=math.radians(pitch),
+                                pitch=math.radians(yaw)
+                                )
+                    callback(GNSSReading(pose,self.initial_velocity,NavSatFix_msg.status))
+
+                self.gps_sub = message_filters.Subscriber(topic_gps, NavSatFix)
+                self.imu_sub = message_filters.Subscriber(topic_imu, Imu)
+                self.gnss_sub = message_filters.ApproximateTimeSynchronizer([self.gps_sub, self.imu_sub], queue_size=1, slop=0.1)
+                self.gnss_sub.registerCallback(callback_with_gnss_reading)
+
 
 
         elif name == 'top_lidar':
@@ -528,10 +545,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
                     points = conversions.ros_PointCloud2_to_numpy(msg, want_rgb=False)
                     callback(points)
                 self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback_with_numpy)
-        elif name == 'front_radar':
-            if type is not None and type is not RadarTracks:
-                raise ValueError("GEMHardwareInterface only supports RadarTracks for front radar")
-            self.front_radar_sub = rospy.Subscriber("/front_radar/front_radar/radar_tracks", RadarTracks, callback)
+
         elif name == 'front_camera':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not Image and type is not cv2.Mat):
@@ -544,18 +558,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
                     cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
                     callback(cv_image)
                 self.front_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
-        elif name == 'front_depth':
-            topic = self.ros_sensor_topics[name]
-            if type is not None and (type is not Image and type is not cv2.Mat):
-                raise ValueError("GEMHardwareInterface only supports Image or OpenCV for front depth")
-            if type is None or type is Image:
-                self.front_depth_sub = rospy.Subscriber(topic, Image, callback)
-            else:
-                def callback_with_cv2(msg : Image):
-                    #print("received image with size",msg.width,msg.height,"encoding",msg.encoding)                    
-                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="passthrough")
-                    callback(cv_image)
-                self.front_depth_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+
 
 
         
@@ -628,6 +631,8 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
 
 
         # incorporate controller publisher
+
+
 
     def get_reading(self) -> GEMVehicleReading:
         """Returns current read state of the vehicle"""
