@@ -316,6 +316,10 @@ class ConeDetector3D(Component):
     def initialize(self):
         # Init Variables
         self.ground_threshold = -0.15
+        self.vis_2d_annotate = True
+        self.vis_lidar_pc = True
+        self.vis_3d_cones_centers = True
+        self.vis_3d_cones_bboxes = True
         # Real Subscribers
         # self.rgb_sub = Subscriber('/camera_fl/arena_camera_node/image_raw', Image)
         # self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
@@ -366,36 +370,40 @@ class ConeDetector3D(Component):
                 cone_3d_dims.append(agent.dimensions)
 
         # Transform top lidar pointclouds to vehicle frame for visualization
-        latest_lidar_vehicle = transform_lidar_points(self.latest_lidar_unfiltered, self.T_l2v)
-        latest_lidar_vehicle = filter_ground_points(latest_lidar_vehicle, self.ground_threshold)
-        ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "vehicle")
-        self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
+        if self.vis_lidar_pc:
+            latest_lidar_vehicle = transform_lidar_points(self.latest_lidar_unfiltered, self.T_l2v)
+            latest_lidar_vehicle = filter_ground_points(latest_lidar_vehicle, self.ground_threshold)
+            ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "vehicle")
+            self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
 
         # Draw 2D bboxes
-        for ind, bbox in enumerate(boxes):
-            xywh = bbox.xywh[0].tolist()
-            cv_image = vis_2d_bbox(cv_image, xywh, bbox)
-        ros_img = self.bridge.cv2_to_imgmsg(cv_image, 'bgr8')
-        self.pub_cones_image_detection.publish(ros_img)  
+        if self.vis_2d_annotate:
+            for ind, bbox in enumerate(boxes):
+                xywh = bbox.xywh[0].tolist()
+                cv_image = vis_2d_bbox(cv_image, xywh, bbox)
+            ros_img = self.bridge.cv2_to_imgmsg(cv_image, 'bgr8')
+            self.pub_cones_image_detection.publish(ros_img)  
 
         # Create vehicle marker
         ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 1.0, 0.0, 1), "vehicle")
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
         # Draw 3D cone centers and dimensions
         if len(cone_3d_centers) > 0 and len(cone_3d_dims) > 0:
-            # Draw 3D pedestrian center pointclouds
-            cone_ground_centers = np.array(cone_3d_centers)
-            cone_ground_centers[:, 2] = 0.0
-            cone_ground_centers = [tuple(point) for point in cone_ground_centers]
-            ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=(255, 0, 255))
-            self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
+            if self.vis_3d_cones_centers:
+                # Draw 3D cone center pointclouds
+                cone_ground_centers = np.array(cone_3d_centers)
+                cone_ground_centers[:, 2] = 0.0
+                cone_ground_centers = [tuple(point) for point in cone_ground_centers]
+                ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=(255, 0, 255))
+                self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
-            # Delete previous markers
-            ros_delete_bboxes_markers = delete_bbox_marker()
-            self.pub_cones_bboxes_markers.publish(ros_delete_bboxes_markers)
-            # Create bbox markers from cone dimensions
-            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, (1.0, 0.0, 0.0, 0.4), "vehicle")
-            self.pub_cones_bboxes_markers.publish(ros_cones_bboxes_markers)
+            if self.vis_3d_cones_bboxes:
+                # Delete previous markers
+                ros_delete_bboxes_markers = delete_bbox_marker()
+                self.pub_cones_bboxes_markers.publish(ros_delete_bboxes_markers)
+                # Create bbox markers from cone dimensions
+                ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, (1.0, 0.0, 0.0, 0.4), "vehicle")
+                self.pub_cones_bboxes_markers.publish(ros_cones_bboxes_markers)
           
                
     def synchronized_callback(self, image_msg, lidar_msg):
