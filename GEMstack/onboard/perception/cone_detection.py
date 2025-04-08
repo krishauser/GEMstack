@@ -31,6 +31,11 @@ def undistort_image(image, K, D):
     undistorted = cv2.undistort(image, K, D, None, newK)
     return undistorted, newK
 
+def filter_points_within_threshold(points, threshold=15.0):
+    distances = np.linalg.norm(points, axis=1)
+    mask = distances <= threshold
+    return points[mask]
+
 
 def match_existing_cone(
         new_center: np.ndarray,
@@ -180,14 +185,19 @@ def downsample_points(lidar_points, voxel_size=0.15):
     return np.asarray(down_pcd.points)
 
 
-def filter_depth_points(lidar_points, max_human_depth=0.9):
+def filter_depth_points(lidar_points, max_depth_diff=0.9, use_norm=True):
     if lidar_points.shape[0] == 0:
         return lidar_points
-    lidar_points_dist = lidar_points[:, 0]
-    min_dist = np.min(lidar_points_dist)
-    max_possible_dist = min_dist + max_human_depth
-    filtered_array = lidar_points[lidar_points_dist < max_possible_dist]
-    return filtered_array
+
+    if use_norm:
+        depths = np.linalg.norm(lidar_points, axis=1)
+    else:
+        depths = lidar_points[:, 0]
+
+    min_depth = np.min(depths)
+    max_possible_depth = min_depth + max_depth_diff
+    mask = depths < max_possible_depth
+    return lidar_points[mask]
 
 
 def visualize_geometries(geometries, window_name="Open3D", width=800, height=600, point_size=5.0):
@@ -392,7 +402,9 @@ class ConeDetector3D(Component):
                 continue
             # Extract the LiDAR 3D points corresponding to the ROI
             points_3d = roi_pts[:, 2:5]
-            points_3d = filter_depth_points(points_3d, max_human_depth=0.2)
+            points_3d = remove_ground_by_min_range(points_3d, z_range=0.005)
+            points_3d = filter_points_within_threshold(points_3d, 15)
+            points_3d = filter_depth_points(points_3d, max_human_depth=0.3)
 
             # Cluster the points and remove ground
             refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.5, min_samples=10)
