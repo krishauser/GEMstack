@@ -168,8 +168,11 @@ def validate_components(components : Dict[str,ComponentExecutor], provided : Lis
                     assert i in possible_inputs, "Component {} is not supposed to receive input {}".format(k,i)
         outputs = c.c.state_outputs()
         for o in required_outputs:
+            print(c.c.state_outputs())
             if o == 'all':
                 assert outputs == ['all'], "Component {} outputs are not provided by previous components".format(k)
+            elif c.c == "api_cal":
+                pass
             else:
                 assert o in outputs, "Component {} doesn't output required output {}".format(k,o)
         for o in outputs:
@@ -235,6 +238,7 @@ class ComponentExecutor:
         self.num_overruns = 0
         self.overrun_amount = 0.0
         self.do_update = None
+        self.api_call = False
     
     def set_debugger(self, debugger):
         if self.do_debug:
@@ -541,6 +545,7 @@ class ExecutorBase:
                     if not self.validate_sensors(1):
                         self.event("Sensors in desired pipeline {} are not working, switching to recovery".format(self.current_pipeline))
                         self.current_pipeline = 'recovery'
+                    
                 except KeyboardInterrupt:
                     if self.current_pipeline == 'recovery':
                         executor_debug_print(1,"\
@@ -633,7 +638,7 @@ class ExecutorBase:
         """Runs a pipeline until a switch is requested."""
         if self.current_pipeline == 'recovery':        
             self.state.mission.type = MissionEnum.RECOVERY_STOP
-        
+
         (perception_components,planning_components,other_components) = self.pipelines[self.current_pipeline]
         components = list(perception_components.values()) + list(planning_components.values()) + list(other_components.values()) + list(self.always_run_components.values())
         dt_min = min([c.dt for c in components if c.dt != 0.0])
@@ -677,6 +682,9 @@ class ExecutorBase:
                     if c.essential and self.current_pipeline != 'recovery':
                         executor_debug_print(1,"Other component {} not working, entering recovery mode",name)
                         return 'recovery'
+                    elif c.api_call:
+                        executor_debug_print(1,"No information received by API",name)
+                        continue
                     else:
                         executor_debug_print(1,"Warning, other component {} not working",name)
 
@@ -736,3 +744,5 @@ class StandardExecutor(ExecutorBase):
                 executor_debug_print(1,"Vehicle has disengaged, exiting execution loop.")
                 return True
         return False
+
+

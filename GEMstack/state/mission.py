@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field, field
 from ..utils.serialization import register
 from enum import Enum
+from typing import List
 
 class MissionEnum(Enum):
     IDLE = 0            # not driving, no mission
@@ -14,4 +15,10 @@ class MissionEnum(Enum):
 @register
 class MissionObjective:
     type : MissionEnum = MissionEnum.IDLE
+    state_list :list = field(default_factory=lambda: [MissionEnum.IDLE, MissionEnum.DRIVE, MissionEnum.RECOVERY_STOP])
+    index: int = 0
+
+    @staticmethod
+    def zero():
+        return MissionObjective(MissionEnum.IDLE, [MissionEnum.IDLE, MissionEnum.DRIVE, MissionEnum.RECOVERY_STOP], 0)
     
