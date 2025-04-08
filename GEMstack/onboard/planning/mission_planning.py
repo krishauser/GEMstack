@@ -8,6 +8,9 @@ import requests
 
 
 class SummoningMissionPlanner(Component):
+    def __init__(self):
+        self.count = 0
+
     def state_inputs(self):
         return ['all']
 
@@ -18,16 +21,20 @@ class SummoningMissionPlanner(Component):
         return 0.5
 
     def update(self, state: AllState):
+        self.count += 1
+        print('Counting:', self.count)
+
         task = state.task
         mission = state.mission
 
-        print('Input:')
+        print('Input states:')
         print(task)
         print(mission)
 
         # TODO: Modify to a GET request to get task phase from the server
         if task.phase == TaskEnum.IDLE:
-            task.phase = TaskEnum.START
+            if self.count == 3:
+                task.phase = TaskEnum.START
 
         elif mission.type == MissionEnum.IDLE and task.phase == TaskEnum.START:
             mission.type = MissionEnum.PLAN
@@ -40,7 +47,7 @@ class SummoningMissionPlanner(Component):
 
         # TODO: POST update status to the server
 
-        print('Output:')
+        print('Output states:')
         print(task)
         print(mission)
 

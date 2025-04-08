@@ -303,7 +303,7 @@ class YieldTrajectoryPlanner(Component):
         mission = state.mission
         t = state.t
 
-        print('Input:')
+        print('Input states:')
         print(mission)
 
         traj = None
@@ -405,7 +405,9 @@ class YieldTrajectoryPlanner(Component):
             zero_path = [[0, 0, 0]]
             traj = Trajectory(frame=frame, points=zero_path, times=[0])
 
-        print('Output:')
+        print('Output states:')
         print(mission)
+        print('Trajectory:')
+        print(traj)
 
         return traj, mission

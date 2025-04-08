@@ -155,21 +155,25 @@ class TestSummoningRoutePlanner(Component):
         route = state.route
         mission = state.mission
 
-        print('Input:')
+        print('Input states:')
         print(mission)
 
         if mission.type == MissionEnum.PLAN:
             mission.type = MissionEnum.UNPARK
             print('Output:')
             print(mission)
-            return self.route, mission
-        elif route:
-            pass
-        # else:   # avoid error
-        #     route = Route(frame=ObjectFrameEnum.START,points=[[0, 0],[0.1, 0], [0.2, 0]])
+            route = self.route
 
-        print('Output:')
+        elif route is None:
+            route = Route(frame=ObjectFrameEnum.START, points=[[0, 0]])
+
+        # route = self.route
+
+        print('Output states:')
         print(mission)
+        print('Route:')
+        print(route)
+
         return route, mission
 
 
@@ -202,7 +206,7 @@ class SummoningRoutePlanner(Component):
         mission = state.mission
         current_pose = state.vehicle.pose
 
-        print('Input:')
+        print('Input states:')
         print(mission)
 
         # TODO: get from the server
@@ -241,14 +245,10 @@ class SummoningRoutePlanner(Component):
             else:
                 raise ValueError("Unknown frame argument")
 
-        elif route:
-            pass
+        elif route is None:
+            route = Route(frame=ObjectFrameEnum.START,points=[[0, 0]])
 
-        else:
-            route = Route(frame=ObjectFrameEnum.START,points=[[0, 0],[1, 0], [2, 0]])
-            return route, mission
-
-        print('Output:')
+        print('Output states:')
         print(mission)
 
         return route, mission

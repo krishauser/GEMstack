@@ -34,7 +34,7 @@ class ParkingTypePlanner(Component):
         intent = state.intent
         roadgraph = state.roadgraph
 
-        print('Input:')
+        print('Input states:')
         print(intent)
         print(mission)
 
@@ -44,7 +44,7 @@ class ParkingTypePlanner(Component):
         elif mission.type == MissionEnum.UNPARK:
             intent = leave_parking_plan(roadgraph)
 
-        print('Output:')
+        print('Output states:')
         print(intent)
 
         return intent

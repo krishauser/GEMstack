@@ -54,7 +54,7 @@ class LeaveParkingTrajectoryPlanner(Component):
         vehicle = state.vehicle
         roadgraph = state.roadgraph
 
-        print('Input:')
+        print('Input states:')
         print(intent)
         print(mission)
 
@@ -74,7 +74,7 @@ class LeaveParkingTrajectoryPlanner(Component):
         intent.intent = VehicleIntentEnum.DRIVING
         mission.type = MissionEnum.DRIVE
 
-        print('Output:')
+        print('Output states:')
         print(intent)
         print(mission)
 
