@@ -134,7 +134,10 @@ class TestRRT(unittest.TestCase):
         self.rrt.visualize(path)
     
     def test_plan_with_obstacles(self):
-        self.occupancy_grid[5, :] = 1  # Add an obstacle in the middle
+        self.occupancy_grid[5, :3] = 1  # Add an obstacle in the middle
+        self.occupancy_grid[5, 7:10] = 1
+        self.occupancy_grid[:3, 5] = 1
+        self.occupancy_grid[7:, 5] = 1
         self.rrt = RRT(start=(0, 0), goal=(9, 9), x_bounds=(0, 10), y_bounds=(0, 10), step_size=1.0, max_iter=1000, occupancy_grid=self.occupancy_grid)
         path = self.rrt.plan()
         self.assertIsNotNone(path, "RRT failed to find a path with obstacles")
