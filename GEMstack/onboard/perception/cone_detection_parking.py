@@ -319,10 +319,11 @@ class ConeDetector3D(Component):
         self.sync.registerCallback(self.synchronized_callback)
 
         # Publishers
-        self.pub_lidar_top_vehicle_pc2 = rospy.Publisher("point_cloud/lidar_top_vehicle", PointCloud2, queue_size=10)
-        self.pub_cones_image_detection = rospy.Publisher("cones/image_detection", Image, queue_size=1)
-        self.pub_cones_bboxes_markers = rospy.Publisher("cones/markers/bboxes", MarkerArray, queue_size=10)
+        self.pub_lidar_top_vehicle_pc2 = rospy.Publisher("lidar_top_vehicle/point_cloud", PointCloud2, queue_size=10)
         self.pub_vehicle_marker = rospy.Publisher("vehicle/marker", MarkerArray, queue_size=10)
+        self.pub_cones_image_detection = rospy.Publisher("cones_detection/annotated_image", Image, queue_size=1)
+        self.pub_cones_bboxes_markers = rospy.Publisher("cones_detection/bboxes/markers", MarkerArray, queue_size=10)
+        self.pub_cones_centers_pc2 = rospy.Publisher("cones_detection/centers/point_cloud", PointCloud2, queue_size=10)
 
         # Detection model
         self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/cone.pt'
@@ -355,7 +356,7 @@ class ConeDetector3D(Component):
                cone_3d_centers.append((agent.pose.x, agent.pose.y, agent.pose.z))
             if agent.dimensions != None and agent.dimensions[0] != None and agent.dimensions[1] != None and agent.dimensions[2] != None:
                 cone_3d_dims.append(agent.dimensions)
-        
+
         # Transform top lidar pointclouds to vehicle frame for visualization
         latest_lidar_vehicle = transform_lidar_points(self.latest_lidar, self.T_l2v)
         ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "vehicle")
@@ -373,6 +374,13 @@ class ConeDetector3D(Component):
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
         # Draw 3D cone centers and dimensions
         if len(cone_3d_centers) > 0 and len(cone_3d_dims) > 0:
+            # Draw 3D pedestrian center pointclouds
+            cone_ground_centers = np.array(cone_3d_centers)
+            cone_ground_centers[:, 2] = 0.0
+            cone_ground_centers = [tuple(point) for point in cone_ground_centers]
+            ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=(255, 0, 255))
+            self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
+
             # Delete previous markers
             ros_delete_bboxes_markers = delete_bbox_marker()
             self.pub_cones_bboxes_markers.publish(ros_delete_bboxes_markers)
