@@ -1,7 +1,7 @@
 description: "Drive the GEM vehicle along a fixed route (currently xyhead_highbay_backlot_p.csv)"
 mode: hardware
 vehicle_interface: gem_hardware.GEMHardwareInterface
-# vehicle: !relative_path ../vehicle/gem_e2_gazebo.yaml
+# !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
 mission_execution: StandardExecutor
 # Recovery behavior after a component failure
 recovery: 
