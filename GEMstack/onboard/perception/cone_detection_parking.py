@@ -351,7 +351,7 @@ class ConeDetector3D(Component):
 
         # Transform top lidar pointclouds to vehicle frame for visualization
         latest_lidar_vehicle = transform_lidar_points(self.latest_lidar, self.T_l2v)
-        ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "lidar_top")
+        ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "vehicle")
         self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
 
         # Draw 2D bboxes
@@ -362,7 +362,7 @@ class ConeDetector3D(Component):
         self.pub_cones_image_detection.publish(ros_img)  
 
         # Create vehicle marker
-        ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (1.0, 0.0, 0.0, 1), "lidar_top")
+        ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (1.0, 0.0, 0.0, 1), "vehicle")
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
         # Draw 3D cone centers and dimensions
         if len(cone_3d_centers) > 0 and len(cone_3d_dims) > 0:
@@ -370,7 +370,7 @@ class ConeDetector3D(Component):
             ros_delete_bboxes_markers = delete_bbox_marker()
             self.pub_cones_bboxes_markers.publish(ros_delete_bboxes_markers)
             # Create bbox markers from cone dimensions
-            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, (0.0, 1.0, 15, 0.2), "lidar_top")
+            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, (0.0, 1.0, 15, 0.2), "vehicle")
             self.pub_cones_bboxes_markers.publish(ros_cones_bboxes_markers)
           
                
