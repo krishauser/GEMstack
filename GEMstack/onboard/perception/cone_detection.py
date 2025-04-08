@@ -280,6 +280,7 @@ class ConeDetector3D(Component):
         self.latest_lidar = None
         self.bridge = CvBridge()
         self.start_pose_abs = None
+        self.camera_front = True
 
     def rate(self) -> float:
         return 4.0
@@ -298,29 +299,37 @@ class ConeDetector3D(Component):
         self.sync.registerCallback(self.synchronized_callback)
         self.detector = YOLO('../../knowledge/detection/cone.pt')
         self.detector.to('cuda')
-        self.K = np.array([[1230.144096, 0., 978.828508],
-                           [0., 1230.630424, 605.794034],
-                           [0., 0., 1.]])
 
+        if self.camera_front:
+            self.K = np.array([[684.83331299, 0., 573.37109375],
+                               [0., 684.60968018, 363.70092773],
+                               [0., 0., 1.]])
+        else:
+            self.K = np.array([[1230.144096, 0., 978.828508],
+                               [0., 1230.630424, 605.794034],
+                               [0., 0., 1.]])
 
-        # Below is the distortion vector; here we set it to all zeros (i.e. no distortion)
-        # self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-        self.D = [-0.23751890570984993, 0.08452214195986749, -0.00035324203850054794, -0.0003762498910536819, 0.0]
+        if self.camera_front:
+            self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        else:
+            self.D = [-0.23751890570984993, 0.08452214195986749, -0.00035324203850054794, -0.0003762498910536819, 0.0]
+
         self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
                                [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
                                [-0.02379784, 0.00689664, 0.999693, 1.95320223],
                                [0., 0., 0., 1.]])
-        # self.T_l2c = np.array([
-        #     [0.001090, -0.999489, -0.031941, 0.149698],
-        #     [-0.007664, 0.031932, -0.999461, -0.397813],
-        #     [0.999970, 0.001334, -0.007625, -0.691405],
-        #     [0., 0., 0., 1.000000]
-        # ])
-
-        self.T_l2c = np.array([[ 0.71082304, -0.70305212, -0.02608284,  0.17771596],
-       [-0.13651802, -0.10076507, -0.98505595, -0.56321222],
-       [ 0.68915595,  0.70388118, -0.1678969 , -0.62027912],
-       [ 0.        ,  0.        ,  0.        ,  1.        ]])
+        if self.camera_front:
+            self.T_l2c = np.array([
+                [0.001090, -0.999489, -0.031941, 0.149698],
+                [-0.007664, 0.031932, -0.999461, -0.397813],
+                [0.999970, 0.001334, -0.007625, -0.691405],
+                [0., 0., 0., 1.000000]
+            ])
+        else:
+            self.T_l2c = np.array([[ 0.71082304, -0.70305212, -0.02608284,  0.17771596],
+           [-0.13651802, -0.10076507, -0.98505595, -0.56321222],
+           [ 0.68915595,  0.70388118, -0.1678969 , -0.62027912],
+           [ 0.        ,  0.        ,  0.        ,  1.        ]])
         self.T_c2l = np.linalg.inv(self.T_l2c)
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
@@ -439,17 +448,36 @@ class ConeDetector3D(Component):
             )
             if existing_id is not None:
                 old_state = self.tracked_agents[existing_id]
-                dt = new_pose.t - old_state.pose.t
-                vx, vy, vz = compute_velocity(old_state.pose, new_pose, dt)
-                updated_agent = AgentState(
-                    pose=new_pose,
-                    dimensions=dims,
-                    outline=None,
-                    type=AgentEnum.CONE,
-                    activity=AgentActivityEnum.MOVING,
-                    velocity=(vx, vy, vz),
-                    yaw_rate=0
-                )
+                if vehicle.v < 0.1:
+                    alpha = 0.1
+                    avg_x = alpha * new_pose.x + (1 - alpha) * old_state.pose.x
+                    avg_y = alpha * new_pose.y + (1 - alpha) * old_state.pose.y
+                    avg_z = alpha * new_pose.z + (1 - alpha) * old_state.pose.z
+                    avg_yaw = alpha * new_pose.yaw + (1 - alpha) * old_state.pose.yaw
+                    avg_pitch = alpha * new_pose.pitch + (1 - alpha) * old_state.pose.pitch
+                    avg_roll = alpha * new_pose.roll + (1 - alpha) * old_state.pose.roll
+
+                    updated_pose = ObjectPose(
+                        t=new_pose.t,
+                        x=avg_x,
+                        y=avg_y,
+                        z=avg_z,
+                        yaw=avg_yaw,
+                        pitch=avg_pitch,
+                        roll=avg_roll,
+                        frame=new_pose.frame
+                    )
+                    updated_agent = AgentState(
+                        pose=updated_pose,
+                        dimensions=dims,
+                        outline=None,
+                        type=AgentEnum.CONE,
+                        activity=AgentActivityEnum.MOVING,
+                        velocity=(0, 0, 0),
+                        yaw_rate=0
+                    )
+                else:
+                    updated_agent = old_state
                 agents[existing_id] = updated_agent
                 self.tracked_agents[existing_id] = updated_agent
             else:
