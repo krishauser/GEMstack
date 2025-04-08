@@ -103,6 +103,21 @@ def visualize_custom_points(image, points_lidar, T_l2c, K, color=(0, 255, 0)):
         cv2.circle(image, (u, v), 5, color, -1)
     return image
 
+def filter_points_within_threshold(points, threshold=15.0):
+    """
+    筛选出所有距离传感器小于或等于 threshold 米的点。
+
+    参数：
+      points: numpy 数组，形状为 (N,3)，每一行为一个三维点 [x, y, z]。
+      threshold: 距离阈值（单位：米），默认值为 15.0 米。
+
+    返回：
+      过滤后的点云数据（仅保留距离小于等于 threshold 米的点）。
+    """
+    distances = np.linalg.norm(points, axis=1)
+    mask = distances <= threshold
+    return points[mask]
+
 def refine_cluster(roi_points, center, eps=0.2, min_samples=10):
     """
     对 roi_points (N,3) 进行 DBSCAN 聚类，并返回与 center 最近的簇
@@ -149,18 +164,33 @@ def compute_velocity(old_pose, new_pose, dt):
     vz = (new_pose.z - old_pose.z) / dt
     return (vx, vy, vz)
 
-def filter_depth_points(lidar_points, max_human_depth=0.9):
+def filter_depth_points(lidar_points, max_depth_diff=0.9, use_norm=True):
     """
-    过滤超出 (min_depth + max_human_depth) 的点，
-    假设点云中第一列为深度（X轴）信息，根据实际情况调整
+    过滤超过 (min_depth + max_depth_diff) 范围之外的点。
+
+    如果 use_norm 为 True，则按照每个点的欧氏距离（norm）来计算深度，
+    否则默认使用第一列（x轴）作为深度。
+
+    参数：
+      lidar_points: (N, 3) 的点云数据
+      max_depth_diff: 最小深度加上此阈值作为允许的深度范围
+      use_norm: 是否使用欧氏距离作为深度（True）或直接使用 x 坐标（False）
+
+    返回：
+      筛选后的点云数据
     """
     if lidar_points.shape[0] == 0:
         return lidar_points
-    lidar_points_dist = lidar_points[:, 0]
-    min_dist = np.min(lidar_points_dist)
-    max_possible_dist = min_dist + max_human_depth
-    filtered_array = lidar_points[lidar_points_dist < max_possible_dist]
-    return filtered_array
+
+    if use_norm:
+        depths = np.linalg.norm(lidar_points, axis=1)
+    else:
+        depths = lidar_points[:, 0]
+
+    min_depth = np.min(depths)
+    max_possible_depth = min_depth + max_depth_diff
+    mask = depths < max_possible_depth
+    return lidar_points[mask]
 
 def display_reprojected_cluster(image, refined_cluster, T_l2c, K):
     """
@@ -183,6 +213,46 @@ def display_reprojected_cluster(image, refined_cluster, T_l2c, K):
         cv2.circle(image, (u, v), 2, (255, 0, 0), -1)
     return image
 
+def pose_to_matrix(pose):
+    """
+    Compose a 4x4 transformation matrix from a pose state.
+    Assumes pose has attributes: x, y, z, yaw, pitch, roll,
+    where the angles are given in degrees.
+    """
+    x = pose.x if pose.x is not None else 0.0
+    y = pose.y if pose.y is not None else 0.0
+    z = pose.z if pose.z is not None else 0.0
+    if pose.yaw is not None and pose.pitch is not None and pose.roll is not None:
+        yaw = np.radians(pose.yaw)
+        pitch = np.radians(pose.pitch)
+        roll = np.radians(pose.roll)
+    else:
+        yaw = pitch = roll = 0.0
+    R_mat = R.from_euler('zyx', [yaw, pitch, roll]).as_matrix()
+    T = np.eye(4)
+    T[:3, :3] = R_mat
+    T[:3, 3] = np.array([x, y, z])
+    return T
+
+# ----- New: Vectorized projection function -----
+def project_points(pts_cam, K, original_lidar_points):
+    """
+    Vectorized version.
+    pts_cam: (N,3) array of points in camera coordinates.
+    original_lidar_points: (N,3) array of points in LiDAR coordinates.
+    Returns a (M,5) array: [u, v, X_lidar, Y_lidar, Z_lidar] for all points with Z>0.
+    """
+    mask = pts_cam[:, 2] > 0
+    pts_cam_valid = pts_cam[mask]
+    lidar_valid = original_lidar_points[mask]
+    Xc = pts_cam_valid[:, 0]
+    Yc = pts_cam_valid[:, 1]
+    Zc = pts_cam_valid[:, 2]
+    u = (K[0, 0] * (Xc / Zc) + K[0, 2]).astype(np.int32)
+    v = (K[1, 1] * (Yc / Zc) + K[1, 2]).astype(np.int32)
+    proj = np.column_stack((u, v, lidar_valid))
+    return proj
+
 # -----------------------------
 # 3) PedestrianDetector2D (新方法)
 # -----------------------------
@@ -201,62 +271,59 @@ class PedestrianDetector2D:
     def __init__(self, model_path='yolov8n.pt'):
         # 加载 YOLO 模型
         self.detector = YOLO(model_path)
+        self.camera_front = False
 
-        # LiDAR->Vehicle 坐标系转换矩阵
-        self.T_l2v = np.array([
-            [0.99939639, 0.02547917, 0.023615, 1.1],
-            [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
-            [-0.02379784, 0.00689664, 0.999693, 1.95320223],
-            [0, 0, 0, 1]
-        ])
+        if self.camera_front:
+            self.K = np.array([[684.83331299, 0., 573.37109375],
+                               [0., 684.60968018, 363.70092773],
+                               [0., 0., 1.]])
+        else:
+            self.K = np.array([[1230.144096, 0., 978.828508],
+                               [0., 1230.630424, 605.794034],
+                               [0., 0., 1.]])
+        if self.camera_front:
+            self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        else:
+            self.D = np.array([-0.23751890570984993, 0.08452214195986749, -0.00035324203850054794, -0.0003762498910536819, 0.0])
 
-        # 原始相机内参矩阵（未校正图像使用）
-        self.K = np.array([
-            [1230.1441, 0, 978.8285],
-            [0, 1230.6304, 605.7940],
-            [0, 0, 1]
-        ])
-
-        # 畸变系数
-        self.D = np.array([-0.237519, 0.084522, -0.000353, -0.000376, 0.0])
-
-        # LiDAR->Camera 坐标系转换矩阵
-        self.T_l2c = np.array([
-            [ 0.72 , -0.694,  0.014,  0.12],
-            [-0.166, -0.191, -0.967,  0.09],
-            [ 0.673,  0.694, -0.253, -1.17],
-            [ 0.   ,  0.   ,  0.   ,  1.  ]
-        ])
-
-        # 跟踪相关变量
+        self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
+                                [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
+                                [-0.02379784, 0.00689664, 0.999693, 1.95320223],
+                                [0., 0., 0., 1.]])
+        if self.camera_front:
+            self.T_l2c = np.array([
+                [0.001090, -0.999489, -0.031941, 0.149698],
+                [-0.007664, 0.031932, -0.999461, -0.397813],
+                [0.999970, 0.001334, -0.007625, -0.691405],
+                [0., 0., 0., 1.000000]
+            ])
+        else:
+            self.T_l2c = np.array([[0.71082304, -0.70305212, -0.02608284, 0.17771596],
+                                    [-0.13651802, -0.10076507, -0.98505595, -0.56321222],
+                                    [0.68915595, 0.70388118, -0.1678969, -0.62027912],
+                                    [0., 0., 0., 1.]])
         self.tracked_agents = {}
         self.pedestrian_counter = 0
-        # 存储当前帧的内参（经过畸变校正后），避免修改原始内参
         self.current_K = self.K.copy()
-        # 用于存放调试时每个边界框对应的 frustum（LineSet）
         self.debug_frustums = []
+        # 存储每个 refined cluster 的点云，用于 Open3D 可视化上色
+        self.cluster_geometries = []
 
     def process_frame(self, image, lidar_points, current_time=0.0, debug_reproj=False, debug_frustum=False):
         agents = {}
+        self.cluster_geometries = []  # 重置 refined cluster 的集合
 
-        # 1) 图像畸变校正，获取当前帧的内参 newK（但不更新全局 self.K）
-        # image, newK = undistort_image(image, self.K, self.D)
-        # self.current_K = newK
+        image, newK = undistort_image(image, self.K, self.D)
+        self.current_K = newK
 
-        self.current_K = self.K.copy()
-
-        # 2) 下采样 LiDAR 点云（示例中直接复制原始点云）
         lidar_down = lidar_points.copy()
 
-        # 3) LiDAR -> Camera 坐标转换 & 投影到图像平面（使用当前帧内参）
         pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
         projected_pts = project_points(pts_cam, self.current_K, lidar_down)
 
-        # 4) YOLO 2D 检测
         results = self.detector(image, conf=0.4, classes=[0])
         boxes = np.array(results[0].boxes.xywh.cpu()) if len(results) > 0 else []
 
-        # 绘制所有检测到的 2D 框（蓝色矩形）
         for box in boxes:
             cx, cy, w, h = box
             left = int(cx - w/2)
@@ -265,7 +332,6 @@ class PedestrianDetector2D:
             bottom = int(cy + h/2)
             cv2.rectangle(image, (left, top), (right, bottom), (255, 0, 0), 2)
 
-        # 5) 针对每个 YOLO 检测到的 2D 边界框进行后续处理（聚类、计算 oriented b-box 及跟踪匹配）
         if debug_frustum:
             self.debug_frustums = []
         for box in boxes:
@@ -293,12 +359,22 @@ class PedestrianDetector2D:
             points_3d = roi_2d_pts[:, 2:5]
             if debug_reproj:
                 display_reprojected_cluster(image, points_3d, self.T_l2c, self.current_K)
-            points_3d = filter_depth_points(points_3d, max_human_depth=0.2)
-
-            refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.3, min_samples=5)
-            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.01)
-            if refined_cluster.shape[0] < 5:
+            start = time.time()
+            points_3d = filter_points_within_threshold(points_3d, 15)
+            end = time.time()
+            print(start-end)
+            # points_3d = remove_ground_by_min_range(points_3d, z_range=0.01)
+            points_3d = filter_depth_points(points_3d, max_depth_diff=0.3)
+            # refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=5)
+            refined_cluster = remove_ground_by_min_range(points_3d, z_range=0.01)
+            if refined_cluster.shape[0] < 4:
                 continue
+
+            # 创建 refined cluster 的点云并上色为红色
+            pcd_cluster = o3d.geometry.PointCloud()
+            pcd_cluster.points = o3d.utility.Vector3dVector(refined_cluster)
+            pcd_cluster.paint_uniform_color([1, 0, 0])
+            self.cluster_geometries.append(pcd_cluster)
 
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(refined_cluster)
@@ -362,7 +438,7 @@ class PedestrianDetector2D:
                 agents[agent_id] = new_agent
                 self.tracked_agents[agent_id] = new_agent
 
-        # 6) 在当前帧上绘制 hard-code 的 3D 点（红色圆点）
+        # 绘制 hard-code 的 3D 点（红色圆点）到图像上
         my_points_lidar = np.array([
             [4.730639, 10.195478, -1.941095],  # Point #189070
             [2.066050, 7.066111, -2.027844],   # Point #223837
@@ -372,7 +448,6 @@ class PedestrianDetector2D:
         ])
         visualize_custom_points(image, my_points_lidar, self.T_l2c, self.current_K, color=(0, 0, 255))
 
-        # 7) 在 process_frame 内直接显示图像（包含所有 boxes 与 hard-code 的点）
         cv2.imshow("Frame with Boxes and Custom Points", image)
         cv2.waitKey(1)
         return agents
@@ -393,7 +468,7 @@ class PedestrianDetector2D:
         fx = K[0, 0]
         fy = K[1, 1]
         cx = K[0, 2]
-        cy = K[1, 2]  # cy 取自 K 的第二行第三列
+        cy = K[1, 2]
 
         near_points = []
         far_points = []
@@ -413,7 +488,6 @@ class PedestrianDetector2D:
         near_points_lidar = (T_c2l @ near_points.T).T[:, :3]
         far_points_lidar = (T_c2l @ far_points.T).T[:, :3]
         all_points = np.vstack((near_points_lidar, far_points_lidar))
-        # 连线：四边形边缘及对应近远点连接
         lines = [[i, i + 4] for i in range(4)]
         lines += [[0, 1], [1, 2], [2, 3], [3, 0]]
         lines += [[4, 5], [5, 6], [6, 7], [7, 4]]
@@ -427,14 +501,12 @@ def load_lidar_from_npz(file_path):
     return data['arr_0']
 
 # -----------------------------
-# 5) 主函数：调用 process_frame，并保留原来的 Open3D 可视化
+# 5) 主函数：调用 process_frame，并只显示 refined cluster 中的点（不显示其他几何体）
 # -----------------------------
 def main():
     SHOW_VISUALIZATION = True
-    # 修改模型路径为你使用的模型文件（例如 'cone.pt'）
     detector = PedestrianDetector2D(model_path='cone.pt')
 
-    # 修改以下路径为你实际的数据路径
     image_files = sorted(glob.glob(os.path.join('../data', 'color*.png')))
     lidar_files = sorted(glob.glob(os.path.join('../data', 'lidar*.npz')))
     num_frames = min(len(image_files), len(lidar_files))
@@ -450,38 +522,17 @@ def main():
         agents = detector.process_frame(image, lidar_points, current_time=float(i),
                                         debug_reproj=True, debug_frustum=True)
 
-        # 这里保留原来的 Open3D 可视化（展示 3D 点云、检测目标中心、oriented b-box 以及 frustum）
+        # Print all agent information
+        print("Detected Agents:")
+        for agent_id, agent_state in agents.items():
+            p = agent_state.pose
+            print(f"Agent {agent_id}: Position=({p.x:.2f}, {p.y:.2f}, {p.z:.2f}), "
+                  f"Yaw={p.yaw:.2f}, Pitch={p.pitch:.2f}, Roll={p.roll:.2f}, "
+                  f"Dimensions={agent_state.dimensions}, Velocity={agent_state.velocity}")
+
+        # 在 Open3D 的可视化中，仅显示 refined cluster 点云（上色为红色）
         if SHOW_VISUALIZATION:
-            pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(lidar_points)
-            pcd.paint_uniform_color([0.7, 0.7, 0.7])
-            geometries = [pcd]
-
-            T_v2l = np.linalg.inv(detector.T_l2v)
-            for agent_id, agent_state in agents.items():
-                pose_vehicle = np.array([agent_state.pose.x, agent_state.pose.y, agent_state.pose.z, 1])
-                center_lidar = (T_v2l @ pose_vehicle)[:3]
-
-                # 绘制目标中心（绿色小球）
-                sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.05)
-                sphere.translate(center_lidar)
-                sphere.paint_uniform_color([0, 1, 0])
-                geometries.append(sphere)
-
-                dims = agent_state.dimensions
-                if dims != (0, 0, 0):
-                    yaw = agent_state.pose.yaw
-                    pitch = agent_state.pose.pitch
-                    roll = agent_state.pose.roll
-                    R_vehicle = R.from_euler('zyx', [yaw, pitch, roll], degrees=True).as_matrix()
-                    R_lidar = T_v2l[:3, :3] @ R_vehicle
-                    obb = o3d.geometry.OrientedBoundingBox(center_lidar, R_lidar, dims)
-                    obb.color = (1, 0, 1)  # 紫红色
-                    geometries.append(obb)
-
-            if detector.debug_frustums:
-                geometries.extend(detector.debug_frustums)
-
+            geometries = detector.cluster_geometries if detector.cluster_geometries else []
             o3d.visualization.draw_geometries(geometries, window_name=f"Frame {i}")
 
     cv2.destroyAllWindows()
