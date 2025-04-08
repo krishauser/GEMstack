@@ -73,8 +73,10 @@ class PurePursuit(object):
         if self.path is None:
             #just stop
             accel = self.pid_speed.advance(0.0, t)
-            # TODO
-            raise RuntimeError("Behavior without path not implemented")
+            # # TODO
+            # raise RuntimeError("Behavior without path not implemented")
+            return (0,0)
+
 
         if self.path.frame != state.pose.frame:
             print("Transforming path from",self.path.frame.name,"to",state.pose.frame.name)
@@ -220,4 +222,5 @@ class PurePursuitTrajectoryTracker(Component):
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
     
     def healthy(self):
-        return self.pure_pursuit.path is not None
+        # return self.pure_pursuit.path is not None
+        return True

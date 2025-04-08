@@ -1,40 +1,59 @@
 from typing import List
 from ..component import Component
 from ...utils import serialization
-from ...state import Route,ObjectFrameEnum, AllState, VehicleState, Roadgraph, MissionObjective
+from ...state import (
+    Route,
+    ObjectFrameEnum,
+    AllState,
+    VehicleState,
+    Roadgraph,
+    MissionObjective,
+)
 import os
 import numpy as np
 import yaml
 from ...onboard.planning import RRT
 
+
 class StaticRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
-    def __init__(self, routefn : str, frame : str = 'start'):
+
+    def __init__(self, routefn: str, frame: str = "start"):
         self.routefn = routefn
         base, ext = os.path.splitext(routefn)
-        if ext in ['.json','.yml','.yaml']:
-            with open(routefn,'r') as f:
+        if ext in [".json", ".yml", ".yaml"]:
+            with open(routefn, "r") as f:
                 self.route = serialization.load(f)
-        elif ext == '.csv':
-            waypoints = np.loadtxt(routefn,delimiter=',',dtype=float)
+        elif ext == ".csv":
+            waypoints = np.loadtxt(routefn, delimiter=",", dtype=float)
             if waypoints.shape[1] == 3:
-                waypoints = waypoints[:,:2]
-            if frame == 'start':
-                self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
-            elif frame == 'global':
-                self.route = Route(frame=ObjectFrameEnum.GLOBAL,points=waypoints.tolist())
-            elif frame == 'cartesian':
-                self.route = Route(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,points=waypoints.tolist())
+                waypoints = waypoints[:, :2]
+            if frame == "start":
+                self.route = Route(
+                    frame=ObjectFrameEnum.START, points=waypoints.tolist()
+                )
+            elif frame == "global":
+                self.route = Route(
+                    frame=ObjectFrameEnum.GLOBAL, points=waypoints.tolist()
+                )
+            elif frame == "cartesian":
+                self.route = Route(
+                    frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, points=waypoints.tolist()
+                )
             else:
-                raise ValueError("Unknown route frame {} must be start, global, or cartesian".format(frame))
+                raise ValueError(
+                    "Unknown route frame {} must be start, global, or cartesian".format(
+                        frame
+                    )
+                )
         else:
-            raise ValueError("Unknown route file extension",ext)
+            raise ValueError("Unknown route file extension", ext)
 
     def state_inputs(self):
         return []
 
     def state_outputs(self) -> List[str]:
-        return ['route']
+        return ["route"]
 
     def rate(self):
         return 1.0
@@ -74,19 +93,25 @@ def find_available_pose(position, lane_points):
     return [x, y, yaw]
 
 
-def generate_route_free_run(current_pose, goal_position, roadgraph, roadgraph_type, map_margin=5.0, try_times=5):
+def generate_route_free_run(
+    current_pose, goal_position, roadgraph, roadgraph_type, map_margin=5.0, try_times=5
+):
     """
     Assume the vehicle can run in both directions in the lanes
     """
-    if roadgraph_type == 'roadgraph':
+    if roadgraph_type == "roadgraph":
         all_lane_points = get_all_lane_points(roadgraph)
     else:  # roadgraph_type == 'point_list'
         all_lane_points = roadgraph
     points = np.array(all_lane_points)
 
     # Decide the route searching boundaries
-    map_boundaries = [np.min(points[:, 0]) - map_margin, np.max(points[:, 0]) + map_margin,
-                      np.min(points[:, 1]) - map_margin, np.max(points[:, 1]) + map_margin]
+    map_boundaries = [
+        np.min(points[:, 0]) - map_margin,
+        np.max(points[:, 0]) + map_margin,
+        np.min(points[:, 1]) - map_margin,
+        np.max(points[:, 1]) + map_margin,
+    ]
 
     start_pose = [current_pose.x, current_pose.y, current_pose.yaw]
     # TODO: find yaw with free lane direction
@@ -100,50 +125,105 @@ def generate_route_free_run(current_pose, goal_position, roadgraph, roadgraph_ty
             break
     print("waypoints:", waypoints)
     if not waypoints:
-        raise RuntimeError('No waypoints found')
+        raise RuntimeError("No waypoints found")
     return waypoints
 
 
 class SummoningRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
-    def __init__(self, roadgraphfn : str, frame : str = 'start'):
+
+    def __init__(self, roadgraphfn: str, frame: str = "start"):
         self.frame = frame
         base, ext = os.path.splitext(roadgraphfn)
-        if ext in ['.json', '.yml', '.yaml']:
-            with open(roadgraphfn, 'r') as f:
+        if ext in [".json", ".yml", ".yaml"]:
+            with open(roadgraphfn, "r") as f:
                 self.roadgraph = serialization.load(f)
-                self.roadgraph_type = 'roadgraph'
-        elif ext == '.csv':
-            self.roadgraph = np.loadtxt(roadgraphfn,delimiter=',',dtype=float)
-            self.roadgraph_type = 'point_list'
+                self.roadgraph_type = "roadgraph"
+        elif ext == ".csv":
+            self.roadgraph = np.loadtxt(roadgraphfn, delimiter=",", dtype=float)
+            self.roadgraph_type = "point_list"
         else:
-            raise ValueError("Unknown roadgraph file extension",ext)
+            raise ValueError("Unknown roadgraph file extension", ext)
 
     def state_inputs(self):
-        return ['vehicle']
+        return ["vehicle"]
+
+
+def is_inside_geofence(x, y, xmin, xmax, ymin, ymax):
+    return xmin < x < xmax and ymin < y < ymax
+
+
+def max_visible_arc(circle_center, radius, geofence):
+    xc, yc = circle_center
+    (xmin, ymin), (xmax, ymax) = geofence
+
+    angles = np.linspace(0, 2 * np.pi, 500, endpoint=False)
+    arc_segments = []
+    curr_segment = []
+
+    first_inside = last_inside = False
+
+    for i, theta in enumerate(angles):
+        x = xc + radius * np.cos(theta)
+        y = yc + radius * np.sin(theta)
+
+        inside = is_inside_geofence(x, y, xmin, xmax, ymin, ymax)
+
+        if i == 0:
+            first_inside = inside
+        if i == len(angles) - 1:
+            last_inside = inside
+
+        if inside:
+            curr_segment.append((x, y))
+        else:
+            if curr_segment:
+                arc_segments.append(curr_segment)
+                curr_segment = []
+
+    if curr_segment:
+        arc_segments.append(curr_segment)
+
+    # If arc wraps around from 2π back to 0, combine first and last segments
+    if first_inside and last_inside and len(arc_segments) > 1:
+        arc_segments[0] = arc_segments[-1] + arc_segments[0]
+        arc_segments.pop()
+
+    if not arc_segments:
+        return []
+
+    max_arc = max(arc_segments, key=len)
+    return max_arc
+
+
+class InspectRoutePlanner(Component):
+    """Reads a route from disk and returns it as the desired route."""
+
+    def __init__(self, bounding_box, frame: str = "start"):
+
+        if frame == "start":
+            self.route = Route(frame=ObjectFrameEnum.START, points=waypoints.tolist())
+        elif frame == "global":
+            self.route = Route(frame=ObjectFrameEnum.GLOBAL, points=waypoints.tolist())
+        elif frame == "cartesian":
+            self.route = Route(
+                frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, points=waypoints.tolist()
+            )
+
+    def state_inputs(self):
+        return []
 
     def state_outputs(self) -> List[str]:
-        return ['route']
+        return ["route"]
 
     def rate(self):
-        return 10.0
+        return 1.0
 
-    def update(self, vehicle: VehicleState):
-        self.current_pose = vehicle.pose
-
-        # TODO: get from the server
-        self.goal_positions = [(23.0, 3.0, 0.0),(2.0, 6.0, 0.0)]    # x, y, z
-
-        waypoints = generate_route_free_run(self.current_pose, self.goal_positions[0], self.roadgraph, self.roadgraph_type)
-        waypoints = np.array(waypoints)
-        if waypoints.shape[1] == 3:
-            waypoints = waypoints[:, :2]
-
-        if self.frame == 'start':
-            self.route = Route(frame=ObjectFrameEnum.START, points=waypoints.tolist())
-        elif self.frame == 'global':
-            self.route = Route(frame=ObjectFrameEnum.GLOBAL, points=waypoints.tolist())
-        elif self.frame == 'cartesian':
-            self.route = Route(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, points=waypoints.tolist())
-
+    def update(self, state):
+        if state.mission == "IDLE":
+            return []
+        elif state.mission == "NAV":
+            pass
+        elif state.mission == "INSPECT":
+            pass
         return self.route

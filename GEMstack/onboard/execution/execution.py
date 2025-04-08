@@ -206,12 +206,15 @@ def validate_components(
                     ), "Component {} is not supposed to receive input {}".format(k, i)
         outputs = c.c.state_outputs()
         for o in required_outputs:
+            print(c.c.state_outputs())
             if o == "all":
                 assert outputs == [
                     "all"
                 ], "Component {} outputs are not provided by previous components".format(
                     k
                 )
+            elif c.c == "api_cal":
+                pass
             else:
                 assert (
                     o in outputs
@@ -284,6 +287,7 @@ class ComponentExecutor:
         self.num_overruns = 0
         self.overrun_amount = 0.0
         self.do_update = None
+        self.api_call = False
 
     def set_debugger(self, debugger):
         if self.do_debug:
@@ -690,6 +694,7 @@ class ExecutorBase:
                             )
                         )
                         self.current_pipeline = "recovery"
+
                 except KeyboardInterrupt:
                     if self.current_pipeline == "recovery":
                         executor_debug_print(
@@ -868,6 +873,9 @@ class ExecutorBase:
                             name,
                         )
                         return "recovery"
+                    elif c.api_call:
+                        executor_debug_print(1, "No information received by API", name)
+                        continue
                     else:
                         executor_debug_print(
                             1, "Warning, other component {} not working", name

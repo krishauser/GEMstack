@@ -30,7 +30,7 @@ states:
         type: StaticRoutePlanner
         args: [ !relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start' ]
       motion_planning:
-        type: longitudinal_planning.DestinationNavigation
+        type: longitudinal_planning.
         args:
           mode: 'real'
           params: {
