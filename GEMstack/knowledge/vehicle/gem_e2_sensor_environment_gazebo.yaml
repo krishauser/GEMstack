@@ -1,6 +1,6 @@
 ros_topics:
   top_lidar: /velodyne_points
   front_camera: /front_single_camera/image_raw
-  front_depth: /zed2/zed_node/depth/depth_registered
+  front_depth: /notopic
   gnss: /gps/fix
   
