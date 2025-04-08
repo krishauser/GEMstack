@@ -86,7 +86,7 @@ def main():
     T=np.eye(4)
     T[:3, :3] = R
     T[:3, 3] = tvec.flatten()
-    print(T)
+    print(repr(T))
 
     v2c = T
     print('vehicle->camera:',v2c)
