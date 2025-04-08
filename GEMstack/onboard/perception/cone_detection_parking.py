@@ -22,6 +22,12 @@ import os
 
 
 # ----- Helper Functions -----
+def undistort_image(image, K, D):
+    h, w = image.shape[:2]
+    newK, _ = cv2.getOptimalNewCameraMatrix(K, D, (w, h), 1, (w, h))
+    undistorted = cv2.undistort(image, K, D, None, newK)
+    return undistorted, newK
+
 
 def match_existing_cone(
         new_center: np.ndarray,
@@ -94,7 +100,7 @@ def pc2_to_numpy(pc2_msg, want_rgb=False):
                     np.array(pc['y']).ravel(),
                     np.array(pc['z']).ravel()), axis=1)
     # Apply filtering (for example, x > 0 and z < 2.5)
-    mask = (pts[:, 0] > 0) & (pts[:, 2] < 2.5)
+    mask = (pts[:, 0] > 0) & (pts[:, 2] < -1.5) & (pts[:, 2] > -2.7)
     return pts[mask]
 
 
@@ -324,17 +330,18 @@ class ConeDetector3D(Component):
         self.detector.to('cuda')
 
         # Transformations
-        self.K = np.array([[1180.753, 0., 934.8594],
-                           [0., 1177.034, 607.26],
+        self.K = np.array([[1230.144096, 0., 978.828508],
+                           [0., 1230.630424, 605.794034],
                            [0., 0., 1.]])
+        self.D = np.array([-0.23751890570984993, 0.08452214195986749, -0.00035324203850054794, -0.0003762498910536819, 0.0])
         self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
                                [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
                                [-0.02379784, 0.00689664, 0.999693, 1.95320223],
                                [0., 0., 0., 1.]])
-        self.T_l2c = np.array( [[ 0.72 , -0.694,  0.014,  0.12],
-     [-0.166, -0.191, -0.967,  0.09],
-     [ 0.673,  0.694, -0.253, -1.17],
-     [ 0.   ,  0.   ,  0.   ,  1.  ]])
+        self.T_l2c = np.array([[0.71082304, -0.70305212, -0.02608284, 0.17771596],
+                                [-0.13651802, -0.10076507, -0.98505595, -0.36321222],
+                                [ 0.68915595, 0.70388118, -0.1678969 , -0.62027912],
+                                [ 0.,  0.,  0., 1.]])
         self.T_c2l = np.linalg.inv(self.T_l2c)
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
@@ -348,7 +355,7 @@ class ConeDetector3D(Component):
                cone_3d_centers.append((agent.pose.x, agent.pose.y, agent.pose.z))
             if agent.dimensions != None and agent.dimensions[0] != None and agent.dimensions[1] != None and agent.dimensions[2] != None:
                 cone_3d_dims.append(agent.dimensions)
-
+        
         # Transform top lidar pointclouds to vehicle frame for visualization
         latest_lidar_vehicle = transform_lidar_points(self.latest_lidar, self.T_l2v)
         ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "vehicle")
@@ -362,7 +369,7 @@ class ConeDetector3D(Component):
         self.pub_cones_image_detection.publish(ros_img)  
 
         # Create vehicle marker
-        ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (1.0, 0.0, 0.0, 1), "vehicle")
+        ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 1.0, 0.0, 1), "vehicle")
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
         # Draw 3D cone centers and dimensions
         if len(cone_3d_centers) > 0 and len(cone_3d_dims) > 0:
@@ -370,7 +377,7 @@ class ConeDetector3D(Component):
             ros_delete_bboxes_markers = delete_bbox_marker()
             self.pub_cones_bboxes_markers.publish(ros_delete_bboxes_markers)
             # Create bbox markers from cone dimensions
-            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, (0.0, 1.0, 15, 0.2), "vehicle")
+            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, (1.0, 0.0, 0.0, 0.4), "vehicle")
             self.pub_cones_bboxes_markers.publish(ros_cones_bboxes_markers)
           
                
@@ -393,8 +400,11 @@ class ConeDetector3D(Component):
             return {}
 
         current_time = self.vehicle_interface.time()
+
+        undistorted_img, current_K = undistort_image(self.latest_image, self.K, self.D)
+        self.current_K = current_K
+        self.latest_image = undistorted_img
         # Run YOLO to obtain 2D detections (class 0: persons)
-        #TODO Change class to cones
         results = self.detector(self.latest_image, conf=0.3, classes=[0])
         bboxes = results[0].boxes
         boxes = np.array(bboxes.xywh.cpu())
@@ -403,7 +413,7 @@ class ConeDetector3D(Component):
         if downsample == True:
             lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
             pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
-            projected_pts = project_points(pts_cam, self.K, lidar_down)
+            projected_pts = project_points(pts_cam, self.current_K, lidar_down)
 
         else:
             # New approach: project the entire LiDAR point cloud to the image plane
@@ -412,9 +422,9 @@ class ConeDetector3D(Component):
             step01 = time.time()
             pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
             step02 = time.time()
-            projected_pts = project_points(pts_cam, self.K, lidar_down)  # shape (N,5): [u, v, X, Y, Z]
+            projected_pts = project_points(pts_cam, self.current_K, lidar_down)  # shape (N,5): [u, v, X, Y, Z]
             step03 = time.time()
-            print(f'copy lidar data {step01-step00}s, transoforming to camear {step02-step01}s, transforming to image {step03-step02}s')
+            print(f'copy lidar data {step01-step00}s, transforming to camera {step02-step01}s, transforming to image {step03-step02}s')
 
         # For each 2D bounding box, filter projected points instead of ray-casting
         for i, box in enumerate(boxes):
@@ -435,7 +445,7 @@ class ConeDetector3D(Component):
             points_3d = filter_depth_points(points_3d, max_human_depth=0.3)
 
             # Cluster the points and remove ground
-            refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=10)
+            refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=5)
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.01)
             end1 = time.time()
             print('refine cluster: ', end1-start)
