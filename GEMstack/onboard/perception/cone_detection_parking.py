@@ -88,7 +88,7 @@ def extract_roi_box(lidar_pc, center, half_extents):
 #     print('Convert to numpy: ', end - start)
 #     return pts[mask]
 
-def pc2_to_numpy(pc2_msg, want_rgb=False):
+def pc2_to_numpy(pc2_msg, want_rgb=False, filter=True):
     """
     Convert a ROS PointCloud2 message into a numpy array quickly using ros_numpy.
     This function extracts the x, y, z coordinates from the point cloud.
@@ -99,11 +99,12 @@ def pc2_to_numpy(pc2_msg, want_rgb=False):
     pts = np.stack((np.array(pc['x']).ravel(),
                     np.array(pc['y']).ravel(),
                     np.array(pc['z']).ravel()), axis=1)
+    if not filter:
+        return pts
     # Apply filtering (for example, x > 0 and z < 2.5)
     mask = (pts[:, 0] > 0) & (pts[:, 2] < -1.5) & (pts[:, 2] > -2.7)
     return pts[mask]
-
-
+    
 
 def backproject_pixel(u, v, K):
     """
@@ -252,6 +253,11 @@ def transform_points_l2c(lidar_points, T_l2c):
     pts_cam = (T_l2c @ pts_hom.T).T  # (N,4)
     return pts_cam[:, :3]
 
+def filter_ground_points(lidar_points, ground_threshold = 0):
+    """ Filter points given an elevation of ground threshold """
+    filtered_array = lidar_points[lidar_points[:, 2] > ground_threshold]
+    return filtered_array
+
 # ----- New: Vectorized projection function -----
 def project_points(pts_cam, K, original_lidar_points):
     """
@@ -308,6 +314,8 @@ class ConeDetector3D(Component):
         return ['agents']
 
     def initialize(self):
+        # Init Variables
+        self.ground_threshold = -0.15
         # Real Subscribers
         # self.rgb_sub = Subscriber('/camera_fl/arena_camera_node/image_raw', Image)
         # self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
@@ -358,7 +366,8 @@ class ConeDetector3D(Component):
                 cone_3d_dims.append(agent.dimensions)
 
         # Transform top lidar pointclouds to vehicle frame for visualization
-        latest_lidar_vehicle = transform_lidar_points(self.latest_lidar, self.T_l2v)
+        latest_lidar_vehicle = transform_lidar_points(self.latest_lidar_unfiltered, self.T_l2v)
+        latest_lidar_vehicle = filter_ground_points(latest_lidar_vehicle, self.ground_threshold)
         ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "vehicle")
         self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
 
@@ -397,7 +406,8 @@ class ConeDetector3D(Component):
             rospy.logerr("Failed to convert image: {}".format(e))
             self.latest_image = None
         step2 = time.time()
-        self.latest_lidar = pc2_to_numpy(lidar_msg, want_rgb=False)
+        self.latest_lidar = pc2_to_numpy(lidar_msg, want_rgb=False, filter=True)
+        self.latest_lidar_unfiltered = pc2_to_numpy(lidar_msg, want_rgb=False, filter=False)
         step3 = time.time()
         print('image callback: ', step2-step1, 'lidar callback ', step3- step2)
 
