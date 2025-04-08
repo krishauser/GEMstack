@@ -339,7 +339,7 @@ class ConeDetector3D(Component):
                                [-0.02379784, 0.00689664, 0.999693, 1.95320223],
                                [0., 0., 0., 1.]])
         self.T_l2c = np.array([[0.71082304, -0.70305212, -0.02608284, 0.17771596],
-                                [-0.13651802, -0.10076507, -0.98505595, -0.36321222],
+                                [-0.13651802, -0.10076507, -0.98505595, -0.56321222],
                                 [ 0.68915595, 0.70388118, -0.1678969 , -0.62027912],
                                 [ 0.,  0.,  0., 1.]])
         self.T_c2l = np.linalg.inv(self.T_l2c)
@@ -430,10 +430,10 @@ class ConeDetector3D(Component):
         for i, box in enumerate(boxes):
             start = time.time()
             cx, cy, w, h = box
-            left = int(cx - w / 2)
-            right = int(cx + w / 2)
-            top = int(cy - h / 2)
-            bottom = int(cy + h / 2)
+            left = int(cx - w / 1.8)
+            right = int(cx + w / 1.8)
+            top = int(cy - h / 1.8)
+            bottom = int(cy + h / 1.8)
             mask = (projected_pts[:, 0] >= left) & (projected_pts[:, 0] <= right) & \
                    (projected_pts[:, 1] >= top) & (projected_pts[:, 1] <= bottom)
             roi_pts = projected_pts[mask]
@@ -442,14 +442,14 @@ class ConeDetector3D(Component):
 
             # Extract the LiDAR 3D points corresponding to the ROI
             points_3d = roi_pts[:, 2:5]
-            points_3d = filter_depth_points(points_3d, max_human_depth=0.3)
+            points_3d = filter_depth_points(points_3d, max_human_depth=0.2)
 
             # Cluster the points and remove ground
-            refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=5)
+            refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.5, min_samples=10)
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.01)
             end1 = time.time()
             print('refine cluster: ', end1-start)
-            if refined_cluster.shape[0] < 5:
+            if refined_cluster.shape[0] < 3:
                 continue
 
             # Compute the oriented bounding box
