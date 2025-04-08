@@ -5,7 +5,7 @@ Contains launch scripts for use in the standard executor, e.g., `python main.py 
 
 ## Gazebo Simulation Setup
 
-Head over here to setup gazebo docker container to run the simulation
+Head over [here](https://github.com/harishkumarbalaji/POLARIS_GEM_Simulator/tree/main) to setup gazebo docker container to run the simulation
 
 Install dependency packages
 
