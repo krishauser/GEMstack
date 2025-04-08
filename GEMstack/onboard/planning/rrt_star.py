@@ -28,7 +28,7 @@ class RRTStar:
         if occupancy_grid is not None:
             self.original_grid = occupancy_grid.copy()
             # Inflate obstacles by safety margin + half vehicle width
-            total_inflation = safety_margin + vehicle_width / 2
+            total_inflation = safety_margin
             self.occupancy_grid = self.inflate_obstacles(occupancy_grid, total_inflation)
         else:
             self.occupancy_grid = None
