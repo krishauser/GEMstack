@@ -354,7 +354,7 @@ class ConeDetector3D(Component):
             # Create bbox markers from cone dimensions
             ros_delete_bboxes_markers = delete_bbox_marker()
             self.pub_cones_bboxes_markers.publish(ros_delete_bboxes_markers)
-            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims)
+            ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, "lidar_top")
             self.pub_cones_bboxes_markers.publish(ros_cones_bboxes_markers)
           
                

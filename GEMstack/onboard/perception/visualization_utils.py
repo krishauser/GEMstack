@@ -64,7 +64,7 @@ def create_point_cloud(points, color=(255, 0, 0)):
 
     return pc2.create_cloud(header, fields, point_cloud_data)
 
-def create_bbox_marker(centroids, dimensions):
+def create_bbox_marker(centroids, dimensions, ref_frame="map"):
     """
     Create 3D bbox markers from centroids and dimensions
     """
@@ -76,7 +76,7 @@ def create_bbox_marker(centroids, dimensions):
             continue
             
         marker = Marker()
-        marker.header.frame_id = "top_lidar"  # Reference frame
+        marker.header.frame_id = ref_frame  # Reference frame
         marker.header.stamp = rospy.Time.now()
         marker.ns = "bounding_boxes"
         marker.id = i  # Unique ID for each marker
