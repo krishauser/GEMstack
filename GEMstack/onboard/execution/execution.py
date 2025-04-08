@@ -13,7 +13,6 @@ import io
 import contextlib
 import sys
 from typing import Dict, Tuple, Set, List, Optional
-import requests
 
 EXECUTION_PREFIX = "Execution:"
 EXECUTION_VERBOSITY = 1
@@ -655,10 +654,10 @@ class ExecutorBase:
                     "A component may have hung. Traceback:\n{}",
                     traceback.format_exc(),
                 )
+
         if validated:
             self.begin()
             while True:
-
                 self.state.t = self.vehicle_interface.time()
                 self.logging_manager.pipeline_start_event(self.current_pipeline)
                 try:

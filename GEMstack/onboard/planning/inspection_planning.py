@@ -121,7 +121,7 @@ def check_point_exists(server_url="http://localhost:8000"):
         points = response.json().get("coords", [])
 
         for point in points:
-            return True, [point["lat"], point["lng"]]
+            return True, [point["lng"], point["lat"]]
         return False, []
 
     except requests.exceptions.RequestException as e:
@@ -210,7 +210,7 @@ class InspectionPlanner(Component):
                 print("CHANGING STATES", self.mission)
 
         elif self.mission == "NAV":
-            print(self.goal)
+            print("Top left corner of bounding box: ", self.goal)
             print(abs_x, abs_y)
 
             if abs(abs_x - self.goal[0]) <= 0.1 and abs(abs_y - self.goal[1]) <= 0.1:
