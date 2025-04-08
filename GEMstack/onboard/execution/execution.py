@@ -655,7 +655,6 @@ class ExecutorBase:
                     "A component may have hung. Traceback:\n{}",
                     traceback.format_exc(),
                 )
-        print("validated: ", validated)
         if validated:
             self.begin()
             while True:
@@ -819,8 +818,6 @@ class ExecutorBase:
         dt_min = min([c.dt for c in components if c.dt != 0.0])
         looper = TimedLooper(dt_min, name="main executor")
         while looper and not self.done():
-            response = requests.get("http://localhost:8000/api/inspect")
-            print("data: ", response.json())
             self.state.t = self.vehicle_interface.time()
             self.logging_manager.set_vehicle_time(self.state.t)
             self.last_loop_time = time.time()

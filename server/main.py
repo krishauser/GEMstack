@@ -62,6 +62,10 @@ class Coordinates(BaseModel):
     lng: float
 
 
+class InspectResponse(BaseModel):
+    coords: List[Coordinates]
+
+
 ### HELPERS ###
 # def create_jwt(username: str) -> str:
 #     payload = {"sub": username, "jti": str(uuid.uuid4())}
@@ -114,16 +118,22 @@ def cancel(req: CancelRequest):
     return CancelResponse(launch_id=req.launch_id, status="cancelled")
 
 
-bounding_box = None
+bounding_box = []
 
 
 @app.post("/api/inspect", status_code=201)
 def get_bounding_box(coords: list[Coordinates]):
     global bounding_box
+    # Check to see if it's a quadrilateral
+    if len(coords) != 4:
+        return JSONResponse(
+            content="Require 4 values for bounding box coordinates", status_code=400
+        )
+
     bounding_box = coords
     return "Successfully retrieved bounding box coords!"
 
 
-@app.get("/api/inspect", response_model=list[Coordinates] | None, status_code=200)
+@app.get("/api/inspect", response_model=InspectResponse, status_code=200)
 def send_bounding_box():
-    return bounding_box
+    return InspectResponse(coords=bounding_box)
