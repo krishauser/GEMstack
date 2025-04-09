@@ -16,7 +16,12 @@ let xLabel, yLabel, zLabel;
 onMounted(() => {
     initAxes();
     animate();
+    axesContainer.value.addEventListener("contextmenu", handleContextMenu);
 });
+
+function handleContextMenu(event) {
+    event.preventDefault();
+}
 
 function initAxes() {
     scene = new THREE.Scene();
@@ -76,7 +81,8 @@ function animate() {
     axesRenderer.render(scene, axesCamera);
 }
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
     axesRenderer.dispose();
+    axesContainer.value.removeEventListener("contextmenu", handleContextMenu);
 });
 </script>
