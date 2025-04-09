@@ -25,7 +25,7 @@ class ParkingSolverSecondOrderDubins(AStar):
         # Vehicle model
         self._vehicle = None
 
-        # SecondOrderDubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
+        # SecondOrderDubinsCar() #x = (tx,ty,theta,v,dtheta) and u = (fwd_accel,wheel_angle_rate)
         self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), 1, 0.1)
         #@TODO create a more standardized way to define the actions
         self._actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1),
@@ -60,7 +60,7 @@ class ParkingSolverSecondOrderDubins(AStar):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
         print(f"Current Pose: {current}")
         print(f"Goal Pose: {goal}")
-        if current[2] > 0: return False # car must be stopped, this equality will only work in simulation  
+        if np.abs(current[3]) > 0: return False # car must be stopped, this equality will only work in simulation  
         return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 1
     vehicle
     def heuristic_cost_estimate(self, vehicle_state_1, vehicle_state_2):
@@ -185,9 +185,11 @@ class ParkingPlanner(Component):
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        route = Path(frame=vehicle.pose.frame, points=list(self.planner.astar(start_state, goal_state)))
+        res = list(self.planner.astar(start_state, goal_state))
+        points = [state[:2] for state in res]
         print("===========================")
-        print(f"Points: {len(list(self.planner.astar(start_state, goal_state)))}")
-        traj = longitudinal_plan(route, 1, -1, 5, vehicle.v, "milestone")
+        print(f"Points: {points}")
+        route = Path(frame=vehicle.pose.frame, points=points)
+        traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
         print(traj)
         return traj 
