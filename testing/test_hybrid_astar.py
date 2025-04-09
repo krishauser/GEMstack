@@ -85,15 +85,15 @@ class ParkingSolverSecondOrderDubins(AStar):
         self.obstacles = obstacles
 
         self.vehicle = SecondOrderDubinsCar() #x = (tx,ty,theta,v,dtheta) and u = (fwd_accel,wheel_angle_rate)
-        self.vehicle_sim = IntegratorControlSpace(self.vehicle, 0.5, 0.5)
+        self.vehicle_sim = IntegratorControlSpace(self.vehicle, 0.75, 0.5)
         #@TODO create a more standardized way to define the actions
-        self.actions = [(1,-1), (1, -0.5), (1, -0.25), (1,0), (1,0.25), (1, 0.5),
-                        (0,0), (-1, -0.25), (-1,0), (-1, 0.25)]
+        self.actions = [(1,-2), (1, -1), (1, -0.5), (1,0), (1,0.5), (1, 1),
+                        (1,2), (0,0), (-1, -0.25), (-1,0), (-1, 0.25)]
 
     def is_goal_reached(self, current, goal):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
 
-        # if current[3] > 0.5: return False # car must be stopped, this equality will only work in simulation  
+        if current[3] > 0.5: return False # car must be stopped, this equality will only work in simulation  
         return np.linalg.norm(np.array(current[:2]) - np.array(goal[:2])) < .5
     
     def heuristic_cost_estimate(self, n1, n2):
@@ -101,7 +101,7 @@ class ParkingSolverSecondOrderDubins(AStar):
         """computes the 'direct' distance between two (x,y) tuples"""
         (x1, y1, theta1, v1, dtheta1) = n1
         (x2, y2, theta2, v2, dtheta2) = n2
-        return math.hypot(x2 - x1, y2 - y1)
+        return math.hypot(x2 - x1, y2 - y1, 2*(v2-v1))
         #return math.hypot(x2 - x1, y2 - y1, theta2 - theta1, v2-v1, dtheta2-dtheta1)
 
     def distance_between(self, n1, n2):
@@ -144,7 +144,7 @@ class ParkingSolverSecondOrderDubins(AStar):
             for point in path:
                 # print(point)
                 # print(obstacle.polygon_parent())
-                if collisions.circle_intersects_polygon_2d(point[:-1], 1, obstacle.polygon_parent()):
+                if collisions.circle_intersects_polygon_2d(point[:2], .75, obstacle.polygon_parent()):
                     #polygon_intersects_polygon_2d when we have the acutal car geometry
                     return False
         return True
@@ -153,14 +153,15 @@ def solve():
     # generate obstacle
     # obstacles = gen_obstacle(1)
     pose = ObjectPose(frame=ObjectFrameEnum(3),
-                t=0, x = 3.5, y=4)
+                t=0, x = 8, y=5)
     pose2 = ObjectPose(frame=ObjectFrameEnum(3),
-                t=0, x = 6.5, y=4)
-    dimensions = (2,1.25,1)
+                t=0, x = 8, y=0)
+    dimensions = (1.5,2.5,1)
     obstacles = [PhysicalObject(pose, dimensions, None), PhysicalObject(pose2, dimensions, None)]
-    # obstacles = [PhysicalObject(pose2, dimensions, None)]
+    # obstacles = [PhysicalObject(pose, dimensions, None)]
+    # obstacles = []
     start = (0, 0, 0, 0, 0)  # we choose to start at the upper left corner
-    goal = (5, 5, 0, 0, 0)  # we want to reach the lower right corner
+    goal = (8, 3, 0, 0, 0)  # we want to reach the lower right corner
 
     # let's solve it
     foundPath = list(ParkingSolverSecondOrderDubins(obstacles).astar(start, goal))
@@ -170,9 +171,14 @@ def solve():
     return list(foundPath)
 
 def plot_path(obstacles, path):
+    fig,ax = plt.subplots()
+    for point in path:
+        circle = plt.Circle((point[0], point[1]), .75, color='r', alpha=0.25)
+        ax.add_patch(circle)
     x = [point[0] for point in path]
     y = [point[1] for point in path]
-    plt.plot(x,y)
+
+    ax.plot(x,y)
 
     for obstacle in obstacles:
         l, w, h = obstacle.dimensions
@@ -187,14 +193,26 @@ def plot_path(obstacles, path):
     ])
 
         # Plot the polygon
-        plt.plot(vertices[:, 0], vertices[:, 1], 'b-', linewidth=2)
-        plt.fill(vertices[:, 0], vertices[:, 1], 'b', alpha=0.3)  # Optional fill
+        ax.plot(vertices[:, 0], vertices[:, 1], 'b-', linewidth=2)
+        ax.fill(vertices[:, 0], vertices[:, 1], 'b', alpha=0.3)  # Optional fill
         #plt.scatter(*center, color='red', label="Center")  # Mark the center
         
-    plt.axis('equal')
+    ax.axis('equal')
     #plt.legend()
     plt.grid(True)
     plt.show()
+
+def scenario_one(self):
+    pose = ObjectPose(frame=ObjectFrameEnum(3),
+                t=0, x = 3, y=5)
+    pose2 = ObjectPose(frame=ObjectFrameEnum(3),
+                t=0, x = 7.25, y=5)
+    dimensions = (2.5,1.5,1)
+    obstacles = [PhysicalObject(pose, dimensions, None), PhysicalObject(pose2, dimensions, None)]
+    # obstacles = [PhysicalObject(pose, dimensions, None)]
+    # obstacles = []
+    start = (0, 0, 0, 0, 0)  # we choose to start at the upper left corner
+    goal = (5, 5, 0, 0, 0)  # we want to reach the lower right corner
 
 if __name__ == '__main__':
     solution = solve()
