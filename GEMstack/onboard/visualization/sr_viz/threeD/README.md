@@ -4,6 +4,8 @@ Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduct
 
 ## Setup
 
+You need to have **Node.js** - ```18.x``` or newer. A good way to install different versions of Node.js is using Node Version Manager ([nvm](https://github.com/nvm-sh/nvm)).
+
 Make sure to install dependencies:
 
 ```bash
@@ -73,3 +75,7 @@ bun run preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+
+
+## Credits
+"2018 Audi RS3 Sportback" (https://skfb.ly/p9zEN) by Outlaw Games™ is licensed under Creative Commons Attribution-NonCommercial (http://creativecommons.org/licenses/by-nc/4.0/).
