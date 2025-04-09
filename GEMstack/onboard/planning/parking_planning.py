@@ -56,18 +56,18 @@ class ParkingSolverSecondOrderDubins(AStar):
         # @TODO Add a validity checker for the actions with respect to the vehicle constraints
         self._actions = actions
 
-    def is_goal_reached(self, current: VehicleState, goal: VehicleState):
+    def is_goal_reached(self, current: List[float], goal: List[float]):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
-        print(current.pose)
-        if current.v > 0: return False # car must be stopped, this equality will only work in simulation  
-        return np.linalg.norm(np.array(current.pose) - np.array(goal.pose)) < 1
-    
-    def heuristic_cost_estimate(self, n1, n2):
+        print(f"Current Pose: {current}")
+        print(f"Goal Pose: {goal}")
+        if current[2] > 0: return False # car must be stopped, this equality will only work in simulation  
+        return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 1
+    vehicle
+    def heuristic_cost_estimate(self, vehicle_state_1, vehicle_state_2):
         # @TODO Consider creating a more sophisticated heuristic
         """computes the 'direct' distance between two (x,y) tuples"""
-        (x1, y1, theta1, v1, dtheta1) = n1
-        (x2, y2, theta2, v2, dtheta2) = n2
-        return math.hypot(x2 - x1, y2 - y1)
+
+        return math.hypot(vehicle_state_2[0] - vehicle_state_1[0], vehicle_state_2[1] - vehicle_state_1[1])
         #return math.hypot(x2 - x1, y2 - y1, theta2 - theta1, v2-v1, dtheta2-dtheta1)
 
     def distance_between(self, n1, n2):
@@ -79,7 +79,7 @@ class ParkingSolverSecondOrderDubins(AStar):
             nodes that can be reached (=any adjacent coordinate that is not a wall)
         """
         neighbors = []
-        print(node)
+        print(f"Node: {node}")
         for control in self.actions:
             next_state = self.vehicle_sim.nextState(node, control)
             next_state = np.round(next_state, 3)
@@ -139,6 +139,23 @@ class ParkingPlanner(Component):
 
     def rate(self):
         return 10.0
+    
+    def vehicle_state_to_dynamics(self, vehicle_state: VehicleState) -> Tuple[float, float]:
+        """Takes a vehicle state and outputs the state of a second order dubins car
+
+        Args:
+            vehicle_state (VehicleState): _description_
+
+        Returns:
+            Tuple[float, float]: _description_
+        """
+        x = vehicle_state.pose.x
+        y = vehicle_state.pose.y
+        theta = vehicle_state.pose.yaw # check that this is correct
+        v = vehicle_state.v
+        dtheta = vehicle_state.heading_rate
+
+        return (x,y,theta,v,dtheta)
 
     def update(self, state : AllState) -> Trajectory:
         """_summary_
@@ -153,17 +170,24 @@ class ParkingPlanner(Component):
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         route = state.route
         goal_point = route.points[-1] # I might need to change this to the same frame as the car?
-        goal_pose = ObjectPose(ObjectFrameEnum.START,goal_point[0],goal_point[1],0)
+        goal_pose = ObjectPose(frame=ObjectFrameEnum.START,t=15, x=goal_point[0],y=goal_point[1],z=0)
         goal = VehicleState.zero()
         goal.pose = goal_pose
+        goal.v = 0
+
+        # Need to parse and create second order dubin car states
+        start_state = self.vehicle_state_to_dynamics(vehicle)
+        goal_state = self.vehicle_state_to_dynamics(goal)
+
 
         # Update the planner
         self.planner.obstacles = list(obstacles.values())
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        route = list(self.planner.astar(vehicle, goal))
-
+        route = Path(frame=vehicle.pose.frame, points=list(self.planner.astar(start_state, goal_state)))
+        print("===========================")
+        print(f"Points: {len(list(self.planner.astar(start_state, goal_state)))}")
         traj = longitudinal_plan(route, 1, -1, 5, vehicle.v, "milestone")
-        
+        print(traj)
         return traj 
