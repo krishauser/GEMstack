@@ -26,10 +26,10 @@ class ParkingSolverSecondOrderDubins(AStar):
         self._vehicle = None
 
         # SecondOrderDubinsCar() #x = (tx,ty,theta,v,dtheta) and u = (fwd_accel,wheel_angle_rate)
-        self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=0.5, dt=0.1)
+        self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=0.75, dt=0.25)
         #@TODO create a more standardized way to define the actions
-        self._actions = [(2, -1), (2, -0.5), (2,0), (2, 0.5), (2,1),
-                        (-1, -0.5), (-1,0), (-1, 0.5)]
+        self._actions = [(1, -0.5), (1, -0.25), (1,0), (1, 0.25), (1,0.5),
+                         (0,0), (-1, -0.5), (-1,0), (-1, 0.5)]
 
     @property
     def vehicle(self):
@@ -60,8 +60,8 @@ class ParkingSolverSecondOrderDubins(AStar):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
         # print(f"Current Pose: {current}")
         # print(f"Goal Pose: {goal}")
-        if np.abs(current[3]) > 0: return False # car must be stopped, this equality will only work in simulation  
-        return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 1
+        if np.abs(current[3]) > 0.5: return False # car must be stopped, this equality will only work in simulation  
+        return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
     vehicle
     def heuristic_cost_estimate(self, vehicle_state_1, vehicle_state_2):
         # @TODO Consider creating a more sophisticated heuristic
