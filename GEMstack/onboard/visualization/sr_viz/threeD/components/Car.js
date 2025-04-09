@@ -79,6 +79,16 @@ export class Car {
         this.group.position.copy(this.position);
         this.group.rotation.y = this.heading;
     }
+    updateFromLog(logData) {
+        if (!this.group) return;
+        this.velocity = logData.velocity;
+        this.acceleration = logData.acceleration;
+        this.steerAngle = logData.steering_wheel_angle;
+        this.position.set(logData.position[1], logData.position[2], logData.position[0]);
+        this.heading = logData.rotation[1];
+        this.group.position.copy(this.position);
+        this.group.rotation.y = this.heading;
+    }
 
 
     dispose() {

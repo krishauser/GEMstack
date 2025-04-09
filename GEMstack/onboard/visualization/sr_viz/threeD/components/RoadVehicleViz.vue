@@ -17,12 +17,19 @@ import Human from "@/components/Human.js";
 import {
     CAR_MODEL_PATH,
     TRAFFIC_LIGHT_MODEL_PATH,
+    ENV_MAP_PATH,
+    ENV_MAP_NAME,
 } from "../utils/constants.js";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import LogReader from "@/components/LogReader.js";
+import logJson1 from "@/logs/final_log_1.json";
+import logJson2 from "@/logs/final_log_2.json";
+import logJson3 from "@/logs/final_log_3.json";
 
 const container = ref(null);
 const camera = ref(null);
-const cameraMode = ref("free");
-let scene, renderer, controls;
+const cameraMode = ref("follow");
+let scene, renderer, controls, logReader;
 
 let car, roadGeometry, roadMaterial;
 let lastTime = performance.now();
@@ -32,6 +39,11 @@ let trafficLights = [];
 let carIdx = 0;
 
 const keys = { forward: false, backward: false, left: false, right: false };
+const createFuncs = {
+    'vehicle': createCar,
+    'pedestrian': createHuman,
+    'traffic_light': createTrafficLight,
+}
 
 onMounted(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -39,19 +51,20 @@ onMounted(() => {
     window.addEventListener("keypress", handleKeyPress);
 
     initScene();
-    car = createCar(0, 0, 0, Math.PI / 2);
-    for (let i = 0; i < 4; i++) {
-        const offset = (i + 1) * 10;
-        createCar(
-            offset,
-            0,
-            (i % 2 === 0 ? -1 : 1) * (Math.random() * 5),
-            Math.PI / 2
-        );
-    }
-    createTrafficLight(0, 0, 5);
-    createHuman(-3, 0, 4);
-    createHuman(2, 0, 6);
+    logReader = new LogReader(logJson2, scene, createFuncs);
+    // car = createCar(0, 0, 0, Math.PI / 2);
+    // for (let i = 0; i < 4; i++) {
+    //     const offset = (i + 1) * 10;
+    //     createCar(
+    //         offset,
+    //         0,
+    //         (i % 2 === 0 ? -1 : 1) * (Math.random() * 5),
+    //         Math.PI / 2
+    //     );
+    // }
+    // createTrafficLight(0, 0, 5);
+    // createHuman(-3, 0, 4);
+    // createHuman(2, 0, 6);
     animate();
 });
 
@@ -61,19 +74,20 @@ function createCar(x, y, z, heading) {
     return newCar;
 }
 
-function createTrafficLight(x, y, z) {
+function createTrafficLight(x, y, z, rotation) {
     const newTrafficLight = new TrafficLight(
         TRAFFIC_LIGHT_MODEL_PATH,
         { x: x, y: y, z: z },
+        rotation,
         loadCallBack
     );
     trafficLights.push(newTrafficLight);
     return newTrafficLight;
 }
 
-function createHuman(x, y, z) {
+function createHuman(x, y, z, rotation) {
     const color = Math.random() * 0xffffff;
-    const newHuman = new Human(color, { x: x, y: y, z: z });
+    const newHuman = new Human(color, { x: x, y: y, z: z }, rotation);
     scene.add(newHuman.group);
     humans.push(newHuman);
     return newHuman;
@@ -167,9 +181,16 @@ function initScene() {
     controls = new OrbitControls(camera.value, renderer.domElement);
     controls.enableDamping = true;
 
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(5, 10, 5);
-    scene.add(light);
+    new RGBELoader()
+        .setPath(ENV_MAP_PATH)
+        .load(ENV_MAP_NAME, (texture) => {
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            scene.environment = texture;
+        });
+
+    // const light = new THREE.DirectionalLight(0xffffff, 1);
+    // light.position.set(5, 10, 5);
+    // scene.add(light);
     scene.add(new THREE.HemisphereLight(0xffffbb, 0x080820, 1));
 
     loadRoad();
@@ -208,7 +229,7 @@ function loadRoad() {
 
     scene.add(roadMesh);
     
-    createRoadLines();
+    // createRoadLines();
 }
 
 function createRoadLines() {
@@ -245,8 +266,9 @@ function createRoadLines() {
 }
 
 function updateCamera() {
-    if (!car || !car.group) return;
+    if (!logReader || !logReader.car || !logReader.car.group) return;
     if (cameraMode.value === "free") return;
+    const car = logReader.car;
 
     const carPosition = car.group.position;
     const carDirection = new THREE.Vector3();
@@ -271,9 +293,12 @@ function animate() {
     const dt = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
 
-    if (car) {
-        car.update(keys, dt);
+    if (logReader) {
+        logReader.update(dt);
     }
+    // if (car) {
+    //     car.update(keys, dt);
+    // }
     // for (const h of humans) {
     //     h.walk();
     // }
@@ -287,6 +312,12 @@ function onWindowResize() {
     camera.value.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
+onBeforeUnmount(() => {
+    window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("keyup", handleKeyUp);
+    window.removeEventListener("keypress", handleKeyPress);
+    window.removeEventListener("resize", onWindowResize);
+});
 </script>
 
 <style>

@@ -11,7 +11,7 @@ const HUMAN_LEG_LENGTH = HUMAN_HEIGHT * HUMAN_BODY_RATIOS.leg;
 const HUMAN_LEG_COLOR = 0x555555;
 
 export default class Human {
-    constructor(color = 0x00aaff, position = { x: 0, y: 0, z: 0 }) {
+    constructor(color = 0x00aaff, position = { x: 0, y: 0, z: 0 }, rotation = 0) {
         this.group = new THREE.Group();
 
         const bodyGeometry = new THREE.BoxGeometry(HUMAN_BODY_LENGTH / 1.2, HUMAN_BODY_LENGTH, HUMAN_BODY_LENGTH / 1.6);
@@ -60,9 +60,16 @@ export default class Human {
         this.group.add(this.leftLeg, this.rightLeg);
 
         this.group.position.set(position.x, position.y, position.z);
+        this.group.rotation.y = rotation;
 
-        this.walkingSpeed = 0.03;
+        this.walkingSpeed = 0;
         this.walkingPhase = 0;
+    }
+    updateFromLog(logData) {
+        if (!this.group) return;
+        this.group.position.set(logData.position[1], logData.position[2], logData.position[0]);
+        this.group.rotation.y = logData.rotation[1];
+        this.walkingSpeed = logData.velocity;
     }
 
     walk() {

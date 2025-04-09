@@ -65,7 +65,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 const SCALE_RATE = 1;
 
 export default class TrafficLight {
-    constructor(modelPath, position = { x: 0, y: 0, z: 0 }, onLoadCallback) {
+    constructor(modelPath, position = { x: 0, y: 0, z: 0 }, rotation = 0, onLoadCallback) {
         this.position = new THREE.Vector3(position.x, position.y, position.z);
         // this.durations = {
         //     red: 5,
@@ -82,6 +82,7 @@ export default class TrafficLight {
 
                 this.group.position.set(this.position.x, this.position.y, this.position.z);
                 this.group.scale.set(SCALE_RATE, SCALE_RATE, SCALE_RATE);
+                this.group.rotation.y = rotation;
 
                 if (onLoadCallback) onLoadCallback(this);
             },
@@ -89,7 +90,5 @@ export default class TrafficLight {
             (error) => console.error("Error loading traffic light model:", error)
         );
     }
-    // update() {
-
-    // }
+    updateFromLog(logData) { } 
 }
