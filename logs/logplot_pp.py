@@ -1,3 +1,8 @@
+####Following code can be used to visualize performance of Pure Pursuit after using it.###
+###How to use?- After running the simulation or on actual vehicle you get logs in log folder###
+### You can run the command-   python3 logplot_pp.py "logfilename".###
+
+
 import json
 import sys
 import os
