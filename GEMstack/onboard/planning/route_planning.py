@@ -5,7 +5,7 @@ from ...state import Route, ObjectFrameEnum, AllState, VehicleState, Roadgraph, 
 import os
 import numpy as np
 import yaml
-from . import RRT_
+from . import RRT
 import csv
 
 
@@ -104,7 +104,7 @@ def generate_route_free_run(current_pose, goal_position, roadgraph, roadgraph_ty
     # # Save lane_points
     # np.savetxt("lane_points.txt", points, delimiter=',',fmt='%f')
 
-    searcher = RRT_.BiRRT(start_pose, goal_pose, all_lane_points, map_boundaries)
+    searcher = RRT.BiRRT(start_pose, goal_pose, all_lane_points, map_boundaries)
     waypoints = []
     res = True
     for i in range(try_times):
