@@ -316,15 +316,13 @@ class ConeDetector3D(Component):
     def initialize(self):
         # Init Variables
         self.ground_threshold = -0.15
-        self.vis_2d_annotate = True
+        self.vis_2d_annotate = False
         self.vis_lidar_pc = True
         self.vis_3d_cones_centers = True
-        self.vis_3d_cones_bboxes = True
-        # Real Subscribers
-        # self.rgb_sub = Subscriber('/camera_fl/arena_camera_node/image_raw', Image)
-        # self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
-        # Rosbag Subscribers
-        self.rgb_sub = Subscriber('/camera/fl/image_raw', Image)
+        self.vis_3d_cones_bboxes = False
+        
+        # Subscribers
+        self.rgb_sub = Subscriber('/camera_fl/arena_camera_node/image_raw', Image)
         self.lidar_sub = Subscriber('/lidar/top/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub],
                                                 queue_size=10, slop=0.1)
