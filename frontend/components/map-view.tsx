@@ -1,13 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {Locate, Plus, Minus, ArrowUpCircle} from "lucide-react";
-import mapboxgl, {LngLatLike} from "mapbox-gl";
+import { Locate, Plus, Minus, ArrowUpCircle } from "lucide-react";
+import mapboxgl, { LngLatLike } from "mapbox-gl";
 import React, { useRef, useEffect, useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
-import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
+import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import MapboxDraw from "@mapbox/mapbox-gl-draw";
-import {inspect} from "@/api/inspect";
+import { inspect } from "@/api/inspect";
+import { toast } from "sonner";
+import { summon } from "@/api/summon";
 
 const INITIAL_CENTER: { lng: number; lat: number } = {
   lng: -88.23556018270287,
@@ -21,19 +23,75 @@ export function MapView() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
   const [center, setCenter] = useState<{ lng: number; lat: number }>(
-    INITIAL_CENTER,
+    INITIAL_CENTER
   );
   const [boundingBox, setBoundingBox] = useState<LngLatLike[]>([]);
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const [pitch, _] = useState(INITIAL_PITCH);
 
+  const [data, setData] = useState<GeoJSON.FeatureCollection | undefined>(
+    undefined
+  );
+  const [isSummoning, setIsSummoning] = useState(false);
+  const [userLocation, setUserLocation] = useState<{
+    lng: number;
+    lat: number;
+  } | null>(null);
+
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
-  const handleButtonClick = () => {
-    mapRef.current?.flyTo({
-      center: INITIAL_CENTER,
-      zoom: INITIAL_ZOOM,
-    });
+  const handleSummon = async () => {
+    setIsSummoning(true);
+    const coords = userLocation ? userLocation : center;
+
+    try {
+      const summonReq = await summon(coords.lng, coords.lat);
+
+      if (!summonReq.ok) {
+        const errorData = await summonReq.json();
+        console.error("Summon error:", errorData.detail || errorData);
+        setIsSummoning(false);
+        return;
+      }
+
+      const eventSource = new EventSource("http://localhost:8000/api/summon");
+
+      eventSource.onmessage = (e) => {
+        const parsedData = JSON.parse(e.data);
+        const { lat, lon } = parsedData.current_position;
+
+        setData({
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [lon, lat],
+              },
+              properties: {},
+            },
+          ],
+        });
+      };
+
+      eventSource.onerror = (err) => {
+        // If the EventSource is closed (readyState === 2) it is expected.
+        if (err.eventPhase === EventSource.CLOSED) {
+          console.log("Summon stream closed.");
+        } else {
+          console.error("EventSource error:", err);
+        }
+        eventSource.close();
+        setData(undefined);
+        setIsSummoning(false);
+      };
+    } catch (error: any) {
+      toast.error("Error triggering summon:", {
+        description: error.message,
+      });
+      setIsSummoning(false);
+    }
   };
 
   const handleZoomIn = () => {
@@ -54,6 +112,7 @@ export function MapView() {
       center: center,
       zoom: zoom,
       pitch: pitch,
+      style: "mapbox://styles/mapbox/streets-v12",
     });
 
     const draw = new MapboxDraw({
@@ -63,20 +122,40 @@ export function MapView() {
         polygon: true,
         trash: true,
       },
-      defaultMode: 'draw_polygon',
+      defaultMode: "draw_polygon",
+    });
+
+    mapRef.current.on("load", async () => {
+      mapRef.current?.addSource("iss", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
+
+      mapRef.current?.addLayer({
+        id: "iss",
+        type: "symbol",
+        source: "iss",
+        layout: {
+          "icon-image": "car",
+          "icon-size": 2,
+        },
+      });
     });
 
     mapRef.current.addControl(draw);
 
-    mapRef.current.on('draw.create', updateCoordinates);
-    mapRef.current.on('draw.delete', updateCoordinates);
-    mapRef.current.on('draw.update', updateCoordinates);
+    mapRef.current.on("draw.create", updateCoordinates);
+    mapRef.current.on("draw.delete", updateCoordinates);
+    mapRef.current.on("draw.update", updateCoordinates);
 
     function updateCoordinates() {
       const features = draw.getAll().features;
 
       if (features.length > 0) {
-        if (features[0].geometry.type == 'Polygon') {
+        if (features[0].geometry.type == "Polygon") {
           const res = [] as LngLatLike[];
           for (const position of features[0].geometry.coordinates[0]) {
             res.push({ lng: position[0], lat: position[1] });
@@ -89,15 +168,21 @@ export function MapView() {
       }
     }
 
-    mapRef.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: {
-          enableHighAccuracy: true,
-        },
-        trackUserLocation: true,
-        showUserHeading: true,
-      }),
-    );
+    const geolocateControl = new mapboxgl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: true,
+      },
+      trackUserLocation: true,
+      showUserHeading: true,
+    });
+    mapRef.current.addControl(geolocateControl);
+
+    geolocateControl.on("geolocate", (e) => {
+      setUserLocation({
+        lng: e.coords.longitude,
+        lat: e.coords.latitude,
+      });
+    });
 
     mapRef.current.on("move", () => {
       // get the current center coordinates and zoom level from the map
@@ -120,10 +205,31 @@ export function MapView() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!data) return;
+
+    const source = mapRef.current?.getSource("iss") as mapboxgl.GeoJSONSource;
+    if (source) {
+      source.setData(data);
+    }
+
+    if (
+      data.features.length > 0 &&
+      data.features[0].geometry.type === "Point" &&
+      Array.isArray(data.features[0].geometry.coordinates)
+    ) {
+      const coords = data.features[0].geometry.coordinates as [number, number];
+      mapRef.current?.flyTo({
+        center: coords,
+        speed: 0.5,
+      });
+    }
+  }, [data]);
+
   return (
     <div className="relative w-full h-full bg-neutral-800 flex items-center justify-center">
       <div id="map-container" ref={mapContainerRef} />
-      <div className="absolute top-6 left-6 bg-neutral-900/50 p-2 rounded-sm">
+      <div className="absolute top-6 left-6 bg-neutral-900/50 p-2 rounded-sm md:text-base text-xs md:max-w-none max-w-[200px]">
         Longitude: {center.lng.toFixed(4)} | Latitude: {center.lat.toFixed(4)} |
         Zoom: {zoom.toFixed(2)}
       </div>
@@ -159,19 +265,20 @@ export function MapView() {
           variant="secondary"
           className="rounded-
                 full bg-neutral-900 hover:bg-neutral-800"
-          onClick={handleButtonClick}
+          onClick={handleSummon}
+          disabled={isSummoning}
         >
           <Locate className="h-5 w-5 mr-2" />
-          Find My Car
+          {isSummoning ? "Summoning..." : "Summon My Car"}
         </Button>
         <Button
-            variant="secondary"
-            className="rounded-
+          variant="secondary"
+          className="rounded-
                 full bg-neutral-900 hover:bg-neutral-800"
-            onClick={() => inspect(boundingBox)}
+          onClick={() => inspect(boundingBox)}
         >
-            <ArrowUpCircle className="h-5 w-5 mr-2" />
-            <span>Inspect Region</span>
+          <ArrowUpCircle className="h-5 w-5 mr-2" />
+          <span>Inspect Region</span>
         </Button>
       </div>
     </div>
