@@ -4,7 +4,7 @@ import os
 sys.path.append(os.getcwd())
 
 from GEMstack.state import Path, ObjectFrameEnum
-from GEMstack.onboard.planning.hybrid_astar import Astar, AstarHybrid
+# from GEMstack.onboard.planning.hybrid_astar import Astar, AstarHybrid
 from GEMstack.onboard.planning.astar import AStar
 from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCarIntegrator
 from GEMstack.state.physical_object import PhysicalObject, ObjectPose, ObjectFrameEnum
@@ -84,17 +84,17 @@ class ParkingSolverSecondOrderDubins(AStar):
     def __init__(self, obstacles):
         self.obstacles = obstacles
 
-        self.vehicle = SecondOrderDubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = IntegratorControlSpace(self.vehicle, 1, 0.1)
+        self.vehicle = SecondOrderDubinsCar() #x = (tx,ty,theta,v,dtheta) and u = (fwd_accel,wheel_angle_rate)
+        self.vehicle_sim = IntegratorControlSpace(self.vehicle, 0.5, 0.5)
         #@TODO create a more standardized way to define the actions
-        self.actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1),
-                        (-1, -1), (-1, -0.5), (-1,0), (-1, 0.5), (-1,1)]
+        self.actions = [(1,-1), (1, -0.5), (1, -0.25), (1,0), (1,0.25), (1, 0.5),
+                        (0,0), (-1, -0.25), (-1,0), (-1, 0.25)]
 
     def is_goal_reached(self, current, goal):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
 
-        if current[3] > 0: return False # car must be stopped, this equality will only work in simulation  
-        return np.linalg.norm(np.array(current[:2]) - np.array(goal[:2])) < 1
+        # if current[3] > 0.5: return False # car must be stopped, this equality will only work in simulation  
+        return np.linalg.norm(np.array(current[:2]) - np.array(goal[:2])) < .5
     
     def heuristic_cost_estimate(self, n1, n2):
         # @TODO Consider creating a more sophisticated heuristic
@@ -106,14 +106,16 @@ class ParkingSolverSecondOrderDubins(AStar):
 
     def distance_between(self, n1, n2):
         """this method always returns 1, as two 'neighbors' are always adajcent"""
-        return 1
+        (x1, y1, theta1, v1, dtheta1) = n1
+        (x2, y2, theta2, v2, dtheta2) = n2
+        return math.hypot(x2 - x1, y2 - y1, v2 - v1)
 
     def neighbors(self, node):
         """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
             nodes that can be reached (=any adjacent coordinate that is not a wall)
         """
         neighbors = []
-        print(node)
+        # print(node)
         for control in self.actions:
             next_state = self.vehicle_sim.nextState(node, control)
             next_state = np.round(next_state, 3)
@@ -132,10 +134,16 @@ class ParkingSolverSecondOrderDubins(AStar):
         Args:
             path (_type_): _description_
         """
+        for point in path:
+            if point[3] < 0:
+                return False 
+            if point[3] > 3:
+                return False 
+            
         for obstacle in self.obstacles:
             for point in path:
-                print(point)
-                print(obstacle.polygon_parent())
+                # print(point)
+                # print(obstacle.polygon_parent())
                 if collisions.circle_intersects_polygon_2d(point[:-1], 1, obstacle.polygon_parent()):
                     #polygon_intersects_polygon_2d when we have the acutal car geometry
                     return False
@@ -143,8 +151,14 @@ class ParkingSolverSecondOrderDubins(AStar):
    
 def solve():
     # generate obstacle
-    obstacles = gen_obstacle(3)
-
+    # obstacles = gen_obstacle(1)
+    pose = ObjectPose(frame=ObjectFrameEnum(3),
+                t=0, x = 3.5, y=4)
+    pose2 = ObjectPose(frame=ObjectFrameEnum(3),
+                t=0, x = 6.5, y=4)
+    dimensions = (2,1.25,1)
+    obstacles = [PhysicalObject(pose, dimensions, None), PhysicalObject(pose2, dimensions, None)]
+    # obstacles = [PhysicalObject(pose2, dimensions, None)]
     start = (0, 0, 0, 0, 0)  # we choose to start at the upper left corner
     goal = (5, 5, 0, 0, 0)  # we want to reach the lower right corner
 

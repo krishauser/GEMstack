@@ -26,10 +26,10 @@ class ParkingSolverSecondOrderDubins(AStar):
         self._vehicle = None
 
         # SecondOrderDubinsCar() #x = (tx,ty,theta,v,dtheta) and u = (fwd_accel,wheel_angle_rate)
-        self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), 1, 0.1)
+        self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=0.5, dt=0.1)
         #@TODO create a more standardized way to define the actions
-        self._actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1),
-                        (-1, -1), (-1, -0.5), (-1,0), (-1, 0.5), (-1,1)]
+        self._actions = [(2, -1), (2, -0.5), (2,0), (2, 0.5), (2,1),
+                        (-1, -0.5), (-1,0), (-1, 0.5)]
 
     @property
     def vehicle(self):
@@ -58,8 +58,8 @@ class ParkingSolverSecondOrderDubins(AStar):
 
     def is_goal_reached(self, current: List[float], goal: List[float]):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
-        print(f"Current Pose: {current}")
-        print(f"Goal Pose: {goal}")
+        # print(f"Current Pose: {current}")
+        # print(f"Goal Pose: {goal}")
         if np.abs(current[3]) > 0: return False # car must be stopped, this equality will only work in simulation  
         return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 1
     vehicle
@@ -79,9 +79,11 @@ class ParkingSolverSecondOrderDubins(AStar):
             nodes that can be reached (=any adjacent coordinate that is not a wall)
         """
         neighbors = []
-        print(f"Node: {node}")
+        # print(f"Node: {node}")
         for control in self.actions:
-            next_state = self.vehicle_sim.nextState(node, control)
+            next_state = self.vehicle_sim.nextState(node[:5], control)
+            # print(f"next state: {next_state}")
+            next_state = np.append(next_state, node[5] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
                 neighbors.append(tuple(next_state))
@@ -100,8 +102,8 @@ class ParkingSolverSecondOrderDubins(AStar):
         """
         for obstacle in self.obstacles:
             for point in path:
-                print(point)
-                print(obstacle.polygon_parent())
+                # print(point)
+                # print(obstacle.polygon_parent())
                 if collisions.circle_intersects_polygon_2d(point[:-1], 1, obstacle.polygon_parent()):
                     #polygon_intersects_polygon_2d when we have the acutal car geometry
                     return False
@@ -154,8 +156,9 @@ class ParkingPlanner(Component):
         theta = vehicle_state.pose.yaw # check that this is correct
         v = vehicle_state.v
         dtheta = vehicle_state.heading_rate
+        t = 0
 
-        return (x,y,theta,v,dtheta)
+        return (x,y,theta,v,dtheta,t)
 
     def update(self, state : AllState) -> Trajectory:
         """_summary_
@@ -170,7 +173,7 @@ class ParkingPlanner(Component):
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         route = state.route
         goal_point = route.points[-1] # I might need to change this to the same frame as the car?
-        goal_pose = ObjectPose(frame=ObjectFrameEnum.START,t=15, x=goal_point[0],y=goal_point[1],z=0)
+        goal_pose = ObjectPose(frame=ObjectFrameEnum.START,t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
         goal = VehicleState.zero()
         goal.pose = goal_pose
         goal.v = 0
@@ -187,9 +190,13 @@ class ParkingPlanner(Component):
         # Compute the new trajectory and return it 
         res = list(self.planner.astar(start_state, goal_state))
         points = [state[:2] for state in res]
+        times = [state[5] for state in res]
+        path = Path(frame=vehicle.pose.frame, points=points)
+        traj = Trajectory(path.frame,points,times)
         print("===========================")
         print(f"Points: {points}")
-        route = Path(frame=vehicle.pose.frame, points=points)
-        traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
-        print(traj)
+        print(f"Times: {times}")
+        # route = Path(frame=vehicle.pose.frame, points=points)
+        # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
+        # print(traj)
         return traj 
