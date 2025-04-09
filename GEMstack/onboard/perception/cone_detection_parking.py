@@ -320,10 +320,10 @@ class ConeDetector3D(Component):
         self.vis_lidar_pc = True
         self.vis_3d_cones_centers = True
         self.vis_3d_cones_bboxes = False
-        
+
         # Subscribers
         self.rgb_sub = Subscriber('/camera_fl/arena_camera_node/image_raw', Image)
-        self.lidar_sub = Subscriber('/lidar/top/points', PointCloud2)
+        self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub],
                                                 queue_size=10, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
