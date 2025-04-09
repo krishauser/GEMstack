@@ -75,7 +75,3 @@ bun run preview
 ```
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
-
-
-## Credits
-"2018 Audi RS3 Sportback" (https://skfb.ly/p9zEN) by Outlaw Games™ is licensed under Creative Commons Attribution-NonCommercial (http://creativecommons.org/licenses/by-nc/4.0/).
