@@ -18,18 +18,18 @@ drive:
         relations_estimation: pedestrian_yield_logic.PedestrianYielder
         mission_planning: SummoningMissionPlanner
         route_planning:
-            type: TestSummoningRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/summoning_route_plan.csv','start']
-#            type: SummoningRoutePlanner
-#            args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph.json','start']
+            # type: TestSummoningRoutePlanner
+            # args: [!relative_path '../GEMstack/knowledge/routes/summoning_route_plan.csv','start']
+           type: SummoningRoutePlanner
+           args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph.json','start']
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
             print: False
         # parking planning:
-        parking_planning: ParkingTypePlanner
-        parking_trajectory_planning: ParkingTrajectoryPlanner
-        leave_parking_trajectory_planning: LeaveParkingTrajectoryPlanner
+        parking_type_planning: parking_planning.ParkingTypePlanner
+        parking_planning: parking_planning.ParkingRoutePlanner
+        leave_parking_planning: parking_planning.LeaveParkingRoutePlanner
 
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'

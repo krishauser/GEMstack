@@ -1,15 +1,15 @@
 from typing import List, Tuple
 from ..component import Component
 from ...utils import serialization
-from ...state import Route, ObjectFrameEnum, AllState, VehicleState, Roadgraph, MissionObjective, MissionEnum
+from ...state import Route, ObjectFrameEnum, AllState, VehicleState, Roadgraph, MissionObjective, MissionEnum, VehicleIntent, VehicleIntentEnum
 import os
 import numpy as np
 import yaml
-from ...onboard.planning import RRT
+from . import RRT_
 import csv
 
 
-SAVE_ROUTE = True
+SAVE_ROUTE = False
 
 
 class StaticRoutePlanner(Component):
@@ -104,7 +104,7 @@ def generate_route_free_run(current_pose, goal_position, roadgraph, roadgraph_ty
     # # Save lane_points
     # np.savetxt("lane_points.txt", points, delimiter=',',fmt='%f')
 
-    searcher = RRT.BiRRT(start_pose, goal_pose, all_lane_points, map_boundaries)
+    searcher = RRT_.BiRRT(start_pose, goal_pose, all_lane_points, map_boundaries)
     waypoints = []
     res = True
     for i in range(try_times):
@@ -116,6 +116,9 @@ def generate_route_free_run(current_pose, goal_position, roadgraph, roadgraph_ty
     if not waypoints:
         waypoints = [start_pose]
         res = False
+    
+    print("=====================================================waypoint type:", type(waypoints[0]))
+        
     return res, waypoints
 
 
@@ -149,9 +152,10 @@ class TestSummoningRoutePlanner(Component):
         return ['route', 'mission']
 
     def rate(self):
-        return 1.0
+        return 0.5
 
     def update(self, state: AllState):
+        # route = Route(frame=ObjectFrameEnum.START,points=[[0, 0], [0, 0]])
         route = state.route
         mission = state.mission
 
@@ -165,14 +169,17 @@ class TestSummoningRoutePlanner(Component):
             route = self.route
 
         elif route is None:
-            route = Route(frame=ObjectFrameEnum.START, points=[[0, 0]])
+            route = Route(frame=ObjectFrameEnum.START, points=[[0, 0], [0, 0]])
 
         # route = self.route
 
         print('Output states:')
         print(mission)
         print('Route:')
-        print(route)
+        if route:
+            print('existed', len(route.points))
+        else:
+            print(route)
 
         return route, mission
 
@@ -180,6 +187,7 @@ class TestSummoningRoutePlanner(Component):
 class SummoningRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
     def __init__(self, roadgraphfn : str, frame : str = 'start'):
+        self.trytime = 0
         self.frame = frame
         base, ext = os.path.splitext(roadgraphfn)
         if ext in ['.json', '.yml', '.yaml']:
@@ -204,7 +212,11 @@ class SummoningRoutePlanner(Component):
     def update(self, state: AllState):
         route = state.route
         mission = state.mission
+        intent = state.intent
         current_pose = state.vehicle.pose
+
+        self.trytime += 1
+        print("Try time:", self.trytime)
 
         print('Input states:')
         print(mission)
@@ -213,7 +225,7 @@ class SummoningRoutePlanner(Component):
         target_location = [0, 11, 0.0]  # x, y, z
 
         # if current_pose.x == 0 and current_pose.y == 0:
-        if mission.type == MissionEnum.PLAN:
+        if mission.type == MissionEnum.PLAN and intent.intent == VehicleIntentEnum.IDLE:
             res, waypoints = generate_route_free_run(current_pose, target_location, self.roadgraph, self.roadgraph_type)
             waypoints = np.array(waypoints)
 
@@ -245,8 +257,8 @@ class SummoningRoutePlanner(Component):
             else:
                 raise ValueError("Unknown frame argument")
 
-        elif route is None:
-            route = Route(frame=ObjectFrameEnum.START,points=[[0, 0]])
+        # elif route is None:
+        #     route = Route(frame=ObjectFrameEnum.START,points=[[0, 0], [0, 0]])
 
         print('Output states:')
         print(mission)

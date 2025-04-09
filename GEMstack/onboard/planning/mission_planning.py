@@ -18,7 +18,7 @@ class SummoningMissionPlanner(Component):
         return ['mission', 'task']
 
     def rate(self):
-        return 0.5
+        return 1.0
 
     def update(self, state: AllState):
         self.count += 1

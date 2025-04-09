@@ -43,15 +43,15 @@ components:
   - mission_planning:   # added by summoning team
       inputs: all
       outputs: [mission, task]
-  - parking_planning:   # added by summoning team
+  - parking_type_planning:   # added by summoning team
       inputs: all
       outputs: intent
-  - parking_trajectory_planning:  # added by summoning team
+  - parking_planning:  # added by summoning team
       inputs: all
-      outputs: [trajectory, intent, mission]
-  - leave_parking_trajectory_planning:  # added by summoning team
+      outputs: [route, intent]
+  - leave_parking_planning:  # added by summoning team
       inputs: all
-      outputs: [trajectory, intent, mission]
+      outputs: [route, intent]
   - route_planning:
       inputs: all
       outputs: [route, mission]

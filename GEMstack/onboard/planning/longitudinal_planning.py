@@ -407,7 +407,7 @@ class YieldTrajectoryPlanner(Component):
 
         print('Output states:')
         print(mission)
-        print('Trajectory:')
-        print(traj)
+        # print('Trajectory:')
+        # print(traj)
 
         return traj, mission

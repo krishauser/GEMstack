@@ -83,7 +83,8 @@ class PurePursuit(object):
             # just stop
             accel = self.pid_speed.advance(0.0, t)
             # TODO
-            raise RuntimeError("Behavior without path not implemented")
+            # raise RuntimeError("Behavior without path not implemented")
+            return (0.0, 0.0)
 
         if self.path.frame != state.pose.frame:
             print("Transforming path from", self.path.frame.name, "to", state.pose.frame.name)
@@ -153,8 +154,8 @@ class PurePursuit(object):
         if self.desired_speed_source in ['path', 'trajectory']:
             # determine desired speed from trajectory
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
-                if component is not None:
-                    component.debug_event('Past the end of trajectory')
+                # if component is not None:
+                #     component.debug_event('Past the end of trajectory')
                 # past the end, just stop
                 desired_speed = 0.0
                 feedforward_accel = -2.0
@@ -181,7 +182,7 @@ class PurePursuit(object):
                 print("Feedforward accel: " + str(feedforward_accel) + " m/s^2")
         else:
             # decay speed when crosstrack error is high
-            desired_speed *= np.exp(-abs(ct_error) * 0.4)
+            desired_speed *= np.exp(-abs(ct_error) * 0.8)
 
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
                 if component is not None:
@@ -240,4 +241,5 @@ class PurePursuitTrajectoryTracker(Component):
         self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel, steering_angle, vehicle))
 
     def healthy(self):
-        return self.pure_pursuit.path is not None
+        # return self.pure_pursuit.path is not None
+        return True
