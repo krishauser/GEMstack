@@ -1,3 +1,5 @@
+
+from typing import Dict
 from ...mathutils.control import PID
 from ...utils import settings
 from ...mathutils import transforms
@@ -5,11 +7,12 @@ from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
 from ...state.vehicle import VehicleState,ObjectFrameEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
 from ...knowledge.vehicle.geometry import front2steer
+from ...state import AgentState, AgentEnum, EntityRelation, EntityRelationEnum, ObjectFrameEnum, VehicleState
 from ..interface.gem import GEMVehicleCommand
 from ..component import Component
 import numpy as np
 
-class PurePursuit(object):   
+class PurePursuit(Component):   
     """Implements a pure pursuit controller on a second-order Dubins vehicle."""
     def __init__(self, lookahead = None, lookahead_scale = None, crosstrack_gain = None, desired_speed = None):
         self.look_ahead = lookahead if lookahead is not None else settings.get('control.pure_pursuit.lookahead',4.0)
@@ -57,7 +60,7 @@ class PurePursuit(object):
             self.current_traj_parameter = self.trajectory.domain()[0]
         self.current_path_parameter = 0.0
 
-    def compute(self, state : VehicleState, component : Component = None):
+    def compute(self, state: VehicleState, agents: Dict[str, AgentState], component: Component = None):
         assert state.pose.frame != ObjectFrameEnum.CURRENT
         t = state.pose.t
 
@@ -69,6 +72,15 @@ class PurePursuit(object):
         curr_y = state.pose.y
         curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
         speed = state.v
+
+        safety_factor = 1.0
+        #for agent_id, agent in agents.items():
+            # #distance = dist_to_agent(agent, state)
+            # if distance < 6.0:  # If agent is within 6 meters
+            #     safety_factor = 0.1  # Reduce to 1/10 of normal parameters
+            #     if component is not None:
+            #         component.debug_event(f'Agent {agent_id} detected at {distance:.2f}m - reducing speed')
+               # break
 
         if self.path is None:
             #just stop
@@ -205,7 +217,6 @@ class PurePursuit(object):
         self.t_last = t
         return (output_accel, f_delta)
 
-
 class PurePursuitTrajectoryTracker(Component):
     def __init__(self,vehicle_interface=None, **args):
         self.pure_pursuit = PurePursuit(**args)
@@ -230,3 +241,4 @@ class PurePursuitTrajectoryTracker(Component):
     
     def healthy(self):
         return self.pure_pursuit.path is not None
+

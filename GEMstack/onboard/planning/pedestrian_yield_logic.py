@@ -44,7 +44,6 @@ class PedestrianYielder(Component):
         return ['relations']
 
     def update(self, agents: Dict[str, AgentState], vehicle: VehicleState) -> List[EntityRelation]:
-        dist = 0.004
         if DEBUG:
             print("PedestrianYielder vehicle pose:", vehicle.pose, vehicle.v)
         res = []
@@ -53,17 +52,25 @@ class PedestrianYielder(Component):
                 print(f"[DEBUG] PedestrianYielder.update: Agent:", a.pose, a.velocity)
 
             """ collision estimation based on agent states in vehicle frame """
-            if a.type == AgentEnum.PEDESTRIAN:
+            if a.type == AgentEnum.PEDESTRIAN: # CAR can be replaced with any other object (curb, etc.) for testing do AgentEnum.PEDESTRIAN
                 check, t_min, min_dist, pt_min = check_collision_in_vehicle_frame(a, vehicle)
                 if DEBUG:
                     print(  
                         f"[DEBUG] ID {n}, relation:{check}, minimum distance:{min_dist}, time to min_dist: {t_min}, point of min_dist:{pt_min}")
-                if check == 'STOP' and t_min <= dist:
+                if check == 'STOP':
                     res.append(EntityRelation(type=EntityRelationEnum.STOPPING_AT, obj1='', obj2=n))
-                elif check == 'YIELD' and t_min <= dist:
-                    res.append(EntityRelation(type=EntityRelationEnum.YIELDING, obj1='', obj2=n))
-                elif check == 'RUN' and t_min > dist:
+                if check == 'YIELD':
+                    res.append(EntityRelation(type=EntityRelationEnum.CREEPING, obj1='', obj2=n))
+                elif check == 'RUN':
                     res.append(EntityRelation(type=EntityRelationEnum.ACCELERATING, obj1='', obj2=n))
+            # if a.type == AgentEnum.PEDESTRIAN:
+
+            #     check, t_min, min_dist, pt_min = check_collision_in_vehicle_frame(a, vehicle)
+
+            #     if check == 'YIELD':
+            #         res.append(EntityRelation(type=EntityRelationEnum.YIELDING, obj1='', obj2=n))
+            #     elif check == 'STOP':
+            #         res.append(EntityRelation(type=EntityRelationEnum.STOPPING_AT, obj1='', obj2=n))
         return res
 
 
@@ -108,7 +115,6 @@ def check_collision_in_vehicle_frame(agent: AgentState, vehicle: VehicleState):
             check = 'RUN'
     else:
         check = 'RUN'
-
     return check, t_min, min_dist, pt_min
 def find_min_distance_and_time(xp, yp, vx, vy):
     # path function: Ax + By + C = vy * x - vx * y + (yp * vx - xp * vy) = 0

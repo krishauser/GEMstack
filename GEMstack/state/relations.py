@@ -16,7 +16,7 @@ class EntityRelationEnum(Enum):
     MERGING_AHEAD = 7           # obj1 is merging / lane changing ahead of a obj2
     MERGING_BEHIND = 8          # obj1 is merging / lane changing behind of obj2
     ACCELERATING = 9
-
+    CREEPING = 10
 @dataclass
 @register
 class EntityRelation:

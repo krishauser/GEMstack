@@ -207,108 +207,11 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
     return Trajectory(frame=path.frame, points=dense_points, times=times)
 
 
-def longitudinal_brake(path: Path, deceleration: float, current_speed: float,
-                       emergency_decel: float = 8.0) -> Trajectory:
-    # Vehicle already stopped - maintain position
-    if current_speed <= 0:
-        print("[DEBUG] longitudinal_brake: Zero velocity case! ", [path.points[0]] * len(path.points))
-        return Trajectory(
-            frame=path.frame,
-            points=[path.points[0]] * len(path.points),
-            times=[float(i) for i in range(len(path.points))]
-        )
-
-    # Get total path length
-    path_length = sum(
-        np.linalg.norm(np.array(path.points[i + 1]) - np.array(path.points[i]))
-        for i in range(len(path.points) - 1)
-    )
-
-    # Calculate stopping distance with normal deceleration
-    T_stop_normal = current_speed / deceleration
-    s_stop_normal = current_speed * T_stop_normal - 0.5 * deceleration * (T_stop_normal ** 2)
-
-    # Check if emergency braking is needed
-    if s_stop_normal > path_length:
-        if DEBUG:
-            print("[DEBUG] longitudinal_brake: Emergency braking needed!")
-            print(f"[DEBUG] longitudinal_brake: Normal stopping distance: {s_stop_normal:.2f}m")
-            print(f"[DEBUG] longitudinal_brake: Available distance: {path_length:.2f}m")
-
-        # Calculate emergency braking parameters
-        T_stop = current_speed / emergency_decel
-        s_stop = current_speed * T_stop - 0.5 * emergency_decel * (T_stop ** 2)
-
-        if DEBUG:
-            print(f"[DEBUG] longitudinal_brake: Emergency stopping distance: {s_stop:.2f}m")
-            print(f"[DEBUG] longitudinal_brake: Emergency stopping time: {T_stop:.2f}s")
-
-        decel_to_use = emergency_decel
-
-    else:
-        if DEBUG:
-            print("[DEBUG] longitudinal_brake: Normal braking sufficient")
-        T_stop = T_stop_normal
-        decel_to_use = deceleration
-
-    # Generate time points (use more points for smoother trajectory)
-    num_points = max(len(path.points), 50)
-    times = np.linspace(0, T_stop, num_points)
-
-    # Calculate distances at each time point using physics equation
-    distances = current_speed * times - 0.5 * decel_to_use * (times ** 2)
-
-    # Generate points along the path
-    points = []
-    for d in distances:
-        if d <= path_length:
-            points.append(path.eval(d))
-        else:
-            points.append(path.eval(d))
-
-    if DEBUG:
-        print(f"[DEBUG] longitudinal_brake: Using deceleration of {decel_to_use:.2f} m/s²")
-        print(f"[DEBUG] longitudinal_brake: Final stopping time: {T_stop:.2f}s")
-
-    return Trajectory(frame=path.frame, points=points, times=times.tolist())
-
-    times = []
-    for s in s_vals:
-        if s <= s_accel: # Acceleration phase
-            v = math.sqrt(current_speed ** 2 + 2 * acceleration * s)
-            t_point = (v - current_speed) / acceleration
-
-            if DEBUG:
-                print(f"[DEBUG] Acceleration Phase: s = {s:.2f}, v = {v:.2f}, t = {t_point:.2f}")
-
-        elif s <= s_accel + s_cruise: # Cruise phase
-            t_point = t_accel + (s - s_accel) / v_target
-
-            if DEBUG:
-                print(f"[DEBUG] Cruise Phase: s = {s:.2f}, t = {t_point:.2f}")
-
-        else: # Deceleration phase
-            s_decel_phase = s - s_accel - s_cruise
-            v_decel = math.sqrt(max(v_target ** 2 - 2 * deceleration * s_decel_phase, 0.0))
-            t_point = t_accel + t_cruise + (v_target - v_decel) / deceleration
-
-            if t_point < times[-1]:  # Ensure time always increases
-                t_point = times[-1] + 0.01  # Small time correction step
-            
-            if DEBUG:
-                print(f"[DEBUG] Deceleration Phase: s = {s:.2f}, v = {v_decel:.2f}, t = {t_point:.2f}")
-
-        times.append(t_point)
-
-    if DEBUG:
-        print("[DEBUG] longitudinal_plan: Final times =", times)
-
-    return Trajectory(frame=path.frame, points=dense_points, times=times)
-
 def longitudinal_brake(path: Path, deceleration: float, current_speed: float, emergency_decel: float = 8.0) -> Trajectory:
     # Vehicle already stopped - maintain position
     if current_speed <= 0:
         print("[DEBUG] longitudinal_brake: Zero velocity case! ", [path.points[0]] * len(path.points))
+        print("[DEBUG] longitudinal_brake: 2")
         return Trajectory(
             frame=path.frame,
             points=[path.points[0]] * len(path.points),
@@ -369,6 +272,75 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float, em
 
     return Trajectory(frame=path.frame, points=points, times=times.tolist())
 
+def inverse_speed_function(distance_to_object):
+    
+    max_creep_speed = 1.0  # Maximum speed when creeping (m/s)
+    min_creep_speed = 0.2  # Minimum speed to maintain (m/s)
+    safe_distance = 5.0    # Distance at which to start slowing down (m)
+    
+    # Almost stop when very close (≤0.25m)
+    if distance_to_object <= 0.25:
+        return 0.0  # Practically zero speed
+    
+    # Slow creep when close (≤1.5m)
+    if distance_to_object <= 3.0:
+        return min_creep_speed
+    speed = min_creep_speed + (max_creep_speed - min_creep_speed) * (distance_to_object / safe_distance)
+    return min(speed, max_creep_speed)
+
+def pid_speed_control(distance_to_object, target_distance, current_speed, prev_error, integral, dt, 
+                     kp=0.5, ki=0.1, kd=0.05, min_speed=0.2, max_speed=1.0):
+    """
+    PID controller for creep speed control based on distance to object.
+    
+    Args:
+        distance_to_object: Current distance to the object (m)
+        target_distance: Desired distance to maintain (m)
+        current_speed: Current vehicle speed (m/s)
+        prev_error: Previous error value (m)
+        integral: Accumulated error over time
+        dt: Time step (s)
+        kp, ki, kd: PID gains
+        min_speed, max_speed: Speed limits (m/s)
+        
+    Returns:
+        target_speed: Calculated target speed (m/s)
+        error: Current error for next iteration
+        integral: Updated integral term for next iteration
+    """
+    # Emergency stop when very close
+    if distance_to_object <= 0.25:
+        return 0.0, 0.0, 0.0
+    
+    # Calculate error (positive error means we're further than desired)
+    error = distance_to_object - target_distance
+    
+    # Update integral term with anti-windup
+    integral += error * dt
+    integral = max(-5.0, min(integral, 5.0))  # Prevent integral windup
+    
+    # Calculate derivative term
+    derivative = (error - prev_error) / dt if dt > 0 else 0
+    
+    # Calculate PID output
+    p_term = kp * error
+    i_term = ki * integral
+    d_term = kd * derivative
+    
+    # Base speed adjustment
+    speed_adjustment = p_term + i_term + d_term
+    
+    # Calculate target speed (base + adjustment)
+    base_speed = 0.5  # Base creep speed
+    target_speed = base_speed + speed_adjustment
+    
+    # Clamp speed between min and max values
+    target_speed = max(min_speed, min(target_speed, max_speed))
+    
+    return target_speed, error, integral
+
+
+
 class YieldTrajectoryPlanner(Component):
     """Follows the given route. Brakes if the ego–vehicle must yield
     (e.g. to a pedestrian) or if the end of the route is near; otherwise,
@@ -385,6 +357,13 @@ class YieldTrajectoryPlanner(Component):
         self.emergency_brake = 8.0
         self.follow_acceleration = 3.0  # Slightly gentler acceleration for following
         self.follow_deceleration = 1.5  # Slightly gentler deceleration for following
+
+
+
+        self.pid_prev_error = 0.0
+        self.pid_integral = 0.0
+        self.pid_target_distance = 3.0
+
 
     def state_inputs(self):
         return ['all']
@@ -449,7 +428,7 @@ class YieldTrajectoryPlanner(Component):
         
         # Only check for yielding if not already braking
         should_decelerate = any(
-            (r.type == EntityRelationEnum.YIELDING) and r.obj1 == ''
+            (r.type == EntityRelationEnum.YIELDING or r.type == EntityRelationEnum.CREEPING) and r.obj1 == ''
             for r in state.relations
         ) if not should_brake else False
         
@@ -480,11 +459,47 @@ class YieldTrajectoryPlanner(Component):
             if DEBUG:
                 print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake (emergency).")
         elif should_decelerate:
-            # Use standard deceleration for yielding, gentler for distance maintenance
-            decel_value = self.deceleration
-            traj = longitudinal_brake(route_with_lookahead, decel_value, curr_v)
-            if DEBUG:
-                print(f"[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake with decel={decel_value}.")
+            # Check if specifically in CREEPING state
+            is_creeping = any(
+                r.type == EntityRelationEnum.CREEPING and r.obj1 == ''
+                for r in state.relations
+            )
+            
+            if is_creeping:
+                # Find the closest object in front
+                closest_distance = float('inf')
+                for r in state.relations:
+                    if r.type == EntityRelationEnum.CREEPING and r.obj1 == '':
+                        # Extract distance from relation data
+                        if hasattr(r, 'distance') and r.distance < closest_distance:
+                            closest_distance = r.distance
+                
+                # Use inverse function to determine appropriate speed
+                #target_speed = inverse_speed_function(closest_distance)
+                dt = t - self.t_last
+                # Use PID function to determine appropriate speed
+                target_speed, self.pid_prev_error, self.pid_integral = pid_speed_control(
+                    closest_distance, 
+                    self.pid_target_distance,
+                    curr_v,
+                    self.pid_prev_error,
+                    self.pid_integral,
+                    dt
+                )
+
+                traj = longitudinal_plan(route_with_lookahead, 0.0, 
+                            self.follow_deceleration, target_speed, curr_v)
+                
+                # Use longitudinal_plan with zero acceleration and the target speed
+                #traj = longitudinal_plan(route_with_lookahead, 0.0,   self.follow_deceleration, target_speed, curr_v)
+                if DEBUG:
+                    print(f"[DEBUG] YieldTrajectoryPlanner.update: CREEPING with distance={closest_distance:.2f}m, target_speed={target_speed:.2f}m/s")
+            else:
+                # Regular yielding behavior
+                decel_value = self.deceleration
+                traj = longitudinal_brake(route_with_lookahead, decel_value, curr_v)
+                if DEBUG:
+                    print(f"[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake with decel={decel_value}.")
         elif should_accelerate_for_distance:
             # Accelerate to maintain proper following distance
             traj = longitudinal_plan(route_with_lookahead, self.follow_acceleration,
