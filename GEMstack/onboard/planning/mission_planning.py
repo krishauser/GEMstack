@@ -8,7 +8,9 @@ import requests
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self):
+    def __init__(self, mission_list, task_list):
+        self.mission_list = mission_list
+        self.task_list = task_list
         self.count = 0
 
     def state_inputs(self):
@@ -44,6 +46,10 @@ class SummoningMissionPlanner(Component):
 
         elif mission.type == MissionEnum.IDLE and task.phase == TaskEnum.NAVIGATING:
             task.phase = TaskEnum.ARRIVED
+
+        # if state.trajectory:
+        #     if len(state.trajectory.points) <=2:
+        #         mission.type = MissionEnum.PARK
 
         # TODO: POST update status to the server
 

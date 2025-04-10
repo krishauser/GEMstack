@@ -292,7 +292,7 @@ class YieldTrajectoryPlanner(Component):
         return ['all']
 
     def state_outputs(self) -> List[str]:
-        return ['trajectory', 'mission']
+        return ['trajectory'] #, 'mission']
 
     def rate(self):
         return 10.0
@@ -300,13 +300,8 @@ class YieldTrajectoryPlanner(Component):
     def update(self, state: AllState):
         vehicle = state.vehicle  # type: VehicleState
         route = state.route  # type: Route
-        mission = state.mission
         t = state.t
 
-        print('Input states:')
-        print(mission)
-
-        traj = None
         if route:
             if DEBUG:
                 print("[DEBUG] YieldTrajectoryPlanner.update: t =", t)
@@ -397,17 +392,7 @@ class YieldTrajectoryPlanner(Component):
                 print('[DEBUG] Current Velocity of the Car: LOOK!', curr_v, self.desired_speed)
                 print("[DEBUG] YieldTrajectoryPlanner.update: Returning trajectory with", len(traj.points), "points.")
 
-            if len(traj.points) < 2:
-                mission.type = MissionEnum.PARK
-
         else:
-            frame = vehicle.pose.frame
-            zero_path = [[0, 0, 0]]
-            traj = Trajectory(frame=frame, points=zero_path, times=[0])
+            traj = Trajectory(frame=ObjectFrameEnum.CURRENT, points=[[0, 0],[0, 0]], times=[0, 1])
 
-        print('Output states:')
-        print(mission)
-        # print('Trajectory:')
-        # print(traj)
-
-        return traj, mission
+        return traj

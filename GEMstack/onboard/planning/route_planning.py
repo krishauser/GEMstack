@@ -122,68 +122,6 @@ def generate_route_free_run(current_pose, goal_position, roadgraph, roadgraph_ty
     return res, waypoints
 
 
-class TestSummoningRoutePlanner(Component):
-    """Reads a route from disk and returns it as the desired route."""
-    def __init__(self, routefn : str, frame : str = 'start'):
-        self.routefn = routefn
-        base, ext = os.path.splitext(routefn)
-        if ext in ['.json','.yml','.yaml']:
-            with open(routefn,'r') as f:
-                self.route = serialization.load(f)
-        elif ext == '.csv':
-            waypoints = np.loadtxt(routefn,delimiter=',',dtype=float)
-            if waypoints.shape[1] == 3:
-                waypoints = waypoints[:,:2]
-            if frame == 'start':
-                self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
-            elif frame == 'global':
-                self.route = Route(frame=ObjectFrameEnum.GLOBAL,points=waypoints.tolist())
-            elif frame == 'cartesian':
-                self.route = Route(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,points=waypoints.tolist())
-            else:
-                raise ValueError("Unknown route frame {} must be start, global, or cartesian".format(frame))
-        else:
-            raise ValueError("Unknown route file extension",ext)
-
-    def state_inputs(self):
-        return ['all']
-
-    def state_outputs(self) -> List[str]:
-        return ['route', 'mission']
-
-    def rate(self):
-        return 0.5
-
-    def update(self, state: AllState):
-        # route = Route(frame=ObjectFrameEnum.START,points=[[0, 0], [0, 0]])
-        route = state.route
-        mission = state.mission
-
-        print('Input states:')
-        print(mission)
-
-        if mission.type == MissionEnum.PLAN:
-            mission.type = MissionEnum.UNPARK
-            print('Output:')
-            print(mission)
-            route = self.route
-
-        elif route is None:
-            route = Route(frame=ObjectFrameEnum.START, points=[[0, 0], [0, 0]])
-
-        # route = self.route
-
-        print('Output states:')
-        print(mission)
-        print('Route:')
-        if route:
-            print('existed', len(route.points))
-        else:
-            print(route)
-
-        return route, mission
-
-
 class SummoningRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
     def __init__(self, roadgraphfn : str, frame : str = 'start'):
@@ -222,7 +160,7 @@ class SummoningRoutePlanner(Component):
         print(mission)
 
         # TODO: get from the server
-        target_location = [0, 11, 0.0]  # x, y, z
+        target_location = [15, 11, 0.0]  # x, y, z
 
         # if current_pose.x == 0 and current_pose.y == 0:
         if mission.type == MissionEnum.PLAN and intent.intent == VehicleIntentEnum.IDLE:
@@ -235,7 +173,7 @@ class SummoningRoutePlanner(Component):
             else:
                 print('Can not find a route.')
 
-            # TODO: confirm with plannning whether their need heading as a input
+            # route with heading
             if waypoints.shape[1] == 3:
                 waypoints = waypoints[:, :2]
 
@@ -257,10 +195,10 @@ class SummoningRoutePlanner(Component):
             else:
                 raise ValueError("Unknown frame argument")
 
-        # elif route is None:
-        #     route = Route(frame=ObjectFrameEnum.START,points=[[0, 0], [0, 0]])
 
         print('Output states:')
         print(mission)
 
         return route, mission
+
+

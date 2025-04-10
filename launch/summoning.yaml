@@ -16,9 +16,13 @@ drive:
         perception_normalization : StandardPerceptionNormalizer
     planning:
         relations_estimation: pedestrian_yield_logic.PedestrianYielder
-        mission_planning: SummoningMissionPlanner
+        mission_planning:
+            type: SummoningMissionPlanner
+            # List the process of MissionObjective and TaskPhase in order as a list.
+            args: [[MissionEnum.IDLE, MissionEnum.PLAN, MissionEnum.UNPARK, MissionEnum.DRIVE, MissionEnum.PARK],
+                   [TaskEnum.IDLE, TaskEnum.START, TaskEnum.NAVIGATE, TaskEnum.ARRIVED, TaskEnum.NAVIGATE, TaskEnum.ARRIVED]]
         route_planning:
-            # type: TestSummoningRoutePlanner
+            # type: StaticRoutePlanner
             # args: [!relative_path '../GEMstack/knowledge/routes/summoning_route_plan.csv','start']
            type: SummoningRoutePlanner
            args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph.json','start']

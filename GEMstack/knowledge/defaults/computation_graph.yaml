@@ -48,10 +48,10 @@ components:
       outputs: intent
   - parking_planning:  # added by summoning team
       inputs: all
-      outputs: [route, intent]
+      outputs: route
   - leave_parking_planning:  # added by summoning team
       inputs: all
-      outputs: [route, intent]
+      outputs: route
   - route_planning:
       inputs: all
       outputs: [route, mission]
@@ -60,7 +60,7 @@ components:
       outputs: intent
   - motion_planning:
       inputs: all
-      outputs: [trajectory, mission]
+      outputs: trajectory
   - trajectory_tracking:
       inputs: [vehicle, trajectory]
       outputs: 
