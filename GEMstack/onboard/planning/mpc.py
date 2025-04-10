@@ -8,9 +8,9 @@ import casadi
 
 class MPCController(object):
     """Model Predictive Controller for trajectory tracking."""
-    def __init__(self, T=10, dt=0.1):
-        self.T = T  # Prediction horizon
-        self.dt = dt  # Time step
+    def __init__(self):
+        self.T = settings.get('control.mpc.horizon', 10)  # Prediction horizon
+        self.dt = settings.get('control.mpc.dt', 0.1)  # Time step
         self.L = settings.get('vehicle.geometry.wheelbase')
         self.v_bounds = [-settings.get('vehicle.limits.max_reverse_speed'), settings.get('vehicle.limits.max_speed')]
         self.delta_bounds = [settings.get('vehicle.geometry.min_wheel_angle'),settings.get('vehicle.geometry.max_wheel_angle')]
