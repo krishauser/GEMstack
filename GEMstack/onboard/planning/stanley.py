@@ -159,7 +159,8 @@ class Stanley(object):
         target_x, target_y = self.path.eval(closest_parameter)
         tangent = self.path.eval_tangent(closest_parameter)
         path_yaw = atan2(tangent[1], tangent[0])
-
+        desired_x = target_x
+        desired_y = target_y
         # 3) Lateral error
         dx = fx - target_x
         dy = fy - target_y
@@ -230,6 +231,8 @@ class Stanley(object):
         if component is not None:
             # component.debug("Stanley: fx, fy", (fx, fy))
             component.debug('curr pt',(curr_x,curr_y))
+            component.debug("desired_x",desired_x)
+            component.debug("desired_y",desired_y)
             component.debug("Stanley: path param", self.current_path_parameter)
             component.debug("Stanley: crosstrack dist", closest_dist)
             component.debug("crosstrack error", cross_track_error)
