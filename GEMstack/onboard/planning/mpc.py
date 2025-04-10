@@ -70,15 +70,15 @@ class MPCController(object):
         obj = 0
         for t in range(self.T):
             # Vehicle dynamics
-            x_next = x[t,:] + self.dt * model(x[t,:], u[t,:])
+            x_next = x[t,:] + self.dt * model(x[t,:], u[t,:]).T
             opti.subject_to(x[t+1,:] == x_next)
             target = traj_points[t+1]
             # Cost function
-            obj += casadi.sumsqr(x[t+1,0:2] - target[0:2])
+            obj += casadi.sumsqr(x[t+1,0:2] - casadi.reshape(target[0:2], 1, 2))
             obj += 0.1 * casadi.sumsqr(u[t,:])
 
         # Initial condition
-        opti.subject_to(x[0,:] == x0[:4])
+        opti.subject_to(x[0, :] == casadi.reshape(x0[:4], 1, 4))
 
         # Constraints
         for t in range(self.T):
