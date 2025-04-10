@@ -1,6 +1,6 @@
 from typing import List, Tuple, Union, Dict
 from ..component import Component
-from ...state import AllState, VehicleState, Path, Trajectory, Route, ObjectFrameEnum, AgentState, Obstacle, ObjectPose
+from ...state import AllState, VehicleState, Path, Trajectory, Route, ObjectFrameEnum, AgentState, Obstacle, ObjectPose, PhysicalObject
 from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd
 from ...mathutils.quadratic_equation import quad_root
@@ -26,9 +26,9 @@ class ParkingSolverSecondOrderDubins(AStar):
         self._vehicle = None
 
         # SecondOrderDubinsCar() #x = (tx,ty,theta,v,dtheta) and u = (fwd_accel,wheel_angle_rate)
-        self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=0.75, dt=0.25)
+        self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=1, dt=0.1)
         #@TODO create a more standardized way to define the actions
-        self._actions = [(1, -0.5), (1, -0.25), (1,0), (1, 0.25), (1,0.5),
+        self._actions = [(2, -0.5), (2, -0.25), (2,0), (2, 0.25), (2,0.5),
                          (0,0), (-1, -0.5), (-1,0), (-1, 0.5)]
 
     @property
@@ -60,19 +60,38 @@ class ParkingSolverSecondOrderDubins(AStar):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
         # print(f"Current Pose: {current}")
         # print(f"Goal Pose: {goal}")
-        if np.abs(current[3]) > 0.5: return False # car must be stopped, this equality will only work in simulation  
+        if np.abs(current[3]) > 1: return False # car must be stopped, this equality will only work in simulation  
         return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
     vehicle
-    def heuristic_cost_estimate(self, vehicle_state_1, vehicle_state_2):
+    def heuristic_cost_estimate(self, state_1, state_2):
         # @TODO Consider creating a more sophisticated heuristic
-        """computes the 'direct' distance between two (x,y) tuples"""
+        """computes the 'direct' distance between two (x,y) tuples.
+        The states here are (x,y,theta,v,dtheta,t)
+        """
+        (x1, y1, theta1, v1, dtheta1,t1) = state_1
+        (x2, y2, theta2, v2, dtheta2, t2) = state_2
 
-        return math.hypot(vehicle_state_2[0] - vehicle_state_1[0], vehicle_state_2[1] - vehicle_state_1[1])
+        return math.hypot(x2 - x1, y2 - y1, 2*(v2-v1))
         #return math.hypot(x2 - x1, y2 - y1, theta2 - theta1, v2-v1, dtheta2-dtheta1)
 
-    def distance_between(self, n1, n2):
-        """this method always returns 1, as two 'neighbors' are always adajcent"""
-        return 1
+    def terminal_cost_estimate(self, state_1, state_2):
+        # @TODO Consider creating a more sophisticated heuristic
+        """computes the 'direct' distance between two (x,y) tuples.
+        The states here are (x,y,theta,v,dtheta,t)
+        """
+        (x1, y1, theta1, v1, dtheta1,t1) = state_1
+        (x2, y2, theta2, v2, dtheta2, t2) = state_2
+
+        return math.hypot(x2 - x1, y2 - y1)
+    
+    def distance_between(self, state_1, state_2):
+        """
+        The states here are (x,y,theta,v,dtheta,t)
+        """
+        (x1, y1, theta1, v1, dtheta1,t1) = state_1
+        (x2, y2, theta2, v2, dtheta2, t2) = state_2
+
+        return math.hypot(x2 - x1, y2 - y1)
 
     def neighbors(self, node):
         """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
@@ -101,13 +120,44 @@ class ParkingSolverSecondOrderDubins(AStar):
             path (_type_): _description_
         """
         for obstacle in self.obstacles:
+            # print(f"Obstacle: {obstacle}")
             for point in path:
+                vehicle_polygon = self.state_to_polygon(point)
+                # print(f"Vehicle Polygon: {vehicle_polygon}")
                 # print(point)
                 # print(obstacle.polygon_parent())
-                if collisions.circle_intersects_polygon_2d(point[:-1], 1, obstacle.polygon_parent()):
+                # print("====================================")
+                # print(f"Vehicle Polygon: {vehicle_polygon}")
+                # print(f"Obstacle Polygon: {obstacle.polygon_parent()}")
+                # print(f"Point: {point}")
+                if collisions.polygon_intersects_polygon_2d(vehicle_polygon, obstacle.polygon_parent()):
                     #polygon_intersects_polygon_2d when we have the acutal car geometry
                     return False
         return True
+
+    def state_to_polygon(self, state):
+        """Convert a state to a polygon. The state is of the form (x,y,theta,v,dtheta,t)
+
+        Args:
+            state (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
+        x = state[0]
+        y = state[1]
+        theta = state[2]
+        v = state[3]
+        dtheta = state[4]
+        t = state[5]
+
+        pose = ObjectPose(frame=ObjectFrameEnum.START,t=t, x=x,y=y,z=0,yaw=theta)
+        
+        temp_obj = PhysicalObject(pose=pose,
+                               dimensions=self.vehicle.to_object().dimensions,
+                               outline=self.vehicle.to_object().outline)
+
+        return temp_obj.polygon()
    
 
 class ParkingPlanner(Component):
@@ -171,6 +221,9 @@ class ParkingPlanner(Component):
         """
         vehicle = state.vehicle # type: VehicleState
         obstacles = state.obstacles # type: Dict[str, Obstacle]
+        agents = state.agents # type: Dict[str, AgentState]
+        print(f"Obstacles {obstacles}")
+        print(f"Agents {agents}")
         route = state.route
         goal_point = route.points[-1] # I might need to change this to the same frame as the car?
         goal_pose = ObjectPose(frame=ObjectFrameEnum.START,t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
@@ -184,18 +237,19 @@ class ParkingPlanner(Component):
 
 
         # Update the planner
-        self.planner.obstacles = list(obstacles.values())
+        # self.planner.obstacles = list(obstacles.values())
+        self.planner.obstacles = list(agents.values())
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state))
+        res = list(self.planner.astar(start_state, goal_state, 100))
         points = [state[:2] for state in res]
         times = [state[5] for state in res]
         path = Path(frame=vehicle.pose.frame, points=points)
         traj = Trajectory(path.frame,points,times)
-        print("===========================")
-        print(f"Points: {points}")
-        print(f"Times: {times}")
+        # print("===========================")
+        # print(f"Points: {points}")
+        # print(f"Times: {times}")
         # route = Path(frame=vehicle.pose.frame, points=points)
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
         # print(traj)

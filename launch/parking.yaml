@@ -17,7 +17,7 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
+            args: [!relative_path '../GEMstack/knowledge/routes/parking.csv','start']
         motion_planning:
             type: parking_planning.ParkingPlanner
             # args: [null]
@@ -64,7 +64,7 @@ variants:
             vehicle_interface:
                 type: gem_mixed.GEMRealSensorsWithSimMotionInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+                    scene: !relative_path '../scenes/parking_demo.yaml'
             mission_execution: StandardExecutor
             require_engaged: False
             visualization: !include "klampt_visualization.yaml"
@@ -91,7 +91,7 @@ variants:
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+                    scene: !relative_path '../scenes/parking_demo.yaml'
             visualization: !include "klampt_visualization.yaml"
             drive:    
                 perception:

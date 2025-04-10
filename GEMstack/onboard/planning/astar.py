@@ -18,14 +18,15 @@ T = TypeVar("T")
 class SearchNode(Generic[T]):
     """Representation of a search node"""
 
-    __slots__ = ("data", "gscore", "fscore", "closed", "came_from", "in_openset", "cache")
+    __slots__ = ("data", "gscore", "fscore", "tscore", "closed", "came_from", "in_openset", "cache")
 
     def __init__(
-        self, data: T, gscore: float = infinity, fscore: float = infinity
+        self, data: T, gscore: float = infinity, fscore: float = infinity, tscore:float = infinity
     ) -> None:
         self.data = data
         self.gscore = gscore
         self.fscore = fscore
+        self.tscore = tscore
         self.closed = False
         self.in_openset = False
         self.came_from: Union[None, SearchNode[T]] = None
@@ -92,6 +93,23 @@ class AStar(ABC, Generic[T]):
         This method must be implemented in a subclass.
         """
         raise NotImplementedError
+    
+    @abstractmethod
+    def terminal_cost_estimate(self, current: T, goal: T) -> float:
+        """Computes the estimated distance between a node and the goal.
+        This function is called after all iterations of A* have been run
+        and is used to determine the closest node to the goal found so far.
+
+        This method must be implemented in a subclass.
+
+        Args:
+            current (T): Current T
+            goal (T): goal T
+
+        Returns:
+            float: _description_
+        """
+        raise NotImplementedError
 
     def distance_between(self, n1: T, n2: T) -> float:
         """
@@ -152,7 +170,7 @@ class AStar(ABC, Generic[T]):
             return reversed(list(_gen()))
 
     def astar(
-        self, start: T, goal: T, reversePath: bool = False
+        self, start: T, goal: T, reversePath: bool = False, iterations: int = 5000
     ) -> Union[Iterable[T], None]:
         if self.is_goal_reached(start, goal):
             return [start]
@@ -163,8 +181,11 @@ class AStar(ABC, Generic[T]):
             start, gscore=0.0, fscore=self.heuristic_cost_estimate(start, goal)
         )
         openSet.push(startNode)
+        bestNode = startNode
 
-        while openSet:
+        iteration = 0
+
+        while openSet and iteration < iterations:
             current = openSet.pop()
 
             if self.is_goal_reached(current.data, goal):
@@ -184,6 +205,14 @@ class AStar(ABC, Generic[T]):
                 fscore = gscore + self.heuristic_cost_estimate(
                     neighbor.data, goal
                 )
+                tscore = self.terminal_cost_estimate(
+                    neighbor.data, goal
+                )
+
+                # print(f"Checking node: {neighbor.data} with tscore {tscore}")
+                if tscore < bestNode.tscore:
+                    # print(f"Found a better node: {neighbor.data} with tscore {tscore}")
+                    bestNode = neighbor
 
                 if neighbor.in_openset:
                     if neighbor.fscore < fscore:
@@ -197,10 +226,14 @@ class AStar(ABC, Generic[T]):
                 neighbor.came_from = current
                 neighbor.gscore = gscore
                 neighbor.fscore = fscore
+                neighbor.tscore = tscore
 
                 openSet.push(neighbor)
 
-        return None
+            iteration += 1
+
+        # print("Warning: A* search failed to find a path")
+        return self.reconstruct_path(bestNode, reversePath)
 
 
 ################################################################################
