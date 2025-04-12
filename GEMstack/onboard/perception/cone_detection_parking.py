@@ -15,6 +15,7 @@ import struct, ctypes
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
 from .visualization_utils import *
+from .parking_utils import *
 import time
 import math
 import ros_numpy
@@ -322,8 +323,8 @@ class ConeDetector3D(Component):
         self.vis_3d_cones_bboxes = False
 
         # Subscribers
-        self.rgb_sub = Subscriber('/camera_fl/arena_camera_node/image_raw', Image)
-        self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
+        self.rgb_sub = Subscriber('/camera/fl/image_raw', Image)
+        self.lidar_sub = Subscriber('/lidar/top/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub],
                                                 queue_size=10, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
@@ -334,6 +335,7 @@ class ConeDetector3D(Component):
         self.pub_cones_image_detection = rospy.Publisher("cones_detection/annotated_image", Image, queue_size=1)
         self.pub_cones_bboxes_markers = rospy.Publisher("cones_detection/bboxes/markers", MarkerArray, queue_size=10)
         self.pub_cones_centers_pc2 = rospy.Publisher("cones_detection/centers/point_cloud", PointCloud2, queue_size=10)
+        self.pub_parking_spot_marker = rospy.Publisher("parking_spot_detection/marker", MarkerArray, queue_size=10)
 
         # Detection model
         self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/cone.pt'
@@ -357,16 +359,7 @@ class ConeDetector3D(Component):
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
-    def viz_object_states(self, cv_image, boxes):
-        cone_3d_centers = list()
-        cone_3d_dims = list()
-
-        for track_id, agent in self.current_agents.items():
-            if agent.pose.x != None and agent.pose.y != None and agent.pose.z != None:
-               cone_3d_centers.append((agent.pose.x, agent.pose.y, agent.pose.z))
-            if agent.dimensions != None and agent.dimensions[0] != None and agent.dimensions[1] != None and agent.dimensions[2] != None:
-                cone_3d_dims.append(agent.dimensions)
-
+    def viz_object_states(self, cone_3d_centers, cone_3d_dims, cv_image, boxes):
         # Transform top lidar pointclouds to vehicle frame for visualization
         if self.vis_lidar_pc:
             latest_lidar_vehicle = transform_lidar_points(self.latest_lidar_unfiltered, self.T_l2v)
@@ -383,8 +376,11 @@ class ConeDetector3D(Component):
             self.pub_cones_image_detection.publish(ros_img)  
 
         # Create vehicle marker
-        ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 1.0, 0.0, 1), "vehicle")
+        ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 0.0, 1.0, 1), "vehicle")
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
+        # Delete previous parking spot markers
+        ros_delete_parking_spot_markers = delete_markers("parking_spot", 1)
+        self.pub_parking_spot_marker.publish(ros_delete_parking_spot_markers)
         # Draw 3D cone centers and dimensions
         if len(cone_3d_centers) > 0 and len(cone_3d_dims) > 0:
             if self.vis_3d_cones_centers:
@@ -397,11 +393,25 @@ class ConeDetector3D(Component):
 
             if self.vis_3d_cones_bboxes:
                 # Delete previous markers
-                ros_delete_bboxes_markers = delete_bbox_marker()
+                ros_delete_bboxes_markers = delete_markers("markers", 15)
                 self.pub_cones_bboxes_markers.publish(ros_delete_bboxes_markers)
                 # Create bbox markers from cone dimensions
                 ros_cones_bboxes_markers = create_bbox_marker(cone_3d_centers, cone_3d_dims, (1.0, 0.0, 0.0, 0.4), "vehicle")
                 self.pub_cones_bboxes_markers.publish(ros_cones_bboxes_markers)
+
+    def detect_parking_spot(self, cone_3d_centers):
+        cone_ground_centers = np.array(cone_3d_centers)
+        cone_ground_centers_2D = cone_ground_centers[:, :2]
+        # print(f"-----cone_ground_centers_2D: {cone_ground_centers_2D}")
+        candidates = findAllCandidateParkingLot(cone_ground_centers_2D)
+        # print(f"-----candidates: {candidates}")
+        if len(candidates) > 0:
+            closest_spot = candidates[0]
+            # print(f"-----closest_spot: {closest_spot}")
+            # Create parking spot marker
+            ros_parking_spot_marker = create_parking_spot_marker(closest_spot, ref_frame="vehicle")
+            self.pub_parking_spot_marker.publish(ros_parking_spot_marker)
+        return
           
                
     def synchronized_callback(self, image_msg, lidar_msg):
@@ -573,9 +583,23 @@ class ConeDetector3D(Component):
                 f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
             )
 
+        # Now retrieve all cone agents from current agent items
+        cone_3d_centers = list()
+        cone_3d_dims = list()
+
+        for track_id, agent in self.current_agents.items():
+            if agent.pose.x != None and agent.pose.y != None and agent.pose.z != None:
+               cone_3d_centers.append((agent.pose.x, agent.pose.y, agent.pose.z))
+            if agent.dimensions != None and agent.dimensions[0] != None and agent.dimensions[1] != None and agent.dimensions[2] != None:
+                cone_3d_dims.append(agent.dimensions)
+
+        # Detect parking spot if 4 or more cones are detected
+        if len(cone_3d_centers) >= 4:
+            self.detect_parking_spot(cone_3d_centers)
+
         # Add Visualization
         cv_image = self.latest_image.copy()
-        self.viz_object_states(cv_image, bboxes)
+        self.viz_object_states(cone_3d_centers, cone_3d_dims, cv_image, bboxes)
 
         return agents
 

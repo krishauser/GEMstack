@@ -1,9 +1,14 @@
 from sensor_msgs.msg import PointField
 from visualization_msgs.msg import Marker, MarkerArray
+from geometry_msgs.msg import Point
 import sensor_msgs.point_cloud2 as pc2
 import cv2
 import rospy
 import struct
+import math
+
+GEM_E4_LENGTH = 3.6  # m
+GEM_E4_WIDTH  = 1.5  # m
 
 def vis_2d_bbox(image, xywh, box):
     # Setup
@@ -119,14 +124,56 @@ def create_bbox_marker(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ref_
     return marker_array
 
 
-def delete_bbox_marker():
-    """
-    Delete 3D bbox markers given ID ranges
-    """
+def create_parking_spot_marker(closest_spot, length = GEM_E4_LENGTH, width = GEM_E4_WIDTH, ref_frame="map"):
     marker_array = MarkerArray()
-    for i in range(15):
+
+    marker = Marker()
+    marker.header.frame_id = ref_frame
+    marker.header.stamp = rospy.Time.now()
+    marker.ns = "parking_spot"
+    marker.id = 0
+    marker.type = Marker.LINE_STRIP
+    marker.action = Marker.ADD
+    marker.scale.x = 0.05  # Line width
+
+    marker.color.r = 0.0
+    marker.color.g = 1.0
+    marker.color.b = 0.0
+    marker.color.a = 1.0
+
+    x, y, theta_deg = closest_spot
+
+    # Convert theta to radians
+    theta = math.radians(theta_deg)
+
+    # Half-dimensions
+    dx = length / 2.0
+    dy = width / 2.0
+
+    # Define corner offsets in the local frame
+    local_corners = [
+        (-dx, -dy),
+        (-dx, dy),
+        (dx, dy),
+        (dx, -dy),
+        (-dx, -dy)  # close the loop
+    ]
+
+    # Rotate and translate corners to global frame
+    for lx, ly in local_corners:
+        gx = x + lx * math.cos(theta) - ly * math.sin(theta)
+        gy = y + lx * math.sin(theta) + ly * math.cos(theta)
+        marker.points.append(Point(x=gx, y=gy, z=0.0))
+   
+    marker_array.markers.append(marker)
+    return marker_array
+
+
+def delete_markers(ns="markers", max_markers=15):
+    marker_array = MarkerArray()
+    for i in range(max_markers):
         marker = Marker()
-        marker.ns = "markers"
+        marker.ns = ns
         marker.id = i
         marker.action = Marker.DELETE
         marker_array.markers.append(marker)
