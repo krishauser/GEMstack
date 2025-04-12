@@ -132,39 +132,55 @@ def create_parking_spot_marker(closest_spot, length = GEM_E4_LENGTH, width = GEM
     marker.header.stamp = rospy.Time.now()
     marker.ns = "parking_spot"
     marker.id = 0
-    marker.type = Marker.LINE_STRIP
+    marker.type = Marker.TRIANGLE_LIST
     marker.action = Marker.ADD
-    marker.scale.x = 0.05  # Line width
 
+    # Transparency and color (green)
     marker.color.r = 0.0
     marker.color.g = 1.0
     marker.color.b = 0.0
-    marker.color.a = 1.0
+    marker.color.a = 0.5
+
+    marker.pose.orientation.w = 1.0
+
+    # Not used in TRIANGLE_LIST, but required
+    marker.scale.x = 1.0
+    marker.scale.y = 1.0
+    marker.scale.z = 1.0
 
     x, y, theta_deg = closest_spot
 
-    # Convert theta to radians
+    # Convert orientation to radians
     theta = math.radians(theta_deg)
 
-    # Half-dimensions
+    # Half dimensions
     dx = length / 2.0
     dy = width / 2.0
 
-    # Define corner offsets in the local frame
+    # Define rectangle corners (local frame, clockwise)
     local_corners = [
         (-dx, -dy),
         (-dx, dy),
         (dx, dy),
-        (dx, -dy),
-        (-dx, -dy)  # close the loop
+        (dx, -dy)
     ]
 
-    # Rotate and translate corners to global frame
+    # Transform to global frame
+    global_corners = []
     for lx, ly in local_corners:
         gx = x + lx * math.cos(theta) - ly * math.sin(theta)
         gy = y + lx * math.sin(theta) + ly * math.cos(theta)
-        marker.points.append(Point(x=gx, y=gy, z=0.0))
-   
+        global_corners.append(Point(x=gx, y=gy, z=0.0))
+
+    # Define two triangles to fill the rectangle
+    marker.points.append(global_corners[0])
+    marker.points.append(global_corners[2])
+    marker.points.append(global_corners[1])
+
+    marker.points.append(global_corners[0])
+    marker.points.append(global_corners[3])
+    marker.points.append(global_corners[2])
+
     marker_array.markers.append(marker)
     return marker_array
 
