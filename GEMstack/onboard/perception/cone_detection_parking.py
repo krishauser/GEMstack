@@ -14,6 +14,7 @@ import sensor_msgs.point_cloud2 as pc2
 import struct, ctypes
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
+from scipy.spatial import ConvexHull
 from .visualization_utils import *
 from .parking_utils import *
 import time
@@ -259,6 +260,12 @@ def filter_ground_points(lidar_points, ground_threshold = 0):
     filtered_array = lidar_points[lidar_points[:, 2] > ground_threshold]
     return filtered_array
 
+def order_points_convex_hull(points_2d):
+    points_np = np.array(points_2d)
+    hull = ConvexHull(points_np)
+    ordered = [points_np[i] for i in hull.vertices]
+    return ordered
+
 # ----- New: Vectorized projection function -----
 def project_points(pts_cam, K, original_lidar_points):
     """
@@ -405,14 +412,15 @@ class ConeDetector3D(Component):
     def detect_parking_spot(self, cone_3d_centers):
         cone_ground_centers = np.array(cone_3d_centers)
         cone_ground_centers_2D = cone_ground_centers[:, :2]
+        ordered_cone_ground_centers_2D = order_points_convex_hull(cone_ground_centers_2D)
         # print(f"-----cone_ground_centers_2D: {cone_ground_centers_2D}")
-        candidates = findAllCandidateParkingLot(cone_ground_centers_2D)
+        candidates = findAllCandidateParkingLot(ordered_cone_ground_centers_2D)
         # print(f"-----candidates: {candidates}")
         if len(candidates) > 0:
             closest_spot = candidates[0]
             # print(f"-----closest_spot: {closest_spot}")
             # Draw polygon first
-            ros_polygon_marker = create_polygon_marker(cone_ground_centers_2D, ref_frame="vehicle")
+            ros_polygon_marker = create_polygon_marker(ordered_cone_ground_centers_2D, ref_frame="vehicle")
             self.pub_polygon_marker.publish(ros_polygon_marker)
             # Create parking spot marker
             ros_parking_spot_marker = create_parking_spot_marker(closest_spot, ref_frame="vehicle")

@@ -2,8 +2,6 @@ from sensor_msgs.msg import PointField
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 import sensor_msgs.point_cloud2 as pc2
-from scipy.spatial import ConvexHull
-import numpy as np
 import cv2
 import rospy
 import struct
@@ -126,16 +124,7 @@ def create_bbox_marker(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ref_
     return marker_array
 
 
-def order_points_convex_hull(points_2d):
-    points_np = np.array(points_2d)
-    hull = ConvexHull(points_np)
-    ordered = [points_np[i] for i in hull.vertices]
-    return ordered
-
-
 def create_polygon_marker(vertices_2d, ref_frame="map"):
-    vertices_2d = order_points_convex_hull(vertices_2d)
-
     marker_array = MarkerArray()
 
     marker = Marker()
@@ -168,7 +157,7 @@ def create_polygon_marker(vertices_2d, ref_frame="map"):
     return marker_array
 
 
-def create_parking_spot_marker(closest_spot, length = GEM_E4_LENGTH, width = GEM_E4_WIDTH, ref_frame="map"):
+def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_WIDTH, ref_frame="map"):
     marker_array = MarkerArray()
 
     marker = Marker()
