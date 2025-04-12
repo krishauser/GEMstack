@@ -336,6 +336,7 @@ class ConeDetector3D(Component):
         self.pub_cones_bboxes_markers = rospy.Publisher("cones_detection/bboxes/markers", MarkerArray, queue_size=10)
         self.pub_cones_centers_pc2 = rospy.Publisher("cones_detection/centers/point_cloud", PointCloud2, queue_size=10)
         self.pub_parking_spot_marker = rospy.Publisher("parking_spot_detection/marker", MarkerArray, queue_size=10)
+        self.pub_polygon_marker = rospy.Publisher("polygon_detection/marker", MarkerArray, queue_size=10)
 
         # Detection model
         self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/cone.pt'
@@ -378,7 +379,9 @@ class ConeDetector3D(Component):
         # Create vehicle marker
         ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 0.0, 1.0, 1), "vehicle")
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
-        # Delete previous parking spot markers
+        # Delete previous markers
+        ros_delete_polygon_marker = delete_markers("polygon", 1)
+        self.pub_polygon_marker.publish(ros_delete_polygon_marker)
         ros_delete_parking_spot_markers = delete_markers("parking_spot", 1)
         self.pub_parking_spot_marker.publish(ros_delete_parking_spot_markers)
         # Draw 3D cone centers and dimensions
@@ -408,6 +411,9 @@ class ConeDetector3D(Component):
         if len(candidates) > 0:
             closest_spot = candidates[0]
             # print(f"-----closest_spot: {closest_spot}")
+            # Draw polygon first
+            ros_polygon_marker = create_polygon_marker(cone_ground_centers_2D, ref_frame="vehicle")
+            self.pub_polygon_marker.publish(ros_polygon_marker)
             # Create parking spot marker
             ros_parking_spot_marker = create_parking_spot_marker(closest_spot, ref_frame="vehicle")
             self.pub_parking_spot_marker.publish(ros_parking_spot_marker)

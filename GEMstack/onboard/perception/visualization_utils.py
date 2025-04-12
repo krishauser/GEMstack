@@ -2,6 +2,8 @@ from sensor_msgs.msg import PointField
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 import sensor_msgs.point_cloud2 as pc2
+from scipy.spatial import ConvexHull
+import numpy as np
 import cv2
 import rospy
 import struct
@@ -121,6 +123,48 @@ def create_bbox_marker(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ref_
 
         marker.lifetime = rospy.Duration()  # Persistent
         marker_array.markers.append(marker)
+    return marker_array
+
+
+def order_points_convex_hull(points_2d):
+    points_np = np.array(points_2d)
+    hull = ConvexHull(points_np)
+    ordered = [points_np[i] for i in hull.vertices]
+    return ordered
+
+
+def create_polygon_marker(vertices_2d, ref_frame="map"):
+    vertices_2d = order_points_convex_hull(vertices_2d)
+
+    marker_array = MarkerArray()
+
+    marker = Marker()
+    marker.header.frame_id = ref_frame
+    marker.header.stamp = rospy.Time.now()
+    marker.ns = "polygon"
+    marker.id = 0
+    marker.type = Marker.LINE_STRIP
+    marker.action = Marker.ADD
+
+    # Style
+    marker.scale.x = 0.1  # Line width
+
+    # Color (blue)
+    marker.color.r = 0.0
+    marker.color.g = 1.0
+    marker.color.b = 0.0
+    marker.color.a = 1.0
+
+    marker.pose.orientation.w = 1.0
+
+    # Convert 2D vertices into geometry_msgs/Point with z=0.0
+    for vx, vy in vertices_2d:
+        marker.points.append(Point(x=vx, y=vy, z=0.0))
+
+    # Close the loop by repeating the first point
+    marker.points.append(Point(x=vertices_2d[0][0], y=vertices_2d[0][1], z=0.0))
+
+    marker_array.markers.append(marker)
     return marker_array
 
 

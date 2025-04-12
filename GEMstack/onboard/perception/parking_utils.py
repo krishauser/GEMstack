@@ -42,7 +42,7 @@ def findAllCandidateParkingLot(cornerPts, angleStepDegree=5, positionStrideMeter
 
 def drawCarPose(img, center, angleDegree, color=(0, 0, 255), scale=100):
     rect = (center, (GEM_E4_LENGTH, GEM_E4_WIDTH), float(angleDegree))
-    box = cv2.boxPoints(rect)  # 四个角点
+    box = cv2.boxPoints(rect)
     box_scaled = np.int32(box * scale)
 
     cv2.polylines(img, [box_scaled], isClosed=True, color=color, thickness=2)
