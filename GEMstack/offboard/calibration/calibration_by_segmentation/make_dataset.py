@@ -28,6 +28,7 @@ DATA ascii
     with open(filename, 'w') as f:
         f.write(header)
         for p in points:
+            if p[0] == 0 and p[1] == 0 and p[2] == 0: continue
             f.write(f"{p[0]} {p[1]} {p[2]}\n")
 
 def process_bag(bag_path, output_dir='sync_dataset', time_threshold=0.05):
@@ -120,4 +121,4 @@ def process_bag(bag_path, output_dir='sync_dataset', time_threshold=0.05):
     bag.close()
 
 # Example usage
-process_bag('/mnt/GEMstack/data/mybag_2025-04-01-17-41-55.bag','/mnt/GEMstack/GEMstack/offboard/calibration/calibration_by_segmentation/data')
+process_bag('/mnt/GEMstack/data/mybag_2025-04-01-17-41-55.bag','/mnt/GEMstack/GEMstack/offboard/calibration/calibration_by_SfM/data')

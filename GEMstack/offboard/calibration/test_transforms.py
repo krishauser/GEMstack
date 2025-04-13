@@ -1,3 +1,4 @@
+#%%
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
@@ -7,20 +8,23 @@ from matplotlib.widgets import Slider
 keep_running = True
 
 # Load LiDAR points
-lidar_data = np.load("./data/ouster32.npz")  # Update filename if needed
-lidar_points = lidar_data['arr_0']  # Ensure the correct key
+import open3d as o3d
+pcd = o3d.io.read_point_cloud("/mnt/GEMstack/GEMstack/offboard/calibration/calibration_by_SfM/data/pc/000038.pcd")
+lidar_points = np.asarray(pcd.points)
+# lidar_data = np.load("/mnt/GEMstack/data/calib2/ouster9.npz")
+# lidar_points = lidar_data['arr_0']  # Ensure the correct key
 
 # Load Camera Image
-image = cv2.imread("./data/fr_rect32.png")  # Update filename if needed
+image = cv2.imread("/mnt/GEMstack/GEMstack/offboard/calibration/calibration_by_SfM/data/rr/images/000038.png")
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
 
 # Transformation Matrix
-T_lidar_camera = np.array(
-    [[-0.65266466, -0.75745371, -0.01710912, -0.54157703],
-     [-0.08467423,  0.09536332, -0.99183472, -0.37038288],
-     [ 0.75290047, -0.64588677, -0.12637708,  0.0245309 ],
-     [ 0.        ,  0.        ,  0.        ,  1.        ]]
-)
+T_lidar_camera = np.array([[ 0.04129275,  0.999105  , -0.00917122, -0.0210888 ],
+       [ 0.85913152, -0.0401908 , -0.51017422, -4.33950475],
+       [-0.51008622,  0.01318721, -0.86002218, -1.29820361],
+       [ 0.        ,  0.        ,  0.        ,  1.        ]])
+T_lidar_camera = np.linalg.inv(T_lidar_camera)
+
 
 # Convert LiDAR points to homogeneous coordinates
 num_points = lidar_points.shape[0]

@@ -1,2 +1,7 @@
 sam_vit_h.pth
+sam_vit_b.pth
+init_proj*
+refined_proj*
+data/*
+extrinsic.txt
 !.gitignore

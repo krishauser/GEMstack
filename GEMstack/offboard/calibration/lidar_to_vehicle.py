@@ -5,7 +5,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 import pyvista as pv
 import matplotlib.pyplot as plt
-from visualizer import visualizer
+from tools.visualizer import visualizer
 
 VIS = False # True to show visuals
 VIS = True # True to show visuals
