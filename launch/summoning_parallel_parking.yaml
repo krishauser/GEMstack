@@ -15,7 +15,7 @@ drive:
         perception_normalization : StandardPerceptionNormalizer
     planning:
         route_planning:
-            type: SummoningParkingRoutePlanner #StaticRoutePlanner
+            type: parallel_parking.SummoningParkingRoutePlanner #StaticRoutePlanner
             args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
         motion_planning:
             type: RouteToTrajectoryPlanner
