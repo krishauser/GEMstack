@@ -1,5 +1,4 @@
-sam_vit_h.pth
-sam_vit_b.pth
+weights/*
 init_proj*
 refined_proj*
 data/*

@@ -1,10 +1,10 @@
 data=$1
 
-wget -c -O sam_vit_b.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
+wget -c -O weights/sam_vit_b.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth
 # wget -c -O sam_vit_h.pth https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth 
 
 echo 'running segmentation...'
-python3 segment-anything/scripts/amg.py --checkpoint sam_vit_b.pth --model-type vit_b --input $data/selected --output $data/masks/ --stability-score-thresh 0.9 --box-nms-thresh 0.5 --stability-score-offset 0.9
+python3 segment-anything/scripts/amg.py --checkpoint weights/sam_vit_b.pth --model-type vit_b --input $data/selected --output $data/masks/ --stability-score-thresh 0.9 --box-nms-thresh 0.5 --stability-score-offset 0.9
 # python3 segment-anything/scripts/amg.py --checkpoint sam_vit_h.pth --model-type vit_h --input $data/images --output $data/masks/ --stability-score-thresh 0.9 --box-nms-thresh 0.5 --stability-score-offset 0.9
 
 echo 'reprocess segmentation...'
