@@ -22,10 +22,6 @@ import ros_numpy
 # ----- Helper Functions -----
 
 def undistort_image(image, K, D):
-    """
-    对图像进行畸变校正，返回校正后的图像及新的内参矩阵。
-    其中 K 为原始内参，D 为畸变参数。
-    """
     h, w = image.shape[:2]
     newK, _ = cv2.getOptimalNewCameraMatrix(K, D, (w, h), 1, (w, h))
     undistorted = cv2.undistort(image, K, D, None, newK)
