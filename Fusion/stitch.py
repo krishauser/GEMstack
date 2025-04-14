@@ -3,24 +3,25 @@ import numpy as np
 import os
 import rospy
 from std_msgs.msg import Header
-from sensor_msgs.msg import PointField, PointCloud2
+from sensor_msgs.msg import PointField, PointCloud2, Image
+from cv_bridge import CvBridge
 import sensor_msgs.point_cloud2 as pc2
 
 from DistortionRemove import *
 
 
 # canvas shape
-STITCH_WIDTH = 1000
-STITCH_HEIGHT = 1000
+STITCH_WIDTH = 1200
+STITCH_HEIGHT = 1800
 
 
 
-# srcFrontCamListXY = np.array([
-#     [446, 504],  # FL
-#     [712, 504],  # FR
-#     [310, 700],  # RL
-#     [895, 700],  # RR
-# ])  # origin
+srcFrontCamListXY = np.array([
+    [446, 504],  # FL
+    [712, 504],  # FR
+    [310, 700],  # RL
+    [895, 700],  # RR
+])  # origin
 
 # dstFrontCamListXY = np.array([
 #     [-1.2834, -8.526 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794-4.423],  # FL
@@ -30,12 +31,14 @@ STITCH_HEIGHT = 1000
 # ])  # origin
 
 
-# dstFrontCamListXY = np.array([
-#     [-1.4834, -8.526 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794-4.423],  # FL
-#     [ 1.466 , -8.3194],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432-4.2672],  # FR
-#     [-1.4834, -4.103 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794],  # RL
-#     [ 1.466 , -4.0522],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432],  # RR
-# ])  # tune by hand
+dstFrontCamListXY = np.array([
+    [-1.4834, -8.526 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794-4.423],  # FL
+    [ 1.466 , -8.3194],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432-4.2672],  # FR
+    [-1.4834, -4.103 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794],  # RL
+    [ 1.466 , -4.0522],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432],  # RR
+])  # tune by hand
+
+
 
 
 def cvtFootInch2Meter(ft, inch=0.0):
@@ -66,27 +69,54 @@ pixelFrontRightCamListXY = np.array([
 ])
 
 
+"""
+backup matrix
+
 worldFrontCamListXY = np.array([
-    [cvtFootInch2Meter(0, -25-30), cvtFootInch2Meter(0, -210-120)-1.46+0.151],  # FL
-    [cvtFootInch2Meter(0,  35+30),cvtFootInch2Meter(0, -210-120)-1.46+0.151],  # FR
-    [cvtFootInch2Meter(0, -25-30),cvtFootInch2Meter(0, -120)-1.46+0.151],  # RL
-    [cvtFootInch2Meter(0,  35+30),cvtFootInch2Meter(0, -120)-1.46+0.151],  # RR
+    [cvtFootInch2Meter(0, -25-30    -18), cvtFootInch2Meter(0, -210-170    +10)-1.46+0.151],  # FL
+    [cvtFootInch2Meter(0,  35+30    -20), cvtFootInch2Meter(0, -210-170     +6)-1.46+0.151],  # FR
+    [cvtFootInch2Meter(0, -25-30    -5), cvtFootInch2Meter(0, -170          +5)-1.46+0.151],  # RL
+    [cvtFootInch2Meter(0,  35+30    -8), cvtFootInch2Meter(0, -170          +2)-1.46+0.151],  # RR
 ])
 
-
 worldFrontLeftCamListXY = np.array([
-    [cvtFootInch2Meter(0, -280-30), -1.46+0.151],  # FL
-    [cvtFootInch2Meter(0,  -25-30   +8), cvtFootInch2Meter(0, -210-120)-1.46+0.151],  # FR
-    [cvtFootInch2Meter(0, -130-30), -1.46+0.151],  # RL
-    [cvtFootInch2Meter(0,  -25-30   ),cvtFootInch2Meter(0, -120)-1.46+0.151],  # RR
+    [cvtFootInch2Meter(0, -280-30), cvtFootInch2Meter(0, 0   +5)-1.46+0.151],  # FL
+    [cvtFootInch2Meter(0,  -25-30   -35), cvtFootInch2Meter(0, -210-170     +10)-1.46+0.151],  # FR
+    [cvtFootInch2Meter(0, -130-30), cvtFootInch2Meter(0, 0   +2)-1.46+0.151],  # RL
+    [cvtFootInch2Meter(0,  -25-30   -15),cvtFootInch2Meter(0, -170      +8)-1.46+0.151],  # RR
 ])
 
 
 worldFrontRightCamListXY = np.array([
-    [cvtFootInch2Meter(0,  35+30    -8), cvtFootInch2Meter(0, -210-120)-1.46+0.151],  # FL
-    [cvtFootInch2Meter(0, 250+30), -1.46+0.151],  # FR
-    [cvtFootInch2Meter(0,  35+30    ),cvtFootInch2Meter(0, -120)-1.46+0.151],  # RL
-    [cvtFootInch2Meter(0, 140+30), -1.46+0.151],  # RR
+    [cvtFootInch2Meter(0,  35+30    -10), cvtFootInch2Meter(0, -210-170)-1.46+0.151],  # FL
+    [cvtFootInch2Meter(0, 250+30), cvtFootInch2Meter(0, 0   -20)-1.46+0.151],  # FR
+    [cvtFootInch2Meter(0,  35+30    -0),cvtFootInch2Meter(0, -170)-1.46+0.151],  # RL
+    [cvtFootInch2Meter(0, 140+30), cvtFootInch2Meter(0, 0   -12)-1.46+0.151],  # RR
+])
+
+"""
+
+
+worldFrontCamListXY = np.array([
+    [cvtFootInch2Meter(0, -25-30    -18), cvtFootInch2Meter(0, -210-170    +10)-1.46+0.151],  # FL
+    [cvtFootInch2Meter(0,  35+30    -20), cvtFootInch2Meter(0, -210-170     +6)-1.46+0.151],  # FR
+    [cvtFootInch2Meter(0, -25-30    -5), cvtFootInch2Meter(0, -170          +5)-1.46+0.151],  # RL
+    [cvtFootInch2Meter(0,  35+30    -8), cvtFootInch2Meter(0, -170          +2)-1.46+0.151],  # RR
+])
+
+worldFrontLeftCamListXY = np.array([
+    [cvtFootInch2Meter(0, -280-30), cvtFootInch2Meter(0, 0   +8)-1.46+0.151],  # FL
+    [cvtFootInch2Meter(0,  -25-30   -20), cvtFootInch2Meter(0, -210-170     +10)-1.46+0.151],  # FR
+    [cvtFootInch2Meter(0, -130-30), cvtFootInch2Meter(0, 0   +8)-1.46+0.151],  # RL
+    [cvtFootInch2Meter(0,  -25-30   -5),cvtFootInch2Meter(0, -170      +5)-1.46+0.151],  # RR
+])
+
+
+worldFrontRightCamListXY = np.array([
+    [cvtFootInch2Meter(0,  35+30    -20), cvtFootInch2Meter(0, -210-170)-1.46+0.151],  # FL
+    [cvtFootInch2Meter(0, 250+30), cvtFootInch2Meter(0, 0   -10)-1.46+0.151],  # FR
+    [cvtFootInch2Meter(0,  35+30    -10),cvtFootInch2Meter(0, -170)-1.46+0.151],  # RL
+    [cvtFootInch2Meter(0, 140+30), cvtFootInch2Meter(0, 0   -5)-1.46+0.151],  # RR
 ])
 
 
@@ -161,11 +191,9 @@ def maskTransformedKeyArea(img, whichCam):
 
 
 class PerspectiveTransform():
-    def __init__(self,  img:np.ndarray, 
-                        srcPixelListXY:np.ndarray, 
+    def __init__(self,  srcPixelListXY:np.ndarray, 
                         dstMeterListXY:np.ndarray):
-        self.img = img
-        self.imgShape = (self.img).shape
+        # self.imgShape = (self.img).shape
         self.srcPixelListXY = srcPixelListXY  # img pixel
         self.dstMeterListXY = dstMeterListXY  # real world
         
@@ -178,17 +206,22 @@ class PerspectiveTransform():
         
         self.perspectiveTransMat = cv2.getPerspectiveTransform( np.float32(self.srcPixelListXY), 
                                                                 np.float32(self.dstPixelListXY))
-        self.transformedImg = cv2.warpPerspective(self.img, self.perspectiveTransMat, (STITCH_WIDTH, STITCH_HEIGHT))
+        # print(self.perspectiveTransMat)
+        # exit()
         
-        # cv2.namedWindow("transformedImg", cv2.WINDOW_NORMAL)  # 允许手动调整窗口
-        # cv2.resizeWindow("transformedImg", STITCH_WIDTH//2, STITCH_HEIGHT//2)  # 设置窗口大小为 
+        # cv2.namedWindow("transformedImg", cv2.WINDOW_NORMAL)  # can change window size
+        # cv2.resizeWindow("transformedImg", STITCH_WIDTH//2, STITCH_HEIGHT//2)  # set window size
         # cv2.imshow("transformedImg", self.transformedImg)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
     
-    def getTransformedImg(self):
-        return self.transformedImg
+    def getTransformedImg(self, img):
+        transformedImg = cv2.warpPerspective(img, self.perspectiveTransMat, (STITCH_WIDTH, STITCH_HEIGHT))
+        return transformedImg
 
+# pT = PerspectiveTransform(
+#     srcPixelListXY=srcFrontCamListXY,
+#     dstMeterListXY=dstFrontCamListXY)
 
 
 def combineImages(imgs):
@@ -210,18 +243,18 @@ def combineImages(imgs):
 
 
 def cvtImg2PointCloudMsg(imgSrc, frameId="base_footprint", pixelSize=0.02, stride=1, stamp=None):
-    img = imgSrc[::stride, ::stride]  # 图像下采样
+    img = imgSrc[::stride, ::stride]  # down sample
     height, width, channel = img.shape
     totalPoints = height * width
     
     u, v = np.meshgrid(np.arange(width), np.arange(height))
     xImg = (u.astype(np.float32).reshape(-1) - width // 2) * pixelSize * stride
     yImg = (v.astype(np.float32).reshape(-1) - height // 2) * pixelSize * stride
-    zImg = np.zeros_like(xImg)  # 都在地面 高度=0
+    zImg = np.zeros_like(xImg)  # at the ground
     
     # x = u.astype(np.float32).reshape(-1) * pixelSize * stride
     # y = v.astype(np.float32).reshape(-1) * pixelSize * stride
-    # z = np.zeros_like(x)  # 都在地面 高度=0
+    # z = np.zeros_like(x)  # at the ground
     
     x = -yImg
     y = -xImg
@@ -256,79 +289,137 @@ def cvtImg2PointCloudMsg(imgSrc, frameId="base_footprint", pixelSize=0.02, strid
 
 
 
-
-if __name__ == "__main__":
-    
-    FRONT_CAM_IMG_PATH = os.path.join(os.path.dirname(__file__), "Pics", "front.png")
-    imgFrontCam = cv2.imread(FRONT_CAM_IMG_PATH)
-    # imgFrontCam = (imgFrontCam.astype(np.float32)*1.5).astype(np.uint8)
-    maskedImgFrontCam = maskCamKeyArea(imgFrontCam, "Front")
-    
-    
-    FL_CAM_IMG_PATH = os.path.join(os.path.dirname(__file__), "Pics", "fl.png")
-    imgFrontLeftCam = cv2.imread(FL_CAM_IMG_PATH)
-    imgFrontLeftCam = undistortImage(imgFrontLeftCam, K_FRONT_LEFT, DISTORT_FRONT_LEFT)[0]
-    maskedImgFrontLeftCam = maskCamKeyArea(imgFrontLeftCam, "FRONT_LEFT")
-    
-    
-    FR_CAM_IMG_PATH = os.path.join(os.path.dirname(__file__), "Pics", "fr.png")
-    imgFrontRightCam = cv2.imread(FR_CAM_IMG_PATH)
-    imgFrontRightCam = undistortImage(imgFrontRightCam, K_FRONT_RIGHT, DISTORT_FRONT_RIGHT)[0]
-    maskedImgFrontRightCam = maskCamKeyArea(imgFrontRightCam, "FRONT_RIGHT")
-    
-    # cv2.imshow("maskedImgFrontCam", maskedImgFrontCam)
-    # cv2.imshow("maskedImgFrontLeftCam", maskedImgFrontLeftCam)
-    # cv2.imshow("maskedImgFrontRightCam", maskedImgFrontRightCam)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
+class ImageSubscriberAndFunctions():
+    def __init__(self, topicName, maskName, srcPixelListXY, dstMeterListXY, distortCoeff=None, intrinsicMat=None):
+        self.topicName = topicName
+        self.image = None
+        self.maskedImage = None
+        self.transformedImage = np.zeros((STITCH_HEIGHT, STITCH_WIDTH, 3), dtype=np.uint8)
+        self.maskName = maskName
+        self.srcPixelListXY = srcPixelListXY
+        self.dstMeterListXY = dstMeterListXY
+        self.distortionCoeffs = distortCoeff
+        self.intrinsicMat = intrinsicMat
+        self.bridge = CvBridge()
+        self.perspectiveTransform = PerspectiveTransform(srcPixelListXY, dstMeterListXY)
+        self.imageSub = rospy.Subscriber(self.topicName, Image, self.callback, queue_size=1)
+        
+    def callback(self, msg):
+        self.image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        if self.distortionCoeffs is not None and self.intrinsicMat is not None:
+            self.image = undistortImage(self.image, self.intrinsicMat, self.distortionCoeffs)[0]
+        self.maskedImage = maskCamKeyArea(self.image, self.maskName)
+        self.transformedImage = self.perspectiveTransform.getTransformedImg(self.maskedImage)
 
 
-    FrontCamPerspectiveTransform = PerspectiveTransform(
-        img=maskedImgFrontCam, 
-        srcPixelListXY=pixelFrontCamListXY, 
-        dstMeterListXY=worldFrontCamListXY, 
-    )
-    transformedFrontImg = FrontCamPerspectiveTransform.getTransformedImg()
-    transformedFrontImg = maskTransformedKeyArea(transformedFrontImg, "FRONT")
 
-    FrontLeftCamPerspectiveTransform = PerspectiveTransform(
-        img=imgFrontLeftCam, 
-        srcPixelListXY=pixelFrontLeftCamListXY, 
-        dstMeterListXY=worldFrontLeftCamListXY, 
-    )
-    transformedFrontLeftImg = FrontLeftCamPerspectiveTransform.getTransformedImg()
-    transformedFrontLeftImg = maskTransformedKeyArea(transformedFrontLeftImg, "FRONT_LEFT")
-    
+if __name__ == "__main__":  # sub and pub
 
-    FrontRightCamPerspectiveTransform = PerspectiveTransform(
-        img=imgFrontRightCam, 
-        srcPixelListXY=pixelFrontRightCamListXY, 
-        dstMeterListXY=worldFrontRightCamListXY, 
-    )
-    transformedFrontRightImg = FrontRightCamPerspectiveTransform.getTransformedImg()
-    transformedFrontRightImg = maskTransformedKeyArea(transformedFrontRightImg, "FRONT_RIGHT")
-    
-
-    cv2.imshow("transformedFrontImg", transformedFrontImg)
-    cv2.imshow("transformedFrontLeftImg", transformedFrontLeftImg)
-    cv2.imshow("transformedFrontRightImg", transformedFrontRightImg)
-    
-    
-    stitchImg = combineImages([transformedFrontImg, transformedFrontLeftImg, transformedFrontRightImg])
-    cv2.imshow("stitchImg", stitchImg)
-    
-    
-    
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    frontCamImageSub = ImageSubscriberAndFunctions(
+        "/oak/rgb/image_raw", "FRONT", 
+        # srcFrontCamListXY, dstFrontCamListXY)
+        pixelFrontCamListXY, worldFrontCamListXY,)
+    frontLeftCamImageSub = ImageSubscriberAndFunctions(
+        "/camera_fl/arena_camera_node/image_raw", "FRONT_LEFT", 
+        pixelFrontLeftCamListXY, worldFrontLeftCamListXY,
+        DISTORT_FRONT_LEFT, K_FRONT_LEFT)
+    frontRightCamImageSub = ImageSubscriberAndFunctions(
+        "/camera_fr/arena_camera_node/image_raw", "FRONT_RIGHT", 
+        pixelFrontRightCamListXY, worldFrontRightCamListXY,
+        DISTORT_FRONT_RIGHT, K_FRONT_RIGHT)
 
     rospy.init_node("image_to_pointcloud_node")
-    pub = rospy.Publisher("/image_pointcloud", PointCloud2, queue_size=1)
-    rate = rospy.Rate(1)
+    pc_pub = rospy.Publisher("/image_pointcloud", PointCloud2, queue_size=1)
+    rate = rospy.Rate(1)  # times per second
+    
     while not rospy.is_shutdown():
-        msg = cvtImg2PointCloudMsg(stitchImg, frameId="base_footprint", pixelSize=0.02, stride=2)
-        pub.publish(msg)
-        rate.sleep()
+
+        stitched_img = combineImages([
+            frontCamImageSub.transformedImage * 2,
+            frontLeftCamImageSub.transformedImage,
+            frontRightCamImageSub.transformedImage
+        ])
+
+        pc_msg = cvtImg2PointCloudMsg(stitched_img, frameId="base_footprint", pixelSize=0.02, stride=2)
+        pc_pub.publish(pc_msg)
+
+        rate.sleep()  # keep the process rate
+
+
+
+# if __name__ == "__main__":  # read fixed img and pub
+    
+#     FRONT_CAM_IMG_PATH = os.path.join(os.path.dirname(__file__), "Pics", "front.png")
+#     imgFrontCam = cv2.imread(FRONT_CAM_IMG_PATH)
+#     # imgFrontCam = (imgFrontCam.astype(np.float32)*1.5).astype(np.uint8)
+#     maskedImgFrontCam = maskCamKeyArea(imgFrontCam, "Front")
+    
+    
+#     FL_CAM_IMG_PATH = os.path.join(os.path.dirname(__file__), "Pics", "fl.png")
+#     imgFrontLeftCam = cv2.imread(FL_CAM_IMG_PATH)
+#     imgFrontLeftCam = undistortImage(imgFrontLeftCam, K_FRONT_LEFT, DISTORT_FRONT_LEFT)[0]
+#     maskedImgFrontLeftCam = maskCamKeyArea(imgFrontLeftCam, "FRONT_LEFT")
+    
+    
+#     FR_CAM_IMG_PATH = os.path.join(os.path.dirname(__file__), "Pics", "fr.png")
+#     imgFrontRightCam = cv2.imread(FR_CAM_IMG_PATH)
+#     imgFrontRightCam = undistortImage(imgFrontRightCam, K_FRONT_RIGHT, DISTORT_FRONT_RIGHT)[0]
+#     maskedImgFrontRightCam = maskCamKeyArea(imgFrontRightCam, "FRONT_RIGHT")
+    
+#     # cv2.imshow("maskedImgFrontCam", maskedImgFrontCam)
+#     # cv2.imshow("maskedImgFrontLeftCam", maskedImgFrontLeftCam)
+#     # cv2.imshow("maskedImgFrontRightCam", maskedImgFrontRightCam)
+#     # cv2.waitKey(0)
+#     # cv2.destroyAllWindows()
+
+
+#     FrontCamPerspectiveTransform = PerspectiveTransform(
+#         # img=maskedImgFrontCam, 
+#         srcPixelListXY=pixelFrontCamListXY, 
+#         dstMeterListXY=worldFrontCamListXY, 
+#     )
+#     transformedFrontImg = FrontCamPerspectiveTransform.getTransformedImg(maskedImgFrontCam)
+#     transformedFrontImg = maskTransformedKeyArea(transformedFrontImg, "FRONT")
+
+
+#     FrontLeftCamPerspectiveTransform = PerspectiveTransform(
+#         # img=imgFrontLeftCam, 
+#         srcPixelListXY=pixelFrontLeftCamListXY, 
+#         dstMeterListXY=worldFrontLeftCamListXY, 
+#     )
+#     transformedFrontLeftImg = FrontLeftCamPerspectiveTransform.getTransformedImg(imgFrontLeftCam)
+#     transformedFrontLeftImg = maskTransformedKeyArea(transformedFrontLeftImg, "FRONT_LEFT")
+    
+
+#     FrontRightCamPerspectiveTransform = PerspectiveTransform(
+#         # img=imgFrontRightCam, 
+#         srcPixelListXY=pixelFrontRightCamListXY, 
+#         dstMeterListXY=worldFrontRightCamListXY, 
+#     )
+#     transformedFrontRightImg = FrontRightCamPerspectiveTransform.getTransformedImg(imgFrontRightCam)
+#     transformedFrontRightImg = maskTransformedKeyArea(transformedFrontRightImg, "FRONT_RIGHT")
+    
+
+#     cv2.imshow("transformedFrontImg", transformedFrontImg)
+#     cv2.imshow("transformedFrontLeftImg", transformedFrontLeftImg)
+#     cv2.imshow("transformedFrontRightImg", transformedFrontRightImg)
+    
+    
+#     stitchImg = combineImages([transformedFrontImg, transformedFrontLeftImg, transformedFrontRightImg])
+#     cv2.imshow("stitchImg", stitchImg)
+    
+    
+    
+#     cv2.waitKey(0)
+#     cv2.destroyAllWindows()
+
+#     rospy.init_node("image_to_pointcloud_node")
+#     pub = rospy.Publisher("/image_pointcloud", PointCloud2, queue_size=1)
+#     rate = rospy.Rate(1)
+#     while not rospy.is_shutdown():
+#         msg = cvtImg2PointCloudMsg(stitchImg, frameId="base_footprint", pixelSize=0.02, stride=2)
+#         pub.publish(msg)
+#         rate.sleep()
 
 
 
