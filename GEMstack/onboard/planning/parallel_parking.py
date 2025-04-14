@@ -157,59 +157,179 @@ def find_parking_positions(
 
     return slots
 
-
-
-def parking_spot_finder(static_horizontal_curb, parked_cars, compact_parking_spot_size, yaw_of_parked_cars=0.0, shift_from_center_to_rear_axis = 2.56/2):
-    if not parked_cars:
-        print("There are no parked cars.")
-        # TODO: compute x1 and x2 for general case, when curbs line connecting curbs is not horizontal to Y axis
-        x1 = static_horizontal_curb[0][0] + static_horizontal_curb[0][3][1]/2
-        print("x1", x1)
-        y1 = static_horizontal_curb[0][1]
-        x2 = static_horizontal_curb[1][0] - static_horizontal_curb[1][3][1]/2
-        print("x2", x2)
-        y2 = static_horizontal_curb[1][1]
-        dx = x2 - x1
-        dy = y2 - y1
-        L = math.hypot(dx, dy)
-        print("L", L)
-        if L == 0:
-           raise ValueError("Points are identical; direction is undefined.")
-        
-        ratio = int(L/compact_parking_spot_size[1])
-        print("ratio", ratio)
-        if ratio == 0:
-           raise ValueError("No car can fit in the parking lot.")
-        
-
-        x1 = x1 + compact_parking_spot_size[1]/2
-        parking_spots = []
-        parking_spots.append((x1, y1, yaw_of_parked_cars))
-        
-        for i in range(1, ratio):
-            x = x1 + i*compact_parking_spot_size[1] #dx * i / ratio
-            y = y1 + dy * i / ratio
-            parking_spots.append((x-shift_from_center_to_rear_axis, y, yaw_of_parked_cars))
-        return parking_spots
+def all_parking_spots_in_parking_lot(static_horizontal_curb, compact_parking_spot_size, yaw_of_parked_cars=0.0, shift_from_center_to_rear_axis = 2.56/2):
+    if not static_horizontal_curb:
+       raise ValueError("No static horizontal curb provided.")
     
-    else:
-        print("There are parked cars.")
-        parked_cars_sorted = sorted(parked_cars, key=lambda x: x[0])
-        
+    curb0_x = static_horizontal_curb[0][0] + static_horizontal_curb[0][3][1]/2
+    curb0_y = static_horizontal_curb[0][1]
+    curb1_x  = static_horizontal_curb[1][0] - static_horizontal_curb[1][3][1]/2
+    curb1_y  = static_horizontal_curb[1][1]
+    dx = curb1_x - curb0_x
+    dy = curb1_y - curb0_y
+    L = math.hypot(dx, dy)
+    if L == 0:
+       raise ValueError("Points are identical; direction is undefined.")
+    ratio = int(L/compact_parking_spot_size[1])
+    if ratio == 0:
+       raise ValueError("No car can fit in the parking lot.")   
 
-        
-
-def pick_parking_spot(available_parking_spots,  x,y, yaw = 0.0):
-    print("Available parking spots:", available_parking_spots)
-    print("Vehicle pose:", x, y, yaw)
+    x1 = curb0_x + compact_parking_spot_size[1]/2
+    parking_spots = []
+    parking_spots.append((x1, curb0_y, yaw_of_parked_cars))
     
+    for i in range(1, ratio):
+        x = x1 + i*compact_parking_spot_size[1] #dx * i / ratio
+        y = curb0_y 
+        parking_spots.append((x, y, yaw_of_parked_cars))
+
+    return parking_spots  
+
+def pick_parking_spot(available_parking_spots, x, y, yaw = 0.0, closest = True):
 
     def distance(spot):
         dx = spot[0] - x
         dy = spot[1] - y
         return math.hypot(dx, dy)
     
-    return max(available_parking_spots, key=distance)
+    if closest:
+       return min(available_parking_spots, key=distance)
+    else:
+       return max(available_parking_spots, key=distance)    
+
+def search_axis_direction(parking_spot_to_go, vehicle_pose):
+    dx = parking_spot_to_go[0][0] - vehicle_pose[0]
+    if dx > 0:
+        return True
+    else:
+        return False     
+
+def available_parking_spots(all_parking_spots_in_parking_lot, parked_cars, compact_parking_spot_size, yaw_of_parked_cars=0.0, shift_from_center_to_rear_axis = 2.56/2):
+    available_parking_spots = []
+    for spot in all_parking_spots_in_parking_lot:
+        # Check if the parking spot is occupied by a parked car
+        is_occupied = False
+        for parked_car in parked_cars:
+            if (abs(parked_car[0] - spot[0]) < compact_parking_spot_size[1] / 2) and (abs(parked_car[1] - spot[1]) < compact_parking_spot_size[0] / 2):
+                is_occupied = True
+                break
+
+        # If the parking spot is not occupied, add it to the available list
+        if not is_occupied:
+            available_parking_spots.append(spot)
+
+    return available_parking_spots           
+
+# def parking_spot_finder(static_horizontal_curb, parked_cars, compact_parking_spot_size, yaw_of_parked_cars=0.0, shift_from_center_to_rear_axis = 2.56/2):
+    
+#     # TODO: compute x1 and x2 for general case, when curbs line connecting curbs is not horizontal to Y axis
+#     if not static_horizontal_curb:
+#         raise ValueError("No static horizontal curb provided.")
+
+
+#     if not parked_cars:
+
+#         x1 = static_horizontal_curb[0][0] + static_horizontal_curb[0][3][1]/2
+#         print("x1: ", x1)
+#         y1 = static_horizontal_curb[0][1]
+#         x2 = static_horizontal_curb[1][0] - static_horizontal_curb[1][3][1]/2
+#         y2 = static_horizontal_curb[1][1]
+#         print("There are no parked cars.")
+#         dx = x2 - x1
+#         dy = y2 - y1
+#         L = math.hypot(dx, dy)
+#         if L == 0:
+#            raise ValueError("Points are identical; direction is undefined.")
+        
+#         ratio = int(L/compact_parking_spot_size[1])
+#         if ratio == 0:
+#            raise ValueError("No car can fit in the parking lot.")
+
+
+#         print("ratio: ", ratio)
+
+#         x1 = x1 + compact_parking_spot_size[1]/2
+#         parking_spots = []
+#         parking_spots.append((x1, y1, yaw_of_parked_cars))
+#         print("x1: ", x1)
+#         print("compact_parking_spot_size[1] = ", compact_parking_spot_size[1])
+#         for i in range(1, ratio):
+#             x = x1 + i*compact_parking_spot_size[1] #dx * i / ratio
+#             y = y1 + dy * i / ratio
+#             x_shifted = x - shift_from_center_to_rear_axis
+#             parking_spots.append((x_shifted, y, yaw_of_parked_cars))
+#         return parking_spots
+    
+#     else:
+#         print("There are parked cars.")
+#         parked_cars_sorted = sorted(parked_cars, key=lambda x: x[0])
+#         curb0_x = static_horizontal_curb[0][0] + static_horizontal_curb[0][3][1]/2
+#         curb0_y = static_horizontal_curb[0][1]
+#         curb1_x  = static_horizontal_curb[1][0] - static_horizontal_curb[1][3][1]/2
+#         curb1_y  = static_horizontal_curb[1][1]
+
+        
+#         # Curb 1 and closes parked car
+#         # TODO: Consider the case when curb is not horizontal to Y axis.
+#         parked_0_x = parked_cars_sorted[0][0] - compact_parking_spot_size[1]/2
+#         dx = parked_0_x- curb0_x
+#         dy = parked_cars_sorted[0][1] - curb0_y
+#         L = math.hypot(dx, dy)
+#         ratio = int(L/compact_parking_spot_size[1])
+
+#         # Adding available parking spots between curb 1 and closes parked car if at least one car can fit
+#         if ratio >= 1:
+#            curb0_x = curb0_x + compact_parking_spot_size[1]/2
+#            parking_spots = []
+#            parking_spots.append((curb0_x, curb0_y, yaw_of_parked_cars))
+#         if ratio >= 2:
+#             for i in range(1, ratio):
+#                 x = curb0_x+ i*compact_parking_spot_size[1] #dx * i / ratio
+#                 y = curb0_y
+#                 parking_spots.append((x, y, yaw_of_parked_cars))
+
+    
+#         # Adding available parking spots between parked cars
+#         for i in range(len(parked_cars_sorted)-1):
+#             parked_0_x = parked_cars_sorted[i][0] + compact_parking_spot_size[1]/2
+#             parked_0_y = parked_cars_sorted[i][1]
+#             parked_n_x = parked_cars_sorted[i+1][0] - compact_parking_spot_size[1]/2
+#             dx = parked_n_x - parked_0_x
+#             dy = parked_0_y - parked_n_x
+#             L = math.hypot(dx, dy)
+#             ratio = int(L/compact_parking_spot_size[1])
+#             # Adding available parking spots between parked cars if at least one car can fit
+#             if ratio >= 1:
+#                 parked_0_x = parked_0_x + compact_parking_spot_size[1]/2
+#                 parking_spots.append((parked_0_x, parked_0_y, yaw_of_parked_cars))
+#             if ratio >= 2:
+#                 for i in range(1, ratio):
+#                     x = parked_0_x + i*compact_parking_spot_size[1]
+#                     y = parked_0_y
+#                     parking_spots.append((x, y, yaw_of_parked_cars))
+
+#         # Curb 2 and closes parked car
+#         parked_n_x = parked_cars_sorted[-1][0] + compact_parking_spot_size[1]/2
+#         dx = curb1_x - parked_n_x
+#         dy = curb1_y - parked_cars_sorted[-1][1]
+#         L = math.hypot(dx, dy)
+#         ratio = int(L/compact_parking_spot_size[1])
+#         # Adding available parking spots between curb 2 and closes parked car if at least one car can fit
+#         if ratio >= 1:
+#            curb1_x = curb1_x - compact_parking_spot_size[1]/2
+#            parking_spots.append((curb1_x, curb1_y, yaw_of_parked_cars))
+#         if ratio >= 2:
+#             for i in range(1, ratio):
+#                 x = curb1_x - i*compact_parking_spot_size[1]
+#                 y = curb1_y
+#                 parking_spots.append((x, y, yaw_of_parked_cars))            
+
+#         return parking_spots
+        
+
+    
+
+
 
 
 
@@ -240,42 +360,58 @@ class SummoningParkingRoutePlanner(Component):
         else:
             raise ValueError("Unknown route file extension",ext)
         
+        # TODO: Move to parameters YAML
+        self.vehicle_dims = (1.7, 3.2)
+        self.compact_parking_spot_size = (2.44, 4.88) # US Compact Space for parking (2.44, 4.88)
+        self.shift_from_center_to_rear_axis = 2.56/2
+        self.x_axis_of_search = 0.0
+        self.search_step_size = 0.1
+        self.closest = False # If True, the closest parking spot will be selected, otherwise the farthest one will be selected
+        self.initial_pose_of_vehicle = (0.0, 0.0, 0.0) 
+    
+        # Curbs and parked cars are in the same frame 
         
         # TODO: Find coordinates of curbs in World frame
+        # Examples of parking lots: 10.26 (2 SLOTS), 24.9 (5 SLOTS), 39.79 (7 SLOTS) 
         self.static_horizontal_curb = [
             (0.0, -2.44, 0.0, (2.44, 0.5)), # horizontal curb at start of parking lot
-            (15.14 , -2.44, 0.0, (2.44, 0.5)),  # horizontal curb at end of parking lot #39.79 (7 SLOTS) 10.26 (2 SLOTS) 
+            (24.9 , -2.44, 0.0, (2.44, 0.5)),  # horizontal curb at end of parking lot 
         ]
         self.static_vertical_curb_length = self.static_horizontal_curb[1][0] - self.static_horizontal_curb[0][0] + self.static_horizontal_curb[1][3][1]/2 + self.static_horizontal_curb[0][3][1]/2 
         self.static_vertical_curb_center = (self.static_horizontal_curb[1][0] - self.static_horizontal_curb[1][3][1]/2) - (self.static_horizontal_curb[0][0] + self.static_horizontal_curb[0][3][1]/2) + self.static_horizontal_curb[0][3][1]/2 
         self.static_obstacles_vertical_curb = [(self.static_vertical_curb_center, -4.88, 0.0, (2.44, self.static_vertical_curb_length))]
-
-        self.parked_cars = [] #[(5.0, -2.44, 0.0, (2.44, 4.88)), (19.64, -2.44, 0.0, (2.44, 4.88))]
+        
+        # TODO: Replace with real parked cars
+        # Slot 1 (2.69, -2.44, 0.0, (2.44, 4.88)), Slot 2 (7.57, -2.44, 0.0, (2.44, 4.88)),  Slot 3 (12.45, -2.44, 0.0, (2.44, 4.88)),Slot 4 (17.33, -2.44, 0.0, (2.44, 4.88)), Slot 5 (22.11, -2.44, 0.0, (2.44, 4.88))
+        self.parked_cars = [(2.69, -2.44, 0.0, (1.7, 3.2)),(7.57, -2.44, 0.0, (1.7, 3.2)),(12.45, -2.44, 0.0, (1.7, 3.2))]
         self.objects_to_avoid_collisions = self.static_horizontal_curb + self.static_obstacles_vertical_curb + self.parked_cars
-        # US Compact Space for parking (2.44, 4.88)
-        # TODO: get from gem_e4_geometry.yaml 
-        self.vehicle_dims = (1.7, 3.2)
-        #vehicle_dims_plus_margin = (vehicle_dims[0] + 0.2, vehicle_dims[1] + 0.2)
-        self.compact_parking_spot_size = (2.44, 4.88)
-        self.available_parking_spots = parking_spot_finder(self.static_horizontal_curb, [], self.compact_parking_spot_size, yaw_of_parked_cars=0.0, shift_from_center_to_rear_axis = 2.56/2)
-        self.parking_spot_to_go = [pick_parking_spot(self.available_parking_spots, 0.0, 0.0)]
-        self.x_axis_of_search = 0.0
+        self.all_parking_spots_in_parking_lot = all_parking_spots_in_parking_lot(self.static_horizontal_curb, self.compact_parking_spot_size, yaw_of_parked_cars=0.0, shift_from_center_to_rear_axis = 2.56/2)
+        self.available_parking_spots = available_parking_spots(self.all_parking_spots_in_parking_lot, self.parked_cars, self.compact_parking_spot_size, yaw_of_parked_cars=0.0, shift_from_center_to_rear_axis = 2.56/2)
+        self.parking_spot_to_go = [pick_parking_spot(self.available_parking_spots, 0.0, 0.0, yaw=0.0, closest = self.closest)]
+        x_shift = self.parking_spot_to_go[0][0] - self.shift_from_center_to_rear_axis
+        self.parking_spot_to_go[0] = (x_shift, self.parking_spot_to_go[0][1], self.parking_spot_to_go[0][2])
+        self.x_axis_of_search_direction_positive = search_axis_direction(self.parking_spot_to_go, self.initial_pose_of_vehicle)
+        
 
 
-
-        # waypoints, waypoints_for_obstacles_check= reeds_shepp_path((0.0, 0.0, 0.0), (x, 0.0, 0.0))
-        # waypoints2 , waypoints_for_obstacles_check2 = reeds_shepp_path((x, 0.0, 0.0), self.parking_spot_to_go[0])
-        # waypoints3, waypoints_for_obstacles_check3 = reeds_shepp_path((self.parking_spot_to_go[0][0]-0.2, self.parking_spot_to_go[0][1], self.parking_spot_to_go[0][2]), self.parking_spot_to_go[0])
         while True:
-            waypoints = reeds_shepp_path((0.0, 0.0, 0.0), (self.x_axis_of_search, 0.0, 0.0))
+            waypoints = reeds_shepp_path((0.0, 0.0, 0.0) , (self.x_axis_of_search, 0.0, 0.0))
             waypoints2  = reeds_shepp_path((self.x_axis_of_search, 0.0, 0.0),self.parking_spot_to_go[0])
-            #waypoints2  = reeds_shepp_path((self.x_axis_of_search, 0.0, 0.0), (self.parking_spot_to_go[0][0]-0.7, self.parking_spot_to_go[0][1], 0.0))
-            #waypoints3 = reeds_shepp_path((self.parking_spot_to_go[0][0]-0.7, self.parking_spot_to_go[0][1], 0.0), self.parking_spot_to_go[0])
+            #waypoints2  = reeds_shepp_path((self.x_axis_of_search, 0.0, 0.0), (self.parking_spot_to_go[0][0]-0.3, self.parking_spot_to_go[0][1], 0.0))
+            #waypoints3 = reeds_shepp_path((self.parking_spot_to_go[0][0]-0.3, self.parking_spot_to_go[0][1], 0.0), self.parking_spot_to_go[0])
             self.waypoints_for_obstacles_check = (waypoints + waypoints2)# + waypoints3)   
             self.waypoints_to_go = np.array(self.waypoints_for_obstacles_check)[:,:2]
             if is_trajectory_collision_free(self.waypoints_for_obstacles_check, self.vehicle_dims, self.objects_to_avoid_collisions) is True:
                break 
-            self.x_axis_of_search += 0.1
+            if self.x_axis_of_search_direction_positive:
+               self.x_axis_of_search += self.search_step_size
+               if self.x_axis_of_search > self.static_horizontal_curb[1][0] + self.compact_parking_spot_size[1]:
+                  raise ValueError("No parking spot available.")   
+            else:
+               self.x_axis_of_search -= self.search_step_size 
+               if self.x_axis_of_search < self.static_horizontal_curb[0][0] - self.compact_parking_spot_size[1]:
+                  raise ValueError("No parking spot available.")
+
 
     def state_inputs(self):
         return ['vehicle']
@@ -289,19 +425,10 @@ class SummoningParkingRoutePlanner(Component):
     def update(self, vehicle: VehicleState,x=0.0):
         self.current_pose = vehicle.pose
 
-        # TODO: Cone detection -> parking position dataset -> select the nearest one
-        # TODO: Add angle and gear direction in waypoints. 
-        # TODO: Check if the route is feasable (i.e. no collision), if not, re-plan the route by
-        #       construcating holonomic path some path planning algorithm (e.g. RRT, A*).
-        #       Accross holonomic path by a method of deveision find sequence of Reeds-Shepp path 
-        #       that connect the start and goal pose.
-        # TODO: To execute the parking be able drive vehicle in reverse: Talk to control group
-        # TODO: Update from preseption data
-        # TODO: Triger when new cone detection is available
-        # TODO: Add a method to update find axis of search
-        parked_cars = []
-            
-        
+        # TODO: Cone detection -> parking position dataset -> select the parking spot [+]
+        # TODO: Triger when new cone detection is available []
+        # TODO: To execute the parking be able drive vehicle in reverse []
+
         self.route = Route(frame=ObjectFrameEnum.START,points = self.waypoints_to_go.tolist())
 
         return self.route

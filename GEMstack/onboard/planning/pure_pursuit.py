@@ -226,7 +226,7 @@ class PurePursuitTrajectoryTracker(Component):
         dy = vehicle.pose.y - self.pure_pursuit.last_point_on_path[1]
         dist_to_goal = np.hypot(dx, dy)
         # TODO: store threshold in settings
-        if dist_to_goal < 0.1:  
+        if dist_to_goal < 0.2:  
            # full braking, wheels straight
            accel = -self.pure_pursuit.max_decel
            wheel_angle = 0.0
