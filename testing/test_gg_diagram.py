@@ -184,6 +184,11 @@ def compute_gs(times, xs, ys, speeds, accelerations, heading_rates):
     longitudinal_gs = long_accels / g
     lateral_gs = lat_accels / g
 
+    print("max long accel: " + str(np.max(long_accels)))
+    print("min long accel: " + str(np.min(long_accels)))
+    print("max lat accel: " + str(np.max(lat_accels)))
+
+
     return longitudinal_gs, lateral_gs, vs, lat_accels, long_accels, times, valid_mask
 
 def plot_position(axis, x_actual, y_actual, x_desired=None, y_desired=None, safe_thresh=1, unsafe_thresh=2.5):

@@ -1,0 +1,261 @@
+import numpy as np
+import sys
+import os
+import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
+from scipy.signal import savgol_filter
+
+def parse_route_csv(filename):
+    """
+    Parses the pure pursuit tracker log file and extracts the following data:
+      - vehicle time (from column index 19)
+      - X position actual (from column index 2)
+      - Y position actual (from column index 5)
+      - X position desired (from column index 11)
+      - Y position desired (from column index 14)
+    """
+
+    data = np.genfromtxt(filename, delimiter=',', skip_header=1)
+    x_desired = data[:, 0]
+    y_desired = data[:, 1]
+    return x_desired, y_desired
+
+def moving_average(data, window_size=9):
+    """
+    Simple moving average smoother for 1D array.
+    Pads edges by repeating border values.
+    """
+    pad = window_size // 2
+    padded = np.pad(data, (pad, pad), mode='edge')
+    smoothed = np.convolve(padded, np.ones(window_size) / window_size, mode='valid')
+    return smoothed
+
+def compute_curvature_by_distance(xs, ys, ds, spacing=2.0):
+    """
+    Computes curvature using 3-point method with approximately equal distance on both sides.
+    spacing: desired distance (in meters) from center point to side points.
+    """
+    xs = np.array(xs)
+    ys = np.array(ys)
+    N = len(xs)
+    kappa = np.zeros(N)
+
+    # Compute cumulative distances
+    s = np.insert(np.cumsum(ds), 0, 0)
+
+    for i in range(N):
+        # Find index j before i such that s[i] - s[j] ≈ spacing
+        j = i
+        while j > 0 and (s[i] - s[j]) < spacing:
+            j -= 1
+
+        # Find index k after i such that s[k] - s[i] ≈ spacing
+        k = i
+        while k < N - 1 and (s[k] - s[i]) < spacing:
+            k += 1
+
+        if j == i or k == i or j < 0 or k >= N:
+            kappa[i] = 0
+            continue
+
+        # Points: P1 (j), P2 (i), P3 (k)
+        x1, y1 = xs[j], ys[j]
+        x2, y2 = xs[i], ys[i]
+        x3, y3 = xs[k], ys[k]
+
+        # Triangle side lengths
+        a = np.hypot(x2 - x1, y2 - y1)
+        b = np.hypot(x3 - x2, y3 - y2)
+        c = np.hypot(x1 - x3, y1 - y3)
+        s_tri = (a + b + c) / 2
+
+        # Heron’s formula for area
+        area = np.sqrt(max(s_tri * (s_tri - a) * (s_tri - b) * (s_tri - c), 0))
+        denom = a * b * c
+
+        if area > 1e-6 and denom > 1e-6:
+            radius = (a * b * c) / (4 * area)
+            kappa[i] = 1 / radius
+        else:
+            kappa[i] = 0
+
+    kappa[np.abs(kappa) < 1e-2] = 0
+
+    return kappa
+
+def lateral_speed_limit(kappa, ay_max, v_max):
+    v_lat = np.sqrt(np.maximum(ay_max / (np.abs(kappa) + 1e-8), 0))
+    return np.minimum(v_lat, v_max)
+
+def limit_ax_for_friction_ellipse(v, kappa, ax_limit, ay_max):
+    # Compute a_y at current v
+    ay = v**2 * kappa
+    ay_ratio = ay / ay_max
+    # print(ay_ratio)
+    ay_ratio = np.clip(ay_ratio, -1.0, 1.0)
+    # Remaining fraction for ax
+    ax_ratio = np.sqrt(np.maximum(1.0 - ay_ratio**2, 0.0))
+    return ax_limit * ax_ratio
+
+def apply_trail_braking(ds, v_lat, kappa, ax_max, ax_min, ay_max, max_iter=2, tol=1e-3):
+    N = len(ds)
+    v_profile = v_lat.copy()
+    v_profile[0] = 0.0
+    forward_vs = v_lat.copy()
+    backward_vs = v_lat.copy()
+
+    for index, iteration in enumerate(range(max_iter)):
+        v_old = v_profile.copy()
+
+        # Forward (accelerating out of curves)
+        for i in range(1, N):
+            ax_limit = limit_ax_for_friction_ellipse(v_profile[i-1], kappa[i-1], ax_max, ay_max)
+            ax_limit = np.clip(ax_limit, ax_min, ax_max)
+            v_allowed = np.sqrt(v_profile[i-1]**2 + 2 * ax_limit * ds[i-1])
+            v_profile[i] = min(v_profile[i], v_allowed)
+            forward_vs[i] = v_allowed
+
+
+        # Backward (trail braking into corners)
+        for i in range(N - 1, 0, -1):
+            ax_limit = limit_ax_for_friction_ellipse(v_profile[i], kappa[i], abs(ax_min), ay_max)
+            arg = v_profile[i]**2 + 2 * ax_limit * ds[i]
+            v_allowed = np.sqrt(max(arg,0.0))
+            v_profile[i-1] = min(v_profile[i-1], v_allowed)
+            
+            backward_vs[i-1] = v_allowed
+        
+        # for i in range(N - 2, -1, -1):
+        #     ax_limit = limit_ax_for_friction_ellipse(v_profile[i+1], kappa[i+1], abs(ax_min), ay_max)
+        #     arg = v_profile[i+1]**2 + 2 * ax_limit * ds[i]
+        #     # print("v_profile{i+1}: " + str(v_profile[i+1]))
+        #     # print("ax_limit: " + str(ax_limit))
+        #     # print("arg: "  + str(arg))
+        #     v_allowed = np.sqrt(max(arg,0.0))
+        #     v_profile[i] = min(v_profile[i], v_allowed)
+            
+        #     # v_profile[i] = alpha * v_profile[i] + (1 - alpha) * v_allowed
+
+        #     backward_vs[i] = v_allowed
+
+
+        # --- Check convergence ---
+        if np.allclose(v_profile, v_old, atol=tol):
+            print("converged in " + str(iteration) + " iterations")
+            break
+
+    return v_profile, forward_vs, backward_vs, v_lat
+
+def compute_time_profile(xs, ys, v_profile):
+    xs = np.array(xs)
+    ys = np.array(ys)
+    v_profile = np.array(v_profile)
+
+    dx = np.diff(xs)
+    dy = np.diff(ys)
+    ds = np.hypot(dx, dy)  # segment distances
+
+    # Use average speed between points to estimate time between them
+    v_mid = (v_profile[:-1] + v_profile[1:]) / 2
+    v_mid = np.clip(v_mid, 0.1, None)  # Avoid divide-by-zero
+
+    dt = ds / v_mid
+    t = np.insert(np.cumsum(dt), 0, 0.0)  # cumulative time starting from 0
+
+    return t
+
+def plot_speed_profile_gradient(fig, axis, xs, ys, speeds, cmap='jet'):
+    xs = np.array(xs)
+    ys = np.array(ys)
+    speeds = np.array(speeds)
+
+    # Build segments between points
+    points = np.array([xs, ys]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    # segments = [np.column_stack([xs, ysi]) for ysi in ys.T]
+
+    # Create line collection
+    lc = LineCollection(segments, cmap=cmap, linewidth=2)
+    lc.set_array(speeds[:-1])  # color values
+    lc.set_linewidth(2)
+
+    # fig, ax = plt.subplots(figsize=(8, 6))
+    line = axis.add_collection(lc)
+    fig.colorbar(line, ax=axis, label='Speed (m/s)')
+    axis.set_xlim(xs.min(), xs.max())
+    axis.set_ylim(ys.min(), ys.max())
+    axis.set_aspect('equal', adjustable='box')
+    axis.set_title('Speed Profile Along Path')
+    axis.set_xlabel('X [m]')
+    axis.set_ylabel('Y [m]')
+    plt.grid(True)
+
+def plot_x_y(axis, x, y, x_label, y_label):
+    axis.plot(x, y)#, label='Actual')
+    axis.set_xlabel(x_label)
+    axis.set_ylabel(y_label)
+    axis.grid(True)
+
+if __name__=='__main__':
+    if len(sys.argv) != 2:
+        print("Usage: python velocity_profile.py <route file name>")
+        sys.exit(1)
+    
+    path_file = sys.argv[1]
+    
+    # if behavior.json doesn't exist, print error and exit
+    if not os.path.exists(path_file):
+        print("Error: route file not found.")
+        sys.exit(1)
+    
+    xs, ys = parse_route_csv(path_file)
+    # print(xs)
+    ay_max = 3.3
+    v_max  = 9
+    ax_max = 2.07
+    ax_min = -2.61
+    
+    # max long accel: 2.0769700074721493
+    # min long accel: -2.6197231578072313
+    # max lat accel: 3.3754426456004567
+
+    dx = np.diff(xs)
+    dy = np.diff(ys)
+    ds = np.hypot(dx, dy)
+    ds = np.append(ds, ds[-1])
+
+    kappa = compute_curvature_by_distance(xs,ys, ds)
+
+    v_lat = lateral_speed_limit(kappa, ay_max, v_max)
+    v_profile, forward_vs, backward_vs, v_lat = apply_trail_braking(ds, v_lat, kappa, ax_max, ax_min, ay_max)
+
+    # v_profile = moving_average(v_profile, 11)
+    v_profile = savgol_filter(v_profile, window_length=9, polyorder=3)
+
+
+    fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+
+    t = compute_time_profile(xs, ys, v_profile)
+
+    dv = np.diff(v_profile)
+    dt = np.diff(t)
+
+    a = dv/dt
+
+    plot_x_y(axs[0, 0], t, v_profile, "t", "v")
+    plot_x_y(axs[0, 1], t[:-1], a, "t", "a")
+    # plot_x_y(axs[1, 0], xs, ys, "x", "y")
+    # plot_x_y(axs[1, 1], t, forward_vs, "t", "forward & backward vs")
+    # plot_x_y(axs[1, 1], t, backward_vs, "t", "forward & backward vs")
+    plot_x_y(axs[1, 1], t, xs, "t", "x & y")
+    plot_x_y(axs[1, 1], t, ys, "t", "x & y")
+    # plt.show()
+
+    plot_speed_profile_gradient(fig, axs[1, 0], xs, ys, v_profile)
+
+    plt.tight_layout()
+    plt.show()
+
+
+
+
