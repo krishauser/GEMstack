@@ -25,7 +25,7 @@ drive:
             # type: StaticRoutePlanner
             # args: [!relative_path '../GEMstack/knowledge/routes/summoning_route_plan.csv','start']
            type: SummoningRoutePlanner
-           args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph.json','start']
+           args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph.json','cartesian']
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker

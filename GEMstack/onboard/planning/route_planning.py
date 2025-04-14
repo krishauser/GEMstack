@@ -134,7 +134,7 @@ class SummoningRoutePlanner(Component):
                 self.roadgraph_type = 'roadgraph'
         elif ext == '.csv':
             self.roadgraph = np.loadtxt(roadgraphfn,delimiter=',',dtype=float)
-            self.roadgraph_type = 'point_list'
+            self.roadgraph_type = 'pointlist'
         else:
             raise ValueError("Unknown roadgraph file extension",ext)
 
@@ -160,6 +160,7 @@ class SummoningRoutePlanner(Component):
         print(mission)
 
         # TODO: get from the server
+        target_location = request.g[] # position in longitude / latitude in GNSS
         target_location = [15, 11, 0.0]  # x, y, z
 
         # if current_pose.x == 0 and current_pose.y == 0:
