@@ -10,19 +10,21 @@ recovery:
             type: recovery.StopTrajectoryTracker
             print: False
 # Driving behavior for the GEM vehicle following a fixed route
+
+# Default settings
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : object_detection.ObjectDetection
+        perception_normalization : StandardPerceptionNormalizer
+        
     planning:
-        # relations_estimation: pedestrian_yield_logic.PedestrianYielder
-        # route_planning:
-        #     type: StaticRoutePlanner
-        #     args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
-        # motion_planning: longitudinal_planning.YieldTrajectoryPlanner
-        # trajectory_tracking:
-        #     type: pure_pursuit.PurePursuitTrajectoryTracker
-        #     print: False
+        route_planning:
+            type: StaticRoutePlanner
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
+        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+        trajectory_tracking:
+            type: pure_pursuit.PurePursuitTrajectoryTracker
+            print: False
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 
@@ -63,26 +65,30 @@ variants:
         run:
             mode: simulation
             vehicle_interface:
-                type: gem_gazebo.GEMDoubleIntegratorSimulationInterface
-                args:
-                    scene: !relative_path '../scenes/gazebo.yaml'
+                type: gem_gazebo.GEMGazeboInterface
+                # args:
+                #     scene: !relative_path '../scenes/gazebo.yaml'
 
             drive: 
                 perception:
                     state_estimation : GNSSStateEstimator
+                    agent_detection : object_detection.ObjectDetection
                     perception_normalization : StandardPerceptionNormalizer
 
                 planning:
+                    # Adding your custom relation estimation
+                    # relations_estimation: pedestrian_yield_logic.PedestrianYielder
+                    # Fixed route with pure pursuit
                     route_planning:
-                        # type: StaticRoutePlanner
-                        # args: [!relative_path '../GEMstack/knowledge/routes/gazebo.csv']
+                        type: StaticRoutePlanner
+                        args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] # Fixed path
                     motion_planning:
-                        # type: RouteToTrajectoryPlanner
-                        # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+                        type: RouteToTrajectoryPlanner
+                        args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
                     trajectory_tracking:
-                        # type: pure_pursuit.PurePursuitTrajectoryTracker
-                        # args: {desired_speed: 2.5}  #approximately 5mph
-                        # print: False
+                        type: pure_pursuit.PurePursuitTrajectoryTracker
+                        args: {desired_speed: 2.5}  #approximately 5mph
+                        print: True
             # visualization: !include "klampt_visualization.yaml"
             # visualization: !include "mpl_visualization.yaml"
     log_ros:

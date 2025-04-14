@@ -9,5 +9,5 @@ geometry: !include gem_e2_geometry.yaml
 dynamics: !include gem_e2_dynamics.yaml
 limits: !include gem_e2_slow_limits.yaml
 control_defaults: !include gem_e2_control_defaults.yaml
-calibration: !include ../calibration/gem_e2.yaml
+calibration: !include ../calibration/gem_e2_gazebo.yaml
 sensors: !include gem_e2_sensor_environment_gazebo.yaml

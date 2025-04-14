@@ -85,19 +85,22 @@ class ObjectDetection(Component):
 
         track_result = self.detector.track(source=image, persist=True, conf=self.confidence)
 
-        
+        class_names = self.detector.names
         label_text = "Object "
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.5
         font_color = (255, 255, 255)  # White text
         outline_color = (0, 0, 0)  # Black outline
         line_type = 2
-        text_thickness = 2 # Text thickness
+        text_thickness = 1 # Text thickness
         outline_thickness = 1  # Thickness of the text outline
 
         boxes = track_result[0].boxes
         for box in boxes:
 
+            
+            class_id = int(box.cls.item())
+            label_text = class_names[class_id]
             xywh = box.xywh[0].tolist()
             x, y, w, h = xywh
             id = box.id.item()
