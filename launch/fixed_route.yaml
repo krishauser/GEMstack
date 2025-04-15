@@ -21,9 +21,8 @@ drive:
             type: RouteToTrajectoryPlanner
             args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
-            #type: pure_pursuit.PurePursuitTrajectoryTracker
-            type: stanley.StanleyTrajectoryTracker
-            
+            #type: pure_pursuit.PurePursuitTrajectoryTracker # to use pure pursuit comment below
+            type: stanley.StanleyTrajectoryTracker # to use stanley comment above 
             args: {desired_speed: 10}  #approximately 5mph
             print: True
 
