@@ -316,6 +316,19 @@ class GEMHardwareInterface(GEMInterface):
         self.accel_cmd.enable  = True
         self.accel_cmd.clear   = False
         self.accel_cmd.ignore  = False
+
+        # Launch control 
+        currTime = rospy.get_time() - self.start_time
+        if currTime < 5:
+            self.brake_cmd.f64_cmd = maxbrake
+            self.accel_cmd.f64_cmd = 0
+        elif  currTime < 6:
+            self.brake_cmd.f64_cmd = maxbrake
+            self.accel_cmd.f64_cmd = maxacc
+        elif currTime < 10:
+            self.brake_cmd.f64_cmd = 0
+            self.accel_cmd.f64_cmd = maxacc
+        
         
         self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_FORWARD
         self.gear_cmd.enable = True

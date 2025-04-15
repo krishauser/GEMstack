@@ -168,6 +168,7 @@ class PurePursuit(object):
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
+
         if component is not None:
             component.debug('curr pt',(curr_x,curr_y))
             component.debug('curr param',self.current_path_parameter)
