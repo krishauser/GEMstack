@@ -26,7 +26,7 @@ sudo apt-get install -y ros-noetic-ackermann-msgs
 ```
 Sample command:
 
-python3 main.py --variant=sim --vehicle=e4_gazebo launch/gazebo_simulation.yaml
+python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/gazebo_simulation.yaml
 
 
 Other variants:

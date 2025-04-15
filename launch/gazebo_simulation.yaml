@@ -61,7 +61,7 @@ after:
 variants:
     #sim variant doesn't execute on the real vehicle 
     #real variant executes on the real robot
-    sim:
+    gazebo:
         run:
             mode: simulation
             vehicle_interface:
