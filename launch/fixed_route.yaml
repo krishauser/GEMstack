@@ -21,9 +21,12 @@ drive:
             type: RouteToTrajectoryPlanner
             args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
-            type: pure_pursuit.PurePursuitTrajectoryTracker
+            #type: pure_pursuit.PurePursuitTrajectoryTracker
+            type: stanley.StanleyTrajectoryTracker
+            
             args: {desired_speed: 10}  #approximately 5mph
             print: True
+
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 
