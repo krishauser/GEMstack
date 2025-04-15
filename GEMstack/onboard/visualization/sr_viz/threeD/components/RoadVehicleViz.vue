@@ -51,8 +51,8 @@ onMounted(() => {
     window.addEventListener("keypress", handleKeyPress);
 
     initScene();
-    logReader = new LogReader(logJson2, scene, createFuncs);
-    // car = createCar(0, 0, 0, Math.PI / 2);
+    // logReader = new LogReader(logJson3, scene, createFuncs);
+    car = createCar(0, 0, 0, Math.PI / 2);
     // for (let i = 0; i < 4; i++) {
     //     const offset = (i + 1) * 10;
     //     createCar(
@@ -296,9 +296,9 @@ function animate() {
     if (logReader) {
         logReader.update(dt);
     }
-    // if (car) {
-    //     car.update(keys, dt);
-    // }
+    if (car) {
+        car.update(keys, dt);
+    }
     // for (const h of humans) {
     //     h.walk();
     // }

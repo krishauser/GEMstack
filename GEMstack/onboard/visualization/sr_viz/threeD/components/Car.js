@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import  URDFLoader  from 'urdf-loader';
 const CAR_X = 19651.6005859375;
 const CAR_Y = 14238.344896316528;
 const CAR_Z = 47565.92169100046;
@@ -20,14 +21,29 @@ export class Car {
         this.steerAngle = 0;
         this.maxSteerAngle = Math.PI / 6;
 
-        const loader = new GLTFLoader();
+        // const loader = new GLTFLoader();
+        // loader.load(
+        //     modelPath,
+        //     (gltf) => {
+        //         this.group = gltf.scene;
+        //         this.group.position.set(this.position.x, this.position.y, this.position.z);
+        //         this.group.scale.set(SCALE_RATE, SCALE_RATE, SCALE_RATE);
+        //         this.group.rotation.y = this.heading;
+
+        //         if (onLoadCallback) onLoadCallback(this);
+        //     },
+        //     undefined,
+        //     (error) => console.error("Error loading car model:", error)
+        // );
+        const loader = new URDFLoader();
         loader.load(
             modelPath,
-            (gltf) => {
-                this.group = gltf.scene;
+            (car) => {
+                this.group = car;
                 this.group.position.set(this.position.x, this.position.y, this.position.z);
-                this.group.scale.set(SCALE_RATE, SCALE_RATE, SCALE_RATE);
-                this.group.rotation.y = this.heading;
+                // this.group.scale.set(SCALE_RATE, SCALE_RATE, SCALE_RATE);
+                this.group.rotation.x = -Math.PI / 2;
+                this.group.rotation.z = -this.heading;
 
                 if (onLoadCallback) onLoadCallback(this);
             },
@@ -77,7 +93,7 @@ export class Car {
         this.heading = Math.atan2(frontWheel.x - backWheel.x, frontWheel.z - backWheel.z);
 
         this.group.position.copy(this.position);
-        this.group.rotation.y = this.heading;
+        this.group.rotation.z = -this.heading;
     }
     updateFromLog(logData) {
         if (!this.group) return;
