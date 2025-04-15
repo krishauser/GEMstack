@@ -126,6 +126,9 @@ class GEMGazeboInterface(GEMInterface):
 
     def subscribe_sensor(self, name, callback, type=None):
         if name == 'gnss':
+            topic = self.ros_sensor_topics['gps']
+            if type is not None and (type is not GNSSReading and type is not NavSatFix):
+                raise ValueError("Gazebo GEM e2 only supports NavSatFix/GNSSReading for GNSS")
             # Fuse IMU orientation with GNSS position
             def gnss_callback_wrapper(gps_msg: NavSatFix):
                 if self.imu_data is None:
@@ -182,65 +185,50 @@ class GEMGazeboInterface(GEMInterface):
 
                 callback(reading)
 
-            self.gnss_sub = rospy.Subscriber(
-                '/gps/fix', NavSatFix, gnss_callback_wrapper)
+            self.gnss_sub = rospy.Subscriber(topic, NavSatFix, gnss_callback_wrapper)
 
         elif name == 'top_lidar':
-            topic = '/velodyne_points'  # Standard LiDAR topic from Gazebo
+            topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
-                raise ValueError(
-                    "GEMGazeboInterface only supports PointCloud2 or numpy array for top lidar")
+                raise ValueError("GEMGazeboInterface only supports PointCloud2 or numpy array for top lidar")
             if type is None or type is PointCloud2:
-                self.top_lidar_sub = rospy.Subscriber(
-                    topic, PointCloud2, callback)
+                self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback)
             else:
                 def callback_with_numpy(msg: PointCloud2):
-                    points = conversions.ros_PointCloud2_to_numpy(
-                        msg, want_rgb=False)
+                    points = conversions.ros_PointCloud2_to_numpy(msg, want_rgb=False)
                     callback(points)
-                self.top_lidar_sub = rospy.Subscriber(
-                    topic, PointCloud2, callback_with_numpy)
+                self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback_with_numpy)
 
         elif name == 'imu':
-            topic = '/imu'  # Standard IMU topic from Gazebo
+            topic = self.ros_sensor_topics[name]
             if type is not None and type is not Imu:
-                raise ValueError(
-                    "GEMGazeboInterface only supports Imu for IMU data")
+                raise ValueError("GEMGazeboInterface only supports Imu for IMU data")
             self.imu_sub = rospy.Subscriber(topic, Imu, callback)
 
         elif name == 'front_camera':
-            # Assume standard ROS camera topics from Gazebo
-            default_topic = '/front_single_camera/image_raw'
-            topic = self.ros_sensor_topics.get(name, default_topic)
+            topic = self.ros_sensor_topics[name]
             if type is not None and (type is not Image and type is not cv2.Mat):
-                raise ValueError(
-                    "GEMGazeboInterface only supports Image or OpenCV for front camera")
+                raise ValueError("GEMGazeboInterface only supports Image or OpenCV for front camera")
             if type is None or type is Image:
-                self.front_camera_sub = rospy.Subscriber(
-                    topic, Image, callback)
+                self.front_camera_sub = rospy.Subscriber(topic, Image, callback)
             else:
                 def callback_with_cv2(msg: Image):
-                    cv_image = conversions.ros_Image_to_cv2(
-                        msg, desired_encoding="bgr8")
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
                     callback(cv_image)
-                self.front_camera_sub = rospy.Subscriber(
-                    topic, Image, callback_with_cv2)
-
+                self.front_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+        # Front depth sensor has not been added to gazebo yet.
+        # This code is placeholder until we add front depth sensor.
         elif name == 'front_depth':
-            default_topic = '/front_single_camera/depth/image_raw'
-            topic = self.ros_sensor_topics.get(name, default_topic)
+            topic = self.ros_sensor_topics[name]
             if type is not None and (type is not Image and type is not cv2.Mat):
-                raise ValueError(
-                    "GEMGazeboInterface only supports Image or OpenCV for front depth")
+                raise ValueError("GEMGazeboInterface only supports Image or OpenCV for front depth")
             if type is None or type is Image:
                 self.front_depth_sub = rospy.Subscriber(topic, Image, callback)
             else:
                 def callback_with_cv2(msg: Image):
-                    cv_image = conversions.ros_Image_to_cv2(
-                        msg, desired_encoding="passthrough")
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="passthrough")
                     callback(cv_image)
-                self.front_depth_sub = rospy.Subscriber(
-                    topic, Image, callback_with_cv2)
+                self.front_depth_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
 
     def hardware_faults(self) -> List[str]:
         # In simulation, we don't have real hardware faults
