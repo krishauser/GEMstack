@@ -17,12 +17,7 @@ from cv_bridge import CvBridge
 import time     
 
 
-class PedestrianDetector2D(Component):
-    """
-    Detects pedestrians using YOLO and LiDAR to estimate 3D pose.
-    This version uses message_filters to synchronize the image and LiDAR data.
-    The synchronized callback stores the latest sensor data, and heavy processing is done in update().
-    """
+class SaveInspectionData(Component):
 
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface

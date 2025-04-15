@@ -12,22 +12,18 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : pedestrian_detection.PedestrianDetector2D
+        agent_detection : capture_lidar_camera_data.SaveInspectionData
         perception_normalization : StandardPerceptionNormalizer
     planning:
         relations_estimation: pedestrian_yield_logic.PedestrianYielder
         route_planning:
-            type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_oval.csv','start']
+            type: InspectRoutePlanner
+            args: 
+                geofence_area: [[0,0],[20,20]]
         motion_planning:
-            type: longitudinal_planning.YieldTrajectoryPlanner
+            type: rrt_planner
             args:
                 mode: 'real'
-                params: {
-                    'planner':       'dt', # 'milestone', 'dt', or 'dx'
-                    'desired_speed': 1.0,  # m/s, 1.5 m/s seems max speed? Feb24
-                    'acceleration':  0.75  # m/s2, 0.5 is not enough to start moving. Feb24
-                    }
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
             print: False
