@@ -127,8 +127,6 @@ class GEMGazeboInterface(GEMInterface):
     def subscribe_sensor(self, name, callback, type=None):
         if name == 'gnss':
             topic = self.ros_sensor_topics['gps']
-            if type is not None and (type is not GNSSReading and type is not NavSatFix):
-                raise ValueError("Gazebo GEM e2 only supports NavSatFix/GNSSReading for GNSS")
             # Fuse IMU orientation with GNSS position
             def gnss_callback_wrapper(gps_msg: NavSatFix):
                 if self.imu_data is None:
