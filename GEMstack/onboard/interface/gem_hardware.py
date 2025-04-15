@@ -326,17 +326,26 @@ class GEMHardwareInterface(GEMInterface):
         self.accel_cmd.clear   = False
         self.accel_cmd.ignore  = False
 
-        # Launch control 
+        enable_launch_control = settings.get('control.launch_control.enable', False)
+        stage_duration = 0.5
         currTime = rospy.get_time() - self.start_time
-        if currTime < 5:
-            self.brake_cmd.f64_cmd = maxbrake
-            self.accel_cmd.f64_cmd = 0
-        elif  currTime < 6:
-            self.brake_cmd.f64_cmd = maxbrake
-            self.accel_cmd.f64_cmd = maxacc
-        elif currTime < 10:
-            self.brake_cmd.f64_cmd = 0
-            self.accel_cmd.f64_cmd = maxacc
+
+
+        # Launch control 
+        if enable_launch_control:
+            total_stage_time = 3 * stage_duration
+            if currTime < total_stage_time:
+                if currTime < stage_duration:
+                    self.brake_cmd.f64_cmd = maxbrake
+                    self.accel_cmd.f64_cmd = 0
+                elif currTime < 2 * stage_duration:
+                    self.brake_cmd.f64_cmd = maxbrake
+                    self.accel_cmd.f64_cmd = maxacc
+                else:
+                    self.brake_cmd.f64_cmd = 0  
+                    self.accel_cmd.f64_cmd = maxacc
+            else:
+                enable_launch_control = False
 
         # self.brake_cmd.f64_cmd = maxbrake
         # self.accel_cmd.f64_cmd = 0

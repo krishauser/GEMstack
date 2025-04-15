@@ -16,7 +16,10 @@
          lookahead_scale: 2.0
          crosstrack_gain: 0.3
          desired_speed: trajectory #racing
-         launch_control:     0   # to enable racing features put launch_control to 1 
+     launch_control:
+         enabled: false
+         stage_duration: 0.5
+         
      longitudinal_control:
          pid_p: 0.8
          pid_i: 0.03

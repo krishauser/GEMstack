@@ -19,7 +19,7 @@ class PurePursuit(object):
         self.wheelbase  = settings.get('vehicle.geometry.wheelbase')
         self.wheel_angle_range = [settings.get('vehicle.geometry.min_wheel_angle'),settings.get('vehicle.geometry.max_wheel_angle')]
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
-        self.launch_control = settings.get('control.pure_pursuit.launch_control')
+        # self.launch_control = settings.get('control.pure_pursuit.launch_control')
         
         if desired_speed is not None:
             self.desired_speed_source = desired_speed
@@ -200,11 +200,6 @@ class PurePursuit(object):
 
 
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
-
-
-        if self.launch_control:
-            if t < 4:
-                output_accel = self.max_accel
 
         # self.brake_cmd.f64_cmd = maxbrake
         # self.accel_cmd.f64_cmd = 0
