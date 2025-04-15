@@ -10,7 +10,7 @@ Head over [here](https://github.com/harishkumarbalaji/POLARIS_GEM_Simulator/tree
 Install dependency packages
 
 ```
-sudo apt-get install -y ros-noetic-ros-controllers ros-noetic-gazebo-ros-control ros-noetic-ackermann-msgs
+sudo apt-get install -y ros-noetic-ackermann-msgs
 
 ```
 
