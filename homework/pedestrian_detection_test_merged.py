@@ -12,6 +12,17 @@ import time
 # -----------------------------
 # 1) Minimal Stub Classes
 # -----------------------------
+
+
+class AgentActivityEnum():
+    STOPPED = 0         # standing pedestrians, parked cars, etc. No need to predict motion.
+    MOVING = 1          # standard motion.  Predictions will be used here
+    FAST = 2            # indicates faster than usual motion, e.g., runners.
+    UNDETERMINED = 3    # unknown activity
+    STANDING = 4
+    LEFT = 5
+    RIGHT = 6
+
 class ObjectPose:
     def __init__(self, t, x, y, z, yaw, pitch, roll, frame):
         self.t = t
@@ -232,7 +243,7 @@ class PedestrianDetector2D:
     """
     def __init__(self, model_path='yolov8n.pt'):
         self.detector = YOLO(model_path)
-        self.camera_front = False
+        self.camera_front = True
         if self.camera_front:
             self.K = np.array([[684.83331299, 0., 573.37109375],
                                [0., 684.60968018, 363.70092773],
@@ -277,92 +288,153 @@ class PedestrianDetector2D:
         self.cluster_obbs = []
         self.debug_frustums = []
 
+        # 1. 对图像进行去畸变，并记录原图尺寸
         image, newK = undistort_image(image, self.K, self.D)
         self.current_K = newK
+        orig_H, orig_W = image.shape[:2]
 
+        # 2. 生成左右旋转图像用于检测（仅用于检测，不用于最终显示）
+        image_left = cv2.rotate(image.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
+        image_right = cv2.rotate(image.copy(), cv2.ROTATE_90_CLOCKWISE)
+
+        # 3. 分别调用 YOLO 进行检测（检测返回值 box 格式为 [cx, cy, w, h]）
+        results_normal = self.detector(image, conf=0.5, classes=[0])
+        results_left = self.detector(image_left, conf=0.5, classes=[0])
+        results_right = self.detector(image_right, conf=0.5, classes=[0])
+
+        boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
+        boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
+        boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
+
+        # 3.1 将来自不同视角的检测结果合并到一起，每个 box 附带对应的 activity 标签
+        # 【注意映射公式说明】：
+        # (1) 正常图像的检测结果：不做映射，activity = STANDING
+        # (2) 左旋图像（逆时针90°）：
+        #     在左旋图像中，检测结果的中心为 (c_x, c_y)；
+        #     映射到原图坐标应满足：原图点 (x, y) 经过逆时针90°旋转得到 (c_x, c_y)，
+        #     公式： (c_x, c_y) = (y, orig_W-1 - x)  → 逆映射： (x, y) = (orig_W-1 - c_y, c_x)
+        #     同时，box 的宽高要互换：new_w = h, new_h = w，activity = RIGHT。
+        # (3) 右旋图像（顺时针90°）：
+        #     在右旋图像中，检测结果的中心为 (c_x, c_y)；
+        #     原图点 (x, y) 经过顺时针90°旋转为 (c_x, c_y)：
+        #     公式： (c_x, c_y) = (orig_H-1 - y, x)  → 逆映射： (x, y) = (c_y, orig_H-1 - c_x)
+        #     同时，宽高互换：new_w = h, new_h = w，activity = LEFT。
+        combined_boxes = []
+        for box in boxes_normal:
+            cx, cy, w, h = box
+            combined_boxes.append((cx, cy, w, h, AgentActivityEnum.STANDING))
+        for box in boxes_left:
+            cx, cy, w, h = box
+            new_cx = orig_W - 1 - cy
+            new_cy = cx
+            new_w = h  # 互换宽高
+            new_h = w
+            combined_boxes.append((new_cx, new_cy, new_w, new_h, AgentActivityEnum.RIGHT))
+        for box in boxes_right:
+            cx, cy, w, h = box
+            new_cx = cy
+            new_cy = orig_H - 1 - cx
+            new_w = h  # 互换宽高
+            new_h = w
+            combined_boxes.append((new_cx, new_cy, new_w, new_h, AgentActivityEnum.LEFT))
+
+        # 4. 对 LiDAR 点云进行预处理
         lidar_down = lidar_points.copy()
         global_filtered = filter_points_within_threshold(lidar_down, 20)
-
         pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
         projected_pts = project_points(pts_cam, self.current_K, lidar_down)
 
-        results = self.detector(image, conf=0.4, classes=[0])
-        boxes = np.array(results[0].boxes.xywh.cpu()) if len(results) > 0 else []
-
-        for box in boxes:
-            cx, cy, w, h = box
-            left = int(cx - w/2)
-            right = int(cx + w/2)
-            top = int(cy - h/2)
-            bottom = int(cy + h/2)
-            cv2.rectangle(image, (left, top), (right, bottom), (255, 0, 0), 2)
-
-        if debug_frustum:
-            self.debug_frustums = []
+        # 5. 遍历每个检测 ROI，结合 2D 框与 LiDAR 点云进行 3D 定位与聚类
         refined_all = []
-        for box in boxes:
-            cx, cy, w, h = box
-            left = int(cx - w/2)
-            right = int(cx + w/2)
-            top = int(cy - h/2)
-            bottom = int(cy + h/2)
+        for box_info in combined_boxes:
+            cx, cy, w, h, activity = box_info
+            left = int(cx - w / 2)
+            right = int(cx + w / 2)
+            top = int(cy - h / 2)
+            bottom = int(cy + h / 2)
 
+            # ---【新增】投影 2D Bounding Box 到 3D：构造 3D frustum ---
             if debug_frustum:
+                # 使用检测框构造 3D Frustum，设置 z_near 与 z_far（可调整）
                 bbox = [left, top, right, bottom]
                 z_near = 0.5
-                z_far = 15
+                z_far = 15.0
                 pts_frustum, lines_frustum = self.create_frustum_lines(bbox, self.current_K, z_near, z_far)
                 frustum_lineset = o3d.geometry.LineSet()
                 frustum_lineset.points = o3d.utility.Vector3dVector(pts_frustum)
                 frustum_lineset.lines = o3d.utility.Vector2iVector(lines_frustum)
+                # 所有线条统一用红色显示
                 frustum_lineset.colors = o3d.utility.Vector3dVector([[1, 0, 0] for _ in range(len(lines_frustum))])
                 self.debug_frustums.append(frustum_lineset)
+            # --------------------------------------------------------
 
+            # 在原图上绘制检测框及标签，颜色根据 activity 区分
+            if activity == AgentActivityEnum.STANDING:
+                color = (255, 0, 0)
+                label_text = "STANDING"
+            elif activity == AgentActivityEnum.RIGHT:
+                color = (0, 255, 0)
+                label_text = "RIGHT"
+            elif activity == AgentActivityEnum.LEFT:
+                color = (0, 0, 255)
+                label_text = "LEFT"
+            else:
+                color = (255, 255, 255)
+                label_text = "UNKNOWN"
+            cv2.rectangle(image, (left, top), (right, bottom), color, 2)
+            cv2.putText(image, label_text, (left, max(top - 5, 20)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            # 根据 ROI，从投影后的点云中提取 2D 区域对应的 3D 点
             mask = (projected_pts[:, 0] >= left) & (projected_pts[:, 0] <= right) & \
                    (projected_pts[:, 1] >= top) & (projected_pts[:, 1] <= bottom)
             roi_2d_pts = projected_pts[mask]
-            points_3d = roi_2d_pts[:, 2:5]
+            points_3d = roi_2d_pts[:, 2:5]  # 取出原始 3D 坐标
+
             if debug_reproj:
                 display_reprojected_cluster(image, points_3d, self.T_l2c, self.current_K)
+
             points_3d = filter_points_within_threshold(points_3d, 15)
             points_3d = filter_depth_points(points_3d, max_depth_diff=0.3)
-            if points_3d.shape[0] >= 4:
-                center_roi = np.mean(points_3d, axis=0)
-                if self.use_cyl_roi:
-                    # 使用圆柱体 ROI 功能：以全局过滤点 global_filtered 为基础构造圆柱体ROI
-                    roi_cyl = cylindrical_roi(global_filtered, center_roi, radius=0.3, height=1.2)
-                    refined_cluster = remove_ground_by_min_range(roi_cyl, z_range=0.01)
-                    refined_cluster = filter_depth_points(refined_cluster, max_depth_diff=0.2)
-                    center_roi = np.mean(refined_cluster, axis=0)
-                else:
-                    refined_cluster = remove_ground_by_min_range(points_3d, z_range=0.01)
-            else:
+            if points_3d.shape[0] < 4:
                 continue
 
+            # 对 ROI 内的点进一步处理：若启用圆柱体 ROI，则利用全局过滤结果构造圆柱体 ROI
+            center_roi = np.mean(points_3d, axis=0)
+            if self.use_cyl_roi:
+                roi_cyl = cylindrical_roi(global_filtered, center_roi, radius=0.3, height=1.2)
+                refined_cluster = remove_ground_by_min_range(roi_cyl, z_range=0.01)
+                refined_cluster = filter_depth_points(refined_cluster, max_depth_diff=0.2)
+                center_roi = np.mean(refined_cluster, axis=0)
+            else:
+                refined_cluster = remove_ground_by_min_range(points_3d, z_range=0.05)
             if refined_cluster.shape[0] < 4:
                 continue
 
             refined_all.append(refined_cluster)
-            # 创建 refined cluster 的红色点云
+            # 用 Open3D 创建红色点云表示 refined cluster
             pcd_cluster = o3d.geometry.PointCloud()
             pcd_cluster.points = o3d.utility.Vector3dVector(refined_cluster)
             pcd_cluster.paint_uniform_color([1, 0, 0])
             self.cluster_geometries.append(pcd_cluster)
-            # 计算 refined cluster 的 OBB，紫红色
+            # 计算 refined cluster 的定向包围盒（OBB）并设置为紫红色
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(refined_cluster)
             obb = pcd.get_oriented_bounding_box()
             obb.color = (1, 0, 1)
             self.cluster_obbs.append(obb)
+
             refined_center = obb.center
             dims = tuple(obb.extent)
             R_lidar = obb.R.copy()
             refined_center_hom = np.append(refined_center, 1)
             refined_center_vehicle_hom = self.T_l2v @ refined_center_hom
             refined_center_vehicle = refined_center_vehicle_hom[:3]
+
             R_vehicle = self.T_l2v[:3, :3] @ R_lidar
             euler_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=True)
             yaw, pitch, roll = euler_vehicle
+
             new_pose = ObjectPose(
                 t=current_time,
                 x=refined_center_vehicle[0],
@@ -373,6 +445,7 @@ class PedestrianDetector2D:
                 roll=roll,
                 frame=0
             )
+            # 如果检测目标与已跟踪目标匹配，则更新，否则新建
             existing_id = match_existing_pedestrian(
                 np.array([new_pose.x, new_pose.y, new_pose.z]),
                 dims,
@@ -388,7 +461,7 @@ class PedestrianDetector2D:
                     dimensions=dims,
                     outline=None,
                     type=0,
-                    activity=0,
+                    activity=activity,
                     velocity=(vx, vy, vz),
                     yaw_rate=0
                 )
@@ -402,13 +475,14 @@ class PedestrianDetector2D:
                     dimensions=dims,
                     outline=None,
                     type=0,
-                    activity=0,
+                    activity=activity,
                     velocity=(0, 0, 0),
                     yaw_rate=0
                 )
                 agents[agent_id] = new_agent
                 self.tracked_agents[agent_id] = new_agent
 
+        # 在图像上显示一些自定义调试点
         visualize_custom_points(image, np.array([
             [4.730639, 10.195478, -1.941095],
             [2.066050, 7.066111, -2.027844],
@@ -419,29 +493,27 @@ class PedestrianDetector2D:
         cv2.imshow("Frame with Boxes and Custom Points", image)
         cv2.waitKey(1)
 
-        # 对于 "其他点"：
-        # 计算全局点在投影平面上的坐标，确保和 global_filtered 点云长度一致
+        # 处理“其他点”：从 global_filtered 中找出不落在任一 ROI 内的点
         projected_global = project_all_points(global_filtered, self.T_l2c, self.current_K)
         others_mask = np.zeros(len(global_filtered), dtype=bool)
-        # 对于每个 ROI 框，将 global_filtered 中投影在框内的点标记为 True
-        for box in boxes:
-            cx, cy, w, h = box
-            left = int(cx - w/2)
-            right = int(cx + w/2)
-            top = int(cy - h/2)
-            bottom = int(cy + h/2)
+        for box_info in combined_boxes:
+            cx, cy, w, h, _ = box_info
+            left = int(cx - w / 2)
+            right = int(cx + w / 2)
+            top = int(cy - h / 2)
+            bottom = int(cy + h / 2)
             in_box = (projected_global[:, 0] >= left) & (projected_global[:, 0] <= right) & \
                      (projected_global[:, 1] >= top) & (projected_global[:, 1] <= bottom)
             others_mask = others_mask | in_box
-        # others_mask 为 True 的表示在 ROI 内，我们反转 mask
         others_mask = ~others_mask
         others = global_filtered[others_mask]
         others_pc = o3d.geometry.PointCloud()
         others_pc.points = o3d.utility.Vector3dVector(others)
-        others_pc.paint_uniform_color([0.5, 0.5, 0.5])  # 灰色
+        others_pc.paint_uniform_color([0.5, 0.5, 0.5])
         self.others_geometry = others_pc
 
-        return agents
+        # 返回最终生成的所有检测目标 agents 与在原图上绘制了 2D bounding box 和文本标签的图像
+        return agents, image
 
     def create_frustum_lines(self, box, K, z_near, z_far):
         left, top, right, bottom = box
@@ -498,7 +570,8 @@ def project_all_points(points, T_l2c, K):
 # -----------------------------
 def load_lidar_from_npz(file_path):
     data = np.load(file_path)
-    return data['arr_0']
+    print(data.keys())
+    return data['lidar_points']
 
 # -----------------------------
 # 5) 主函数：调用 process_frame，并显示 refined cluster 的点云、OBB 与其他点，
@@ -506,19 +579,21 @@ def load_lidar_from_npz(file_path):
 #    并记录上次使用的视角参数。
 # -----------------------------
 def main():
-    # 修改 flag: True 使用圆柱体 ROI 功能，False 不使用
-    use_cyl_roi_flag = True
+    # 设置是否使用圆柱体 ROI 过滤
+    use_cyl_roi_flag = False
     detector = PedestrianDetector2D(model_path='cone.pt')
     detector.use_cyl_roi = use_cyl_roi_flag
 
+    # 初始化 Open3D 可视化（用于显示 lidar 点云相关的几何体）
     vis = o3d.visualization.VisualizerWithKeyCallback()
-    vis.create_window(window_name="Frame Display", width=800, height=600)
+    vis.create_window(window_name="3D Frame Display", width=800, height=600)
     view_path = "last_view.json"
     if os.path.exists(view_path):
         param = o3d.io.read_pinhole_camera_parameters(view_path)
     else:
         param = None
 
+    # 示例读取图像与 lidar 数据（请根据实际数据路径修改）
     image_files = sorted(glob.glob(os.path.join('../data', 'color*.png')))
     lidar_files = sorted(glob.glob(os.path.join('../data', 'lidar*.npz')))
     num_frames = min(len(image_files), len(lidar_files))
@@ -527,21 +602,33 @@ def main():
         return
 
     print(f"Found {num_frames} matching frames.")
-    for i in range(95, 96):
-        image = cv2.imread(f'../parking_data/camera_fl{i}.png')
-        lidar_points = load_lidar_from_npz(f'../parking_data/lidar_top{i}.npz')
-        agents = detector.process_frame(image, lidar_points, current_time=float(i),
-                                        debug_reproj=True, debug_frustum=True)
+    for i in range(1):
+        # 此处使用固定文件作为示例，请按实际情况修改帧索引与路径
+        image_path = f'../perception_4.9/image_1744216667.538.png'
+        lidar_path = f'../perception_4.9/lidar_1744216667.538.npz'
+        image = cv2.imread(image_path)
+        if image is None:
+            print("Failed to load image:", image_path)
+            continue
+        lidar_points = load_lidar_from_npz(lidar_path)
 
+        agents, processed_image = detector.process_frame(image, lidar_points, current_time=float(i),
+                                                         debug_reproj=True, debug_frustum=True)
+        # 输出检测到的 agents 信息
         print("Detected Agents:")
         for agent_id, agent_state in agents.items():
             p = agent_state.pose
-            print(f"Agent {agent_id}: Position=({p.x:.2f}, {p.y:.2f}, {p.z:.2f}), "
-                  f"Yaw={p.yaw:.2f}, Pitch={p.pitch:.2f}, Roll={p.roll:.2f}, "
-                  f"Dimensions={agent_state.dimensions}, Velocity={agent_state.velocity}")
+            orientation = {AgentActivityEnum.STANDING: "STANDING",
+                           AgentActivityEnum.LEFT: "LEFT",
+                           AgentActivityEnum.RIGHT: "RIGHT"}.get(agent_state.activity, "UNKNOWN")
+            print(
+                f"Agent {agent_id}: Position=({p.x:.2f}, {p.y:.2f}, {p.z:.2f}), Orientation={orientation}, Dimensions={agent_state.dimensions}")
 
-        # 构造几何体列表：始终显示 refined cluster 的点云（红色）和 OBB（紫红色）
-        # 额外显示全局中不在 ROI 内的“其他点”（灰色），以及 debug_frustums（如果存在）
+        # 显示标注了所有 bounding box 与朝向文字的 normal2D 图像
+        cv2.imshow("Detection - Normal2D", processed_image)
+        cv2.waitKey(1)
+
+        # 以下为 Open3D 点云可视化（保留原代码，可按需要进行扩展）
         geometries = []
         if detector.cluster_geometries:
             geometries.extend(detector.cluster_geometries)
@@ -559,12 +646,13 @@ def main():
             vis.get_view_control().convert_from_pinhole_camera_parameters(param)
         else:
             print("No previous view, using default.")
-        vis.run()  # 阻塞窗口，直到用户关闭
+        vis.run()  # 阻塞直到用户关闭可视化窗口
         param = vis.get_view_control().convert_to_pinhole_camera_parameters()
         o3d.io.write_pinhole_camera_parameters(view_path, param)
         vis.clear_geometries()
     vis.destroy_window()
     cv2.destroyAllWindows()
+
 
 if __name__ == "__main__":
     main()
