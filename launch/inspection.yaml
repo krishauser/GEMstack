@@ -22,6 +22,11 @@ drive:
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
             # type: RouteToTrajectoryPlanner
             # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+        trajectory_tracking:
+            type: pure_pursuit.PurePursuitTrajectoryTracker
+            # args: [null]
+            # args: {desired_speed: 2.5}  #approximately 5mph
+            print: False
 
 
 log:

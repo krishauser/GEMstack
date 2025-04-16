@@ -151,13 +151,14 @@ def check_point_exists(server_url="http://localhost:8000"):
 class InspectRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
     def __init__(self, state_machine, frame : str = 'start'):
-        self.geofence_area = [[0,0],[20,20]]
+        self.geofence_area = [[0,0],[40,40]]
         self.state_list = state_machine
         self.index = 1
         self.mission = self.state_list[self.index]
-        self.circle_center = [5,5]
-        self.radius = 1
+        self.circle_center = [30,30]
+        self.radius = 20
         self.inspection_route = max_visible_arc(self.circle_center, self.radius, self.geofence_area)
+        self.start = [0,0]
 
     def state_inputs(self):
         return ['all']
@@ -169,6 +170,7 @@ class InspectRoutePlanner(Component):
         return 1.0
 
     def update(self, state):
+        self.flag = 0
         if self.mission == "IDLE":
             points_found = False
             points_found, pts = check_point_exists()
@@ -184,22 +186,30 @@ class InspectRoutePlanner(Component):
             self.inspection_route = max_visible_arc(self.circle_center, self.radius, geofence_area)
         elif self.mission == "NAV":
             start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
-            goal = (self.inspection_route[0][0], self.inspection_route[0][1])
+            goal = (self.inspection_route[0][0]-3, self.inspection_route[0][1]-3)
             if(abs(start[0]-goal[0]) <= 1 and abs(start[1]-goal[1]) <= 1):
                 print(self.state_list[self.index+1])
                 self.mission = self.state_list[self.index+1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
-            x_bounds = (0,20)
-            y_bounds = (0,20)
+            x_bounds = (0,50)
+            y_bounds = (0,50)
             step_size = 1.0
             max_iter = 2000
-            occupancy_grid = np.zeros((20, 20), dtype=int) 
+            occupancy_grid = np.zeros((50, 50), dtype=int) 
             # occupancy_grid[5:10, 5:10] = 1
             self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
             rrt_resp = self.planner.plan()
             self.route = Route(frame=ObjectFrameEnum.START, points=rrt_resp)
         elif self.mission == "INSPECT":
+            start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
+            goal = (self.inspection_route[-1][0], self.inspection_route[-1][1])
+            if(abs(start[0]-goal[0]) <= 1 and abs(start[1]-goal[1]) <= 1):
+                print(self.state_list[self.index+1])
+                self.mission = self.state_list[self.index+1]
+                self.index += 1
+                print("CHANGING STATES", self.mission)
+            self.flag += 0.1
             self.route = Route(frame=ObjectFrameEnum.START, points=self.inspection_route)
         elif self.mission == "FINISH":
             start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
@@ -209,12 +219,12 @@ class InspectRoutePlanner(Component):
                 self.mission = self.state_list[self.index+1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
-            x_bounds = (0,20)
-            y_bounds = (0,20)
+            x_bounds = (0,50)
+            y_bounds = (0,50)
             step_size = 1.0
             max_iter = 2000
-            occupancy_grid = np.zeros((20, 20), dtype=int) 
-            occupancy_grid[5:10, 5:10] = 1
+            occupancy_grid = np.zeros((50, 50), dtype=int) 
+            # occupancy_grid[5:10, 5:10] = 1
             self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
             rrt_resp = self.planner.plan()
             self.route = Route(frame=ObjectFrameEnum.START, points=rrt_resp)
