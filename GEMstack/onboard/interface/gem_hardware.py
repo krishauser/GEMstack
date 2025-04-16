@@ -33,6 +33,8 @@ class GEMHardwareInterface(GEMInterface):
         GEMInterface.__init__(self)
         self.max_send_rate = settings.get('vehicle.max_command_rate',10.0)
         self.ros_sensor_topics = settings.get('vehicle.sensors.ros_topics')
+        self.launch_Control = settings.get('control.launch_control.enabled', False)
+        self.stage_Duration = settings.get('control.launch_control.stage_duration', 2)
         self.last_command_time = 0.0
         self.last_reading = GEMVehicleReading()
         self.last_reading.speed = 0.0
@@ -318,16 +320,17 @@ class GEMHardwareInterface(GEMInterface):
         self.accel_cmd.ignore  = False
 
         # Launch control 
-        currTime = rospy.get_time() - self.start_time
-        if currTime < 5:
-            self.brake_cmd.f64_cmd = maxbrake
-            self.accel_cmd.f64_cmd = 0
-        elif  currTime < 6:
-            self.brake_cmd.f64_cmd = maxbrake
-            self.accel_cmd.f64_cmd = maxacc
-        elif currTime < 10:
-            self.brake_cmd.f64_cmd = 0
-            self.accel_cmd.f64_cmd = maxacc
+        if self.launch_Control:
+            currTime = rospy.get_time() - self.start_time
+            if currTime < self.stage_Duration:
+                self.brake_cmd.f64_cmd = maxbrake
+                self.accel_cmd.f64_cmd = 0
+            elif currTime < self.stage_Duration*2:
+                self.brake_cmd.f64_cmd = maxbrake
+                self.accel_cmd.f64_cmd = maxacc
+            elif currTime < self.stage_Duration*3:
+                self.brake_cmd.f64_cmd = 0
+                self.accel_cmd.f64_cmd = maxacc
         
         
         self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_FORWARD
