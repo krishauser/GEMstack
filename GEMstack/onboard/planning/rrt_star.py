@@ -310,13 +310,32 @@ class RRTStar:
 
     def construct_path(self):
         """Construct the path from start to goal by following parent pointers."""
-        path = [tuple(self.goal)]
-        
-        while path[-1] is not None:
-            path.append(self.tree[path[-1]])
-            
-        # Reverse and remove the None element
-        return path[::-1][1:]
+        coarse = [tuple(self.goal)]
+        while coarse[-1] is not None:
+            coarse.append(self.tree[coarse[-1]])
+        coarse = coarse[::-1][1:]          # [start … goal]
+
+        # interpolate each segment
+        dense = [coarse[0]]
+        for i in range(1, len(coarse)):
+            p0 = np.array(coarse[i - 1], dtype=float)
+            p1 = np.array(coarse[i],     dtype=float)
+            seg_len = np.linalg.norm(p1 - p0)
+
+            if seg_len < 1e-9:
+                continue
+
+            n_steps = int(np.floor(seg_len / self.step_size))
+
+            if n_steps > 0:
+                for k in range(1, n_steps + 1):
+                    frac = k / (n_steps + 1)
+                    interp = tuple(p0 + frac * (p1 - p0))
+                    dense.append(interp)
+
+            dense.append(tuple(p1))
+
+        return dense
     
     def visualize(self, path=None):
         """Visualize the tree, obstacles, and path."""
