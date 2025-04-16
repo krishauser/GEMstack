@@ -310,13 +310,34 @@ class RRTStar:
 
     def construct_path(self):
         """Construct the path from start to goal by following parent pointers."""
-        path = [tuple(self.goal)]
-        
-        while path[-1] is not None:
-            path.append(self.tree[path[-1]])
-            
-        # Reverse and remove the None element
-        return path[::-1][1:]
+        coarse = [tuple(self.goal)]
+        while coarse[-1] is not None:
+            coarse.append(self.tree[coarse[-1]])
+        coarse = coarse[::-1][1:]          # [start … goal]
+
+        # interpolate each segment
+        dense = [coarse[0]]
+        for i in range(1, len(coarse)):
+            p0 = np.array(coarse[i - 1], dtype=float)
+            p1 = np.array(coarse[i],     dtype=float)
+            seg_len = np.linalg.norm(p1 - p0)
+
+            if seg_len < 1e-9:
+                continue
+
+            n_steps = int(np.floor(seg_len / self.step_size))
+
+            if n_steps > 0:
+                for k in range(1, n_steps + 1):
+                    frac = k / (n_steps + 1)
+                    interp = tuple(p0 + frac * (p1 - p0))
+                    dense.append(interp)
+
+            dense.append(tuple(p1))
+
+        return dense
+
+
     
     def visualize(self, path=None):
         """Visualize the tree, obstacles, and path."""
@@ -773,8 +794,34 @@ class TestRRTStar(unittest.TestCase):
             self.assertGreaterEqual(with_safety_length, vehicle_only_length,
                           "If both paths avoid passage, safety path should be significantly longer")
 
+    def test_temp(self):
+        # Create a simple environment for optimization testing
+        grid = np.zeros((100, 100), dtype=int)
+        
+        rrt_star = RRTStar(
+            start=(1, 1), 
+            goal=(50, 50), 
+            x_bounds=(0, 100), 
+            y_bounds=(0, 100), 
+            step_size=1.0, 
+            max_iter=2000,
+            occupancy_grid=grid,
+            safety_margin=1,
+            vehicle_width=1.0  # Vehicle width
+        )
+        
+        path = rrt_star.plan()
+        print(path)
+        self.assertIsNotNone(path, "Path optimization test failed")
+        
+        # Calculate path cost
+        path_cost = rrt_star.get_path_cost(path)
+        print(f"Optimized path cost: {path_cost}")
+        
+        # Visualize the optimized path
+        rrt_star.visualize(path)
 
 if __name__ == "__main__":
-    # test = TestRRTStar()
-    # test.test_safety_margin_effectiveness()
-    unittest.main()
+    test = TestRRTStar()
+    test.test_temp()
+    # unittest.main()
