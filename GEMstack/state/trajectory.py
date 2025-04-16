@@ -80,6 +80,13 @@ class Path:
                 times.append(times[-1] + d/speed)
         return Trajectory(frame=self.frame,points=points,times=times)
 
+    def racing_velocity_profile(self) -> Trajectory:
+        """Returns a timed trajectory with max velocity profile parametrized by path radius"""
+        times = [0.0]
+        points = [self.points[0]]
+        times, velocities = compute_velocity_profile(points)
+        return Trajectory(frame=self.frame,points=points,times=times, velocities=velocities)
+
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
         """Returns the closest point on the path to the given point.  If
         edges=False, only computes the distances to the vertices, not the
