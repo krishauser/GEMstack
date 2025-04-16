@@ -273,7 +273,7 @@ class Trajectory(Path):
         s = self.eval(start)
         e = self.eval(end)
         return replace(self,points=[s]+self.points[sind+1:eind]+[e],times=[start]+self.times[sind+1:eind]+[end])
-
+    
 
 
 
