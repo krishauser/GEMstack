@@ -23,7 +23,8 @@ def npz_to_pcd(input_dir, output_dir, data_key='arr_0'):
                     continue
 
                 point_cloud_np = data[data_key]
-
+                mask = ~(np.all(point_cloud_np == [0, 0, 0], axis=1))
+                point_cloud_np = point_cloud_np[mask]
                 # Validate shape (Nx3 for XYZ, Nx6 for XYZRGB, etc.)
                 if point_cloud_np.ndim != 2 or point_cloud_np.shape[1] < 3:
                     print(f"Skipping {npz_file}: Invalid shape {point_cloud_np.shape}.")
@@ -34,7 +35,7 @@ def npz_to_pcd(input_dir, output_dir, data_key='arr_0'):
 
                 # Assign points (required: Nx3 array)
                 pcd.points = o3d.utility.Vector3dVector(point_cloud_np[:, :3])
-
+                
                 # Optionally assign colors (if available, e.g., Nx6 array with RGB)
                 if point_cloud_np.shape[1] >= 6:
                     # RGB values (assuming they are stored as 0-255 integers)

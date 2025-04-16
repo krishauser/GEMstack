@@ -1,3 +1,6 @@
-sam_vit_h.pth
-
+weights/*
+init_proj*
+refined_proj*
+data/*
+extrinsic.txt
 !.gitignore
