@@ -21,6 +21,13 @@ import ros_numpy
 
 # ----- Helper Functions -----
 
+def cylindrical_roi(points, center, radius, height):
+    horizontal_dist = np.linalg.norm(points[:, :2] - center[:2], axis=1)
+    vertical_diff = np.abs(points[:, 2] - center[2])
+    mask = (horizontal_dist <= radius) & (vertical_diff <= height / 2)
+    return points[mask]
+
+
 def undistort_image(image, K, D):
     h, w = image.shape[:2]
     newK, _ = cv2.getOptimalNewCameraMatrix(K, D, (w, h), 1, (w, h))
@@ -287,6 +294,8 @@ class ConeDetector3D(Component):
         self.bridge = CvBridge()
         self.start_pose_abs = None
         self.camera_front = True
+        self.visualize_2d = True
+        self.use_cyl_roi = False
 
     def rate(self) -> float:
         return 4.0
@@ -466,11 +475,19 @@ class ConeDetector3D(Component):
             points_3d = roi_pts[:, 2:5]
             points_3d = remove_ground_by_min_range(points_3d, z_range=0.005)
             points_3d = filter_points_within_threshold(points_3d, 15)
-            points_3d = filter_depth_points(points_3d, max_human_depth=0.3)
+            points_3d = filter_depth_points(points_3d, max_depth_diff=0.3)
 
-            # Cluster the points and remove ground.
-            refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.5, min_samples=10)
-            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
+            # Modification: optionally use cylindrical ROI adjustment.
+            if self.use_cyl_roi:
+                global_filtered = filter_points_within_threshold(lidar_down, 20)
+                # Build a cylindrical ROI based on the global filtered LiDAR points
+                # and the mean of the extracted points as the center.
+                roi_cyl = cylindrical_roi(global_filtered, np.mean(points_3d, axis=0), radius=0.3, height=1.2)
+                refined_cluster = remove_ground_by_min_range(roi_cyl, z_range=0.01)
+                refined_cluster = filter_depth_points(refined_cluster, max_depth_diff=0.2)
+            else:
+                # Use the original method.
+                refined_cluster = remove_ground_by_min_range(points_3d, z_range=0.05)
             end1 = time.time()
             print('refine cluster: ', end1 - start)
             if refined_cluster.shape[0] < 3:
