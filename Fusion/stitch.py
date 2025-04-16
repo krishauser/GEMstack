@@ -14,6 +14,8 @@ from DistortionRemove import *
 STITCH_WIDTH = 1200
 STITCH_HEIGHT = 1800
 
+PIXEL_TO_METER = 0.02
+METER_TO_PIXEL = 1 / PIXEL_TO_METER
 
 
 srcFrontCamListXY = np.array([
@@ -80,19 +82,20 @@ worldFrontCamListXY = np.array([
 ])
 
 worldFrontLeftCamListXY = np.array([
-    [cvtFootInch2Meter(0, -280-30), cvtFootInch2Meter(0, 0   +5)-1.46+0.151],  # FL
-    [cvtFootInch2Meter(0,  -25-30   -35), cvtFootInch2Meter(0, -210-170     +10)-1.46+0.151],  # FR
-    [cvtFootInch2Meter(0, -130-30), cvtFootInch2Meter(0, 0   +2)-1.46+0.151],  # RL
-    [cvtFootInch2Meter(0,  -25-30   -15),cvtFootInch2Meter(0, -170      +8)-1.46+0.151],  # RR
+    [cvtFootInch2Meter(0, -280-30), cvtFootInch2Meter(0, 0   +8)-1.46+0.151],  # FL
+    [cvtFootInch2Meter(0,  -25-30   -20), cvtFootInch2Meter(0, -210-170     +10)-1.46+0.151],  # FR
+    [cvtFootInch2Meter(0, -130-30), cvtFootInch2Meter(0, 0   +8)-1.46+0.151],  # RL
+    [cvtFootInch2Meter(0,  -25-30   -5),cvtFootInch2Meter(0, -170      +5)-1.46+0.151],  # RR
 ])
 
 
 worldFrontRightCamListXY = np.array([
-    [cvtFootInch2Meter(0,  35+30    -10), cvtFootInch2Meter(0, -210-170)-1.46+0.151],  # FL
-    [cvtFootInch2Meter(0, 250+30), cvtFootInch2Meter(0, 0   -20)-1.46+0.151],  # FR
-    [cvtFootInch2Meter(0,  35+30    -0),cvtFootInch2Meter(0, -170)-1.46+0.151],  # RL
-    [cvtFootInch2Meter(0, 140+30), cvtFootInch2Meter(0, 0   -12)-1.46+0.151],  # RR
+    [cvtFootInch2Meter(0,  35+30    -20), cvtFootInch2Meter(0, -210-170)-1.46+0.151],  # FL
+    [cvtFootInch2Meter(0, 250+30), cvtFootInch2Meter(0, 0   -10)-1.46+0.151],  # FR
+    [cvtFootInch2Meter(0,  35+30    -10),cvtFootInch2Meter(0, -170)-1.46+0.151],  # RL
+    [cvtFootInch2Meter(0, 140+30), cvtFootInch2Meter(0, 0   -5)-1.46+0.151],  # RR
 ])
+
 
 """
 
@@ -197,7 +200,7 @@ class PerspectiveTransform():
         self.srcPixelListXY = srcPixelListXY  # img pixel
         self.dstMeterListXY = dstMeterListXY  # real world
         
-        self.dstPixelListXY = (self.dstMeterListXY * 50)  # 本来 1像素 = 1m，现在 1像素 = 2厘米
+        self.dstPixelListXY = (self.dstMeterListXY * METER_TO_PIXEL)  # 本来 1像素 = 1m，现在 1像素 = 2厘米
         self.dstPixelListXY[:, 0] += STITCH_WIDTH//2
         self.dstPixelListXY[:, 1] += STITCH_HEIGHT//2
         
@@ -242,7 +245,7 @@ def combineImages(imgs):
 
 
 
-def cvtImg2PointCloudMsg(imgSrc, frameId="base_footprint", pixelSize=0.02, stride=1, stamp=None):
+def cvtImg2PointCloudMsg(imgSrc, frameId="base_footprint", pixelSize=PIXEL_TO_METER, stride=1, stamp=None):
     img = imgSrc[::stride, ::stride]  # down sample
     height, width, channel = img.shape
     totalPoints = height * width
@@ -311,10 +314,42 @@ class ImageSubscriberAndFunctions():
         self.maskedImage = maskCamKeyArea(self.image, self.maskName)
         self.transformedImage = self.perspectiveTransform.getTransformedImg(self.maskedImage)
 
+def cvtPixel2MeterInVehicleFrame(pixelPosXY, pixelSize=PIXEL_TO_METER):
+    """
+    From:
+    ·---→x
+    |
+    |
+    ↓y
+    
+    To:
+     z   x
+      \  ↑
+       \ |
+        \|
+    y←---·
+    """
+    pixelX, pixelY = pixelPosXY[0] - STITCH_WIDTH/2, pixelPosXY[1] - STITCH_HEIGHT/2
+    meterX, meterY = -pixelY * pixelSize + 0.151 + 1.10, -pixelX * pixelSize
+    return np.array([meterX, meterY])
+
+
+if __name__ == "__main__":  # test cvt frames
+    print(cvtPixel2MeterInVehicleFrame([0,0], pixelSize=PIXEL_TO_METER))
+    print(cvtPixel2MeterInVehicleFrame([1200,0], pixelSize=PIXEL_TO_METER))
+    print(cvtPixel2MeterInVehicleFrame([0,1800], pixelSize=PIXEL_TO_METER))
+    print(cvtPixel2MeterInVehicleFrame([1200,1800], pixelSize=PIXEL_TO_METER))
+    
+    exit
+    
+
 
 
 if __name__ == "__main__":  # sub and pub
-
+    """
+    pixelListXY : np.ndarray
+        shape = (4, 2)
+    """
     frontCamImageSub = ImageSubscriberAndFunctions(
         "/oak/rgb/image_raw", "FRONT", 
         # srcFrontCamListXY, dstFrontCamListXY)
@@ -340,7 +375,7 @@ if __name__ == "__main__":  # sub and pub
             frontRightCamImageSub.transformedImage
         ])
 
-        pc_msg = cvtImg2PointCloudMsg(stitched_img, frameId="base_footprint", pixelSize=0.02, stride=2)
+        pc_msg = cvtImg2PointCloudMsg(stitched_img, frameId="base_footprint", pixelSize=PIXEL_TO_METER, stride=2)
         pc_pub.publish(pc_msg)
 
         rate.sleep()  # keep the process rate
