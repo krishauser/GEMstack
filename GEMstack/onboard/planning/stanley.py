@@ -113,6 +113,24 @@ class Stanley(object):
 
         self.current_path_parameter = 0.0
 
+    def set_racing_path(self, path: Path):
+        if path == self.path_arg:
+            return
+        self.path_arg = path
+        if len(path.points[0]) > 2:
+            path = path.get_dims([0,1])
+        if not isinstance(path, Trajectory):
+            self.path = path.arc_length_parameterize()
+            self.trajectory = path.racing_velocity_profile()
+            self.current_traj_parameter = 0.0
+            if self.desired_speed_source not in ['racing']:
+                raise ValueError("Racing: desired speed must be set to racing")
+        else:
+            self.path = path.arc_length_parameterize()
+            self.trajectory = path
+            self.current_traj_parameter = self.trajectory.domain()[0]
+        self.current_path_parameter = 0.0
+
     def _find_front_axle_position(self, x, y, yaw):
         """Compute front-axle world position from the center/rear and yaw."""
         fx = x + self.wheelbase * cos(yaw)
@@ -293,7 +311,11 @@ class StanleyTrajectoryTracker(Component):
           3) Convert front wheel angle to steering wheel angle (if necessary)
           4) Send command to the vehicle
         """
-        self.stanley.set_path(trajectory)
+        # path to trajectory if racing enabled
+        if True: ## conditional needed for no racing
+            self.stanley.set_racing_path(trajectory)
+        else:
+            self.stanley.set_path(trajectory)
         accel, f_delta = self.stanley.compute(vehicle, self)
 
         # If your low-level interface expects steering wheel angle:
