@@ -362,12 +362,76 @@ class ConeDetector3D(Component):
         undistorted_img, current_K = undistort_image(self.latest_image, self.K, self.D)
         self.current_K = current_K
         self.latest_image = undistorted_img
+        orig_H, orig_W = undistorted_img.shape[:2]
 
-        # Run YOLO to obtain 2D detections (class 0: cones)
-        results = self.detector(self.latest_image, conf=0.3, classes=[0])
-        boxes = np.array(results[0].boxes.xywh.cpu())
-        agents = {}
+        # --- Begin modifications for three-angle detection ---
+        # Create three images: normal, left rotated (counterclockwise 90°), and right rotated (clockwise 90°)
+        img_normal = undistorted_img
+        img_left = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
+        img_right = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_CLOCKWISE)
 
+        # Run YOLO on all three images.
+        results_normal = self.detector(img_normal, conf=0.3, classes=[0])
+        results_left = self.detector(img_left, conf=0.3, classes=[0])
+        results_right = self.detector(img_right, conf=0.3, classes=[0])
+
+        boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
+        boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
+        boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
+
+        # Combine boxes from all three detections.
+        # For the left rotated image:
+        #  In the left-rotated image, a point (cx, cy) corresponds to the original
+        #  coordinates: new_cx = cy, new_cy = orig_W - 1 - cx.
+        #  Also, swap the width and height.
+        # For the right rotated image:
+        #  A point (cx, cy) maps as: new_cx = orig_H - 1 - cy, new_cy = cx,
+        #  with width and height swapped.
+        combined_boxes = []
+        for box in boxes_normal:
+            cx, cy, w, h = box
+            combined_boxes.append((cx, cy, w, h, AgentActivityEnum.STANDING))
+        for box in boxes_left:
+            cx, cy, w, h = box
+            new_cx = cy
+            new_cy = orig_W - 1 - cx
+            new_w = h
+            new_h = w
+            combined_boxes.append((new_cx, new_cy, new_w, new_h, AgentActivityEnum.RIGHT))
+        for box in boxes_right:
+            cx, cy, w, h = box
+            new_cx = orig_H - 1 - cy
+            new_cy = cx
+            new_w = h
+            new_h = w
+            combined_boxes.append((new_cx, new_cy, new_w, new_h, AgentActivityEnum.LEFT))
+        # --- End modifications for three-angle detection ---
+
+        # Optional 2D visualization: Draw fused 2D boxes on the undistorted image if flag is set.
+        if getattr(self, 'visualize_2d', False):
+            for (cx, cy, w, h, activity) in combined_boxes:
+                left = int(cx - w / 2)
+                right = int(cx + w / 2)
+                top = int(cy - h / 2)
+                bottom = int(cy + h / 2)
+                if activity == AgentActivityEnum.STANDING:
+                    color = (255, 0, 0)  # Blue
+                    label = "STANDING"
+                elif activity == AgentActivityEnum.RIGHT:
+                    color = (0, 255, 0)  # Green
+                    label = "RIGHT"
+                elif activity == AgentActivityEnum.LEFT:
+                    color = (0, 0, 255)  # Red
+                    label = "LEFT"
+                else:
+                    color = (255, 255, 255)
+                    label = "UNKNOWN"
+                cv2.rectangle(undistorted_img, (left, top), (right, bottom), color, 2)
+                cv2.putText(undistorted_img, label, (left, max(top - 5, 20)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+            cv2.imshow("Detection - Cone 2D", undistorted_img)
+
+        # Remaining LiDAR processing (unchanged)
         if downsample == True:
             lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
             pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
@@ -378,39 +442,41 @@ class ConeDetector3D(Component):
             step01 = time.time()
             pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
             step02 = time.time()
-            projected_pts = project_points(pts_cam, self.current_K, lidar_down)  # shape (N,5): [u, v, X, Y, Z]
+            projected_pts = project_points(pts_cam, self.current_K, lidar_down)
             step03 = time.time()
             print(
                 f'copy lidar data {step01 - step00}s, transforming to camera {step02 - step01}s, projecting to image {step03 - step02}s')
 
-        # For each 2D bounding box, filter projected points instead of ray-casting
-        for i, box in enumerate(boxes):
+        agents = {}
+
+        # For each 2D bounding box (from the combined list), process LiDAR points.
+        for i, box_info in enumerate(combined_boxes):
+            cx, cy, w, h, activity = box_info
             start = time.time()
-            cx, cy, w, h = box
-            left = int(cx - w / 1.8)
-            right = int(cx + w / 1.8)
-            top = int(cy - h / 1.8)
-            bottom = int(cy + h / 1.8)
+            left = int(cx - w / 2)
+            right = int(cx + w / 2)
+            top = int(cy - h / 2)
+            bottom = int(cy + h / 2)
             mask = (projected_pts[:, 0] >= left) & (projected_pts[:, 0] <= right) & \
                    (projected_pts[:, 1] >= top) & (projected_pts[:, 1] <= bottom)
             roi_pts = projected_pts[mask]
             if roi_pts.shape[0] < 5:
                 continue
-            # Extract the LiDAR 3D points corresponding to the ROI
+            # Extract the LiDAR 3D points corresponding to the ROI.
             points_3d = roi_pts[:, 2:5]
             points_3d = remove_ground_by_min_range(points_3d, z_range=0.005)
             points_3d = filter_points_within_threshold(points_3d, 15)
             points_3d = filter_depth_points(points_3d, max_human_depth=0.3)
 
-            # Cluster the points and remove ground
+            # Cluster the points and remove ground.
             refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.5, min_samples=10)
-            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.01)
+            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
             end1 = time.time()
             print('refine cluster: ', end1 - start)
             if refined_cluster.shape[0] < 3:
                 continue
 
-            # Compute the oriented bounding box
+            # Compute the oriented bounding box.
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(refined_cluster)
             obb = pcd.get_oriented_bounding_box()
@@ -419,7 +485,7 @@ class ConeDetector3D(Component):
             R_lidar = obb.R.copy()
             end2 = time.time()
             print('compute bounding box ', end2 - end1)
-            # Transform the refined center from LiDAR to Vehicle frame
+            # Transform the refined center from LiDAR to Vehicle frame.
             refined_center_hom = np.append(refined_center, 1)
             refined_center_vehicle_hom = self.T_l2v @ refined_center_hom
             refined_center_vehicle = refined_center_vehicle_hom[:3]
@@ -480,7 +546,7 @@ class ConeDetector3D(Component):
                         dimensions=dims,
                         outline=None,
                         type=AgentEnum.CONE,
-                        activity=AgentActivityEnum.MOVING,
+                        activity=activity,
                         velocity=(0, 0, 0),
                         yaw_rate=0
                     )
@@ -496,7 +562,7 @@ class ConeDetector3D(Component):
                     dimensions=dims,
                     outline=None,
                     type=AgentEnum.CONE,
-                    activity=AgentActivityEnum.MOVING,
+                    activity=activity,
                     velocity=(0, 0, 0),
                     yaw_rate=0
                 )
