@@ -231,8 +231,11 @@ class Stanley(object):
             if desired_speed is None:
                 desired_speed = 4.0
 
-            # Cross-track-based slowdown (less aggressive than before).
-            desired_speed *= np.exp(-abs(cross_track_error) * 0.6)
+            # Cross-track-based slowdown (less aggressive than before). More aggressive for racing
+            if self.desired_speed_source in ['racing']:
+                desired_speed *= np.exp(-abs(cross_track_error) * 1.5)
+            else:
+                desired_speed *= np.exp(-abs(cross_track_error) * 0.6)
 
         # Clip to speed limit
         if desired_speed > self.speed_limit:
