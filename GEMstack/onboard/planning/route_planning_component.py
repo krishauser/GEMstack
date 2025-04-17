@@ -136,12 +136,12 @@ def heading_on_circle(cx, cy, px, py):
 
 def check_point_exists(server_url="http://localhost:8000"):
     try:
-        response = requests.get(f"{server_url}/point")
+        response = requests.get(f"{server_url}/api/inspect")
         response.raise_for_status()
-        points = response.json().get("points", [])
+        points = response.json().get("coords", [])
         
         for point in points:
-            return True, [[point[0]["x"], point[0]["y"]],[point[1]["x"], point[1]["y"]]]
+            return True, [[point[0]["lat"], point[0]["lng"]],[point[1]["lat"], point[1]["lng"]]]
         return False, []
 
     except requests.exceptions.RequestException as e:
