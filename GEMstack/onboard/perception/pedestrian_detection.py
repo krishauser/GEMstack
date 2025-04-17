@@ -14,91 +14,213 @@ import sensor_msgs.point_cloud2 as pc2
 import struct, ctypes
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
-import time     
+import time
+
+'''
+The following function is contributed by Aavi Deora
+Essentially this method is simliar to teamB's method, i.e. transform point cloud from lidar to image frame
+Though we find this calculation is heavy, this method have potential usage in other parts, e.g. replacing DBSCAN
+'''
+
+# def get_average_cam_point_from_lidar(bbox, point_cloud):
+#     """
+#     Given a bounding box (x, y, w, h) in image coordinates and a lidar point cloud (in the lidar frame),
+#     this function:
+#       1. Converts the point cloud to homogeneous coordinates.
+#       2. Transforms the points into the camera frame using LIDAR_TO_CAMERA_TRANSFORM.
+#       3. Projects the points into the image using the camera intrinsics.
+#       4. Selects points that fall inside the bounding box.
+#       5. Returns the average 3D point (in the camera frame) of those points.
+#
+#     Returns:
+#         avg_point: A NumPy array [x_cam, y_cam, z_cam] in the camera frame,
+#                    or None if no points are found inside the bbox.
+#     """
+#     x, y, w, h = bbox
+#     if point_cloud is None or point_cloud.shape[0] == 0:
+#         return None
+#
+#     # Convert the point cloud (assumed shape (N,3)) to homogeneous coordinates (N,4)
+#     ones = np.ones((point_cloud.shape[0], 1))
+#     points_homog = np.hstack((point_cloud, ones))  # shape (N,4)
+#
+#     # Transform points from lidar frame to camera frame
+#     cam_points_homog = (LIDAR_TO_CAMERA_TRANSFORM @ points_homog.T).T  # shape (N,4)
+#     cam_points = cam_points_homog[:, :3]  # (x_cam, y_cam, z_cam)
+#
+#     # Only consider points in front of the camera (z_cam > 0)
+#     valid_mask = cam_points[:, 2] > 0
+#     cam_points = cam_points[valid_mask]
+#     if cam_points.shape[0] == 0:
+#         return None
+#
+#     # Project points into the image using the pinhole camera model:
+#     # u = fx * (x_cam / z_cam) + cx, v = fy * (y_cam / z_cam) + cy
+#     u = CAMERA_INTRINSICS['fx'] * (cam_points[:, 0] / cam_points[:, 2]) + CAMERA_INTRINSICS['cx']
+#     v = CAMERA_INTRINSICS['fy'] * (cam_points[:, 1] / cam_points[:, 2]) + CAMERA_INTRINSICS['cy']
+#
+#     # Create a mask for points that fall within the bounding box.
+#     in_bbox_mask = (u >= x) & (u <= x + w) & (v >= y) & (v <= y + h)
+#     if np.sum(in_bbox_mask) == 0:
+#         return None
+#
+#     selected_points = cam_points[in_bbox_mask]
+#     return selected_points
 
 
-def find_human_center_in_bbox(lidar_pc, bbox, T_l2c, K, camera_origin, eps=0.15, min_samples=10):
+'''
+The following function is contributed by Shuning Liu. 
+Since the height and velocity detection is not entirely stable, we are not using this matching logic currently.
+But we may also test a more robust version of this in future on board test.
+'''
+
+# def match_existing_pedestrian(
+#     new_center: np.ndarray,
+#     new_dims: tuple,
+#     existing_agents: Dict[str, AgentState],
+#     prev_velocities: Dict[str, np.ndarray],
+#     distance_threshold: float = 1.0,
+#     size_threshold: float = 0.5,
+#     height_threshold: float = 0.3,
+#     velocity_threshold: float = 2.0
+# ) -> str:
+#     """
+#     Match a newly detected pedestrian with an existing one using:
+#     - Euclidean distance
+#     - Bounding box similarity
+#     - Height consistency
+#     - Velocity consistency
+#
+#     Returns the best-matching agent_id or None if no good match is found.
+#     """
+#     best_agent_id = None
+#     best_score = float('inf')
+#
+#     for agent_id, agent_state in existing_agents.items():
+#         old_center = np.array([agent_state.pose.x, agent_state.pose.y, agent_state.pose.z])
+#         old_dims = agent_state.dimensions
+#
+#         # 1. Euclidean Distance Check
+#         dist = np.linalg.norm(new_center - old_center)
+#         if dist > distance_threshold:
+#             continue  # Skip if too far away
+#
+#         # 2. Bounding Box Size Similarity (with Zero-Division Handling)
+#         size_norm = np.linalg.norm(np.array(old_dims))
+#         if size_norm > 0:
+#             size_change = np.linalg.norm(np.array(new_dims) - np.array(old_dims)) / size_norm
+#         else:
+#             size_change = float('inf')  # Prevent invalid matching
+#
+#         if size_change > size_threshold:
+#             continue  # Skip if bounding box changes too much
+#
+#         # 3. Height Consistency Check
+#         height_change = abs(new_dims[2] - old_dims[2]) / old_dims[2] if old_dims[2] > 0 else 0
+#         if height_change > height_threshold:
+#             continue  # Skip if height changes drastically
+#
+#         # 4. Velocity Consistency Check
+#         if agent_id in prev_velocities:
+#             prev_velocity = prev_velocities[agent_id]
+#             estimated_velocity = (new_center - old_center)
+#             velocity_change = np.linalg.norm(estimated_velocity - prev_velocity)
+#
+#             if velocity_change > velocity_threshold:
+#                 continue  # Skip if unrealistic velocity jump
+#
+#         # Score: Lower score = better match (distance is primary factor)
+#         score = dist
+#         if score < best_score:
+#             best_score = score
+#             best_agent_id = agent_id
+#
+#     return best_agent_id
+
+'''
+The following function is contributed by Justin Li. An alternative to basic distance-based matching
+We plan to test this new tracking logic in the next on board test
+'''
+
+class BoundingBox:
     """
-    Maps LiDAR points to the image frame and retains those within the bounding box.
-    Clusters these points and returns the center of the cluster that is closest to the camera.
-
-    Args:
-        lidar_pc (np.ndarray): LiDAR points in LiDAR frame, shape (N, 3).
-        bbox (tuple): Bounding box in image coordinates (cx, cy, w, h).
-        T_l2c (np.ndarray): 4x4 transformation matrix from LiDAR to camera frame.
-        K (np.ndarray): 3x3 camera intrinsic matrix.
-        camera_origin (np.ndarray): The camera's origin in LiDAR frame.
-        eps (float): DBSCAN eps parameter.
-        min_samples (int): DBSCAN min_samples parameter.
-
-    Returns:
-        refined_candidate (np.ndarray): The estimated 3D center (in LiDAR frame) of the chosen cluster.
-        best_cluster (np.ndarray): Points belonging to the chosen cluster.
-        (None): For compatibility with the previous API.
+    center: center of bounding box in x, y, z coordinates
+    dimensions: dimensions of bounding box in x, y, z format
+    orientation: 3x3 rotation matrix
     """
-    cx, cy, w, h = bbox
-    x_min = cx - w / 2
-    x_max = cx + w / 2
-    y_min = cy - h / 2
-    y_max = cy + h / 2
 
-    valid_points = []
-    for point in lidar_pc:
-        # Convert point to homogeneous coordinates
-        p_hom = np.append(point, 1.0)
-        # Transform point from LiDAR to camera frame
-        p_cam = T_l2c @ p_hom
-        # Discard points behind the camera
-        if p_cam[2] <= 0:
-            continue
-        # Project to image plane using intrinsics
-        u = (K[0, 0] * p_cam[0] / p_cam[2]) + K[0, 2]
-        v = (K[1, 1] * p_cam[1] / p_cam[2]) + K[1, 2]
-        # Keep points that lie inside the bounding box
-        if x_min <= u <= x_max and y_min <= v <= y_max:
-            valid_points.append(point)
+    def __init__(
+        self,
+        center: tuple[float, float, float],
+        dimensions: tuple[float, float, float],
+        orientation: list[list[float]],
+    ):
+        self.center = np.array(center)
+        self.dimensions = np.array(dimensions)
+        self.orientation = np.array(orientation)
 
-    if len(valid_points) == 0:
-        return None, None, None
+def obb_collision(box1: BoundingBox, box2: BoundingBox):
+    """
+    Checks if two oriented bounding boxes (OBBs) collide using the Separating Axis Theorem (SAT).
 
-    valid_points = np.array(valid_points)
+    :param box1: Box with 'center' (x, y, z), 'dimensions' (dx, dy, dz), and 'orientation' (3x3 rotation matrix)
+    :param box2: Box with 'center' (x, y, z), 'dimensions' (dx, dy, dz), and 'orientation' (3x3 rotation matrix)
+    :return: Boolean indicating whether the two OBBs collide
+    """
 
-    # Cluster the valid points using DBSCAN
-    clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(valid_points)
-    labels = clustering.labels_
-    clusters = []
-    for label in set(labels):
-        if label == -1:  # Noise
-            continue
-        cluster_points = valid_points[labels == label]
-        clusters.append(cluster_points)
+    def get_axes(rotation_matrix):
+        """Extracts the axes from the rotation matrix."""
+        return [rotation_matrix[:, i] for i in range(3)]
 
-    if len(clusters) == 0:
-        return None, None, None
+    def project_obb(obb: BoundingBox, axis):
+        """Projects the OBB onto a given axis and returns the min and max values."""
+        center_proj = np.dot(obb.center, axis)
+        extents = np.abs(np.dot(obb.orientation, np.diag(obb.dimensions / 2.0)))
+        radius = np.sum(extents * np.abs(axis))
+        return center_proj - radius, center_proj + radius
 
-    # Select the cluster whose center is closest to the camera origin
-    best_cluster = None
-    best_distance = float('inf')
-    for cluster in clusters:
-        cluster_center = np.mean(cluster, axis=0)
-        distance = np.linalg.norm(cluster_center - camera_origin)
-        if distance < best_distance:
-            best_distance = distance
-            best_cluster = cluster
+    def overlap_on_axis(axis, box1, box2):
+        """Checks if the projections of two OBBs overlap on the given axis."""
+        min1, max1 = project_obb(box1, axis)
+        min2, max2 = project_obb(box2, axis)
+        return max1 >= min2 and max2 >= min1
 
-    refined_candidate = np.mean(best_cluster, axis=0)
-    return refined_candidate, best_cluster, None
+    # Get OBB axes
+    axes1 = get_axes(box1.orientation)
+    axes2 = get_axes(box2.orientation)
+
+    # Compute cross products of axes for possible separating axes
+    cross_axes = [np.cross(a1, a2) for a1 in axes1 for a2 in axes2]
+
+    # Test all axes
+    for axis in axes1 + axes2 + cross_axes:
+        if np.linalg.norm(axis) > 1e-6:  # Avoid near-zero axes
+            axis = axis / np.linalg.norm(axis)  # Normalize
+            if not overlap_on_axis(axis, box1, box2):
+                return False  # Separating axis found, no collision
+
+    return True  # No separating axis found, collision detected
+
 
 # ----- Helper Functions -----
+
 def match_existing_pedestrian(
-    new_center: np.ndarray,
-    new_dims: tuple,
-    existing_agents: Dict[str, AgentState],
-    distance_threshold: float = 1.0
+        new_center: np.ndarray,
+        new_dims: tuple,
+        existing_agents: Dict[str, AgentState],
+        distance_threshold: float = 1.0
 ) -> str:
     """
-    Return the agent_id of the best match if within distance_threshold;
-    otherwise return None.
+    Find the closest existing pedestrian agent within a specified distance threshold.
+
+    Args:
+        new_center (np.ndarray): The 3D center (x,y,z) of the new detection.
+        new_dims (tuple): The dimensions of the new detection (currently unused).
+        existing_agents (Dict[str, AgentState]): Dictionary of currently tracked agents.
+        distance_threshold (float): Maximum allowed distance to consider a match.
+
+    Returns:
+        str: The agent_id of the best matching pedestrian if within the threshold; otherwise, None.
     """
     best_agent_id = None
     best_dist = float('inf')
@@ -112,9 +234,18 @@ def match_existing_pedestrian(
 
     return best_agent_id
 
+
 def compute_velocity(old_pose: ObjectPose, new_pose: ObjectPose, dt: float) -> tuple:
     """
-    Returns a (vx, vy, vz) velocity in the same frame as old_pose/new_pose.
+    Compute the velocity vector (vx, vy, vz) based on change in pose over a time interval.
+
+    Args:
+        old_pose (ObjectPose): The previous pose.
+        new_pose (ObjectPose): The current pose.
+        dt (float): Time elapsed between the poses.
+
+    Returns:
+        tuple: (vx, vy, vz) velocity in the same coordinate frame as the input poses.
     """
     if dt <= 0:
         return (0, 0, 0)
@@ -123,22 +254,58 @@ def compute_velocity(old_pose: ObjectPose, new_pose: ObjectPose, dt: float) -> t
     vz = (new_pose.z - old_pose.z) / dt
     return (vx, vy, vz)
 
+
 def extract_roi_box(lidar_pc, center, half_extents):
+    """
+    Extract a region of interest (ROI) from the LiDAR point cloud defined by an axis-aligned bounding box.
+
+    Args:
+        lidar_pc (np.ndarray): The LiDAR point cloud as an (N, 3) array.
+        center (np.ndarray): Center of the ROI box.
+        half_extents (np.ndarray): Half-lengths in each dimension defining the box.
+
+    Returns:
+        np.ndarray: Subset of points within the ROI.
+    """
     lower = center - half_extents
     upper = center + half_extents
     mask = np.all((lidar_pc >= lower) & (lidar_pc <= upper), axis=1)
     return lidar_pc[mask]
 
+
 def pc2_to_numpy(pc2_msg, want_rgb=False):
-    """Convert ROS PointCloud2 message to a numpy array, filtering points with x > 0 and z < 2.5."""
+    """
+    Convert a ROS PointCloud2 message into a numpy array with basic filtering.
+
+    This function extracts the x, y, z coordinates from the point cloud and
+    filters out points with x <= 0 and z >= 2.5.
+
+    Args:
+        pc2_msg: The ROS PointCloud2 message.
+        want_rgb (bool): Flag to indicate if RGB data is desired (not used here).
+
+    Returns:
+        np.ndarray: Filtered point cloud array of shape (N, 3).
+    """
     gen = pc2.read_points(pc2_msg, skip_nans=True)
     pts = np.array(list(gen), dtype=np.float32)
-    pts = pts[:, :3]  # Use only x, y, z
+    pts = pts[:, :3]  # Only x, y, z coordinates
     mask = (pts[:, 0] > 0) & (pts[:, 2] < 2.5)
     return pts[mask]
 
+
 def backproject_pixel(u, v, K):
-    """Backprojects pixel (u,v) into a normalized 3D ray (camera coordinates)."""
+    """
+    Backproject a pixel coordinate (u, v) into a normalized 3D ray in the camera coordinate system.
+
+    Args:
+        u (float): The pixel's x-coordinate.
+        v (float): The pixel's y-coordinate.
+        K (np.ndarray): The 3x3 camera intrinsic matrix.
+
+    Returns:
+        np.ndarray: A unit vector representing the 3D ray direction.
+    """
     cx, cy = K[0, 2], K[1, 2]
     fx, fy = K[0, 0], K[1, 1]
     x = (u - cx) / fx
@@ -146,13 +313,32 @@ def backproject_pixel(u, v, K):
     ray_dir = np.array([x, y, 1.0])
     return ray_dir / np.linalg.norm(ray_dir)
 
+
 def find_human_center_on_ray(lidar_pc, ray_origin, ray_direction,
                              t_min, t_max, t_step,
                              distance_threshold, min_points, ransac_threshold):
     """
-    Pre-filter the point cloud to only include points near the ray, then sweep along the ray.
-    Returns (refined_candidate, None, None) if found; otherwise, (None, None, None).
+    Identify the center of a human detected along a projected ray.
+
+    This function first filters the LiDAR points to only those near the ray. Then it
+    sweeps along the ray (from t_min to t_max in steps of t_step) to find a candidate
+    location where enough points (>= min_points) lie within the distance_threshold.
+
+    Args:
+        lidar_pc (np.ndarray): LiDAR point cloud in 3D.
+        ray_origin (np.ndarray): Origin of the ray in LiDAR coordinates.
+        ray_direction (np.ndarray): Normalized direction of the ray.
+        t_min (float): Minimum distance along the ray to start searching.
+        t_max (float): Maximum distance along the ray.
+        t_step (float): Increment along the ray.
+        distance_threshold (float): Maximum distance from the ray for a point to be considered.
+        min_points (int): Minimum number of points needed to validate a candidate.
+        ransac_threshold (float): (Unused in current implementation) threshold for RANSAC.
+
+    Returns:
+        tuple: (refined_candidate, None, None) if a valid candidate is found; otherwise, (None, None, None).
     """
+    # Compute projection distances and the corresponding points on the ray.
     vecs = lidar_pc - ray_origin
     proj_lengths = np.dot(vecs, ray_direction)
     proj_points = ray_origin + np.outer(proj_lengths, ray_direction)
@@ -163,6 +349,7 @@ def find_human_center_on_ray(lidar_pc, ray_origin, ray_direction,
     if filtered_pc.shape[0] < min_points:
         return None, None, None
 
+    # Sweep along the ray to locate a cluster of points.
     t_values = np.arange(t_min, t_max, t_step)
     for t in t_values:
         candidate = ray_origin + t * ray_direction
@@ -173,13 +360,36 @@ def find_human_center_on_ray(lidar_pc, ray_origin, ray_direction,
             return refined_candidate, None, None
     return None, None, None
 
+
 def extract_roi(pc, center, roi_radius):
-    """Extract points from pc that lie within roi_radius of center."""
+    """
+    Extract points from a point cloud that lie within a specified radius of a center point.
+
+    Args:
+        pc (np.ndarray): The point cloud array.
+        center (np.ndarray): The 3D center point.
+        roi_radius (float): The radius of the region of interest.
+
+    Returns:
+        np.ndarray: Points from pc that are within roi_radius of center.
+    """
     distances = np.linalg.norm(pc - center, axis=1)
     return pc[distances < roi_radius]
 
+
 def refine_cluster(roi_points, center, eps=0.2, min_samples=10):
-    """Refine a cluster using DBSCAN and return the cluster closest to center."""
+    """
+    Refine a point cluster by applying DBSCAN and selecting the cluster closest to a given center.
+
+    Args:
+        roi_points (np.ndarray): Points within a region of interest.
+        center (np.ndarray): The expected center of the cluster.
+        eps (float): The maximum distance between two samples for one to be considered in the neighborhood of the other.
+        min_samples (int): The number of samples required in a neighborhood for a point to be considered as a core point.
+
+    Returns:
+        np.ndarray: The refined cluster points. If no clusters are found, returns the original points.
+    """
     clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(roi_points)
     labels = clustering.labels_
     valid_clusters = [roi_points[labels == l] for l in set(labels) if l != -1]
@@ -188,10 +398,17 @@ def refine_cluster(roi_points, center, eps=0.2, min_samples=10):
     best_cluster = min(valid_clusters, key=lambda c: np.linalg.norm(np.mean(c, axis=0) - center))
     return best_cluster
 
+
 def remove_ground_by_min_range(cluster, z_range=0.05):
     """
-    Remove ground points by finding the minimum z value in the cluster and eliminating
-    all points with z within z_range of that minimum.
+    Remove ground points from a cluster by excluding points that lie close to the minimum z value.
+
+    Args:
+        cluster (np.ndarray): The input point cluster.
+        z_range (float): The threshold range above the minimum z-value to consider as ground.
+
+    Returns:
+        np.ndarray: The cluster with ground points removed.
     """
     if cluster is None or cluster.shape[0] == 0:
         return cluster
@@ -199,9 +416,17 @@ def remove_ground_by_min_range(cluster, z_range=0.05):
     filtered = cluster[cluster[:, 2] > (min_z + z_range)]
     return filtered
 
+
 def get_bounding_box_center_and_dimensions(points):
     """
-    Compute the bounding box center and dimensions (max - min) for the given points.
+    Calculate the axis-aligned bounding box's center and dimensions for a set of 3D points.
+
+    Args:
+        points (np.ndarray): The input points.
+
+    Returns:
+        tuple: (center, dimensions) where center is the midpoint of the bounding box and dimensions is (max - min).
+               Returns (None, None) if the input is empty.
     """
     if points.shape[0] == 0:
         return None, None
@@ -211,28 +436,19 @@ def get_bounding_box_center_and_dimensions(points):
     dimensions = max_vals - min_vals
     return center, dimensions
 
-def create_circle_line_set(center, radius, num_points=50):
-    """
-    Create a LineSet representing a circle (in the X-Y plane) with given center and radius.
-    """
-    theta = np.linspace(0, 2 * np.pi, num_points, endpoint=False)
-    circle_points = []
-    for angle in theta:
-        x = center[0] + radius * np.cos(angle)
-        y = center[1] + radius * np.sin(angle)
-        z = center[2]
-        circle_points.append([x, y, z])
-    circle_points = np.array(circle_points)
-    lines = [[i, (i + 1) % num_points] for i in range(num_points)]
-    line_set = o3d.geometry.LineSet()
-    line_set.points = o3d.utility.Vector3dVector(circle_points)
-    line_set.lines = o3d.utility.Vector2iVector(lines)
-    line_set.colors = o3d.utility.Vector3dVector([[0, 1, 0] for _ in range(len(lines))])
-    return line_set
 
 def create_ray_line_set(start, end):
     """
-    Create a LineSet representing a ray from 'start' to 'end' (colored yellow).
+    Create an Open3D LineSet object representing a ray between two 3D points.
+
+    The line is colored yellow.
+
+    Args:
+        start (np.ndarray): The start point of the ray.
+        end (np.ndarray): The end point of the ray.
+
+    Returns:
+        o3d.geometry.LineSet: The LineSet object representing the ray.
     """
     points = [start, end]
     lines = [[0, 1]]
@@ -242,8 +458,18 @@ def create_ray_line_set(start, end):
     line_set.colors = o3d.utility.Vector3dVector([[1, 1, 0]])
     return line_set
 
+
 def visualize_geometries(geometries, window_name="Open3D", width=800, height=600, point_size=5.0):
-    """Utility to visualize a list of Open3D geometries."""
+    """
+    Visualize a list of Open3D geometry objects in a dedicated window.
+
+    Args:
+        geometries (list): A list of Open3D geometry objects.
+        window_name (str): Title of the visualization window.
+        width (int): Width of the window.
+        height (int): Height of the window.
+        point_size (float): Size of the rendered points.
+    """
     vis = o3d.visualization.Visualizer()
     vis.create_window(window_name=window_name, width=width, height=height)
     for geom in geometries:
@@ -253,12 +479,15 @@ def visualize_geometries(geometries, window_name="Open3D", width=800, height=600
     vis.run()
     vis.destroy_window()
 
-# ----- Pedestrian Detector 2D (with 3D fusion and synchronized callbacks) -----
+
+# ----- Pedestrian Detector 2D (with 3D Fusion and Synchronized Callbacks) -----
+
 class PedestrianDetector2D(Component):
     """
-    Detects pedestrians using YOLO and LiDAR to estimate 3D pose.
-    This version uses message_filters to synchronize the image and LiDAR data.
-    The synchronized callback stores the latest sensor data, and heavy processing is done in update().
+    Detects pedestrians by fusing 2D YOLO detections with LiDAR point cloud data to estimate 3D poses.
+
+    This implementation uses message_filters to synchronize incoming RGB images and LiDAR data.
+    The synchronized callback caches the latest sensor data for processing in the update() method.
     """
 
     def __init__(self, vehicle_interface: GEMInterface):
@@ -266,109 +495,151 @@ class PedestrianDetector2D(Component):
         self.current_agents = {}
         self.tracked_agents = {}
         self.pedestrian_counter = 0
-        # Variables to store synchronized sensor data:
+        # Variables to store the most recent synchronized sensor data:
         self.latest_image = None
         self.latest_lidar = None
         self.bridge = CvBridge()
 
     def rate(self) -> float:
+        # Process data at 4 Hz.
         return 4.0
 
     def state_inputs(self) -> list:
+        # Expects vehicle state information as input.
         return ['vehicle']
 
     def state_outputs(self) -> list:
+        # Outputs detected pedestrian agents.
         return ['agents']
 
     def initialize(self):
-        # Instead of individual subscriptions, use message_filters to synchronize
+        """
+        Initialize sensor subscriptions and the YOLO detector.
+
+        Uses message_filters to synchronize the image and LiDAR data streams.
+        Also sets up the camera intrinsic matrix and LiDAR-to-camera (and vehicle) transformations.
+        """
         self.rgb_sub = Subscriber('/oak/rgb/image_raw', Image)
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub],
                                                 queue_size=10, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
-        # Initialize YOLO detector
-        self.detector = YOLO('../../knowledge/detection/yolov8n.pt')
-        # Set up camera intrinsics and LiDAR-to-camera transformation.
-        self.T_l2v = np.array([[ 0.99939639,  0.02547917,  0.023615,    1.1       ],
-                                [-0.02530848,  0.99965156, -0.00749882,  0.03773583],
-                                [-0.02379784,  0.00689664,  0.999693,    1.95320223],
-                                [ 0.,          0.,          0.,          1.        ]])
+        # Initialize YOLO detector with the pretrained model and set to CUDA.
+        self.detector = YOLO('../../knowledge/detection/yolov8s.pt')
+        self.detector.to('cuda')
+        # Camera intrinsic matrix.
         self.K = np.array([[684.83331299, 0., 573.37109375],
                            [0., 684.60968018, 363.70092773],
                            [0., 0., 1.]])
+        # LiDAR-to-vehicle transformation matrix.
+        self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
+                               [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
+                               [-0.02379784, 0.00689664, 0.999693, 1.95320223],
+                               [0., 0., 0., 1.]])
+        # LiDAR-to-camera transformation matrix.
         self.T_l2c = np.array([
-            [0.001090, -0.999489, -0.031941,  0.149698],
-            [-0.007664,  0.031932, -0.999461, -0.397813],
-            [0.999970,  0.001334, -0.007625, -0.691405],
-            [0.000000,  0.000000,  0.000000,  1.000000]
+            [0.001090, -0.999489, -0.031941, 0.149698],
+            [-0.007664, 0.031932, -0.999461, -0.397813],
+            [0.999970, 0.001334, -0.007625, -0.691405],
+            [0.000000, 0.000000, 0.000000, 1.000000]
         ])
+        # Inverse transformation: camera-to-LiDAR.
         self.T_c2l = np.linalg.inv(self.T_l2c)
         self.R_c2l = self.T_c2l[:3, :3]
+        # Camera origin expressed in LiDAR coordinates.
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
-        
 
     def synchronized_callback(self, image_msg, lidar_msg):
         """
-        This callback is triggered when both an image and a LiDAR message arrive within the slop.
-        It stores the latest synchronized sensor data for processing in update().
+        Callback function that is invoked when an image and a LiDAR message are received within the allowed time difference.
+
+        This function converts the ROS messages into usable formats:
+          - The image is converted to an OpenCV BGR image.
+          - The LiDAR message is converted to a numpy array.
         """
-        # Convert the image message to an OpenCV image (assuming it is already in cv2.Mat format or convert as needed)
-            # Convert the ROS Image message to an OpenCV image (BGR format)
         try:
-            # Convert the ROS Image message to an OpenCV image (BGR format)
             self.latest_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
         except Exception as e:
             rospy.logerr("Failed to convert image: {}".format(e))
             self.latest_image = None
-        # Convert the LiDAR message to a numpy array
         self.latest_lidar = pc2_to_numpy(lidar_msg, want_rgb=False)
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
-        # Process only if synchronized sensor data is available
+        """
+        Process the latest synchronized sensor data to detect pedestrians and estimate their 3D poses.
+
+        This method performs the following:
+          1. Runs YOLO on the latest image to obtain 2D pedestrian detections.
+          2. Backprojects the 2D detections into 3D rays in the LiDAR frame.
+          3. Uses LiDAR data along the ray to estimate a 3D position (and size) for the pedestrian.
+          4. Matches detections to existing tracked agents or creates new ones.
+
+        Args:
+            vehicle (VehicleState): The current vehicle state.
+
+        Returns:
+            Dict[str, AgentState]: Dictionary mapping agent IDs to their updated states.
+        """
+        # Ensure both image and LiDAR data are available.
         if self.latest_image is None or self.latest_lidar is None:
             return {}
 
         current_time = self.vehicle_interface.time()
-        # Run YOLO inference on the latest synchronized image
+        # Run YOLO inference on the current image (detecting only class 0, e.g., persons).
         results = self.detector(self.latest_image, conf=0.4, classes=[0])
-        boxes = np.array(results[0].boxes.xywh.cpu())  # Format: [center_x, center_y, w, h]
+        boxes = np.array(results[0].boxes.xywh.cpu())  # Format: [center_x, center_y, width, height]
 
         agents = {}
         lidar_pc = self.latest_lidar.copy()
 
         for i, box in enumerate(boxes):
             cx, cy, w, h = box
+            # Backproject the 2D pixel center into a 3D ray in the LiDAR coordinate frame.
+            ray_dir_cam = backproject_pixel(cx, cy, self.K)
+            ray_dir_lidar = self.R_c2l @ ray_dir_cam
+            ray_dir_lidar /= np.linalg.norm(ray_dir_lidar)
 
-            # Instead of using the ray-based approach, use the bounding box method.
-            bbox = (cx, cy, w, h)
-            intersection, cluster, _ = find_human_center_in_bbox(
-                lidar_pc, bbox, self.T_l2c, self.K, self.camera_origin_in_lidar,
-                eps=0.15, min_samples=10
+            # Attempt to locate the pedestrian's center along the ray using LiDAR data.
+            intersection, _, _ = find_human_center_on_ray(
+                lidar_pc, self.camera_origin_in_lidar, ray_dir_lidar,
+                t_min=0.4, t_max=25.0, t_step=0.1,
+                distance_threshold=0.5, min_points=5, ransac_threshold=0.05
             )
             if intersection is None:
+                # If no valid intersection is found, update the positions of already tracked agents
+                # based on the vehicle's forward velocity and time elapsed.
+                for agent in self.tracked_agents.values():
+                    dt = current_time - agent.pose.t
+                    agent.pose.x -= vehicle.v * dt  # Adjust x-coordinate assuming vehicle moves forward along x.
+                    agent.pose.t = current_time
                 continue
 
+            # Estimate the pedestrian's physical dimensions using the detection box size and distance.
             d = np.linalg.norm(intersection - self.camera_origin_in_lidar)
             physical_width = (w * d) / self.K[0, 0]
             physical_height = (h * d) / self.K[1, 1]
-            half_extents = np.array([0.4, 0.4, 1.25 * physical_height / 2])
+            # Since the depth (x-direction) measurement is less reliable, use an empirical value.
+            half_extents = np.array([0.4, 1.1 * physical_width / 2, 1.1 * physical_height / 2])
 
-            # (Optional) You can still extract an ROI and refine the cluster if needed:
+            # Extract LiDAR points within the ROI box around the estimated intersection.
             roi_points = extract_roi_box(lidar_pc, intersection, half_extents)
             if roi_points.shape[0] < 10:
                 refined_cluster = roi_points
             else:
                 refined_cluster = refine_cluster(roi_points, intersection, eps=0.15, min_samples=10)
 
+            # Remove ground points from the refined cluster.
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
             if refined_cluster is None or refined_cluster.shape[0] == 0:
+                # Fallback to the initial intersection if no valid cluster remains.
                 refined_center = intersection
                 dims = (0, 0, 0)
                 yaw, pitch, roll = 0, 0, 0
             elif refined_cluster.shape[0] <= 5:
+                # Skip detections with insufficient LiDAR points.
                 continue
             else:
+                # Create an Open3D point cloud from the refined cluster and compute its oriented bounding box.
                 pcd = o3d.geometry.PointCloud()
                 pcd.points = o3d.utility.Vector3dVector(refined_cluster)
                 obb = pcd.get_oriented_bounding_box()
@@ -376,7 +647,7 @@ class PedestrianDetector2D(Component):
                 dims = tuple(obb.extent)
                 R_lidar = obb.R.copy()
 
-                # Transform refined center to vehicle frame
+                # Transform the refined center from LiDAR coordinates to the vehicle frame.
                 refined_center_lidar_hom = np.array([refined_center[0],
                                                      refined_center[1],
                                                      refined_center[2],
@@ -384,17 +655,39 @@ class PedestrianDetector2D(Component):
                 refined_center_vehicle_hom = self.T_l2v @ refined_center_lidar_hom
                 refined_center_vehicle = refined_center_vehicle_hom[:3]
 
+                # Compute the orientation (yaw, pitch, roll) in the vehicle frame.
                 R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                 euler_angles_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
                 yaw, pitch, roll = euler_angles_vehicle
-                refined_center = refined_center_vehicle
-                vehicle_state = vehicle.to_frame(ObjectFrameEnum.GLOBAL)
-                curr_x = vehicle_state.pose.x
-                curr_y = vehicle_state.pose.y
-                refined_center[0] += curr_x
-                refined_center[1] += curr_y
+                refined_center = refined_center_vehicle  # Use vehicle frame coordinates for output
 
-            # Create new pose in the vehicle frame
+                '''
+                Note that this part can be used for converting the speed relative to vehicle -> speed relative to START frame
+                However, the VehicleState may read in Global coordinate (i.e. long and lat) instead of relative to START frame
+                In order to avoid this issue, we found it is actually easier to implement this in the planning code.
+                Planning function has access to Allstate instead of just Vehicle state,
+                therefore it is easier to specify which coordinate system to use
+                '''
+                '''
+                i.e. Simliar function is implemented in GEMstack/onboard/planning/pedestrian_yield_logic.py L569-573
+                # If the pedestrian's frame is CURRENT, convert the pedestrian's frame to START.
+                elif a.pose.frame == ObjectFrameEnum.CURRENT:
+                    a_x = a.pose.x + curr_x
+                    a_y = a.pose.y + curr_y
+                    a_v_x = a_v_x - curr_v
+                '''
+                # curr_x = vehicle.pose.x
+                # curr_y = vehicle.pose.y
+                # curr_yaw = vehicle.pose.yaw
+                # curr_pitch = vehicle.pose.pitch
+                # curr_roll = vehicle.pose.roll
+                # refined_center[0] += curr_x
+                # refined_center[1] += curr_y
+                # euler_angles_vehicle[0] += curr_yaw
+                # euler_angles_vehicle[1] += curr_pitch
+                # euler_angles_vehicle[2] += curr_roll
+
+            # Create a new pose for the detected pedestrian in the vehicle frame.
             new_pose = ObjectPose(
                 t=current_time,
                 x=refined_center[0],
@@ -406,17 +699,22 @@ class PedestrianDetector2D(Component):
                 frame=ObjectFrameEnum.CURRENT
             )
 
-            # Match with an existing pedestrian if possible
+            # Attempt to match the new detection with an existing tracked pedestrian.
             existing_id = match_existing_pedestrian(
                 new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
                 new_dims=dims,
                 existing_agents=self.tracked_agents,
-                distance_threshold=1.0
+                distance_threshold=2.0
             )
 
             if existing_id is not None:
+                # Update the state of the matched pedestrian using the computed velocity.
                 old_agent_state = self.tracked_agents[existing_id]
                 dt = new_pose.t - old_agent_state.pose.t
+                '''
+                We found that the velocity calculated here is not entirely stable. 
+                We are implementing a more stable method, e.g. kalman filter based one
+                '''
                 vx, vy, vz = compute_velocity(old_agent_state.pose, new_pose, dt)
 
                 updated_agent = AgentState(
@@ -431,6 +729,7 @@ class PedestrianDetector2D(Component):
                 agents[existing_id] = updated_agent
                 self.tracked_agents[existing_id] = updated_agent
             else:
+                # If no match is found, create a new pedestrian agent.
                 agent_id = f"pedestrian{self.pedestrian_counter}"
                 self.pedestrian_counter += 1
 
@@ -446,25 +745,29 @@ class PedestrianDetector2D(Component):
                 agents[agent_id] = new_agent
                 self.tracked_agents[agent_id] = new_agent
 
-        # Remove stale agents that haven't been updated for more than 3 seconds.
+        self.current_agents = agents
+
         stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
                      if current_time - agent.pose.t > 5.0]
         for agent_id in stale_ids:
             rospy.loginfo(f"Removing stale agent: {agent_id}")
             del self.tracked_agents[agent_id]
-
-        self.current_agents = agents
-
-        # ROS log for each agent: id, pose, and velocity
+        # Log the details of each detected agent.
         for agent_id, agent in agents.items():
             rospy.loginfo(f"Agent ID: {agent_id}, Pose: {agent.pose}, Velocity: {agent.velocity}")
 
         return agents
 
 
-# ----- Fake Pedestrian Detector 2D (unchanged) -----
+# ----- Fake Pedestrian Detector 2D (for Testing Purposes) -----
+
 class FakePedestrianDetector2D(Component):
-    """Triggers a pedestrian detection at some random time ranges."""
+    """
+    A dummy pedestrian detector that simulates detections during pre-defined time intervals.
+
+    This component is useful for testing the overall system without relying on real sensor data.
+    """
+
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.times = [(5.0, 20.0), (30.0, 35.0)]
@@ -484,15 +787,24 @@ class FakePedestrianDetector2D(Component):
             self.t_start = self.vehicle_interface.time()
         t = self.vehicle_interface.time() - self.t_start
         res = {}
-        for times in self.times:
-            if t >= times[0] and t <= times[1]:
+        for time_range in self.times:
+            if t >= time_range[0] and t <= time_range[1]:
                 res['pedestrian0'] = box_to_fake_agent((0, 0, 0, 0))
-                rospy.loginfo("Detected a pedestrian")
+                rospy.loginfo("Detected a pedestrian (simulated)")
         return res
 
+
 def box_to_fake_agent(box):
-    """Creates a fake agent state from an (x,y,w,h) bounding box.
-       The location and size are just 2D approximations.
+    """
+    Create a fake AgentState from a bounding box represented as (x, y, width, height).
+
+    The pose is computed using the center of the box, and the dimensions are treated as 2D approximations.
+
+    Args:
+        box (tuple): A tuple (x, y, w, h) representing the bounding box.
+
+    Returns:
+        AgentState: The simulated pedestrian agent.
     """
     x, y, w, h = box
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
@@ -501,7 +813,8 @@ def box_to_fake_agent(box):
                       type=AgentEnum.PEDESTRIAN, activity=AgentActivityEnum.MOVING,
                       velocity=(0, 0, 0), yaw_rate=0)
 
+
 if __name__ == '__main__':
-    # This module is meant to be used within the vehicle interface context.
-    # For testing standalone, you may create a fake vehicle state and call update().
+    # This module is intended to be used within the vehicle interface context.
+    # For standalone testing, instantiate a fake vehicle state and call update().
     pass

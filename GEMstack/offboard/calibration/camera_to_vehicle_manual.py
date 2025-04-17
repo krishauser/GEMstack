@@ -3,27 +3,48 @@ import cv2
 from scipy.spatial.transform import Rotation as R
 import matplotlib.pyplot as plt
 import numpy as np
+from visualizer import visualizer
+import argparse
+import yaml
 
-rgb_path = '/mount/wp/GEMstack/data/color21.png'
-depth_path = '/mount/wp/GEMstack/data/depth21.tif'
-lidar_path = '/mount/wp/GEMstack/data/lidar21.npz'
+parser = argparse.ArgumentParser(description='Select corresponding lidar, color, depth files based on index')
+parser.add_argument('--data_path', type=str, required=True, help='Path to the dataset')
+parser.add_argument('--index', type=int, required=True, help='Index for selecting the files')
+parser.add_argument('--config', type=str, required=True, help='Path to YAML configuration file')
+args = parser.parse_args()
+args = parser.parse_args()
+
+# Construct file paths based on the provided index
+lidar_path = f'{args.data_path}/lidar{args.index}.npz'
+rgb_path = f'{args.data_path}/color{args.index}.png'
+depth_path = f'{args.data_path}/depth{args.index}.tif'
+
+N = 8 #how many point pairs you want to select
 
 img = cv2.imread(rgb_path, cv2.IMREAD_UNCHANGED)
 
 lidar_points = np.load(lidar_path)['arr_0']
 lidar_points = lidar_points[~np.all(lidar_points== 0, axis=1)] # remove (0,0,0)'s
 
-rx,ry,rz = 0.006898647163954201, 0.023800082245145304, -0.025318355743942974
-tx,ty,tz = -1.1, 0.037735827433173136, 1.953202227766785
-rot = R.from_euler('xyz',[rx,ry,rz]).as_matrix()
-lidar_ex = np.hstack([rot,[[tx],[ty],[tz]]])
-lidar_ex = np.vstack([lidar_ex,[0,0,0,1]])
 
-camera_in = np.array([
+
+# Load transformation parameters from YAML file
+with open(args.config, 'r') as yaml_file:
+    config = yaml.safe_load(yaml_file)
+
+tx, ty, tz = config['position']
+rot = np.array(config['rotation'])
+
+# Construct transformation matrix
+lidar_ex = np.hstack([rot, np.array([[tx], [ty], [tz]])])
+lidar_ex = np.vstack([lidar_ex, [0, 0, 0, 1]])
+
+camera_in = np.array([ # Update intrinsics if necessary
     [684.83331299,   0.        , 573.37109375],
     [  0.        , 684.60968018, 363.70092773],
     [  0.        ,   0.        ,   1.        ]
 ], dtype=np.float32)
+
 
 #%%
 # blurred = cv2.GaussianBlur(img, (5, 5), 0)
@@ -33,43 +54,11 @@ plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB))
 
 #%%
 import pyvista as pv
-def vis(title='', ratio=1):
+def vis(title='', ratio=1,notebook=False):
     print(title)
     pv.set_jupyter_backend('client')
-    plotter = pv.Plotter(notebook=True)
-    plotter.show_axes()
-    class foo:
-        def set_cam(self,pos=(-20*ratio,0,20*ratio),foc=(0,0,0)):
-            plotter.camera.position = pos
-            plotter.camera.focal_point = foc
-            return self
-        def add_pc(self,pc,ratio=ratio,**kargs):
-            plotter.add_mesh(
-                pv.PolyData(pc*ratio), 
-                render_points_as_spheres=True, 
-                point_size=2,
-                **kargs)
-            return self
-        def add_line(self,p1,p2,ratio=ratio,**kargs):
-            plotter.add_mesh(
-                pv.Line(p1*ratio,p2*ratio), 
-                **kargs,
-                line_width=1)
-            return self
-        def add_box(self,bound,trans,ratio=ratio):
-            l,w,h = map(lambda x:x*ratio,bound)
-            box = pv.Box(bounds=(-l/2,l/2,-w/2,w/2,-h/2,h/2))
-            box = box.translate(list(map(lambda x:x*ratio,trans)))
-            plotter.add_mesh(box, color='yellow')
-            return self
-        def show(self):
-            plotter.show()
-            return self
-        def close(self):
-            plotter.close()
-            return None
 
-    return foo().set_cam()
+    return visualizer().set_cam()
 def crop(pc,ix=None,iy=None,iz=None):
     # crop a subrectangle in a pointcloud
     # usage: crop(pc, ix = (x_min,x_max), ...)
@@ -85,11 +74,11 @@ def crop(pc,ix=None,iy=None,iz=None):
 
 
 lidar_post = np.pad(lidar_points,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
-lidar_post = crop(lidar_post,ix=(0,8),iy=(-5,5))
-vis().add_pc(lidar_post).show()
+lidar_post = crop(lidar_post,ix=(0,10),iy=(-5,5))
+# vis(notebook=False).add_pc(lidar_post).show()
 
 #%%
-def pick_4_img(img):
+def pick_n_img(img,n=4):
     corners = []  # Reset the corners list
     def click_event(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -101,7 +90,7 @@ def pick_4_img(img):
     cv2.setMouseCallback('Image', click_event, img)
     
     while True:
-        if len(corners) == 4:
+        if len(corners) == n:
             break
         if cv2.waitKey(1) & 0xFF == ord('q'):
             return None
@@ -109,15 +98,15 @@ def pick_4_img(img):
     cv2.destroyAllWindows()
     
     return corners
-cpoints = np.array(pick_4_img(img)).astype(float)
+cpoints = np.array(pick_n_img(img,N)).astype(float)
 print(cpoints)
 
 #%%
-def pick_4_pc(point_cloud):
+def pick_n_pc(point_cloud,n=4):
     points = []
     def cb(pt,*args):
         points.append(pt)
-    while len(points)!=4:
+    while len(points)!=n:
         points = []
         cloud = pv.PolyData(point_cloud)
         plotter = pv.Plotter(notebook=False)
@@ -128,7 +117,7 @@ def pick_4_pc(point_cloud):
         plotter.show()
     return points
 
-lpoints = np.array(pick_4_pc(lidar_post))
+lpoints = np.array(pick_n_pc(lidar_post,N))
 print(lpoints)
 # %%
 success, rvec, tvec = cv2.solvePnP(lpoints, cpoints, camera_in, None)
@@ -182,10 +171,9 @@ def depth_to_points(depth_img: np.ndarray, intrinsics: np.ndarray):
 depth_img = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
 camera_points = depth_to_points(depth_img, camera_in)
 
-v=vis()
-v.add_pc(np.pad(lidar_points,((0,0),(0,1)),constant_values=1)@lidar_ex.T@T.T[:,:3],color='blue')
-v.add_pc(camera_points,color='red')
-v.show()
-
 #%%
-print(np.vstack([(lidar_ex.T@T.T[:,:3]).T,[0,0,0,1]]))
+v2c = T
+print('vehicle->camera:',v2c)
+c2v = np.linalg.inv(v2c)
+print('camera->vehicle:',c2v)
+

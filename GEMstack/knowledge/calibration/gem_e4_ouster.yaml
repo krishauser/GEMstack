@@ -1,3 +1,8 @@
+# Calibration for top lidar->vehicle on GEM e4
+# Calibration Date: 02/25/2025 05:09
+
 reference: rear_axle_center  # rear axle center
-position: [1.10,0,2.03] # meters, calibrated by Hang's watchful eye
-rotation: [[1,0,0],[0,1,0],[0,0,1]]  #rotation matrix mapping lidar frame to vehicle frame
+position: [1.1, 0.03773044170906172, 1.9525244316515322] # top lidar to vehicle matrix translation component
+rotation: [[ 0.99941328,  0.02547416,  0.02289458], # top lidar to vehicle matrix rotation component
+       [-0.02530855,  0.99965159, -0.00749488],
+       [-0.02307753,  0.00691106,  0.99970979]]

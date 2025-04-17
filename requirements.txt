@@ -7,8 +7,9 @@ shapely
 klampt==0.9.2
 pyyaml
 dacite
+fastapi[standard]
 
 # Perception
 ultralytics
 open3d
-sklearn
+scikit-learn

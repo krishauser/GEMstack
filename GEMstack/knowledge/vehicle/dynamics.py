@@ -31,13 +31,63 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
             if acceleration < -dry_decel*0.5 or (acceleration <= 0 and velocity < 0.1):  # a little deadband to avoid oscillation
                 throttle_percent = 0.0  #drift to stop
             else:
-                throttle_percent = accel_active_range[0] + (acceleration+dry_decel)/max_accel * (accel_active_range[1]-accel_active_range[0])
+                throttle_percent = accel_active_range[0] + ((acceleration+dry_decel)/max_accel * (accel_active_range[1]-accel_active_range[0]))
             brake_percent = 0
         else:
-            brake_percent = brake_active_range[0] + -(acceleration+dry_decel)/max_brake * (brake_active_range[1]-brake_active_range[0])
+            brake_percent = brake_active_range[0] + (-(acceleration+dry_decel)/max_brake * (brake_active_range[1]-brake_active_range[0]))
             throttle_percent = 0
+        print(acceleration, (max(throttle_percent,0.0),max(brake_percent,0.0),1))
         return (max(throttle_percent,0.0),max(brake_percent,0.0),1)
     
+
+    # Model that's built on top of Hang's model.
+    # Designed to allow for various scaling based on current vehicle velocity, and use of functions other than linear
+    # for scaling. 
+    # DANGER: NEEDS TESTED
+    elif model == 'avery_v1':
+        model = settings.get('vehicle.dynamics.acceleration_model', 'avery_v1')
+        if gear != 1:
+            print("WARNING: Can't handle gears other than 1 yet")
+        
+        max_accel = settings.get('vehicle.dynamics.max_accelerator_acceleration')[1]  # m/s^2
+        max_brake = settings.get('vehicle.dynamics.max_brake_deceleration')  # m/s^2
+        dry_decel = settings.get('vehicle.dynamics.internal_dry_deceleration')  # m/s^2
+        accel_active_range = settings.get('vehicle.dynamics.accelerator_active_range')  # pedal position fraction
+        brake_active_range = settings.get('vehicle.dynamics.brake_active_range')  # pedal position fraction
+        mapping_function = settings.get('vehicle.dynamics.pedal_mapping_function', 'linear')
+        velocity_scalar = settings.get('vehicle.dynamics.velocity_scaling_factor', 0)  # Adjust sensitivity based on velocity
+        
+        
+        def apply_function(value, function='linear'):
+            if function == 'linear':
+                value = value # already linear mapping
+
+            # no guarantee that these functions will give good results until we get more test data about accel -> pedal mapping.
+            elif function == 'quadratic':
+                value = value ** 2 # value squared
+            elif function == 'exponential':
+                value = (math.exp(value) - 1) / 2
+            elif function == 'log':
+                value = math.sqrt(math.log(value + 1)) + 0.2
+
+            value += velocity * velocity_scalar
+            return value
+        
+        if acceleration > -dry_decel:
+            if acceleration < -dry_decel*0.5 or (acceleration <= 0 and velocity < 0.1):  # a little deadband to avoid oscillation
+                throttle_percent = 0.0  #drift to stop
+            else:
+                throttle_percent = accel_active_range[0] + ((acceleration+dry_decel)/max_accel * (accel_active_range[1]-accel_active_range[0]))
+                throttle_percent = apply_function(throttle_percent, mapping_function)
+            brake_percent = 0
+        else:
+            brake_percent = brake_active_range[0] + (-(acceleration+dry_decel)/max_brake * (brake_active_range[1]-brake_active_range[0]))
+            brake_percent = apply_function(brake_percent, mapping_function)
+            throttle_percent = 0
+        print(acceleration, (max(throttle_percent,0.0),max(brake_percent,0.0),1))
+        return (max(throttle_percent,0.0),max(brake_percent,0.0),1)
+
+
     elif model == 'kris_v1':
         brake_max = settings.get('vehicle.dynamics.max_brake_deceleration')
         reverse_accel_max = settings.get('vehicle.dynamics.max_accelerator_acceleration_reverse')
