@@ -85,7 +85,7 @@ class ParkingSolverSecondOrderDubins(AStar):
         self.obstacles = obstacles
 
         self.vehicle = SecondOrderDubinsCar() #x = (tx,ty,theta,v,dtheta) and u = (fwd_accel,wheel_angle_rate)
-        self.vehicle_sim = IntegratorControlSpace(self.vehicle, 0.75, 0.5)
+        self.vehicle_sim = IntegratorControlSpace(self.vehicle, 1, 0.5)
         #@TODO create a more standardized way to define the actions
         self.actions = [(1,-2), (1, -1), (1, -0.5), (1,0), (1,0.5), (1, 1),
                         (1,2), (0,0), (-1, -0.25), (-1,0), (-1, 0.25)]
@@ -104,11 +104,21 @@ class ParkingSolverSecondOrderDubins(AStar):
         return math.hypot(x2 - x1, y2 - y1, 2*(v2-v1))
         #return math.hypot(x2 - x1, y2 - y1, theta2 - theta1, v2-v1, dtheta2-dtheta1)
 
+    def terminal_cost_estimate(self, state_1, state_2):
+        # @TODO Consider creating a more sophisticated heuristic
+        """computes the 'direct' distance between two (x,y) tuples.
+        The states here are (x,y,theta,v,dtheta,t)
+        """
+        (x1, y1, theta1, v1, dtheta1) = state_1
+        (x2, y2, theta2, v2, dtheta2) = state_2
+
+        return math.hypot(x2 - x1, y2 - y1)
+
     def distance_between(self, n1, n2):
         """this method always returns 1, as two 'neighbors' are always adajcent"""
         (x1, y1, theta1, v1, dtheta1) = n1
         (x2, y2, theta2, v2, dtheta2) = n2
-        return math.hypot(x2 - x1, y2 - y1, v2 - v1)
+        return math.hypot(x2 - x1, y2 - y1)
 
     def neighbors(self, node):
         """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
@@ -153,9 +163,9 @@ def solve():
     # generate obstacle
     # obstacles = gen_obstacle(1)
     pose = ObjectPose(frame=ObjectFrameEnum(3),
-                t=0, x = 8, y=5)
+                t=0, x = 8, y=4.7)
     pose2 = ObjectPose(frame=ObjectFrameEnum(3),
-                t=0, x = 8, y=0)
+                t=0, x = 8, y=0.6)
     dimensions = (1.5,2.5,1)
     obstacles = [PhysicalObject(pose, dimensions, None), PhysicalObject(pose2, dimensions, None)]
     # obstacles = [PhysicalObject(pose, dimensions, None)]
@@ -164,7 +174,7 @@ def solve():
     goal = (8, 3, 0, 0, 0)  # we want to reach the lower right corner
 
     # let's solve it
-    foundPath = list(ParkingSolverSecondOrderDubins(obstacles).astar(start, goal))
+    foundPath = list(ParkingSolverSecondOrderDubins(obstacles).astar(start, goal, iterations=15000))
 
     plot_path(obstacles, foundPath)
 
