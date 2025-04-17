@@ -211,7 +211,9 @@ def compute_velocity_profile(points):
     ay_max = settings.get('vehicle.limits.max_lateral_acceleration')
 
     points = np.array(points)
+    # print(points)
     xs, ys = points[:,0], points [:,1]
+    # print(xs)
 
     dx = np.diff(xs)
     dy = np.diff(ys)

@@ -29,28 +29,45 @@ def create_error_plot(t, error, xlabel, ylabel, title, save_path=None):
         plt.savefig(save_path, dpi=600)
 
 def main():
-    log_folder = '2025-02-13_21-10-39'
-    df = pd.read_csv(log_folder + '/PurePursuitTrajectoryTracker_debug.csv')
+    log_folder = '2025-04-17_17-44-12'
+    df = pd.read_csv(log_folder + '/StanleyTrajectoryTracker_debug.csv')
+    # df = pd.read_csv(log_folder + '/PurePursuitTrajectoryTracker_debug.csv')
     save_figures =True
 
     plots_folder = os.path.join(log_folder, 'plots')
     os.makedirs(plots_folder, exist_ok=True)
 
+    # pure pursuit
+    # t = df['curr pt[0] vehicle time'].tolist()
+    # x = df['curr pt[0]'].tolist()
+    # y = df['curr pt[1]'].tolist()
+    # v = df['current speed (m/s)'].tolist()
+    # yaw = df['current yaw (rad)'].tolist()
+
+    # xd = df['desired pt[0]'].tolist()
+    # yd = df['desired pt[1]'].tolist()
+    # vd = df['desired speed (m/s)'].tolist()
+    # yawd = df['desired yaw (rad)'].tolist()
+
+    # cte = df['crosstrack error'].tolist()
+    # front_wheel_angle = df['front wheel angle (rad)'].tolist()
+    # accel = df['output accel (m/s^2)'].tolist()
+
+    #stanley
     t = df['curr pt[0] vehicle time'].tolist()
     x = df['curr pt[0]'].tolist()
     y = df['curr pt[1]'].tolist()
-    v = df['current speed (m/s)'].tolist()
-    yaw = df['current yaw (rad)'].tolist()
+    v = df['Stanley: current speed (m/s)'].tolist()
+    yaw = df['Stanley: current yaw (rad)'].tolist()
 
-    xd = df['desired pt[0]'].tolist()
-    yd = df['desired pt[1]'].tolist()
-    vd = df['desired speed (m/s)'].tolist()
-    yawd = df['desired yaw (rad)'].tolist()
+    xd = df['desired_x'].tolist()
+    yd = df['desired_y'].tolist()
+    vd = df['Stanley: desired_speed (m/s)'].tolist()
+    # yawd = df['Stanley: desired yaw (rad)'].tolist()
 
     cte = df['crosstrack error'].tolist()
-    front_wheel_angle = df['front wheel angle (rad)'].tolist()
-    accel = df['output accel (m/s^2)'].tolist()
-
+    # front_wheel_angle = df['Stanley: front wheel angle (rad)'].tolist()
+    accel = df['Stanley: output_accel (m/s^2)'].tolist()
 
 
     rmse_cte = np.sqrt(np.mean(np.array(cte)**2))
@@ -92,14 +109,14 @@ def main():
     if save_figures:
         plt.savefig(os.path.join(plots_folder, 'cte.png'), dpi=600)
 
-    plt.figure()
-    plt.plot(t, front_wheel_angle)
-    plt.xlabel('$t$ (s)')
-    plt.ylabel('Front Wheel Angle (rad)')
-    plt.title('Front Wheel Angle over Time')
-    plt.grid(True)
-    if save_figures:
-        plt.savefig(os.path.join(plots_folder, 'front_wheel_angle.png'), dpi=600)
+    # plt.figure()
+    # plt.plot(t, front_wheel_angle)
+    # plt.xlabel('$t$ (s)')
+    # plt.ylabel('Front Wheel Angle (rad)')
+    # plt.title('Front Wheel Angle over Time')
+    # plt.grid(True)
+    # if save_figures:
+    #     plt.savefig(os.path.join(plots_folder, 'front_wheel_angle.png'), dpi=600)
 
     plt.figure()
     plt.plot(t, accel)
