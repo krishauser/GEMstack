@@ -23,7 +23,7 @@ drive:
         trajectory_tracking:
             #type: pure_pursuit.PurePursuitTrajectoryTracker # to use pure pursuit comment below
             type: stanley.StanleyTrajectoryTracker # to use stanley comment above 
-            args: {desired_speed: 10}  #approximately 5mph
+            # args: {desired_speed: 10}  #approximately 5mph comment when racing
             print: True
 
 log:

@@ -124,7 +124,7 @@ class Stanley(object):
             self.trajectory = path.racing_velocity_profile()
             self.current_traj_parameter = 0.0
             if self.desired_speed_source not in ['racing']:
-                raise ValueError("Racing: desired speed must be set to racing")
+                raise ValueError("Racing: desired speed must be set to racing, currently set to: " + str(self.desired_speed_source))
         else:
             self.path = path.arc_length_parameterize()
             self.trajectory = path
@@ -194,8 +194,9 @@ class Stanley(object):
 
         desired_speed = self.desired_speed
         feedforward_accel = 0.0
-
-        if self.trajectory and self.desired_speed_source in ['path', 'trajectory']:
+        print(self.desired_speed)
+        # print(self.trajectory)
+        if self.trajectory and self.desired_speed_source in ['path', 'trajectory', 'racing']:
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
                 # End of trajectory -> stop
                 if component:
@@ -208,9 +209,15 @@ class Stanley(object):
                 else:
                     self.current_traj_parameter += dt
                     current_trajectory_time = self.current_traj_parameter
+                    print(current_trajectory_time)
 
                 deriv = self.trajectory.eval_derivative(current_trajectory_time)
-                desired_speed = min(np.linalg.norm(deriv), self.speed_limit)
+
+                # deriv 0 at time 0
+                if np.isnan(deriv[0]):
+                    desired_speed = 0.0
+                else:
+                    desired_speed = min(np.linalg.norm(deriv), self.speed_limit)
 
                 difference_dt = 0.1
                 future_t = current_trajectory_time + difference_dt
@@ -259,6 +266,9 @@ class Stanley(object):
             component.debug("Stanley: desired_speed (m/s)", desired_speed)
             component.debug("Stanley: feedforward_accel (m/s^2)", feedforward_accel)
             component.debug("Stanley: output_accel (m/s^2)", output_accel)
+            component.debug('Stanley: current yaw (rad)', curr_yaw)
+            component.debug('Stanley: current speed (m/s)', speed)
+
 
         if output_accel > self.max_accel:
             output_accel = self.max_accel
@@ -286,6 +296,7 @@ class StanleyTrajectoryTracker(Component):
         """
         self.stanley = Stanley(**kwargs)
         self.vehicle_interface = vehicle_interface
+        self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
 
     def rate(self):
         """Control frequency in Hz."""
@@ -312,7 +323,7 @@ class StanleyTrajectoryTracker(Component):
           4) Send command to the vehicle
         """
         # path to trajectory if racing enabled
-        if True: ## conditional needed for no racing
+        if self.desired_speed_source in ['racing']: ## conditional needed for no racing
             self.stanley.set_racing_path(trajectory)
         else:
             self.stanley.set_path(trajectory)
