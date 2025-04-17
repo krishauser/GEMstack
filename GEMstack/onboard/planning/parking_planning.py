@@ -9,7 +9,7 @@ from ...mathutils.dynamics import IntegratorControlSpace
 from ...mathutils import collisions
 from .astar import AStar
 from .longitudinal_planning import longitudinal_plan
-from testing.reeds_shepp_path import path_length
+# from testing.reeds_shepp_path import path_length
 
 
 import numpy as np
@@ -71,19 +71,21 @@ class ParkingSolverSecondOrderDubins(AStar):
         """
         (x1, y1, theta1, v1, dtheta1, t1) = state_1
         (x2, y2, theta2, v2, dtheta2, t2) = state_2
+
+        return math.hypot(x2 - x1, y2- y1, 2*(v2-v1))
         
-        # Create start and goal configurations for Reeds-Shepp
-        start = (x1, y1, theta1)
-        goal = (x2, y2, theta2)
+        # # Create start and goal configurations for Reeds-Shepp
+        # start = (x1, y1, theta1)
+        # goal = (x2, y2, theta2)
         
-        # Calculate Reeds-Shepp path length
-        path_length_cost = path_length(start, goal, 1.0)  # Using turning radius of 1.0
+        # # Calculate Reeds-Shepp path length
+        # path_length_cost = path_length(start, goal, 1.0)  # Using turning radius of 1.0
         
-        # Add penalties for velocity and time differences
-        velocity_penalty = abs(v2 - v1) * 0.1
-        time_penalty = abs(t2 - t1) * 0.01
+        # # Add penalties for velocity and time differences
+        # velocity_penalty = abs(v2 - v1) * 0.1
+        # time_penalty = abs(t2 - t1) * 0.01
         
-        return path_length_cost + velocity_penalty + time_penalty
+        # return path_length_cost + velocity_penalty + time_penalty
 
     def terminal_cost_estimate(self, state_1, state_2):
         """
@@ -92,20 +94,22 @@ class ParkingSolverSecondOrderDubins(AStar):
         """
         (x1, y1, theta1, v1, dtheta1, t1) = state_1
         (x2, y2, theta2, v2, dtheta2, t2) = state_2
+
+        return math.hypot(x2 - x1, y2 - y1)
         
         # Create start and goal configurations for Reeds-Shepp
-        start = (x1, y1, theta1)
-        goal = (x2, y2, theta2)
+        # start = (x1, y1, theta1)
+        # goal = (x2, y2, theta2)
         
-        # Calculate Reeds-Shepp path length
-        path_length_cost = path_length(start, goal, 1.0)  # Using turning radius of 1.0
+        # # Calculate Reeds-Shepp path length
+        # path_length_cost = path_length(start, goal, 1.0)  # Using turning radius of 1.0
         
-        # Add penalties for velocity, angular velocity, and time differences
-        velocity_penalty = abs(v2 - v1) * 0.1
-        angular_velocity_penalty = abs(dtheta2 - dtheta1) * 0.1
-        time_penalty = abs(t2 - t1) * 0.01
+        # # Add penalties for velocity, angular velocity, and time differences
+        # velocity_penalty = abs(v2 - v1) * 0.1
+        # angular_velocity_penalty = abs(dtheta2 - dtheta1) * 0.1
+        # time_penalty = abs(t2 - t1) * 0.01
         
-        return path_length_cost + velocity_penalty + angular_velocity_penalty + time_penalty
+        # return path_length_cost + velocity_penalty + angular_velocity_penalty + time_penalty
     
     def distance_between(self, state_1, state_2):
         """
