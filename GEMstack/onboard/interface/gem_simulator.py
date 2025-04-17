@@ -174,6 +174,16 @@ class GEMDoubleIntegratorSimulation:
         brake_pedal_position = np.clip(self.last_command.brake_pedal_position,0.0,1.0)
         acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,1)
         acceleration = np.clip(acceleration,*self.dubins.accelRange)
+
+
+
+        # Revised by Summoning
+        if self.last_command.gear < 0:
+            acceleration = -acceleration
+
+
+
+
         phides = steer2front(self.last_command.steering_wheel_angle)
         phides = np.clip(phides,*self.dubins.wheelAngleRange)
         h = 0.01  #just for finite differencing
@@ -207,10 +217,21 @@ class GEMDoubleIntegratorSimulation:
             reading.brake_pedal_position = brake_pedal_position
             reading.accelerator_pedal_position = 0
         reading.speed = v
+
+
+
+
         if v >= 0:
             reading.gear = 1
         else:
             reading.gear = -1
+        # Revised by Summoning
+        # reading.gear = self.last_command.gear
+
+
+
+
+
         #copy signals
         reading.left_turn_signal = self.last_command.left_turn_signal
         reading.right_turn_signal = self.last_command.right_turn_signal

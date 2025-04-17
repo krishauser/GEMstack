@@ -116,7 +116,16 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
         if abs(acceleration) < acceleration_deadband:
             #deadband?
             return (0,0,gear)
-        if velocity * acceleration < 0:
+        
+
+
+        # Revised by Summoning
+        # if velocity * acceleration < 0:
+        if velocity * acceleration < 0 and gear == 1:
+
+
+
+
             accel_pos = 0
             brake_pos = -acceleration / brake_max
             if brake_pos > 1.0:

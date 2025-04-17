@@ -16,13 +16,14 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
+            # args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
+            args: [!relative_path '../GEMstack/knowledge/routes/backward_15m.csv','start']
         motion_planning:
             type: RouteToTrajectoryPlanner
             args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
-            args: {desired_speed: 2.5}  #approximately 5mph
+            args: {desired_speed: -2.5}  #approximately 5mph
             print: False
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
@@ -56,7 +57,7 @@ replay:  # Add items here to set certain topics / inputs to be replayed from log
 computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
 
 after:
-    show_log_folder: True  #set to false to avoid showing the log folder
+    show_log_folder: False  #set to false to avoid showing the log folder
 
 #on load, variants will overload the settings structure
 variants:
