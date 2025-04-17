@@ -1,9 +1,14 @@
 from sensor_msgs.msg import PointField
 from visualization_msgs.msg import Marker, MarkerArray
+from geometry_msgs.msg import Point
 import sensor_msgs.point_cloud2 as pc2
 import cv2
 import rospy
 import struct
+import math
+
+GEM_E4_LENGTH = 3.6  # m
+GEM_E4_WIDTH  = 1.5  # m
 
 def vis_2d_bbox(image, xywh, box):
     # Setup
@@ -119,14 +124,105 @@ def create_bbox_marker(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ref_
     return marker_array
 
 
-def delete_bbox_marker():
-    """
-    Delete 3D bbox markers given ID ranges
-    """
+def create_polygon_marker(vertices_2d, ref_frame="map"):
     marker_array = MarkerArray()
-    for i in range(15):
+
+    marker = Marker()
+    marker.header.frame_id = ref_frame
+    marker.header.stamp = rospy.Time.now()
+    marker.ns = "polygon"
+    marker.id = 0
+    marker.type = Marker.LINE_STRIP
+    marker.action = Marker.ADD
+
+    # Style
+    marker.scale.x = 0.1  # Line width
+
+    # Color (blue)
+    marker.color.r = 0.0
+    marker.color.g = 1.0
+    marker.color.b = 0.0
+    marker.color.a = 1.0
+
+    marker.pose.orientation.w = 1.0
+
+    # Convert 2D vertices into geometry_msgs/Point with z=0.0
+    for vx, vy in vertices_2d:
+        marker.points.append(Point(x=vx, y=vy, z=0.0))
+
+    # Close the loop by repeating the first point
+    marker.points.append(Point(x=vertices_2d[0][0], y=vertices_2d[0][1], z=0.0))
+
+    marker_array.markers.append(marker)
+    return marker_array
+
+
+def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_WIDTH, ref_frame="map"):
+    marker_array = MarkerArray()
+
+    marker = Marker()
+    marker.header.frame_id = ref_frame
+    marker.header.stamp = rospy.Time.now()
+    marker.ns = "parking_spot"
+    marker.id = 0
+    marker.type = Marker.TRIANGLE_LIST
+    marker.action = Marker.ADD
+
+    # Transparency and color (green)
+    marker.color.r = 0.0
+    marker.color.g = 1.0
+    marker.color.b = 0.0
+    marker.color.a = 0.5
+
+    marker.pose.orientation.w = 1.0
+
+    # Not used in TRIANGLE_LIST, but required
+    marker.scale.x = 1.0
+    marker.scale.y = 1.0
+    marker.scale.z = 1.0
+
+    x, y, theta_deg = closest_spot
+
+    # Convert orientation to radians
+    theta = math.radians(theta_deg)
+
+    # Half dimensions
+    dx = length / 2.0
+    dy = width / 2.0
+
+    # Define rectangle corners (local frame, clockwise)
+    local_corners = [
+        (-dx, -dy),
+        (-dx, dy),
+        (dx, dy),
+        (dx, -dy)
+    ]
+
+    # Transform to global frame
+    global_corners = []
+    for lx, ly in local_corners:
+        gx = x + lx * math.cos(theta) - ly * math.sin(theta)
+        gy = y + lx * math.sin(theta) + ly * math.cos(theta)
+        global_corners.append(Point(x=gx, y=gy, z=0.0))
+
+    # Define two triangles to fill the rectangle
+    marker.points.append(global_corners[0])
+    marker.points.append(global_corners[2])
+    marker.points.append(global_corners[1])
+
+    marker.points.append(global_corners[0])
+    marker.points.append(global_corners[3])
+    marker.points.append(global_corners[2])
+
+    marker_array.markers.append(marker)
+    return marker_array
+
+
+def delete_markers(ns="markers", max_markers=15):
+    marker_array = MarkerArray()
+    for i in range(max_markers):
         marker = Marker()
-        marker.ns = "markers"
+        marker.ns = ns
         marker.id = i
         marker.action = Marker.DELETE
         marker_array.markers.append(marker)

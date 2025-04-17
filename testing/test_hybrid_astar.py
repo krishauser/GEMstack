@@ -10,6 +10,7 @@ from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCar
 from GEMstack.state.physical_object import PhysicalObject, ObjectPose, ObjectFrameEnum
 from GEMstack.mathutils.dynamics import IntegratorControlSpace
 import GEMstack.mathutils.collisions as collisions
+from reeds_shepp_path import path_length
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -90,6 +91,10 @@ class ParkingSolverSecondOrderDubins(AStar):
         self.actions = [(1,-2), (1, -1), (1, -0.5), (1,0), (1,0.5), (1, 1),
                         (1,2), (0,0), (-1, -0.25), (-1,0), (-1, 0.25)]
 
+        # Add Reeds-Shepp parameters
+        self.turning_radius = 1.0  # Adjust based on your vehicle
+        self.velocity_penalty_weight = 0.1  # Adjust to balance path length vs velocity changes
+
     def is_goal_reached(self, current, goal):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
 
@@ -97,22 +102,47 @@ class ParkingSolverSecondOrderDubins(AStar):
         return np.linalg.norm(np.array(current[:2]) - np.array(goal[:2])) < .5
     
     def heuristic_cost_estimate(self, n1, n2):
-        # @TODO Consider creating a more sophisticated heuristic
-        """computes the 'direct' distance between two (x,y) tuples"""
+        """
+        Computes the Reeds-Shepp path length between two configurations as the heuristic cost
+        """
+        # Extract position and orientation from states
         (x1, y1, theta1, v1, dtheta1) = n1
         (x2, y2, theta2, v2, dtheta2) = n2
-        return math.hypot(x2 - x1, y2 - y1, 2*(v2-v1))
-        #return math.hypot(x2 - x1, y2 - y1, theta2 - theta1, v2-v1, dtheta2-dtheta1)
 
-    def terminal_cost_estimate(self, state_1, state_2):
-        # @TODO Consider creating a more sophisticated heuristic
-        """computes the 'direct' distance between two (x,y) tuples.
-        The states here are (x,y,theta,v,dtheta,t)
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        path_length_cost = path_length(start, goal, self.turning_radius)
+        
+        # Add a small penalty for velocity difference to encourage smooth transitions
+        velocity_penalty = abs(v2 - v1) * self.velocity_penalty_weight
+        
+        return path_length_cost + velocity_penalty
+
+    def terminal_cost_estimate(self, current, goal):
         """
-        (x1, y1, theta1, v1, dtheta1) = state_1
-        (x2, y2, theta2, v2, dtheta2) = state_2
+        Computes the terminal cost estimate between current state and goal state.
+        This is used to determine how close we are to the goal configuration.
+        """
+        # Extract position and orientation from states
+        (x1, y1, theta1, v1, dtheta1) = current
+        (x2, y2, theta2, v2, dtheta2) = goal
+        
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal_config = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        path_length_cost = path_length(start, goal_config, self.turning_radius)
+        
+        # Add penalties for velocity and angular velocity differences
+        velocity_penalty = abs(v2 - v1) * self.velocity_penalty_weight
+        angular_velocity_penalty = abs(dtheta2 - dtheta1) * 0.1
+        
+        return path_length_cost + velocity_penalty + angular_velocity_penalty
 
-        return math.hypot(x2 - x1, y2 - y1)
 
     def distance_between(self, n1, n2):
         """this method always returns 1, as two 'neighbors' are always adajcent"""
@@ -165,13 +195,13 @@ def solve():
     pose = ObjectPose(frame=ObjectFrameEnum(3),
                 t=0, x = 8, y=4.7)
     pose2 = ObjectPose(frame=ObjectFrameEnum(3),
-                t=0, x = 8, y=0.6)
+                t=0, x = 8, y=0)
     dimensions = (1.5,2.5,1)
     obstacles = [PhysicalObject(pose, dimensions, None), PhysicalObject(pose2, dimensions, None)]
     # obstacles = [PhysicalObject(pose, dimensions, None)]
     # obstacles = []
     start = (0, 0, 0, 0, 0)  # we choose to start at the upper left corner
-    goal = (8, 3, 0, 0, 0)  # we want to reach the lower right corner
+    goal = (5, 5, 0, 0, 0)  # we want to reach the lower right corner
 
     # let's solve it
     foundPath = list(ParkingSolverSecondOrderDubins(obstacles).astar(start, goal, iterations=15000))
