@@ -18,8 +18,7 @@ drive:
             type: StaticRoutePlanner
             args: [!relative_path '../GEMstack/knowledge/routes/turn_right2.csv']
         motion_planning:
-            type: racing_planning.plan_full_slalom_trajectory
-            args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+            type: racing_planning.SlalomTrajectoryPlanner
         trajectory_tracking:
             #type: pure_pursuit.PurePursuitTrajectoryTracker # to use pure pursuit comment below
             type: stanley.StanleyTrajectoryTracker # to use stanley comment above 

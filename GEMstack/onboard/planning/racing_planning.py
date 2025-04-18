@@ -645,3 +645,36 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
         current_pos = np.array([x[-1], y[-1]])
 
     return to_gemstack_trajectory(x_all, y_all, v_all)
+
+from ...state.trajectory import Trajectory
+from ...state.vehicle import VehicleState
+from ..component import Component
+
+class SlalomTrajectoryPlanner(Component):
+    def __init__(self, **kwargs):
+        # You can accept args here if needed
+        self.trajectory = None
+        self.planned = False
+
+    def state_inputs(self):
+        return ['vehicle']  # Will receive a VehicleState input
+
+    def state_outputs(self):
+        return ['trajectory']
+
+    def update(self, vehicle: VehicleState):
+        if not self.planned:
+            cones = [
+                {'x': 10, 'y': 0.0, 'orientation': 'left'},
+                {'x': 30, 'y': 1.0, 'orientation': 'right'},
+                {'x': 50, 'y': 0.0, 'orientation': 'left'},
+                {'x': 70, 'y': 1.0, 'orientation': 'standing'}
+            ]
+            vehicle_dict = {
+                'position': [vehicle.pose.x, vehicle.pose.y],
+                'heading': vehicle.pose.yaw,
+                'velocity': vehicle.v
+            }
+            self.trajectory = plan_full_slalom_trajectory(vehicle_dict, cones)
+            self.planned = True
+        return self.trajectory
