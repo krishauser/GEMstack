@@ -492,7 +492,7 @@ class ConeDetector3D(Component):
                 refined_cluster = remove_ground_by_min_range(points_3d, z_range=0.05)
             end1 = time.time()
             print('refine cluster: ', end1 - start)
-            if refined_cluster.shape[0] < 3:
+            if refined_cluster.shape[0] < 4:
                 continue
 
             # Compute the oriented bounding box.
