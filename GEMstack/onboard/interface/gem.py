@@ -4,6 +4,7 @@ from ...state import VehicleState, ObjectPose, ObjectFrameEnum
 from ...knowledge.vehicle.geometry import front2steer,steer2front,heading_rate
 from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration, acceleration_to_pedal_positions
 from typing import List,Optional,Callable
+import numpy as np
 
 @dataclass
 @serialization.register
@@ -95,6 +96,7 @@ class GEMInterface:
     def __init__(self):
         self.last_command = None  # type: GEMVehicleCommand
         self.last_reading = None  # type: GEMVehicleReading
+        self.max_accel = settings.get('vehicle.limits.max_accelerator_pedal')
 
     def start(self):
         pass
@@ -133,7 +135,7 @@ class GEMInterface:
         """
         raise NotImplementedError()
 
-    def simple_command(self, acceleration_mps2 : float, steering_wheel_angle : float, state : VehicleState = None) -> GEMVehicleCommand:
+    def simple_command(self, acceleration_mps2: float, steering_wheel_angle: float, state: VehicleState = None, brake_override: Optional[float] = None, launch_control: bool = False) -> GEMVehicleCommand:
         """"
         Returns a command according to a desired acceleration and steering angle
 
@@ -145,7 +147,32 @@ class GEMInterface:
         pitch = state.pose.pitch if state is not None and state.pose.pitch is not None else 0.0
         v = state.v if state is not None else 0.0
         gear = state.gear if state is not None else 1
-        acc_pos,brake_pos,gear = acceleration_to_pedal_positions(acceleration_mps2, v, pitch, gear)
+        stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
+
+        if launch_control and v < 0.1:
+            if not hasattr(self,'_launch_start_time'):
+                self._launch_start_time = self.time()
+            elapsed = self.time() - self._launch_start_time
+            if elapsed < stage_duration:
+                acc_pos = 0.0
+                brake_pos = 1.0
+            elif elapsed < 2 * stage_duration:
+                acc_pos = 1.0
+                brake_pos = 1.0
+            else:
+                acc_pos = 1.0
+                brake_pos = 0.0
+        else:
+            if hasattr(self, '_launch_start_time'):
+                del self._launch_start_time
+            if brake_override is not None:
+                acc_pos = np.clip(acceleration_mps2 / self.max_accel, 0.0, 1.0)
+                brake_pos = np.clip(brake_override, 0.0, 1.0)
+            else:
+                acc_pos, brake_pos, gear = acceleration_to_pedal_positions(acceleration_mps2, v, pitch, gear)
+
+
+        # acc_pos,brake_pos,gear = acceleration_to_pedal_positions(acceleration_mps2, v, pitch, gear)
         
         cmd = GEMVehicleCommand(gear=gear,
                                 accelerator_pedal_position=acc_pos,
