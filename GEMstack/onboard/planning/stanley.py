@@ -70,6 +70,10 @@ class Stanley(object):
         i = settings.get('control.longitudinal_control.pid_i')
         self.pid_speed = PID(p, d, i, windup_limit=20)
 
+        self.enable_launch_control = settings.get('control.launch_control.enable', False)
+        self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
+        self.launch_start_time = None
+
         # Speed source: numeric or derived from path/trajectory
         if desired_speed is not None:
             self.desired_speed_source = desired_speed
@@ -143,6 +147,8 @@ class Stanley(object):
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
+
+
 
         # Current vehicle states
         curr_x = state.pose.x
@@ -331,6 +337,7 @@ class StanleyTrajectoryTracker(Component):
         else:
             self.stanley.set_path(trajectory)
         accel, f_delta = self.stanley.compute(vehicle, self)
+        vehicle.flags.launch_control = self.stanley.enable_launch_control and vehicle.v < 0.01
 
         # If your low-level interface expects steering wheel angle:
         steering_angle = front2steer(f_delta)
@@ -339,8 +346,7 @@ class StanleyTrajectoryTracker(Component):
             settings.get('vehicle.geometry.min_steering_angle', -0.5),
             settings.get('vehicle.geometry.max_steering_angle',  0.5)
         )
-
-        cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
+        cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle, launch_control=vehicle.flags.launch_control)
         self.vehicle_interface.send_command(cmd)
 
     def healthy(self):
