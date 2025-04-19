@@ -337,7 +337,7 @@ class StanleyTrajectoryTracker(Component):
         else:
             self.stanley.set_path(trajectory)
         accel, f_delta = self.stanley.compute(vehicle, self)
-        vehicle.flags.launch_control = self.stanley.enable_launch_control and vehicle.v < 0.01
+        launch_control = self.stanley.enable_launch_control and vehicle.v < 0.01
 
         # If your low-level interface expects steering wheel angle:
         steering_angle = front2steer(f_delta)
@@ -346,7 +346,8 @@ class StanleyTrajectoryTracker(Component):
             settings.get('vehicle.geometry.min_steering_angle', -0.5),
             settings.get('vehicle.geometry.max_steering_angle',  0.5)
         )
-        cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle, launch_control=vehicle.flags.launch_control)
+
+        cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle, launch_control=launch_control)
         self.vehicle_interface.send_command(cmd)
 
     def healthy(self):
