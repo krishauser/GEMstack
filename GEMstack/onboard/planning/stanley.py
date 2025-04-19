@@ -122,20 +122,19 @@ class Stanley(object):
         speed = state.v
 
         if self.path is None:
-            if component:
-                component.debug_event("No path provided to Stanley controller. Doing nothing.")
-            return (0.0, 0.0)
+            #just stop
+            accel = self.pid_speed.advance(0.0, t)
+            # TODO
+            raise RuntimeError("Behavior without path not implemented")
 
         # Ensure same frame
         if self.path.frame != state.pose.frame:
-            if component:
-                component.debug_event(f"Transforming path from {self.path.frame.name} to {state.pose.frame.name}")
+            print("Transforming path from",self.path.frame.name,"to",state.pose.frame.name)
             self.path = self.path.to_frame(state.pose.frame, current_pose=state.pose)
-
-        if self.trajectory and self.trajectory.frame != state.pose.frame:
-            if component:
-                component.debug_event(f"Transforming trajectory from {self.trajectory.frame.name} to {state.pose.frame.name}")
-            self.trajectory = self.trajectory.to_frame(state.pose.frame, current_pose=state.pose)
+        if self.trajectory is not None:
+            if self.trajectory.frame != state.pose.frame:
+                print("Transforming trajectory from",self.trajectory.frame.name,"to",state.pose.frame.name)
+                self.trajectory = self.trajectory.to_frame(state.pose.frame, current_pose=state.pose)
 
         # 1) Closest point
         fx, fy = self._find_front_axle_position(curr_x, curr_y, curr_yaw)
@@ -168,9 +167,9 @@ class Stanley(object):
 
         if self.trajectory and self.desired_speed_source in ['path', 'trajectory']:
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
-                # End of trajectory -> stop
-                if component:
-                    component.debug_event("Stanley: Past the end of trajectory, stopping.")
+                if component is not None:
+                    component.debug_event('Past the end of trajectory')
+                #past the end, just stop
                 desired_speed = 0.0
                 feedforward_accel = -2.0
             else:
