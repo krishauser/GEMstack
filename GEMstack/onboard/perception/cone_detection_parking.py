@@ -10,6 +10,7 @@ from message_filters import Subscriber, ApproximateTimeSynchronizer
 import open3d as o3d
 from ..component import Component 
 from ...state import VehicleState, AgentState
+from .parking_utils import *
 
 
 class ConeDetector3D(Component):
@@ -40,6 +41,21 @@ class ConeDetector3D(Component):
         self.lidar_sub = Subscriber("/ouster/points", PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub], queue_size=10, slop=0.1)
         self.sync.registerCallback(self.callback)
+
+
+    def detect_parking_spot(self, cone_3d_centers):
+         cone_ground_centers = np.array(cone_3d_centers)
+         cone_ground_centers_2D = cone_ground_centers[:, :2]
+         # print(f"-----cone_ground_centers_2D: {cone_ground_centers_2D}")
+         candidates = findAllCandidateParkingLot(cone_ground_centers_2D)
+         # print(f"-----candidates: {candidates}")
+         if len(candidates) > 0:
+             closest_spot = candidates[0]
+             # print(f"-----closest_spot: {closest_spot}")
+             # Create parking spot marker
+            #  ros_parking_spot_marker = create_parking_spot_marker(closest_spot, ref_frame="vehicle")
+            #  self.pub_parking_spot_marker.publish(ros_parking_spot_marker)
+         return
 
     def callback(self, img_msg, lidar_msg):
         # Convert data
@@ -76,6 +92,10 @@ class ConeDetector3D(Component):
         # Publish centroids
         if centroids:
             self.pub_centroids.publish(self.create_pc2(centroids))
+
+        # Parking space detection logic here
+
+
 
     def undistort_image(self, img):
         h, w = img.shape[:2]
