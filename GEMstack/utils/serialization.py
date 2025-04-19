@@ -99,7 +99,7 @@ def deserialize(data):
     """
     global REGISTRY # noqa: F821, F841， F824
     name,version,data = deserialize_raw(data)
-    if name not in REGISTRY:
+    if name not in REGISTRY: # noqa: F824
         raise IOError("Class of type {} not found in registry".format(name))
     if version not in REGISTRY[name]:
         raise IOError("Version {} of type {} not found in registry".format(version,name))

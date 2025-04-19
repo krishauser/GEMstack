@@ -13,7 +13,7 @@ def load_settings():
     overridden any settings using --KEY=VALUE.
     """
     global SETTINGS # noqa: F821, F841， F824
-    if SETTINGS is not None:
+    if SETTINGS is not None: # noqa: F824
         return
     import os
     import sys
@@ -39,7 +39,7 @@ def settings():
     """Returns all global settings, loading them if necessary."""
     global SETTINGS # noqa: F821, F841， F824
     load_settings()
-    return SETTINGS
+    return SETTINGS # noqa: F824
 
 
 def get(path : Union[str,List[str]], defaultValue=KeyError) -> Any:
@@ -49,7 +49,7 @@ def get(path : Union[str,List[str]], defaultValue=KeyError) -> Any:
     if isinstance(path,str):
         path = path.split('.')
     try:
-        val = SETTINGS
+        val = SETTINGS # noqa: F824
         for key in path:
             val = val[key]
         return val
@@ -69,7 +69,7 @@ def set(path : Union[str,List[str]], value : Any, leaf_only=True) -> None:
     load_settings()
     if isinstance(path,str):
         path = path.split('.')
-    val = SETTINGS
+    val = SETTINGS # noqa: F824
     if len(path) == 0:
         raise KeyError("Cannot set top-level settings")
     for key in path[:-1]:
