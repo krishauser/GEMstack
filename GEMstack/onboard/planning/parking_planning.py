@@ -9,6 +9,7 @@ from ...mathutils.dynamics import IntegratorControlSpace
 from ...mathutils import collisions
 from .astar import AStar
 from .longitudinal_planning import longitudinal_plan
+from testing.reeds_shepp_path import path_length
 
 
 import numpy as np
@@ -64,25 +65,47 @@ class ParkingSolverSecondOrderDubins(AStar):
         return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
     vehicle
     def heuristic_cost_estimate(self, state_1, state_2):
-        # @TODO Consider creating a more sophisticated heuristic
-        """computes the 'direct' distance between two (x,y) tuples.
+        """
+        Computes the Reeds-Shepp path length between two configurations as the heuristic cost.
         The states here are (x,y,theta,v,dtheta,t)
         """
-        (x1, y1, theta1, v1, dtheta1,t1) = state_1
+        (x1, y1, theta1, v1, dtheta1, t1) = state_1
         (x2, y2, theta2, v2, dtheta2, t2) = state_2
-
-        return math.hypot(x2 - x1, y2 - y1, 2*(v2-v1))
-        #return math.hypot(x2 - x1, y2 - y1, theta2 - theta1, v2-v1, dtheta2-dtheta1)
+        
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        path_length_cost = path_length(start, goal, 1.0)  # Using turning radius of 1.0
+        
+        # Add penalties for velocity and time differences
+        velocity_penalty = abs(v2 - v1) * 0.1
+        time_penalty = abs(t2 - t1) * 0.01
+        
+        return path_length_cost + velocity_penalty + time_penalty
 
     def terminal_cost_estimate(self, state_1, state_2):
-        # @TODO Consider creating a more sophisticated heuristic
-        """computes the 'direct' distance between two (x,y) tuples.
+        """
+        Computes the terminal cost estimate between current state and goal state.
         The states here are (x,y,theta,v,dtheta,t)
         """
-        (x1, y1, theta1, v1, dtheta1,t1) = state_1
+        (x1, y1, theta1, v1, dtheta1, t1) = state_1
         (x2, y2, theta2, v2, dtheta2, t2) = state_2
-
-        return math.hypot(x2 - x1, y2 - y1)
+        
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        path_length_cost = path_length(start, goal, 1.0)  # Using turning radius of 1.0
+        
+        # Add penalties for velocity, angular velocity, and time differences
+        velocity_penalty = abs(v2 - v1) * 0.1
+        angular_velocity_penalty = abs(dtheta2 - dtheta1) * 0.1
+        time_penalty = abs(t2 - t1) * 0.01
+        
+        return path_length_cost + velocity_penalty + angular_velocity_penalty + time_penalty
     
     def distance_between(self, state_1, state_2):
         """
@@ -254,3 +277,111 @@ class ParkingPlanner(Component):
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
         # print(traj)
         return traj 
+
+class UnparkingPlanner:
+    def __init__(self):
+        pass
+
+    def plan(self, start_state, goal_state, map_data=None):
+        """
+        Generate an unparking maneuver: reverse out, turn, then drive forward.
+        
+        Parameters:
+            start_state: tuple (x, y, theta)
+            goal_state: tuple (x, y, theta)
+            map_data: placeholder for future obstacle checking
+
+        Returns:
+            path: list of (x, y, theta) tuples
+        """
+        x, y, theta = start_state
+
+        # 1. Reverse a little (backward in -theta direction)
+        reverse_dist = -2.0  # meters
+        x1 = x + reverse_dist * np.cos(theta)
+        y1 = y + reverse_dist * np.sin(theta)
+        
+        # 2. Curve to align with forward direction
+        turn_theta = theta - np.pi / 4  # quick left turn out
+        x2 = x1 + 1.5 * np.cos(turn_theta)
+        y2 = y1 + 1.5 * np.sin(turn_theta)
+
+        # 3. Continue straight toward goal
+        xg, yg, thetag = goal_state
+        forward_dist = np.hypot(xg - x2, yg - y2)
+        num_points = int(forward_dist / 0.5)
+        path = []
+
+        for i in range(num_points + 1):
+            alpha = i / num_points
+            xf = x2 + alpha * (xg - x2)
+            yf = y2 + alpha * (yg - y2)
+            path.append((xf, yf, thetag))
+
+        # Full path: start -> reverse -> turn -> straight
+        full_path = [
+            (x, y, theta),
+            (x1, y1, theta),
+            (x2, y2, turn_theta)
+        ] + path
+
+        return full_path
+
+class UnparkingPlanner(Component):
+    def __init__(self):
+        self.planner = ParkingSolverSecondOrderDubins()
+
+    def state_inputs(self):
+        return ['all']
+
+    def state_outputs(self) -> List[str]:
+        return ['trajectory']
+
+    def rate(self):
+        return 10.0
+
+    def vehicle_state_to_dynamics(self, vehicle_state: VehicleState) -> Tuple[float, float]:
+        x = vehicle_state.pose.x
+        y = vehicle_state.pose.y
+        theta = vehicle_state.pose.yaw
+        v = vehicle_state.v
+        dtheta = vehicle_state.heading_rate
+        t = 0
+        return (x, y, theta, v, dtheta, t)
+
+    def update(self, state: AllState) -> Trajectory:
+        vehicle = state.vehicle
+        agents = state.agents
+        route = state.route
+
+        # Original pose
+        start_state = self.vehicle_state_to_dynamics(vehicle)
+
+        # Modify start to back up slightly
+        reverse_dist = -2.0
+        theta = start_state[2]
+        x_rev = start_state[0] + reverse_dist * np.cos(theta)
+        y_rev = start_state[1] + reverse_dist * np.sin(theta)
+        start_unpark = (x_rev, y_rev, theta, 0, 0, 0)
+
+        # Goal is just forward 10 meters from original position
+        forward_dist = 10.0
+        x_goal = start_state[0] + forward_dist * np.cos(theta)
+        y_goal = start_state[1] + forward_dist * np.sin(theta)
+        goal = VehicleState.zero()
+        goal.pose = ObjectPose(frame=ObjectFrameEnum.START, x=x_goal, y=y_goal, z=0, yaw=theta)
+        goal.v = 0
+        goal_state = self.vehicle_state_to_dynamics(goal)
+
+        # Set planner context
+        self.planner.obstacles = list(agents.values())
+        self.planner.vehicle = vehicle
+
+        # Run A*
+        res = list(self.planner.astar(start_unpark, goal_state, 100))
+        points = [state[:2] for state in res]
+        times = [state[5] for state in res]
+        path = Path(frame=vehicle.pose.frame, points=points)
+        traj = Trajectory(path.frame, points, times)
+
+        return traj
