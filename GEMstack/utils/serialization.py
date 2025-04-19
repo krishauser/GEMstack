@@ -97,7 +97,7 @@ def deserialize(data):
     
     `data` can be a `str`, `bytes`, `dict`, or ROS std_msgs/String object.
     """
-    global REGISTRY # noqa: F821, F841
+    global REGISTRY # noqa: F821, F841， F824
     name,version,data = deserialize_raw(data)
     if name not in REGISTRY:
         raise IOError("Class of type {} not found in registry".format(name))
