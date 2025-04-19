@@ -37,7 +37,7 @@ def load_settings():
 
 def settings():
     """Returns all global settings, loading them if necessary."""
-    global SETTINGS
+    # global SETTINGS
     load_settings()
     return SETTINGS
 
