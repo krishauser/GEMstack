@@ -55,36 +55,25 @@ class Stanley(object):
         self.k = control_gain if control_gain is not None else settings.get('control.stanley.control_gain')
         self.k_soft = softening_gain if softening_gain is not None else settings.get('control.stanley.softening_gain')
 
-        # Typically, this is the max front-wheel steering angle in radians
-        self.max_steer = settings.get('vehicle.geometry.max_wheel_angle')
-        self.wheelbase = settings.get('vehicle.geometry.wheelbase')
-
-        # Basic longitudinal constraints
-        self.speed_limit = settings.get('vehicle.limits.max_speed')
-        self.max_accel   = settings.get('vehicle.limits.max_acceleration')
-        self.max_decel   = settings.get('vehicle.limits.max_deceleration')
-
-        # PID for longitudinal speed tracking
-        p = settings.get('control.longitudinal_control.pid_p')
-        d = settings.get('control.longitudinal_control.pid_d')
-        i = settings.get('control.longitudinal_control.pid_i')
-        self.pid_speed = PID(p, d, i, windup_limit=20)
-
-        # Speed source: numeric or derived from path/trajectory
+        self.wheelbase  = settings.get('vehicle.geometry.wheelbase')
+        self.wheel_angle_range = [settings.get('vehicle.geometry.min_wheel_angle'),settings.get('vehicle.geometry.max_wheel_angle')]
+        self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
+        
         if desired_speed is not None:
             self.desired_speed_source = desired_speed
         else:
-            self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
+            self.desired_speed_source = settings.get('control.pure_pursuit.desired_speed',"path") 
+        self.desired_speed = self.desired_speed_source if isinstance(self.desired_speed_source,(int,float)) else None
+        self.speed_limit = settings.get('vehicle.limits.max_speed')
+        self.max_accel     = settings.get('vehicle.limits.max_acceleration') # m/s^2
+        self.max_decel     = settings.get('vehicle.limits.max_deceleration') # m/s^2
+        self.pid_speed     = PID(settings.get('control.longitudinal_control.pid_p',0.5), settings.get('control.longitudinal_control.pid_d',0.0), settings.get('control.longitudinal_control.pid_i',0.1), windup_limit=20)
 
-        if isinstance(self.desired_speed_source, (int, float)):
-            self.desired_speed = self.desired_speed_source
-        else:
-            self.desired_speed = None
-
-        # For path/trajectory
         self.path_arg = None
-        self.path = None
-        self.trajectory = None
+        self.path = None         # type: Trajectory  
+        #if trajectory = None, then only an untimed path was provided and we can't use the path velocity as the reference
+        self.trajectory = None   # type: Trajectory
+
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
