@@ -73,7 +73,6 @@ class ConeDetector3D(Component):
 
         bboxes = results[0].boxes
         boxes = np.array(bboxes.xywh.cpu())
-        # pts_cam = self.transform_lidar_to_camera(lidar)
         pts_cam = self.transform_points_l2c(lidar, self.T_l2c)
         projected_pts = self.project_points(pts_cam, lidar, K)
 
@@ -94,6 +93,7 @@ class ConeDetector3D(Component):
             # Extract the LiDAR 3D points corresponding to the ROI
             roi_pts = self.filter_depth_points(roi_pts, max_depth_diff=0.2)
 
+            # Compute center
             center = np.mean(roi_pts, axis=0)
             centroids_lidar_frame.append(center)
 
@@ -103,8 +103,7 @@ class ConeDetector3D(Component):
 
             # Detect parking spot if 4 or more cones are detected
             ordered_cone_ground_centers_2D = []
-            closest_parking_spot = []
-
+            closest_parking_spot = None
             if len(centroids_vehicle_frame) >= 4:
                 ordered_cone_ground_centers_2D, closest_parking_spot = self.detect_parking_spot(centroids_vehicle_frame)
 
@@ -252,7 +251,7 @@ class ConeDetector3D(Component):
         # print(f"-----candidates: {candidates}")
         if len(candidates) > 0:
             closest_parking_spot = candidates[0]
-            # print(f"-----closest_spot: {closest_spot}")
+            # print(f"-----closest_parking_spot: {closest_parking_spot}")
         return ordered_cone_ground_centers_2D, closest_parking_spot
 
 
