@@ -324,14 +324,14 @@ class ConeDetector3D(Component):
     def initialize(self):
         # Init Variables
         self.ground_threshold = -0.15
-        self.vis_2d_annotate = False
+        self.vis_2d_annotate = True
         self.vis_lidar_pc = True
         self.vis_3d_cones_centers = True
         self.vis_3d_cones_bboxes = False
 
         # Subscribers
-        self.rgb_sub = Subscriber('/camera/fl/image_raw', Image)
-        self.lidar_sub = Subscriber('/lidar/top/points', PointCloud2)
+        self.rgb_sub = Subscriber('/camera_fr/arena_camera_node/image_raw', Image)
+        self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub],
                                                 queue_size=10, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
@@ -359,10 +359,10 @@ class ConeDetector3D(Component):
                                [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
                                [-0.02379784, 0.00689664, 0.999693, 1.95320223],
                                [0., 0., 0., 1.]])
-        self.T_l2c = np.array([[0.71082304, -0.70305212, -0.02608284, 0.17771596],
-                                [-0.13651802, -0.10076507, -0.98505595, -0.56321222],
-                                [ 0.68915595, 0.70388118, -0.1678969 , -0.62027912],
-                                [ 0.,  0.,  0., 1.]])
+        self.T_l2c = np.array([[-0.64420612, -0.76468641, -0.01591138, -0.33247494],
+                                [-0.07582335, 0.08455009, -0.99353012, -0.33159018],
+                                [0.76108429, -0.63883173, -0.11244878, -0.13076758],
+                                [ 0., 0., 0., 1.]])
         self.T_c2l = np.linalg.inv(self.T_l2c)
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
