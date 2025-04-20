@@ -243,6 +243,7 @@ class ConeDetector3D(Component):
 
 
     def detect_parking_spot(self, cone_3d_centers):
+        closest_parking_spot = None
         cone_ground_centers = np.array(cone_3d_centers)
         cone_ground_centers_2D = cone_ground_centers[:, :2]
         ordered_cone_ground_centers_2D = self.order_points_convex_hull(cone_ground_centers_2D)

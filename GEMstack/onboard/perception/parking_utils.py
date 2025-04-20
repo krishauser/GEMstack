@@ -1,5 +1,4 @@
 import cv2
-import os
 import numpy as np
 
 
@@ -41,30 +40,25 @@ def clickPoints(imgPath=None, numPoints=4):
             clicked_pts.clear()
         
     cv2.destroyAllWindows()
-
     return np.array(clicked_pts, dtype=np.float32)
-
 
 
 def distPoint2LineAB(p, a, b):
     pa = p - a
     pb = p - b
     ba = b - a
-    
     dist = np.abs(np.cross(pa, pb)) / np.linalg.norm(ba)
     return dist
 
 
 def calculateCandidateScore(pose, cornerPoints):
     position = pose[0:2]
-    
     score = np.min([
         distPoint2LineAB(position, cornerPoints[0], cornerPoints[1]),
         distPoint2LineAB(position, cornerPoints[1], cornerPoints[2]),
         distPoint2LineAB(position, cornerPoints[2], cornerPoints[3]),
         distPoint2LineAB(position, cornerPoints[3], cornerPoints[0]),
     ])
-
     return score
 
 
@@ -88,7 +82,6 @@ def cvtPose2CarBox(carPose):
 
 def find_all_candidate_parking_spots(cornerPts, angleStepDegree=10, positionStrideMeter=0.5):
     cornerPts = np.array(cornerPts, dtype=np.float32)
-    
     min_x = np.min(cornerPts[:, 0]) + 0.5
     max_x = np.max(cornerPts[:, 0]) - 0.5
     min_y = np.min(cornerPts[:, 1]) + 0.5
@@ -111,7 +104,6 @@ def find_all_candidate_parking_spots(cornerPts, angleStepDegree=10, positionStri
                 
                 if judgeRectInPolygon(car_box_shifted, cornerPts):
                     candidates.append((cx, cy, angleDegree))
-    
     return candidates
 
 
@@ -137,7 +129,6 @@ def drawCarPose(img, center, angleDegree, color=(0, 0, 255), scale=100):
     rect = (center, (GEM_E4_LENGTH, GEM_E4_WIDTH), float(angleDegree))
     box = cv2.boxPoints(rect)
     box_scaled = np.int32(box * scale)
-
     cv2.polylines(img, [box_scaled], isClosed=True, color=color, thickness=2)
 
 
