@@ -247,10 +247,10 @@ class ConeDetector3D(Component):
         cone_ground_centers_2D = cone_ground_centers[:, :2]
         ordered_cone_ground_centers_2D = self.order_points_convex_hull(cone_ground_centers_2D)
         # print(f"-----cone_ground_centers_2D: {cone_ground_centers_2D}")
-        candidates = findAllCandidateParkingLot(ordered_cone_ground_centers_2D)
+        candidates = find_all_candidate_parking_spots(ordered_cone_ground_centers_2D)
         # print(f"-----candidates: {candidates}")
         if len(candidates) > 0:
-            closest_parking_spot = candidates[0]
+            closest_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
             # print(f"-----closest_parking_spot: {closest_parking_spot}")
         return ordered_cone_ground_centers_2D, closest_parking_spot
 
