@@ -4,11 +4,17 @@ from typing import Dict, List
 import numpy as np
 from GEMstack.onboard.component import Component
 from GEMstack.state.agent import AgentState
+from GEMstack.state.mission import MissionEnum
 from GEMstack.state.all import AllState
-from GEMstack.state.physical_object import ObjectFrameEnum
+from GEMstack.state.physical_object import ObjectFrameEnum, ObjectPose
 from GEMstack.state.route import PlannerEnum, Route
 from .rrt_star import RRTStar
-
+from typing import List
+from ..component import Component
+from ...utils import serialization
+from ...state import Route,ObjectFrameEnum
+import math
+import requests
 
 
 class RoutePlanningComponent(Component):
@@ -64,16 +70,6 @@ class RoutePlanningComponent(Component):
             print("Unknown mode")
         
         return self.route
-
-
-
-from typing import List
-from ..component import Component
-from ...utils import serialization
-from ...state import Route,ObjectFrameEnum
-import os
-import numpy as np
-import math
 
 
 def is_inside_geofence(x, y, xmin, xmax, ymin, ymax):
@@ -134,19 +130,24 @@ def heading_on_circle(cx, cy, px, py):
     return math.atan2(ty, tx)  # Heading in radians
 
 
-def check_point_exists(server_url="http://localhost:8000"):
+def check_point_exists(vehicle, server_url="http://localhost:8000"):
     try:
         response = requests.get(f"{server_url}/api/inspect")
         response.raise_for_status()
         points = response.json().get("coords", [])
         
         for point in points:
-            return True, [[point[0]["lat"], point[0]["lng"]],[point[1]["lat"], point[1]["lng"]]]
+            pt1 = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=0, x=point[0]["lat"], y=point[0]["lng"])
+            pt2 = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=0, x=point[1]["lat"], y=point[1]["lng"])
+            pt1.to_frame(ObjectFrameEnum.START)
+            pt2.to_frame(ObjectFrameEnum.START)
+            return True, [[pt1.x, pt1.y],[pt2.x, pt2.y]]
         return False, []
 
     except requests.exceptions.RequestException as e:
         print("Error contacting server:", e)
         return False, []
+
 
 class InspectRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
@@ -171,20 +172,23 @@ class InspectRoutePlanner(Component):
 
     def update(self, state):
         self.flag = 0
+        self.route = Route(frame=ObjectFrameEnum.START, points=((0, 0, 0)))
         if self.mission == "IDLE":
+            state.mission.type = MissionEnum.IDLE
             points_found = False
-            points_found, pts = check_point_exists()
+            points_found, pts = check_point_exists(state.vehicle)
             if points_found:
-                self.bounding_box = pts
+                self.inspection_area = pts
                 print(self.state_list[self.index+1])
                 self.mission = self.state_list[self.index+1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
-                self.start = [vehicle.pose.x,vehicle.pose.y]
+                self.start = [state.vehicle.pose.x, state.vehicle.pose.y]
             self.circle_center = [(self.inspection_area[0][0]+self.inspection_area[1][0])/2, (self.inspection_area[0][1]+self.inspection_area[1][1])/2]
             self.radius = ((self.inspection_area[0][0]+self.inspection_area[1][0])**2 + (self.inspection_area[0][1]+self.inspection_area[1][1])**2)**0.5/2
-            self.inspection_route = max_visible_arc(self.circle_center, self.radius, geofence_area)
+            self.inspection_route = max_visible_arc(self.circle_center, self.radius, self.geofence_area)
         elif self.mission == "NAV":
+            state.mission.type = MissionEnum.DRIVE
             start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
             goal = (self.inspection_route[0][0]-3, self.inspection_route[0][1]-3)
             if(abs(start[0]-goal[0]) <= 1 and abs(start[1]-goal[1]) <= 1):
@@ -202,6 +206,7 @@ class InspectRoutePlanner(Component):
             rrt_resp = self.planner.plan()
             self.route = Route(frame=ObjectFrameEnum.START, points=rrt_resp)
         elif self.mission == "INSPECT":
+            state.mission.type = MissionEnum.INSPECT
             start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
             goal = (self.inspection_route[-1][0], self.inspection_route[-1][1])
             if(abs(start[0]-goal[0]) <= 1 and abs(start[1]-goal[1]) <= 1):
@@ -212,6 +217,7 @@ class InspectRoutePlanner(Component):
             self.flag += 0.1
             self.route = Route(frame=ObjectFrameEnum.START, points=self.inspection_route)
         elif self.mission == "FINISH":
+            state.mission.type = MissionEnum.INSPECT_UPLOAD
             start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
             goal = (self.start[0], self.start[1])
             if(abs(start[0]-goal[0]) <= 1 and abs(start[1]-goal[1]) <= 1):
@@ -223,11 +229,9 @@ class InspectRoutePlanner(Component):
             y_bounds = (0,50)
             step_size = 1.0
             max_iter = 2000
-            occupancy_grid = np.zeros((50, 50), dtype=int) 
-            # occupancy_grid[5:10, 5:10] = 1
+            occupancy_grid = np.zeros((50, 50), dtype=int)
             self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
             rrt_resp = self.planner.plan()
             self.route = Route(frame=ObjectFrameEnum.START, points=rrt_resp)
 
         return self.route
-    

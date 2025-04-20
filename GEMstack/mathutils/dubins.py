@@ -1,5 +1,3 @@
-
-
 from .dynamics import Dynamics, ControlSpace
 from .transforms import vector_add,vector_madd,rotate2d,normalize_angle
 import numpy as np
@@ -114,4 +112,3 @@ class SecondOrderDubinsCar(Dynamics):
         v,phi = x[3:5]
         turn_rate = np.tan(phi)/self.wheelBase
         return np.hstack((self.dubins.derivative(x[:3],[v,turn_rate]),[u[0],u[1]]))
-        

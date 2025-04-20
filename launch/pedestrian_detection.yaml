@@ -15,8 +15,12 @@ drive:
         agent_detection : pedestrian_detection.PedestrianDetector2D
         perception_normalization : StandardPerceptionNormalizer
     planning:
-        relations_estimation: 
-            type: pedestrian_yield_logic.PedestrianYielder
+        relations_estimation: pedestrian_yield_logic.PedestrianYielder
+        route_planning:
+            type: StaticRoutePlanner
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
+        motion_planning:
+            type: longitudinal_planning.YieldTrajectoryPlanner
             args:
                 mode: 'real'
                 params: {
@@ -86,7 +90,7 @@ variants:
                 perception:
                     state_estimation : OmniscientStateEstimator
                 planning:
-                    relations_estimation: 
+                    relations_estimation:
                         type: pedestrian_yield_logic.PedestrianYielder
                         args:
                             mode: 'sim'
@@ -113,7 +117,7 @@ variants:
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
                 planning:
-                    relations_estimation: 
+                    relations_estimation:
                         type: pedestrian_yield_logic.PedestrianYielder
                         args:
-                            mode: 'sim'
+                            mode: 'simulation'

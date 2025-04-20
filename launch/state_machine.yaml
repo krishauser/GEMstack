@@ -48,7 +48,7 @@ states:
       agent_detection : inspection.Save_lidar_camera_data
       perception_normalization : StandardPerceptionNormalizer
     planning:
-      relations_estimation: pedestrian_yield_logic.PedestrianYielder
+      relations_estimation: planning.waypoint_following
       route_planning:
         type: StaticRoutePlanner
         args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']

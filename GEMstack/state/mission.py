@@ -10,15 +10,10 @@ class MissionEnum(Enum):
     TELEOP = 3          # manual teleop control
     RECOVERY_STOP = 4   # abnormal condition detected, must stop now
     ESTOP = 5           # estop pressed, must stop now
+    INSPECT = 6
+    INSPECT_UPLOAD = 7
 
 @dataclass
 @register
 class MissionObjective:
     type : MissionEnum = MissionEnum.IDLE
-    state_list :list = field(default_factory=lambda: [MissionEnum.IDLE, MissionEnum.DRIVE, MissionEnum.RECOVERY_STOP])
-    index: int = 0
-
-    @staticmethod
-    def zero():
-        return MissionObjective(MissionEnum.IDLE, [MissionEnum.IDLE, MissionEnum.DRIVE, MissionEnum.RECOVERY_STOP], 0)
-    
