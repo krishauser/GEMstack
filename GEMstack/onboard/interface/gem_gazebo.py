@@ -4,13 +4,18 @@ import math
 
 # ROS Headers
 import rospy
-from std_msgs.msg import String, Bool, Float32, Float64
 from sensor_msgs.msg import Image, PointCloud2, Imu, NavSatFix
+from geometry_msgs.msg import Vector3Stamped
 from sensor_msgs.msg import JointState  # For reading joint states from Gazebo
 # Changed from AckermannDriveStamped
 from ackermann_msgs.msg import AckermannDrive
 from rosgraph_msgs.msg import Clock
 from tf.transformations import euler_from_quaternion
+
+
+from ...state import ObjectPose,ObjectFrameEnum
+from ...knowledge.vehicle.geometry import steer2front
+from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration
 
 # OpenCV and cv2 bridge
 import cv2
@@ -39,16 +44,16 @@ class GEMGazeboInterface(GEMInterface):
         self.last_reading.steering_wheel_angle = 0.0
         self.last_reading.accelerator_pedal_position = 0.0
         self.last_reading.brake_pedal_position = 0.0
-        self.last_reading.gear = 0
+        self.last_reading.gear = 1
         self.last_reading.left_turn_signal = False
         self.last_reading.right_turn_signal = False
         self.last_reading.horn_on = False
         self.last_reading.wiper_level = 0
         self.last_reading.headlights_on = False
 
-        # Gazebo joint state subscriber for wheel positions/velocities
-        self.joint_state_sub = rospy.Subscriber(
-            "/joint_states", JointState, self.joint_state_callback)
+      
+
+        
 
         # IMU data subscriber
         self.imu_sub = None
@@ -73,6 +78,9 @@ class GEMGazeboInterface(GEMInterface):
         # Subscribe to IMU topic by default
         self.imu_sub = rospy.Subscriber("/imu", Imu, self.imu_callback)
 
+        # Subscribe to GNSS Velocitu
+        self.gnss_vel_sub = rospy.Subscriber("/gps/fix_velocity", Vector3Stamped, self.gnss_vel_callback)
+
         # Add clock subscription for simulation time
         self.sim_time = rospy.Time(0)
         self.clock_sub = rospy.Subscriber('/clock', Clock, self.clock_callback)
@@ -87,42 +95,15 @@ class GEMGazeboInterface(GEMInterface):
         # Return Gazebo simulation time
         return self.sim_time.to_sec()
 
-    def joint_state_callback(self, msg: JointState):
-        # Extract steering and speed from joint states
-        # This implementation depends on the specific joint names in your Gazebo model
-        # Typically find steering joints and wheel rotation joints
-        try:
-            # Match your simulation's joint names from rostopic list
-            if 'left_steering_joint' in msg.name:  # Changed from front_left_steering_joint
-                idx = msg.name.index('left_steering_joint')
-                self.last_reading.steering_wheel_angle = msg.position[idx]
-                # Added debug
-                print(f"[JOINT] Steering angle: {msg.position[idx]:.3f} rad")
-
-            # Update wheel joint names to match your simulation
-            wheel_radius = 0.2
-            rear_wheel_indices = []
-            for name in ['left_rear_wheel_joint', 'right_rear_wheel_joint']:  # Updated names
-                if name in msg.name:
-                    rear_wheel_indices.append(msg.name.index(name))
-
-            if rear_wheel_indices:
-                # Average rear wheel velocities to get vehicle speed
-                avg_wheel_vel = sum(
-                    msg.velocity[i] for i in rear_wheel_indices) / len(rear_wheel_indices)
-                self.last_reading.speed = avg_wheel_vel * \
-                    wheel_radius  # Convert to linear velocity
-                # Added debug
-                print(
-                    f"[JOINT] Wheel speed: {self.last_reading.speed:.2f} m/s")
-        except (ValueError, IndexError) as e:
-            rospy.logwarn(f"Error processing joint states: {e}")
-
     def imu_callback(self, msg: Imu):
         self.imu_data = msg
 
+    def gnss_vel_callback(self, msg):
+        self.last_reading.speed = np.linalg.norm([msg.vector.x, msg.vector.y] )
+
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading
+    
 
     def subscribe_sensor(self, name, callback, type=None):
         if name == 'gnss':
@@ -169,7 +150,7 @@ class GEMGazeboInterface(GEMInterface):
                 # Create GNSS reading with fused data
                 reading = GNSSReading(
                     pose=pose,
-                    speed=self.last_reading.speed,
+                    speed= self.last_reading.speed,
                     status='FIX' if gps_msg.status.status >= 0 else 'NO_FIX'
                 )
                 # Added debug
@@ -232,48 +213,22 @@ class GEMGazeboInterface(GEMInterface):
         # In simulation, we don't have real hardware faults
         return self.faults
 
-    def send_command(self, command: GEMVehicleCommand):
-        # throttle rate at which we send commands
-        t = self.time()
-        if t < self.last_command_time + 1.0/self.max_send_rate:
-            # skip command, Gazebo can't handle commands this fast
-            return
-        self.last_command_time = t
+    def send_command(self, command : GEMVehicleCommand):
+        
+        v  =  self.last_reading.speed
+        # convert pedal to acceleration
+        accelerator_pedal_position = np.clip(command.accelerator_pedal_position,0.0,1.0)
+        brake_pedal_position = np.clip(command.brake_pedal_position,0.0,1.0)
+        acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,1)
+        acceleration = np.clip(acceleration,-2, 1)
+        # convert wheel angle to steering angle
+        phides = steer2front(command.steering_wheel_angle)
+        
+        #create and publish drive message
+        msg = AckermannDrive()
+        msg.acceleration = acceleration
+        msg.speed = float('inf') if acceleration >0 else 0  #acceleration * self.dt 
+        msg.steering_angle = phides
 
-        # Create an AckermannDrive message
-        self.ackermann_cmd.steering_angle = steer2front(
-            command.steering_wheel_angle)
-
-        # Calculate linear/speed from accelerator/brake
-        # For simplicity, map 0-1 accelerator to 0-max_speed
-        max_speed = 3.0  # m/s
-
-        # In gazebo we use speed instead of acceleration
-        desired_speed = 0.0
-        if command.accelerator_pedal_position > 0.0:
-            desired_speed = command.accelerator_pedal_position * max_speed
-
-        # Apply brake (reduce speed)
-        if command.brake_pedal_position > 0.0:
-            brake_factor = 1.0 - command.brake_pedal_position
-            desired_speed *= max(0.0, brake_factor)
-
-        self.ackermann_cmd.speed = desired_speed
-
-        # Set acceleration limit if needed
-        acceleration_limit = 2.0  # m/s²
-        self.ackermann_cmd.acceleration = acceleration_limit
-
-        # Set jerk/steering_angle_velocity if needed
-        self.ackermann_cmd.steering_angle_velocity = command.steering_wheel_speed
-
-        # Print debug info
-        print("**************************")
-        print(
-            f"Gazebo command: speed={desired_speed:.2f} m/s, steering={self.ackermann_cmd.steering_angle:.2f} rad")
-        print("**************************")
-
-        # Publish the command
-        self.ackermann_pub.publish(self.ackermann_cmd)
-
+        self.ackermann_pub.publish(msg)
         self.last_command = command
