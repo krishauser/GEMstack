@@ -43,9 +43,6 @@ components:
   - route_planning:
       inputs: [vehicle, roadgraph, mission]
       outputs: route
-  - api_call:
-      inputs: all
-      outputs: all
   - driving_logic:
       inputs: 
       outputs: intent
@@ -56,9 +53,6 @@ components:
       inputs: all
       outputs: route
   - route_planning_component: # one way
-      inputs: all
-      outputs: route
-  - inspection_component: # one way
       inputs: all
       outputs: route
   - motion_planning:

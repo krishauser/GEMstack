@@ -74,23 +74,3 @@ variants:
                     # agent_detection : pedestrian_detection.FakePedestrianDetector2D
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
-                # planning:
-                    # motion_planning:
-                    #     type: inspection_planning.InspectionPlanner
-                    #     args:
-                    #         mode: 'simulation'
-                    #         params: {
-                    #             state_machine: ['IDLE', 'NAV', 'INSPECT', 'IDLE']
-                    #         }
-            # wait_server: 
-            #     perception:
-            #         # agent_detection : pedestrian_detection.FakePedestrianDetector2D
-            #         agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
-            #         state_estimation : OmniscientStateEstimator
-            #     other:
-            #         api_call:
-            #             type: api_call.GetPoint
-            #             args:
-            #                 endpoint: localhost:8000/
-            #                 type: get
-            
