@@ -12,7 +12,7 @@ def simulate_camera_path(circle_center, radius, fov_deg, path_type="circle", num
     if path_type == "circle":
         angles = np.linspace(0, 2 * np.pi, num_points, endpoint=False)
         path_points = [(xc + scaling * radius * np.cos(a), yc + scaling * radius * np.sin(a)) for a in angles]
-        path_points = path_points[:60]
+        path_points = path_points
     elif path_type == "line":
         path_points = [(xc - scaling * radius + 2 * scaling * radius * i / (num_points - 1), yc + scaling * radius)
                        for i in range(num_points)]
