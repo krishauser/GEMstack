@@ -296,6 +296,8 @@ class ConeDetector3D(Component):
         self.camera_front = False
         self.visualize_2d = True
         self.use_cyl_roi = False
+        self.start_time = None
+        self.use_start_frame = True
 
     def rate(self) -> float:
         return 4.0
@@ -369,6 +371,9 @@ class ConeDetector3D(Component):
             return {}
 
         current_time = self.vehicle_interface.time()
+        if self.start_time is None:
+            self.start_time = current_time
+        time_elapsed = current_time - self.start_time
 
         undistorted_img, current_K = undistort_image(self.latest_image, self.K, self.D)
         self.current_K = current_K
@@ -514,25 +519,30 @@ class ConeDetector3D(Component):
             yaw, pitch, roll = euler_vehicle
             refined_center = refined_center_vehicle
 
-            if self.start_pose_abs is None:
-                self.start_pose_abs = vehicle.pose
-
-            vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START, vehicle.pose, self.start_pose_abs)
-            T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
-            refined_center_hom_vehicle = np.append(refined_center, 1)
-            refined_center_start = (T_vehicle_to_start @ refined_center_hom_vehicle)[:3]
+            if self.use_start_frame:
+                if self.start_pose_abs is None and time_elapsed >= 5:
+                    self.start_pose_abs = vehicle.pose
+                vehicle_start_pose = vehicle.pose.to_frame(
+                    ObjectFrameEnum.START,
+                    vehicle.pose,
+                    self.start_pose_abs
+                )
+                T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
+                hom = np.append(refined_center, 1)
+                xp, yp, zp = (T_vehicle_to_start @ hom)[:3]
+                out_frame = ObjectFrameEnum.START
+            else:
+                # stay in the CURRENT vehicle frame
+                xp, yp, zp = refined_center
+                out_frame = ObjectFrameEnum.CURRENT
 
             new_pose = ObjectPose(
                 t=current_time,
-                x=refined_center_start[0],
-                y=refined_center_start[1],
-                z=refined_center_start[2],
-                yaw=yaw,
-                pitch=pitch,
-                roll=roll,
-                frame=ObjectFrameEnum.START
+                x=xp, y=yp, z=zp,
+                yaw=yaw, pitch=pitch, roll=roll,
+                frame=out_frame
             )
-
+            end1 = time.time()
             existing_id = match_existing_cone(
                 new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
                 new_dims=dims,
@@ -587,6 +597,8 @@ class ConeDetector3D(Component):
                 )
                 agents[agent_id] = new_agent
                 self.tracked_agents[agent_id] = new_agent
+            end2 = time.time()
+            print(f'Tracking time:{end2 - end1}')
 
         self.current_agents = agents
 
@@ -594,7 +606,7 @@ class ConeDetector3D(Component):
                      if current_time - agent.pose.t > 5.0]
         for agent_id in stale_ids:
             rospy.loginfo(f"Removing stale agent: {agent_id}\n")
-        for agent_id, agent in agents.items():
+        for agent_id, agent in self.tracked_agents.items():
             p = agent.pose
             rospy.loginfo(
                 f"Agent ID: {agent_id}\n"
@@ -602,7 +614,7 @@ class ConeDetector3D(Component):
                 f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
                 f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
             )
-        return agents
+        return self.tracked_agents
 
     # ----- Fake Cone Detector 2D (for Testing Purposes) -----
 
