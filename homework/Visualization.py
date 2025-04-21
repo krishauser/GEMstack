@@ -312,14 +312,14 @@ class PedestrianDetector2D:
                                [0., 684.60968018, 363.70092773],
                                [0., 0., 1.]])
         else:
-            self.K = np.array([[1230.144096, 0., 978.828508],
-                               [0., 1230.630424, 605.794034],
-                               [0., 0., 1.]])
+            self.K = np.array([[1.17625545e+03, 0.00000000e+00, 9.66432645e+02],
+       [0.00000000e+00, 1.17514569e+03, 6.08580326e+02],
+       [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
         if self.camera_front:
             self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
         else:
-            self.D = np.array([-0.23751890570984993, 0.08452214195986749,
-                               -0.00035324203850054794, -0.0003762498910536819, 0.0])
+            self.D = np.array([-2.70136325e-01,  1.64393255e-01, -1.60720782e-03, -7.41246708e-05,
+  -6.19939758e-02])
         self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
                                 [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
                                 [-0.02379784, 0.00689664, 0.999693, 1.95320223],
@@ -332,10 +332,10 @@ class PedestrianDetector2D:
                 [0., 0., 0., 1.000000]
             ])
         else:
-            self.T_l2c = np.array([[0.71082304, -0.70305212, -0.02608284, 0.17771596],
-                                    [-0.13651802, -0.10076507, -0.98505595, -0.56321222],
-                                    [0.68915595, 0.70388118, -0.1678969, -0.62027912],
-                                    [0., 0., 0., 1.]])
+            self.T_l2c = np.array([[-0.71836368, -0.69527204, -0.02346088,  0.05718003],
+     [-0.09720448,  0.13371206, -0.98624154, -0.1598301 ],
+     [ 0.68884317, -0.7061996 , -0.16363744, -1.04767285],
+     [ 0.        ,  0.        ,  0.        ,  1.        ]])
         self.tracked_agents = {}
         self.pedestrian_counter = 0
         self.current_K = self.K.copy()
@@ -404,7 +404,7 @@ class PedestrianDetector2D:
 
         # 4. Preprocess LiDAR point cloud.
         lidar_down = lidar_points.copy()
-        global_filtered = filter_points_within_threshold(lidar_down, 20)
+        global_filtered = filter_points_within_threshold(lidar_down, 50)
         pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
         projected_pts = project_points(pts_cam, self.current_K, lidar_down)
 
@@ -457,7 +457,7 @@ class PedestrianDetector2D:
             if debug_reproj:
                 display_reprojected_cluster(image, points_3d, self.T_l2c, self.current_K)
 
-            points_3d = filter_points_within_threshold(points_3d, 15)
+            points_3d = filter_points_within_threshold(points_3d, 25)
             points_3d = filter_depth_points(points_3d, max_depth_diff=0.3)
             if points_3d.shape[0] < 4:
                 continue
@@ -549,13 +549,13 @@ class PedestrianDetector2D:
                 self.tracked_agents[agent_id] = new_agent
 
         # Optionally, display custom debug points on the image.
-        visualize_custom_points(image, np.array([
-            [4.730639, 10.195478, -1.941095],
-            [2.066050, 7.066111, -2.027844],
-            [1.341566, 7.118239, -1.994539],
-            [4.160140, 6.539731, -1.895874],
-            [6.469934, 6.128805, -1.859030],
-        ]), self.T_l2c, self.current_K, color=(0, 0, 255))
+        # visualize_custom_points(image, np.array([
+        #     [4.730639, 10.195478, -1.941095],
+        #     [2.066050, 7.066111, -2.027844],
+        #     [1.341566, 7.118239, -1.994539],
+        #     [4.160140, 6.539731, -1.895874],
+        #     [6.469934, 6.128805, -1.859030],
+        # ]), self.T_l2c, self.current_K, color=(0, 0, 255))
         cv2.imshow("Frame with Boxes and Custom Points", image)
         cv2.waitKey(1)
 
@@ -664,18 +664,18 @@ def main():
         param = None
 
     # Read image and LiDAR data (please modify the paths as needed).
-    image_files = sorted(glob.glob(os.path.join('../data', 'color*.png')))
-    lidar_files = sorted(glob.glob(os.path.join('../data', 'lidar*.npz')))
-    num_frames = min(len(image_files), len(lidar_files))
-    if num_frames == 0:
-        print("No matching data found.")
-        return
+    # image_files = sorted(glob.glob(os.path.join('../data', 'color*.png')))
+    # lidar_files = sorted(glob.glob(os.path.join('../data', 'lidar*.npz')))
+    # num_frames = min(len(image_files), len(lidar_files))
+    # if num_frames == 0:
+    #     print("No matching data found.")
+    #     return
 
-    print(f"Found {num_frames} matching frames.")
+    # print(f"Found {num_frames} matching frames.")
     for i in range(1):
         # Use fixed file paths as an example; modify as needed.
-        image_path = f'../perception_4.9/image_1744216667.538.png'
-        lidar_path = f'../perception_4.9/lidar_1744216667.538.npz'
+        image_path = f'../perception_4.9/image_1744216638.054.png'
+        lidar_path = f'../perception_4.9/lidar_1744216638.054.npz'
         image = cv2.imread(image_path)
         if image is None:
             print("Failed to load image:", image_path)

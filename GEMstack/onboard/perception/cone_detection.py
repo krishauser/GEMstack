@@ -301,6 +301,7 @@ class ConeDetector3D(Component):
         self.use_start_frame = True
         self.save_data = False
 
+
     def rate(self) -> float:
         return 4.0
 
@@ -429,7 +430,6 @@ class ConeDetector3D(Component):
                     f"roll={vehicle_start_pose.roll:.2f}, "
                     f"frame={mode}\n"
                 )
-
 
         undistorted_img, current_K = undistort_image(self.latest_image, self.K, self.D)
         self.current_K = current_K
