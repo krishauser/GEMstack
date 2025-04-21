@@ -12,23 +12,24 @@ from .rrt_star import RRTStar
 from typing import List
 from ..component import Component
 from ...utils import serialization
-from ...state import Route,ObjectFrameEnum
+from ...state import Route, ObjectFrameEnum
 import math
 import requests
 
 
 class RoutePlanningComponent(Component):
     """Reads a route from disk and returns it as the desired route."""
+
     def __init__(self):
         print("Route Planning Component init")
         self.planner = None
         self.route = None
-        
+
     def state_inputs(self):
         return ["all"]
 
     def state_outputs(self) -> List[str]:
-        return ['route']
+        return ["route"]
 
     def rate(self):
         return 10.0
@@ -46,29 +47,43 @@ class RoutePlanningComponent(Component):
             print("I am in PARKING mode")
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
             base_path = os.path.dirname(__file__)
-            file_path = os.path.join(base_path, "../../knowledge/routes/forward_15m_extra.csv")
-        
-            waypoints = np.loadtxt(file_path, delimiter=',', dtype=float)
+            file_path = os.path.join(
+                base_path, "../../knowledge/routes/forward_15m_extra.csv"
+            )
+
+            waypoints = np.loadtxt(file_path, delimiter=",", dtype=float)
             if waypoints.shape[1] == 3:
-                    waypoints = waypoints[:,:2]
+                waypoints = waypoints[:, :2]
             print("waypoints", waypoints)
-            self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
+            self.route = Route(frame=ObjectFrameEnum.START, points=waypoints.tolist())
         elif state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value:
             print("I am in RRT mode")
-            start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
-            goal = (state.mission_plan.goal_x, state.mission_plan.goal_y) #When we implement kinodynamic, we need to include target_yaw also
-            x_bounds = (0,20)
-            y_bounds = (0,20)
+            start = (state.vehicle.pose.x + 1, state.vehicle.pose.y + 1)
+            goal = (
+                state.mission_plan.goal_x,
+                state.mission_plan.goal_y,
+            )  # When we implement kinodynamic, we need to include target_yaw also
+            x_bounds = (0, 20)
+            y_bounds = (0, 20)
             step_size = 1.0
             max_iter = 2000
-            occupancy_grid = np.zeros((20, 20), dtype=int) 
+            occupancy_grid = np.zeros((20, 20), dtype=int)
             occupancy_grid[5:10, 5:10] = 1
-            self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
+            self.planner = RRTStar(
+                start,
+                goal,
+                x_bounds,
+                y_bounds,
+                max_iter=max_iter,
+                step_size=step_size,
+                vehicle_width=1,
+                occupancy_grid=occupancy_grid,
+            )
             rrt_resp = self.planner.plan()
             self.route = Route(frame=ObjectFrameEnum.START, points=rrt_resp)
         else:
             print("Unknown mode")
-        
+
         return self.route
 
 
@@ -119,8 +134,9 @@ def max_visible_arc(circle_center, radius, geofence):
     for i in range(len(max_arc)):
         # max_arc[i].append(heading_on_circle(xc,yc,max_arc[0], max_arc[1]))
         max_arc[i] = np.array(max_arc[i])
-        np.append(max_arc[i],0)
+        np.append(max_arc[i], 0)
     return max_arc
+
 
 def heading_on_circle(cx, cy, px, py):
     dx = px - cx
@@ -135,13 +151,23 @@ def check_point_exists(vehicle, server_url="http://localhost:8000"):
         response = requests.get(f"{server_url}/api/inspect")
         response.raise_for_status()
         points = response.json().get("coords", [])
-        
-        for point in points:
-            pt1 = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=0, x=point[0]["lat"], y=point[0]["lng"])
-            pt2 = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=0, x=point[1]["lat"], y=point[1]["lng"])
+
+        if points:
+            pt1 = ObjectPose(
+                frame=ObjectFrameEnum.GLOBAL,
+                t=0,
+                x=points[0]["lng"],
+                y=points[0]["lat"],
+            )
+            pt2 = ObjectPose(
+                frame=ObjectFrameEnum.GLOBAL,
+                t=0,
+                x=points[1]["lng"],
+                y=points[1]["lat"],
+            )
             pt1.to_frame(ObjectFrameEnum.START)
             pt2.to_frame(ObjectFrameEnum.START)
-            return True, [[pt1.x, pt1.y],[pt2.x, pt2.y]]
+            return True, [[pt1.x, pt1.y], [pt2.x, pt2.y]]
         return False, []
 
     except requests.exceptions.RequestException as e:
@@ -151,21 +177,24 @@ def check_point_exists(vehicle, server_url="http://localhost:8000"):
 
 class InspectRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
-    def __init__(self, state_machine, frame : str = 'start'):
-        self.geofence_area = [[0,0],[40,40]]
+
+    def __init__(self, state_machine, frame: str = "start"):
+        self.geofence_area = [[0, 0], [40, 40]]
         self.state_list = state_machine
         self.index = 1
         self.mission = self.state_list[self.index]
-        self.circle_center = [30,30]
+        self.circle_center = [30, 30]
         self.radius = 20
-        self.inspection_route = max_visible_arc(self.circle_center, self.radius, self.geofence_area)
-        self.start = [0,0]
+        self.inspection_route = max_visible_arc(
+            self.circle_center, self.radius, self.geofence_area
+        )
+        self.start = [0, 0]
 
     def state_inputs(self):
-        return ['all']
+        return ["all"]
 
     def state_outputs(self) -> List[str]:
-        return ['route']
+        return ["route"]
 
     def rate(self):
         return 1.0
@@ -179,58 +208,86 @@ class InspectRoutePlanner(Component):
             points_found, pts = check_point_exists(state.vehicle)
             if points_found:
                 self.inspection_area = pts
-                print(self.state_list[self.index+1])
-                self.mission = self.state_list[self.index+1]
+                print(self.state_list[self.index + 1])
+                self.mission = self.state_list[self.index + 1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
                 self.start = [state.vehicle.pose.x, state.vehicle.pose.y]
-            self.circle_center = [(self.inspection_area[0][0]+self.inspection_area[1][0])/2, (self.inspection_area[0][1]+self.inspection_area[1][1])/2]
-            self.radius = ((self.inspection_area[0][0]+self.inspection_area[1][0])**2 + (self.inspection_area[0][1]+self.inspection_area[1][1])**2)**0.5/2
-            self.inspection_route = max_visible_arc(self.circle_center, self.radius, self.geofence_area)
+            self.circle_center = [
+                (self.inspection_area[0][0] + self.inspection_area[1][0]) / 2,
+                (self.inspection_area[0][1] + self.inspection_area[1][1]) / 2,
+            ]
+            self.radius = (
+                (self.inspection_area[0][0] + self.inspection_area[1][0]) ** 2
+                + (self.inspection_area[0][1] + self.inspection_area[1][1]) ** 2
+            ) ** 0.5 / 2
+            self.inspection_route = max_visible_arc(
+                self.circle_center, self.radius, self.geofence_area
+            )
         elif self.mission == "NAV":
             state.mission.type = MissionEnum.DRIVE
-            start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
-            goal = (self.inspection_route[0][0]-3, self.inspection_route[0][1]-3)
-            if(abs(start[0]-goal[0]) <= 1 and abs(start[1]-goal[1]) <= 1):
-                print(self.state_list[self.index+1])
-                self.mission = self.state_list[self.index+1]
+            start = (state.vehicle.pose.x + 1, state.vehicle.pose.y + 1)
+            goal = (self.inspection_route[0][0] - 3, self.inspection_route[0][1] - 3)
+            if abs(start[0] - goal[0]) <= 1 and abs(start[1] - goal[1]) <= 1:
+                print(self.state_list[self.index + 1])
+                self.mission = self.state_list[self.index + 1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
-            x_bounds = (0,50)
-            y_bounds = (0,50)
+            x_bounds = (0, 50)
+            y_bounds = (0, 50)
             step_size = 1.0
             max_iter = 2000
-            occupancy_grid = np.zeros((50, 50), dtype=int) 
+            occupancy_grid = np.zeros((50, 50), dtype=int)
             # occupancy_grid[5:10, 5:10] = 1
-            self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
+            self.planner = RRTStar(
+                start,
+                goal,
+                x_bounds,
+                y_bounds,
+                max_iter=max_iter,
+                step_size=step_size,
+                vehicle_width=1,
+                occupancy_grid=occupancy_grid,
+            )
             rrt_resp = self.planner.plan()
             self.route = Route(frame=ObjectFrameEnum.START, points=rrt_resp)
         elif self.mission == "INSPECT":
             state.mission.type = MissionEnum.INSPECT
-            start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
+            start = (state.vehicle.pose.x + 1, state.vehicle.pose.y + 1)
             goal = (self.inspection_route[-1][0], self.inspection_route[-1][1])
-            if(abs(start[0]-goal[0]) <= 1 and abs(start[1]-goal[1]) <= 1):
-                print(self.state_list[self.index+1])
-                self.mission = self.state_list[self.index+1]
+            if abs(start[0] - goal[0]) <= 1 and abs(start[1] - goal[1]) <= 1:
+                print(self.state_list[self.index + 1])
+                self.mission = self.state_list[self.index + 1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
             self.flag += 0.1
-            self.route = Route(frame=ObjectFrameEnum.START, points=self.inspection_route)
+            self.route = Route(
+                frame=ObjectFrameEnum.START, points=self.inspection_route
+            )
         elif self.mission == "FINISH":
             state.mission.type = MissionEnum.INSPECT_UPLOAD
-            start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
+            start = (state.vehicle.pose.x + 1, state.vehicle.pose.y + 1)
             goal = (self.start[0], self.start[1])
-            if(abs(start[0]-goal[0]) <= 1 and abs(start[1]-goal[1]) <= 1):
-                print(self.state_list[self.index+1])
-                self.mission = self.state_list[self.index+1]
+            if abs(start[0] - goal[0]) <= 1 and abs(start[1] - goal[1]) <= 1:
+                print(self.state_list[self.index + 1])
+                self.mission = self.state_list[self.index + 1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
-            x_bounds = (0,50)
-            y_bounds = (0,50)
+            x_bounds = (0, 50)
+            y_bounds = (0, 50)
             step_size = 1.0
             max_iter = 2000
             occupancy_grid = np.zeros((50, 50), dtype=int)
-            self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
+            self.planner = RRTStar(
+                start,
+                goal,
+                x_bounds,
+                y_bounds,
+                max_iter=max_iter,
+                step_size=step_size,
+                vehicle_width=1,
+                occupancy_grid=occupancy_grid,
+            )
             rrt_resp = self.planner.plan()
             self.route = Route(frame=ObjectFrameEnum.START, points=rrt_resp)
 
