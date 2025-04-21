@@ -146,7 +146,9 @@ def heading_on_circle(cx, cy, px, py):
     return math.atan2(ty, tx)  # Heading in radians
 
 
-def check_point_exists(vehicle, server_url="http://localhost:8000"):
+def check_point_exists(vehicle, start_pose, server_url="http://localhost:8000"):
+    print("Vehicle pose frame", vehicle.pose.frame)
+    # vehicle_global_pose = vehicle.pose.to_frame(ObjectFrameEnum.GLOBAL, start_frame=vehicle.pose)
     try:
         response = requests.get(f"{server_url}/api/inspect")
         response.raise_for_status()
@@ -165,8 +167,8 @@ def check_point_exists(vehicle, server_url="http://localhost:8000"):
                 x=points[1]["lng"],
                 y=points[1]["lat"],
             )
-            pt1.to_frame(ObjectFrameEnum.START)
-            pt2.to_frame(ObjectFrameEnum.START)
+            pt1 = pt1.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose)
+            pt2 = pt2.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose)
             return True, [[pt1.x, pt1.y], [pt2.x, pt2.y]]
         return False, []
 
@@ -181,7 +183,7 @@ class InspectRoutePlanner(Component):
     def __init__(self, state_machine, frame: str = "start"):
         self.geofence_area = [[0, 0], [40, 40]]
         self.state_list = state_machine
-        self.index = 1
+        self.index = 0
         self.mission = self.state_list[self.index]
         self.circle_center = [30, 30]
         self.radius = 20
@@ -203,27 +205,31 @@ class InspectRoutePlanner(Component):
         self.flag = 0
         self.route = Route(frame=ObjectFrameEnum.START, points=((0, 0, 0)))
         if self.mission == "IDLE":
+            print("Mission state:", self.mission)
             state.mission.type = MissionEnum.IDLE
             points_found = False
-            points_found, pts = check_point_exists(state.vehicle)
+            points_found, pts = check_point_exists(
+                state.vehicle, state.start_vehicle_pose
+            )
             if points_found:
                 self.inspection_area = pts
+                print("Inspection coordinates:", self.inspection_area)
                 print(self.state_list[self.index + 1])
                 self.mission = self.state_list[self.index + 1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
                 self.start = [state.vehicle.pose.x, state.vehicle.pose.y]
-            self.circle_center = [
-                (self.inspection_area[0][0] + self.inspection_area[1][0]) / 2,
-                (self.inspection_area[0][1] + self.inspection_area[1][1]) / 2,
-            ]
-            self.radius = (
-                (self.inspection_area[0][0] + self.inspection_area[1][0]) ** 2
-                + (self.inspection_area[0][1] + self.inspection_area[1][1]) ** 2
-            ) ** 0.5 / 2
-            self.inspection_route = max_visible_arc(
-                self.circle_center, self.radius, self.geofence_area
-            )
+                self.circle_center = [
+                    (self.inspection_area[0][0] + self.inspection_area[1][0]) / 2,
+                    (self.inspection_area[0][1] + self.inspection_area[1][1]) / 2,
+                ]
+                self.radius = (
+                    (self.inspection_area[0][0] + self.inspection_area[1][0]) ** 2
+                    + (self.inspection_area[0][1] + self.inspection_area[1][1]) ** 2
+                ) ** 0.5 / 2
+                self.inspection_route = max_visible_arc(
+                    self.circle_center, self.radius, self.geofence_area
+                )
         elif self.mission == "NAV":
             state.mission.type = MissionEnum.DRIVE
             start = (state.vehicle.pose.x + 1, state.vehicle.pose.y + 1)

@@ -10,7 +10,7 @@ from ...state import (
     Route,
     ObjectFrameEnum,
     AgentState,
-    MissionEnum
+    MissionEnum,
 )
 from ...utils import serialization
 from ...mathutils.transforms import vector_madd
@@ -1244,7 +1244,9 @@ class YieldTrajectoryPlanner(Component):
         ###############################################
 
         if state.mission.type == MissionEnum.IDLE:
-            return
+            return Trajectory(
+                times=[0, 0], frame=ObjectFrameEnum.START, points=[[0, 0]]
+            )
 
         # figure out where we are on the route
         if self.route_progress is None:
@@ -1334,4 +1336,4 @@ class YieldTrajectoryPlanner(Component):
                 self.planner,
             )
 
-        return traj 
+        return traj
