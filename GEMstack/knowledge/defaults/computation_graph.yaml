@@ -31,7 +31,7 @@ components:
       inputs: [vehicle, roadgraph, agents]
       outputs: agent_intents
   - relations_estimation:
-      inputs: [vehicle, roadgraph, agents, obstacles]
+      inputs: all
       outputs: relations
   - predicate_evaluation:
       inputs: [vehicle, roadgraph, agents, obstacles]
@@ -44,17 +44,8 @@ components:
       inputs: [vehicle, roadgraph, mission]
       outputs: route
   - driving_logic:
-      inputs: 
+      inputs: all
       outputs: intent
-  - parking_component: # one way
-      inputs: all
-      outputs: mission_plan
-  - summon_component: # one way
-      inputs: all
-      outputs: route
-  - route_planning_component: # one way
-      inputs: all
-      outputs: route
   - motion_planning:
       inputs: all
       outputs: trajectory
@@ -62,5 +53,5 @@ components:
       inputs: [vehicle, trajectory]
       outputs: 
   - signaling:
-      inputs: [intent]
-      outputs:
+      inputs: [intent] 
+      outputs: 
