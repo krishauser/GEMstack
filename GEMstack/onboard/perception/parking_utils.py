@@ -159,3 +159,26 @@ def select_best_candidate(candidates, cornerPts):
             max_score = score
     return best_candidate
   
+
+def reshape_parking_spaces(corner_points):
+    # Assumes corner_points is a (N, 2) array with N divisible by 4
+    return [corner_points[i:i+4] for i in range(0, len(corner_points), 4)]
+
+def detect_parking_spots_and_select_closest(corner_points, vehicle_position):
+    parking_spots = reshape_parking_spaces(corner_points)
+    all_candidates = []
+
+    for spot_corners in parking_spots:
+        candidates = find_all_candidate_parking_spots(spot_corners)
+        for cand in candidates:
+            all_candidates.append((cand, spot_corners))
+
+    if not all_candidates:
+        return [], None
+
+    best_pose, best_corners = min(
+        all_candidates,
+        key=lambda x: np.linalg.norm(np.array(x[0][:2]) - np.array(vehicle_position[:2]))
+    )
+
+    return [c[0] for c in all_candidates], best_pose

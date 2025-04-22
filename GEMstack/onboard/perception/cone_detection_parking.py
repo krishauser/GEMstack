@@ -104,14 +104,20 @@ class ConeDetector3D(Component):
             # Detect parking spot if 4 or more cones are detected
             ordered_cone_ground_centers_2D = []
             closest_parking_spot = None
-            if len(centroids_vehicle_frame) >= 4:
-                ordered_cone_ground_centers_2D, closest_parking_spot = self.detect_parking_spot(centroids_vehicle_frame)
+
+            all_candidates = []
+            if len(centroids_vehicle_frame) % 4 == 0:
+                cone_2d = np.array([[p[0], p[1]] for p in centroids_vehicle_frame], dtype=np.float32)
+                all_candidates, closest_parking_spot = detect_parking_spots_and_select_closest(cone_2d, vehicle_position=self.vehicle_state[:2])
+                ordered_cone_ground_centers_2D = cone_2d
+
 
             # Visualization
             self.viz_object_states(centroids_vehicle_frame,
-                                   ordered_cone_ground_centers_2D, 
-                                   closest_parking_spot, 
-                                   image, bboxes, lidar)
+                       ordered_cone_ground_centers_2D, 
+                       closest_parking_spot,
+                       all_candidates,
+                       image, bboxes, lidar)
 
 
     # All local helper functions
@@ -192,11 +198,13 @@ class ConeDetector3D(Component):
         return pc2.create_cloud(header, fields, [(p[0], p[1], p[2]) for p in points])
     
     def viz_object_states(self, 
-                          cone_3d_centers, 
-                          ordered_cone_ground_centers_2D,
-                          closest_parking_spot,
-                          cv_image, boxes, 
-                          lidar_ouster_frame):
+                      cone_3d_centers, 
+                      ordered_cone_ground_centers_2D,
+                      closest_parking_spot,
+                      all_parking_candidates,
+                      cv_image, boxes, 
+                      lidar_ouster_frame):
+
         # Transform top lidar pointclouds to vehicle frame for visualization
         if self.vis_lidar_pc:
             latest_lidar_vehicle = self.transform_points(lidar_ouster_frame, self.T_l2v)
@@ -241,6 +249,12 @@ class ConeDetector3D(Component):
                 ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=(255, 0, 255))
                 self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
+        # If there are multiple slots
+        if len(all_parking_candidates) > 0:
+            for i, pose in enumerate(all_parking_candidates):
+                # Show candidate poses in a lighter color
+                ros_candidate_marker = create_parking_spot_marker(pose, ref_frame="vehicle", id_offset=100 + i, color=(0.0, 1.0, 0.0, 0.3))
+                self.pub_parking_spot_marker.publish(ros_candidate_marker)
 
     def detect_parking_spot(self, cone_3d_centers):
         closest_parking_spot = None

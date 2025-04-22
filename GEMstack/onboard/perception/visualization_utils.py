@@ -157,40 +157,16 @@ def create_polygon_marker(vertices_2d, ref_frame="map"):
     return marker_array
 
 
-def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_WIDTH, ref_frame="map"):
-    marker_array = MarkerArray()
-
-    marker = Marker()
-    marker.header.frame_id = ref_frame
-    marker.header.stamp = rospy.Time.now()
-    marker.ns = "parking_spot"
-    marker.id = 0
-    marker.type = Marker.TRIANGLE_LIST
-    marker.action = Marker.ADD
-
-    # Transparency and color (green)
-    marker.color.r = 0.0
-    marker.color.g = 1.0
-    marker.color.b = 0.0
-    marker.color.a = 0.5
-
-    marker.pose.orientation.w = 1.0
-
-    # Not used in TRIANGLE_LIST, but required
-    marker.scale.x = 1.0
-    marker.scale.y = 1.0
-    marker.scale.z = 1.0
-
-    x, y, theta_deg = closest_spot
-
-    # Convert orientation to radians
+def create_parking_spot_marker(spot_pose, length=GEM_E4_LENGTH, width=GEM_E4_WIDTH,
+                                marker_id=0, ref_frame="vehicle",
+                                color=(0.0, 1.0, 0.0, 0.5)) -> Marker:
+    x, y, theta_deg = spot_pose
     theta = math.radians(theta_deg)
 
-    # Half dimensions
     dx = length / 2.0
     dy = width / 2.0
 
-    # Define rectangle corners (local frame, clockwise)
+    # Define corners in local frame (clockwise)
     local_corners = [
         (-dx, -dy),
         (-dx, dy),
@@ -198,24 +174,30 @@ def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_
         (dx, -dy)
     ]
 
-    # Transform to global frame
+    # Rotate to global frame
     global_corners = []
     for lx, ly in local_corners:
         gx = x + lx * math.cos(theta) - ly * math.sin(theta)
         gy = y + lx * math.sin(theta) + ly * math.cos(theta)
         global_corners.append(Point(x=gx, y=gy, z=0.0))
 
-    # Define two triangles to fill the rectangle
-    marker.points.append(global_corners[0])
-    marker.points.append(global_corners[2])
-    marker.points.append(global_corners[1])
+    marker = Marker()
+    marker.header.frame_id = ref_frame
+    marker.header.stamp = rospy.Time.now()
+    marker.ns = "parking_spot"
+    marker.id = marker_id
+    marker.type = Marker.TRIANGLE_LIST
+    marker.action = Marker.ADD
+    marker.points.extend([
+        global_corners[0], global_corners[2], global_corners[1],
+        global_corners[0], global_corners[3], global_corners[2]
+    ])
+    marker.scale.x = marker.scale.y = marker.scale.z = 1.0
+    marker.color.r, marker.color.g, marker.color.b, marker.color.a = color
+    marker.pose.orientation.w = 1.0
+    marker.lifetime = rospy.Duration(0.5)
 
-    marker.points.append(global_corners[0])
-    marker.points.append(global_corners[3])
-    marker.points.append(global_corners[2])
-
-    marker_array.markers.append(marker)
-    return marker_array
+    return marker
 
 
 def delete_markers(ns="markers", max_markers=15):
