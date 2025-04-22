@@ -109,6 +109,9 @@ def max_visible_arc(circle_center, radius, geofence):
     curr_segment = []
 
     first_inside = last_inside = False
+    flag_full_circle = True
+    tangent_min = 0
+    min_index = 0
 
     for i, theta in enumerate(angles):
         x = xc + radius * np.cos(theta)
@@ -123,7 +126,14 @@ def max_visible_arc(circle_center, radius, geofence):
 
         if inside:
             curr_segment.append((x, y))
+            # Calculate the tangent heading in a clockwise direction
+            tangent_heading = -np.arctan2(y - yc, x - xc)  # Clockwise heading
+            if abs( 1 - tangent_heading) > abs( 1 - tangent_min):
+                if np.arctan2(yc, xc) < np.arctan2(y, x):
+                    tangent_min = tangent_heading
+                    min_index = i
         else:
+            flag_full_circle = False
             if curr_segment:
                 arc_segments.append(curr_segment)
                 curr_segment = []
@@ -141,9 +151,13 @@ def max_visible_arc(circle_center, radius, geofence):
 
     max_arc = list(max(arc_segments, key=len))
     for i in range(len(max_arc)):
-        # max_arc[i].append(heading_on_circle(xc,yc,max_arc[0], max_arc[1]))
         max_arc[i] = np.array(max_arc[i])
-        np.append(max_arc[i], 0)
+        # max_arc[i] = np.append(max_arc[i], heading_on_circle(xc, yc, max_arc[0][0], max_arc[1][0]))
+        max_arc[i] = np.append(max_arc[i], 0)
+
+    if flag_full_circle:
+        max_arc = max_arc[min_index:] + max_arc[:min_index]
+
     return max_arc
 
 
