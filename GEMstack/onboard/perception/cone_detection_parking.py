@@ -228,9 +228,19 @@ class ConeDetector3D(Component):
             self.pub_polygon_marker.publish(ros_polygon_marker)
 
         # Create parking spot marker
+        if all_parking_candidates:
+            marker_array = MarkerArray()
+            for i, pose in enumerate(all_parking_candidates):
+                m = create_parking_spot_marker(pose, marker_id=i, ref_frame="vehicle", color=(0.0, 1.0, 0.0, 0.3))
+                marker_array.markers.append(m)
+            self.pub_parking_spot_marker.publish(marker_array)
+
+        # Draw closest spot (solid green)
         if closest_parking_spot:
-            ros_parking_spot_marker = create_parking_spot_marker(closest_parking_spot, ref_frame="vehicle")
-            self.pub_parking_spot_marker.publish(ros_parking_spot_marker)
+            marker_array = MarkerArray()
+            closest_marker = create_parking_spot_marker(closest_parking_spot, marker_id=999, ref_frame="vehicle", color=(0.0, 1.0, 0.0, 1.0))
+            marker_array.markers.append(closest_marker)
+            self.pub_parking_spot_marker.publish(marker_array)
 
         # Draw 2D bboxes
         if self.vis_2d_annotate:
