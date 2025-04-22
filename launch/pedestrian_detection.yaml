@@ -21,7 +21,8 @@ drive:
             args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
-            type: pure_pursuit.PurePursuitTrajectoryTracker
+            #type: pure_pursuit.PurePursuitTrajectoryTracker
+            type: stanley.StanleyTrajectoryTracker
             print: False
 
 

@@ -52,6 +52,7 @@ class AgentSimulation:
         self.position = config['position'][:]
         self.velocity = config.get('velocity',[0,0])
         self.nominal_velocity = config.get('nominal_velocity',AGENT_NOMINAL_VELOCITY[self.type])
+        self.nominal_acceleration = config.get('nominal_acceleration',AGENT_NOMINAL_ACCELERATION[self.type])
         self.target = config.get('target',None)
         self.target_radius = config.get('target_radius',0.1)
         self.target_path = config.get('target_path',None)
@@ -90,6 +91,7 @@ class AgentSimulation:
         dy = target[1] - self.position[1]
         d = np.linalg.norm((dx,dy))
         v = np.linalg.norm(self.velocity)
+        #v = min(v + 2.0 * dt, self.nominal_velocity * 2)
         if d < 0.02:
             self.velocity = [0,0]
             return True

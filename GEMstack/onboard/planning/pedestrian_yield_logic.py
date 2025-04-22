@@ -52,7 +52,7 @@ class PedestrianYielder(Component):
                 print(f"[DEBUG] PedestrianYielder.update: Agent:", a.pose, a.velocity)
 
             """ collision estimation based on agent states in vehicle frame """
-            if a.type == AgentEnum.PEDESTRIAN: # CAR can be replaced with any other object (curb, etc.) for testing do AgentEnum.PEDESTRIAN
+            if a.type == AgentEnum.CAR: # CAR can be replaced with any other object (curb, etc.) for testing do AgentEnum.PEDESTRIAN
                 check, t_min, min_dist, pt_min = check_collision_in_vehicle_frame(a, vehicle)
                 if DEBUG:
                     print(  
@@ -60,17 +60,17 @@ class PedestrianYielder(Component):
                 if check == 'STOP':
                     res.append(EntityRelation(type=EntityRelationEnum.STOPPING_AT, obj1='', obj2=n))
                 if check == 'YIELD':
-                    res.append(EntityRelation(type=EntityRelationEnum.CREEPING, obj1='', obj2=n))
+                    res.append(EntityRelation(type=EntityRelationEnum.CREEPING, obj1='', obj2=n)) #CREEPING
                 elif check == 'RUN':
                     res.append(EntityRelation(type=EntityRelationEnum.ACCELERATING, obj1='', obj2=n))
-            # if a.type == AgentEnum.PEDESTRIAN:
+            if a.type == AgentEnum.PEDESTRIAN:
 
-            #     check, t_min, min_dist, pt_min = check_collision_in_vehicle_frame(a, vehicle)
+                check, t_min, min_dist, pt_min = check_collision_in_vehicle_frame(a, vehicle)
 
-            #     if check == 'YIELD':
-            #         res.append(EntityRelation(type=EntityRelationEnum.YIELDING, obj1='', obj2=n))
-            #     elif check == 'STOP':
-            #         res.append(EntityRelation(type=EntityRelationEnum.STOPPING_AT, obj1='', obj2=n))
+                if check == 'YIELD':
+                    res.append(EntityRelation(type=EntityRelationEnum.YIELDING, obj1='', obj2=n))
+                elif check == 'STOP':
+                    res.append(EntityRelation(type=EntityRelationEnum.STOPPING_AT, obj1='', obj2=n))
         return res
 
 

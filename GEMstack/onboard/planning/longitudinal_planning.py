@@ -473,11 +473,12 @@ class YieldTrajectoryPlanner(Component):
                         # Extract distance from relation data
                         if hasattr(r, 'distance') and r.distance < closest_distance:
                             closest_distance = r.distance
-                
+                ########################################################################################
                 # Use inverse function to determine appropriate speed
                 #target_speed = inverse_speed_function(closest_distance)
-                dt = t - self.t_last
+                ########################################################################################
                 # Use PID function to determine appropriate speed
+                dt = t - self.t_last
                 target_speed, self.pid_prev_error, self.pid_integral = pid_speed_control(
                     closest_distance, 
                     self.pid_target_distance,
@@ -486,7 +487,7 @@ class YieldTrajectoryPlanner(Component):
                     self.pid_integral,
                     dt
                 )
-
+                #######################################################################################
                 traj = longitudinal_plan(route_with_lookahead, 0.0, 
                             self.follow_deceleration, target_speed, curr_v)
                 

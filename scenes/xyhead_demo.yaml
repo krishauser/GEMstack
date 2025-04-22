@@ -3,21 +3,24 @@ agents:
   Car1:
     type: car
     position: [20.0, 4.5]
-    nominal_velocity: 0.35
+    nominal_velocity: 0.75
+    #nominal_acceleration: 5.0
+
     target: [40.0, 4.5]
     behavior: loop
+    
   # Car:
   #   type: car
   #   position: [30.0, 4.5]
   #   nominal_velocity: 0.2
   #   target: [40.0, 4.5]
   #   behavior: loop
-  ped1:
-    type: pedestrian
-    position: [10.0, 2.0]
-    nominal_velocity: 0.7
-    target: [18.0,10.0]
-    behavior: loop
+  # ped1:
+  #   type: pedestrian
+  #   position: [10.0, 2.0]
+  #   nominal_velocity: 0.7
+  #   target: [18.0,10.0]
+  #   behavior: loop
   # ped3:
   #   type: pedestrian
   #   position: [50.0, 2.0]
