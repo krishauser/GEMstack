@@ -21,7 +21,7 @@ def speed_callback(msg):
 def parking_space_callback(msg):
     global detected_space
     global endpoints
-    detected_space = true
+    detected_space = True
     endpoints = msg
     rospy.loginfo(f"Vehicle Speed: {msg.vehicle_speed} m/s | Valid: {msg.vehicle_speed_valid}")
 
