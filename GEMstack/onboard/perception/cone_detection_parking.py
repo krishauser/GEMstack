@@ -10,11 +10,20 @@ from message_filters import Subscriber, ApproximateTimeSynchronizer
 import open3d as o3d
 from ..component import Component 
 from ...state import VehicleState, AgentState
+from sklearn.cluster import DBSCAN
+from scipy.spatial import ConvexHull
 from .parking_utils import *
+from .visualization_utils import *
 
 
 class ConeDetector3D(Component):
     def __init__(self):
+        # Init Variables
+        self.ground_threshold = -0.15
+        self.vis_2d_annotate = False
+        self.vis_lidar_pc = True
+        self.vis_3d_cones_centers = True
+
         # Params
         self.bridge = CvBridge()
         self.detector = YOLO('./GEMstack/knowledge/detection/cone.pt')
@@ -35,28 +44,22 @@ class ConeDetector3D(Component):
                                [-0.02379784, 0.00689664, 0.999693, 1.95320223],
                                [0., 0., 0., 1.]])
 
-        self.pub_centroids = rospy.Publisher("/cones_detection/centroids", PointCloud2, queue_size=10)
-
+        # Subscribers
         self.rgb_sub = Subscriber("/camera_fr/arena_camera_node/image_raw", Image)
         self.lidar_sub = Subscriber("/ouster/points", PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub], queue_size=10, slop=0.1)
         self.sync.registerCallback(self.callback)
 
+        # Publishers
+        self.pub_lidar_top_vehicle_pc2 = rospy.Publisher("lidar_top_vehicle/point_cloud", PointCloud2, queue_size=10)
+        self.pub_vehicle_marker = rospy.Publisher("vehicle/marker", MarkerArray, queue_size=10)
+        self.pub_cones_image_detection = rospy.Publisher("cones_detection/annotated_image", Image, queue_size=1)
+        self.pub_cones_centers_pc2 = rospy.Publisher("cones_detection/centers/point_cloud", PointCloud2, queue_size=10)
+        self.pub_parking_spot_marker = rospy.Publisher("parking_spot_detection/marker", MarkerArray, queue_size=10)
+        self.pub_polygon_marker = rospy.Publisher("polygon_detection/marker", MarkerArray, queue_size=10)
 
-    def detect_parking_spot(self, cone_3d_centers):
-         cone_ground_centers = np.array(cone_3d_centers)
-         cone_ground_centers_2D = cone_ground_centers[:, :2]
-         # print(f"-----cone_ground_centers_2D: {cone_ground_centers_2D}")
-         candidates = findAllCandidateParkingLot(cone_ground_centers_2D)
-         # print(f"-----candidates: {candidates}")
-         if len(candidates) > 0:
-             closest_spot = candidates[0]
-             # print(f"-----closest_spot: {closest_spot}")
-             # Create parking spot marker
-            #  ros_parking_spot_marker = create_parking_spot_marker(closest_spot, ref_frame="vehicle")
-            #  self.pub_parking_spot_marker.publish(ros_parking_spot_marker)
-         return
 
+    # Main sensors callback
     def callback(self, img_msg, lidar_msg):
         # Convert data
         image = self.bridge.imgmsg_to_cv2(img_msg, "bgr8")
@@ -68,34 +71,84 @@ class ConeDetector3D(Component):
         if not results or results[0].boxes is None:
             return
 
-        boxes = results[0].boxes.xywh.cpu().numpy()
-        lidar_cam = self.transform_lidar_to_camera(lidar)
-        projections = self.project_points(lidar_cam, lidar, K)
+        bboxes = results[0].boxes
+        boxes = np.array(bboxes.xywh.cpu())
+        pts_cam = self.transform_points_l2c(lidar, self.T_l2c)
+        projected_pts = self.project_points(pts_cam, lidar, K)
 
         # Collect cone centroids
-        centroids = []
+        centroids_lidar_frame = []
         for cx, cy, w, h in boxes:
             u_min, u_max = int(cx - w/2), int(cx + w/2)
             v_min, v_max = int(cy - h/2), int(cy + h/2)
-            mask = (projections[:, 0] >= u_min) & (projections[:, 0] <= u_max) & \
-                   (projections[:, 1] >= v_min) & (projections[:, 1] <= v_max)
-            region_pts = projections[mask][:, 2:5]
-            if region_pts.shape[0] < 5:
+            mask = (projected_pts[:, 0] >= u_min) & (projected_pts[:, 0] <= u_max) & \
+                   (projected_pts[:, 1] >= v_min) & (projected_pts[:, 1] <= v_max)
+            roi_pts = projected_pts[mask][:, 2:5]
+            if roi_pts.shape[0] < 5:
                 continue
-            region_pts = self.remove_ground(region_pts)
-            if region_pts.shape[0] < 3:
+            roi_pts = self.remove_ground(roi_pts)
+            if roi_pts.shape[0] < 3:
                 continue
-            center = np.mean(region_pts, axis=0)
-            center[2] = np.min(region_pts[:, 2]) + 0.15  # z offset to get cone center
-            centroids.append(center)
 
-        # Publish centroids
-        if centroids:
-            self.pub_centroids.publish(self.create_pc2(centroids))
+            # Extract the LiDAR 3D points corresponding to the ROI
+            roi_pts = self.filter_depth_points(roi_pts, max_depth_diff=0.2)
 
-        # Parking space detection logic here
+            # Compute center
+            center = np.mean(roi_pts, axis=0)
+            centroids_lidar_frame.append(center)
+
+        if len(centroids_lidar_frame) > 0:
+            # Transform centroids to vehicle frame
+            centroids_vehicle_frame = self.transform_points(np.array(centroids_lidar_frame), self.T_l2v)
+
+            # Detect parking spot if 4 or more cones are detected
+            ordered_cone_ground_centers_2D = []
+            closest_parking_spot = None
+            if len(centroids_vehicle_frame) >= 4:
+                ordered_cone_ground_centers_2D, closest_parking_spot = self.detect_parking_spot(centroids_vehicle_frame)
+
+            # Visualization
+            self.viz_object_states(centroids_vehicle_frame,
+                                   ordered_cone_ground_centers_2D, 
+                                   closest_parking_spot, 
+                                   image, bboxes, lidar)
 
 
+    # All local helper functions
+    def filter_depth_points(self, lidar_points, max_depth_diff=0.9, use_norm=True):
+        if lidar_points.shape[0] == 0:
+            return lidar_points
+        if use_norm:
+            depths = np.linalg.norm(lidar_points, axis=1)
+        else:
+            depths = lidar_points[:, 0]
+
+        min_depth = np.min(depths)
+        max_possible_depth = min_depth + max_depth_diff
+        mask = depths < max_possible_depth
+        return lidar_points[mask]
+
+    def transform_points(self, points, transform):
+        ones_column = np.ones((points.shape[0], 1))
+        points_extended = np.hstack((points, ones_column))
+        points_transformed = ((transform @ (points_extended.T)).T)
+        return points_transformed[:, :3]
+
+    def transform_points_l2c(self, lidar_points, T_l2c):
+        N = lidar_points.shape[0]
+        pts_hom = np.hstack((lidar_points, np.ones((N, 1))))  # (N,4)
+        pts_cam = (T_l2c @ pts_hom.T).T  # (N,4)
+        return pts_cam[:, :3]
+
+    def filter_ground_points(self, lidar_points, ground_threshold = 0):
+        filtered_array = lidar_points[lidar_points[:, 2] > ground_threshold]
+        return filtered_array
+
+    def order_points_convex_hull(self, points_2d):
+        points_np = np.array(points_2d)
+        hull = ConvexHull(points_np)
+        ordered = [points_np[i] for i in hull.vertices]
+        return ordered
 
     def undistort_image(self, img):
         h, w = img.shape[:2]
@@ -117,11 +170,6 @@ class ConeDetector3D(Component):
         mask = (pts[:, 0] > 0) & (pts[:, 2] < -1.5) & (pts[:, 2] > -2.7)
         return pts[mask]
 
-    def transform_lidar_to_camera(self, pts):
-        N = pts.shape[0]
-        pts_hom = np.hstack([pts, np.ones((N, 1))])
-        return (self.T_l2c @ pts_hom.T).T[:, :3]
-
     def project_points(self, cam_pts, lidar_pts, K):
         mask = cam_pts[:, 2] > 0
         cam_pts = cam_pts[mask]
@@ -142,6 +190,71 @@ class ConeDetector3D(Component):
             pc2.PointField('z', 8, pc2.PointField.FLOAT32, 1)
         ]
         return pc2.create_cloud(header, fields, [(p[0], p[1], p[2]) for p in points])
+    
+    def viz_object_states(self, 
+                          cone_3d_centers, 
+                          ordered_cone_ground_centers_2D,
+                          closest_parking_spot,
+                          cv_image, boxes, 
+                          lidar_ouster_frame):
+        # Transform top lidar pointclouds to vehicle frame for visualization
+        if self.vis_lidar_pc:
+            latest_lidar_vehicle = self.transform_points(lidar_ouster_frame, self.T_l2v)
+            latest_lidar_vehicle = self.filter_ground_points(latest_lidar_vehicle, self.ground_threshold)
+            ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "vehicle")
+            self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
+
+        # Create vehicle marker
+        ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 0.0, 1.0, 1), "vehicle")
+        self.pub_vehicle_marker.publish(ros_vehicle_marker)
+
+        # Delete previous markers
+        ros_delete_polygon_marker = delete_markers("polygon", 1)
+        self.pub_polygon_marker.publish(ros_delete_polygon_marker)
+        ros_delete_parking_spot_markers = delete_markers("parking_spot", 1)
+        self.pub_parking_spot_marker.publish(ros_delete_parking_spot_markers)
+
+        # Draw polygon first
+        if len(ordered_cone_ground_centers_2D) > 0:
+            ros_polygon_marker = create_polygon_marker(ordered_cone_ground_centers_2D, ref_frame="vehicle")
+            self.pub_polygon_marker.publish(ros_polygon_marker)
+
+        # Create parking spot marker
+        if closest_parking_spot:
+            ros_parking_spot_marker = create_parking_spot_marker(closest_parking_spot, ref_frame="vehicle")
+            self.pub_parking_spot_marker.publish(ros_parking_spot_marker)
+
+        # Draw 2D bboxes
+        if self.vis_2d_annotate:
+            for ind, bbox in enumerate(boxes):
+                xywh = bbox.xywh[0].tolist()
+                cv_image = vis_2d_bbox(cv_image, xywh, bbox)
+            ros_img = self.bridge.cv2_to_imgmsg(cv_image, 'bgr8')
+            self.pub_cones_image_detection.publish(ros_img)  
+
+        # Draw 3D cone centers
+        if len(cone_3d_centers) > 0:
+            if self.vis_3d_cones_centers:
+                cone_ground_centers = np.array(cone_3d_centers)
+                cone_ground_centers[:, 2] = 0.0
+                cone_ground_centers = [tuple(point) for point in cone_ground_centers]
+                ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=(255, 0, 255))
+                self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
+
+
+    def detect_parking_spot(self, cone_3d_centers):
+        closest_parking_spot = None
+        cone_ground_centers = np.array(cone_3d_centers)
+        cone_ground_centers_2D = cone_ground_centers[:, :2]
+        ordered_cone_ground_centers_2D = self.order_points_convex_hull(cone_ground_centers_2D)
+        # print(f"-----cone_ground_centers_2D: {cone_ground_centers_2D}")
+        candidates = find_all_candidate_parking_spots(ordered_cone_ground_centers_2D)
+        # print(f"-----candidates: {candidates}")
+        if len(candidates) > 0:
+            closest_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
+            # print(f"-----closest_parking_spot: {closest_parking_spot}")
+        return ordered_cone_ground_centers_2D, closest_parking_spot
+
 
     def spin(self):
         rospy.spin()
