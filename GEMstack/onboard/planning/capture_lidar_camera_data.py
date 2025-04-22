@@ -14,7 +14,7 @@ import time
 from ...offboard.log_management.s3 import push_folder_to_s3
 import math
 import pickle
-import datetime
+from datetime import datetime
 import os
 
 
@@ -68,7 +68,7 @@ class SaveInspectionData(Component):
         return 8.0
 
     def state_inputs(self) -> list:
-        return ['vehicle', 'mission']
+        return ['all']
 
     def state_outputs(self) -> list:
         return []
@@ -109,14 +109,14 @@ class SaveInspectionData(Component):
         self.longitude = rad_to_deg(gnss_msg.longitude)
         self.altitude = gnss_msg.height
 
-    def update(self, vehicle: VehicleState, mission) -> Dict[str, AgentState]:
+    def update(self, state) -> Dict[str, AgentState]:
         # Process only if synchronized sensor data is available
         if self.latest_fr_image is None and self.latest_rr_image is None or self.latest_lidar is None:
             return {}
 
         current_time = self.vehicle_interface.time()
 
-        if mission.type == MissionEnum.INSPECT:
+        if state.mission.type == MissionEnum.INSPECT:
             lidar_pc = self.latest_lidar.copy()
             camera_fr = self.latest_fr_image.copy()
             camera_rr = self.latest_rr_image.copy()
@@ -133,6 +133,6 @@ class SaveInspectionData(Component):
 
             self.index += 1
 
-        elif mission.type == MissionEnum.INSPECT_UPLOAD:
+        elif state.mission.type == MissionEnum.INSPECT_UPLOAD:
             # upload lidar and camera to s3
             push_folder_to_s3('./inspection_data', 'bucket', 'prefix')

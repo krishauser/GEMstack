@@ -1260,14 +1260,14 @@ class YieldTrajectoryPlanner(Component):
         route_with_lookahead = route.trim(
             closest_parameter, closest_parameter + lookahead_distance
         )
-        print("Lookahead distance:", lookahead_distance)
+        # print("Lookahead distance:", lookahead_distance)
 
         route_to_end = route.trim(closest_parameter, len(route.points) - 1)
 
         should_yield = False
         yield_deceleration = 0.0
 
-        print("Current Speed: ", curr_v)
+        # print("Current Speed: ", curr_v)
 
         for r in state.relations:
             if r.type == EntityRelationEnum.YIELDING and r.obj1 == "":

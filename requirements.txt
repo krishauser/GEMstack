@@ -13,3 +13,7 @@ fastapi[standard]
 ultralytics
 open3d
 scikit-learn
+
+# Inspection
+python-dotenv
+boto3

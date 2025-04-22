@@ -18,8 +18,6 @@ components:
   - agent_detection:
       inputs: vehicle
       outputs: agents
-  - save_lidar_data:
-      inputs: [vehicle, mission]
   - lane_detection:
       inputs: [vehicle, roadgraph]
       outputs: vehicle_lane
@@ -48,15 +46,12 @@ components:
   - driving_logic:
       inputs: 
       outputs: intent
-  - parking_component: # one way
-      inputs: all
-      outputs: mission_plan
-  - summon_component: # one way
+  - route_planning_component: 
       inputs: all
       outputs: route
-  - route_planning_component: # one way
+  - save_lidar_data:
       inputs: all
-      outputs: route
+      outputs:
   - motion_planning:
       inputs: all
       outputs: trajectory

@@ -31,8 +31,6 @@ class RoutePlanningComponent(Component):
         print("Route Planning Component init")
         self.planner = None
         self.route = None
-        self.bridge = CvBridge()
-        self.img_pub = rospy.Publisher("/image_with_car_xy", Image, queue_size=1)
 
     def state_inputs(self):
         return ["all"]
@@ -190,16 +188,19 @@ class InspectRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
 
     def __init__(self, state_machine, frame: str = "start"):
-        self.geofence_area = [[0, 0], [40, 40]]
+        self.geofence_area = [[0, 0], [20, 20]]
         self.state_list = state_machine
-        self.index = 0
+        self.index = 1
         self.mission = self.state_list[self.index]
-        self.circle_center = [30, 30]
-        self.radius = 20
+        self.circle_center = [10,10]
+        self.radius = 5
         self.inspection_route = max_visible_arc(
             self.circle_center, self.radius, self.geofence_area
         )
         self.start = [0, 0]
+        self.bridge = CvBridge()
+        self.img_pub = rospy.Publisher("/image_with_car_xy", Image, queue_size=1)
+
 
     def state_inputs(self):
         return ["all"]
@@ -208,7 +209,7 @@ class InspectRoutePlanner(Component):
         return ["route"]
 
     def rate(self):
-        return 1.0
+        return 2.0
 
     def _car_to_pixel(self, x, y, img_w, img_h):
         # (x,y)[m] → (u,v)[px]
@@ -249,8 +250,8 @@ class InspectRoutePlanner(Component):
         frame_path  = os.path.join(script_dir, "out.pgm")
         frame = cv2.imread(frame_path, cv2.IMREAD_COLOR)
         img_h, img_w = frame.shape[:2]
-        print("frame shape", frame.shape)
-        print("frame dtype", frame.dtype)
+        # print("frame shape", frame.shape)
+        # print("frame dtype", frame.dtype)
 
         # 2. Optionally clamp all points to image bounds
         def clamp(pt):
@@ -294,7 +295,7 @@ class InspectRoutePlanner(Component):
 
         # 6. Publish via ROS
         out = self.bridge.cv2_to_imgmsg(frame, "bgr8")
-        print("Publishing out: ", out)
+        # print("Publishing out: ", out)
         out.header.stamp = rospy.Time.now()
         self.img_pub.publish(out)
 
@@ -302,7 +303,7 @@ class InspectRoutePlanner(Component):
         script_dir = os.path.dirname(os.path.abspath(__file__))
         map_path  = os.path.join(script_dir, "out.pgm")
 
-        print("map_path", map_path)
+        # print("map_path", map_path)
 
         map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
         occupancy_grid = (map_img > 0).astype(np.uint8) # (590, 1656)
@@ -330,6 +331,7 @@ class InspectRoutePlanner(Component):
     def update(self, state):
         self.flag = 0
         self.route = Route(frame=ObjectFrameEnum.START, points=((0, 0, 0)))
+        print("Mode ", state.mission.type)
         if self.mission == "IDLE":
             print("Mission state:", self.mission)
             state.mission.type = MissionEnum.IDLE
@@ -365,13 +367,13 @@ class InspectRoutePlanner(Component):
                 self.index += 1
                 print("CHANGING STATES", self.mission)
 
-            return self.rrt_route(start, goal)
+            self.route = self.rrt_route(start, goal)
 
         elif self.mission == "INSPECT":
             state.mission.type = MissionEnum.INSPECT
             start = (state.vehicle.pose.x + 1, state.vehicle.pose.y + 1)
             goal = (self.inspection_route[-1][0], self.inspection_route[-1][1])
-            if abs(start[0] - goal[0]) <= 1 and abs(start[1] - goal[1]) <= 1:
+            if abs(start[0] - goal[0]) <= 1 and abs(start[1] - goal[1]) <= 1 and self.flag>1:
                 print(self.state_list[self.index + 1])
                 self.mission = self.state_list[self.index + 1]
                 self.index += 1
@@ -390,6 +392,6 @@ class InspectRoutePlanner(Component):
                 self.index += 1
                 print("CHANGING STATES", self.mission)
 
-            return self.rrt_route(start, goal)
+            self.route = self.rrt_route(start, goal)
 
         return self.route
