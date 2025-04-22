@@ -36,7 +36,7 @@ class RoutePlanningComponent(Component):
         return ["all"]
 
     def state_outputs(self) -> List[str]:
-        return ["route"]
+        return ["route", "mission"]
 
     def rate(self):
         return 10.0
@@ -150,13 +150,13 @@ def max_visible_arc(circle_center, radius, geofence):
     max_arc = list(max(arc_segments, key=len))
     for i in range(len(max_arc)):
         max_arc[i] = np.array(max_arc[i])
-        # max_arc[i] = np.append(max_arc[i], heading_on_circle(xc, yc, max_arc[0][0], max_arc[1][0]))
-        max_arc[i] = np.append(max_arc[i], 0)
+        np.append(max_arc[i], heading_on_circle(xc, yc, max_arc[0][0], max_arc[1][0]))
+        # np.append(max_arc[i], 0)
 
     if flag_full_circle:
         max_arc = max_arc[min_index:] + max_arc[:min_index]
 
-    return max_arc
+    return max_arc[::-1]
 
 
 def heading_on_circle(cx, cy, px, py):
@@ -206,7 +206,7 @@ class InspectRoutePlanner(Component):
         self.state_list = state_machine
         self.index = 1
         self.mission = self.state_list[self.index]
-        self.circle_center = [10,10]
+        self.circle_center = [10,17.5]
         self.radius = 5
         self.inspection_route = max_visible_arc(
             self.circle_center, self.radius, self.geofence_area
@@ -220,7 +220,7 @@ class InspectRoutePlanner(Component):
         return ["all"]
 
     def state_outputs(self) -> List[str]:
-        return ["route"]
+        return ["route", "mission"]
 
     def rate(self):
         return 2.0
@@ -387,11 +387,11 @@ class InspectRoutePlanner(Component):
             state.mission.type = MissionEnum.INSPECT
             start = (state.vehicle.pose.x + 1, state.vehicle.pose.y + 1)
             goal = (self.inspection_route[-1][0], self.inspection_route[-1][1])
-            if abs(start[0] - goal[0]) <= 1 and abs(start[1] - goal[1]) <= 1 and self.flag>1:
-                print(self.state_list[self.index + 1])
-                self.mission = self.state_list[self.index + 1]
-                self.index += 1
-                print("CHANGING STATES", self.mission)
+            # if abs(start[0] - goal[0]) <= 1 and abs(start[1] - goal[1]) <= 1: # and self.flag>1:
+            #     print(self.state_list[self.index + 1])
+            #     self.mission = self.state_list[self.index + 1]
+            #     self.index += 1
+            #     print("CHANGING STATES", self.mission)
             self.flag += 0.1
             self.route = Route(
                 frame=ObjectFrameEnum.START, points=self.inspection_route
@@ -408,4 +408,4 @@ class InspectRoutePlanner(Component):
 
             self.route = self.rrt_route(start, goal)
 
-        return self.route
+        return [self.route, state.mission]

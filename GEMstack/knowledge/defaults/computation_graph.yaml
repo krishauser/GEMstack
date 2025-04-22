@@ -48,7 +48,7 @@ components:
       outputs: intent
   - route_planning_component: 
       inputs: all
-      outputs: route
+      outputs: [route, mission]
   - save_lidar_data:
       inputs: all
       outputs:
