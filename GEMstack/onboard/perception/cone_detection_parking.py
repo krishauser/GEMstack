@@ -108,7 +108,7 @@ class ConeDetector3D(Component):
             all_candidates = []
             if len(centroids_vehicle_frame) % 4 == 0:
                 cone_2d = np.array([[p[0], p[1]] for p in centroids_vehicle_frame], dtype=np.float32)
-                all_candidates, closest_parking_spot = detect_parking_spots_and_select_closest(cone_2d, vehicle_position=self.vehicle_state[:2])
+                all_candidates, closest_parking_spot = detect_parking_spots_and_select_closest(cone_2d, vehicle_position=(0.0, 0.0))
                 ordered_cone_ground_centers_2D = cone_2d
 
 
