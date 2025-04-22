@@ -263,7 +263,7 @@ class ConeDetector3D(Component):
         if len(all_parking_candidates) > 0:
             for i, pose in enumerate(all_parking_candidates):
                 # Show candidate poses in a lighter color
-                ros_candidate_marker = create_parking_spot_marker(pose, ref_frame="vehicle", id_offset=100 + i, color=(0.0, 1.0, 0.0, 0.3))
+                ros_candidate_marker = create_parking_spot_marker(pose, marker_id=100 + i, ref_frame="vehicle", color=(0.0, 1.0, 0.0, 0.3))
                 self.pub_parking_spot_marker.publish(ros_candidate_marker)
 
     def detect_parking_spot(self, cone_3d_centers):
