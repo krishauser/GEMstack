@@ -6,6 +6,7 @@ import cv2
 import rospy
 import struct
 import math
+import tf.transformations as tf_trans
 
 GEM_E4_LENGTH = 3.6  # m
 GEM_E4_WIDTH  = 1.5  # m
@@ -69,15 +70,19 @@ def create_point_cloud(points, color=(255, 0, 0), ref_frame="map"):
 
     return pc2.create_cloud(header, fields, point_cloud_data)
 
-def create_markers(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ns="markers", ref_frame="map"):
+def yaw_to_quaternion(yaw):
+    """Convert yaw (in radians) to a normalized quaternion (x, y, z, w)."""
+    return tf_trans.quaternion_from_euler(0, 0, yaw)
+
+def create_markers(poses, dimensions, color = (0.0, 1.0, 1.5, 0.2), ns="markers", ref_frame="map"):
     """
     Create 3D bbox markers from centroids and dimensions
     """
     marker_array = MarkerArray()
 
-    for i, (centroid, dimension) in enumerate(zip(centroids, dimensions)):
+    for i, (pose, dimension) in enumerate(zip(poses, dimensions)):
         # Skip if no centroid or dimension
-        if (centroid == None) or (dimension == None):
+        if (pose == None) or (dimension == None):
             continue
             
         marker = Marker()
@@ -89,7 +94,7 @@ def create_markers(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ns="mark
         marker.action = Marker.ADD
 
         # Position (center of the bounding box)
-        c_x, c_y, c_z = centroid
+        c_x, c_y, c_z, yaw = pose
         if (not isinstance(c_x, float)) or (not isinstance(c_y, float)) or (not isinstance(c_z, float)):
             continue
 
@@ -98,11 +103,11 @@ def create_markers(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ns="mark
         marker.pose.position.z = c_z
 
         # Orientation (default, no rotation)
-        marker.pose.orientation.x = 0.0
-        marker.pose.orientation.y = 0.0
-        marker.pose.orientation.z = 0.0
-        marker.pose.orientation.w = 1.0
-
+        q = yaw_to_quaternion(yaw)
+        marker.pose.orientation.x = q[0]
+        marker.pose.orientation.y = q[1]
+        marker.pose.orientation.z = q[2]
+        marker.pose.orientation.w = q[3]
         # Bounding box dimensions
         d_x, d_y, d_z = dimension
         if (not isinstance(d_x, float)) or (not isinstance(d_y, float)) or (not isinstance(d_z, float)):

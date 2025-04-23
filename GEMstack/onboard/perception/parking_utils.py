@@ -161,10 +161,15 @@ def select_best_candidate(candidates, cornerPts):
     return best_candidate
 
 
+def normalize_yaw(yaw):
+    """Normalize yaw to [0, π) for orientation equivalence."""
+    return yaw % math.pi
+
+
 def get_parking_obstacles(vertices):
     vertices = np.array(vertices)
     n = len(vertices)
-    segments = []
+    segment_info = []
 
     for i in range(n):
         p1 = vertices[i]
@@ -173,10 +178,14 @@ def get_parking_obstacles(vertices):
         delta = p2 - p1
         length = np.linalg.norm(delta)
         yaw = math.atan2(delta[1], delta[0])
-        segments.append((center[0], center[1], yaw, length))
-    
-    # Sort segments by length and remove the two with least length
-    segments.sort(key=lambda x: x[3], reverse=True)
-    return segments[:-2]
+        yaw = normalize_yaw(yaw)
+        segment_info.append(((center[0], center[1], 0.0, yaw), (length, 0.05, 1.0)))
 
-  
+    # Sort by length and remove the two shortest segments
+    sorted_indices = sorted(range(len(segment_info)), key=lambda i: segment_info[i][1][0])
+    indices_to_remove = set(sorted_indices[:2])
+
+    filtered_positions = [segment_info[i][0] for i in range(len(segment_info)) if i not in indices_to_remove]
+    filtered_dimensions = [segment_info[i][1] for i in range(len(segment_info)) if i not in indices_to_remove]
+
+    return filtered_positions, filtered_dimensions

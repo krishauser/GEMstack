@@ -20,7 +20,8 @@ class ParkingDetectorConeBased(Component):
         # Init Variables
         self.vehicle_interface = vehicle_interface
         self.goal_parking_spot = None
-        self.parking_obstacles = []
+        self.parking_obstacles_pose = []
+        self.parking_obstacles_dim = []
         self.ground_threshold = -0.15
         self.vis_2d_annotate = False
         self.vis_lidar_pc = True
@@ -59,6 +60,7 @@ class ParkingDetectorConeBased(Component):
         self.pub_cones_centers_pc2 = rospy.Publisher("cones_detection/centers/point_cloud", PointCloud2, queue_size=10)
         self.pub_parking_spot_marker = rospy.Publisher("parking_spot_detection/marker", MarkerArray, queue_size=10)
         self.pub_polygon_marker = rospy.Publisher("polygon_detection/marker", MarkerArray, queue_size=10)
+        self.pub_obstacles_marker = rospy.Publisher("obstacle_detection/marker", MarkerArray, queue_size=10)
 
 
     # Main sensors callback
@@ -105,14 +107,12 @@ class ParkingDetectorConeBased(Component):
 
             # Detect parking spot if 4 or more cones are detected
             ordered_cone_ground_centers_2D = []
-            goal_parking_spot = None
             if len(centroids_vehicle_frame) >= 4:
-                ordered_cone_ground_centers_2D, goal_parking_spot = self.detect_parking_spot(centroids_vehicle_frame)
+                ordered_cone_ground_centers_2D, _ = self.detect_parking_spot(centroids_vehicle_frame)
 
             # Visualization
             self.viz_object_states(centroids_vehicle_frame,
                                    ordered_cone_ground_centers_2D, 
-                                   goal_parking_spot, 
                                    image, bboxes, lidar)
 
 
@@ -191,7 +191,6 @@ class ParkingDetectorConeBased(Component):
     def viz_object_states(self, 
                           cone_3d_centers, 
                           ordered_cone_ground_centers_2D,
-                          goal_parking_spot,
                           cv_image, boxes, 
                           lidar_ouster_frame):
         # Transform top lidar pointclouds to vehicle frame for visualization
@@ -202,7 +201,7 @@ class ParkingDetectorConeBased(Component):
             self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
 
         # Create vehicle marker
-        ros_vehicle_marker = create_markers([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 0.0, 1.0, 1), "markers", "vehicle")
+        ros_vehicle_marker = create_markers([[0.0, 0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 0.0, 1.0, 1), "markers", "vehicle")
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
 
         # Delete previous markers
@@ -210,6 +209,8 @@ class ParkingDetectorConeBased(Component):
         self.pub_polygon_marker.publish(ros_delete_polygon_marker)
         ros_delete_parking_spot_markers = delete_markers("parking_spot", 1)
         self.pub_parking_spot_marker.publish(ros_delete_parking_spot_markers)
+        ros_delete_obstacles_markers = delete_markers("obstacles", 5)
+        self.pub_obstacles_marker.publish(ros_delete_obstacles_markers)
 
         # Draw polygon first
         if len(ordered_cone_ground_centers_2D) > 0:
@@ -217,9 +218,18 @@ class ParkingDetectorConeBased(Component):
             self.pub_polygon_marker.publish(ros_polygon_marker)
 
         # Create parking spot marker
-        if goal_parking_spot:
-            ros_parking_spot_marker = create_parking_spot_marker(goal_parking_spot, ref_frame="vehicle")
+        if self.goal_parking_spot:
+            ros_parking_spot_marker = create_parking_spot_marker(self.goal_parking_spot, ref_frame="vehicle")
             self.pub_parking_spot_marker.publish(ros_parking_spot_marker)
+
+        # Create parking obstacles marker
+        if self.parking_obstacles_pose and self.parking_obstacles_dim:
+            ros_obstacles_marker =  create_markers(self.parking_obstacles_pose, 
+                                                      self.parking_obstacles_dim, 
+                                                      (1.0, 0.0, 0.0, 0.4), 
+                                                      "obstacles", "vehicle")
+            self.pub_obstacles_marker.publish(ros_obstacles_marker)
+
 
         # Draw 2D bboxes
         if self.vis_2d_annotate:
@@ -246,8 +256,8 @@ class ParkingDetectorConeBased(Component):
         candidates = find_all_candidate_parking_spots(ordered_cone_ground_centers_2D)
         # print(f"-----candidates: {candidates}")
         if len(candidates) > 0:
-            self.parking_obstacles = get_parking_obstacles(ordered_cone_ground_centers_2D)
-            # print(f"-----parking_obstacles: {self.parking_obstacles}")
+            self.parking_obstacles_pose, self.parking_obstacles_dim = get_parking_obstacles(ordered_cone_ground_centers_2D)
+            # print(f"-----parking_obstacles: {self.parking_obstacles_pose}")
             self.goal_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
             # print(f"-----goal_parking_spot: {self.goal_parking_spot}")
         return ordered_cone_ground_centers_2D, self.goal_parking_spot
@@ -273,14 +283,13 @@ class ParkingDetectorConeBased(Component):
         # Constructing parking obstacles
         obstacle_id = 0
         parking_obstacles = {}
-        for o in self.parking_obstacles:
-            x, y, yaw, length = o
-            dimensions = [length, 0.01, 20.0]
+        for o_pose, o_dim in zip(self.parking_obstacles_pose, self.parking_obstacles_dim):
+            x, y, z, yaw = o_pose
             obstacle_pose = ObjectPose(
                                 t=current_time,
                                 x=x,
                                 y=y,
-                                z=0.0,
+                                z=z,
                                 yaw=yaw,
                                 pitch=0.0,
                                 roll=0.0,
@@ -288,7 +297,7 @@ class ParkingDetectorConeBased(Component):
                             )
             new_obstacle = Obstacle(
                                 pose=obstacle_pose,
-                                dimensions=dimensions,
+                                dimensions=o_dim,
                                 outline=None,
                                 material=ObstacleMaterialEnum.BARRIER,
                                 collidable=True
