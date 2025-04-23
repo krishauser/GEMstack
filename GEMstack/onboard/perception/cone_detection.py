@@ -616,6 +616,16 @@ class ConeDetector3D(Component):
 
         # If tracking not enabled, return only current frame detections
         if not self.enable_tracking:
+            for agent_id, agent in self.current_agents.items():
+                p = agent.pose
+                rospy.loginfo(
+                    f"Agent ID: {agent_id}\n"
+                    f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
+                    f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
+                    f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
+                    f"type:{agent.activity}"
+                )
+
             return self.current_agents
 
         stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
@@ -623,6 +633,17 @@ class ConeDetector3D(Component):
         for agent_id in stale_ids:
             rospy.loginfo(f"Removing stale agent: {agent_id}\n")
             del self.tracked_agents[agent_id]
+        if self.enable_tracking:
+            for agent_id, agent in self.tracked_agents.items():
+                p = agent.pose
+                rospy.loginfo(
+                    f"Agent ID: {agent_id}\n"
+                    f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
+                    f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
+                    f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
+                    f"type:{agent.activity}"
+                )
+
 
         return self.tracked_agents
 
