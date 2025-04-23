@@ -123,7 +123,6 @@ class ParkingDetectorConeBased(Component):
             depths = np.linalg.norm(lidar_points, axis=1)
         else:
             depths = lidar_points[:, 0]
-
         min_depth = np.min(depths)
         max_possible_depth = min_depth + max_depth_diff
         mask = depths < max_possible_depth
@@ -157,10 +156,6 @@ class ParkingDetectorConeBased(Component):
         return cv2.undistort(img, self.K, self.D, None, new_K), new_K
 
     def pc2_to_numpy(self, pc2_msg, want_rgb=False):
-        """
-        Convert a ROS PointCloud2 message into a numpy array quickly using ros_numpy.
-        This function extracts the x, y, z coordinates from the point cloud.
-        """
         # Convert the ROS message to a numpy structured array
         pc = ros_numpy.point_cloud2.pointcloud2_to_array(pc2_msg)
         # Stack x,y,z fields to a (N,3) array
@@ -242,9 +237,7 @@ class ParkingDetectorConeBased(Component):
                 ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=(255, 0, 255))
                 self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
-
     def detect_parking_spot(self, cone_3d_centers):
-        closest_parking_spot = None
         cone_ground_centers = np.array(cone_3d_centers)
         cone_ground_centers_2D = cone_ground_centers[:, :2]
         ordered_cone_ground_centers_2D = self.order_points_convex_hull(cone_ground_centers_2D)

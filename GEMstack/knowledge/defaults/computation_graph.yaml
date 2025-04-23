@@ -60,4 +60,3 @@ components:
       outputs: goal
   - parking_state:
       inputs: all
-      outputs: goal
