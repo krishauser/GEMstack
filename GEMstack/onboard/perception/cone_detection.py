@@ -95,7 +95,7 @@ def pc2_to_numpy(pc2_msg, want_rgb=False):
                     np.array(pc['y']).ravel(),
                     np.array(pc['z']).ravel()), axis=1)
     # Apply filtering (for example, x > 0 and z in a specified range)
-    mask = (pts[:, 0] > 0)
+    mask = (pts[:, 0] > -0.5) & (pts[:, 2] < -1) & (pts[:, 2] > -2.7)
     return pts[mask]
 
 
