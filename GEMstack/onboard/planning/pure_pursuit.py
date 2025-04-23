@@ -8,6 +8,7 @@ from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
 from ..component import Component
 import numpy as np
+import rospy
 
 class PurePursuit(object):   
     """Implements a pure pursuit controller on a second-order Dubins vehicle."""
@@ -241,6 +242,8 @@ class PurePursuitTrajectoryTracker(Component):
     def __init__(self,vehicle_interface=None, **args):
         self.pure_pursuit = PurePursuit(**args)
         self.vehicle_interface = vehicle_interface
+        self.enable_launch_control = settings.get('control.launch_control.enable', False) # and vehicle.v < 0.1
+        self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
 
     def rate(self):
         return 50.0
@@ -258,8 +261,26 @@ class PurePursuitTrajectoryTracker(Component):
         steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
         #print("Desired steering angle",steering_angle)
 
-        launch_control = self.pure_pursuit.enable_launch_control and vehicle.v < 0.1
-        self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle, launch_control=launch_control))
+        cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
+
+        if self.enable_launch_control:
+            print("launch control active")
+            if not hasattr(self,'_launch_start_time'):
+                self._launch_start_time = rospy.get_time()  
+            elapsed = rospy.get_time() - self._launch_start_time
+            if elapsed < self.stage_duration:
+                cmd.accelerator_pedal_position = 0.0
+                cmd.brake_pedal_position = 1.0
+            elif elapsed < 2 * self.stage_duration:
+                cmd.accelerator_pedal_position = 1.0
+                cmd.brake_pedal_position = 1.0
+            elif elapsed < 3 * self.stage_duration:
+                cmd.accelerator_pedal_position = 1.0
+                cmd.brake_pedal_position = 0.0
+            else:
+                self.enable_launch_control = False
+
+        self.vehicle_interface.send_command(cmd)
     
     def healthy(self):
         return self.pure_pursuit.path is not None
