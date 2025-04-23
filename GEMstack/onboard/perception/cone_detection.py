@@ -273,20 +273,13 @@ class ConeDetector3D(Component):
     """
     Detects cones by fusing YOLO 2D detections with LiDAR point cloud data.
 
-    New approach:
-      1) Downsample the LiDAR point cloud.
-      2) Transform it to the camera coordinate system.
-      3) Project all points onto the image plane.
-      4) Filter the projected points using the YOLO 2D bounding boxes.
-      5) Apply DBSCAN clustering and remove ground points.
-      6) Compute an oriented bounding box and transform to the Vehicle frame.
-      7) (Optional) Reproject the refined cluster onto the image.
-
-    (Note: Do not add any additional visualization beyond what is necessary.)
+    Tracking is optional: set `enable_tracking=False` to disable persistent tracking
+    and return only detections from the current frame.
     """
 
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
+        self.enable_tracking = False
         self.current_agents = {}
         self.tracked_agents = {}
         self.cone_counter = 0
@@ -296,11 +289,11 @@ class ConeDetector3D(Component):
         self.start_pose_abs = None
         self.camera_front = True
         self.visualize_2d = False
-        self.use_cyl_roi = True
+        self.use_cyl_roi = False
         self.start_time = None
-        self.use_start_frame = True
+        self.use_start_frame = False
         self.save_data = False
-
+        self.orientation = False
 
     def rate(self) -> float:
         return 4.0
@@ -326,14 +319,14 @@ class ConeDetector3D(Component):
                                [0., 0., 1.]])
         else:
             self.K = np.array([[1.17625545e+03, 0.00000000e+00, 9.66432645e+02],
-       [0.00000000e+00, 1.17514569e+03, 6.08580326e+02],
-       [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+                               [0.00000000e+00, 1.17514569e+03, 6.08580326e+02],
+                               [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
 
         if self.camera_front:
             self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
         else:
-            self.D = np.array([-2.70136325e-01,  1.64393255e-01, -1.60720782e-03, -7.41246708e-05,
-  -6.19939758e-02])
+            self.D = np.array([-2.70136325e-01, 1.64393255e-01, -1.60720782e-03, -7.41246708e-05,
+                               -6.19939758e-02])
 
         self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
                                [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
@@ -341,17 +334,17 @@ class ConeDetector3D(Component):
                                [0., 0., 0., 1.]])
         if self.camera_front:
             self.T_l2c = np.array([
-        [0.001090, -0.999489, -0.031941, 0.149698],
+                [0.001090, -0.999489, -0.031941, 0.149698],
                 [-0.007664, 0.031932, -0.999461, -0.397813],
                 [0.999970, 0.001334, -0.007625, -0.691405],
                 [0., 0., 0., 1.000000]
-    ])
+            ])
         else:
-            self.T_l2c = np.array([[-0.71836368, -0.69527204, -0.02346088,  0.05718003],
-     [-0.09720448,  0.13371206, -0.98624154, -0.1598301 ],
-     [ 0.68884317, -0.7061996 , -0.16363744, -1.04767285],
-     [ 0.        ,  0.        ,  0.        ,  1.        ]]
-)
+            self.T_l2c = np.array([[-0.71836368, -0.69527204, -0.02346088, 0.05718003],
+                                   [-0.09720448, 0.13371206, -0.98624154, -0.1598301],
+                                   [0.68884317, -0.7061996, -0.16363744, -1.04767285],
+                                   [0., 0., 0., 1.]]
+                                  )
         self.T_c2l = np.linalg.inv(self.T_l2c)
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
@@ -380,15 +373,12 @@ class ConeDetector3D(Component):
             self.start_time = current_time
         time_elapsed = current_time - self.start_time
 
-        if self.save_data == True:
+        if self.save_data:
             tstamp = int(self.vehicle_interface.time() * 1000)
-
             # 1) Dump raw image
             cv2.imwrite(f"data/{tstamp}_image.png", self.latest_image)
-
             # 2) Dump raw LiDAR
             np.savez(f"data/{tstamp}_lidar.npz", lidar=self.latest_lidar)
-
             # 3) Write BEFORE_TRANSFORM
             with open(f"data/{tstamp}_vehstate.txt", "w") as f:
                 vp = vehicle.pose
@@ -397,16 +387,10 @@ class ConeDetector3D(Component):
                     f"x={vp.x:.3f}, y={vp.y:.3f}, z={vp.z:.3f}, "
                     f"yaw={vp.yaw:.2f}, pitch={vp.pitch:.2f}, roll={vp.roll:.2f}\n"
                 )
-
-
-
             # Compute vehicle_start_pose in either START or CURRENT
             if self.use_start_frame:
-                # initialize the START reference pose once (e.g. after 5s)
                 if self.start_pose_abs is None:
                     self.start_pose_abs = vehicle.pose
-
-                # do the frame transform
                 vehicle_start_pose = vehicle.pose.to_frame(
                     ObjectFrameEnum.START,
                     vehicle.pose,
@@ -414,11 +398,8 @@ class ConeDetector3D(Component):
                 )
                 mode = "START"
             else:
-                # no transform, just stay in CURRENT frame
                 vehicle_start_pose = vehicle.pose
                 mode = "CURRENT"
-
-            # Append AFTER_TRANSFORM using that same variable
             with open(f"data/{tstamp}_vehstate.txt", "a") as f:
                 f.write(
                     f"AFTER_TRANSFORM "
@@ -437,49 +418,32 @@ class ConeDetector3D(Component):
         orig_H, orig_W = undistorted_img.shape[:2]
 
         # --- Begin modifications for three-angle detection ---
-        # Create three images: normal, left rotated (counterclockwise 90°), and right rotated (clockwise 90°)
         img_normal = undistorted_img
-        img_left = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
-        img_right = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_CLOCKWISE)
-
-        # Run YOLO on all three images.
         results_normal = self.detector(img_normal, conf=0.3, classes=[0])
-        results_left = self.detector(img_left, conf=0.3, classes=[0])
-        results_right = self.detector(img_right, conf=0.3, classes=[0])
+        combined_boxes = []
+        if self.orientation:
+            img_left = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
+            img_right = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_CLOCKWISE)
+            results_left = self.detector(img_left, conf=0.3, classes=[0])
+            results_right = self.detector(img_right, conf=0.3, classes=[0])
+            boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
+            boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
+            for box in boxes_left:
+                cx, cy, w, h = box
+                new_cx = cy
+                new_cy = orig_W - 1 - cx
+                combined_boxes.append((new_cx, new_cy, h, w, AgentActivityEnum.RIGHT))
+            for box in boxes_right:
+                cx, cy, w, h = box
+                new_cx = orig_H - 1 - cy
+                new_cy = cx
+                combined_boxes.append((new_cx, new_cy, h, w, AgentActivityEnum.LEFT))
 
         boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
-        boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
-        boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
-
-        # Combine boxes from all three detections.
-        # For the left rotated image:
-        #  In the left-rotated image, a point (cx, cy) corresponds to the original
-        #  coordinates: new_cx = cy, new_cy = orig_W - 1 - cx.
-        #  Also, swap the width and height.
-        # For the right rotated image:
-        #  A point (cx, cy) maps as: new_cx = orig_H - 1 - cy, new_cy = cx,
-        #  with width and height swapped.
-        combined_boxes = []
         for box in boxes_normal:
             cx, cy, w, h = box
             combined_boxes.append((cx, cy, w, h, AgentActivityEnum.STANDING))
-        for box in boxes_left:
-            cx, cy, w, h = box
-            new_cx = cy
-            new_cy = orig_W - 1 - cx
-            new_w = h
-            new_h = w
-            combined_boxes.append((new_cx, new_cy, new_w, new_h, AgentActivityEnum.RIGHT))
-        for box in boxes_right:
-            cx, cy, w, h = box
-            new_cx = orig_H - 1 - cy
-            new_cy = cx
-            new_w = h
-            new_h = w
-            combined_boxes.append((new_cx, new_cy, new_w, new_h, AgentActivityEnum.LEFT))
-        # --- End modifications for three-angle detection ---
 
-        # Optional 2D visualization: Draw fused 2D boxes on the undistorted image if flag is set.
         if getattr(self, 'visualize_2d', False):
             for (cx, cy, w, h, activity) in combined_boxes:
                 left = int(cx - w / 2)
@@ -487,13 +451,13 @@ class ConeDetector3D(Component):
                 top = int(cy - h / 2)
                 bottom = int(cy + h / 2)
                 if activity == AgentActivityEnum.STANDING:
-                    color = (255, 0, 0)  # Blue
+                    color = (255, 0, 0)
                     label = "STANDING"
                 elif activity == AgentActivityEnum.RIGHT:
-                    color = (0, 255, 0)  # Green
+                    color = (0, 255, 0)
                     label = "RIGHT"
                 elif activity == AgentActivityEnum.LEFT:
-                    color = (0, 0, 255)  # Red
+                    color = (0, 0, 255)
                     label = "LEFT"
                 else:
                     color = (255, 255, 255)
@@ -503,25 +467,16 @@ class ConeDetector3D(Component):
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             cv2.imshow("Detection - Cone 2D", undistorted_img)
 
-        # Remaining LiDAR processing (unchanged)
-        if downsample == True:
+        if downsample:
             lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
-            pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
-            projected_pts = project_points(pts_cam, self.current_K, lidar_down)
         else:
-            step00 = time.time()
             lidar_down = self.latest_lidar.copy()
-            step01 = time.time()
-            pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
-            step02 = time.time()
-            projected_pts = project_points(pts_cam, self.current_K, lidar_down)
-            step03 = time.time()
-            print(
-                f'copy lidar data {step01 - step00}s, transforming to camera {step02 - step01}s, projecting to image {step03 - step02}s')
+
+        pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
+        projected_pts = project_points(pts_cam, self.current_K, lidar_down)
 
         agents = {}
 
-        # For each 2D bounding box (from the combined list), process LiDAR points.
         for i, box_info in enumerate(combined_boxes):
             cx, cy, w, h, activity = box_info
             start = time.time()
@@ -534,29 +489,21 @@ class ConeDetector3D(Component):
             roi_pts = projected_pts[mask]
             if roi_pts.shape[0] < 5:
                 continue
-            # Extract the LiDAR 3D points corresponding to the ROI.
             points_3d = roi_pts[:, 2:5]
-            points_3d = remove_ground_by_min_range(points_3d, z_range=0.005)
-            points_3d = filter_points_within_threshold(points_3d, 15)
+            points_3d = filter_points_within_threshold(points_3d, 30)
             points_3d = filter_depth_points(points_3d, max_depth_diff=0.3)
 
-            # Modification: optionally use cylindrical ROI adjustment.
             if self.use_cyl_roi:
-                global_filtered = filter_points_within_threshold(lidar_down, 500)
-                # Build a cylindrical ROI based on the global filtered LiDAR points
-                # and the mean of the extracted points as the center.
-                roi_cyl = cylindrical_roi(global_filtered, np.mean(points_3d, axis=0), radius=0.4, height=1.2)
+                global_filtered = filter_points_within_threshold(lidar_down, 30)
+                roi_cyl = cylindrical_roi(global_filtered, np.mean(points_3d, axis=0), radius=0.3, height=1.2)
                 refined_cluster = remove_ground_by_min_range(roi_cyl, z_range=0.01)
                 refined_cluster = filter_depth_points(refined_cluster, max_depth_diff=0.2)
             else:
-                # Use the original method.
                 refined_cluster = remove_ground_by_min_range(points_3d, z_range=0.05)
             end1 = time.time()
-            print('refine cluster: ', end1 - start)
             if refined_cluster.shape[0] < 4:
                 continue
 
-            # Compute the oriented bounding box.
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(refined_cluster)
             obb = pcd.get_oriented_bounding_box()
@@ -564,15 +511,13 @@ class ConeDetector3D(Component):
             dims = tuple(obb.extent)
             R_lidar = obb.R.copy()
             end2 = time.time()
-            print('compute bounding box ', end2 - end1)
-            # Transform the refined center from LiDAR to Vehicle frame.
+
             refined_center_hom = np.append(refined_center, 1)
             refined_center_vehicle_hom = self.T_l2v @ refined_center_hom
             refined_center_vehicle = refined_center_vehicle_hom[:3]
 
             R_vehicle = self.T_l2v[:3, :3] @ R_lidar
-            euler_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
-            yaw, pitch, roll = euler_vehicle
+            yaw, pitch, roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
             refined_center = refined_center_vehicle
 
             if self.use_start_frame:
@@ -584,11 +529,9 @@ class ConeDetector3D(Component):
                     self.start_pose_abs
                 )
                 T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
-                hom = np.append(refined_center, 1)
-                xp, yp, zp = (T_vehicle_to_start @ hom)[:3]
+                xp, yp, zp = (T_vehicle_to_start @ np.append(refined_center, 1))[:3]
                 out_frame = ObjectFrameEnum.START
             else:
-                # stay in the CURRENT vehicle frame
                 xp, yp, zp = refined_center
                 out_frame = ObjectFrameEnum.CURRENT
 
@@ -598,36 +541,54 @@ class ConeDetector3D(Component):
                 yaw=yaw, pitch=pitch, roll=roll,
                 frame=out_frame
             )
-            end1 = time.time()
-            existing_id = match_existing_cone(
-                new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
-                new_dims=dims,
-                existing_agents=self.tracked_agents,
-                distance_threshold=2.0
-            )
-            if existing_id is not None:
-                old_state = self.tracked_agents[existing_id]
-                if vehicle.v < 0.1:
-                    alpha = 0.1
-                    avg_x = alpha * new_pose.x + (1 - alpha) * old_state.pose.x
-                    avg_y = alpha * new_pose.y + (1 - alpha) * old_state.pose.y
-                    avg_z = alpha * new_pose.z + (1 - alpha) * old_state.pose.z
-                    avg_yaw = alpha * new_pose.yaw + (1 - alpha) * old_state.pose.yaw
-                    avg_pitch = alpha * new_pose.pitch + (1 - alpha) * old_state.pose.pitch
-                    avg_roll = alpha * new_pose.roll + (1 - alpha) * old_state.pose.roll
 
-                    updated_pose = ObjectPose(
-                        t=new_pose.t,
-                        x=avg_x,
-                        y=avg_y,
-                        z=avg_z,
-                        yaw=avg_yaw,
-                        pitch=avg_pitch,
-                        roll=avg_roll,
-                        frame=new_pose.frame
-                    )
-                    updated_agent = AgentState(
-                        pose=updated_pose,
+            # --- Optional tracking ---
+            if self.enable_tracking:
+                existing_id = match_existing_cone(
+                    np.array([new_pose.x, new_pose.y, new_pose.z]),
+                    dims,
+                    self.tracked_agents,
+                    distance_threshold=2.0
+                )
+                if existing_id is not None:
+                    old_state = self.tracked_agents[existing_id]
+                    if vehicle.v < 0.1:
+                        alpha = 0.1
+                        avg_x = alpha * new_pose.x + (1 - alpha) * old_state.pose.x
+                        avg_y = alpha * new_pose.y + (1 - alpha) * old_state.pose.y
+                        avg_z = alpha * new_pose.z + (1 - alpha) * old_state.pose.z
+                        avg_yaw = alpha * new_pose.yaw + (1 - alpha) * old_state.pose.yaw
+                        avg_pitch = alpha * new_pose.pitch + (1 - alpha) * old_state.pose.pitch
+                        avg_roll = alpha * new_pose.roll + (1 - alpha) * old_state.pose.roll
+
+                        updated_pose = ObjectPose(
+                            t=new_pose.t,
+                            x=avg_x,
+                            y=avg_y,
+                            z=avg_z,
+                            yaw=avg_yaw,
+                            pitch=avg_pitch,
+                            roll=avg_roll,
+                            frame=new_pose.frame
+                        )
+                        updated_agent = AgentState(
+                            pose=updated_pose,
+                            dimensions=dims,
+                            outline=None,
+                            type=AgentEnum.CONE,
+                            activity=activity,
+                            velocity=(0, 0, 0),
+                            yaw_rate=0
+                        )
+                    else:
+                        updated_agent = old_state
+                    agents[existing_id] = updated_agent
+                    self.tracked_agents[existing_id] = updated_agent
+                else:
+                    agent_id = f"Cone{self.cone_counter}"
+                    self.cone_counter += 1
+                    new_agent = AgentState(
+                        pose=new_pose,
                         dimensions=dims,
                         outline=None,
                         type=AgentEnum.CONE,
@@ -635,10 +596,8 @@ class ConeDetector3D(Component):
                         velocity=(0, 0, 0),
                         yaw_rate=0
                     )
-                else:
-                    updated_agent = old_state
-                agents[existing_id] = updated_agent
-                self.tracked_agents[existing_id] = updated_agent
+                    agents[agent_id] = new_agent
+                    self.tracked_agents[agent_id] = new_agent
             else:
                 agent_id = f"Cone{self.cone_counter}"
                 self.cone_counter += 1
@@ -652,25 +611,19 @@ class ConeDetector3D(Component):
                     yaw_rate=0
                 )
                 agents[agent_id] = new_agent
-                self.tracked_agents[agent_id] = new_agent
-            end2 = time.time()
-            print(f'Tracking time:{end2 - end1}')
 
         self.current_agents = agents
+
+        # If tracking not enabled, return only current frame detections
+        if not self.enable_tracking:
+            return self.current_agents
 
         stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
                      if current_time - agent.pose.t > 5.0]
         for agent_id in stale_ids:
             rospy.loginfo(f"Removing stale agent: {agent_id}\n")
-        for agent_id, agent in self.tracked_agents.items():
-            p = agent.pose
-            rospy.loginfo(
-                f"Agent ID: {agent_id}\n"
-                f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
-                f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
-                f"type:{agent.activity}"
-            )
+            del self.tracked_agents[agent_id]
+
         return self.tracked_agents
 
     # ----- Fake Cone Detector 2D (for Testing Purposes) -----
