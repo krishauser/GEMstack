@@ -16,7 +16,7 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/turn_right2.csv']
+            args: [!relative_path '../GEMstack/knowledge/routes/slalom.csv']
         motion_planning:
             type: racing_planning.SlalomTrajectoryPlanner
             # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
