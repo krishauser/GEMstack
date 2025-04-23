@@ -174,7 +174,7 @@ class ParkingSolverSecondOrderDubins(AStar):
         dtheta = state[4]
         t = state[5]
 
-        pose = ObjectPose(frame=ObjectFrameEnum.START,t=t, x=x,y=y,z=0,yaw=theta)
+        pose = ObjectPose(frame=ObjectFrameEnum.START,t=t, x=x,y=y,z=0,yaw=theta,pitch=0,roll=0)
         
         temp_obj = PhysicalObject(pose=pose,
                                dimensions=self.vehicle.to_object().dimensions,
@@ -245,8 +245,35 @@ class ParkingPlanner(Component):
         vehicle = state.vehicle # type: VehicleState
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         agents = state.agents # type: Dict[str, AgentState]
+        print(f"Vehicle {vehicle}")
         print(f"Obstacles {obstacles}")
         print(f"Agents {agents}")
+
+        # Convert all obstacles (agents) to the vehicle frame
+        vehicle_frame = vehicle.pose.frame
+        converted_obstacles = []
+
+        for agent in agents.values():
+            # Copy and transform the pose to the vehicle frame
+            converted_pose = agent.pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+            # if current frame
+            # converted_pose = agent.pose.to_frame(ObjectFrameEnum.CURRENT, current_pose=vehicle.pose, start_pose_abs=state.start_vehicle_pose)
+
+
+            # Construct a new AgentState using the transformed pose
+            converted_agent = AgentState(
+                pose=converted_pose,
+                dimensions=agent.dimensions,
+                outline=agent.outline,
+                type=agent.type,
+                activity=agent.activity,
+                velocity=agent.velocity,
+                yaw_rate=agent.yaw_rate
+            )
+    
+            converted_obstacles.append(converted_agent)
+
+            print(f"Converted Agents {converted_agent}")
         route = state.route
         goal_point = route.points[-1] # I might need to change this to the same frame as the car?
         goal_pose = ObjectPose(frame=ObjectFrameEnum.START,t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
@@ -261,7 +288,8 @@ class ParkingPlanner(Component):
 
         # Update the planner
         # self.planner.obstacles = list(obstacles.values())
-        self.planner.obstacles = list(agents.values())
+        self.planner.obstacles = converted_obstacles
+        # self.planner.obstacles = list(agents.values())
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
