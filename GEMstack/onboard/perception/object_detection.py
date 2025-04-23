@@ -45,7 +45,7 @@ class ObjectDetection(Component):
 
         # yolo model
         self.detector = YOLO(os.getcwd()+'/GEMstack/knowledge/detection/yolov8n.pt')
-        self.confidence = 0.7
+        self.confidence = 0.1
         self.classes_to_detect = 0
 
    
@@ -61,6 +61,18 @@ class ObjectDetection(Component):
 
     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
 
+        print(f"VEHICLE State at time: {vehicle.pose.t}")
+
+        print(f"x: {vehicle.pose.x}")
+        print(f"y: {vehicle.pose.y}")
+
+        print(f"z: {vehicle.pose.z}")
+        print(f"roll: {vehicle.pose.roll}")
+        print(f"pitch: {vehicle.pose.pitch}")
+        print(f"yaw: {vehicle.pose.yaw}")
+        print(f"speed: {vehicle.v}")
+
+
         return {}
 
 
@@ -73,19 +85,22 @@ class ObjectDetection(Component):
 
         track_result = self.detector.track(source=image, persist=True, conf=self.confidence)
 
-        
+        class_names = self.detector.names
         label_text = "Object "
         font = cv2.FONT_HERSHEY_SIMPLEX
         font_scale = 0.5
         font_color = (255, 255, 255)  # White text
         outline_color = (0, 0, 0)  # Black outline
         line_type = 2
-        text_thickness = 2 # Text thickness
+        text_thickness = 1 # Text thickness
         outline_thickness = 1  # Thickness of the text outline
 
         boxes = track_result[0].boxes
         for box in boxes:
 
+            
+            class_id = int(box.cls.item())
+            label_text = class_names[class_id]
             xywh = box.xywh[0].tolist()
             x, y, w, h = xywh
             id = box.id.item()

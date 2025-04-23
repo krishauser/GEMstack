@@ -1,7 +1,7 @@
 # ********* Main settings entry point for behavior stack ***********
 
 # Configure settings for the vehicle / vehicle model
-vehicle:  !include ../vehicle/gem_e4.yaml
+vehicle:  !include ../vehicle/gem_e2_gazebo.yaml
 
 #arguments for algorithm components here
 model_predictive_controller:
@@ -13,13 +13,13 @@ control:
         brake_speed : 2.0
     pure_pursuit:
         lookahead: 4.0
-        lookahead_scale: 1.0
+        lookahead_scale: 3.0
         crosstrack_gain: 1.0
         desired_speed: trajectory
     longitudinal_control:
-        pid_p: 1.0
-        pid_i: 0.1
-        pid_d: 0.0
+        pid_p: 0.1
+        pid_i: 0.5
+        pid_d: 0.5
 
 #configure the simulator, if using
 simulator:
