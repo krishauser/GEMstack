@@ -1,0 +1,33 @@
+vehicle_state: [0.0, 0.0, 0.0, 0.0, 0.0]
+agents:
+  cone1:
+    type: pedestrian
+    position: [10.0, 0.0]
+    nominal_velocity: 0.0
+    target: [10.0, 0.0]
+    # target: [10.0,10.0]
+    behavior: loop
+
+  cone2:
+    type: pedestrian
+    position: [30.0, 1.0]
+    nominal_velocity: 0.0
+    target: [30.0, 1.0]
+    # target: [10.0,10.0]
+    behavior: loop
+
+  cone3:
+    type: pedestrian
+    position: [50.0, 0.0]
+    nominal_velocity: 0.0
+    target: [50.0, 0.0]
+    # target: [10.0,10.0]
+    behavior: loop
+
+  cone4:
+    type: pedestrian
+    position: [70.0, 1.0]
+    nominal_velocity: 0.0
+    target: [70.0, 1.0]
+    # target: [10.0,10.0]
+    behavior: loop
