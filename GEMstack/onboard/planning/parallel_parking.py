@@ -24,7 +24,7 @@ Obstacle = Tuple[float, float, float, Dims] # (x, y, yaw, (width, length))
 # TODO: Pass constant to settings or config, double-check value rho (turning radius)
 def reeds_shepp_path(start_pose, final_pose, step_size=0.1, rho=3.657):# 3.657
     path = reeds_shepp.path_sample(start_pose, final_pose, rho, step_size)
-    waypoints = [(x, y, yaw) for x, y, yaw in path]
+    waypoints = [(x, y, yaw) for x, y, yaw, *_ in path]
     #waypoints = np.array(waypoints_for_obstacles_check)[:,:2]
     return waypoints
 
@@ -383,7 +383,13 @@ class SummoningParkingRoutePlanner(Component):
         
         # TODO: Replace with real parked cars
         # Slot 1 (2.69, -2.44, 0.0, (2.44, 4.88)), Slot 2 (7.57, -2.44, 0.0, (2.44, 4.88)),  Slot 3 (12.45, -2.44, 0.0, (2.44, 4.88)),Slot 4 (17.33, -2.44, 0.0, (2.44, 4.88)), Slot 5 (22.11, -2.44, 0.0, (2.44, 4.88))
-        self.parked_cars = [(2.69, -2.44, 0.0, (1.7, 3.2)),(7.57, -2.44, 0.0, (1.7, 3.2)),(12.45, -2.44, 0.0, (1.7, 3.2))]
+
+        # Forward only
+        # self.parked_cars = [(2.69, -2.44, 0.0, (1.7, 3.2)),(7.57, -2.44, 0.0, (1.7, 3.2)),(12.45, -2.44, 0.0, (1.7, 3.2))]
+
+        # With reverse control
+        self.parked_cars = [(2.69, -2.44, 0.0, (1.7, 3.2)),(7.57, -2.44, 0.0, (1.7, 3.2)),(12.45, -2.44, 0.0, (1.7, 3.2)),(22.11, -2.44, 0.0, (2.44, 4.88))]
+
         self.objects_to_avoid_collisions = self.static_horizontal_curb + self.static_obstacles_vertical_curb + self.parked_cars
         self.all_parking_spots_in_parking_lot = all_parking_spots_in_parking_lot(self.static_horizontal_curb, self.compact_parking_spot_size, yaw_of_parked_cars=0.0, shift_from_center_to_rear_axis = 2.56/2)
         self.available_parking_spots = available_parking_spots(self.all_parking_spots_in_parking_lot, self.parked_cars, self.compact_parking_spot_size, yaw_of_parked_cars=0.0, shift_from_center_to_rear_axis = 2.56/2)
