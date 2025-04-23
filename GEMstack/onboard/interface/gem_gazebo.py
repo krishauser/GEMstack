@@ -1,6 +1,7 @@
 from .gem import *
 from ...utils import settings
 import math
+import time 
 
 # ROS Headers
 import rospy
@@ -74,6 +75,7 @@ class GEMGazeboInterface(GEMInterface):
         self.ackermann_pub = rospy.Publisher(
             '/ackermann_cmd', AckermannDrive, queue_size=1)
         self.ackermann_cmd = AckermannDrive()
+        self.last_command = None  # Store the last command
 
         # Subscribe to IMU topic by default
         self.imu_sub = rospy.Subscriber("/imu", Imu, self.imu_callback)
@@ -214,21 +216,64 @@ class GEMGazeboInterface(GEMInterface):
         return self.faults
 
     def send_command(self, command : GEMVehicleCommand):
+        # Throttle rate at which we send commands
+        t = self.time()
+        if t < self.last_command_time + 1.0/self.max_send_rate:
+            # Skip command, similar to hardware interface
+            return
+        self.last_command_time = t
         
-        v  =  self.last_reading.speed
-        # convert pedal to acceleration
-        accelerator_pedal_position = np.clip(command.accelerator_pedal_position,0.0,1.0)
-        brake_pedal_position = np.clip(command.brake_pedal_position,0.0,1.0)
-        acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,1)
-        acceleration = np.clip(acceleration,-2, 1)
-        # convert wheel angle to steering angle
+        # Get current speed
+        v = self.last_reading.speed
+        
+        # Convert pedal to acceleration
+        accelerator_pedal_position = np.clip(command.accelerator_pedal_position, 0.0, 1.0)
+        brake_pedal_position = np.clip(command.brake_pedal_position, 0.0, 1.0)
+        
+        # Zero out accelerator if brake is active (just like hardware interface)
+        if brake_pedal_position > 0.0:
+            accelerator_pedal_position = 0.0
+            
+        # Calculate acceleration from pedal positions
+        acceleration = pedal_positions_to_acceleration(accelerator_pedal_position, brake_pedal_position, v, 0, 1)
+        
+        # Apply reasonable limits to acceleration
+        max_accel = settings.get('vehicle.limits.max_acceleration', 1.0)
+        max_decel = settings.get('vehicle.limits.max_deceleration', -2.0)
+        acceleration = np.clip(acceleration, max_decel, max_accel)
+        
+        # Convert wheel angle to steering angle (front wheel angle)
         phides = steer2front(command.steering_wheel_angle)
         
-        #create and publish drive message
+        # Apply steering angle limits
+        min_wheel_angle = settings.get('vehicle.geometry.min_wheel_angle', -0.6)
+        max_wheel_angle = settings.get('vehicle.geometry.max_wheel_angle', 0.6)
+        phides = np.clip(phides, min_wheel_angle, max_wheel_angle)
+        
+        # Calculate target speed based on acceleration
+        # Don't use infinite speed, instead calculate a reasonable target speed
+        current_speed = v
+        target_speed = current_speed
+        
+        if acceleration > 0:
+            # Accelerating - set target speed to current speed plus some increment
+            # This is more realistic than infinite speed
+            max_speed = settings.get('vehicle.limits.max_speed', 10.0)
+            target_speed = min(current_speed + acceleration * 0.5, max_speed)
+        elif acceleration < 0:
+            # Braking - set target speed to zero if deceleration is significant
+            if brake_pedal_position > 0.1:
+                target_speed = 0.0
+        
+        # Create and publish drive message
         msg = AckermannDrive()
         msg.acceleration = acceleration
-        msg.speed = float('inf') if acceleration >0 else 0  #acceleration * self.dt 
+        msg.speed = target_speed
         msg.steering_angle = phides
-
+        msg.steering_angle_velocity = command.steering_wheel_speed  # Respect steering velocity limit
+        
+        # Debug output
+        print(f"[ACKERMANN] Speed: {msg.speed:.2f}, Accel: {msg.acceleration:.2f}, Steer: {msg.steering_angle:.2f}")
+        
         self.ackermann_pub.publish(msg)
         self.last_command = command

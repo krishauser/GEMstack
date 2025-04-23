@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
+from matplotlib import cm
 import os
 
 CMAP = "RdYlGn"
@@ -104,13 +105,18 @@ def compute_derivative(times, values):
     """
     dt = np.diff(times)
     dv = np.diff(values)
-    derivative = dv / dt
+    
+    # Avoid division by zero or very small values
+    mask = np.abs(dt) > 1e-10
+    derivative = np.zeros_like(dt)
+    derivative[mask] = dv[mask] / dt[mask]
+    
     return times[1:], derivative
 
 def add_safety_colorbar(figure):
     """Adds a colorbar to the right of the figure"""
     cbar_ax = figure.add_axes([0.92, 0.2, 0.02, 0.6])
-    sm = plt.cm.ScalarMappable(cmap=CMAP)
+    sm = cm.ScalarMappable(cmap=CMAP)
     cbar = figure.colorbar(sm, cax=cbar_ax)
     cbar.set_label("Comfort/Safety Level")
 
@@ -149,9 +155,18 @@ def plot_jerk(axis, time, jerk, safe_thresh=1.0, unsafe_thresh=2.5):
     lc.set_array(safety[:-1])
     axis.add_collection(lc)
 
-    # set limits & labels
+    # Set axis limits safely, avoiding NaN/Inf values
+    if len(jerk) > 0:
+        valid_jerk = jerk[~np.isnan(jerk) & ~np.isinf(jerk)]
+        if len(valid_jerk) > 0:
+            ymin, ymax = valid_jerk.min(), valid_jerk.max()
+            # Add small margin if min equals max
+            if ymin == ymax:
+                ymin -= 0.1
+                ymax += 0.1
+            axis.set_ylim(ymin, ymax)
+    
     axis.set_xlim(time.min(), time.max())
-    axis.set_ylim(jerk.min(), jerk.max())
     axis.set_xlabel("Time (s)")
     axis.set_ylabel("Jerk (m/s³)")
     axis.set_title("Vehicle Jerk Over Time")
@@ -171,8 +186,17 @@ def plot_acceleration(axis, time, acceleration, safe_thresh=0.5, unsafe_thresh=1
     lc.set_array(safety[:-1])
     axis.add_collection(lc)
 
+    # Set axis limits safely
+    if len(acceleration) > 0:
+        valid_accel = acceleration[~np.isnan(acceleration) & ~np.isinf(acceleration)]
+        if len(valid_accel) > 0:
+            ymin, ymax = valid_accel.min(), valid_accel.max()
+            if ymin == ymax:
+                ymin -= 0.1
+                ymax += 0.1
+            axis.set_ylim(ymin, ymax)
+    
     axis.set_xlim(time.min(), time.max())
-    axis.set_ylim(acceleration.min(), acceleration.max())
     axis.set_xlabel("Time (s)")
     axis.set_ylabel("Acceleration (m/s²)")
     axis.set_title("Vehicle Acceleration Over Time")
@@ -192,8 +216,17 @@ def plot_heading_acceleration(axis, time, heading_acc, safe_thresh=0.0075, unsaf
     lc.set_array(safety[:-1])
     axis.add_collection(lc)
 
+    # Set axis limits safely
+    if len(heading_acc) > 0:
+        valid_heading = heading_acc[~np.isnan(heading_acc) & ~np.isinf(heading_acc)]
+        if len(valid_heading) > 0:
+            ymin, ymax = valid_heading.min(), valid_heading.max()
+            if ymin == ymax:
+                ymin -= 0.1
+                ymax += 0.1
+            axis.set_ylim(ymin, ymax)
+    
     axis.set_xlim(time.min(), time.max())
-    axis.set_ylim(heading_acc.min(), heading_acc.max())
     axis.set_xlabel("Time (s)")
     axis.set_ylabel("Heading Acceleration (rad/s²)")
     axis.set_title("Vehicle Heading Acceleration Over Time")
@@ -214,10 +247,17 @@ def plot_crosstrack_error(axis, time, cte, safe_thresh=0.1, unsafe_thresh=0.4):
     lc.set_linewidth(2.0)
     axis.add_collection(lc)
 
-    # set axis limits
+    # Set axis limits safely
+    if len(cte) > 0:
+        valid_cte = cte[~np.isnan(cte) & ~np.isinf(cte)]
+        if len(valid_cte) > 0:
+            ymin, ymax = valid_cte.min(), valid_cte.max()
+            if ymin == ymax:
+                ymin -= 0.1
+                ymax += 0.1
+            axis.set_ylim(ymin, ymax)
+    
     axis.set_xlim(time.min(), time.max())
-    axis.set_ylim(cte.min(), cte.max())
-
     axis.set_xlabel("Time (s)")
     axis.set_ylabel("Cross Track Error")
     axis.set_title("Vehicle Cross Track Error Over Time")
@@ -286,8 +326,15 @@ if __name__=='__main__':
 
     # Parse behavior log file and compute metrics
     times, accelerations, heading_rates, ped_times, ped_distances = parse_behavior_log(behavior_file)
-    time_jerk, jerk = compute_derivative(times, accelerations)
-    time_heading_acc, heading_acc = compute_derivative(times, heading_rates)
+    
+    # Ensure we have valid data before computing derivatives
+    if len(times) > 1 and len(accelerations) > 1 and len(heading_rates) > 1:
+        time_jerk, jerk = compute_derivative(times, accelerations)
+        time_heading_acc, heading_acc = compute_derivative(times, heading_rates)
+    else:
+        print("Warning: Not enough data points to compute derivatives.")
+        time_jerk, jerk = np.array([]), np.array([])
+        time_heading_acc, heading_acc = np.array([]), np.array([])
 
     # Pure pursuit tracker file exists: parse and plot all metrics
     if os.path.exists(tracker_file):
@@ -295,8 +342,15 @@ if __name__=='__main__':
         plot_metrics(time_jerk, jerk, time_heading_acc, heading_acc, times, accelerations, vehicle_time, cte,
                      x_actual, y_actual, x_desired, y_desired, ped_times, ped_distances)
 
-        print("RMS Cross Track Error:", np.sqrt(np.mean(cte**2)), "m")
-        print("RMS Position Error:", np.sqrt(np.mean((x_actual - x_desired)**2 + (y_actual - y_desired)**2)), 'm')
+        # Calculate RMS values only for valid data points
+        valid_cte = cte[~np.isnan(cte) & ~np.isinf(cte)]
+        if len(valid_cte) > 0:
+            print("RMS Cross Track Error:", np.sqrt(np.mean(valid_cte**2)), "m")
+        
+        valid_pos_error = np.sqrt((x_actual - x_desired)**2 + (y_actual - y_desired)**2)
+        valid_pos_error = valid_pos_error[~np.isnan(valid_pos_error) & ~np.isinf(valid_pos_error)]
+        if len(valid_pos_error) > 0:
+            print("RMS Position Error:", np.sqrt(np.mean(valid_pos_error**2)), 'm')
     # Pure pursuit tracker file is missing: plot only behavior.json metrics
     else:
         print("Tracker file is missing. Skipping cross track error and vehicle position plots.")
@@ -310,7 +364,14 @@ if __name__=='__main__':
         add_safety_colorbar(fig)
         plt.show()
 
-    print("RMS Jerk:", np.sqrt(np.mean(jerk**2)), "m/s³")
-    print("RMS Heading Acceleration:", np.sqrt(np.mean(heading_acc**2)), "rad/s²")
+    # Calculate RMS values only for valid data points
+    valid_jerk = jerk[~np.isnan(jerk) & ~np.isinf(jerk)]
+    if len(valid_jerk) > 0:
+        print("RMS Jerk:", np.sqrt(np.mean(valid_jerk**2)), "m/s³")
+    
+    valid_heading_acc = heading_acc[~np.isnan(heading_acc) & ~np.isinf(heading_acc)]
+    if len(valid_heading_acc) > 0:
+        print("RMS Heading Acceleration:", np.sqrt(np.mean(valid_heading_acc**2)), "rad/s²")
+    
     if len(ped_distances) > 0:
         print("Minimum Pedestrian Distance:", np.min(ped_distances), "m")
