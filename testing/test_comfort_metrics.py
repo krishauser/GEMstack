@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
+import os
 
 CMAP = "RdYlGn"
 
@@ -263,11 +264,18 @@ def plot_pedestrian_dist(axis, pedestrian_times, pedestrian_distances, safe_thre
     axis.grid(True)
 
 if __name__=='__main__':
-    if len(sys.argv) != 2:
-        print("Usage: python test_comfort_metrics.py <log_directory>")
-        sys.exit(1)
+    if len(sys.argv) == 2:
+       log_dir = "logs/" + sys.argv[1]
+    else:
 
-    log_dir = sys.argv[1]
+        logs_root = "logs/"
+        # Get all subdirectories inside "logs/"
+        subdirs = [os.path.join(logs_root, d) for d in os.listdir(logs_root) if os.path.isdir(os.path.join(logs_root, d))]
+
+        # Find the latest directory based on modification time
+        log_dir = max(subdirs, key=os.path.getmtime)
+
+    print(f"Using latest log directory: {log_dir}")
     behavior_file = os.path.join(log_dir, "behavior.json")
     tracker_file = os.path.join(log_dir, "PurePursuitTrajectoryTracker_debug.csv")
 
