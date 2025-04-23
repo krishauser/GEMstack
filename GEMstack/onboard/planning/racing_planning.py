@@ -54,8 +54,8 @@ def waypoint_generate(vehicle_state, cone_state):
     car_heading = vehicle_state['heading']  # in radians
 
     # ===== Parameters =====
-    u_turn_radius = 10.0        # Radius for U-turn
-    offset = 5.0                # Offset for left/right pass
+    u_turn_radius = 5.0      # Radius for U-turn
+    offset = 2.0                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
 
@@ -66,18 +66,44 @@ def waypoint_generate(vehicle_state, cone_state):
     perpendicular_vector = np.array([-np.sin(car_heading), np.cos(car_heading)])
 
     if scenario == 'standing':
-        # U-turn: Circle around the cone
+        # U-turn: Generate points in a semi-circular arc around the cone
         cone = np.array(cone_position)
-
-        # Flexible waypoint: halfway between car and a point offset from cone center
-        flex_wp1 = cone + u_turn_radius * perpendicular_vector
-        flex_wp2 = cone + heading_vector * lookahead_distance
-        flex_wps_list = [flex_wp1, flex_wp2]
-        # flex_wps = [flex_wp2]
-
-        # Fixed waypoint: behind the cone after U-turn
-        # fixed_wp = cone - heading_vector * lookahead_distance
-        fixed_wp = cone - u_turn_radius * perpendicular_vector
+        
+        # Number of waypoints to generate for the arc
+        num_arc_points = 7
+        
+        # Generate waypoints in a smooth semi-circular pattern on the RIGHT side
+        flex_wps_list = []
+        
+        # Create a semi-circular arc from 0 to π
+        # But negate perpendicular_vector to go to the right side
+        for i in range(num_arc_points):
+            # Calculate angle in the semi-circle (0 to π)
+            angle = i * np.pi / (num_arc_points - 1)
+            
+            # MODIFIED: Negative perpendicular_vector to go to right side of cone
+            # This creates a counter-clockwise turn around the cone
+            wp = cone - u_turn_radius * (
+                perpendicular_vector * np.cos(angle) - 
+                heading_vector * np.sin(angle)
+            )
+            
+            flex_wps_list.append(wp)
+            
+        # Fixed waypoint: behind the cone after U-turn (also on right side)
+        fixed_wp = cone + u_turn_radius * perpendicular_vector
+        
+        # For visualization only
+        # for i, wp in enumerate(flex_wps_list):
+        #     plt.plot(wp[0], wp[1], 'ro')  # Plot all waypoints in red
+        #     plt.text(wp[0], wp[1], f'wp{i}', fontsize=9)
+            
+        # plt.plot(fixed_wp[0], fixed_wp[1], 'bo')  # Plot fixed waypoint in blue
+        # plt.plot(cone[0], cone[1], 'gx')  # Plot cone in green
+        # plt.plot(car_position[0], car_position[1], 'ks')  # Plot car position
+        # plt.axis('equal')  # Equal aspect ratio for better visualization
+        # plt.grid(True)
+        # plt.show()
 
     elif scenario == 'left':
         cone = np.array(cone_position)
@@ -133,38 +159,147 @@ def velocity_profiling(path, acceleration, deceleration, max_speed, current_spee
 # --------------------------------------------------------------------------- Hua-Ta's Code END
 
 # --------------------------------------------------------------------------- Shilan's Code START
+# ORIGINAL CODE
+# def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
+#                                               w_c=10.0, w_eps=0.0, w_vvar=5.0,
+#                                               w_terminal=10.0,
+#                                               v_min=3.0, v_max=11.0,
+#                                               waypoint=None, waypoint_penalty_weight=100.0):
+#     """
+#     Generate a dynamically feasible trajectory between init_state and final_state (optionally pass a (x,y) waypoint)
+#     using curvature-based vehicle dynamics and nonlinear optimization.
+
+#     Note: We minimize variance of velocity to roughly keep constant velocity so it does not affect the turning radius.
+
+#     Thoughts: The trajectory generated from large velocity and large curvature rate can be similar to the trajectory 
+#     generated using small velovity and small curvature rate, might be scaled versions if the proportions are proper.
+#     For racing, we want to use the maximum velocity. So maybe we should scale the trajectory using the allowed velocity??? (TODO)
+#     And how to obtain that??? (TODO)
+
+#     TODO: remove v in init_state
+
+#     Parameters:
+#     - init_state (dict): Initial vehicle state with keys 'x', 'y', 'psi', 'c', 'v'.
+#     - final_state (dict): Target vehicle state with keys 'x', 'y', 'psi', 'c'.
+#     - N (int): Number of discrete time steps in the trajectory.
+#     - T (float): Duration of each time step (in seconds).
+#     - Lr (float): Distance from the vehicle's center to the rear axle. # TODO: find this value for GEMe4
+#     - w_c (float): Weight for penalizing curvature (smoothness of turns).
+#     - w_eps (float): Weight for penalizing curvature rate (reduces sharp steering changes).
+#     - w_vvar (float): Weight for penalizing speed variance (encourages speed smoothness).
+#     - w_terminal (float): Weight for penalizing final state deviation (soft constraint).
+#     - v_min (float): Minimum allowed speed (in m/s).
+#     - v_max (float): Maximum allowed speed (in m/s).
+#     - waypoint (tuple or None): Optional (x, y) coordinate that the trajectory should pass near.
+#     - waypoint_penalty_weight (float): Penalty weight for distance from waypoint (soft constraint).
+
+#     Returns:
+#     - x, y, psi, c, v, eps (np.ndarray): Arrays of optimized state and control values.
+#     - final_error (dict): Final state errors in x, y, psi, and c.
+#     """
+#     def cost(p):
+#         x_, y_, psi_, c_, v_, eps_ = np.split(p, [N - 1, 2 * (N - 1), 3 * (N - 1), 4 * (N - 1), 5 * (N - 1)])
+#         c_seq = np.concatenate(([init_state['c']], c_))
+#         v_seq = np.concatenate(([init_state['v']], v_))
+#         x_final, y_final, psi_final, c_final = x_[-1], y_[-1], psi_[-1], c_[-1]
+
+#         cost_c = w_c * np.sum(c_seq ** 2)
+#         cost_eps = w_eps * np.sum(eps_ ** 2)
+#         v_mean = np.mean(v_seq)
+#         cost_vvar = w_vvar * np.mean((v_seq - v_mean) ** 2)
+
+#         cost_terminal = w_terminal * (
+#             (x_final - final_state['x']) ** 2 +
+#             (y_final - final_state['y']) ** 2 +
+#             (psi_final - final_state['psi']) ** 2 * 100 + 
+#             (c_final - final_state['c']) ** 2 * 100 # TODO: remove magic constant
+#         )
+
+#         cost_waypoint = 0.0
+#         if waypoint is not None:
+#             # use midpoint index to check passing near the waypoint
+#             mid = N // 2
+#             cost_waypoint = waypoint_penalty_weight * (
+#                 (x_[mid-1] - waypoint[0])**2 + (y_[mid-1] - waypoint[1])**2
+#             )
+
+#         return cost_c + cost_eps + cost_vvar + cost_terminal + cost_waypoint
+
+#     def dynamics_constraints(p):
+#         x_, y_, psi_, c_, v_, eps_ = np.split(p, [N - 1, 2 * (N - 1), 3 * (N - 1), 4 * (N - 1), 5 * (N - 1)])
+#         constraints = []
+#         x_prev, y_prev, psi_prev, c_prev, v_prev = init_state['x'], init_state['y'], init_state['psi'], init_state['c'], init_state['v']
+#         for k in range(N - 1):
+#             dx = v_prev * np.cos(psi_prev + c_prev * Lr) * T
+#             dy = v_prev * np.sin(psi_prev + c_prev * Lr) * T
+#             dpsi = v_prev * c_prev * T
+#             dc = eps_[k] * T
+#             constraints.extend([
+#                 x_[k] - (x_prev + dx),
+#                 y_[k] - (y_prev + dy),
+#                 psi_[k] - (psi_prev + dpsi),
+#                 c_[k] - (c_prev + dc)
+#             ])
+#             x_prev, y_prev, psi_prev, c_prev, v_prev = x_[k], y_[k], psi_[k], c_[k], v_[k]
+#         return constraints
+
+#     # Initial guesses
+#     x_vals = np.linspace(init_state['x'], final_state['x'], N)
+#     y_vals = np.linspace(init_state['y'], final_state['y'], N)
+#     psi_vals = np.linspace(init_state['psi'], final_state['psi'], N)
+#     c_vals = np.linspace(init_state['c'], final_state['c'], N)
+#     v_vals = np.ones(N) * init_state['v']
+#     eps_vals = np.zeros(N - 1)
+
+#     p0 = np.concatenate([x_vals[1:], y_vals[1:], psi_vals[1:], c_vals[1:], v_vals[1:], eps_vals])
+#     bounds = [(None, None)] * (4 * (N - 1)) + [(v_min, v_max)] * (N - 1) + [(None, None)] * (N - 1)
+
+#     result = minimize(cost, p0, bounds=bounds,
+#                       constraints={'type': 'eq', 'fun': dynamics_constraints},
+#                       options={'maxiter': 1000})
+#     if not result.success:
+#         raise RuntimeError("Optimization failed")
+
+#     x_, y_, psi_, c_, v_, eps_ = np.split(result.x, [N - 1, 2 * (N - 1), 3 * (N - 1), 4 * (N - 1), 5 * (N - 1)])
+#     x_full = np.concatenate(([init_state['x']], x_))
+#     y_full = np.concatenate(([init_state['y']], y_))
+#     psi_full = np.concatenate(([init_state['psi']], psi_))
+#     c_full = np.concatenate(([init_state['c']], c_))
+#     v_full = np.concatenate(([init_state['v']], v_))
+
+#     final_error = {
+#         'x_error': abs(x_full[-1] - final_state['x']),
+#         'y_error': abs(y_full[-1] - final_state['y']),
+#         'psi_error': abs(psi_full[-1] - final_state['psi']),
+#         'c_error': abs(c_full[-1] - final_state['c']),
+#     }
+
+#     return x_full, y_full, psi_full, c_full, v_full, eps_, final_error
 def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
-                                              w_c=10.0, w_eps=0.0, w_vvar=5.0,
-                                              w_terminal=10.0,
-                                              v_min=3.0, v_max=11.0,
-                                              waypoint=None, waypoint_penalty_weight=100.0):
+                          w_c=10.0, w_eps=0.0, w_vvar=5.0,
+                          w_terminal=10.0,
+                          v_min=3.0, v_max=11.0,
+                          waypoints=None, waypoint_penalty_weight=100.0):
     """
-    Generate a dynamically feasible trajectory between init_state and final_state (optionally pass a (x,y) waypoint)
+    Generate a dynamically feasible trajectory between init_state and final_state
     using curvature-based vehicle dynamics and nonlinear optimization.
-
-    Note: We minimize variance of velocity to roughly keep constant velocity so it does not affect the turning radius.
-
-    Thoughts: The trajectory generated from large velocity and large curvature rate can be similar to the trajectory 
-    generated using small velovity and small curvature rate, might be scaled versions if the proportions are proper.
-    For racing, we want to use the maximum velocity. So maybe we should scale the trajectory using the allowed velocity??? (TODO)
-    And how to obtain that??? (TODO)
-
-    TODO: remove v in init_state
+    
+    Now supports multiple waypoints.
 
     Parameters:
     - init_state (dict): Initial vehicle state with keys 'x', 'y', 'psi', 'c', 'v'.
     - final_state (dict): Target vehicle state with keys 'x', 'y', 'psi', 'c'.
     - N (int): Number of discrete time steps in the trajectory.
     - T (float): Duration of each time step (in seconds).
-    - Lr (float): Distance from the vehicle's center to the rear axle. # TODO: find this value for GEMe4
+    - Lr (float): Distance from the vehicle's center to the rear axle.
     - w_c (float): Weight for penalizing curvature (smoothness of turns).
     - w_eps (float): Weight for penalizing curvature rate (reduces sharp steering changes).
     - w_vvar (float): Weight for penalizing speed variance (encourages speed smoothness).
     - w_terminal (float): Weight for penalizing final state deviation (soft constraint).
     - v_min (float): Minimum allowed speed (in m/s).
     - v_max (float): Maximum allowed speed (in m/s).
-    - waypoint (tuple or None): Optional (x, y) coordinate that the trajectory should pass near.
-    - waypoint_penalty_weight (float): Penalty weight for distance from waypoint (soft constraint).
+    - waypoints (list or None): Optional list of (x, y) coordinates that the trajectory should pass near.
+    - waypoint_penalty_weight (float): Penalty weight for distance from waypoints (soft constraint).
 
     Returns:
     - x, y, psi, c, v, eps (np.ndarray): Arrays of optimized state and control values.
@@ -185,19 +320,23 @@ def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
             (x_final - final_state['x']) ** 2 +
             (y_final - final_state['y']) ** 2 +
             (psi_final - final_state['psi']) ** 2 * 100 + 
-            (c_final - final_state['c']) ** 2 * 100 # TODO: remove magic constant
+            (c_final - final_state['c']) ** 2 * 100
         )
 
-        cost_waypoint = 0.0
-        if waypoint is not None:
-            # use midpoint index to check passing near the waypoint
-            mid = N // 2
-            cost_waypoint = waypoint_penalty_weight * (
-                (x_[mid-1] - waypoint[0])**2 + (y_[mid-1] - waypoint[1])**2
-            )
+        cost_waypoints = 0.0
+        if waypoints is not None and len(waypoints) > 0:
+            # Calculate equally spaced indices for each waypoint
+            num_waypoints = len(waypoints)
+            indices = [int((i + 1) * (N - 1) / (num_waypoints + 1)) for i in range(num_waypoints)]
+            
+            # Sum penalties for each waypoint at its corresponding index
+            for wp_idx, waypoint in enumerate(waypoints):
+                traj_idx = indices[wp_idx]
+                cost_waypoints += waypoint_penalty_weight * (
+                    (x_[traj_idx] - waypoint[0])**2 + (y_[traj_idx] - waypoint[1])**2
+                )
 
-        return cost_c + cost_eps + cost_vvar + cost_terminal + cost_waypoint
-
+        return cost_c + cost_eps + cost_vvar + cost_terminal + cost_waypoints
     def dynamics_constraints(p):
         x_, y_, psi_, c_, v_, eps_ = np.split(p, [N - 1, 2 * (N - 1), 3 * (N - 1), 4 * (N - 1), 5 * (N - 1)])
         constraints = []
@@ -504,7 +643,7 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
         scenario, flex_wps, fixed_wp = waypoint_generate(vehicle_state, [cone])
         if not flex_wps or fixed_wp is None:
             continue
-        flex_wp = flex_wps[0]
+        # flex_wp = flex_wps[0]
 
         init_state = {
             'x': current_pos[0], 'y': current_pos[1], 'psi': current_heading,
@@ -514,7 +653,7 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
             'x': fixed_wp[0], 'y': fixed_wp[1], 'psi': current_heading, 'c': 0.0
         }
 
-        x, y, psi, c, v, eps, _ = trajectory_generation(init_state, final_state, waypoint=flex_wp)
+        x, y, psi, c, v, eps, _ = trajectory_generation(init_state, final_state, waypoints=flex_wps)
         x_all.extend(x)
         y_all.extend(y)
         v_all.extend(v)
