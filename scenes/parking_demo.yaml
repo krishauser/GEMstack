@@ -1,10 +1,10 @@
-vehicle_state: [4.0, 5.0, 0.0, 0.0, 0.0]
+vehicle_state: [0.0, 0.0, 0.0, 0.0, 0.0]
 agents:
   ped1:
     type: medium_truck
     position: [20.0, 8.0]
     nominal_velocity: 0
-    target: [15.0, 2.0]
+    target: [20.0, 8.0]
     behavior: loop
     yaw: 1.5708
 

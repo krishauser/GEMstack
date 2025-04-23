@@ -194,7 +194,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._vehicle = None
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 2, 0.25)
+        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1.5, 0.25)
         #@TODO create a more standardized way to define the actions
         self.actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1),
                         (-1, -1), (-1, -0.5), (-1,0), (-1, 0.5), (-1,1)]
@@ -286,20 +286,25 @@ class ParkingSolverFirstOrderDubins(AStar):
             # print(f"Obstacle: {obstacle}")
             for point in path:
                 vehicle_object = self.state_to_object(point)
-                vehicle_polygon = vehicle_object.polygon()
+                # vehicle_polygon = vehicle_object.polygon_parent()
                 # print(f"Vehicle Polygon: {vehicle_polygon}")
                 # print(point)
                 # print(obstacle.polygon_parent())
-                print("====================================")
-                print(f"Vehicle Polygon: {vehicle_polygon}")
-                print(f"Obstacle Polygon: {obstacle.polygon_parent()}")
-                print(f"Obstacle: {obstacle}")
-                print(f"Point: {point}")
-                print(f"Obstacle Applied at current point: {obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose)}")
+                # print("====================================")
+                # print(f"Vehicle Object: {vehicle_object}")
+                # print(f"Vehicle Polygon: {vehicle_polygon}")
+                # print(f"Obstacle Polygon: {obstacle.polygon_parent()}")
+                # print(f"Obstacle: {obstacle}")
+                # print(f"Point: {point}")
+                # print(f"Obstacle Applied at current point: {obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose)}")
+                # print(f"Obstacle Polygon at current point: {obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose).polygon_parent()}")
                 #!!!!! the obstacle is in the world frame!
-                if collisions.polygon_intersects_polygon_2d(vehicle_polygon, 
-                    obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose).polygon_parent()):
+                if collisions.polygon_intersects_polygon_2d(vehicle_object.polygon_parent(), obstacle.polygon_parent()):
+                # if collisions.polygon_intersects_polygon_2d(vehicle_object.polygon_parent(), 
+                #     obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose).polygon_parent()):
                     #polygon_intersects_polygon_2d when we have the acutal car geometry
+                    # raise Exception("Collision detected")
+                    print("Collision detected")
                     return False
         return True
 
@@ -408,11 +413,11 @@ class ParkingPlanner(Component):
         print(f"Vehicle {vehicle}")
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         agents = state.agents # type: Dict[str, AgentState]
-        print(f"Obstacles {obstacles}")
-        print(f"Agents {agents}")
+        # print(f"Obstacles {obstacles}")
+        # print(f"Agents {agents}")
         route = state.route
         goal_point = route.points[-1] # I might need to change this to the same frame as the car?
-        goal_pose = ObjectPose(frame=ObjectFrameEnum.START,t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
+        goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
         goal = VehicleState.zero()
         goal.pose = goal_pose
         goal.v = 0
@@ -431,15 +436,18 @@ class ParkingPlanner(Component):
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, 100))
-        points = [state[:2] for state in res]
+        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=100))
+        # points = [state[:2] for state in res] # change here to return the theta as well
+        points = []
+        for state in res:
+            points.append((state[0], state[1], 0, state[2]))
         times = [state[3] for state in res]
         path = Path(frame=vehicle.pose.frame, points=points)
         traj = Trajectory(path.frame,points,times)
-        # print("===========================")
-        # print(f"Points: {points}")
-        # print(f"Times: {times}")
+        print("===========================")
+        print(f"Points: {points}")
+        print(f"Times: {times}")
         # route = Path(frame=vehicle.pose.frame, points=points)
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
-        # print(traj)
+        print(traj)
         return traj 
