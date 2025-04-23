@@ -100,13 +100,6 @@ class GEMHardwareInterface(GEMInterface):
         /pacmod/as_rx/wiper_cmd
         """
 
-        # Launch Control Timing
-        # 0 - 5 Seconds 100% brake 0% throttle
-        # 5 - 6 Seconds 100% brake 100% throttle
-        # 6 - 7 Seconds 0% brake 100% throttle 
-        # TODO add option launch control
-        self.start_time = rospy.get_time()   
-
         #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
         
         #subscribers should go last because the callback might be called before the object is initialized
@@ -333,39 +326,6 @@ class GEMHardwareInterface(GEMInterface):
         self.accel_cmd.enable  = True
         self.accel_cmd.clear   = False
         self.accel_cmd.ignore  = False
-
-        # enable_launch_control = settings.get('control.launch_control.enable', False)
-        # stage_duration = 0.5
-        # currTime = rospy.get_time() - self.start_time
-
-
-        # Launch control 
-        # if enable_launch_control:
-        #     total_stage_time = 3 * stage_duration
-        #     if currTime < total_stage_time:
-        #         if currTime < stage_duration:
-        #             self.brake_cmd.f64_cmd = maxbrake
-        #             self.accel_cmd.f64_cmd = 0
-        #         elif currTime < 2 * stage_duration:
-        #             self.brake_cmd.f64_cmd = maxbrake
-        #             self.accel_cmd.f64_cmd = maxacc
-        #         else:
-        #             self.brake_cmd.f64_cmd = 0  
-        #             self.accel_cmd.f64_cmd = maxacc
-        #     else:
-        #         enable_launch_control = False
-        
-        # if command.launch_control and self.last_reading.speed == 0:
-        #     self.brake_cmd.f64_cmd = command.brake_pedal_position
-        #     self.accel_cmd.f64_cmd = command.accelerator_pedal_position
-        # else:
-        #     self.accel_cmd.f64_cmd = command.accelerator_pedal_position
-        #     if command.brake_pedal_position > 0.0:
-        #         self.accel_cmd.f64_cmd = 0.0
-        #     self.brake_cmd.f64_cmd = command.brake_pedal_position
-
-        # self.brake_cmd.f64_cmd = maxbrake
-        # self.accel_cmd.f64_cmd = 0
         
         
         self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_FORWARD

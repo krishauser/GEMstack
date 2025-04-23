@@ -1,4 +1,5 @@
 import numpy as np
+import rospy
 from math import sin, cos, atan2
 
 # These imports match your existing project structure
@@ -70,7 +71,6 @@ class Stanley(object):
         i = settings.get('control.longitudinal_control.pid_i')
         self.pid_speed = PID(p, d, i, windup_limit=20)
 
-        self.enable_launch_control = settings.get('control.launch_control.enable', False)
         self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
         self.launch_start_time = None
 
@@ -306,6 +306,8 @@ class StanleyTrajectoryTracker(Component):
         self.stanley = Stanley(**kwargs)
         self.vehicle_interface = vehicle_interface
         self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
+        self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
+        self.enable_launch_control = settings.get('control.launch_control.enable', False) # and vehicle.v < 0.1
 
     def rate(self):
         """Control frequency in Hz."""
@@ -337,7 +339,6 @@ class StanleyTrajectoryTracker(Component):
         else:
             self.stanley.set_path(trajectory)
         accel, f_delta = self.stanley.compute(vehicle, self)
-        launch_control = self.stanley.enable_launch_control and vehicle.v < 0.01
 
         # If your low-level interface expects steering wheel angle:
         steering_angle = front2steer(f_delta)
@@ -347,7 +348,26 @@ class StanleyTrajectoryTracker(Component):
             settings.get('vehicle.geometry.max_steering_angle',  0.5)
         )
 
-        cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle, launch_control=launch_control)
+        cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
+        
+        if self.enable_launch_control:
+            print("launch control active")
+            if not hasattr(self,'_launch_start_time'):
+                self._launch_start_time = rospy.get_time()  
+            elapsed = rospy.get_time() - self._launch_start_time
+            if elapsed < self.stage_duration:
+                cmd.accelerator_pedal_position = 0.0
+                cmd.brake_pedal_position = 1.0
+            elif elapsed < 2 * self.stage_duration:
+                cmd.accelerator_pedal_position = 1.0
+                cmd.brake_pedal_position = 1.0
+            elif elapsed < 3 * self.stage_duration:
+                cmd.accelerator_pedal_position = 1.0
+                cmd.brake_pedal_position = 0.0
+            else:
+                self.enable_launch_control = False
+
+
         self.vehicle_interface.send_command(cmd)
 
     def healthy(self):
