@@ -78,5 +78,13 @@ Example command launching the fixed route with e4 vehicle:
 ```bash
 python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/fixed_route.yaml
 ```
+**Variants:**
+ - sim
+ - gazebo
 
+**Vehicle types:**
+- e2
+- e4
+- e2_gazebo
+- e4_gazebo
 ---
