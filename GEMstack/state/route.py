@@ -4,6 +4,16 @@ from .physical_object import ObjectFrameEnum, convert_point
 from .trajectory import Path
 from typing import List,Tuple,Optional
 
+from enum import Enum
+
+@dataclass
+@register
+class PlannerEnum(Enum):
+    RRT_STAR = 0                  #position / yaw in m / radians relative to starting pose of vehicle 
+    HYBRID_A_STAR = 1                #position / yaw in m / radians relative to current pose of vehicle
+    PARKING = 2                 #position in longitude / latitude, yaw=heading in radians with respect to true north (used in GNSS)
+
+
 @dataclass
 @register
 class Route(Path):
