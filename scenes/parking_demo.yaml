@@ -1,7 +1,7 @@
 vehicle_state: [0.0, 0.0, 0.0, 0.0, 0.0]
 agents:
   ped1:
-    type: medium_truck
+    type: LARGE_TRUCK
     position: [20.0, 8.0]
     nominal_velocity: 0
     target: [20.0, 8.0]
@@ -9,7 +9,7 @@ agents:
     yaw: 1.5708
 
   ped2:
-    type: medium_truck
+    type: LARGE_TRUCK
     position: [30.0, 8.0]
     nominal_velocity: 0
     target: [15.0, 4.0]
