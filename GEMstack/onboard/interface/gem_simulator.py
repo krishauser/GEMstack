@@ -172,7 +172,7 @@ class GEMDoubleIntegratorSimulation:
         #simulate actuators
         accelerator_pedal_position = np.clip(self.last_command.accelerator_pedal_position,0.0,1.0)
         brake_pedal_position = np.clip(self.last_command.brake_pedal_position,0.0,1.0)
-        acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,1)
+        acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,self.last_command.gear)
         acceleration = np.clip(acceleration,*self.dubins.accelRange)
         phides = steer2front(self.last_command.steering_wheel_angle)
         phides = np.clip(phides,*self.dubins.wheelAngleRange)
