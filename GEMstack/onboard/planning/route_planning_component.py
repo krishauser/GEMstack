@@ -39,27 +39,9 @@ class RoutePlanningComponent(Component):
         if state.mission_plan.planner_type.value == PlannerEnum.PARKING.value:
             print("I am in PARKING mode")
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
-            base_path = os.path.dirname(__file__)
-            file_path = os.path.join(base_path, "../../knowledge/routes/forward_15m_extra.csv")
-        
-            waypoints = np.loadtxt(file_path, delimiter=',', dtype=float)
-            if waypoints.shape[1] == 3:
-                    waypoints = waypoints[:,:2]
-            print("waypoints", waypoints)
-            self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
+           
         elif state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value:
             print("I am in RRT mode")
-            start = (state.vehicle.pose.x+1, state.vehicle.pose.y+1)
-            goal = (state.mission_plan.goal_x, state.mission_plan.goal_y) #When we implement kinodynamic, we need to include target_yaw also
-            x_bounds = (0,20)
-            y_bounds = (0,20)
-            step_size = 1.0
-            max_iter = 2000
-            occupancy_grid = np.zeros((20, 20), dtype=int) 
-            occupancy_grid[5:10, 5:10] = 1
-            self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
-            rrt_resp = self.planner.plan()
-            self.route = Route(frame=ObjectFrameEnum.START, points=rrt_resp)
         else:
             print("Unknown mode")
         
