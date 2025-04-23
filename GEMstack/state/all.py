@@ -27,7 +27,7 @@ class AllState(SceneState):
     
     # planner-output state
     mission : MissionObjective = field(default_factory=MissionObjective)
-    mission_plan: MissionPlan = None
+    mission_plan: MissionPlan = field(default_factory=MissionPlan)
     intent : VehicleIntent = field(default_factory=VehicleIntent)
     # planner_type : Optional[PlannerEnum] = None
     route : Optional[Route] = None

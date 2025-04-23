@@ -1,4 +1,4 @@
-vehicle_state: [0.0, 0.0, 0.0, 0.0, 0.0]
+vehicle_state: [4.0, 5.0, 0.0, 0.0, 0.0]
 agents:
   ped1:
     type: pedestrian
@@ -6,4 +6,3 @@ agents:
     nominal_velocity: 0.5
     target: [-15.0,10.0]
     behavior: loop
-    

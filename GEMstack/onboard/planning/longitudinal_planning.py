@@ -11,7 +11,12 @@ import numpy as np
 DEBUG = False  # Set to False to disable debug output
 
 
-def generate_dense_points(points: List[Tuple[float, float]], density: int = 10) -> List[Tuple[float, float]]:
+"""
+Not working if waypoints are [x, y, heading], when it goes to the closest_point_local function.
+Changes have been made to address the problem when route is None.
+"""
+
+def generate_dense_points(points: List[Tuple[float]], density: int = 10) -> List[Tuple[float]]:
     if not points:
         return []
     if len(points) == 1:
@@ -294,7 +299,7 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float,
 
             if t_point < times[-1]:  # Ensure time always increases
                 t_point = times[-1] + 0.01  # Small time correction step
-            
+
             if DEBUG:
                 print(f"[DEBUG] Deceleration Phase: s = {s:.2f}, v = {v_decel:.2f}, t = {t_point:.2f}")
 
@@ -324,24 +329,24 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float, em
     # Calculate stopping distance with normal deceleration
     T_stop_normal = current_speed / deceleration
     s_stop_normal = current_speed * T_stop_normal - 0.5 * deceleration * (T_stop_normal ** 2)
-    
+
     # Check if emergency braking is needed
     if s_stop_normal > path_length:
         if DEBUG:
             print("[DEBUG] longitudinal_brake: Emergency braking needed!")
             print(f"[DEBUG] longitudinal_brake: Normal stopping distance: {s_stop_normal:.2f}m")
             print(f"[DEBUG] longitudinal_brake: Available distance: {path_length:.2f}m")
-        
+
         # Calculate emergency braking parameters
         T_stop = current_speed / emergency_decel
         s_stop = current_speed * T_stop - 0.5 * emergency_decel * (T_stop ** 2)
-        
+
         if DEBUG:
             print(f"[DEBUG] longitudinal_brake: Emergency stopping distance: {s_stop:.2f}m")
             print(f"[DEBUG] longitudinal_brake: Emergency stopping time: {T_stop:.2f}s")
-        
+
         decel_to_use = emergency_decel
-        
+
     else:
         if DEBUG:
             print("[DEBUG] longitudinal_brake: Normal braking sufficient")
@@ -351,10 +356,10 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float, em
     # Generate time points (use more points for smoother trajectory)
     num_points = max(len(path.points), 50)
     times = np.linspace(0, T_stop, num_points)
-    
+
     # Calculate distances at each time point using physics equation
     distances = current_speed * times - 0.5 * decel_to_use * (times ** 2)
-    
+
     # Generate points along the path
     points = []
     for d in distances:
@@ -397,90 +402,96 @@ class YieldTrajectoryPlanner(Component):
         route = state.route  # type: Route
         t = state.t
 
-        if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: t =", t)
+        # To adapt route is None.
+        if route:
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: t =", t)
 
-        if self.t_last is None:
+            if self.t_last is None:
+                self.t_last = t
+            dt = t - self.t_last
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: dt =", dt)
+
+            curr_x = vehicle.pose.x
+            curr_y = vehicle.pose.y
+            curr_v = vehicle.v
+            if DEBUG:
+                print(f"[DEBUG] YieldTrajectoryPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}, ")
+
+            # Determine progress along the route.
+            if self.route_progress is None:
+                self.route_progress = 0.0
+            _, closest_parameter = route.closest_point_local(
+                [curr_x, curr_y],
+                (self.route_progress - 5.0, self.route_progress + 5.0)
+            )
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: Closest parameter on route =", closest_parameter)
+            self.route_progress = closest_parameter
+
+            # Extract a 10 m segment of the route for planning lookahead.
+            route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
+
+            print("[DEBUG] state", state.relations)
+            # Check whether any yield relations (e.g. due to pedestrians) require braking.
+            stay_braking = False
+            pointSet = set()
+            for i in range(len(route_with_lookahead.points)):
+                if tuple(route_with_lookahead.points[i]) in pointSet:
+                    stay_braking = True
+                    break
+                pointSet.add(tuple(route_with_lookahead.points[i]))
+
+            should_brake = any(
+                r.type == EntityRelationEnum.STOPPING_AT and r.obj1 == ''
+                for r in state.relations
+            )
+            should_decelerate = any(
+                r.type == EntityRelationEnum.YIELDING and r.obj1 == ''
+                for r in state.relations
+            ) if should_brake == False else False
+
+            should_accelerate = (not should_brake and not should_decelerate and curr_v < self.desired_speed)
+
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: stay_braking =", stay_braking)
+                print("[DEBUG] YieldTrajectoryPlanner.update: should_brake =", should_brake)
+                print("[DEBUG] YieldTrajectoryPlanner.update: should_accelerate =", should_accelerate)
+                print("[DEBUG] YieldTrajectoryPlanner.update: should_decelerate =", should_decelerate)
+
+            if stay_braking:
+                traj = longitudinal_brake(route_with_lookahead, 0.0, 0.0, 0.0)
+                if DEBUG:
+                    print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake (stay braking).")
+            elif should_brake:
+                traj = longitudinal_brake(route_with_lookahead, self.emergency_brake, curr_v)
+                if DEBUG:
+                    print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+            elif should_decelerate:
+                traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+                if DEBUG:
+                    print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+            elif should_accelerate:
+                traj = longitudinal_plan(route_with_lookahead, self.acceleration,
+                                         self.deceleration, self.desired_speed, curr_v)
+                if DEBUG:
+                    print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan (accelerate).")
+            else:
+                # Maintain current speed if not accelerating or braking.
+                traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
+                if DEBUG:
+                    print(
+                        "[DEBUG] YieldTrajectoryPlanner.update: Maintaining current speed with longitudinal_plan (0 accel).")
+
             self.t_last = t
-        dt = t - self.t_last
-        if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: dt =", dt)
-
-        curr_x = vehicle.pose.x
-        curr_y = vehicle.pose.y
-        curr_v = vehicle.v
-        if DEBUG:
-            print(f"[DEBUG] YieldTrajectoryPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}, ")
-
-        # Determine progress along the route.
-        if self.route_progress is None:
-            self.route_progress = 0.0
-        _, closest_parameter = route.closest_point_local(
-            [curr_x, curr_y],
-            (self.route_progress - 5.0, self.route_progress + 5.0)
-        )
-        if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: Closest parameter on route =", closest_parameter)
-        self.route_progress = closest_parameter
-
-        # Extract a 10 m segment of the route for planning lookahead.
-        route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
-        if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
-
-        print("[DEBUG] state", state.relations)
-        # Check whether any yield relations (e.g. due to pedestrians) require braking.
-        stay_braking = False
-        pointSet = set()
-        for i in range(len(route_with_lookahead.points)):
-            if tuple(route_with_lookahead.points[i]) in pointSet:
-                stay_braking = True
-                break
-            pointSet.add(tuple(route_with_lookahead.points[i]))
-
-        should_brake = any(
-            r.type == EntityRelationEnum.STOPPING_AT and r.obj1 == ''
-            for r in state.relations
-        )
-        should_decelerate = any(
-            r.type == EntityRelationEnum.YIELDING and r.obj1 == ''
-            for r in state.relations
-        ) if should_brake == False else False
-
-        should_accelerate = (not should_brake and not should_decelerate and curr_v < self.desired_speed)
-
-        if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: stay_braking =", stay_braking)
-            print("[DEBUG] YieldTrajectoryPlanner.update: should_brake =", should_brake)
-            print("[DEBUG] YieldTrajectoryPlanner.update: should_accelerate =", should_accelerate)
-            print("[DEBUG] YieldTrajectoryPlanner.update: should_decelerate =", should_decelerate)
-
-        if stay_braking:
-            traj = longitudinal_brake(route_with_lookahead, 0.0, 0.0, 0.0)
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake (stay braking).")
-        elif should_brake:
-            traj = longitudinal_brake(route_with_lookahead, self.emergency_brake, curr_v)
-            if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
-        elif should_decelerate:
-            traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
-            if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
-        elif should_accelerate:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration,
-                                     self.deceleration, self.desired_speed, curr_v)
-            if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan (accelerate).")
+                print('[DEBUG] Current Velocity of the Car: LOOK!', curr_v, self.desired_speed)
+                print("[DEBUG] YieldTrajectoryPlanner.update: Returning trajectory with", len(traj.points), "points.")
+
         else:
-            # Maintain current speed if not accelerating or braking.
-            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
-            if DEBUG:
-                print(
-                    "[DEBUG] YieldTrajectoryPlanner.update: Maintaining current speed with longitudinal_plan (0 accel).")
+            traj = Trajectory(frame=ObjectFrameEnum.CURRENT, points=[[0, 0],[0, 0]], times=[0, 1])
 
-        self.t_last = t
-        if DEBUG:
-            print('[DEBUG] Current Velocity of the Car: LOOK!', curr_v, self.desired_speed)
-            print("[DEBUG] YieldTrajectoryPlanner.update: Returning trajectory with", len(traj.points), "points.")
         return traj

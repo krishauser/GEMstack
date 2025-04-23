@@ -52,6 +52,9 @@ components:
   - summon_component: # one way
       inputs: all
       outputs: route
+  - summoning_mission_planning:
+      inputs: all
+      outputs: mission_plan
   - route_planning_component: # one way
       inputs: all
       outputs: route

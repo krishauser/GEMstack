@@ -5,7 +5,7 @@ from typing import List, Dict
 import numpy as np
 
 
-DEBUG = True    # Set to False to disable debug output
+DEBUG = False    # Set to False to disable debug output
 
 """ Vehicle Configuration """
 GEM_MODEL = 'e4'    # e2 or e4
