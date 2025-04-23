@@ -334,11 +334,11 @@ class ConeDetector3D(Component):
                                [0., 0., 0., 1.]])
         if self.camera_front:
             self.T_l2c = np.array([
-                [0.001090, -0.999489, -0.031941, 0.149698],
-                [-0.007664, 0.031932, -0.999461, -0.397813],
-                [0.999970, 0.001334, -0.007625, -0.691405],
-                [0., 0., 0., 1.000000]
-            ])
+        [ 2.89748006e-02, -9.99580136e-01,  3.68439439e-05, -3.07300513e-02],
+        [-9.49930618e-03, -3.12215512e-04, -9.99954834e-01, -3.86689354e-01],
+        [ 9.99534999e-01,  2.89731321e-02, -9.50437214e-03, -6.71425124e-01],
+        [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]
+    ])
         else:
             self.T_l2c = np.array([[-0.71836368, -0.69527204, -0.02346088, 0.05718003],
                                    [-0.09720448, 0.13371206, -0.98624154, -0.1598301],
@@ -421,6 +421,8 @@ class ConeDetector3D(Component):
         img_normal = undistorted_img
         results_normal = self.detector(img_normal, conf=0.3, classes=[0])
         combined_boxes = []
+        if not self.enable_tracking:
+            self.cone_counter = 0
         if self.orientation:
             img_left = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
             img_right = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_CLOCKWISE)
@@ -625,7 +627,6 @@ class ConeDetector3D(Component):
                     f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
                     f"type:{agent.activity}"
                 )
-
             return self.current_agents
 
         stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
@@ -643,8 +644,6 @@ class ConeDetector3D(Component):
                     f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
                     f"type:{agent.activity}"
                 )
-
-
         return self.tracked_agents
 
     # ----- Fake Cone Detector 2D (for Testing Purposes) -----
