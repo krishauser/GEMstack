@@ -8,7 +8,7 @@ import ros_numpy
 from ultralytics import YOLO
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from ..component import Component 
-from ...state import VehicleState, ObjectPose, ObjectFrameEnum
+from ...state import VehicleState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum
 from ..interface.gem import GEMInterface
 from scipy.spatial import ConvexHull
 from .parking_utils import *
@@ -20,6 +20,7 @@ class ParkingDetectorConeBased(Component):
         # Init Variables
         self.vehicle_interface = vehicle_interface
         self.goal_parking_spot = None
+        self.parking_obstacles = []
         self.ground_threshold = -0.15
         self.vis_2d_annotate = False
         self.vis_lidar_pc = True
@@ -201,7 +202,7 @@ class ParkingDetectorConeBased(Component):
             self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
 
         # Create vehicle marker
-        ros_vehicle_marker = create_bbox_marker([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 0.0, 1.0, 1), "vehicle")
+        ros_vehicle_marker = create_markers([[0.0, 0.0, 0.0]], [[0.8, 0.5, 0.3]], (0.0, 0.0, 1.0, 1), "markers", "vehicle")
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
 
         # Delete previous markers
@@ -245,8 +246,10 @@ class ParkingDetectorConeBased(Component):
         candidates = find_all_candidate_parking_spots(ordered_cone_ground_centers_2D)
         # print(f"-----candidates: {candidates}")
         if len(candidates) > 0:
+            self.parking_obstacles = get_parking_obstacles(ordered_cone_ground_centers_2D)
+            # print(f"-----parking_obstacles: {self.parking_obstacles}")
             self.goal_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
-            # print(f"-----closest_parking_spot: {closest_parking_spot}")
+            # print(f"-----goal_parking_spot: {self.goal_parking_spot}")
         return ordered_cone_ground_centers_2D, self.goal_parking_spot
 
 
@@ -260,13 +263,40 @@ class ParkingDetectorConeBased(Component):
         return ['vehicle']
 
     def state_outputs(self) -> list:
-        return ['goal']
+        return ['goal', 'obstacles']
 
-    def update(self, vehicle: VehicleState) -> ObjectPose:
+    def update(self, vehicle: VehicleState):
         current_time = self.vehicle_interface.time()
         if not self.goal_parking_spot:
             return None
         
+        # Constructing parking obstacles
+        obstacle_id = 0
+        parking_obstacles = {}
+        for o in self.parking_obstacles:
+            x, y, yaw, length = o
+            dimensions = [length, 0.01, 20.0]
+            obstacle_pose = ObjectPose(
+                                t=current_time,
+                                x=x,
+                                y=y,
+                                z=0.0,
+                                yaw=yaw,
+                                pitch=0.0,
+                                roll=0.0,
+                                frame=ObjectFrameEnum.CURRENT
+                            )
+            new_obstacle = Obstacle(
+                                pose=obstacle_pose,
+                                dimensions=dimensions,
+                                outline=None,
+                                material=ObstacleMaterialEnum.BARRIER,
+                                collidable=True
+                            )
+            parking_obstacles[obstacle_id] = new_obstacle
+            obstacle_id += 1
+        
+        # Constructing goal pose
         x, y, yaw = self.goal_parking_spot
         goal_pose = ObjectPose(
                         t=current_time,
@@ -278,7 +308,9 @@ class ParkingDetectorConeBased(Component):
                         roll=0.0,
                         frame=ObjectFrameEnum.CURRENT
                     )
-        return goal_pose
+        
+        new_state = [goal_pose, parking_obstacles]
+        return new_state
 
 if __name__ == "__main__":
     node = ParkingDetectorConeBased()

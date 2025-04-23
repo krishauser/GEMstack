@@ -57,6 +57,6 @@ components:
       outputs: 
   - parking_goal:
       inputs: all
-      outputs: goal
+      outputs: [goal, obstacles]
   - parking_state:
       inputs: all

@@ -1,4 +1,5 @@
 import cv2
+import math
 import numpy as np
 
 
@@ -158,4 +159,24 @@ def select_best_candidate(candidates, cornerPts):
             best_candidate = pose
             max_score = score
     return best_candidate
+
+
+def get_parking_obstacles(vertices):
+    vertices = np.array(vertices)
+    n = len(vertices)
+    segments = []
+
+    for i in range(n):
+        p1 = vertices[i]
+        p2 = vertices[(i + 1) % n]
+        center = (p1 + p2) / 2
+        delta = p2 - p1
+        length = np.linalg.norm(delta)
+        yaw = math.atan2(delta[1], delta[0])
+        segments.append((center[0], center[1], yaw, length))
+    
+    # Sort segments by length and remove the two with least length
+    segments.sort(key=lambda x: x[3], reverse=True)
+    return segments[:-2]
+
   

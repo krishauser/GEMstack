@@ -69,7 +69,7 @@ def create_point_cloud(points, color=(255, 0, 0), ref_frame="map"):
 
     return pc2.create_cloud(header, fields, point_cloud_data)
 
-def create_bbox_marker(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ref_frame="map"):
+def create_markers(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ns="markers", ref_frame="map"):
     """
     Create 3D bbox markers from centroids and dimensions
     """
@@ -83,7 +83,7 @@ def create_bbox_marker(centroids, dimensions, color = (0.0, 1.0, 1.5, 0.2), ref_
         marker = Marker()
         marker.header.frame_id = ref_frame  # Reference frame
         marker.header.stamp = rospy.Time.now()
-        marker.ns = "markers"
+        marker.ns = ns
         marker.id = i  # Unique ID for each marker
         marker.type = Marker.CUBE  # Cube for bounding box
         marker.action = Marker.ADD

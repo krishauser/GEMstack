@@ -17,5 +17,6 @@ class FakeParkingSim(Component):
         return ["goal"]
     
     def update(self, state: AllState):
-        print(f"AllState (parking goal): {state.goal}")
+        print(f"\n AllState (parking goal): {state.goal} \n")
+        print(f"AllState (parking obstacles): {state.obstacles} \n")
         return
