@@ -18,8 +18,8 @@ drive:
             type: StaticRoutePlanner
             args: [!relative_path '../GEMstack/knowledge/routes/turn_right2.csv']
         motion_planning:
-            type: RouteToTrajectoryPlanner
-            args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+            type: racing_planning.SlalomTrajectoryPlanner
+            # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker # to use pure pursuit comment below
             # type: stanley.StanleyTrajectoryTracker # to use stanley comment above 
@@ -70,7 +70,7 @@ variants:
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+                    scene: !relative_path '../scenes/racing_sim_slalom.yaml'
 
             drive: 
                 perception:
