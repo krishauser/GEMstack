@@ -7,18 +7,19 @@ import sensor_msgs.point_cloud2 as pc2
 import ros_numpy
 from ultralytics import YOLO
 from message_filters import Subscriber, ApproximateTimeSynchronizer
-import open3d as o3d
 from ..component import Component 
-from ...state import VehicleState, AgentState
-from sklearn.cluster import DBSCAN
+from ...state import VehicleState, ObjectPose, ObjectFrameEnum
+from ..interface.gem import GEMInterface
 from scipy.spatial import ConvexHull
 from .parking_utils import *
 from .visualization_utils import *
 
 
-class ConeDetector3D(Component):
-    def __init__(self):
+class ParkingDetectorConeBased(Component):
+    def __init__(self, vehicle_interface: GEMInterface):
         # Init Variables
+        self.vehicle_interface = vehicle_interface
+        self.goal_parking_spot = None
         self.ground_threshold = -0.15
         self.vis_2d_annotate = False
         self.vis_lidar_pc = True
@@ -103,14 +104,14 @@ class ConeDetector3D(Component):
 
             # Detect parking spot if 4 or more cones are detected
             ordered_cone_ground_centers_2D = []
-            closest_parking_spot = None
+            goal_parking_spot = None
             if len(centroids_vehicle_frame) >= 4:
-                ordered_cone_ground_centers_2D, closest_parking_spot = self.detect_parking_spot(centroids_vehicle_frame)
+                ordered_cone_ground_centers_2D, goal_parking_spot = self.detect_parking_spot(centroids_vehicle_frame)
 
             # Visualization
             self.viz_object_states(centroids_vehicle_frame,
                                    ordered_cone_ground_centers_2D, 
-                                   closest_parking_spot, 
+                                   goal_parking_spot, 
                                    image, bboxes, lidar)
 
 
@@ -194,7 +195,7 @@ class ConeDetector3D(Component):
     def viz_object_states(self, 
                           cone_3d_centers, 
                           ordered_cone_ground_centers_2D,
-                          closest_parking_spot,
+                          goal_parking_spot,
                           cv_image, boxes, 
                           lidar_ouster_frame):
         # Transform top lidar pointclouds to vehicle frame for visualization
@@ -220,8 +221,8 @@ class ConeDetector3D(Component):
             self.pub_polygon_marker.publish(ros_polygon_marker)
 
         # Create parking spot marker
-        if closest_parking_spot:
-            ros_parking_spot_marker = create_parking_spot_marker(closest_parking_spot, ref_frame="vehicle")
+        if goal_parking_spot:
+            ros_parking_spot_marker = create_parking_spot_marker(goal_parking_spot, ref_frame="vehicle")
             self.pub_parking_spot_marker.publish(ros_parking_spot_marker)
 
         # Draw 2D bboxes
@@ -251,9 +252,9 @@ class ConeDetector3D(Component):
         candidates = find_all_candidate_parking_spots(ordered_cone_ground_centers_2D)
         # print(f"-----candidates: {candidates}")
         if len(candidates) > 0:
-            closest_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
+            self.goal_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
             # print(f"-----closest_parking_spot: {closest_parking_spot}")
-        return ordered_cone_ground_centers_2D, closest_parking_spot
+        return ordered_cone_ground_centers_2D, self.goal_parking_spot
 
 
     def spin(self):
@@ -266,13 +267,26 @@ class ConeDetector3D(Component):
         return ['vehicle']
 
     def state_outputs(self) -> list:
-        return ['agents']
+        return ['goal']
 
-    def update(self, vehicle: VehicleState) -> dict:
-        # return dictionary with one key: 'agents'
-        return {'agents': {}}  # or real AgentState dict
-
+    def update(self, vehicle: VehicleState) -> ObjectPose:
+        current_time = self.vehicle_interface.time()
+        if not self.goal_parking_spot:
+            return None
+        
+        x, y, yaw = self.goal_parking_spot
+        goal_pose = ObjectPose(
+                        t=current_time,
+                        x=x,
+                        y=y,
+                        z=0.0,
+                        yaw=yaw,
+                        pitch=0.0,
+                        roll=0.0,
+                        frame=ObjectFrameEnum.CURRENT
+                    )
+        return goal_pose
 
 if __name__ == "__main__":
-    node = ConeDetector3D()
+    node = ParkingDetectorConeBased()
     node.spin()

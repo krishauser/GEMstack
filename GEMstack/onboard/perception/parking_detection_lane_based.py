@@ -5,7 +5,7 @@ from ...state import VehicleState
 from sensor_msgs.msg import Image
 from .bev import *
 
-class ParkingSpotDetector3D(Component):
+class ParkingDetectorLaneBased(Component):
     def __init__(self):
         # Initial variables
         self.bridge = CvBridge()
@@ -97,5 +97,5 @@ class ParkingSpotDetector3D(Component):
 
 
 if __name__ == "__main__":
-    node = ParkingSpotDetector3D()
+    node = ParkingDetectorLaneBased()
     node.spin()

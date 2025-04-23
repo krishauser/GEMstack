@@ -1,0 +1,65 @@
+description: "Drive the GEM vehicle along a fixed route (currently xyhead_highbay_backlot_p.csv)"
+mode: hardware
+vehicle_interface: gem_hardware.GEMHardwareInterface
+mission_execution: StandardExecutor
+# require_engaged: False
+# Recovery behavior after a component failure
+recovery: 
+    planning: 
+        trajectory_tracking:
+            type: recovery.StopTrajectoryTracker
+            print: False
+# Driving behavior for the GEM vehicle following a fixed route
+drive: 
+    perception:
+        state_estimation : GNSSStateEstimator
+        parking_goal : parking_detection_cone_based.ParkingDetectorConeBased
+        perception_normalization : StandardPerceptionNormalizer
+    planning:
+        parking_state:
+            type: FakeParkingSim
+
+#usually can keep this constant
+computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
+
+after:
+    show_log_folder: True  #set to false to avoid showing the log folder
+
+#on load, variants will overload the settingsNone structure
+variants:
+    #sim variant doesn't execute on the real vehicle 
+    #real variant executes on the real robot
+    detector_only:
+        run:
+            description: "Run the parking spot detection code"
+        drive:
+            planning:
+                trajectory_tracking:
+    test:
+        run:
+            mode: simulation
+            vehicle_interface:
+                type: gem_simulator.GEMDoubleIntegratorSimulationInterface
+                args:
+                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+
+            drive: 
+                perception:
+                    state_estimation : OmniscientStateEstimator
+                    parking_goal : parking_detection_cone_based.ParkingDetectorConeBased
+    sim:
+        run:
+            mode: simulation
+            vehicle_interface:
+                type: gem_simulator.GEMDoubleIntegratorSimulationInterface
+                args:
+                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+
+            drive: 
+                perception:
+                    state_estimation : OmniscientStateEstimator
+                    agent_detection : OmniscientAgentDetector
+            visualization: [!include "klampt_visualization.yaml", !include "mpl_visualization.yaml"]
+    log_ros:
+        log:
+            ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"

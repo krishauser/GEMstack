@@ -55,3 +55,9 @@ components:
   - signaling:
       inputs: [intent] 
       outputs: 
+  - parking_goal:
+      inputs: all
+      outputs: goal
+  - parking_state:
+      inputs: all
+      outputs: goal
