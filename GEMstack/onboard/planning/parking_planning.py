@@ -359,6 +359,7 @@ class ParkingSolverFirstOrderDubins(AStar):
 
     def state_to_object(self, state):
         """Convert a state to a polygon. The state is of the form (x,y,theta,v,dtheta,t)
+        Adds a buffer to the vehicle's dimensions for safer collision checking.
 
         Args:
             state (_type_): _description_
@@ -373,8 +374,19 @@ class ParkingSolverFirstOrderDubins(AStar):
 
         pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=t, x=x,y=y,z=0,yaw=theta)
         
+        # Get original vehicle dimensions
+        original_dimensions = self.vehicle.to_object().dimensions
+        
+        # Add buffer to dimensions (increase length and width by buffer amount)
+        buffer = 0.5  # 0.5 meters buffer on each side
+        buffered_dimensions = (
+            original_dimensions[0] + 2 * buffer,  # length
+            original_dimensions[1] + 2 * buffer,  # width
+            original_dimensions[2]  # height remains the same
+        )
+        
         temp_obj = PhysicalObject(pose=pose,
-                               dimensions=self.vehicle.to_object().dimensions,
+                               dimensions=buffered_dimensions,
                                outline=self.vehicle.to_object().outline)
 
         return temp_obj
