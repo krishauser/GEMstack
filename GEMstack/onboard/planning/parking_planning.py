@@ -352,8 +352,8 @@ class ParkingPlanner(Component):
         # Get the obstacles 
         # Define the functions we need 
         # Create the Astar object 
-        # self.planner = ParkingSolverSecondOrderDubins()
-        self.planner = ParkingSolverFirstOrderDubins()
+        self.planner = ParkingSolverSecondOrderDubins()
+        # self.planner = ParkingSolverFirstOrderDubins()
 
     def state_inputs(self):
         return ['all']
@@ -422,13 +422,9 @@ class ParkingPlanner(Component):
         goal.pose = goal_pose
         goal.v = 0
 
-        # # Need to parse and create second order dubin car states
-        # start_state = self.vehicle_state_to_dynamics(vehicle)
-        # goal_state = self.vehicle_state_to_dynamics(goal)
-
         # Need to parse and create second order dubin car states
-        start_state = self.vehicle_state_to_first_order(vehicle)
-        goal_state = self.vehicle_state_to_first_order(goal)
+        start_state = self.vehicle_state_to_second_order(vehicle)
+        goal_state = self.vehicle_state_to_second_order(goal)
 
         # Update the planner
         # self.planner.obstacles = list(obstacles.values())
