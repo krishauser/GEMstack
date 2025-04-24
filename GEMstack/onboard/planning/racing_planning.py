@@ -129,27 +129,28 @@ def waypoint_generate(vehicle_state, cone_state):
 
     # TODO: move to a different setting instead of as a scenario
     elif scenario == '90turn':
+        turn_vector = np.array([-np.sin(car_heading + np.pi / 6), np.cos(car_heading + np.pi / 6)])
         cone = np.array(cone_position)
         distance_to_cone = np.linalg.norm(car_position - cone)
 
         flex_wps = []
 
-        if distance_to_cone > 10:
-            # Add multiple waypoints to drive in estimated straight line
-            steps = int(distance_to_cone // 10)
+        if distance_to_cone > 7:
+            steps = int(distance_to_cone // 6)
+            print("steps:", steps)
 
-            final_flex_wp = cone + 3.0 * perpendicular_vector
-            fixed_wp = cone + heading_vector * 3.0 - perpendicular_vector * 1.0
+            final_flex_wp = cone + 1.0 * perpendicular_vector + heading_vector * 1.0
+            fixed_wp = cone - turn_vector * 2.5 + heading_vector * 0.0
 
             cone_direction = (final_flex_wp - car_position) / np.linalg.norm(final_flex_wp - car_position)
-            for i in range(steps):
-                intermediate_wp = car_position + cone_direction * ((i + 1) * 10)
+            for i in range(steps - 2):
+                intermediate_wp = car_position + cone_direction * ((i + 1) * 6)
                 flex_wps.append(intermediate_wp)
 
             flex_wps.append(final_flex_wp)
         else:
-            flex_wp = cone + 3.0 * perpendicular_vector
-            fixed_wp = cone + heading_vector * 3.0 - perpendicular_vector * 1.0
+            flex_wp = cone + 1.0 * perpendicular_vector + heading_vector * 1.0
+            fixed_wp = cone - turn_vector * 2.5 + heading_vector * 0.0
             flex_wps = [flex_wp]
 
     else:
@@ -669,9 +670,12 @@ def test_4_cone_slalom():
     plt.grid(True)
     plt.show()
 
+# TODO 1: Compute target heading in waypoint_generation for different settings (slalom or course run)
+# TODO 2: Implement replanning
 def test_fixed_course():
+    # steering angle c is relative to car heading!!
     vehicle_state = {
-        'position': [-62.0, -39.0],
+        'position': [-60.0, -39.0],
         'heading': np.pi * 2 / 3,
         'velocity': 0.0
     }
@@ -685,7 +689,7 @@ def test_fixed_course():
 
     current_pos = np.array(vehicle_state['position'])
     current_heading = vehicle_state['heading']
-    current_steering = current_heading
+    current_steering = 0.0
 
     x_all, y_all = [], []
 
@@ -695,28 +699,33 @@ def test_fixed_course():
         if not flex_wps or fixed_wp is None:
             continue
 
-        init_state = {
-            'x': current_pos[0], 'y': current_pos[1], 'psi': current_heading,
-            'c': current_steering, 'v': vehicle_state['velocity']
-        }
-
         # Setting target_heading in final_state
-        # TODO: Compute target heading in waypoint_generation for different settings (slalom or course run)
         if cone_idx > 0:
             prev_cone_position = np.array((cones[cone_idx - 1]['x'], cones[cone_idx - 1]['y']))
             current_cone_position = np.array((cones[cone_idx]['x'], cones[cone_idx]['y']))
             target_heading = np.arctan2(current_cone_position[1] - prev_cone_position[1],
-                                      current_cone_position[0] - prev_cone_position[0]) - np.pi / 2
-            if abs(target_heading - current_heading) > np.pi / 2:
-                target_heading = current_heading - np.pi / 2 + 0.1
+                                      current_cone_position[0] - prev_cone_position[0]) - np.pi / 2 + np.pi / 18
 
         else: # no previous cone
-            target_heading = current_heading - np.pi / 2 + 0.1
+            target_heading = current_heading - np.pi / 2 + np.pi / 18
 
+        # mod to -pi to pi range
         target_heading = (target_heading + np.pi) % (2 * np.pi) - np.pi
+        current_heading = (current_heading + np.pi) % (2 * np.pi) - np.pi
 
+        if abs(target_heading - current_heading) > np.pi: 
+            if target_heading < current_heading:
+                target_heading += 2 * np.pi
+            else:
+                target_heading -= 2 * np.pi
+
+        init_state = {
+            'x': current_pos[0], 'y': current_pos[1], 'psi': current_heading,
+            'c': current_steering, 'v': vehicle_state['velocity']
+        }
+        
         final_state = {
-            'x': fixed_wp[0], 'y': fixed_wp[1], 'psi': target_heading, 'c': target_heading
+            'x': fixed_wp[0], 'y': fixed_wp[1], 'psi': target_heading, 'c': 0.0
         }
 
         estimated_N = int(((current_pos[0]-fixed_wp[0]) ** 2 + (current_pos[1]-fixed_wp[1]) ** 2) ** 0.5 / 0.7)
@@ -743,7 +752,7 @@ def test_fixed_course():
 
     # Plot cones
     for i, cone in enumerate(cones):
-        plt.scatter(cone['x'], cone['y'], color='orange', s=80, label='Cone' if i == 0 else "")
+        plt.scatter(cone['x'], cone['y'], color='orange', s=10, label='Cone' if i == 0 else "")
         plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
 
     plt.title('4-Cone Full Course Trajectory')
