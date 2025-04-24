@@ -1,6 +1,7 @@
 import cv2
 import math
 import numpy as np
+from scipy.spatial import ConvexHull
 
 
 GEM_E4_LENGTH = 3.6  # m
@@ -189,3 +190,37 @@ def get_parking_obstacles(vertices):
     filtered_dimensions = [segment_info[i][1] for i in range(len(segment_info)) if i not in indices_to_remove]
 
     return filtered_positions, filtered_dimensions
+
+# def order_points_all(points_2d):
+#     points_np = np.array(points_2d)
+#     hull = ConvexHull(points_np)
+#     ordered = [points_np[i] for i in hull.vertices]
+#     return ordered
+
+def order_points_all(points_2d):
+    points = np.array(points_2d)
+    centroid = np.mean(points, axis=0)
+    angles = np.arctan2(points[:,1] - centroid[1], points[:,0] - centroid[0])
+    sorted_indices = np.argsort(angles)
+    return points[sorted_indices]
+    
+
+def detect_parking_spot(cone_3d_centers):
+    # Initial variables
+    goal_parking_spot = None
+    parking_obstacles_pose = []
+    parking_obstacles_dim = []
+
+    # Get 2D cone centers
+    cone_ground_centers = np.array(cone_3d_centers)
+    cone_ground_centers_2D = cone_ground_centers[:, :2]
+    ordered_cone_ground_centers_2D = order_points_all(cone_ground_centers_2D)
+    # print(f"-----cone_ground_centers_2D: {len(ordered_cone_ground_centers_2D)}")
+    candidates = find_all_candidate_parking_spots(ordered_cone_ground_centers_2D)
+    # print(f"-----candidates: {candidates}")
+    if len(candidates) > 0:
+        parking_obstacles_pose, parking_obstacles_dim = get_parking_obstacles(ordered_cone_ground_centers_2D)
+        # print(f"-----parking_obstacles: {self.parking_obstacles_pose}")
+        goal_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
+        # print(f"-----goal_parking_spot: {self.goal_parking_spot}")
+    return goal_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D
