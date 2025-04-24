@@ -107,13 +107,22 @@ class ParkingDetectorConeBased(Component):
 
             # Detect parking spot if 4 or more cones are detected
             ordered_cone_ground_centers_2D = []
-            if len(centroids_vehicle_frame) >= 4:
-                ordered_cone_ground_centers_2D, _ = self.detect_parking_spot(centroids_vehicle_frame)
+            if len(centroids_vehicle_frame) >= 4 and len(centroids_vehicle_frame) % 2 == 0:
+                ordered_centroids = sorted(centroids_vehicle_frame, key=lambda x: (x[0]))
+
+                if len(centroids_vehicle_frame) > 4:
+                    print(f"BEFORE-----ordered_centroids: {ordered_centroids}")
+                    ordered_centroids = [ordered_centroids[i] for i in [0, 1, 2, 4]] # probably only good for slanted
+                    print(f"-----ordered_centroids: {ordered_centroids}")
+                else:
+                    ordered_centroids = ordered_centroids[:4]
+                ordered_cone_ground_centers_2D, _ = self.detect_parking_spot(ordered_centroids)
 
             # Visualization
-            self.viz_object_states(centroids_vehicle_frame,
-                                   ordered_cone_ground_centers_2D, 
-                                   image, bboxes, lidar)
+            if ordered_cone_ground_centers_2D is not None:
+                self.viz_object_states(centroids_vehicle_frame,
+                                    ordered_cone_ground_centers_2D, 
+                                    image, bboxes, lidar)
 
 
     # All local helper functions
@@ -252,6 +261,10 @@ class ParkingDetectorConeBased(Component):
         cone_ground_centers = np.array(cone_3d_centers)
         cone_ground_centers_2D = cone_ground_centers[:, :2]
         ordered_cone_ground_centers_2D = self.order_points_convex_hull(cone_ground_centers_2D)
+
+        if (len(ordered_cone_ground_centers_2D) < 4):
+            return None, None
+
         # print(f"-----cone_ground_centers_2D: {cone_ground_centers_2D}")
         candidates = find_all_candidate_parking_spots(ordered_cone_ground_centers_2D)
         # print(f"-----candidates: {candidates}")
