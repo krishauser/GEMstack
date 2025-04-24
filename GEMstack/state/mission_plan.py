@@ -13,6 +13,7 @@ class MissionPlan:
     planner_type : PlannerEnum = PlannerEnum.IDLE
     # other mission-specific parameters can be added here
     goal_pose: Optional[ObjectPose] = None
+    start_pose: Optional[ObjectPose] = None
 
 
     

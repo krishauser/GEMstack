@@ -3,28 +3,48 @@ from ..component import Component
 from ...utils import serialization
 from ...state import Route, ObjectFrameEnum, AllState, VehicleState, Roadgraph, MissionObjective, MissionEnum, \
     VehicleIntent, VehicleIntentEnum, MissionPlan, PlannerEnum, ObjectPose
+from ..interface.gem import GEMInterface, GNSSReading
 import os
 import numpy as np
 import requests
 import json
 import time
 import math
+from ...utils import settings
 
 
-def check_distance(goal, current_pose):
-    goal = np.array(goal)[:2]
-    current_pose = np.array([current_pose.x, current_pose.y])
-    return np.linalg.norm(goal - current_pose)
+def check_distance(goal_pose : ObjectPose, current_pose : ObjectPose):
+    goal = np.array([goal_pose.x, goal_pose.y])
+    current = np.array([current_pose.x, current_pose.y])
+    return np.linalg.norm(goal - current)
+
+
+class StateMachine:
+    def __init__(self, state_list : List = None):
+        self.state_list = state_list
+        self.state_index = 0
+        self.initial_state = self.state_list[0]
+        self.current_state = self.state_list[self.state_index]
+
+    def next_state(self):
+        if self.state_index < len(self.state_list) - 1:
+            self.state_index += 1
+            return self.state_list[self.state_index]
+        else:
+            self.state_index = 0
+            return self.state_list[0]
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, distance_to_goal_to_start_parking, distance_error_of_idle_from_parking, state_machine):
-        print("Initializing SummoningMissionPlanner:", distance_to_goal_to_start_parking, distance_error_of_idle_from_parking, state_machine)
-        self.distance_to_goal_to_start_parking = distance_to_goal_to_start_parking
-        self.distance_error_of_idle_from_parking = distance_error_of_idle_from_parking
-        self.state_list = [eval(s) for s in state_machine]
+    def __init__(self, mode, state_machine):
+        self.state_machine = StateMachine([eval(s) for s in state_machine])
+        self.goal_location = None
+        self.new_goal = False
+        self.goal_pose = None
+        self.start_pose = None
+        self.start_time = time.time()
 
-        self.count = 0      # for simulate a delay to get the gaol location
+        self.count = 0      # for test only, simulate a delay to get the gaol location
 
     def state_inputs(self):
         return ['all']
@@ -38,46 +58,78 @@ class SummoningMissionPlanner(Component):
     def update(self, state: AllState):
         vehicle = state.vehicle
         mission_plan = state.mission_plan
-        if mission_plan is None:
-            mission_plan = MissionPlan()
-            mission_plan.planner_type = PlannerEnum.IDLE
 
-        # for simulate a delay to get the gaol location
+        # To simulate a delay to get the goal location
         self.count += 1
         if self.count <3:
             return mission_plan
 
         # TODO: Modify to a GET request to get goal location from the server
+        # current_goal_location = self.goal_location
         # url = ""
         # response = requests.get(url)
         # if response.status_code == 200:
         #     data = response.json()
         #     goal_location = data['goal_location']
-        #     goal_location = ObjectPose(t=time.time(), x=goal_location[0], y=goal_location[1], frame=ObjectFrameEnum.GLOBAL)
+        #     goal_frame = data['goal_frame']
 
-        goal_location = [10, 11]  # for test only
-        self.goal_pose = ObjectPose(t=time.time(), x=goal_location[0], y=goal_location[1],
-                                    frame=ObjectFrameEnum.START)
+        goal_location = [10, 11]  # for simulation test only
+        goal_frame = 'start'
 
-        if mission_plan.planner_type == PlannerEnum.IDLE and self.goal_pose is not None:
-            mission_plan.goal_pose = self.goal_pose
-            mission_plan.planner_type = PlannerEnum.SUMMON_DRIVING
+        if self.goal_location == goal_location:
+            self.new_goal = False
+        else:
+            self.new_goal = True
+            self.goal_location = goal_location
 
+        if self.new_goal:
+            if goal_frame == 'global':
+                self.goal_pose = ObjectPose(t=time.time(), x=self.goal_location[0], y=self.goal_location[1],
+                                            frame=ObjectFrameEnum.GLOBAL)
+            elif goal_frame == 'cartesian':
+                self.goal_pose = ObjectPose(t=time.time(), x=self.goal_location[0], y=self.goal_location[1],
+                                        frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN)
+            elif goal_frame == 'start':
+                self.goal_pose = ObjectPose(t=time.time() - self.start_time, x=self.goal_location[0], y=self.goal_location[1],
+                                            frame=ObjectFrameEnum.START)
+            else:
+                raise ValueError("Invalid frame argument")
+
+        # Initiate state
+        if mission_plan is None:
+            mission_plan = MissionPlan()
+            mission_plan.planner_type = self.state_machine.initial_state
+
+        # Receive goal location from the server and start driving
+        elif mission_plan.planner_type == PlannerEnum.IDLE:
+            if self.new_goal:
+                mission_plan.goal_pose = self.goal_pose
+                mission_plan.start_pose = self.start_pose
+                mission_plan.planner_type = self.state_machine.next_state()
+
+        # Close to the goal location, begin to search for parking
         elif mission_plan.planner_type == PlannerEnum.SUMMON_DRIVING:
-            dist = check_distance([self.goal_pose.x, self.goal_pose.y], vehicle.pose)
-            if dist < self.distance_error_of_idle_from_parking:
-                mission_plan.planner_type = PlannerEnum.PARALLEL_PARKING
+            mission_plan.goal_pose = self.goal_pose
+            mission_plan.start_pose = self.start_pose
+            dist = check_distance(mission_plan.goal_pose, vehicle.pose)
+            print("Distance to the goal:", dist)
+            if dist < 5:
+                mission_plan.planner_type = self.state_machine.next_state()
 
+        # Finish parking, back to idle and wait for the next goal location
         elif mission_plan.planner_type == PlannerEnum.PARALLEL_PARKING:
-            dist = check_distance(state.route.points[-1], vehicle.pose)
-            if dist < self.distance_error_of_idle_from_parking:
-                mission_plan.planner_type = PlannerEnum.IDLE
+            if state.route:
+                dist = check_distance(mission_plan.goal_pose, vehicle.pose)
+                print("Distance to the end point of the route:", dist)
+                if dist < 0.2 and vehicle.v < 0.01:
+                    mission_plan.planner_type = self.state_machine.next_state()
 
+        # No state change
         else:
             mission_plan = state.mission_plan
 
         # TODO: POST request to update status to the server
         # data =
-        # response = requests.post(url=, data=)
+        # response = requests.post(url=url, data=data)
 
         return mission_plan

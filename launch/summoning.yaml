@@ -19,12 +19,12 @@ drive:
         summoning_mission_planning:
             type: SummoningMissionPlanner
             args:
-                distance_to_goal_to_start_parking: 10.0  # Distance to the goal that switch to parking mode and begin to search a route for parking.
-                distance_error_of_idle_from_parking: 0.2   # distance, heading errors that can be considered the parking is done.
-                state_machine: [PlannerEnum.IDLE, PlannerEnum.LEAVE_PARKING, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING]
+                mode: 'hardware'
+                state_machine: [PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING]
         route_planning_component:
            type: RoutePlanningComponent
-           args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json','global']
+#           args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json','global']
+           args: [ !relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json','start' ]
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
@@ -102,7 +102,11 @@ variants:
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
                 planning:
-
+                    summoning_mission_planning:
+                        type: SummoningMissionPlanner
+                        args:
+                            mode: 'simulation'
+                            state_machine: [ PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING ]
                     route_planning_component:
                         type: RoutePlanningComponent
                         args: [ !relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json','start' ]

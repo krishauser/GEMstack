@@ -1,6 +1,8 @@
 import numpy as np
 import random  
 import math
+import time
+
 
 class Obstacle:
     def __init__(self,x=0,y=0,r=0.2):
@@ -17,7 +19,9 @@ class Point:
         self.cost = float('inf')  # Cost to reach this node
 
 class BiRRT:
-    def __init__(self, start : list, goal : list, obstacles : list, MAP_SIZE : list, OFFSET : float = 0.8):
+    def __init__(self, start : list, goal : list, obstacles : list, MAP_SIZE : list,
+                 OFFSET : float = 0.8, time_limit : float = 1.0, heading_limit = math.pi/6,
+                 step_size = 0.5, search_r = 1.4, MAX_Iteration = 20000):
         
         self.path = []
         self.tree_from_start = []
@@ -42,16 +46,19 @@ class BiRRT:
         self.OFFSET = OFFSET # meter
         
         # max iteration size for performing route search
-        self.MAX_Iteration = 20000
-        
+        self.MAX_Iteration = MAX_Iteration
+
+        # max search time
+        self.time_limit = time_limit
+
         # step size for local planner
-        self.step_size = 0.5 # meter
+        self.step_size = step_size # meter
         
         # radius for determine neighbor node
-        self.search_r = 1.4 # meter
+        self.search_r = search_r # meter
         
         # angle limit for vehicle turning per step size
-        self.heading_limit = math.pi/6 # limit the heading change in route
+        self.heading_limit = heading_limit # limit the heading change in route
         
         # Map boundary
         self.MAP_X_LOW = MAP_SIZE[0] # meter
@@ -64,9 +71,13 @@ class BiRRT:
         # initialize two tree
         self.tree_from_start.append(self.start_point)
         self.tree_from_end.append(self.end_point)
-        
+
+        start_time = time.time()
         # perform search within max number of iterration
         for iterration in range(self.MAX_Iteration):
+            if time.time()-start_time > self.time_limit:
+                break
+
             # uniformly sample a point within in the map
             sample_p = Point(random.uniform(self.MAP_X_LOW,self.MAP_X_HIGH),random.uniform(self.MAP_Y_LOW,self.MAP_Y_HIGH))
             Direction = None

@@ -8,7 +8,7 @@ import numpy as np
 # from GEMstack.state.physical_object import ObjectFrameEnum
 # from GEMstack.state.route import PlannerEnum, Route
 from .rrt_star import RRTStar
-
+from ..interface.gem import GEMInterface
 from ..component import Component
 from ...state import AllState, Roadgraph, Route, PlannerEnum, ObjectFrameEnum, Path, VehicleState, AgentState, AgentEnum
 from .RRT import BiRRT
@@ -93,13 +93,16 @@ class RoutePlanningComponent(Component):
         else:
             raise ValueError("Unknown roadgraph file extension", ext)
 
-        # TODO: Transform global map to start frame
+        # TODO: Transform global map to start frame?
         if self.map_frame == ObjectFrameEnum.GLOBAL:
-            self.start_pose_global = None      # Read from GNSS
+            self.start_pose_global = None      # Read from GNSS?
             self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=self.start_pose_global)
 
         # If parking route existed, not search anymore. For simulation testing only. TODO: Delete after integration
         self.parking_route_existed = False
+
+        # Used as route searchers' time limit as well as the update rate of the component
+        self.update_rate = 10.0
 
     def state_inputs(self):
         return ["all"]
@@ -108,7 +111,7 @@ class RoutePlanningComponent(Component):
         return ['route']
 
     def rate(self):
-        return 10.0
+        return self.update_rate
 
     def update(self, state: AllState):
         print("Route Planner's mission:", state.mission_plan.planner_type)
@@ -116,9 +119,9 @@ class RoutePlanningComponent(Component):
         # print("Route Planner's mission:", state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value)
         # print("Route Planner's mission:", state.mission_plan.planner_type.value == PlannerEnum.PARKING.value)
         # print("Mission plan:", state.mission_plan)
-        # print("Vehicle x:", state.vehicle.pose.x)
-        # print("Vehicle y:", state.vehicle.pose.y)
-        # print("Vehicle yaw:", state.vehicle.pose.yaw)
+        print("Vehicle x:", state.vehicle.pose.x)
+        print("Vehicle y:", state.vehicle.pose.y)
+        print("Vehicle yaw:", state.vehicle.pose.yaw)
 
         if state.mission_plan.planner_type.value == PlannerEnum.PARKING.value:
             print("I am in PARKING mode")
@@ -180,7 +183,8 @@ class RoutePlanningComponent(Component):
             current_pose = plan_available_pose_on_lane([state.vehicle.pose.x, state.vehicle.pose.y],
                                                     self.roadgraph, current_yaw=state.vehicle.pose.yaw)
             goal_pose = plan_available_pose_on_lane([goal_pose_.x, goal_pose_.y], self.roadgraph)
-            searcher = BiRRT(current_pose, goal_pose, self.lane_points, map_size, OFFSET=0.8)
+            searcher = BiRRT(current_pose, goal_pose, self.lane_points, map_size, OFFSET=0.8, time_limit=0.1,
+                             heading_limit=math.pi/6, step_size = 0.5, search_r = 1.4, MAX_Iteration = 20000)
             waypoints = searcher.search()
 
             # For now, waypoints of [x, y, heading] is not working in longitudinal_planning. Use [x, y] instead.
@@ -200,57 +204,25 @@ class RoutePlanningComponent(Component):
             print("I am in PARALLEL_PARKING mode")
             # TODO: Get cones information from perception, should have a AgentEnum for cones, for example AgentEnum.CONE
             # cones = []
-            # for obj in state.agents.values():
-            #     if obj.type == AgentEnum.CONE:
-            #         cones.append(obj)
+            # for agent in state.agents.values():
+            #     if agent.type == AgentEnum.CONE:
+            #         cones.append(agent)
 
             """ BEGIN: For simulation test only. Delete after integration """""""""""""""
-            def generate_turn(pose, turn_angle=45, turn_radius=3.0, turn_direction="right",
-                              acceleration=5.0, deceleration=2.0, max_speed=1.0, num_points=10):
-                theta = np.deg2rad(turn_angle)
+            def generate_turn(pose, step=1.0, num_points=10):
                 x, y, yaw = pose
-                R = turn_radius
-                if turn_direction == "left":
-                    cx = x + R * np.cos(yaw - np.pi / 2)
-                    cy = y + R * np.sin(yaw - np.pi / 2)
-                    start_angle = yaw - np.pi / 2
-                    angles = np.linspace(start_angle, start_angle - theta, num_points)
-                    end_yaw = start_angle - theta
-                elif turn_direction == "right":
-                    cx = x + R * np.cos(yaw + np.pi / 2)
-                    cy = y + R * np.sin(yaw + np.pi / 2)
-                    start_angle = yaw + np.pi / 2
-                    angles = np.linspace(start_angle, start_angle + theta, num_points)
-                    end_yaw = start_angle + theta
-                else:
-                    raise ValueError('Invalid turn direction')
-                end_yaw = (end_yaw + np.pi) % (2 * np.pi) - np.pi  # normalize angle
+                yaw_left = yaw + math.pi / 4  # 左前方偏 45°
                 waypoints = []
-                for angle in angles:
-                    xi = cx + R * np.cos(angle)
-                    yi = cy + R * np.sin(angle)
-                    waypoints.append([xi, yi])
-                end_pose = waypoints[-1][0], waypoints[-1][1], end_yaw
-                return waypoints, end_pose
-
-            ### FOR SIMULATION TEST ONLY ###
-            def generate_pull_over_route(pose, turn_angle=45, turn_radius=3.0, turn_direction="right"):
-                waypoints1, end_pose = generate_turn(pose, turn_angle=turn_angle, turn_radius=turn_radius,
-                                                     turn_direction=turn_direction)
-                if turn_direction == "right":
-                    waypoints2, _ = generate_turn(end_pose, turn_angle=turn_angle, turn_radius=turn_radius,
-                                                  turn_direction="left")
-                else:
-                    waypoints2, _ = generate_turn(end_pose, turn_angle=turn_angle, turn_radius=turn_radius,
-                                                  turn_direction="right")
-                waypoints = waypoints1 + waypoints2
+                for i in range(1, num_points + 1):
+                    dx = step * i * math.cos(yaw_left)
+                    dy = step * i * math.sin(yaw_left)
+                    waypoints.append([x + dx, y + dy])
                 return waypoints
 
             if not self.parking_route_existed:
                 current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
-                waypoints = generate_pull_over_route(current_pose, turn_angle=45, turn_radius=2.0, turn_direction="right")
+                waypoints = generate_turn(current_pose)
                 self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
-
                 self.parking_route_existed = True
             else:
                 self.route = state.route

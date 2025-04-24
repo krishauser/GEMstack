@@ -6,8 +6,7 @@ from typing import List,Tuple,Optional
 
 from enum import Enum
 
-# @dataclass
-# @register
+
 class PlannerEnum(Enum):
     RRT_STAR = 0                #position / yaw in m / radians relative to starting pose of vehicle
     HYBRID_A_STAR = 1           #position / yaw in m / radians relative to current pose of vehicle
