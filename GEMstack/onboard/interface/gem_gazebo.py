@@ -225,6 +225,12 @@ class GEMGazeboInterface(GEMInterface):
         
         # Get current speed
         v = self.last_reading.speed
+
+
+        #update last reading
+        self.last_reading.accelerator_pedal_position = command.accelerator_pedal_position
+        self.last_reading.brake_pedal_position = command.brake_pedal_position
+        self.last_reading.steering_wheel_angle = command.steering_wheel_angle
         
         # Convert pedal to acceleration
         accelerator_pedal_position = np.clip(command.accelerator_pedal_position, 0.0, 1.0)
