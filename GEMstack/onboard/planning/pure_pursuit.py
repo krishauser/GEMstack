@@ -184,13 +184,16 @@ class PurePursuit(object):
             # decay speed when crosstrack error is high
             desired_speed *= np.exp(-abs(ct_error) * 0.8)
 
-            if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
-                if component is not None:
-                    component.debug_event('Past the end of trajectory')
-                # past the end, just stop
-                desired_speed = 0.0
-                feedforward_accel = -2.0
-                f_delta = 0
+
+            # COMMENT OUT BY SUMMONING: parallel_parking returns error under this condition
+            # if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
+            #     if component is not None:
+            #         component.debug_event('Past the end of trajectory')
+            #     # past the end, just stop
+            #     desired_speed = 0.0
+            #     feedforward_accel = -2.0
+            #     f_delta = 0
+
 
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit
@@ -242,4 +245,4 @@ class PurePursuitTrajectoryTracker(Component):
 
     def healthy(self):
         # return self.pure_pursuit.path is not None
-        return True
+        return True 
