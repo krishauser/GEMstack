@@ -137,7 +137,10 @@ class ParkingSpotsDetector3D(Component):
         # Detect parking spot
         if len(cone_pts_3D) == 4:
             goal_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D = detect_parking_spot(cone_pts_3D)
-
+        elif len(cone_pts_3D) > 4 and len(cone_pts_3D) % 2 == 0:
+            ordered_centroids = sorted(cone_pts_3D, key=lambda x: (x[0]))
+            ordered_centroids = [ordered_centroids[i] for i in [0, 1, 2, 4]]
+            goal_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D = detect_parking_spot(ordered_centroids)
         # Update local variables for visualization
         self.cone_pts_3D = cone_pts_3D
         self.ordered_cone_ground_centers_2D = ordered_cone_ground_centers_2D
