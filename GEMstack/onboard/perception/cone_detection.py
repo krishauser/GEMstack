@@ -377,9 +377,12 @@ class ConeDetector3D(Component):
         downsample = False
         if self.latest_image is None or self.latest_lidar is None:
             return {}
-
+        lastest_image = self.latest_image.copy()
         # Ensure data/ exists and build timestamp
-
+        if downsample:
+            lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
+        else:
+            lidar_down = self.latest_lidar.copy()
         current_time = self.vehicle_interface.time()
         if self.start_time is None:
             self.start_time = current_time
@@ -389,7 +392,7 @@ class ConeDetector3D(Component):
             os.makedirs("data", exist_ok=True)
             tstamp = int(self.vehicle_interface.time() * 1000)
             # 1) Dump raw image
-            cv2.imwrite(f"data/{tstamp}_image.png", self.latest_image)
+            cv2.imwrite(f"data/{tstamp}_image.png", lastest_image)
             # 2) Dump raw LiDAR
             np.savez(f"data/{tstamp}_lidar.npz", lidar=self.latest_lidar)
             # 3) Write BEFORE_TRANSFORM
@@ -425,11 +428,10 @@ class ConeDetector3D(Component):
                     f"frame={mode}\n"
                 )
         start = time.time()
-        undistorted_img, current_K = self.undistort_image(self.latest_image, self.K, self.D)
+        undistorted_img, current_K = self.undistort_image(lastest_image, self.K, self.D)
         end = time.time()
         # print('-------processing time undistort_image---', end -start)
         self.current_K = current_K
-        self.latest_image = undistorted_img
         orig_H, orig_W = undistorted_img.shape[:2]
 
         # --- Begin modifications for three-angle detection ---
@@ -484,10 +486,7 @@ class ConeDetector3D(Component):
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             cv2.imshow("Detection - Cone 2D", undistorted_img)
 
-        if downsample:
-            lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
-        else:
-            lidar_down = self.latest_lidar.copy()
+
         start = time.time()
         pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
         projected_pts = project_points(pts_cam, self.current_K, lidar_down)
