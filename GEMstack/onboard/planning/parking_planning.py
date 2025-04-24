@@ -198,7 +198,9 @@ class ParkingSolverFirstOrderDubins(AStar):
         #@TODO create a more standardized way to define the actions
         self.actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1),
                         (-1, -1), (-1, -0.5), (-1,0), (-1, 0.5), (-1,1)]
-
+        
+        # Add Reeds-Shepp parameters
+        self.turning_radius = 1.0  # Adjust based on your vehicle
 
     @property
     def vehicle(self):
@@ -233,28 +235,52 @@ class ParkingSolverFirstOrderDubins(AStar):
         return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
     
     def heuristic_cost_estimate(self, state_1, state_2):
-        """computes the 'direct' distance between two (x,y) tuples"""
+        """Computes the Reeds-Shepp path length between two configurations as the heuristic cost"""
         # Extract position and orientation from states
-        (x1, y1, theta1, t) = state_1
-        (x2, y2, theta2, t) = state_2
-
-        return math.hypot(x2 - x1, y2 - y1, theta2 - theta1)
+        (x1, y1, theta1, t1) = state_1
+        (x2, y2, theta2, t2) = state_2
+        
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        path_length_cost = path_length(start, goal, self.turning_radius)
+        
+        # Add a small penalty for time difference
+        time_penalty = abs(t2 - t1) * 0.01
+        
+        return path_length_cost + time_penalty
     
     def terminal_cost_estimate(self, state_1, state_2):
-        """computes the 'direct' distance between two (x,y) tuples"""
+        """Computes the terminal cost estimate between current state and goal state"""
         # Extract position and orientation from states
-        (x1, y1, theta1, t) = state_1
-        (x2, y2, theta2, t) = state_2
-        return math.hypot(x2 - x1, y2 - y1, theta2 - theta1)
+        (x1, y1, theta1, t1) = state_1
+        (x2, y2, theta2, t2) = state_2
+        
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        path_length_cost = path_length(start, goal, self.turning_radius)
+        
+        # Add penalties for time difference
+        time_penalty = abs(t2 - t1) * 0.01
+        
+        return path_length_cost + time_penalty
 
     def distance_between(self, state_1, state_2):
-        """
-        The states here are (x,y,theta,v,dtheta,t)
-        """
-        (x1, y1, theta1, t) = state_1
-        (x2, y2, theta2, t) = state_2
-
-        return math.hypot(x2 - x1, y2 - y1)
+        """Calculate the actual distance between two nodes using Reeds-Shepp path length"""
+        (x1, y1, theta1, t1) = state_1
+        (x2, y2, theta2, t2) = state_2
+        
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        return path_length(start, goal, self.turning_radius)
 
     def neighbors(self, node):
         """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
