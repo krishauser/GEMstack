@@ -195,10 +195,11 @@ class ParkingSolverSecondOrderDubins(AStar):
         return temp_obj.polygon()
 
 def generate_action_set():
-            return [
-                (1.0, -0.3), (1.0, 0.0), (1.0, 0.3),
-                (-1.0, -0.3), (-1.0, 0.0), (-1.0, 0.3)
-            ]
+    return [
+        (1.0, -0.3), (1.0, 0.0), (1.0, 0.3),
+        (-1.0, -0.3), (-1.0, 0.0), (-1.0, 0.3)
+    ]
+
 # @TODO Need to change the functions here to use VehicleState
 class ParkingSolverFirstOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
@@ -245,8 +246,11 @@ class ParkingSolverFirstOrderDubins(AStar):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
         # print(f"Current Pose: {current}")
         # print(f"Goal Pose: {goal}")
-        if np.abs(current[3]) > 1: return False # car must be stopped, this equality will only work in simulation  
-        return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
+        # if np.abs(current[3]) > 1: return False # car must be stopped, this equality will only work in simulation  
+        # return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
+        pos_dist = np.linalg.norm([current[0] - goal[0], current[1] - goal[1]])
+        yaw_dist = abs((current[2] - goal[2] + np.pi) % (2 * np.pi) - np.pi)
+        return pos_dist < 0.5 and yaw_dist < 0.3
     
     def heuristic_cost_estimate(self, state_1, state_2):
         """computes the 'direct' distance between two (x,y) tuples"""
