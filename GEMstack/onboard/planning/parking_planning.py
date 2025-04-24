@@ -378,8 +378,8 @@ class ParkingPlanner(Component):
         # Get the obstacles 
         # Define the functions we need 
         # Create the Astar object 
-        self.planner = ParkingSolverSecondOrderDubins()
-        # self.planner = ParkingSolverFirstOrderDubins()
+        # self.planner = ParkingSolverSecondOrderDubins()
+        self.planner = ParkingSolverFirstOrderDubins()
 
     def state_inputs(self):
         return ['all']
@@ -390,26 +390,8 @@ class ParkingPlanner(Component):
     def rate(self):
         return 1.0
     
-    def vehicle_state_to_second_order(self, vehicle_state: VehicleState) -> Tuple[float, float]:
-        """Takes a vehicle state and outputs the state of a second order dubins car
-
-        Args:
-            vehicle_state (VehicleState): _description_
-
-        Returns:
-            Tuple[float, float]: _description_
-        """
-        x = vehicle_state.pose.x
-        y = vehicle_state.pose.y
-        theta = vehicle_state.pose.yaw # check that this is correct
-        v = vehicle_state.v
-        dtheta = vehicle_state.heading_rate
-        t = 0
-
-        return (x,y,theta,v,dtheta,t)
-    
     def vehicle_state_to_first_order(self, vehicle_state: VehicleState) -> Tuple[float, float]:
-        """Takes a vehicle state and outputs the state of a second order dubins car
+        """Takes a vehicle state and outputs the state of a first order dubins car
 
         Args:
             vehicle_state (VehicleState): _description_
@@ -420,8 +402,6 @@ class ParkingPlanner(Component):
         x = vehicle_state.pose.x
         y = vehicle_state.pose.y
         theta = vehicle_state.pose.yaw # check that this is correct
-        v = vehicle_state.v
-        dtheta = vehicle_state.heading_rate
         t = 0
 
         return (x,y,theta,t)
@@ -448,9 +428,9 @@ class ParkingPlanner(Component):
         goal.pose = goal_pose
         goal.v = 0
 
-        # Need to parse and create second order dubin car states
-        start_state = self.vehicle_state_to_second_order(vehicle)
-        goal_state = self.vehicle_state_to_second_order(goal)
+        # Need to parse and create first order dubin car states
+        start_state = self.vehicle_state_to_first_order(vehicle)
+        goal_state = self.vehicle_state_to_first_order(goal)
 
         # Update the planner
         # self.planner.obstacles = list(obstacles.values())
