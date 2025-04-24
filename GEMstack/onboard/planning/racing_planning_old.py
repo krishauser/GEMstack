@@ -127,31 +127,6 @@ def waypoint_generate(vehicle_state, cone_state):
         # fixed_wp = flex_wp + heading_vector * lookahead_distance + offset * perpendicular_vector * 2
         fixed_wp = flex_wp1 + heading_vector * lookahead_distance + offset * perpendicular_vector
 
-    # TODO: move to a different setting instead of as a scenario
-    elif scenario == '90turn':
-        cone = np.array(cone_position)
-        distance_to_cone = np.linalg.norm(car_position - cone)
-
-        flex_wps = []
-
-        if distance_to_cone > 10:
-            # Add multiple waypoints to drive in estimated straight line
-            steps = int(distance_to_cone // 10)
-
-            final_flex_wp = cone + 3.0 * perpendicular_vector
-            fixed_wp = cone + heading_vector * 3.0 - perpendicular_vector * 1.0
-
-            cone_direction = (final_flex_wp - car_position) / np.linalg.norm(final_flex_wp - car_position)
-            for i in range(steps):
-                intermediate_wp = car_position + cone_direction * ((i + 1) * 10)
-                flex_wps.append(intermediate_wp)
-
-            flex_wps.append(final_flex_wp)
-        else:
-            flex_wp = cone + 3.0 * perpendicular_vector
-            fixed_wp = cone + heading_vector * 3.0 - perpendicular_vector * 1.0
-            flex_wps = [flex_wp]
-
     else:
         flex_wps_list = None
         fixed_wp = None
@@ -301,7 +276,7 @@ def velocity_profiling(path, acceleration, deceleration, max_speed, current_spee
 
 #     return x_full, y_full, psi_full, c_full, v_full, eps_, final_error
 def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
-                          w_c=10.0, w_eps=0.0, w_vvar=4.0,
+                          w_c=10.0, w_eps=0.0, w_vvar=5.0,
                           w_terminal=10.0,
                           v_min=3.0, v_max=11.0,
                           waypoints=None, waypoint_penalty_weight=100.0):
@@ -413,87 +388,6 @@ def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
 
     return x_full, y_full, psi_full, c_full, v_full, eps_, final_error
 
-def plot_trajectory(x, y, v, c, eps, waypoint=None):
-    plt.figure(figsize=(12, 10))
-
-    # Trajectory plot
-    plt.subplot(4, 1, 1)
-    plt.plot(x, y, label="Trajectory")
-    plt.scatter([x[0], x[-1]], [y[0], y[-1]], color='red', label="Start/End")
-    
-    if waypoint is not None:
-        plt.scatter(*waypoint, color='purple', s=60, marker='X', label="Waypoint")
-        plt.annotate("Waypoint", (waypoint[0], waypoint[1]), textcoords="offset points", xytext=(5,5), color='purple')
-
-    plt.axis('equal')
-    plt.ylabel("y (m)")
-    plt.title("Trajectory")
-    plt.grid(True)
-    plt.legend()
-
-    # Speed plot
-    plt.subplot(4, 1, 2)
-    plt.plot(v, label="Speed (v)", color="blue")
-    plt.ylabel("Speed (m/s)")
-    plt.grid(True)
-    plt.legend()
-
-    # Curvature plot
-    plt.subplot(4, 1, 3)
-    plt.plot(c, label="Curvature (c)", color="orange")
-    plt.ylabel("Curvature (1/m)")
-    plt.grid(True)
-    plt.legend()
-
-    # Curvature rate plot
-    plt.subplot(4, 1, 4)
-    plt.plot(eps, label="Curvature Rate (ε)", color="green")
-    plt.xlabel("Step")
-    plt.ylabel("ε (1/m²)")
-    plt.grid(True)
-    plt.legend()
-
-        plt.tight_layout()
-        plt.show()
-
-###### Test case 1: pass a cone in slalom
-def trajectory_generation_test1():
-    # Init and final
-    init_state = {'x': 0.0, 'y': 0.0, 'psi': 0.0, 'c': 0.0, 'v': 5.0}
-    final_state = {'x': 15.0, 'y': 0.0, 'psi': np.pi / 20000000, 'c': np.pi / 20000000}
-    waypoint = (8.0, 6.0)
-
-    # Solve
-    x, y, psi, c, v, eps, final_error = trajectory_generation(
-        init_state, final_state, waypoint=waypoint
-    )
-    plot_trajectory(x, y, v, c, eps, waypoint)
-
-    # Error
-    print("\nFinal State Errors:")
-    for k, e in final_error.items():
-        print(f"{k}: {e:.6f}")
-
-###### Test case 2: 90 degree turn
-def trajectory_generation_test2():
-    # Init and final
-    init_state = {'x': 0.0, 'y': 0.0, 'psi': 0.0, 'c': 0.0, 'v': 5.0}
-    final_state = {'x': 15.0, 'y': 15.0, 'psi': np.pi / 2, 'c': np.pi / 2}
-    waypoint = (13.0, 3.0)
-
-    # Solve
-    x, y, psi, c, v, eps, final_error = trajectory_generation(
-        init_state, final_state, waypoint=waypoint
-    )
-    plot_trajectory(x, y, v, c, eps, waypoint)
-
-    # Error
-    print("\nFinal State Errors:")
-    for k, e in final_error.items():
-        print(f"{k}: {e:.6f}")
-
-
-
 def feasibility_check(trajectory, cone_map, car_width=2.0, safety_margin=0.3, v=10.0, Lr=1.5, T=0.1):
     """
     Check if the car trajectory collides with any cones.
@@ -529,14 +423,96 @@ def feasibility_check(trajectory, cone_map, car_width=2.0, safety_margin=0.3, v=
 
     feasible = len(collisions) == 0
     return feasible, collisions, x_vals, y_vals
+######################## 
+if __name__ == "__main__":
+    def plot_trajectory(x, y, v, c, eps, waypoint=None):
+        plt.figure(figsize=(12, 10))
 
-# --- Test Case ---
-def test_feasibility_check():
-    N = 50
-    y_traj = np.linspace(0, 10, N)
-    psi_traj = np.linspace(0, 0.1, N)
-    c_traj = np.linspace(0, 0.2, N)
-    trajectory = list(zip(y_traj, psi_traj, c_traj))
+        # Trajectory plot
+        plt.subplot(4, 1, 1)
+        plt.plot(x, y, label="Trajectory")
+        plt.scatter([x[0], x[-1]], [y[0], y[-1]], color='red', label="Start/End")
+        
+        if waypoint is not None:
+            plt.scatter(*waypoint, color='purple', s=60, marker='X', label="Waypoint")
+            plt.annotate("Waypoint", (waypoint[0], waypoint[1]), textcoords="offset points", xytext=(5,5), color='purple')
+
+        plt.axis('equal')
+        plt.ylabel("y (m)")
+        plt.title("Trajectory")
+        plt.grid(True)
+        plt.legend()
+
+        # Speed plot
+        plt.subplot(4, 1, 2)
+        plt.plot(v, label="Speed (v)", color="blue")
+        plt.ylabel("Speed (m/s)")
+        plt.grid(True)
+        plt.legend()
+
+        # Curvature plot
+        plt.subplot(4, 1, 3)
+        plt.plot(c, label="Curvature (c)", color="orange")
+        plt.ylabel("Curvature (1/m)")
+        plt.grid(True)
+        plt.legend()
+
+        # Curvature rate plot
+        plt.subplot(4, 1, 4)
+        plt.plot(eps, label="Curvature Rate (ε)", color="green")
+        plt.xlabel("Step")
+        plt.ylabel("ε (1/m²)")
+        plt.grid(True)
+        plt.legend()
+
+        plt.tight_layout()
+        plt.show()
+
+    # --- Test Case 1: pass a cone in slalom ---
+    def trajectory_generation_test1():
+        # Init and final
+        init_state = {'x': 0.0, 'y': 0.0, 'psi': 0.0, 'c': 0.0, 'v': 5.0}
+        final_state = {'x': 15.0, 'y': 0.0, 'psi': np.pi / 20000000, 'c': np.pi / 20000000}
+        waypoint = (8.0, 6.0)
+
+        # Solve
+        x, y, psi, c, v, eps, final_error = trajectory_generation(
+            init_state, final_state, waypoint=waypoint
+        )
+        plot_trajectory(x, y, v, c, eps, waypoint)
+
+        # Error
+        print("\nFinal State Errors:")
+        for k, e in final_error.items():
+            print(f"{k}: {e:.6f}")
+
+    # --- Test case 2: 90 degree turn ---
+    def trajectory_generation_test2():
+        # Init and final
+        init_state = {'x': 0.0, 'y': 0.0, 'psi': 0.0, 'c': 0.0, 'v': 5.0}
+        final_state = {'x': 15.0, 'y': 15.0, 'psi': np.pi / 2, 'c': np.pi / 2}
+        waypoint = (13.0, 3.0)
+
+        # Solve
+        x, y, psi, c, v, eps, final_error = trajectory_generation(
+            init_state, final_state, waypoint=waypoint
+        )
+        plot_trajectory(x, y, v, c, eps, waypoint)
+
+        # Error
+        print("\nFinal State Errors:")
+        for k, e in final_error.items():
+            print(f"{k}: {e:.6f}")
+
+    #############
+    #########################
+    # --- Test Case ---
+    def test_feasibility_check():
+        N = 50
+        y_traj = np.linspace(0, 10, N)
+        psi_traj = np.linspace(0, 0.1, N)
+        c_traj = np.linspace(0, 0.2, N)
+        trajectory = list(zip(y_traj, psi_traj, c_traj))
 
         # Cone map near the path
         cone_map = [(5.0, 1.0), (10.0, 1.5), (15.0, 2.0), (25.0, 4.0), (25.0, 10.0), (16.0, 9.0), (40.0, 5.0)]
@@ -608,7 +584,7 @@ def waypoint_search_optimization(vehicle_state, cones, search_attempts=3):
 
     return valid_flex_wps, valid_fixed_wps
 
-# ======= Overall test cases to generate full trajectories with known cone positions =======
+
 def test_4_cone_slalom():
     vehicle_state = {
         'position': [0.0, 0.0],
@@ -623,12 +599,10 @@ def test_4_cone_slalom():
         {'x': 70, 'y': 1.0, 'orientation': 'standing'}
     ]
 
-    flex_wps, fixed_wps = waypoint_search_optimization(vehicle_state, cones, search_attempts=1)
+    flex_wps, fixed_wps = waypoint_search_optimization(vehicle_state, cones, search_attempts=4)
 
     current_pos = np.array(vehicle_state['position'])
-
-    x_all, y_all = [], []
-
+    
     for idx, (flex_wp, fixed_wp) in enumerate(zip(flex_wps, fixed_wps)):
         init_state = {
             'x': current_pos[0], 'y': current_pos[1], 'psi': vehicle_state['heading'],
@@ -645,114 +619,11 @@ def test_4_cone_slalom():
         for k, e in final_error.items():
             print(f"    {k}: {e:.4f}")
 
-        x_all += list(x)
-        y_all += list(y)
-
         plot_trajectory(x, y, v, c, eps, waypoint=flex_wp)
 
         current_pos = np.array(fixed_wp)
 
-    # Plot overall trajectory
-    plt.figure()
-    plt.plot(x_all, y_all, label='Overall Trajectory')
-
-    # Plot cones
-    for i, cone in enumerate(cones):
-        plt.scatter(cone['x'], cone['y'], color='orange', s=80, label='Cone' if i == 0 else "")
-        plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
-
-    plt.title('4-Cone Full Course Trajectory')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.legend()
-    plt.axis('equal')
-    plt.grid(True)
-    plt.show()
-
-def test_fixed_course():
-    vehicle_state = {
-        'position': [-62.0, -39.0],
-        'heading': np.pi * 2 / 3,
-        'velocity': 0.0
-    }
-
-    cones = [
-        {'x': -60.083, 'y': -33.118, 'orientation': '90turn'},
-        {'x': -6.392, 'y': -5.147, 'orientation': '90turn'},
-        {'x': -5.625, 'y': -13.637, 'orientation': '90turn'},
-        {'x': -56.258, 'y': -41.080, 'orientation': '90turn'}
-    ]
-
-    current_pos = np.array(vehicle_state['position'])
-    current_heading = vehicle_state['heading']
-    current_steering = current_heading
-
-    x_all, y_all = [], []
-
-    for cone_idx, cone in enumerate(cones):
-        print("current cone: ", cone)
-        scenario, flex_wps, fixed_wp = waypoint_generate(vehicle_state, [cone])
-        if not flex_wps or fixed_wp is None:
-            continue
-
-        init_state = {
-            'x': current_pos[0], 'y': current_pos[1], 'psi': current_heading,
-            'c': current_steering, 'v': vehicle_state['velocity']
-        }
-
-        # Setting target_heading in final_state
-        # TODO: Compute target heading in waypoint_generation for different settings (slalom or course run)
-        if cone_idx > 0:
-            prev_cone_position = np.array((cones[cone_idx - 1]['x'], cones[cone_idx - 1]['y']))
-            current_cone_position = np.array((cones[cone_idx]['x'], cones[cone_idx]['y']))
-            target_heading = np.arctan2(current_cone_position[1] - prev_cone_position[1],
-                                      current_cone_position[0] - prev_cone_position[0]) - np.pi / 2
-            if abs(target_heading - current_heading) > np.pi / 2:
-                target_heading = current_heading - np.pi / 2 + 0.1
-
-        else: # no previous cone
-            target_heading = current_heading - np.pi / 2 + 0.1
-
-        target_heading = (target_heading + np.pi) % (2 * np.pi) - np.pi
-
-        final_state = {
-            'x': fixed_wp[0], 'y': fixed_wp[1], 'psi': target_heading, 'c': target_heading
-        }
-
-        estimated_N = int(((current_pos[0]-fixed_wp[0]) ** 2 + (current_pos[1]-fixed_wp[1]) ** 2) ** 0.5 / 0.7)
-
-        x, y, psi, c, v, eps, _ = trajectory_generation(init_state, final_state, waypoints=flex_wps, N=estimated_N)
-        x_all.extend(x)
-        y_all.extend(y)
-
-        plot_trajectory(x, y, v, c, eps)
-
-        current_pos = np.array([x[-1], y[-1]])
-        current_heading = psi[-1]
-        current_steering = c[-1]
-
-        vehicle_state = {
-            'position': current_pos,
-            'heading': current_heading,
-            'velocity': v[-1]
-        }
-
-    # Plot overall trajectory
-    plt.figure()
-    plt.plot(x_all, y_all, label='Overall Trajectory')
-
-    # Plot cones
-    for i, cone in enumerate(cones):
-        plt.scatter(cone['x'], cone['y'], color='orange', s=80, label='Cone' if i == 0 else "")
-        plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
-
-    plt.title('4-Cone Full Course Trajectory')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.legend()
-    plt.axis('equal')
-    plt.grid(True)
-    plt.show()
+#test_4_cone_slalom()
 
 def to_gemstack_trajectory(x_all, y_all, v_all, T=0.1):
     t_vals = np.arange(len(x_all)) * T
@@ -958,8 +829,8 @@ if __name__ == "__main__":
             final_state = {'y': wpt_fixed[1], 'psi': 0.0, 'c': 0.0}
 
             y_traj, psi_traj, c_traj, eps_traj = trajectory_generation(init_state, final_state)
-            plot_trajectory(y_traj, psi_traj, c_traj, label="Generated trajectory")
-            plot_dynamics(psi_traj, c_traj, eps_traj)
+            # plot_trajectory(y_traj, psi_traj, c_traj, label="Generated trajectory")
+            # plot_dynamics(psi_traj, c_traj, eps_traj)
 
             # Iterate
             vehicle_state = drive(vehicle_state)
