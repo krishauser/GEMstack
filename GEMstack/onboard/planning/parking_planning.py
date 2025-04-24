@@ -194,7 +194,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._vehicle = None
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1.5, 0.25)
+        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 2, 0.25)
         #@TODO create a more standardized way to define the actions
         self.actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1),
                         (-1, -1), (-1, -0.5), (-1,0), (-1, 0.5), (-1,1)]
@@ -238,14 +238,39 @@ class ParkingSolverFirstOrderDubins(AStar):
         (x1, y1, theta1, t) = state_1
         (x2, y2, theta2, t) = state_2
 
+        return self.approx_reeds_shepp(state_1, state_2) # Using turning radius of 1.0
         return math.hypot(x2 - x1, y2 - y1, theta2 - theta1)
     
-    def terminal_cost_estimate(self, state_1, state_2):
+    def euclidian_cost_esimate(self, state_1, state_2):
         """computes the 'direct' distance between two (x,y) tuples"""
         # Extract position and orientation from states
         (x1, y1, theta1, t) = state_1
         (x2, y2, theta2, t) = state_2
+
         return math.hypot(x2 - x1, y2 - y1, theta2 - theta1)
+    
+    def approx_reeds_shepp(self, state_1, state_2):
+        # Extract position and orientation from states
+        (x1, y1, theta1, t1) = state_1
+        (x2, y2, theta2, t2) = state_2
+
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        path_length_cost = path_length(start, goal, 1.0)  # Using turning radius of 1.0
+        
+        # # Add penalties for velocity and time differences
+        # velocity_penalty = abs(v2 - v1) * 0.1
+        # time_penalty = abs(t2 - t1) * 0.01
+        
+        return path_length_cost # + velocity_penalty + time_penalty
+    
+    def terminal_cost_estimate(self, state_1, state_2):
+        """computes the 'direct' distance between two (x,y) tuples"""
+        # Extract position and orientation from states
+        return self.approx_reeds_shepp(state_1, state_2)
 
     def distance_between(self, state_1, state_2):
         """
@@ -436,11 +461,11 @@ class ParkingPlanner(Component):
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=100))
+        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=200))
         # points = [state[:2] for state in res] # change here to return the theta as well
         points = []
         for state in res:
-            points.append((state[0], state[1], 0, state[2]))
+            points.append((state[0], state[1]))
         times = [state[3] for state in res]
         path = Path(frame=vehicle.pose.frame, points=points)
         traj = Trajectory(path.frame,points,times)
