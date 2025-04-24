@@ -27,10 +27,19 @@ class ParkingSolverSecondOrderDubins(AStar):
         self._vehicle = None
 
         # SecondOrderDubinsCar() #x = (tx,ty,theta,v,dtheta) and u = (fwd_accel,wheel_angle_rate)
-        self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=2, dt=0.1)
-        #@TODO create a more standardized way to define the actions
-        self._actions = [(2, -0.5), (2, -0.25), (2,0), (2, 0.25), (2,0.5),
-                         (0,0), (-1, -0.5), (-1,0), (-1, 0.5)]
+        # self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=2, dt=0.1)
+        self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=0.5, dt=0.2)
+        # #@TODO create a more standardized way to define the actions
+        # self._actions = [(2, -0.5), (2, -0.25), (2,0), (2, 0.25), (2,0.5),
+        #                  (0,0), (-1, -0.5), (-1,0), (-1, 0.5)]
+        self._actions = generate_action_set()
+
+        @staticmethod
+        def generate_action_set():
+            return [
+                (1.0, -0.3), (1.0, 0.0), (1.0, 0.3),
+                (-1.0, -0.3), (-1.0, 0.0), (-1.0, 0.3)
+            ]
 
     @property
     def vehicle(self):
@@ -77,7 +86,7 @@ class ParkingSolverSecondOrderDubins(AStar):
         goal = (x2, y2, theta2)
         
         # Calculate Reeds-Shepp path length
-        path_length_cost = path_length(start, goal, 1.0)  # Using turning radius of 1.0
+        path_length_cost = path_length(start, goal, 0.5)  # Using turning radius of 1.0
         
         # Add penalties for velocity and time differences
         velocity_penalty = abs(v2 - v1) * 0.1
@@ -98,7 +107,7 @@ class ParkingSolverSecondOrderDubins(AStar):
         goal = (x2, y2, theta2)
         
         # Calculate Reeds-Shepp path length
-        path_length_cost = path_length(start, goal, 1.0)  # Using turning radius of 1.0
+        path_length_cost = path_length(start, goal, 0.5)  # Using turning radius of 1.0
         
         # Add penalties for velocity, angular velocity, and time differences
         velocity_penalty = abs(v2 - v1) * 0.1
@@ -128,7 +137,10 @@ class ParkingSolverSecondOrderDubins(AStar):
             next_state = np.append(next_state, node[5] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
+                print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
+            else:
+                print(f"Rejected (collision): {next_state}")
         return neighbors
     
     def is_valid_neighbor(self, path):
@@ -181,7 +193,12 @@ class ParkingSolverSecondOrderDubins(AStar):
                                outline=self.vehicle.to_object().outline)
 
         return temp_obj.polygon()
-   
+
+def generate_action_set():
+            return [
+                (1.0, -0.3), (1.0, 0.0), (1.0, 0.3),
+                (-1.0, -0.3), (-1.0, 0.0), (-1.0, 0.3)
+            ]
 # @TODO Need to change the functions here to use VehicleState
 class ParkingSolverFirstOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
@@ -194,10 +211,9 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._vehicle = None
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1.5, 0.25)
+        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1, 0.25)
         #@TODO create a more standardized way to define the actions
-        self.actions = [(1, -1), (1, -0.5), (1,0), (1, 0.5), (1,1),
-                        (-1, -1), (-1, -0.5), (-1,0), (-1, 0.5), (-1,1)]
+        self._actions = generate_action_set()
 
 
     @property
@@ -260,6 +276,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
             nodes that can be reached (=any adjacent coordinate that is not a wall)
         """
+        print(f"[DEBUG] neighbors() called on node {node}")
         neighbors = []
         # print(f"Node: {node}")
         for control in self.actions:
@@ -268,7 +285,10 @@ class ParkingSolverFirstOrderDubins(AStar):
             next_state = np.append(next_state, node[3] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
+                print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
+            else:
+                print(f"Rejected first order (collision): {next_state}")
         return neighbors
     
     def is_valid_neighbor(self, path):
@@ -414,7 +434,7 @@ class ParkingPlanner(Component):
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         agents = state.agents # type: Dict[str, AgentState]
         # print(f"Obstacles {obstacles}")
-        # print(f"Agents {agents}")
+        print(f"Agents {agents}")
         route = state.route
         goal_point = route.points[-1] # I might need to change this to the same frame as the car?
         goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
