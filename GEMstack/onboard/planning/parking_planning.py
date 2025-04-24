@@ -3,13 +3,13 @@ from ..component import Component
 from ...state import AllState, VehicleState, Path, Trajectory, Route, ObjectFrameEnum, AgentState, Obstacle, ObjectPose, PhysicalObject
 from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd
-from ...mathutils.quadratic_equation import quad_root
 from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCarIntegrator
 from ...mathutils.dynamics import IntegratorControlSpace
 from ...mathutils import collisions
 from .astar import AStar
 from .longitudinal_planning import longitudinal_plan
 from testing.reeds_shepp_path import path_length
+from . import reed_shepp
 
 
 import numpy as np
@@ -195,11 +195,10 @@ class ParkingSolverSecondOrderDubins(AStar):
         return temp_obj.polygon()
 
 def generate_action_set():
-    return [
-        (1.0, -0.3), (1.0, 0.0), (1.0, 0.3),
-        (-1.0, -0.3), (-1.0, 0.0), (-1.0, 0.3)
-    ]
-
+            return [
+                (.75, -0.3), (.75, 0.0), (.75, 0.3),
+                (-.75, -0.3), (-.75, 0.0), (-.75, 0.3)
+            ]
 # @TODO Need to change the functions here to use VehicleState
 class ParkingSolverFirstOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
@@ -247,16 +246,15 @@ class ParkingSolverFirstOrderDubins(AStar):
         # print(f"Current Pose: {current}")
         # print(f"Goal Pose: {goal}")
         # if np.abs(current[3]) > 1: return False # car must be stopped, this equality will only work in simulation  
-        # return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
-        pos_dist = np.linalg.norm([current[0] - goal[0], current[1] - goal[1]])
-        yaw_dist = abs((current[2] - goal[2] + np.pi) % (2 * np.pi) - np.pi)
-        return pos_dist < 0.5 and yaw_dist < 0.3
+        return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
     
     def heuristic_cost_estimate(self, state_1, state_2):
         """computes the 'direct' distance between two (x,y) tuples"""
         # Extract position and orientation from states
         (x1, y1, theta1, t) = state_1
         (x2, y2, theta2, t) = state_2
+
+        return self.reed_shepp(state_1, state_2) # Using turning radius of 1.0
 
         return self.approx_reeds_shepp(state_1, state_2) # Using turning radius of 1.0
         return math.hypot(x2 - x1, y2 - y1, theta2 - theta1)
@@ -287,9 +285,24 @@ class ParkingSolverFirstOrderDubins(AStar):
         
         return path_length_cost # + velocity_penalty + time_penalty
     
+    def reed_shepp(self, state_1, state_2):
+        # Extract position and orientation from states
+        (x1, y1, theta1, t1) = state_1
+        (x2, y2, theta2, t2) = state_2
+
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        path = reed_shepp.get_optimal_path(start, goal)
+
+        return reed_shepp.path_length(path)  # Using turning radius of 1.0
+    
     def terminal_cost_estimate(self, state_1, state_2):
         """computes the 'direct' distance between two (x,y) tuples"""
         # Extract position and orientation from states
+        return self.reed_shepp(state_1, state_2)
         return self.approx_reeds_shepp(state_1, state_2)
 
     def distance_between(self, state_1, state_2):
@@ -485,7 +498,7 @@ class ParkingPlanner(Component):
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=200))
+        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=100))
         # points = [state[:2] for state in res] # change here to return the theta as well
         points = []
         for state in res:
