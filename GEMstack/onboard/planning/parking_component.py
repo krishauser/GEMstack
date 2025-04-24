@@ -1,7 +1,7 @@
 from typing import List
 from ..component import Component
 from ...utils import serialization
-from ...state import Route,ObjectFrameEnum, AllState, PlannerEnum, MissionPlan
+from ...state import Route, ObjectFrameEnum, AllState, PlannerEnum, MissionPlan
 import os
 import numpy as np
 import time
@@ -23,14 +23,21 @@ class ParkingSim(Component):
     def update(self, state: AllState):
         # Calculate elapsed time since initialization.
         elapsed_time = time.time() - self.start_time
-        
-        # After 4 seconds, change the mission plan to use PARKING.
-        if elapsed_time >= 4.0:
-            print("Entering parking mode")
-            mission_plan = MissionPlan(1, 6, 0, PlannerEnum.PARKING)
+
+        # Reading goal from state
+        # print(f"\n AllState (parking goal): {state.goal} \n")
+        # print(f"AllState (parking obstacles): {state.obstacles} \n")
+
+        # After a goal is detected, change the mission plan to use PARKING.
+        if state.goal:
+            print("\n Parking goal available. Entering parking mode......")
+            goal_x = state.goal.x
+            goal_y = state.goal.y
+            yaw = state.goal.yaw
+            mission_plan = MissionPlan(goal_x, goal_y, yaw, PlannerEnum.PARKING)
         else:
-            print("Entering RRT mode")
+            print("\n Entering RRT mode......")
             mission_plan = MissionPlan(1, 6, 0, PlannerEnum.RRT_STAR)
 
-        print("ParkingSim update with state:",mission_plan)
+        print(f"\n ParkingSim update with state: {mission_plan} \n")
         return mission_plan

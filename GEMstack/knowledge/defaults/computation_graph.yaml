@@ -21,6 +21,9 @@ components:
   - lane_detection:
       inputs: [vehicle, roadgraph]
       outputs: vehicle_lane
+  - parking_detection:
+      inputs: agents
+      outputs: [goal, obstacles]
   - sign_detection: 
       inputs: [vehicle, roadgraph]
       outputs: roadgraph.signs
