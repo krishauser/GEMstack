@@ -104,12 +104,9 @@ def main():
     parser.add_argument("--test", action="store_true", help="run unit tests and exit")
     parser.add_argument("--vis", action="store_true", help="show visualizations for tests or planning result")
     parser.add_argument("--animate", "-a", action="store_true", help="animate planned path")
-    parser.add_argument("--sequential", action="store_true", help="disable parallel processing")
     parser.add_argument("--max-iter", type=int, default=10000, help="maximum RRT* iterations")
     parser.add_argument("--pad", type=int, default=20, help="crop padding (cells)")
     parser.add_argument("--safety", type=int, default=2, help="safety margin (cells)")
-    parser.add_argument("--no-adaptive", action="store_true", help="disable adaptive turning radius")
-    parser.add_argument("--no-shortcut", action="store_true", help="disable path shortcutting")
     parser.add_argument("--map-pgm", type=str, default="rrt_occupancy_map.pgm", help="path to PGM map file")
     parser.add_argument("--map-yaml", type=str, default="rrt_occupancy_map.yaml", help="path to YAML metadata file")
     parser.add_argument("--step-size", type=float, default=1.0, help="step size for path planning")
@@ -141,9 +138,9 @@ def main():
         step_size=args.step_size,
         turning_radius=args.turning_radius,
         max_iterations=args.max_iter,
-        parallel=not args.sequential,
-        adaptive_radius=not args.no_adaptive,
-        shortcut_path=not args.no_shortcut
+        parallel=True,
+        adaptive_radius=True,
+        shortcut_path=True
     )
     
     if path:
