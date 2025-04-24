@@ -191,19 +191,11 @@ def get_parking_obstacles(vertices):
 
     return filtered_positions, filtered_dimensions
 
-# def order_points_all(points_2d):
-#     points_np = np.array(points_2d)
-#     hull = ConvexHull(points_np)
-#     ordered = [points_np[i] for i in hull.vertices]
-#     return ordered
-
 def order_points_all(points_2d):
-    points = np.array(points_2d)
-    centroid = np.mean(points, axis=0)
-    angles = np.arctan2(points[:,1] - centroid[1], points[:,0] - centroid[0])
-    sorted_indices = np.argsort(angles)
-    return points[sorted_indices]
-    
+    points_np = np.array(points_2d)
+    hull = ConvexHull(points_np)
+    ordered = [points_np[i] for i in hull.vertices]
+    return ordered
 
 def detect_parking_spot(cone_3d_centers):
     # Initial variables
@@ -216,8 +208,16 @@ def detect_parking_spot(cone_3d_centers):
     cone_ground_centers_2D = cone_ground_centers[:, :2]
     ordered_cone_ground_centers_2D = order_points_all(cone_ground_centers_2D)
     # print(f"-----cone_ground_centers_2D: {len(ordered_cone_ground_centers_2D)}")
+
+    # Check if points can form a polygon, if not then there is no goal parking spot
+    if len(cone_3d_centers) != len(ordered_cone_ground_centers_2D):
+        return None, [], [], []
+    
+    # Find the valid candidates
     candidates = find_all_candidate_parking_spots(ordered_cone_ground_centers_2D)
     # print(f"-----candidates: {candidates}")
+
+    # Select the best candidate parking spot
     if len(candidates) > 0:
         parking_obstacles_pose, parking_obstacles_dim = get_parking_obstacles(ordered_cone_ground_centers_2D)
         # print(f"-----parking_obstacles: {self.parking_obstacles_pose}")

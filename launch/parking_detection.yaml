@@ -13,7 +13,8 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : cone_detection.ConeDetector3D
+        # agent_detection : cone_detection.ConeDetector3D
+        agent_detection : cone_detection_simple.ConeDetectorSimple3D
         parking_detection: parking_detection.ParkingSpotsDetector3D
         perception_normalization : StandardPerceptionNormalizer
     planning:
@@ -46,7 +47,8 @@ variants:
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection : cone_detection.ConeDetector3D
+                    # agent_detection : cone_detection.ConeDetector3D
+                    agent_detection : cone_detection_simple.ConeDetectorSimple3D
                     parking_detection: parking_detection.ParkingSpotsDetector3D
     sim:
         run:
