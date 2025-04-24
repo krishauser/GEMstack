@@ -1,206 +1,22 @@
 from typing import List, Tuple, Union, Dict
+import numpy as np
+import math
+
 from ..component import Component
 from ...state import AllState, VehicleState, Path, Trajectory, Route, ObjectFrameEnum, AgentState, Obstacle, ObjectPose, PhysicalObject
 from ...utils import serialization, settings
-from ...mathutils.transforms import vector_madd
-from ...mathutils import quad_root
 from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCarIntegrator
 from ...mathutils.dynamics import IntegratorControlSpace
 from ...mathutils import collisions
 from .astar import AStar
-from .longitudinal_planning import longitudinal_plan
-from testing.reeds_shepp_path import path_length
 import reed_shepp
 
-
-import numpy as np
-import math
-
-# @TODO Need to change the functions here to use VehicleState
-class ParkingSolverSecondOrderDubins(AStar):
-    """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
-    and a 'node' is just a (x,y) tuple that represents a reachable position"""
-
-    def __init__(self, vehicle=None, obstacles=None, actions=None):
-        self._obstacles = obstacles
-
-        # Vehicle model
-        self._vehicle = None
-
-        # SecondOrderDubinsCar() #x = (tx,ty,theta,v,dtheta) and u = (fwd_accel,wheel_angle_rate)
-        # self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=2, dt=0.1)
-        self.vehicle_sim = IntegratorControlSpace(SecondOrderDubinsCar(), T=0.5, dt=0.2)
-        # #@TODO create a more standardized way to define the actions
-        # self._actions = [(2, -0.5), (2, -0.25), (2,0), (2, 0.25), (2,0.5),
-        #                  (0,0), (-1, -0.5), (-1,0), (-1, 0.5)]
-        self._actions = generate_action_set()
-
-        @staticmethod
-        def generate_action_set():
-            return [
-                (1.0, -0.3), (1.0, 0.0), (1.0, 0.3),
-                (-1.0, -0.3), (-1.0, 0.0), (-1.0, 0.3)
-            ]
-
-    @property
-    def vehicle(self):
-        return self._vehicle
-    
-    @vehicle.setter
-    def vehicle(self, vehicle):
-        self._vehicle = vehicle
-
-    @property
-    def obstacles(self):
-        return self._obstacles
-    
-    @obstacles.setter
-    def obstacles(self, obstacles):
-        self._obstacles = obstacles
-
-    @property
-    def actions(self):
-        return self._actions
-    
-    @actions.setter
-    def actions(self, actions):
-        # @TODO Add a validity checker for the actions with respect to the vehicle constraints
-        self._actions = actions
-
-    def is_goal_reached(self, current: List[float], goal: List[float]):
-        # @TODO Currently, the threshold is just a random number, get rid of magic constants
-        # print(f"Current Pose: {current}")
-        # print(f"Goal Pose: {goal}")
-        if np.abs(current[3]) > 1: return False # car must be stopped, this equality will only work in simulation  
-        return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
-    
-    def heuristic_cost_estimate(self, state_1, state_2):
-        """
-        Computes the Reeds-Shepp path length between two configurations as the heuristic cost.
-        The states here are (x,y,theta,v,dtheta,t)
-        """
-        (x1, y1, theta1, v1, dtheta1, t1) = state_1
-        (x2, y2, theta2, v2, dtheta2, t2) = state_2
-        
-        # Create start and goal configurations for Reeds-Shepp
-        start = (x1, y1, theta1)
-        goal = (x2, y2, theta2)
-        
-        # Calculate Reeds-Shepp path length
-        path_length_cost = path_length(start, goal, 0.5)  # Using turning radius of 1.0
-        
-        # Add penalties for velocity and time differences
-        velocity_penalty = abs(v2 - v1) * 0.1
-        time_penalty = abs(t2 - t1) * 0.01
-        
-        return path_length_cost + velocity_penalty + time_penalty
-
-    def terminal_cost_estimate(self, state_1, state_2):
-        """
-        Computes the terminal cost estimate between current state and goal state.
-        The states here are (x,y,theta,v,dtheta,t)
-        """
-        (x1, y1, theta1, v1, dtheta1, t1) = state_1
-        (x2, y2, theta2, v2, dtheta2, t2) = state_2
-        
-        # Create start and goal configurations for Reeds-Shepp
-        start = (x1, y1, theta1)
-        goal = (x2, y2, theta2)
-        
-        # Calculate Reeds-Shepp path length
-        path_length_cost = path_length(start, goal, 0.5)  # Using turning radius of 1.0
-        
-        # Add penalties for velocity, angular velocity, and time differences
-        velocity_penalty = abs(v2 - v1) * 0.1
-        angular_velocity_penalty = abs(dtheta2 - dtheta1) * 0.1
-        time_penalty = abs(t2 - t1) * 0.01
-        
-        return path_length_cost + velocity_penalty + angular_velocity_penalty + time_penalty
-    
-    def distance_between(self, state_1, state_2):
-        """
-        The states here are (x,y,theta,v,dtheta,t)
-        """
-        (x1, y1, theta1, v1, dtheta1,t1) = state_1
-        (x2, y2, theta2, v2, dtheta2, t2) = state_2
-
-        return math.hypot(x2 - x1, y2 - y1)
-
-    def neighbors(self, node):
-        """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
-            nodes that can be reached (=any adjacent coordinate that is not a wall)
-        """
-        neighbors = []
-        # print(f"Node: {node}")
-        for control in self.actions:
-            next_state = self.vehicle_sim.nextState(node[:5], control)
-            # print(f"next state: {next_state}")
-            next_state = np.append(next_state, node[5] + self.vehicle_sim.T)
-            next_state = np.round(next_state, 3)
-            if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
-                neighbors.append(tuple(next_state))
-            else:
-                print(f"Rejected (collision): {next_state}")
-        return neighbors
-    
-    def is_valid_neighbor(self, path):
-        """check if any points along the path are in collision
-        with any of the known obstacles
-        @TODO We are not currently using the geometry of the vehicle,
-        define a geometry for the vehicle and then use polygon_itersects_polygon
-        @TODO Consider performing a linear search on the trajectory 
-        and checking for collission on each of these configurations
-
-        Args:
-            path (_type_): _description_
-        """
-        for obstacle in self.obstacles:
-            # print(f"Obstacle: {obstacle}")
-            for point in path:
-                vehicle_polygon = self.state_to_polygon(point)
-                # print(f"Vehicle Polygon: {vehicle_polygon}")
-                # print(point)
-                # print(obstacle.polygon_parent())
-                # print("====================================")
-                # print(f"Vehicle Polygon: {vehicle_polygon}")
-                # print(f"Obstacle Polygon: {obstacle.polygon_parent()}")
-                # print(f"Point: {point}")
-                if collisions.polygon_intersects_polygon_2d(vehicle_polygon, obstacle.polygon_parent()):
-                    #polygon_intersects_polygon_2d when we have the acutal car geometry
-                    return False
-        return True
-
-    def state_to_polygon(self, state):
-        """Convert a state to a polygon. The state is of the form (x,y,theta,v,dtheta,t)
-
-        Args:
-            state (_type_): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        x = state[0]
-        y = state[1]
-        theta = state[2]
-        v = state[3]
-        dtheta = state[4]
-        t = state[5]
-
-        pose = ObjectPose(frame=ObjectFrameEnum.START,t=t, x=x,y=y,z=0,yaw=theta)
-        
-        temp_obj = PhysicalObject(pose=pose,
-                               dimensions=self.vehicle.to_object().dimensions,
-                               outline=self.vehicle.to_object().outline)
-
-        return temp_obj.polygon()
 
 def generate_action_set():
             return [
                 (.75, -0.3), (.75, 0.0), (.75, 0.3), (0.0, 0.0),
                 (-.75, -0.3), (-.75, 0.0), (-.75, 0.3)
             ]
-# @TODO Need to change the functions here to use VehicleState
 class ParkingSolverFirstOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
     and a 'node' is just a (x,y) tuple that represents a reachable position"""

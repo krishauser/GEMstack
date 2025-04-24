@@ -8,6 +8,7 @@ from GEMstack.state.all import AllState
 from GEMstack.state.physical_object import ObjectFrameEnum
 from GEMstack.state.route import PlannerEnum, Route
 from .rrt_star import RRTStar
+from .parking_component import ParkingPlanner
 
 
 
@@ -38,7 +39,11 @@ class RoutePlanningComponent(Component):
         # print("Vehicle yaw:", state.vehicle.pose.yaw)
         if state.mission_plan.planner_type.value == PlannerEnum.PARKING.value:
             print("I am in PARKING mode")
+            # Not sure where I should construct this object
+            self.planner = ParkingPlanner(state)
+
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
+            return self.planner.update(state)
            
         elif state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value:
             print("I am in RRT mode")
