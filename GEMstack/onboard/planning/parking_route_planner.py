@@ -1,16 +1,14 @@
 from typing import List, Tuple, Union, Dict
 from ..component import Component
 from ...state import AllState, VehicleState, Path, Trajectory, Route, ObjectFrameEnum, AgentState, Obstacle, ObjectPose, PhysicalObject
-from ...utils import serialization, settings
-from ...mathutils.transforms import vector_madd
-from ...mathutils import quad_root
 from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCarIntegrator
 from ...mathutils.dynamics import IntegratorControlSpace
 from ...mathutils import collisions
 from .astar import AStar
-from .longitudinal_planning import longitudinal_plan
-from testing.reeds_shepp_path import path_length
-import reed_shepp
+# from testing.reeds_shepp_path import path_length
+from .reed_shepp import get_optimal_path
+from .reed_shepp import path_length
+
 
 
 import numpy as np
@@ -296,9 +294,9 @@ class ParkingSolverFirstOrderDubins(AStar):
         goal = (x2, y2, theta2)
         
         # Calculate Reeds-Shepp path length
-        path = reed_shepp.get_optimal_path(start, goal)
+        path = get_optimal_path(start, goal)
 
-        return reed_shepp.path_length(path)  # Using turning radius of 1.0
+        return path_length(path)  # Using turning radius of 1.0
     
     def terminal_cost_estimate(self, state_1, state_2):
         """computes the 'direct' distance between two (x,y) tuples"""

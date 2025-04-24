@@ -137,10 +137,10 @@ class ParkingSolverSecondOrderDubins(AStar):
             next_state = np.append(next_state, node[5] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
-            else:
-                print(f"Rejected (collision): {next_state}")
+            # else:
+            #     print(f"Rejected (collision): {next_state}")
         return neighbors
     
     def is_valid_neighbor(self, path):
@@ -196,8 +196,8 @@ class ParkingSolverSecondOrderDubins(AStar):
 
 def generate_action_set():
     return [
-        (1.0, -0.3), (1.0, 0.0), (1.0, 0.3),
-        (-1.0, -0.3), (-1.0, 0.0), (-1.0, 0.3)
+        (0.25, -0.3), (0.25, 0.0), (0.25, 0.3),
+        (-0.25, -0.3), (-0.25, 0.0), (-0.25, 0.3)
     ]
 
 # @TODO Need to change the functions here to use VehicleState
@@ -250,6 +250,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         # return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
         pos_dist = np.linalg.norm([current[0] - goal[0], current[1] - goal[1]])
         yaw_dist = abs((current[2] - goal[2] + np.pi) % (2 * np.pi) - np.pi)
+        print("Reach The Goal")
         return pos_dist < 0.5 and yaw_dist < 0.3
     
     def heuristic_cost_estimate(self, state_1, state_2):
@@ -314,10 +315,10 @@ class ParkingSolverFirstOrderDubins(AStar):
             next_state = np.append(next_state, node[3] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
-            else:
-                print(f"Rejected first order (collision): {next_state}")
+            # else:
+            #     print(f"Rejected first order (collision): {next_state}")
         return neighbors
     
     def is_valid_neighbor(self, path):
