@@ -53,15 +53,9 @@ class Stanley(object):
         d = settings.get('control.longitudinal_control.pid_d')
         i = settings.get('control.longitudinal_control.pid_i')
         self.pid_speed = PID(p, d, i, windup_limit=20)
-
-        reverse = False
-        # reverse = something_here()  # TODO: Implement reverse logic
         
         if desired_speed is not None:
-            if reverse:
-                self.desired_speed_source = -abs(desired_speed)
-            else:
-                self.desired_speed_source = abs(desired_speed)
+            self.desired_speed_source = desired_speed
         else:
             self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
 
@@ -165,7 +159,7 @@ class Stanley(object):
 
         yaw_error = normalise_angle(path_yaw - curr_yaw)
 
-        desired_speed = self.desired_speed
+        desired_speed = abs(self.desired_speed)
         feedforward_accel = 0.0
 
         if reverse:
@@ -193,7 +187,7 @@ class Stanley(object):
 
             if is_at_start_backward:
                 desired_speed = 0.0
-                feedforward_accel = -2.0 * -1.0 # = +2.0
+                feedforward_accel = -2.0 * -1.0
 
             else:
                 difference_dt = 0.1
