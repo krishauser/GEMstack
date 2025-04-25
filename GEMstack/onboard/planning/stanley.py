@@ -306,7 +306,7 @@ class StanleyTrajectoryTracker(Component):
         self.stanley.set_path(trajectory)
 
         # TODO
-        reverse = True
+        reverse = False
         # reverse = some_function_here()
         accel, f_delta = self.stanley.compute(vehicle, self, reverse)
 
