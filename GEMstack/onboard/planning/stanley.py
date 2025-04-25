@@ -54,7 +54,7 @@ class Stanley(object):
         i = settings.get('control.longitudinal_control.pid_i')
         self.pid_speed = PID(p, d, i, windup_limit=20)
 
-        reverse = True
+        reverse = False
         # reverse = something_here()  # TODO: Implement reverse logic
         
         if desired_speed is not None:
@@ -110,7 +110,7 @@ class Stanley(object):
         ry = y - self.wheelbase * sin(yaw)
         return rx, ry
 
-    def compute(self, state: VehicleState, component: Component = None, reverse = True): # TODO change only during debugging
+    def compute(self, state: VehicleState, component: Component = None, reverse = False): # TODO change only during debugging
         """Compute the control outputs: (longitudinal acceleration, front wheel angle)."""
         t = state.pose.t
         if self.t_last is None:
