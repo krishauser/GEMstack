@@ -2,8 +2,28 @@ import numpy as np
 import cv2 as cv
 import glob
 import os
- 
-def main(folder, camera):
+import argparse
+
+from tools.save_cali import save_in
+
+def main():
+    # Collect arguments
+    parser = argparse.ArgumentParser(description='calculate intrinsics from checkerboard images',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('-f', '--img_folder_path', type=str, required=True,
+                       help='Path to folder containing PNG images')
+    parser.add_argument('-c', '--camera_name', type=str, required=False,
+                       help='Name of the camera used to identify the correct images')
+    parser.add_argument('-o', '--out_path', type=str, required=False,
+                       help='Path to output ymal file for camera intrinsics')
+    
+    args = parser.parse_args()
+
+    # Find image files
+    folder = args.img_folder_path
+    camera = ''
+    if args.camera_name:
+        camera = args.camera_name
     image_files = glob.glob(os.path.join(folder, camera + '*.png'))
 
     # The following code is derived from https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
@@ -40,17 +60,14 @@ def main(folder, camera):
 
     cv.destroyAllWindows()
 
+    # Calibrate camera
     ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
     print(repr(mtx))
     print(dist)
 
+    if args.out_path:
+        save_in(args.out_path, distort=dist, matrix=mtx)
+
 
 if __name__ == '__main__':
-    import sys
-    folder = 'data/fr_calib'
-    camera = ''
-    if len(sys.argv) >= 2:
-        folder = sys.argv[1]
-    if len(sys.argv) >= 3:
-        camera = int(sys.argv[2])
-    main(folder,camera)
+    main()

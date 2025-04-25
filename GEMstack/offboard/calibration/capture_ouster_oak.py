@@ -137,10 +137,10 @@ def main(folder='data',start_index=0):
     while True:
         if camera_images["oak"]:
             cv2.imshow("result",bridge.imgmsg_to_cv2(camera_images["oak"]))
-            time.sleep(.5)
             save_scan(folder, index)
             clear_scan()
             index += 1
+            time.sleep(.5)
 
 if __name__ == '__main__':
     import sys
