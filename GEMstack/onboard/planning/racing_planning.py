@@ -32,7 +32,7 @@ def scenario_check(vehicle_state, cone_state):
     cone_position = (cones_ahead[0]['x'], cones_ahead[0]['y'])
     
     # Check the cone orientation
-    if cone_direction != 'left' and cone_direction != 'right' and cone_direction != 'standing':
+    if cone_direction != 'left' and cone_direction != 'right' and cone_direction != 'standing' and cone_direction != '90turn':
         raise ValueError("Unknown cone orientation")
     
     return cone_direction, cone_position
@@ -133,8 +133,7 @@ def waypoint_generate(vehicle_state, cone_state):
         cone = np.array(cone_position)
         distance_to_cone = np.linalg.norm(car_position - cone)
 
-        flex_wps = []
-
+        flex_wps_list = []
         if distance_to_cone > 7:
             steps = int(distance_to_cone // 6)
             print("steps:", steps)
@@ -145,13 +144,13 @@ def waypoint_generate(vehicle_state, cone_state):
             cone_direction = (final_flex_wp - car_position) / np.linalg.norm(final_flex_wp - car_position)
             for i in range(steps - 2):
                 intermediate_wp = car_position + cone_direction * ((i + 1) * 6)
-                flex_wps.append(intermediate_wp)
+                flex_wps_list.append(intermediate_wp)
 
-            flex_wps.append(final_flex_wp)
+            flex_wps_list.append(final_flex_wp)
         else:
             flex_wp = cone + 1.0 * perpendicular_vector + heading_vector * 1.0
             fixed_wp = cone - turn_vector * 2.5 + heading_vector * 0.0
-            flex_wps = [flex_wp]
+            flex_wps_list = [flex_wp]
 
     else:
         flex_wps_list = None
@@ -816,17 +815,44 @@ class SlalomTrajectoryPlanner(Component):
 
     def update(self, vehicle: VehicleState):
         if not self.planned:
+            # Example Test - Slalom
+            # cones = [
+            #     {'x': 10, 'y': 0.0, 'orientation': 'left'},
+            #     {'x': 30, 'y': 1.0, 'orientation': 'right'},
+            #     {'x': 50, 'y': 0.0, 'orientation': 'left'},
+            #     {'x': 70, 'y': 1.0, 'orientation': 'standing'}
+            # ]
+            # vehicle_dict = {
+            #     'position': [vehicle.pose.x, vehicle.pose.y],
+            #     'heading': vehicle.pose.yaw,
+            #     'velocity': vehicle.v
+            # }
+
+            # Example Test - Racing Circle
             cones = [
-                {'x': 10, 'y': 0.0, 'orientation': 'left'},
-                {'x': 30, 'y': 1.0, 'orientation': 'right'},
-                {'x': 50, 'y': 0.0, 'orientation': 'left'},
-                {'x': 70, 'y': 1.0, 'orientation': 'standing'}
+                {'x': -60.083, 'y': -33.118, 'orientation': '90turn'},
+                {'x': -6.392, 'y': -5.147, 'orientation': '90turn'},
+                {'x': -5.625, 'y': -13.637, 'orientation': '90turn'},
+                {'x': -56.258, 'y': -41.080, 'orientation': '90turn'}
             ]
             vehicle_dict = {
-                'position': [vehicle.pose.x, vehicle.pose.y],
-                'heading': vehicle.pose.yaw,
-                'velocity': vehicle.v
+                'position': [-60.0, -39.0],
+                'heading': np.pi * 2 / 3,
+                'velocity': 0.0
             }
+
+            # TODO: Optimization Failed
+            # cones = [
+            #     {'x': 0.0, 'y': 70.0, 'orientation': '90turn'},
+            #     {'x': 30.0, 'y': 70.0, 'orientation': '90turn'},
+            #     {'x': 30.0, 'y': 0.0, 'orientation': '90turn'},
+            #     {'x': 0.0, 'y': 0.0, 'orientation': '90turn'}
+            # ]
+            # vehicle_dict = {
+            #     'position': [0.0, 20.0],
+            #     'heading': 0.0,
+            #     'velocity': 0.0
+            # }
             self.trajectory = plan_full_slalom_trajectory(vehicle_dict, cones)
             self.planned = True
         return self.trajectory
