@@ -104,7 +104,7 @@ class Stanley(object):
         ry = y - self.wheelbase * sin(yaw)
         return rx, ry
 
-    def compute(self, state: VehicleState, component: Component = None, reverse = False): # TODO change only during debugging
+    def compute(self, state: VehicleState, component: Component = None, reverse = False):
         """Compute the control outputs: (longitudinal acceleration, front wheel angle)."""
         t = state.pose.t
         if self.t_last is None:
@@ -306,9 +306,9 @@ class StanleyTrajectoryTracker(Component):
         self.stanley.set_path(trajectory)
 
         # TODO
-        accel, f_delta = self.stanley.compute(vehicle, self)
+        reverse = True
         # reverse = some_function_here()
-        # accel, f_delta = self.stanley.compute(vehicle, self, reverse)
+        accel, f_delta = self.stanley.compute(vehicle, self, reverse)
 
         steering_angle = front2steer(f_delta)
         steering_angle = np.clip(
