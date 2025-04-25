@@ -2,7 +2,7 @@ import numpy as np
 import random  
 import math
 import time
-
+import yaml
 
 class Obstacle:
     def __init__(self,x=0,y=0,r=0.2):
@@ -19,9 +19,7 @@ class Point:
         self.cost = float('inf')  # Cost to reach this node
 
 class BiRRT:
-    def __init__(self, start : list, goal : list, obstacles : list, MAP_SIZE : list,
-                 OFFSET : float = 0.8, time_limit : float = 1.0, heading_limit = math.pi/6,
-                 step_size = 0.5, search_r = 1.4, MAX_Iteration = 20000):
+    def __init__(self, start : list, goal : list, obstacles : list):
         
         self.path = []
         self.tree_from_start = []
@@ -40,31 +38,32 @@ class BiRRT:
         self.OBSTACLE_LIST = []
         for obstacle in obstacles:
             self.OBSTACLE_LIST.append(Obstacle(obstacle[0],obstacle[1]))
+            
+        yaml_path = "../../knowledge/defaults/rrt_param.yaml"
+        with open(yaml_path,'r') as file:
+            params = yaml.safe_load(file)
         
         # min distace of vehicle center to obstacle
         # should be roughly 1/2 of vehicle width
-        self.OFFSET = OFFSET # meter
-        
-        # max iteration size for performing route search
-        self.MAX_Iteration = MAX_Iteration
+        self.OFFSET = params['vehicle']['half_width'] # meter
 
+        # angle limit for vehicle turning per step size
+        self.heading_limit = params['vehicle']['heading_limit'] # limit the heading change in route
+        
         # max search time
-        self.time_limit = time_limit
+        self.time_limit = params['rrt']['time_limit'] # sec
 
         # step size for local planner
-        self.step_size = step_size # meter
+        self.step_size = params['rrt']['step_size'] # meter
         
         # radius for determine neighbor node
-        self.search_r = search_r # meter
+        self.search_r = params['rrt']['search_r'] # meter
         
-        # angle limit for vehicle turning per step size
-        self.heading_limit = heading_limit # limit the heading change in route
-        
-        # Map boundary
-        self.MAP_X_LOW = MAP_SIZE[0] # meter
-        self.MAP_X_HIGH = MAP_SIZE[1] # meter
-        self.MAP_Y_LOW = MAP_SIZE[2] # meter
-        self.MAP_Y_HIGH = MAP_SIZE[3] # meter
+        # Map boundary in meter
+        self.MAP_X_LOW = params['map']['lower_x'] 
+        self.MAP_X_HIGH = params['map']['upper_x']
+        self.MAP_Y_LOW = params['map']['lower_y'] 
+        self.MAP_Y_HIGH = params['map']['upper_y']
         
         
     def search(self):
@@ -73,11 +72,9 @@ class BiRRT:
         self.tree_from_end.append(self.end_point)
 
         start_time = time.time()
-        # perform search within max number of iterration
-        for iterration in range(self.MAX_Iteration):
-            if time.time()-start_time > self.time_limit:
-                break
-
+        
+        # perform search within time limit
+        while (time.time()-start_time) <= self.time_limit:
             # uniformly sample a point within in the map
             sample_p = Point(random.uniform(self.MAP_X_LOW,self.MAP_X_HIGH),random.uniform(self.MAP_Y_LOW,self.MAP_Y_HIGH))
             Direction = None
@@ -124,7 +121,7 @@ class BiRRT:
             # point is valid, add to tree
             tree_a.append(new_p)
             
-            # rewrite tree to smooth the route
+            # rewire tree to smooth the route
             for point in neighbor_points:
                 if point == parent_p:
                     continue

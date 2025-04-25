@@ -1,0 +1,16 @@
+# arguments for BiRRT* algorithm
+# map boundary in meter
+map:
+    lower_x: -5 
+    upper_x: 20 
+    lower_y: -5
+    upper_y: 20
+# vehicle info 
+vehicle:
+    heading_limit: 0.5235987756  # pi/6 in radians
+    half_width: 0.8 # in meter
+# algorithm parameters
+rrt:
+    time_limit: 10 # in sec
+    step_size: 0.5 # length in meter for local planner to explore
+    search_r: 1.4 # radius in meter for rewiring
