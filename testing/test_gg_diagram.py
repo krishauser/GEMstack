@@ -101,9 +101,11 @@ def parse_tracker_csv(filename):
     vehicle_time = data[:, 19]
     cte = data[:, 20]
     x_actual, y_actual = data[:, 2], data[:, 5]
-    x_desired, y_desired = data[:, 11], data[:, 14]
+    # x_desired, y_desired = data[:, 11], data[:, 14]  ### PP
+    x_desired, y_desired = data[:, 8], data[:, 11] #Stanley
     speed_actual = data[:, -1]
-    return vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual
+    des_speed = data[:, -13]
+    return vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual, des_speed
 
 def compute_derivative(times, values):
     """
@@ -195,13 +197,13 @@ def plot_position(axis, x_actual, y_actual, x_desired=None, y_desired=None, safe
     """Plots vehicle actual and desired positions vs. time"""
     # position_error = np.sqrt((x_desired - x_actual) ** 2 + (y_desired - y_actual) ** 2)
     
-    #axis.plot(y_desired, x_desired, linestyle='--', color='blue', label='Desired')
-    axis.plot(y_actual, x_actual, color="black", linewidth=0.8, alpha=0.5)#, label='Actual')
+    axis.plot(y_desired, x_desired, linestyle='--', color='blue', label='Desired')
+    axis.plot(y_actual, x_actual, color="black", linewidth=0.8, alpha=0.5, label='Actual')
     
     axis.set_xlabel("Y Position (m)")
     axis.set_ylabel("X Position (m)")
     axis.set_title("GEM Position")
-    # axis.legend()
+    axis.legend()
     axis.grid(True)
 
 def plot_speeds(axis, time, speed_actual, comptued_speed = None):
@@ -255,7 +257,8 @@ if __name__=='__main__':
     
     log_dir = sys.argv[1]
     behavior_file = os.path.join(log_dir, "behavior.json")
-    tracker_file = os.path.join(log_dir, "PurePursuitTrajectoryTracker_debug.csv")
+    tracker_file = os.path.join(log_dir, "StanleyTrajectoryTracker_debug.csv")
+    # tracker_file = os.path.join(log_dir, "PurePursuitTrajectoryTracker_debug.csv")
     
     # if behavior.json doesn't exist, print error and exit
     if not os.path.exists(behavior_file):
@@ -270,12 +273,15 @@ if __name__=='__main__':
     times, xs, ys = remove_duplicate_positions(times, xs, ys)
     longitudinal_gs, lateral_gs, vs, lat_accels, long_accels, times, valid_mask = compute_gs(times, xs, ys, speeds, accelerations, heading_rates)
 
-    #vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual = parse_tracker_csv(tracker_file)
+    vehicle_time, cte, x_actual, y_actual, x_desired, y_desired, speed_actual, des_speed = parse_tracker_csv(tracker_file)
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
     plot_gg_diagram(axs[0, 0], longitudinal_gs, lateral_gs)
-    plot_position(axs[0, 1], xs, ys)#, x_desired, y_desired)
-    plot_speeds(axs[1, 0], times, vs)
+    # plot_position(axs[0, 1], xs, ys) #, x_desired, y_desired)
+    plot_position(axs[0, 1], x_actual, y_actual, x_desired, y_desired)
+    # plot_speeds(axs[1, 0], times, vs)
+    plot_speeds(axs[1, 0], vehicle_time, des_speed, speed_actual)
+
     plot_accelerations(axs[1, 1], long_accels, times)
     plt.tight_layout()
     name = "gg_diagram.png"
