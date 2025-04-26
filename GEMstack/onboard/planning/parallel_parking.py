@@ -1,4 +1,3 @@
-from typing import List
 from ..component import Component
 from ...utils import serialization
 from ...state import Route,ObjectFrameEnum, AllState, VehicleState, Roadgraph, MissionObjective
@@ -7,9 +6,6 @@ from ..planning.reeds_shepp_parking import ReedsSheppParking
 import os
 import numpy as np
 from typing import List
-import reeds_shepp
-from typing import List, Tuple
-
 
 class SummoningParkingRoutePlanner(Component):
     def __init__(self, routefn: str, vehicle_interface: GEMInterface, frame: str = 'start'):
@@ -38,11 +34,13 @@ class SummoningParkingRoutePlanner(Component):
         # SLOT 5 (22.11, -2.44, 0.0, (1.7, 3.2))
         self.parked_cars = [
 
-            (17.33, -2.44, 0.0, (1.7, 3.2)),
-            (22.11, -2.44, 0.0, (1.7, 3.2))  
+            (17.33, -2.44),
+            (22.11, -2.44)  
         ]
         self.parking_utils = ReedsSheppParking()
         self.parking_utils.closest = False
+        self.parking_utils.find_collision_free_trajectory(self.parked_cars)
+        
         
 
     def state_inputs(self):
@@ -56,7 +54,7 @@ class SummoningParkingRoutePlanner(Component):
 
     def update(self, vehicle: VehicleState, x=0.0):
         self.current_pose = vehicle.pose
-        self.parking_utils.find_collision_free_trajectory()
         self.waypoints_to_go = self.parking_utils.waypoints_to_go
+        self.parking_utils.find_collision_free_trajectory(self.parked_cars)
         self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
         return self.route
