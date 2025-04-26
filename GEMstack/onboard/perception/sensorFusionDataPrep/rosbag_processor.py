@@ -16,13 +16,15 @@ from pathlib import Path
 class RosbagProcessor():
     # Pairs up and stores Image and PointCloud2 messages into their respective test (20%) and training (80%) png and bin files.
     def __init__(self, DATA_DIR: str, train_counter: int = 0, test_counter: int = 0) -> None:
-        
-        self.__TEST_DIR = DATA_DIR / 'test'
-        self.__TRAIN_DIR = DATA_DIR / 'train'
-        TEST_IMG_DIR = self.__TEST_DIR / 'img'
-        TEST_BIN_DIR = self.__TEST_DIR / 'bin'
-        TRAIN_IMG_DIR = self.__TRAIN_DIR / 'img'
-        TRAIN_BIN_DIR = self.__TRAIN_DIR / 'bin'
+        self.__img_folder = 'image_2'
+        self.__lidar_folder = 'velodyne'
+
+        self.__TEST_DIR = DATA_DIR / 'testing'
+        self.__TRAIN_DIR = DATA_DIR / 'training'
+        TEST_IMG_DIR = self.__TEST_DIR / self.__img_folder
+        TEST_BIN_DIR = self.__TEST_DIR / self.__lidar_folder
+        TRAIN_IMG_DIR = self.__TRAIN_DIR / self.__img_folder
+        TRAIN_BIN_DIR = self.__TRAIN_DIR / self.__lidar_folder
 
         # Create directories if they don't exist
         TEST_IMG_DIR.mkdir(parents=True, exist_ok=True)
@@ -53,8 +55,8 @@ class RosbagProcessor():
             idx = self.__train_counter
 
         # Store point cloud and image data with KITTI formatted filenames:
-        image_filename = PARENT_FOLDER / 'img' / f"{idx:06d}.png"
-        pc_filename = PARENT_FOLDER / 'bin' / f"{idx:06d}.bin"
+        image_filename = PARENT_FOLDER / self.__img_folder / f"{idx:06d}.png"
+        pc_filename = PARENT_FOLDER / self.__lidar_folder / f"{idx:06d}.bin"
         # image_filename = self.get_path(image_filename)
         # pc_filename = self.get_path(pc_filename)
 
@@ -97,4 +99,5 @@ if __name__ == '__main__':
 
     # Path to the destination folder (relative from this script)
     DATA_DIR = BASE_DIR.parent.parent.parent.parent / 'data' / 'sensorFusionData'
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     bag_processor = RosbagProcessor(DATA_DIR=DATA_DIR)
