@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { IconButton, Slider, Menu, MenuItem } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
@@ -13,7 +13,7 @@ export default function Scrubber({
     restart,
     setPlaybackSpeed,
     moveToTime,
-    duration
+    duration,
 }: {
     time: number;
     play: boolean;
@@ -27,6 +27,7 @@ export default function Scrubber({
     const [selectedSpeed, setSelectedSpeed] = useState<number>(1);
     const speedOptions = [0.5, 1, 1.5, 2, 3];
     const open = Boolean(anchorEl);
+    const [isDragging, setIsDragging] = useState<boolean>(false);
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorEl(event.currentTarget);
     };
@@ -38,32 +39,64 @@ export default function Scrubber({
         setPlaybackSpeed(speed);
         handleClose();
     };
-    const handleSliderChange = (_: Event, newValue: number | number[]) => {
-        if (typeof newValue === "number") {
-            moveToTime(newValue);
-        }
+    const handleSliderChange = (_: Event, newValue: number) => {
+        moveToTime(newValue);
     };
+    const handleSliderChangeCommitted = () => {
+        setIsDragging(false);
+    }
     const formatDuration = (time: number) => {
         const minutes = Math.floor(time / 60);
         const seconds = Math.floor(time % 60);
-        return `${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-    }
+        return `${minutes < 10 ? "0" : ""}${minutes}:${
+            seconds < 10 ? "0" : ""
+        }${seconds}`;
+    };
+    const handleContextMenu = (event: React.MouseEvent) => {
+        event.preventDefault();
+    };
     return (
-        <div className="px-5 fixed bottom-5 left-1/6 h-20 w-2/3 bg-black/40 text-white shadow-lg rounded-full flex justify-center items-center">
-            <IconButton size="large" onClick={togglePlay}>
+        <div
+            className="px-5 fixed bottom-5 left-1/6 h-20 w-2/3 bg-black/40 text-white shadow-lg rounded-full flex justify-center items-center"
+            onContextMenu={handleContextMenu}
+        >
+            <IconButton
+                size="large"
+                onClick={togglePlay}
+                sx={{ marginRight: "20px", color: "white" }}
+            >
                 {play ? (
                     <PauseIcon fontSize="inherit" />
                 ) : (
                     <PlayArrowIcon fontSize="inherit" />
                 )}
             </IconButton>
-            <div className="w-2/3 flex items-center">
-                <div>{time < duration ? formatDuration(time) : formatDuration(duration)}</div>
-                <Slider min={0} max={duration} step={0.000001} className="mx-8" disabled={duration === 0} onChange={handleSliderChange} value={time}/>
+            <div className="w-2/3 flex items-center select-none text-xl">
+                <div>
+                    {time < duration
+                        ? formatDuration(time)
+                        : formatDuration(duration)}
+                </div>
+                <Slider
+                    key={isDragging ? undefined : Math.floor(time * 100)}
+                    min={0}
+                    max={duration}
+                    step={0.02}
+                    className="mx-8"
+                    disabled={duration === 0}
+                    onChange={handleSliderChange}
+                    onMouseDown={() => setIsDragging(true)}
+                    onChangeCommitted={handleSliderChangeCommitted}
+                    value={time}
+                />
                 <div>{formatDuration(duration)}</div>
             </div>
-            <div>
-                <IconButton size="large" onClick={handleClick}>
+            <div className="ml-5 flex flex-nowrap">
+                <IconButton
+                    size="large"
+                    onClick={handleClick}
+                    sx={{ color: "white" }}
+                >
                     <SpeedIcon fontSize="inherit" />
                 </IconButton>
                 <Menu
@@ -89,7 +122,10 @@ export default function Scrubber({
                         </MenuItem>
                     ))}
                 </Menu>
-                <IconButton size="large">
+                <IconButton
+                    size="large"
+                    sx={{ marginLeft: "20px", color: "white" }}
+                >
                     <RefreshIcon fontSize="inherit" onClick={restart} />
                 </IconButton>
             </div>
