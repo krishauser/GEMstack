@@ -12,12 +12,7 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
       for (const [key, value] of Object.entries(parsed)) {
         if (key === 'time' || typeof value !== 'object' || value === null) continue;
 
-        if (
-          key === 'vehicle' &&
-          'type' in value &&
-          'data' in value &&
-          (value as any).data?.pose?.frame === 3
-        ) {
+        if (key === 'vehicle' && 'type' in value && 'data' in value && (value as any).data?.pose?.frame === 3) {
           entries.push({
             key,
             type: (value as any).type,
@@ -27,19 +22,20 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
           continue;
         }
 
-        if (key === 'agents') {
-          for (const [agentId, agentValue] of Object.entries(value)) {
-            if (
-              typeof agentValue === 'object' &&
-              agentValue !== null &&
-              'data' in agentValue &&
-              (agentValue as any).data?.pose?.frame === 1
-            ) {
+        if (key === 'agents' || key === 'traffic_lights' || key === 'other_vehicles') {
+          for (const [itemId, itemValue] of Object.entries(value)) {
+            if (typeof itemValue === 'object' && itemValue !== null && 'data' in itemValue) {
+              const frame = (itemValue as any).data?.pose?.frame;
+
+              if (key === 'agents' && frame !== 1) {
+                continue;
+              }
+
               entries.push({
-                key: agentId,
-                type: (agentValue as any).type ?? 'AgentState',
+                key: itemId,
+                type: (itemValue as any).type ?? guessTypeFromKey(key),
                 time,
-                data: (agentValue as any).data,
+                data: (itemValue as any).data,
               });
             }
           }
@@ -51,4 +47,11 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
   }
 
   return entries;
+}
+
+function guessTypeFromKey(key: string): string {
+  if (key === 'agents') return 'AgentState';
+  if (key === 'traffic_lights') return 'TrafficLightState';
+  if (key === 'other_vehicles') return 'OtherVehicleState';
+  return 'Unknown';
 }

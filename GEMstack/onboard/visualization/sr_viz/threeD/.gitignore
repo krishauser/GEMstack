@@ -1,24 +1,19 @@
-# Nuxt dev/build outputs
-.output
-.data
-.nuxt
-.nitro
-.cache
-dist
+# Node.js / Next.js
+node_modules/
+.next/
+out/
 
-# Node dependencies
-node_modules
+# Python / Flask
+__pycache__/
+*.pyc
+.venv/
+venv/
 
-# Logs
-logs
-*.log
-
-# Misc
-.DS_Store
-.fleet
-.idea
-
-# Local env files
+# Environment files
 .env
 .env.*
-!.env.example
+
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/

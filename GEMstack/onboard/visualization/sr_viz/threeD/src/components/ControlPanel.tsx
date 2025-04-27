@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { TiUpload } from "react-icons/ti";
 import { RxCross2 } from "react-icons/rx";
 import { buildTimeline } from "@/utils/buildTimeline";
@@ -8,7 +8,15 @@ import { parseLogFile } from "@/utils/parseLogFile";
 import { useTimelineStore } from "@/hooks/useTimelineStore";
 import { TimelineData } from "@/types/TimelineData";
 
-export default function ControlPanel({ reset }: { reset: () => void }) {
+export default function ControlPanel({
+  reset,
+  folder,
+  file,
+}: {
+  reset: () => void;
+  folder?: string;
+  file?: string;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const setTimeline = useTimelineStore((state) => state.setTimeline);
@@ -25,12 +33,47 @@ export default function ControlPanel({ reset }: { reset: () => void }) {
       const entries = await parseLogFile(file);
       const timeline: TimelineData = buildTimeline(entries);
       setTimeline(timeline);
-      reset(); // ⏪ Restart animation time
-      console.log("✅ timeline loaded:", timeline);
+      reset();
+      console.log("timeline loaded:", timeline);
     } catch (err) {
-      console.error("❌ Failed to parse log file:", err);
+      console.error("Failed to parse log file:", err);
     }
   };
+
+  useEffect(() => {
+    if (!folder || !file) return;
+
+    const fetchLog = async () => {
+      const url = `http://localhost:5000/raw_logs/${encodeURIComponent(
+        folder
+      )}/${encodeURIComponent(file)}`;
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(
+            `Failed to fetch ${file} from ${url} (status ${res.status})`
+          );
+        }
+
+        const text = await res.text();
+        const fakeFile = new File([text], file, { type: "text/plain" });
+
+        const entries = await parseLogFile(fakeFile);
+        const timeline = buildTimeline(entries);
+
+        setTimeline(timeline);
+        reset();
+        setFileName(file);
+
+        console.log("[✔] Timeline loaded from Flask API:", timeline);
+      } catch (err) {
+        console.error("[✘] Failed to load remote log file:", err);
+      }
+    };
+
+    fetchLog();
+  }, [folder, file]);
 
   return (
     <>
@@ -64,7 +107,7 @@ export default function ControlPanel({ reset }: { reset: () => void }) {
                 />
               </label>
               <p className="mt-2 text-xs text-gray-400 truncate">
-                {fileName ? `✅ ${fileName}` : "No file loaded"}
+                {fileName ? `${fileName}` : "No file loaded"}
               </p>
             </div>
 
