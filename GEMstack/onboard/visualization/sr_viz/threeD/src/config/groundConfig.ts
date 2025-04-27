@@ -14,7 +14,7 @@ export interface GroundConfig {
 }
 
 const groundConfig: GroundConfig = {
-    size: [20000, 20000],
+    size: [1000, 1000],
     position: [0, 0, 0],
     rotation: [0, 0, 0],
     cellSize: 1,

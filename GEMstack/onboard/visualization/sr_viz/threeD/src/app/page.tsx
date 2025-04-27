@@ -1,12 +1,18 @@
 "use client";
 
+import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import ControlPanel from "@/components/ControlPanel";
-import CanvasWrapper from "@/components/CanvasWrapper";
 import Scrubber from "@/components/Scrubber";
 import { usePlaybackTime } from "@/hooks/usePlaybackTime";
+import { useState, useEffect } from "react";
 
-export default function HomePage() {
+const CanvasWrapper = dynamic(() => import("@/components/CanvasWrapper"), {
+  ssr: false,
+});
+
+function InnerHomePage() {
   const {
     time,
     reset,
@@ -22,8 +28,19 @@ export default function HomePage() {
   const searchParams = useSearchParams();
   const folder = searchParams.get("folder") || undefined;
   const file = searchParams.get("file") || undefined;
+
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <main className="relative w-screen h-screen bg-white">
+    <>
       <ControlPanel reset={reset} folder={folder} file={file} />
       <CanvasWrapper time={time} setDuration={setDuration} />
       <Scrubber
@@ -35,6 +52,16 @@ export default function HomePage() {
         moveToTime={moveToTime}
         duration={duration}
       />
+    </>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <main className="relative w-screen h-screen bg-white">
+      <Suspense fallback={<div>Loading Canvas...</div>}>
+        <InnerHomePage />
+      </Suspense>
     </main>
   );
 }
