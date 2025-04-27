@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import { IconButton, Slider, Menu, MenuItem } from "@mui/material";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
@@ -27,6 +27,7 @@ export default function Scrubber({
     const [selectedSpeed, setSelectedSpeed] = useState<number>(1);
     const speedOptions = [0.5, 1, 1.5, 2, 3];
     const open = Boolean(anchorEl);
+    const [isDragging, setIsDragging] = useState<boolean>(false);
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
         setAnchorEl(event.currentTarget);
     };
@@ -38,11 +39,12 @@ export default function Scrubber({
         setPlaybackSpeed(speed);
         handleClose();
     };
-    const handleSliderChange = (_: Event, newValue: number | number[]) => {
-        if (typeof newValue === "number") {
-            moveToTime(newValue);
-        }
+    const handleSliderChange = (_: Event, newValue: number) => {
+        moveToTime(newValue);
     };
+    const handleSliderChangeCommitted = () => {
+        setIsDragging(false);
+    }
     const formatDuration = (time: number) => {
         const minutes = Math.floor(time / 60);
         const seconds = Math.floor(time % 60);
@@ -76,12 +78,15 @@ export default function Scrubber({
                         : formatDuration(duration)}
                 </div>
                 <Slider
+                    key={isDragging ? undefined : Math.floor(time * 100)}
                     min={0}
                     max={duration}
-                    step={0.000001}
+                    step={0.02}
                     className="mx-8"
                     disabled={duration === 0}
                     onChange={handleSliderChange}
+                    onMouseDown={() => setIsDragging(true)}
+                    onChangeCommitted={handleSliderChangeCommitted}
                     value={time}
                 />
                 <div>{formatDuration(duration)}</div>
