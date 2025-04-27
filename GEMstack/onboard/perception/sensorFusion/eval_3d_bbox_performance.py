@@ -9,7 +9,7 @@ import math
 import warnings
 import traceback
 
-######  Configuration ######
+######  Bbox coord mapping ######
 IDX_X, IDX_Y, IDX_Z = 0, 1, 2
 IDX_L, IDX_W, IDX_H = 3, 4, 5
 IDX_YAW = 6
@@ -49,8 +49,8 @@ def parse_box_line(line, is_gt=False):
         # Read rotation_y (yaw) from KITTI standard index 14
         rot_y = float(parts[14])
 
-        # --- Convert to standardized internal format ---
-        # Internal Standardized format: [cx, cy, cz, l, w, h, yaw, class_label, score]
+        # Convert to internal format
+        # Internal format: [cx, cy, cz, l, w, h, yaw, class_label, score]
 
         # Use KITTI loc_x and loc_z directly for internal cx, cz
         cx = loc_x
@@ -122,11 +122,9 @@ def calculate_3d_iou(box1, box2):
     Returns:
         float: The 3D IoU value.
 
-    *** PLACEHOLDER IMPLEMENTATION ***
-    This function needs a proper implementation for ROTATED 3D boxes.
-    The current version calculates IoU based on axis-aligned bounding boxes
-    derived from the dimensions and centers, which is inaccurate for rotated boxes.
+    Doesn't consider yaw
     """
+
     ####### Simple Axis-Aligned Bounding Box (AABB) IoU #######
     def get_aabb_corners(box):
         # Uses internal format where cy is geometric center
@@ -167,7 +165,229 @@ def calculate_3d_iou(box1, box2):
     iou = max(0.0, min(iou, 1.0))
     return iou
 
-# TODO: calc mAP
+
+def calculate_ap(precision, recall):
+    """Calculates Average Precision using the PASCAL VOC method (area under monotonic PR curve)."""
+    # Convert to numpy arrays first for safety
+    if not isinstance(precision, (list, np.ndarray)) or not isinstance(recall, (list, np.ndarray)):
+       return 0.0
+    precision = np.array(precision)
+    recall = np.array(recall)
+
+    if precision.size == 0 or recall.size == 0:
+        return 0.0
+
+    # Prepend/Append points for interpolation boundaries
+    recall = np.concatenate(([0.], recall, [1.0]))
+    precision = np.concatenate(([0.], precision, [0.])) # Start with 0 precision at recall 0, end with 0 at recall 1
+
+    # Make precision monotonically decreasing (handles PR curve 'jiggles')
+    for i in range(len(precision) - 2, -1, -1):
+        precision[i] = max(precision[i], precision[i+1])
+
+    # Find indices where recall changes (avoids redundant calculations)
+    indices = np.where(recall[1:] != recall[:-1])[0] + 1
+
+    # Compute AP using the area under the curve (sum of rectangle areas)
+    ap = np.sum((recall[indices] - recall[indices-1]) * precision[indices])
+    return ap
+
+def evaluate_detector(gt_boxes_all_samples, pred_boxes_all_samples, classes, iou_threshold):
+    """Evaluates a single detector's predictions against ground truth."""
+    results_by_class = {}
+    sample_ids = list(gt_boxes_all_samples.keys()) # Get fixed order of sample IDs
+
+    for cls in classes:
+        all_pred_boxes_cls = []
+        num_gt_cls = 0
+        pred_sample_indices = [] # Store index from sample_ids for each prediction
+
+        # Collect all GTs and Preds for this class across samples
+        for i, sample_id in enumerate(sample_ids):
+            # Use .get() with default empty dict/list for safety
+            gt_boxes = gt_boxes_all_samples.get(sample_id, {}).get(cls, [])
+            pred_boxes = pred_boxes_all_samples.get(sample_id, {}).get(cls, [])
+
+            num_gt_cls += len(gt_boxes)
+            for box in pred_boxes:
+                all_pred_boxes_cls.append(box)
+                pred_sample_indices.append(i) # Store the original sample index
+
+        if not all_pred_boxes_cls: # Handle case with no predictions for this class
+             results_by_class[cls] = {
+                'precision': np.array([]), # Use empty numpy arrays
+                'recall': np.array([]),
+                'ap': 0.0,
+                'num_gt': num_gt_cls,
+                'num_pred': 0
+             }
+             continue # Skip to next class
+
+        # Sort detections by confidence score (descending)
+        # Ensure scores exist and are numeric before sorting
+        scores = []
+        valid_indices_for_sorting = []
+        for idx, box in enumerate(all_pred_boxes_cls):
+             if len(box) > IDX_SCORE and isinstance(box[IDX_SCORE], (int, float)):
+                 scores.append(-box[IDX_SCORE]) # Use negative score for descending sort with argsort
+                 valid_indices_for_sorting.append(idx)
+             else:
+                  warnings.warn(f"Class {cls}: Prediction missing score or invalid score type. Excluding from evaluation: {box}")
+
+        if not valid_indices_for_sorting: # If filtering removed all boxes
+            results_by_class[cls] = {'precision': np.array([]),'recall': np.array([]),'ap': 0.0,'num_gt': num_gt_cls,'num_pred': 0}
+            continue
+
+        # Filter lists based on valid scores
+        all_pred_boxes_cls = [all_pred_boxes_cls[i] for i in valid_indices_for_sorting]
+        pred_sample_indices = [pred_sample_indices[i] for i in valid_indices_for_sorting]
+        # Scores list is already built correctly
+
+        # Get the sorted order based on scores
+        sorted_indices = np.argsort(scores) # argsort sorts ascending on negative scores -> descending order of original scores
+
+        # Reorder the lists based on sorted scores
+        all_pred_boxes_cls = [all_pred_boxes_cls[i] for i in sorted_indices]
+        pred_sample_indices = [pred_sample_indices[i] for i in sorted_indices]
+
+
+        tp = np.zeros(len(all_pred_boxes_cls))
+        fp = np.zeros(len(all_pred_boxes_cls))
+        # Track matched GTs per sample: gt_matched[sample_idx][gt_box_idx] = True/False
+        gt_matched = defaultdict(lambda: defaultdict(bool)) # Indexed by sample_idx, then gt_idx
+
+        # Match predictions
+        for det_idx, pred_box in enumerate(all_pred_boxes_cls):
+            sample_idx = pred_sample_indices[det_idx] # Get the original sample index (0 to num_samples-1)
+            sample_id = sample_ids[sample_idx] # Get the sample_id string using the index
+            gt_boxes = gt_boxes_all_samples.get(sample_id, {}).get(cls, [])
+
+            best_iou = -1.0
+            best_gt_idx = -1 # Index relative to gt_boxes for this sample/class
+
+            if not gt_boxes: # No GT for this class in this specific sample
+                fp[det_idx] = 1
+                continue
+
+            for gt_idx, gt_box in enumerate(gt_boxes):
+                # Explicitly check class match (belt-and-suspenders)
+                if pred_box[IDX_CLASS] == gt_box[IDX_CLASS]:
+                     iou = calculate_3d_iou(pred_box, gt_box)
+                     if iou > best_iou:
+                         best_iou = iou
+                         best_gt_idx = gt_idx
+                # else: # Should not happen if inputs are correctly filtered by class
+                #     pass
+
+
+            if best_iou >= iou_threshold:
+                # Check if this GT box was already matched *in this sample*
+                if not gt_matched[sample_idx].get(best_gt_idx, False):
+                    tp[det_idx] = 1
+                    gt_matched[sample_idx][best_gt_idx] = True # Mark as matched for this sample
+                else:
+                    fp[det_idx] = 1 # Matched a GT box already covered by a higher-scored prediction
+            else:
+                fp[det_idx] = 1 # Did not match any available GT box with sufficient IoU
+
+        # Calculate precision/recall
+        fp_cumsum = np.cumsum(fp)
+        tp_cumsum = np.cumsum(tp)
+
+        # Avoid division by zero if num_gt_cls is 0
+        recall = tp_cumsum / num_gt_cls if num_gt_cls > 0 else np.zeros_like(tp_cumsum, dtype=float)
+
+        # Avoid division by zero if no predictions were made or matched (tp + fp = 0)
+        denominator = tp_cumsum + fp_cumsum
+        precision = np.divide(tp_cumsum, denominator, out=np.zeros_like(tp_cumsum, dtype=float), where=denominator!=0)
+
+
+        ap = calculate_ap(precision, recall)
+
+        results_by_class[cls] = {
+            'precision': precision, # Store as numpy arrays
+            'recall': recall,
+            'ap': ap,
+            'num_gt': num_gt_cls,
+            'num_pred': len(all_pred_boxes_cls) # Number of predictions *with valid scores*
+        }
+
+    return results_by_class
+
+
+def plot_pr_curves(results_all_detectors, classes, output_dir):
+    """Plots Precision-Recall curves for each class."""
+    if not os.path.exists(output_dir):
+        try:
+            os.makedirs(output_dir)
+        except OSError as e:
+             print(f"[LOG] Error creating output directory {output_dir} for plots: {e}")
+             return # Cannot save plots
+
+    detector_names = list(results_all_detectors.keys())
+
+    for cls in classes:
+        plt.figure(figsize=(10, 7))
+        any_results_for_class = False # Track if any detector had results for this class
+
+        for detector_name, results_by_class in results_all_detectors.items():
+            if cls in results_by_class and results_by_class[cls]['num_pred'] > 0 : # Check if there were predictions
+                res = results_by_class[cls]
+                precision = res['precision']
+                recall = res['recall']
+                ap = res['ap']
+
+                # Ensure plotting works even if precision/recall are empty arrays
+                if recall.size > 0 and precision.size > 0:
+                    # Prepend a point for plotting nicely from recall=0
+                    plot_recall = np.concatenate(([0.], recall))
+                    # Use precision[0] if available, else 0.
+                    plot_precision = np.concatenate(([precision[0] if precision.size > 0 else 0.], precision))
+                    plt.plot(plot_recall, plot_precision, marker='.', markersize=4, linestyle='-', label=f'{detector_name} (AP={ap:.3f})')
+                    any_results_for_class = True
+                else: # Handle case where num_pred > 0 but P/R arrays somehow ended up empty
+                     plt.plot([0], [0], marker='s', markersize=5, linestyle='', label=f'{detector_name} (AP={ap:.3f}, No P/R data?)')
+                     any_results_for_class = True # Still mark as having results
+
+
+            elif cls in results_by_class: # Class exists in evaluation, but no predictions were made for it
+                 num_gt = results_by_class[cls]['num_gt']
+                 if num_gt > 0:
+                      # Plot a marker indicating no predictions were made for this GT class
+                      plt.plot([0], [0], marker='x', markersize=6, linestyle='', label=f'{detector_name} (No Pred, GT={num_gt})')
+                 # else: # No GT and no predictions for this class, don't plot anything specific
+                 #     pass
+            # else: # Class not even in results dict for this detector (e.g., error during eval?)
+                 # Could happen if detector had no files or all files failed parsing for this class
+                 # Might indicate an issue, but avoid cluttering plot unless needed.
+                 pass
+
+
+        if any_results_for_class:
+            plt.xlabel('Recall')
+            plt.ylabel('Precision')
+            plt.title(f'Precision-Recall Curve for Class: {cls}')
+            plt.legend(loc='lower left')
+            plt.grid(True)
+            plt.xlim([-0.05, 1.05])
+            plt.ylim([-0.05, 1.05])
+            plot_path = os.path.join(output_dir, f'pr_curve_{cls}.png')
+            try:
+                plt.savefig(plot_path)
+                print(f"[LOG]  Generated PR curve: {plot_path}")
+            except Exception as e:
+                print(f"[LOG]  Error saving PR curve plot for class '{cls}': {e}")
+            finally:
+                 plt.close() # Close the figure regardless of save success
+        else:
+            # Check if there was any GT data for this class across all detectors
+            # Use .get() chain safely
+            num_gt_total = sum(results_by_class.get(cls, {}).get('num_gt', 0) for results_by_class in results_all_detectors.values())
+            if num_gt_total > 0:
+                 print(f"  Skipping PR plot for class '{cls}': No predictions found across detectors (GT={num_gt_total}).")
+            else:
+                 print(f"  Skipping PR plot for class '{cls}': No ground truth found.")
+            plt.close() # Close the empty figure
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate N 3D Object Detectors using KITTI format labels.')
