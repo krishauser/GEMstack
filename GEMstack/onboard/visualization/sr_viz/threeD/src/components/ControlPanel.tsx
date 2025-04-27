@@ -39,6 +39,14 @@ export default function ControlPanel({
       console.error("Failed to parse log file:", err);
     }
   };
+  const handleContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+    if (isOpen) {
+      setIsOpen(false);
+    } else {
+      setIsOpen(true);
+    }
+  }
 
   useEffect(() => {
     if (!folder || !file) return;
@@ -81,6 +89,7 @@ export default function ControlPanel({
         className={`fixed top-0 left-0 h-full w-64 bg-black/80 text-white shadow-lg transform transition-transform duration-500 ease-in-out z-40 ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
+        onContextMenu={handleContextMenu}
       >
         {isOpen && (
           <>
@@ -123,6 +132,7 @@ export default function ControlPanel({
           onClick={() => setIsOpen(true)}
           className="fixed top-1/2 left-0 -translate-y-1/2 z-50 bg-black/80 text-white w-3 h-8 flex items-center justify-center rounded-r hover:bg-black border-l border-white/20"
           title="Open Panel"
+          onContextMenu={(e) => e.preventDefault()}
         >
           <span className="text-xs">⟩</span>
         </button>
