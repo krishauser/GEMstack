@@ -13,12 +13,12 @@ control:
         brake_speed : 2.0
     pure_pursuit:
         lookahead: 2.0
-        lookahead_scale: 2.0
-        crosstrack_gain: 0.3
+        lookahead_scale: 3.0
+        crosstrack_gain: 0.5 # default: 1
         desired_speed: trajectory
     longitudinal_control:
-        pid_p: 0.8
-        pid_i: 0.03
+        pid_p: 1.5
+        pid_i: 0.1
         pid_d: 0.0
 
 #configure the simulator, if using
@@ -26,7 +26,7 @@ simulator:
     dt: 0.01
     real_time_multiplier: 1.0    # make the simulator run faster than real time by making this > 1
     gnss_emulator: 
-        dt: 0.05    #10Hz
+        dt: 0.1    #10Hz
         #position_noise: 0.1  #10cm noise
         #orientation_noise: 0.04  #2.3 degrees noise
         #velocity_noise:

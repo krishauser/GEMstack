@@ -130,6 +130,9 @@ To stop the container, you can use the provided stop script by running.
 bash stop_docker_container.sh
 ```
 
+## Installing for Mac
+To install Ubuntu and setup ROS for Mac, follow this [link](https://doc.clickup.com/9011960452/d/h/8cjf6m4-11191/e694fcfb47a015e) for in-depth instructions and troubleshooting.
+
 ## In this folder
 
 Your work will be typically confined to the `GEMstack/` folder, and you may use the `testing/`, `logs/`, `data/`, and `scenes/` folders.

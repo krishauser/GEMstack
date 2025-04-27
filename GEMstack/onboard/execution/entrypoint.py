@@ -98,6 +98,7 @@ def main():
             logmeta = config.load_config_recursive(os.path.join(logfolder,'meta.yaml'))
             replay_topics = replay_settings.get('ros_topics',[])
             
+            mission_executor.replay_topics(replay_topics,logfolder)
             #TODO: launch a roslog replay of the topics in ros_topics, disable in the vehicle interface
 
     for (name,s) in pipeline_settings.items():

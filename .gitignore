@@ -32,7 +32,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-.idea/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -135,7 +134,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-*.DS_Store
 
 # Spyder project settings
 .spyderproject
@@ -168,10 +166,19 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# ZED run files
+**/*.run
 .vscode/
 setup/zed_sdk.run
-
 cuda/
-#Ignore ROS bags
-*.bag
+onedrive_config.json
+zed_sdk.run
+ZED_SDK_Ubuntu20_cuda11.8_v4.0.8.zstd.run
+ros.asc
 
+homework/yolov8n.pt
+homework/yolo11n.pt
+GEMstack/knowledge/detection/yolov8n.pt
+GEMstack/knowledge/detection/yolo11n.pt
+yolov8n.pt
+yolo11n.pt

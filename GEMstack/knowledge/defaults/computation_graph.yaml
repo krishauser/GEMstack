@@ -43,12 +43,21 @@ components:
   - route_planning:
       inputs: [vehicle, roadgraph, mission]
       outputs: route
-  - api_call:
-      inputs: all
-      outputs: all
   - driving_logic:
-      inputs: all
+      inputs: 
       outputs: intent
+  - parking_component: # one way
+      inputs: all
+      outputs: mission_plan
+  - summon_component: # one way
+      inputs: all
+      outputs: route
+  - summoning_mission_planning:
+      inputs: all
+      outputs: mission_plan
+  - route_planning_component: # one way
+      inputs: all
+      outputs: route
   - motion_planning:
       inputs: all
       outputs: trajectory
@@ -56,6 +65,5 @@ components:
       inputs: [vehicle, trajectory]
       outputs: 
   - signaling:
-      inputs: [intent] 
-      outputs: 
-
+      inputs: [intent]
+      outputs:
