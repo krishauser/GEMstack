@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import ControlPanel from "@/components/ControlPanel";
 import CanvasWrapper from "@/components/CanvasWrapper";
 import Scrubber from "@/components/Scrubber";
@@ -19,12 +19,21 @@ export default function HomePage() {
     duration,
     setDuration,
   } = usePlaybackTime();
-  const searchParams = useSearchParams();
-  const folder = searchParams.get("folder") || undefined;
-  const file = searchParams.get("file") || undefined;
+
+  const [searchParams, setSearchParams] = useState<{ folder?: string; file?: string }>({});
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const folder = params.get("folder") || undefined;
+      const file = params.get("file") || undefined;
+      setSearchParams({ folder, file });
+    }
+  }, []);
+
   return (
     <main className="relative w-screen h-screen bg-white">
-      <ControlPanel reset={reset} folder={folder} file={file} />
+      <ControlPanel reset={reset} folder={searchParams.folder} file={searchParams.file} />
       <CanvasWrapper time={time} setDuration={setDuration} />
       <Scrubber
         time={time}
