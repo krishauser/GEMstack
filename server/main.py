@@ -25,9 +25,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Single active summon process
-active_summon: Optional[Dict] = None
 bounding_box: List["Coordinates"] = []
+
+class Coordinates(BaseModel):
+    lat: float
+    lon: float
+
+
+# in-memory storage for the last summon coords
+last_summon: Optional[Coordinates] = None
 
 
 class SummonResponse(BaseModel):
@@ -50,85 +56,30 @@ class InspectResponse(BaseModel):
 
 # TODO: replace this mock with real implementation
 @app.post("/api/summon", response_model=SummonResponse)
-def summon(req: Coordinates):
-    global active_summon
-
-    if active_summon is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="A summon is already in progress. Please wait until the current process finishes."
+def summon(coords: Coordinates):
+    """
+    Accepts a pair of lat/lon and stores them for later retrieval.
+    """
+    if coords.lat < -90 or coords.lat > 90 or coords.lon < -180 or coords.lon > 180:
+        return JSONResponse(
+            content={"error": "Invalid coordinates; lat ∈ [-90,90], lon ∈ [-180,180]"},
+            status_code=400,
         )
-    # Generate a new launch ID
-    launch_id = str(uuid.uuid4())
-    logging.info(f"received summon request to {req.lat} {req.lat}, unique launch id: {launch_id}")
 
-    # Store summon information as the single active summon
-    active_summon = {
-        "launch_id": launch_id,
-        "target": {"lat": req.lat, "lon": req.lon},
-        "current_position": {"lat": 40.0930, "lon": -88.2350},  # Mock starting position
-        "start_time": time.time(),
-        "status": "launched"
-    }
-
-    return SummonResponse(launch_status="launched", launch_id=launch_id)
+    global last_summon
+    last_summon = coords
+    return coords
 
 
-# TODO: replace this mock with real implementation
 @app.get("/api/summon")
-def get_summon_status():
-    global active_summon
-
-    if active_summon is None:
-        raise HTTPException(status_code=404, detail="No active summon process")
-
-    def event_generator():
-        global active_summon
-        start_position = active_summon["current_position"]
-        target_position = active_summon["target"]
-        launch_id = active_summon["launch_id"]
-
-        # Generate 10 position updates over 10 seconds
-        for i in range(10):
-            time.sleep(1)
-
-            # Calculate progress (0 to 1)
-            progress = min((i + 1) / 10, 1.0)
-
-            # Linear interpolation between start and target
-            current_lat = start_position["lat"] + (target_position["lat"] - start_position["lat"]) * progress
-            current_lon = start_position["lon"] + (target_position["lon"] - start_position["lon"]) * progress
-
-            logging.info(f"progress {progress}, lat {current_lat} and lon {current_lon} for launch: {launch_id}")
-
-            # Update the active summon state
-            active_summon["current_position"] = {"lat": current_lat, "lon": current_lon}
-            status = "arrived" if progress >= 1.0 else "navigating"
-            active_summon["status"] = status
-            eta = f"{10 - (i + 1)} sec" if status != "arrived" else "0 sec"
-
-            stream_data = StreamPosition(
-                current_position=Coordinates(lat=current_lat, lon=current_lon),
-                launch_status=status,
-                eta=eta,
-            )
-            yield f"data: {stream_data.json()}\n\n"
-
-        # Ensure final state is "arrived"
-        active_summon["status"] = "arrived"
-        active_summon["current_position"] = target_position
-        logging.info(f"car arrived for launch: {launch_id}")
-        final_data = StreamPosition(
-            current_position=Coordinates(lat=target_position["lat"], lon=target_position["lon"]),
-            launch_status="arrived",
-            eta="0 sec"
-        )
-        yield f"data: {final_data.json()}\n\n"
-
-        # Reset active summon when completed
-        active_summon = None
-
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+def get_summon():
+    """
+    Returns the last stored summon coordinates,
+    or 404 if none have been posted yet.
+    """
+    if last_summon is None:
+        raise HTTPException(status_code=404, detail="No summon coordinates set")
+    return last_summon
 
 
 @app.post("/api/inspect", status_code=201)
