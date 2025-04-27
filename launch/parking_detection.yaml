@@ -10,7 +10,7 @@ recovery:
             type: recovery.StopTrajectoryTracker
             print: False
 # Driving behavior for the GEM vehicle following a fixed route
-drive: 
+drive: # Full pipeline on board
     perception:
         state_estimation : GNSSStateEstimator
         agent_detection : cone_detection.ConeDetector3D
@@ -20,8 +20,8 @@ drive:
     planning:
         parking_component:
             type: ParkingSim
-        # route_planning_component:
-        #     type: RoutePlanningComponent
+    #     route_planning_component:
+    #         type: RoutePlanningComponent
     # trajectory_tracking:
     #         type: pure_pursuit.PurePursuitTrajectoryTracker
     #         print: False
@@ -41,7 +41,7 @@ variants:
         drive:
             planning:
                 trajectory_tracking:
-    test:
+    test: # perception only
         run:
             mode: simulation
             vehicle_interface:
@@ -60,19 +60,27 @@ variants:
                         type: ParkingSim
                     # route_planning_component:
                     #     type: RoutePlanningComponent
-    sim:
+    sim: # full pipeline
         run:
             mode: simulation
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+                    scene: !relative_path '../scenes/parking_demo.yaml'
+            # visualization: !include "klampt_visualization.yaml"
 
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection : OmniscientAgentDetector
-            visualization: [!include "klampt_visualization.yaml", !include "mpl_visualization.yaml"]
+                    agent_detection : cone_detection.ConeDetector3D
+                    # agent_detection : cone_detection_simple.ConeDetectorSimple3D
+                    parking_detection: parking_detection.ParkingSpotsDetector3D
+                    perception_normalization : StandardPerceptionNormalizer
+                planning:
+                    parking_component:
+                        type: ParkingSim
+                    route_planning_component:
+                        type: RoutePlanningComponent
     log_ros:
         log:
             ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"

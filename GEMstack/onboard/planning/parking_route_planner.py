@@ -300,6 +300,7 @@ class ParkingPlanner(Component):
         goal = VehicleState.zero()
         goal.pose = goal_pose
         goal.v = 0
+        print("x = ", goal_point[0])
 
         # # Need to parse and create second order dubin car states
         # start_state = self.vehicle_state_to_dynamics(vehicle)
@@ -308,6 +309,9 @@ class ParkingPlanner(Component):
         # Need to parse and create second order dubin car states
         start_state = self.vehicle_state_to_first_order(vehicle)
         goal_state = self.vehicle_state_to_first_order(goal)
+
+        print(f"Start State: {start_state}")
+        print(f"Goal State: {goal_state}")
 
         # Update the planner
         # self.planner.obstacles = list(obstacles.values())

@@ -8,7 +8,7 @@ from GEMstack.state.all import AllState
 from GEMstack.state.physical_object import ObjectFrameEnum
 from GEMstack.state.route import PlannerEnum, Route
 from .rrt_star import RRTStar
-from .parking_route_planner import ParkingPlanner
+from .parking_planning import ParkingPlanner
 
 
 
@@ -16,8 +16,8 @@ class RoutePlanningComponent(Component):
     """Reads a route from disk and returns it as the desired route."""
     def __init__(self):
         print("Route Planning Component init")
-        self.planner = None
         self.route = None
+        self.planner = None
         
     def state_inputs(self):
         return ["all"]
@@ -26,7 +26,7 @@ class RoutePlanningComponent(Component):
         return ['route']
 
     def rate(self):
-        return 10.0
+        return 10.0 # very high for our computation ability
 
     def update(self, state: AllState):
         # print("Route Planner's mission:", state.mission_plan.planner_type.value)
@@ -40,7 +40,10 @@ class RoutePlanningComponent(Component):
         if state.mission_plan.planner_type == PlannerEnum.PARKING:
             print("I am in PARKING mode")
             # Not sure where I should construct this object
-            self.planner = ParkingPlanner(state)
+            if (self.planner is None):
+                state.vehicle.pose.yaw = 0 # needed this to avoid a weird error in the parking planner
+                self.planner = ParkingPlanner()
+            
 
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
             return self.planner.update(state)
