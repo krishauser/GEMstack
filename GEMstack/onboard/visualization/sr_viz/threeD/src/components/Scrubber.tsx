@@ -50,9 +50,19 @@ export default function Scrubber({
             seconds < 10 ? "0" : ""
         }${seconds}`;
     };
+    const handleContextMenu = (event: React.MouseEvent) => {
+        event.preventDefault();
+    };
     return (
-        <div className="px-5 fixed bottom-5 left-1/6 h-20 w-2/3 bg-black/40 text-white shadow-lg rounded-full flex justify-center items-center">
-            <IconButton size="large" onClick={togglePlay} sx={{marginRight: "20px", color: "white"}}>
+        <div
+            className="px-5 fixed bottom-5 left-1/6 h-20 w-2/3 bg-black/40 text-white shadow-lg rounded-full flex justify-center items-center"
+            onContextMenu={handleContextMenu}
+        >
+            <IconButton
+                size="large"
+                onClick={togglePlay}
+                sx={{ marginRight: "20px", color: "white" }}
+            >
                 {play ? (
                     <PauseIcon fontSize="inherit" />
                 ) : (
@@ -77,7 +87,11 @@ export default function Scrubber({
                 <div>{formatDuration(duration)}</div>
             </div>
             <div className="ml-5 flex flex-nowrap">
-                <IconButton size="large" onClick={handleClick} sx={{color: "white"}}>
+                <IconButton
+                    size="large"
+                    onClick={handleClick}
+                    sx={{ color: "white" }}
+                >
                     <SpeedIcon fontSize="inherit" />
                 </IconButton>
                 <Menu
@@ -103,7 +117,10 @@ export default function Scrubber({
                         </MenuItem>
                     ))}
                 </Menu>
-                <IconButton size="large" sx={{marginLeft: "20px", color: "white"}}>
+                <IconButton
+                    size="large"
+                    sx={{ marginLeft: "20px", color: "white" }}
+                >
                     <RefreshIcon fontSize="inherit" onClick={restart} />
                 </IconButton>
             </div>
