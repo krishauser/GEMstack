@@ -1,26 +1,27 @@
-import React, { useRef, useMemo, useEffect } from "react";
-import * as THREE from "three";
+"use client";
+
+import { useRef, useMemo, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { useCameraController } from "@/hooks/useCameraController";
-import { currentVehicle } from "@/config/vehicleConfig";
+import * as THREE from "three";
 import { FrameData } from "@/types/FrameData";
-import { OrbitControls } from "@react-three/drei";
+import { currentOtherVehicle } from "@/config/otherVehicleConfig";
 import URDFLoader from "urdf-loader";
 
-interface VehicleProps {
+interface OtherVehicleProps {
+  id: string;
   timeline: FrameData[];
   time: number;
 }
 
-export default function Vehicle({ timeline, time }: VehicleProps) {
+export default function OtherVehicle({ id, timeline, time }: OtherVehicleProps) {
   const ref = useRef<THREE.Group>(null);
   const vehicleGroup = useRef<THREE.Group>(new THREE.Group());
-  const mode = useCameraController(ref, timeline, time);
+  const [isLoaded, setIsLoaded] = useState(false);
 
   const targetPosition = useMemo(() => new THREE.Vector3(), []);
   const targetQuaternion = useMemo(() => new THREE.Quaternion(), []);
 
-  const { modelPath, scale, rotation, offset, bodyColor } = currentVehicle;
+  const { modelPath, scale, rotation, offset, bodyColor } = currentOtherVehicle;
 
   useEffect(() => {
     const loader = new URDFLoader();
@@ -33,8 +34,7 @@ export default function Vehicle({ timeline, time }: VehicleProps) {
         robot.position.set(offset[0], offset[1], offset[2]);
 
         robot.traverse((child) => {
-          if (child instanceof THREE.Mesh &&
-              child.material instanceof THREE.MeshStandardMaterial) {
+          if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
             child.material = child.material.clone();
             child.material.color.set(bodyColor);
           }
@@ -43,10 +43,12 @@ export default function Vehicle({ timeline, time }: VehicleProps) {
         if (vehicleGroup.current) {
           vehicleGroup.current.add(robot);
         }
+
+        setIsLoaded(true);
       },
       undefined,
       (error) => {
-        console.error("URDF loading failed", error);
+        console.error("URDF loading failed:", error);
       }
     );
   }, [modelPath, scale, rotation, offset, bodyColor]);
@@ -64,12 +66,12 @@ export default function Vehicle({ timeline, time }: VehicleProps) {
     ref.current.quaternion.slerp(targetQuaternion, 0.2);
   });
 
+  const hasSpawned = timeline.length > 0 && timeline[0].time <= time;
+  if (!isLoaded || !hasSpawned) return null;
+
   return (
-    <>
-      <group ref={ref}>
-        <group ref={vehicleGroup} />
-      </group>
-      {mode === "free" && <OrbitControls />}
-    </>
+    <group ref={ref}>
+      <group ref={vehicleGroup} />
+    </group>
   );
 }

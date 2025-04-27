@@ -36,7 +36,7 @@ export function useVehicleControls(
 
     state.moving = false;
 
-    const forward = new Vector3(0, 0, 1).applyEuler(currentRotation);
+    const forward = new Vector3(1, 0, 0).applyEuler(currentRotation);
 
     if (keys['w']) {
       moveDir.add(forward);
