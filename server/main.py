@@ -3,8 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import time
-import uuid
+from enum import Enum
 import logging
 
 # basic logger
@@ -25,37 +24,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-bounding_box: List["Coordinates"] = []
-
 class Coordinates(BaseModel):
     lat: float
     lon: float
-
-
-# in-memory storage for the last summon coords
-last_summon: Optional[Coordinates] = None
-
-
-class SummonResponse(BaseModel):
-    launch_status: str
-    launch_id: str
-
-class Coordinates(BaseModel):
-    lat: float
-    lon: float
-
-class StreamPosition(BaseModel):
-    current_position: Coordinates
-    launch_status: str
-    eta: str
-
 
 class InspectResponse(BaseModel):
     coords: List[Coordinates]
 
+class PlannerEnum(str, Enum):
+    RRT_STAR          = "RRT_STAR"
+    HYBRID_A_STAR     = "HYBRID_A_STAR"
+    PARKING           = "PARKING"
+    LEAVE_PARKING     = "LEAVE_PARKING"
+    IDLE              = "IDLE"
+    SUMMON_DRIVING    = "SUMMON_DRIVING"
+    PARALLEL_PARKING  = "PARALLEL_PARKING"
+
+class StatusUpdate(BaseModel):
+    status: PlannerEnum
+
+class StatusResponse(BaseModel):
+    status: PlannerEnum
+
+current_status: PlannerEnum = PlannerEnum.IDLE
+# in-memory storage for the last summon coords
+last_summon: Optional[Coordinates] = None
+bounding_box: List[Coordinates] = []
+
 
 # TODO: replace this mock with real implementation
-@app.post("/api/summon", response_model=SummonResponse)
+@app.post("/api/summon", response_model=Coordinates)
 def summon(coords: Coordinates):
     """
     Accepts a pair of lat/lon and stores them for later retrieval.
@@ -80,6 +78,32 @@ def get_summon():
     if last_summon is None:
         raise HTTPException(status_code=404, detail="No summon coordinates set")
     return last_summon
+
+@app.post("/api/status", response_model=StatusResponse)
+def update_status(payload: StatusUpdate):
+    """
+    Set the global planner status. Returns the new status.
+    """
+    if payload.status not in PlannerEnum._value2member_map_:
+        return JSONResponse(
+            content={
+                "error": (
+                    f"Invalid status '{payload.status}'. "
+                    f"Must be one of: {[e.value for e in PlannerEnum]}"
+                )
+            },
+            status_code=400,
+        )
+    global current_status
+    current_status = payload.status
+    return StatusResponse(status=current_status)
+
+@app.get("/api/status", response_model=StatusResponse)
+def get_status():
+    """
+    Get the current global planner status.
+    """
+    return StatusResponse(status=current_status)
 
 
 @app.post("/api/inspect", status_code=201)
