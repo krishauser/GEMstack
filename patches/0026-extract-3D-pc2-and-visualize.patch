@@ -1,0 +1,157 @@
+From d319eaa3b09063c977299bc6eb6e3258fc455d83 Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Sat, 15 Feb 2025 00:46:45 -0600
+Subject: [PATCH 026/150] extract 3D pc2 and visualize
+
+---
+ GEMstack/onboard/perception/fusion.py       | 21 ++++++++--
+ GEMstack/onboard/perception/fusion_utils.py | 43 ++++++++++++++++++---
+ GEMstack/onboard/perception/transform.py    |  5 ++-
+ 3 files changed, 58 insertions(+), 11 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/fusion.py b/GEMstack/onboard/perception/fusion.py
+index d98cbac6..f48da3e1 100644
+--- a/GEMstack/onboard/perception/fusion.py
++++ b/GEMstack/onboard/perception/fusion.py
+@@ -34,6 +34,7 @@ class Fusion3D():
+         self.tf_listener = tf.TransformListener()
+ 
+         # Publishers
++        self.pub_pedestrians_pc2 = rospy.Publisher("/point_cloud/pedestrians", PointCloud2, queue_size=10)
+         if(self.visualization):
+             self.pub_image = rospy.Publisher("/camera/image_detection", Image, queue_size=1)
+ 
+@@ -80,14 +81,26 @@ class Fusion3D():
+                                     ]
+                 
+                 all_extracted_pts = all_extracted_pts + list(extracted_pts)
+-            
++
+             # Used for visualization
+             if(self.visualization):
+                 cv_image = vis_2d_bbox(cv_image, xywh, box)
+         
+-        # Draw projected LiDAR points on the image.
+-        for pt in all_extracted_pts:
+-            cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
++        if len(all_extracted_pts) > 0:
++            # Extract 2D points
++            extracted_2d_pts = list(np.array(all_extracted_pts)[:, :2].astype(int))
++
++            # Draw projected 2D LiDAR points on the image.
++            for pt in extracted_2d_pts:
++                cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
++
++            # Extract 3D points
++            extracted_3d_pts = list(np.array(all_extracted_pts)[:, -3:])
++
++            # Create point cloud from extracted 3D points
++            ros_extracted_pedestrian_pc2 = create_point_cloud(extracted_3d_pts)
++            self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
++
+         
+         # Used for visualization
+         if(self.visualization):
+diff --git a/GEMstack/onboard/perception/fusion_utils.py b/GEMstack/onboard/perception/fusion_utils.py
+index 24b61366..69f27d5a 100644
+--- a/GEMstack/onboard/perception/fusion_utils.py
++++ b/GEMstack/onboard/perception/fusion_utils.py
+@@ -1,9 +1,12 @@
+-from sensor_msgs.msg import PointCloud2
++from sensor_msgs.msg import PointCloud2, PointField
+ import numpy as np
+ import sensor_msgs.point_cloud2 as pc2
+ import open3d as o3d
+ import cv2
+ import json
++import rospy
++import numpy as np
++import struct
+ 
+ 
+ def convert_pointcloud2_to_xyz(lidar_pc2_msg: PointCloud2):
+@@ -85,7 +88,7 @@ def project_points(points_3d, K):
+         if pt[2] > 0:  # only project points in front of the camera
+             u = K[0, 0] * (pt[0] / pt[2]) + K[0, 2]
+             v = K[1, 1] * (pt[1] / pt[2]) + K[1, 2]
+-            proj_points.append((int(u), int(v)))
++            proj_points.append((int(u), int(v), pt[0], pt[1], pt[2]))
+     return proj_points
+ 
+ 
+@@ -134,10 +137,16 @@ def visualize_point_cloud(points):
+     Args:
+         points (np.ndarray): Nx3 array of point cloud coordinates.
+     """
++    # Create a visualization window
++    vis = o3d.visualization.Visualizer()
++    vis.create_window()
++
+     pc = o3d.geometry.PointCloud()
+     pc.points = o3d.utility.Vector3dVector(points)
+-    pc.paint_uniform_color([0.1, 0.7, 0.9])  # Light blue color
+-    o3d.visualization.draw_geometries([pc])
++    pc.paint_uniform_color([0.1, 0.7, 0.9])
++
++    vis.add_geometry(pc)
++    vis.run()
+ 
+ 
+ def visualize_plane(inlier_cloud, outlier_cloud, bounding_box_2d_points):
+@@ -168,4 +177,28 @@ def visualize_plane(inlier_cloud, outlier_cloud, bounding_box_2d_points):
+     bounding_box_lines.paint_uniform_color([0, 1, 0])  # Green for bounding box edges
+     
+     # Visualize
+-    o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud, bounding_box_pcd, bounding_box_lines])
+\ No newline at end of file
++    o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud, bounding_box_pcd, bounding_box_lines])
++
++
++def create_point_cloud(points, color=(255, 0, 0)):
++    """
++    Converts a list of (x, y, z) points into a PointCloud2 message.
++    """
++    header = rospy.Header()
++    header.stamp = rospy.Time.now()
++    header.frame_id = "map"  # Change to your TF frame
++
++    fields = [
++        PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
++        PointField(name="y", offset=4, datatype=PointField.FLOAT32, count=1),
++        PointField(name="z", offset=8, datatype=PointField.FLOAT32, count=1),
++        PointField(name="rgb", offset=12, datatype=PointField.FLOAT32, count=1),
++    ]
++
++    # Convert RGB color to packed float32
++    r, g, b = color
++    packed_color = struct.unpack('f', struct.pack('I', (r << 16) | (g << 8) | b))[0]
++
++    point_cloud_data = [(x, y, z, packed_color) for x, y, z in points]
++
++    return pc2.create_cloud(header, fields, point_cloud_data)
+\ No newline at end of file
+diff --git a/GEMstack/onboard/perception/transform.py b/GEMstack/onboard/perception/transform.py
+index 4487e051..5e442a09 100644
+--- a/GEMstack/onboard/perception/transform.py
++++ b/GEMstack/onboard/perception/transform.py
+@@ -1,5 +1,6 @@
+ import rospy
+ import tf
++import numpy as np
+ 
+ def publish_tf():
+     rospy.init_node('pointcloud_tf_broadcaster')
+@@ -8,8 +9,8 @@ def publish_tf():
+ 
+     while not rospy.is_shutdown():
+         br.sendTransform(
+-            (0, 0, 1),  # (x, y, z) translation
+-            tf.transformations.quaternion_from_euler(0, 0, 0),  # (roll, pitch, yaw)
++            (0, 1.5, 7),  # (x, y, z) translation
++            tf.transformations.quaternion_from_euler(0.5* np.pi, 0, 0),  # (roll, pitch, yaw)
+             rospy.Time.now(),
+             "os_sensor",  # Child frame (sensor)
+             "map"  # Parent frame (world)
+-- 
+2.38.1
+

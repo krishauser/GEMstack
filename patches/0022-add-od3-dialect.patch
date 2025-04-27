@@ -1,0 +1,53 @@
+From dc69933c8197f84056c46611ff34517df03bf92a Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Fri, 14 Feb 2025 22:03:38 -0600
+Subject: [PATCH 022/150] add od3 dialect
+
+---
+ GEMstack/onboard/perception/fusion.py       | 13 +++++++++++++
+ GEMstack/onboard/perception/fusion_utils.py |  5 +----
+ 2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/fusion.py b/GEMstack/onboard/perception/fusion.py
+index d6bca214..159fbc68 100644
+--- a/GEMstack/onboard/perception/fusion.py
++++ b/GEMstack/onboard/perception/fusion.py
+@@ -50,6 +50,19 @@ class Fusion3D():
+     
+         # Project the transformed points into the image plane.
+         projected_pts = project_points(lidar_in_camera, self.K)
++
++        # Convert numpy array to Open3D point cloud
++        transformed_points = projected_pts
++        pcd = o3d.geometry.PointCloud()
++        pcd.points = o3d.utility.Vector3dVector(transformed_points)
++
++        # Apply voxel grid downsampling
++        voxel_size = 0.1  # Adjust for desired resolution
++        downsampled_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
++
++        # Convert back to numpy array
++        transformed_points = np.asarray(downsampled_pcd.points)
++        print(f"after :{transformed_points.shape}")
+         
+         # Process bboxes
+         self.last_person_boxes = []
+diff --git a/GEMstack/onboard/perception/fusion_utils.py b/GEMstack/onboard/perception/fusion_utils.py
+index ad2c13c1..e0408bb4 100644
+--- a/GEMstack/onboard/perception/fusion_utils.py
++++ b/GEMstack/onboard/perception/fusion_utils.py
+@@ -8,10 +8,7 @@ import json
+ 
+ def convert_pointcloud2_to_xyz(lidar_pc2_msg: PointCloud2):
+     """ Convert 1D PointCloud2 data to x, y, z coords """
+-    lidar_points = []
+-    for point in pc2.read_points(lidar_pc2_msg, field_names=("x", "y", "z", "intensity"), skip_nans=True):
+-        lidar_points.append([point[0], point[1], point[2]])
+-    return np.array(lidar_points)
++    return np.array(list(pc2.read_points(lidar_pc2_msg, skip_nans=True)), dtype=np.float32)[:, :3]
+ 
+ 
+ # Credits: The following lines of codes (17 to 159 excluding lines 80 to 115) are adapted from the Calibration Team B
+-- 
+2.38.1
+

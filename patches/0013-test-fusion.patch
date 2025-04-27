@@ -1,0 +1,82 @@
+From faa03966850220fec24d1024a9f7d22bbbea7155 Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Tue, 11 Feb 2025 21:21:16 -0600
+Subject: [PATCH 013/150] test fusion
+
+---
+ GEMstack/onboard/perception/fusion.py    | 34 ++++++++++++++++++++++++
+ GEMstack/onboard/perception/transform.py | 20 ++++++++++++++
+ 2 files changed, 54 insertions(+)
+ create mode 100644 GEMstack/onboard/perception/fusion.py
+ create mode 100644 GEMstack/onboard/perception/transform.py
+
+diff --git a/GEMstack/onboard/perception/fusion.py b/GEMstack/onboard/perception/fusion.py
+new file mode 100644
+index 00000000..0b6e4f20
+--- /dev/null
++++ b/GEMstack/onboard/perception/fusion.py
+@@ -0,0 +1,34 @@
++from cv_bridge import CvBridge
++from sensor_msgs.msg import Image, PointCloud2
++import rospy
++import message_filters
++
++
++class Fusion3D():
++    def __init__(self):
++        self.bridge = CvBridge()
++        self.stereo_rosbag = message_filters.Subscriber('/oak/stereo/image_raw', Image, self.stereo_callback, queue_size=1)
++        self.top_lidar_rosbag = message_filters.Subscriber('/ouster/points', PointCloud2, self.top_lidar_callback, queue_size=1)
++
++        ts = message_filters.ApproximateTimeSynchronizer([self.stereo_rosbag, self.top_lidar_rosbag], queue_size=10, slop=0.1)
++        ts.registerCallback(self.callback)
++        rospy.spin()
++
++    def callback(left_img, right_img, lidar_msg, camera_info):
++    # Process synchronized data here
++        pass
++
++    def stereo_callback(self, image: Image):
++        image = self.bridge.imgmsg_to_cv2(image, "16UC1")
++        print(f"stereo: {image.shape}")        
++
++    def top_lidar_callback(self, point_cloud: PointCloud2):
++        # point_cloud = self.bridge.imgmsg_to_cv2(point_cloud, "16UC1")
++        print(f"point_cloud: {point_cloud.fields}")       
++
++if __name__ == '__main__':
++    rospy.init_node('fusion_node', anonymous=True)
++    Fusion3D()
++    while not rospy.core.is_shutdown():
++        rospy.rostime.wallsleep(0.5)
++
+diff --git a/GEMstack/onboard/perception/transform.py b/GEMstack/onboard/perception/transform.py
+new file mode 100644
+index 00000000..8d47598f
+--- /dev/null
++++ b/GEMstack/onboard/perception/transform.py
+@@ -0,0 +1,20 @@
++import rospy
++import tf
++
++def publish_tf():
++    rospy.init_node('pointcloud_tf_broadcaster')
++    br = tf.TransformBroadcaster()
++    rate = rospy.Rate(10)  # 10 Hz
++
++    while not rospy.is_shutdown():
++        br.sendTransform(
++            (0, 0, 1),  # (x, y, z) translation
++            tf.transformations.quaternion_from_euler(0, 0, 0),  # (roll, pitch, yaw)
++            rospy.Time.now(),
++            "oak_rgb_camera_optical_frame",  # Child frame (sensor)
++            "map"  # Parent frame (world)
++        )
++        rate.sleep()
++
++if __name__ == "__main__":
++    publish_tf()
+\ No newline at end of file
+-- 
+2.38.1
+

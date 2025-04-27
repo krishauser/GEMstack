@@ -1,0 +1,104 @@
+From 512ea57079cb856f6f643792a5ac3b669c8eede0 Mon Sep 17 00:00:00 2001
+From: krishauser <hauser.kris@gmail.com>
+Date: Mon, 24 Feb 2025 11:01:11 -0500
+Subject: [PATCH 076/150] Added items committed to s2024
+
+---
+ GEMstack/mathutils/dubins.py               |  2 +-
+ GEMstack/mathutils/transforms.py           | 21 +++++++++++++++++++++
+ GEMstack/onboard/interface/gem_hardware.py |  9 ++++++---
+ 3 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/GEMstack/mathutils/dubins.py b/GEMstack/mathutils/dubins.py
+index cdb4655a..b840201d 100644
+--- a/GEMstack/mathutils/dubins.py
++++ b/GEMstack/mathutils/dubins.py
+@@ -44,7 +44,7 @@ class DubinsCar(Dynamics):
+         right = [-fwd[1],fwd[0]]
+         phi = u[1]
+         d = u[0]
+-        return np.array([fwd[0]*d,fwd[1]*d,phi])
++        return np.array([fwd[0]*d,fwd[1]*d,phi*d])
+         
+ 
+ class DubinsCarIntegrator(ControlSpace):
+diff --git a/GEMstack/mathutils/transforms.py b/GEMstack/mathutils/transforms.py
+index 833ecc80..a29ec48e 100644
+--- a/GEMstack/mathutils/transforms.py
++++ b/GEMstack/mathutils/transforms.py
+@@ -36,6 +36,14 @@ def vector_dist(v1, v2) -> float:
+     """Euclidean distance between two vectors"""
+     return vo.distance(v1,v2)
+ 
++def vector_dot(v1, v2) -> float:
++    """Dot product between two vectors"""
++    return vo.dot(v1,v2)
++
++def vector_cross(v1, v2) -> float:
++    """Cross product between two 2D vectors"""
++    return vo.cross(v1,v2)
++
+ def vector2_angle(v1, v2 = None) -> float:
+     """find the ccw angle bewtween two 2d vectors"""
+     if v2 is None:
+@@ -123,3 +131,16 @@ def xy_to_lat_lon(x_east : float, y_north : float, lat_reference : float, lon_re
+     # convert GNSS waypoints into local fixed frame reprented in x and y
+     lat, lon = axy.xy2ll(x_east, y_north, lat_reference, lon_reference)
+     return lat, lon
++
++def quaternion_to_euler(x : float, y : float, z : float, w : float):
++    t0 = +2.0 * (w * x + y * z)
++    t1 = +1.0 - 2.0 * (x * x + y * y)
++    roll = np.arctan2(t0, t1)
++    t2 = +2.0 * (w * y - z * x)
++    t2 = +1.0 if t2 > +1.0 else t2
++    t2 = -1.0 if t2 < -1.0 else t2
++    pitch = np.arcsin(t2)
++    t3 = +2.0 * (w * z + x * y)
++    t4 = +1.0 - 2.0 * (y * y + z * z)
++    yaw = np.arctan2(t3, t4)
++    return [roll, pitch, yaw]
+diff --git a/GEMstack/onboard/interface/gem_hardware.py b/GEMstack/onboard/interface/gem_hardware.py
+index e13ff817..4fb95d4f 100644
+--- a/GEMstack/onboard/interface/gem_hardware.py
++++ b/GEMstack/onboard/interface/gem_hardware.py
+@@ -1,6 +1,7 @@
+ from .gem import *
+ from ...utils import settings
+ import math
++import time
+ 
+ # ROS Headers
+ import rospy
+@@ -151,6 +152,7 @@ class GEMHardwareInterface(GEMInterface):
+         if name == 'gnss':
+             topic = self.ros_sensor_topics[name]
+             if topic.endswith('inspva'):
++                #GEM e2 uses Novatel GNSS
+                 if type is not None and (type is not Inspva and type is not GNSSReading):
+                     raise ValueError("GEMHardwareInterface GEM e2 only supports Inspva/GNSSReading for GNSS")
+                 if type is Inspva:
+@@ -169,7 +171,7 @@ class GEMHardwareInterface(GEMInterface):
+                         callback(GNSSReading(pose,speed,inspva_msg.status))
+                     self.gnss_sub = rospy.Subscriber(topic, Inspva, callback_with_gnss_reading)
+             else:
+-                #assume it's septentrio
++                #assume it's septentrio on GEM e4
+                 if type is not None and (type is not INSNavGeod and type is not GNSSReading):
+                     raise ValueError("GEMHardwareInterface GEM e4 only supports INSNavGeod/GNSSReading for GNSS")
+                 if type is INSNavGeod:
+@@ -177,8 +179,9 @@ class GEMHardwareInterface(GEMInterface):
+                 else:
+                     def callback_with_gnss_reading(msg: INSNavGeod):
+                         pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+-                                    x=msg.longitude,
+-                                    y=msg.latitude,
++                                    t=time.time(),
++                                    x=math.degrees(msg.longitude),   #Septentrio GNSS uses radians rather than degrees
++                                    y=math.degrees(msg.latitude),
+                                     z=msg.height,
+                                     yaw=math.radians(msg.heading),  #heading from north in degrees (TODO: maybe?? check this)
+                                     roll=math.radians(msg.roll),
+-- 
+2.38.1
+

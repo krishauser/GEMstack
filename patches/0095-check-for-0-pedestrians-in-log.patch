@@ -1,0 +1,39 @@
+From ec44350e9cc3dc0ecec3e5c3ef52f0d7059ae821 Mon Sep 17 00:00:00 2001
+From: pravshot <praveenkalva@icloud.com>
+Date: Tue, 25 Feb 2025 18:27:28 -0600
+Subject: [PATCH 095/150] check for 0 pedestrians in log
+
+---
+ testing/test_comfort_metrics.py | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/testing/test_comfort_metrics.py b/testing/test_comfort_metrics.py
+index 1baf26a5..f0b162fb 100644
+--- a/testing/test_comfort_metrics.py
++++ b/testing/test_comfort_metrics.py
+@@ -182,9 +182,10 @@ def plot_position(axis, x_actual, y_actual, x_desired, y_desired, safe_thresh=1,
+ 
+ def plot_pedestrian_dist(axis, pedestrian_times, pedestrian_distances, safe_thresh=5.0, unsafe_thresh=2.0):
+     """Plots pedestrian distance to vehicle vs. time"""
+-    safety_scores = np.vectorize(compute_safety_factor)(pedestrian_distances, safe_thresh, unsafe_thresh, flip=True)
+-    axis.plot(pedestrian_times, pedestrian_distances, color="black", linewidth=0.8, alpha=0.5)
+-    axis.scatter(pedestrian_times, pedestrian_distances, c=safety_scores, cmap=CMAP, vmin=0, vmax=1, edgecolors="black")
++    if len(pedestrian_times) > 0:
++        safety_scores = np.vectorize(compute_safety_factor)(pedestrian_distances, safe_thresh, unsafe_thresh, flip=True)
++        axis.plot(pedestrian_times, pedestrian_distances, color="black", linewidth=0.8, alpha=0.5)
++        axis.scatter(pedestrian_times, pedestrian_distances, c=safety_scores, cmap=CMAP, vmin=0, vmax=1, edgecolors="black")
+     
+     axis.set_xlabel("Time (s)")
+     axis.set_ylabel("Pedestrian Distance (m)")
+@@ -231,4 +232,5 @@ if __name__=='__main__':
+         
+     print("RMS Jerk:", np.sqrt(np.mean(jerk**2)), "m/s³")
+     print("RMS Heading Acceleration:", np.sqrt(np.mean(heading_acc**2)), "rad/s²")
+-    print("Minimum Pedestrian Distance:", np.min(ped_distances), "m")
+\ No newline at end of file
++    if len(ped_distances) > 0:
++        print("Minimum Pedestrian Distance:", np.min(ped_distances), "m")
+\ No newline at end of file
+-- 
+2.38.1
+

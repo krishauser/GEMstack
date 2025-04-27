@@ -1,0 +1,123 @@
+From a2ff9f60c4e279db8eeb357a3bf7554e59181c99 Mon Sep 17 00:00:00 2001
+From: Lukas Dumasius <80981746+lukasdumasius@users.noreply.github.com>
+Date: Sun, 23 Feb 2025 14:02:45 -0600
+Subject: [PATCH 072/150] pedestrian_detection.py Convert obj_dims to start
+ frame aligned bbox
+
+---
+ .../perception/pedestrian_detection.py        | 49 ++++++++++++++++---
+ 1 file changed, 42 insertions(+), 7 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/pedestrian_detection.py b/GEMstack/onboard/perception/pedestrian_detection.py
+index ce2f6ec9..0701267c 100644
+--- a/GEMstack/onboard/perception/pedestrian_detection.py
++++ b/GEMstack/onboard/perception/pedestrian_detection.py
+@@ -145,16 +145,26 @@ class PedestrianDetector2D(Component):
+         # self.start_pose_abs | data from GNSS of the first vehicle pose in GLOBAL Frame
+         vehicle.pose.to_frame(ObjectFrameEnum.START,self.current_vehicle_state.pose,self.start_pose_abs)
+ 
+-        # Converting to start frame
+-        obj_centers = vehicle.pose.apply(self.current_agent_obj_dims["pose"])
+-        obj_dims = vehicle.pose.apply(self.current_agent_obj_dims["dims"])
++        # Vehicle -> start frame
++        # TODO: See if there's way we can remove loop
++        start_frame_centers = []
++        start_frame_dims = [] # still 2 point dims [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
++        for center in self.current_agent_obj_dims["pose"]:
++            start_frame_centers.append(vehicle.pose.apply(center))
++        for dim in self.current_agent_obj_dims["dims"]:
++            dim_0 = vehicle.pose.apply(dim[0])
++            dim_1 = vehicle.pose.apply(dim[1])
++            start_frame_dims.append(np.array(dim_0, dim_1))
++
++        # obj_centers = vehicle.pose.apply(self.current_agent_obj_dims["pose"])
++        # obj_dims = vehicle.pose.apply(self.current_agent_obj_dims["dims"])
+ 
+         # Prepare variables for find_vels_and_ids
+         self.prev_agents = self.current_agents.deepcopy()
+         self.current_agents.clear()
+         # Note this below function will probably throw a type error. I think we'll need to index the 
+         # tuples by index 0 in the lists but I'm not sure:
+-        agents = self.create_agent_states(obj_centers=obj_centers, obj_dims=obj_dims)
++        agents = self.create_agent_states(obj_centers=start_frame_centers, obj_dims=start_frame_dims)
+ 
+         # Calculating the velocity of agents and tracking their ids
+         self.find_vels_and_ids(agents=agents)
+@@ -181,9 +191,18 @@ class PedestrianDetector2D(Component):
+         # objects distance to ground we filtered from lidar, 
+         # other heuristics to imrpove stability for find_ funcs ?
+         clusters = [np.array(clust) for clust in clusters]
++        # x, y, z 1 value 
+         dims = [np.array(()) if clust.size == 0 else np.max(clust, axis= 0) - np.min(clust, axis= 0) for clust in clusters]
++        # x, y, z convert to 2 values around origin
++        for i in range(len(dims)):
++            if dims[i].size() == 0: continue
++            else:
++                dims[i] = np.vstack(0-dims[i]/2, dims[i]/2)
++
++        # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
++        # Need that for transform
+         return dims
+-    
++
+     # TODO: Separate debug/viz class, bbox and 2d 3d points funcs 
+     def viz_object_states(self, cv_image, boxes, extracted_pts_all):
+         # Extract 3D pedestrians points in lidar frame
+@@ -266,6 +285,7 @@ class PedestrianDetector2D(Component):
+         # TODO: Combine funcs for efficiency in C.
+         #       Separate numpy prob still faster for now
+         obj_centers = self.find_centers(pedestrians_3d_pts) # Centers are calculated in lidar frame here
++        # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
+         obj_dims = self.find_dims(pedestrians_3d_pts)
+ 
+         # Pose is stored in vehicle frame and converted to start frame in the update function 
+@@ -279,9 +299,20 @@ class PedestrianDetector2D(Component):
+                 obj_centers_vehicle.append(np.array(()))
+         obj_centers = obj_centers_vehicle
+ 
+-        self.current_agent_obj_dims["pose"] = obj_center
++        obj_dims_vehicle = []
++        for obj_dim in obj_dims:
++            if len(obj_dim) > 0:
++                obj_dim_min = np.array([obj_dim[0]])
++                obj_dim_max = np.array([obj_dim[1]])
++                obj_dim_min_vehicle = transform_lidar_points(obj_dim_min, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
++                obj_dim_max_vehicle = transform_lidar_points(obj_dim_max, self.R_lidar_to_vehicle, self.t_lidar_to_vehicle)[0]
++            else: obj_dims_vehicle.append(np.array(()))
++        obj_dims = obj_dims_vehicle
++
++        self.current_agent_obj_dims["pose"] = obj_centers
+         self.current_agent_obj_dims["dims"] = obj_dims
+ 
++
+     # TODO: Refactor to make more efficient
+     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
+     def find_vels_and_ids(self, agents: List[AgentState]):
+@@ -358,11 +389,15 @@ class PedestrianDetector2D(Component):
+         )
+ 
+     def create_agent_states(self, obj_centers: List[np.ndarray], obj_dims: List[np.ndarray]) -> List[AgentState]:
++        # Dims are 2 points: [ [min_x, min_y, min_z], [max_x, max_y, max_z] ]
++
+         # Gate to check whether dims and centers are empty (will happen if no pedestrians are scanned):
+         for idx in range(len(obj_dims) -1, -1, -1):
+             if (obj_centers[idx].size == 0) or (obj_dims[0].size == 0):
+                 del obj_centers[idx]
+                 del obj_dims[idx]
++        # Convert from 2 point to 1 point dims
++        obj_dims = [np.abs( dim[0] - dim[1])  for dim in obj_dims]   
+         
+         # Create list of agent states in current vehicle frame:
+         agents = []
+@@ -377,7 +412,7 @@ class PedestrianDetector2D(Component):
+                             # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
+                             # (l, w, h)
+                             # TODO: confirm (z -> l, x -> w, y -> h)
+-                            dimensions=(obj_dims[idx][2], obj_dims[idx][0], obj_centers[idx][1] + obj_dims[idx][1]),  
++                            dimensions=(obj_dims[idx][2], obj_dims[idx][0], obj_centers[idx][1]),
+                             outline=None,
+                             type=AgentEnum.PEDESTRIAN,
+                             activity=AgentActivityEnum.UNDETERMINED, # Temporary
+-- 
+2.38.1
+

@@ -1,0 +1,25 @@
+From 0857f0c92e0bcc488a7bb5a82fcbb3920c43565a Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Mon, 17 Feb 2025 22:05:01 -0600
+Subject: [PATCH 043/150] reslove conflicts
+
+---
+ GEMstack/onboard/perception/pedestrian_detection.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/GEMstack/onboard/perception/pedestrian_detection.py b/GEMstack/onboard/perception/pedestrian_detection.py
+index 9da4a4c8..31085ce8 100644
+--- a/GEMstack/onboard/perception/pedestrian_detection.py
++++ b/GEMstack/onboard/perception/pedestrian_detection.py
+@@ -319,7 +319,7 @@ class PedestrianDetector2D(Component):
+                 extracted_pts = filter_ground_points(extracted_pts, self.ground_threshold)
+                 extracted_pts = filter_depth_points(extracted_pts, self.max_human_depth)
+                 extracted_pts_all.append(extracted_pts)
+-	    else: extracted_pts_all.append(np.array(())
++            else: extracted_pts_all.append(np.array(()))
+         
+         #if len(extracted_pts_all) > 0 and len(track_result) > 0:
+         self.update_object_states(track_result, extracted_pts_all)
+-- 
+2.38.1
+

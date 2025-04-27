@@ -1,0 +1,164 @@
+From 2aa0ba6ef0dc690ac3e74439b2bb1bbb168e75c5 Mon Sep 17 00:00:00 2001
+From: LucasEby <lucaseby@outlook.com>
+Date: Tue, 18 Feb 2025 16:25:47 -0500
+Subject: [PATCH 050/150] Fixed find_vels_and_ids logic bugs, AgentState bugs,
+ timing bugs, etc
+
+---
+ .../perception/pedestrian_detection.py        | 66 ++++++++++++++-----
+ 1 file changed, 51 insertions(+), 15 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/pedestrian_detection.py b/GEMstack/onboard/perception/pedestrian_detection.py
+index e5832601..c515ffe0 100644
+--- a/GEMstack/onboard/perception/pedestrian_detection.py
++++ b/GEMstack/onboard/perception/pedestrian_detection.py
+@@ -82,8 +82,6 @@ class PedestrianDetector2D(Component):
+         self.prev_agents = dict()         
+         self.current_agents = dict()
+         # TODO Implement time
+-        self.prev_time = 0
+-        self.curr_time = 1 # Avoid divide by 0 for placebolder, 0
+         self.confidence = 0.7
+         self.classes_to_detect = 0
+         self.ground_threshold = -2.0
+@@ -113,7 +111,7 @@ class PedestrianDetector2D(Component):
+         if self.debug: self.init_debug()
+ 
+         self.prev_time = None # Time in seconds since last scan for basic velocity calculation
+-        self.current_time = None # Time in seconds of current scan for basic velocity calculation
++        self.curr_time = None # Time in seconds of current scan for basic velocity calculation
+         self.id_tracker = IdTracker()
+     
+     def init_debug(self,) -> None:
+@@ -267,6 +265,9 @@ class PedestrianDetector2D(Component):
+ 
+         # TODO: CONVERT FROM VEHICLE FRAME TO START FRAME HERE
+         # Then compare previous and current agents with the same id to calculate velocity
++        # for idx in range(len(obj_centers)):
++        #     print(obj_centers[idx])
++        #     print(obj_dims[idx])
+         self.find_vels_and_ids(obj_centers, obj_dims)
+         # obj_vels = self.find_vels(track_ids, obj_centers)
+ 
+@@ -289,6 +290,12 @@ class PedestrianDetector2D(Component):
+         #         ))
+             
+     def find_vels_and_ids(self, obj_centers: List[np.ndarray], obj_dims: List[np.ndarray]):
++        # Gate to check whether dims and centers are empty:
++        if ((len(obj_dims) == 1 or len(obj_centers) == 1) and (obj_centers[0].size == 0 or obj_dims[0].size == 0)):
++            self.prev_agents = self.current_agents.copy()
++            self.current_agents = {} # There weren't any pedestrians detected
++            return
++        
+         new_prev_agents = {} # Stores current agents in START frame for next time through (since 
+                              # planning wants us to send them agents in CURRENT frame)
+         # Object not seen -> velocity = None
+@@ -298,6 +305,9 @@ class PedestrianDetector2D(Component):
+         # TODO: NEED TO STORE AND INCORPORATE TRANSFORMS SOMEHOW TO DEAL WITH MOVING CAR CASE
+         assigned = False
+         num_pairings = len(obj_centers)
++        if num_pairings != len(obj_dims):
++            for i in range(25):
++                print("ERROR NUM PARINGS AND OBJ DIMS ARENT THE SAME")
+         converted_centers = obj_centers # TODO: REPLACE WITH THIS: self.convert_vehicle_frame_to_start_frame(obj_centers)
+ 
+         # Loop through the indexes of the obj_center and obj_dim pairings
+@@ -311,11 +321,11 @@ class PedestrianDetector2D(Component):
+                     assigned = True
+ 
+                     if self.prev_time == None:
+-                        # This shouldn't ever be triggered
+-                        vel = 0
++                        # This will be triggered if the very first message has pedestrians in it
++                        vel = 0.0
+                     else:
+                         delta_t = self.curr_time - self.prev_time
+-                        vel = (obj_centers[idx] - np.array([prev_state.pose.x, prev_state.pose.y, prev_state.pose.z])) / delta_t.total_seconds()
++                        vel = (converted_centers[idx] - np.array([prev_state.pose.x, prev_state.pose.y, prev_state.pose.z])) / delta_t.total_seconds()
+                         print("VELOCITY:")
+                         print(vel)
+ 
+@@ -329,7 +339,20 @@ class PedestrianDetector2D(Component):
+                             outline=None,
+                             type=AgentEnum.PEDESTRIAN,
+                             activity=AgentActivityEnum.MOVING,
+-                            velocity= None if vel.size == 0 else tuple(vel),
++                            velocity=None if vel.size == 0 else tuple(vel),
++                            yaw_rate=0
++                        ))
++                    new_prev_agents[prev_id] = (
++                        AgentState(
++                            track_id = prev_id,
++                            pose=ObjectPose(t=0, x=converted_centers[idx][0], y=converted_centers[idx][1], z=converted_centers[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
++                            # (l, w, h)
++                            # TODO: confirm (z -> l, x -> w, y -> h)
++                            dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_dims[idx][2]),  
++                            outline=None,
++                            type=AgentEnum.PEDESTRIAN,
++                            activity=AgentActivityEnum.MOVING,
++                            velocity=None if vel.size == 0 else tuple(vel),
+                             yaw_rate=0
+                         ))
+                     del self.prev_agents[prev_id] # Remove previous agent from previous agents
+@@ -349,13 +372,26 @@ class PedestrianDetector2D(Component):
+                         outline=None,
+                         type=AgentEnum.PEDESTRIAN,
+                         activity=AgentActivityEnum.MOVING,
+-                        velocity= None,
++                        velocity=None,
++                        yaw_rate=0
++                    ))
++                new_prev_agents[id] = (
++                    AgentState(
++                        track_id = id,
++                        pose=ObjectPose(t=0, x=converted_centers[idx][0], y=converted_centers[idx][1], z=converted_centers[idx][2] ,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
++                        # (l, w, h)
++                        # TODO: confirm (z -> l, x -> w, y -> h)
++                        dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_dims[idx][2]),  
++                        outline=None,
++                        type=AgentEnum.PEDESTRIAN,
++                        activity=AgentActivityEnum.MOVING,
++                        velocity=None,
+                         yaw_rate=0
+                     ))
+         self.prev_agents = new_prev_agents
+ 
+     # Calculates whether 2 agents overlap in START frame. True if they do, false if not
+-    def agents_overlap(obj_center: np.ndarray, obj_dim: np.ndarray, prev_agent: AgentState) -> bool:
++    def agents_overlap(self, obj_center: np.ndarray, obj_dim: np.ndarray, prev_agent: AgentState) -> bool:
+         # Calculate corners of obj_center and obj_dim pairing
+         x1_min, x1_max = obj_center[0] - obj_dim[0] / 2.0, obj_center[0] + obj_dim[0] / 2.0
+         y1_min, y1_max = obj_center[1] - obj_dim[1] / 2.0, obj_center[1] + obj_dim[1] / 2.0 # CENTER CALCULATION
+@@ -366,9 +402,9 @@ class PedestrianDetector2D(Component):
+         # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
+         # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
+         # TODO: confirm (z -> l, x -> w, y -> h)
+-        x2_min, x2_max = prev_agent.pose.x - prev_agent.dimensions.width / 2.0, prev_agent.pose.x + prev_agent.dimensions.width / 2.0
+-        y2_min, y2_max = prev_agent.pose.y, prev_agent.pose.y + prev_agent.dimensions.height # AGENT STATE CALCULATION
+-        z2_min, z2_max = prev_agent.pose.z - prev_agent.dimensions.length / 2.0, prev_agent.pose.z + prev_agent.dimensions.length / 2.0
++        x2_min, x2_max = prev_agent.pose.x - prev_agent.dimensions[0] / 2.0, prev_agent.pose.x + prev_agent.dimensions[0] / 2.0
++        y2_min, y2_max = prev_agent.pose.y, prev_agent.pose.y + prev_agent.dimensions[1] # AGENT STATE CALCULATION
++        z2_min, z2_max = prev_agent.pose.z - prev_agent.dimensions[2] / 2.0, prev_agent.pose.z + prev_agent.dimensions[2] / 2.0
+         
+         # True if they overlap, false if not
+         return (
+@@ -377,13 +413,13 @@ class PedestrianDetector2D(Component):
+             ( (z1_min <= z2_min and z2_min <= z1_max) or (z2_min <= z1_min and z1_min <= z2_max) )
+         )
+ 
+-    def convert_vehicle_frame_to_start_frame(obj_centers: List[np.ndarray]) -> List[np.ndarray]:
++    def convert_vehicle_frame_to_start_frame(self, obj_centers: List[np.ndarray]) -> List[np.ndarray]:
+         pass
+ 
+     def ouster_oak_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
+         # Update times for basic velocity calculation
+-        self.prev_time = self.current_time
+-        self.current_time = datetime.now()
++        self.prev_time = self.curr_time
++        self.curr_time = datetime.now()
+ 
+         # Convert to cv2 image and run detector
+         cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
+-- 
+2.38.1
+

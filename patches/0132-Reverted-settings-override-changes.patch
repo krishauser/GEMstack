@@ -1,0 +1,126 @@
+From d7f0f52759c7e828a4688cd02a1e7d86ef9e15de Mon Sep 17 00:00:00 2001
+From: nvikramraj <nvikramraj1305@gmail.com>
+Date: Fri, 2 May 2025 20:02:24 -0500
+Subject: [PATCH 132/150] Reverted settings override changes
+
+---
+ .gitignore                              |  2 --
+ GEMstack/knowledge/defaults/__init__.py | 35 +++----------------------
+ docs/Gazebo Simulation Documentation.md | 19 +++++++++++---
+ launch/gazebo_simulation.yaml           |  2 +-
+ 4 files changed, 20 insertions(+), 38 deletions(-)
+
+diff --git a/.gitignore b/.gitignore
+index 61a2df38..3da22429 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -171,8 +171,6 @@ cython_debug/
+ .vscode/
+ setup/zed_sdk.run
+ cuda/
+-homework/yolov8n.pt
+-homework/yolo11n.pt
+ GEMstack/knowledge/detection/yolov8n.pt
+ GEMstack/knowledge/detection/yolo11n.pt
+ yolov8n.pt
+diff --git a/GEMstack/knowledge/defaults/__init__.py b/GEMstack/knowledge/defaults/__init__.py
+index f7126e6a..ee5354a7 100644
+--- a/GEMstack/knowledge/defaults/__init__.py
++++ b/GEMstack/knowledge/defaults/__init__.py
+@@ -1,36 +1,7 @@
+ from ...utils.config import load_config_recursive
+-import os,sys
+-
+-
+-# Identify the vehicle used and load settings else default to vehicle config at current.yaml'
+-# default currently uses GEM e4
+-vehicle = "default"
+-
+-for arg in sys.argv:
+-    if arg.startswith('--'):
+-        k,v = arg.split('=',1)
+-        k = k[2:]
+-        v = v.strip('"')
+-        if k == "vehicle":
+-            vehicle = v
+-            sys.argv.remove(arg)
+-            break
+-
+-if(vehicle == 'e2'):
+-    vehicle_config = 'e2.yaml'
+-elif(vehicle == 'e4'):
+-    vehicle_config = 'current.yaml'
+-elif(vehicle == 'e2_gazebo'):
+-    vehicle_config = 'e2_gazebo.yaml'
+-elif(vehicle == 'e4_gazebo'):
+-    vehicle_config = 'e4_gazebo.yaml'
+-else:
+-    print("Unknown vehicle argument passed")
+-    vehicle = "default"
+-    vehicle_config = 'current.yaml'
+-
+-SETTINGS_FILE = os.path.join(os.path.split(__file__)[0],vehicle_config)
++import os
++SETTINGS_FILE = os.path.join(os.path.split(__file__)[0],'current.yaml')
+ print("**************************************************************")
+-print(f"Loading {vehicle} settings from",SETTINGS_FILE)
++print("Loading default settings from",SETTINGS_FILE)
+ print("**************************************************************")
+ SETTINGS = load_config_recursive(SETTINGS_FILE)
+diff --git a/docs/Gazebo Simulation Documentation.md b/docs/Gazebo Simulation Documentation.md
+index d2f51bb0..aea20d84 100644
+--- a/docs/Gazebo Simulation Documentation.md	
++++ b/docs/Gazebo Simulation Documentation.md	
+@@ -68,15 +68,16 @@ In one terminal, run the Gazebo simulator (using the instructions provided in th
+ Open a second terminal and launch GEMStack with your configured launch file.
+ 
+ ```bash
+-python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/{your_file}.yaml
++python3 main.py --variant=gazebo --settings={your_file}.yaml launch/{your_file}.yaml
++
+ ```
+ - Make sure to set the variant to `gazebo`.
+-- You can specify the vehicle type to be `e2_gazebo` or `e4_gazebo`.
++- You can specify the settings file to  GEMstack/knowledge/defaults/e4_gazebo.yaml or e2_gazebo.yaml till we work on closing the sim to real gap.
+ 
+ Example command launching the fixed route with e4 vehicle:
+ 
+ ```bash
+-python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/fixed_route.yaml
++python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e4_gazebo.yaml launch/fixed_route.yaml
+ ```
+ **Variants:**
+  - sim
+@@ -87,4 +88,16 @@ python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/fixed_route.yaml
+ - e4
+ - e2_gazebo
+ - e4_gazebo
++
++**Setting:**
++
++By default it takes GEMstack/knowledge/defaults/current.yaml which is GEM E4 Vehicle configuration settings.
++
++Other available configuration files:
++
++GEMstack/knowledge/defaults/
++- e2.yaml
++- e2_gazebo.yaml
++- e4_gazebo.yaml
++
+ ---
+diff --git a/launch/gazebo_simulation.yaml b/launch/gazebo_simulation.yaml
+index eb334fb2..be77df51 100644
+--- a/launch/gazebo_simulation.yaml
++++ b/launch/gazebo_simulation.yaml
+@@ -72,7 +72,7 @@ variants:
+             drive: 
+                 perception:
+                     state_estimation : GNSSStateEstimator
+-                    agent_detection : object_detection.ObjectDetection
++                    agent_detection : test_yolo_gazebo_simulation.ObjectDetection
+                     perception_normalization : StandardPerceptionNormalizer
+ 
+                 planning:
+-- 
+2.38.1
+

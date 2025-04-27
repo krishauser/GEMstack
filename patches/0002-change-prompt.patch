@@ -1,0 +1,25 @@
+From 6bcab9faee93f838a3f0792f0e93161735ed895e Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Wed, 5 Feb 2025 14:09:09 -0600
+Subject: [PATCH 002/150] change prompt
+
+---
+ webcam.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/webcam.py b/webcam.py
+index b7710ac2..10c3452d 100644
+--- a/webcam.py
++++ b/webcam.py
+@@ -43,7 +43,7 @@ def webcam_publisher():
+             rate.sleep()
+     
+     except KeyboardInterrupt:
+-        rospy.loginfo("user interrupt")
++        rospy.loginfo("user key interrupt")
+     
+     finally:
+         cap.release()
+-- 
+2.38.1
+

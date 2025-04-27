@@ -1,0 +1,50 @@
+From bf699815b7c39c3c86925ba1016b976de4fdae1b Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Fri, 14 Feb 2025 22:17:40 -0600
+Subject: [PATCH 024/150] downsample pc2
+
+---
+ GEMstack/onboard/perception/fusion.py | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/fusion.py b/GEMstack/onboard/perception/fusion.py
+index ed6cd760..5299e345 100644
+--- a/GEMstack/onboard/perception/fusion.py
++++ b/GEMstack/onboard/perception/fusion.py
+@@ -45,17 +45,10 @@ class Fusion3D():
+ 
+         # Convert 1D PointCloud2 data to x, y, z coords
+         lidar_points = convert_pointcloud2_to_xyz(lidar_pc2_msg)
+-    
+-        # Transform LiDAR points into the camera coordinate frame.
+-        lidar_in_camera = transform_lidar_points(lidar_points, self.R, self.t)
+-    
+-        # Project the transformed points into the image plane.
+-        projected_pts = project_points(lidar_in_camera, self.K)
+ 
+         # Convert numpy array to Open3D point cloud
+-        transformed_points = projected_pts
+         pcd = o3d.geometry.PointCloud()
+-        pcd.points = o3d.utility.Vector3dVector(transformed_points)
++        pcd.points = o3d.utility.Vector3dVector(lidar_points)
+ 
+         # Apply voxel grid downsampling
+         voxel_size = 0.1  # Adjust for desired resolution
+@@ -63,7 +56,13 @@ class Fusion3D():
+ 
+         # Convert back to numpy array
+         transformed_points = np.asarray(downsampled_pcd.points)
+-        print(f"after :{transformed_points.shape}")
++        
++        # Transform LiDAR points into the camera coordinate frame.
++        lidar_in_camera = transform_lidar_points(transformed_points, self.R, self.t)
++    
++        # Project the transformed points into the image plane.
++        projected_pts = project_points(lidar_in_camera, self.K)
++
+         
+         # Process bboxes
+         self.last_person_boxes = []
+-- 
+2.38.1
+

@@ -1,0 +1,160 @@
+From 0a214246a7d5ab07214a5d8508c73e7c3ead6b34 Mon Sep 17 00:00:00 2001
+From: lukasdumasius <lukasdumasius@gmail.com>
+Date: Mon, 17 Feb 2025 03:21:09 -0600
+Subject: [PATCH 037/150] pedestrian_detection.py type hints
+
+---
+ GEMstack/onboard/perception/fusion.py         |  9 +++---
+ .../perception/pedestrian_detection.py        | 32 +++++++++----------
+ ...utils.py => pedestrian_detection_utils.py} |  0
+ 3 files changed, 21 insertions(+), 20 deletions(-)
+ rename GEMstack/onboard/perception/{fusion_utils.py => pedestrian_detection_utils.py} (100%)
+
+diff --git a/GEMstack/onboard/perception/fusion.py b/GEMstack/onboard/perception/fusion.py
+index 838e5a0d..7d655843 100644
+--- a/GEMstack/onboard/perception/fusion.py
++++ b/GEMstack/onboard/perception/fusion.py
+@@ -1,5 +1,5 @@
+ """
+-Lidar + Camera fusion and object detection
++Top ouster lidar + Oak front camera fusion, object detection
+ """
+ """
+ Terminal 1:
+@@ -46,9 +46,9 @@ from .fusion_utils import *
+ 
+ class Fusion3D():
+     # TODO: Pull params into a JSON/yaml
+-    # TODO: Convert lists into np.arrays where possible, vectorize calculations
+-    # TODO: Implement logging instead of print
+-    # TODO: Finish splitting this class + utils into separate classes
++    # TODO: Convert some lists into np.arrays, vectorize calculations
++    # TODO: Implement logging instead of print, cleanup comments
++    # TODO: Cleanup funcs + split into separate classes
+     # TODO: Decide if we want to name dets "peds" or "objs"/"agents"
+     #       Maybe peds for now and Agents in agent_detection.py?
+     def __init__(self):
+@@ -112,6 +112,7 @@ class Fusion3D():
+     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
+     # TODO Akul: Fix velocity calculation to calculate in ObjectFrameEnum.START
+     #            work towards own tracking class instead of simple YOLO track?
++    # ret: Dict[track_id: vel[x, y, z]]
+     def find_vels(self, track_ids, obj_centers):
+         # Object not seen -> velocity = None
+         track_id_center_map = dict(zip(track_ids, obj_centers))
+diff --git a/GEMstack/onboard/perception/pedestrian_detection.py b/GEMstack/onboard/perception/pedestrian_detection.py
+index bc27871c..dd67ed06 100644
+--- a/GEMstack/onboard/perception/pedestrian_detection.py
++++ b/GEMstack/onboard/perception/pedestrian_detection.py
+@@ -1,5 +1,5 @@
+ """
+-Lidar + Camera fusion and object detection
++Top ouster lidar + Oak front camera fusion, object detection
+ """
+ """
+ Terminal 1:
+@@ -41,9 +41,10 @@ from cv_bridge import CvBridge
+ from sensor_msgs.msg import Image, PointCloud2
+ # YOLO
+ from ultralytics import YOLO
++from ultralytics.engine.results import Results, Boxes
+ # GEMStack
+ from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState,AgentEnum,AgentActivityEnum
+-from .fusion_utils import *
++from .pedestrian_detection_utils import *
+ from ..interface.gem import GEMInterface
+ from ..component import Component
+ 
+@@ -60,12 +61,12 @@ def box_to_fake_agent(box):
+ 
+ class PedestrianDetector2D(Component):
+     # TODO: Pull params into a JSON/yaml
+-    # TODO: Convert lists into np.arrays where possible, vectorize calculations
+-    # TODO: Implement logging instead of print
+-    # TODO: Finish splitting this class + utils into separate classes
++    # TODO: Convert some lists into np.arrays, vectorize calculations
++    # TODO: Implement logging instead of print, cleanup comments
++    # TODO: Cleanup funcs + split into separate classes
+     # TODO: Decide if we want to name dets "peds" or "objs"/"agents"
+     #       Maybe peds for now and Agents in agent_detection.py?
+-    def __init__(self, vehicle_interface : GEMInterface):
++    def __init__(self, vehicle_interface : GEMInterface) -> None:
+         self.vehicle_interface = vehicle_interface
+         # Publish debug/viz rostopics if true
+         self.debug = True
+@@ -97,7 +98,7 @@ class PedestrianDetector2D(Component):
+ 
+         if self.debug: self.init_debug()
+     
+-    def init_debug(self,):
++    def init_debug(self,) -> None:
+          # Debug Publishers
+         self.pub_pedestrians_pc2 = rospy.Publisher("/point_cloud/pedestrians", PointCloud2, queue_size=10)
+         self.pub_obj_centers_pc2 = rospy.Publisher("/point_cloud/obj_centers", PointCloud2, queue_size=10)
+@@ -126,8 +127,9 @@ class PedestrianDetector2D(Component):
+     # TODO: Slower but cleaner to input self.current_agents dict
+     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
+     # TODO Akul: Fix velocity calculation to calculate in ObjectFrameEnum.START
+-    #            work towards own tracking class instead of simple YOLO track?
+-    def find_vels(self, track_ids, obj_centers):
++    #            Work towards own tracking class instead of simple YOLO track?
++    # ret: Dict[track_id: vel[x, y, z]]
++    def find_vels(self, track_ids: List[int], obj_centers: List[np.ndarray]) -> Dict[int, np.ndarray]:
+         # Object not seen -> velocity = None
+         track_id_center_map = dict(zip(track_ids, obj_centers))
+         vels = defaultdict(lambda: np.array(())) # None is faster, np.array matches other find_ methods.
+@@ -144,8 +146,8 @@ class PedestrianDetector2D(Component):
+         return vels
+ 
+ 
+-    # TODO: Separate debug/viz class, separate this func into bbox and 2d 3d points
+-    def viz_object_states(self, cv_image, boxes, extracted_pts_all):
++    # TODO: Separate debug/viz class, bbox and 2d 3d points funcs 
++    def viz_object_states(self, cv_image: cv2.typing.MatLike, boxes: Boxes, extracted_pts_all: List[np.ndarray]) -> None:
+         # Extract 3D pedestrians points in lidar frame
+         # ** These are camera frame after transform_lidar_points, right?
+         pedestrians_3d_pts = [list(extracted_pts[:, -3:]) for extracted_pts in extracted_pts_all] 
+@@ -183,7 +185,7 @@ class PedestrianDetector2D(Component):
+         self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
+         
+ 
+-    def update_object_states(self, track_result, extracted_pts_all) -> None:
++    def update_object_states(self, track_result: List[Results], extracted_pts_all: List[np.ndarray]) -> None:
+         self.prev_agents = self.current_agents.copy()
+         self.current_agents.clear() 
+ 
+@@ -224,7 +226,7 @@ class PedestrianDetector2D(Component):
+                     yaw_rate=0
+                 ))
+ 
+-    def ouster_oak_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
++    def ouster_oak_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2) -> None:
+         # Convert to cv2 image and run detector
+         cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
+         track_result = self.detector.track(source=cv_image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
+@@ -247,9 +249,7 @@ class PedestrianDetector2D(Component):
+ 
+         # Process bboxes
+         boxes = track_result[0].boxes
+-
+         extracted_pts_all = list()
+-
+         for ind, bbox in enumerate(boxes):
+             xywh = bbox.xywh[0].tolist()
+ 
+@@ -271,7 +271,7 @@ class PedestrianDetector2D(Component):
+             extracted_pts = filter_ground_points(extracted_pts, self.ground_threshold)
+             extracted_pts = filter_far_points(extracted_pts)
+             extracted_pts_all.append(extracted_pts)
+-            
++
+         self.update_object_states(track_result, extracted_pts_all)
+         if self.debug: self.viz_object_states(cv_image, boxes, extracted_pts_all)
+ 
+diff --git a/GEMstack/onboard/perception/fusion_utils.py b/GEMstack/onboard/perception/pedestrian_detection_utils.py
+similarity index 100%
+rename from GEMstack/onboard/perception/fusion_utils.py
+rename to GEMstack/onboard/perception/pedestrian_detection_utils.py
+-- 
+2.38.1
+

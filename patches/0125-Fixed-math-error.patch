@@ -1,0 +1,25 @@
+From 1f9a46cd7e48aac5c2e38fd444600dba3e0587ab Mon Sep 17 00:00:00 2001
+From: krishauser <hauser.kris@gmail.com>
+Date: Thu, 24 Apr 2025 21:18:44 -0400
+Subject: [PATCH 125/150] Fixed math error
+
+---
+ GEMstack/mathutils/transforms.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/GEMstack/mathutils/transforms.py b/GEMstack/mathutils/transforms.py
+index a29ec48e..4c00cbff 100644
+--- a/GEMstack/mathutils/transforms.py
++++ b/GEMstack/mathutils/transforms.py
+@@ -72,7 +72,7 @@ def point_segment_distance(x,a,b) -> Tuple[float,float]:
+     udotv = np.dot(u,v)
+     if udotv < 0:
+         return vector_norm(u),0
+-    elif udotv > vnorm:
++    elif udotv > vnorm**2:
+         return vector_norm(vector_sub(x,b)),1
+     else:
+         param = udotv/vnorm
+-- 
+2.38.1
+

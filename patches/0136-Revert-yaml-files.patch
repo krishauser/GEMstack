@@ -1,0 +1,258 @@
+From 2d6c7f055a00f61b9411812ba8f2aed47b3b3857 Mon Sep 17 00:00:00 2001
+From: nvikramraj <nvikramraj1305@gmail.com>
+Date: Tue, 6 May 2025 14:50:41 -0500
+Subject: [PATCH 136/150] Revert yaml files
+
+---
+ .../knowledge/calibration/gem_e2_gazebo.yaml  | 59 -----------------
+ .../knowledge/calibration/gem_e4_gazebo.yaml  | 64 -------------------
+ GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml | 13 ----
+ .../gem_e2_sensor_environment_gazebo.yaml     |  7 --
+ GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml | 13 ----
+ .../gem_e4_sensor_environment_gazebo.yaml     |  7 --
+ docs/Gazebo Simulation Documentation.md       |  8 +--
+ 7 files changed, 3 insertions(+), 168 deletions(-)
+ delete mode 100644 GEMstack/knowledge/calibration/gem_e2_gazebo.yaml
+ delete mode 100644 GEMstack/knowledge/calibration/gem_e4_gazebo.yaml
+ delete mode 100644 GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml
+ delete mode 100644 GEMstack/knowledge/vehicle/gem_e2_sensor_environment_gazebo.yaml
+ delete mode 100644 GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml
+ delete mode 100644 GEMstack/knowledge/vehicle/gem_e4_sensor_environment_gazebo.yaml
+
+diff --git a/GEMstack/knowledge/calibration/gem_e2_gazebo.yaml b/GEMstack/knowledge/calibration/gem_e2_gazebo.yaml
+deleted file mode 100644
+index 33f78368..00000000
+--- a/GEMstack/knowledge/calibration/gem_e2_gazebo.yaml
++++ /dev/null
+@@ -1,59 +0,0 @@
+-calibration_date: "2023-08-31"  # Date of calibration YYYY-MM-DD
+-reference: rear_axle_center  # rear axle center
+-rear_axle_height: 0.273      # height of rear axle center above flat ground
+-gnss_location: [1.1,0.0,0.3] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/vehicle_drivers/gem_gnss_control/scripts/gem_gnss_tracker_stanley_rtk.py.  Note conflict with pure pursuit location?
+-gnss_yaw: 0.0 # radians
+-front_radar_location: [1.45,0,0.07] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/platform_launch/launch/white_e2/platform.launch
+-top_lidar: !include "gem_e2_velodyne.yaml"
+-front_camera: !include "gem_e2_zed.yaml"
+-T_frontcamera_vehicle:
+-- - 0.04979815921110274
+-  - -0.02889308605338095
+-  - 0.998341277156963
+-  - 0.6874899022540225
+-- - -0.9986898492450907
+-  - 0.010343220052680617
+-  - 0.05011489006575621
+-  - -0.006750728511462573
+-- - -0.011774038000135968
+-  - -0.9995289850272167
+-  - -0.02834016107658961
+-  - -0.07694233627246522
+-- - 0.0
+-  - 0.0
+-  - 0.0
+-  - 1.0
+-T_toplidar_frontcamera:
+-- - 0.029096143490519977
+-  - -0.9995463314295703
+-  - -0.007781115579835407
+-  - -0.045768971801312515
+-- - -0.005777780139254174
+-  - 0.007616104089319731
+-  - -0.999954305063568
+-  - -0.3868171492765085
+-- - 0.9995599190096819
+-  - 0.02913977151915098
+-  - -0.005553559684576381
+-  - -0.6975440651652165
+-- - 0.0
+-  - 0.0
+-  - 0.0
+-  - 1.0
+-T_toplidar_vehicle:
+-- - 0.9995177984237671
+-  - -0.020904183387756348
+-  - 0.022959932684898376
+-  - 0.0
+-- - 0.020975051447749138
+-  - 0.9997758865356445
+-  - -0.0028501423075795174
+-  - 0.0
+-- - -0.0228952094912529
+-  - 0.003330353880301118
+-  - 0.9997323155403137
+-  - 0.33000001311302185
+-- - 0.0
+-  - 0.0
+-  - 0.0
+-  - 1.0
+diff --git a/GEMstack/knowledge/calibration/gem_e4_gazebo.yaml b/GEMstack/knowledge/calibration/gem_e4_gazebo.yaml
+deleted file mode 100644
+index d6dfc318..00000000
+--- a/GEMstack/knowledge/calibration/gem_e4_gazebo.yaml
++++ /dev/null
+@@ -1,64 +0,0 @@
+-date: '2025-02-25 22:31:02.057447'
+-calibration_type: absolute_vehicle_calibration
+-gnss_location:
+-- 1.1
+-- 0
+-- 1.62
+-gnss_yaw: 0.0
+-rear_axle_height: 0.33
+-reference: rear_axle_center
+-vehicle: gem_e4
+-top_lidar: !include "gem_e4_ouster.yaml"
+-front_camera: !include "gem_e4_oak.yaml"
+-gnss_reference_point: [40.114001, -88.228837]
+-T_frontcamera_vehicle:
+-- - 0.04979815921110274
+-  - -0.02889308605338095
+-  - 0.998341277156963
+-  - 0.6874899022540225
+-- - -0.9986898492450907
+-  - 0.010343220052680617
+-  - 0.05011489006575621
+-  - -0.006750728511462573
+-- - -0.011774038000135968
+-  - -0.9995289850272167
+-  - -0.02834016107658961
+-  - -0.07694233627246522
+-- - 0.0
+-  - 0.0
+-  - 0.0
+-  - 1.0
+-T_toplidar_frontcamera:
+-- - 0.029096143490519977
+-  - -0.9995463314295703
+-  - -0.007781115579835407
+-  - -0.045768971801312515
+-- - -0.005777780139254174
+-  - 0.007616104089319731
+-  - -0.999954305063568
+-  - -0.3868171492765085
+-- - 0.9995599190096819
+-  - 0.02913977151915098
+-  - -0.005553559684576381
+-  - -0.6975440651652165
+-- - 0.0
+-  - 0.0
+-  - 0.0
+-  - 1.0
+-T_toplidar_vehicle:
+-- - 0.9995177984237671
+-  - -0.020904183387756348
+-  - 0.022959932684898376
+-  - 0.0
+-- - 0.020975051447749138
+-  - 0.9997758865356445
+-  - -0.0028501423075795174
+-  - 0.0
+-- - -0.0228952094912529
+-  - 0.003330353880301118
+-  - 0.9997323155403137
+-  - 0.33000001311302185
+-- - 0.0
+-  - 0.0
+-  - 0.0
+-  - 1.0
+\ No newline at end of file
+diff --git a/GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml b/GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml
+deleted file mode 100644
+index c82a8b0d..00000000
+--- a/GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml
++++ /dev/null
+@@ -1,13 +0,0 @@
+-name: GEM
+-version: e2
+-max_gear : 1
+-num_wiper_settings : 1
+-enable_through_joystick : true   #turn this to false to have GEMstack enable control
+-max_command_rate : 10.0          #for hardware, max rate of commands to send to vehicle over Pacmod
+-#using !include directives helps maintain reuse of common settings
+-geometry: !include gem_e2_geometry.yaml
+-dynamics: !include gem_e2_dynamics.yaml
+-limits: !include gem_e2_slow_limits.yaml
+-control_defaults: !include gem_e2_control_defaults.yaml
+-calibration: !include ../calibration/gem_e2_gazebo.yaml
+-sensors: !include gem_e2_sensor_environment_gazebo.yaml
+diff --git a/GEMstack/knowledge/vehicle/gem_e2_sensor_environment_gazebo.yaml b/GEMstack/knowledge/vehicle/gem_e2_sensor_environment_gazebo.yaml
+deleted file mode 100644
+index 94ab558f..00000000
+--- a/GEMstack/knowledge/vehicle/gem_e2_sensor_environment_gazebo.yaml
++++ /dev/null
+@@ -1,7 +0,0 @@
+-ros_topics:
+-  top_lidar: /velodyne_points
+-  front_camera: /front_single_camera/image_raw
+-  front_depth: /notopic
+-  gps: /gps/fix
+-  imu: /imu
+-  
+\ No newline at end of file
+diff --git a/GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml b/GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml
+deleted file mode 100644
+index 750b41fb..00000000
+--- a/GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml
++++ /dev/null
+@@ -1,13 +0,0 @@
+-name: GEM
+-version: e4
+-max_gear : 1
+-num_wiper_settings : 1
+-enable_through_joystick : true   #turn this to false to have GEMstack enable control
+-max_command_rate : 10.0          #for hardware, max rate of commands to send to vehicle over Pacmod
+-#using !include directives helps maintain reuse of common settings
+-geometry: !include gem_e4_geometry.yaml
+-dynamics: !include gem_e4_dynamics.yaml
+-limits: !include gem_e2_slow_limits.yaml
+-control_defaults: !include gem_e2_control_defaults.yaml
+-calibration: !include ../calibration/gem_e4_gazebo.yaml
+-sensors: !include gem_e4_sensor_environment_gazebo.yaml
+diff --git a/GEMstack/knowledge/vehicle/gem_e4_sensor_environment_gazebo.yaml b/GEMstack/knowledge/vehicle/gem_e4_sensor_environment_gazebo.yaml
+deleted file mode 100644
+index 94ab558f..00000000
+--- a/GEMstack/knowledge/vehicle/gem_e4_sensor_environment_gazebo.yaml
++++ /dev/null
+@@ -1,7 +0,0 @@
+-ros_topics:
+-  top_lidar: /velodyne_points
+-  front_camera: /front_single_camera/image_raw
+-  front_depth: /notopic
+-  gps: /gps/fix
+-  imu: /imu
+-  
+\ No newline at end of file
+diff --git a/docs/Gazebo Simulation Documentation.md b/docs/Gazebo Simulation Documentation.md
+index aea20d84..a09d9616 100644
+--- a/docs/Gazebo Simulation Documentation.md	
++++ b/docs/Gazebo Simulation Documentation.md	
+@@ -77,7 +77,9 @@ python3 main.py --variant=gazebo --settings={your_file}.yaml launch/{your_file}.
+ Example command launching the fixed route with e4 vehicle:
+ 
+ ```bash
+-python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e4_gazebo.yaml launch/fixed_route.yaml
++python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e2.yaml launch/fixed_route.yaml
++or
++python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/current.yaml launch/fixed_route.yaml
+ ```
+ **Variants:**
+  - sim
+@@ -86,8 +88,6 @@ python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e4_gazeb
+ **Vehicle types:**
+ - e2
+ - e4
+-- e2_gazebo
+-- e4_gazebo
+ 
+ **Setting:**
+ 
+@@ -97,7 +97,5 @@ Other available configuration files:
+ 
+ GEMstack/knowledge/defaults/
+ - e2.yaml
+-- e2_gazebo.yaml
+-- e4_gazebo.yaml
+ 
+ ---
+-- 
+2.38.1
+

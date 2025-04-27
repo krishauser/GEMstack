@@ -1,0 +1,416 @@
+From 8a7ceb64c7910f25b53ca806257e5ede867be2c3 Mon Sep 17 00:00:00 2001
+From: LucasEby <lucaseby@outlook.com>
+Date: Tue, 18 Feb 2025 11:31:55 -0500
+Subject: [PATCH 049/150] Wrote in logic to finish part 3. Still need to
+ implement 1-2 transforms and to fix a small list bug
+
+---
+ GEMstack/onboard/perception/AgentTracker.py   | 144 -----------------
+ GEMstack/onboard/perception/IdTracker.py      |   8 +-
+ GEMstack/onboard/perception/PrevAgent.py      |  17 --
+ .../perception/pedestrian_detection.py        | 149 +++++++++++++++---
+ 4 files changed, 129 insertions(+), 189 deletions(-)
+ delete mode 100644 GEMstack/onboard/perception/AgentTracker.py
+ delete mode 100644 GEMstack/onboard/perception/PrevAgent.py
+
+diff --git a/GEMstack/onboard/perception/AgentTracker.py b/GEMstack/onboard/perception/AgentTracker.py
+deleted file mode 100644
+index 55e2cd91..00000000
+--- a/GEMstack/onboard/perception/AgentTracker.py
++++ /dev/null
+@@ -1,144 +0,0 @@
+-import math
+-from typing import Dict, List
+-
+-from GEMstack.onboard.perception.IdTracker import IdTracker
+-from GEMstack.onboard.perception.PrevAgent import PrevAgent
+-from GEMstack.state.agent import AgentState
+-
+-
+-class AgentTracker():
+-    """Associates and tracks AgentState agents.
+-    """
+-    def __init__(self):
+-        # List of PrevAgent objects (each keeps track of the last seen state and time since seen)
+-        self.prev_agents: List[PrevAgent] = []
+-        # List of currently visible AgentState objects
+-        self.current_agents: List[AgentState] = []
+-        # Maximum time (in seconds) to keep a lost agent before dropping it.
+-        self.drop_agent_t: float = 1.0
+-        # Id tracker for creating new unique pedestrian IDs.
+-        self.id_tracker = IdTracker()
+-    
+-    def assign_ids(self, agents: list) -> Dict[str,AgentState]:
+-        # Act with the assumption that you are being sent a list of AgentState objects and you need to use the object fields to keep track of them for your task
+-        # Further act on the assumption that we will decide the id's of the pedestrians by assuming that 2 pedestrians are the same pedestrian if a
+-        # previously stored AgentState pose and dimensions overlap with a newly passed in AgentState
+-        # Act on the assumption that the AgentState objects are all in reference to the start frame of the vehicle
+-        # some helper functions in this class, LostAgent.py, and IdTracker.py have been created to try to help you out with your task.
+-        # Assume that the output returned from this function will be a dictionary of AgentState objects with the key corresponding to their id
+-        """
+-        Associates new AgentState objects with existing tracked agents based on overlap.
+-        If an agent does not match any previously tracked agent, a new unique id is assigned.
+-        Also updates the “lost” time for agents that are not matched in this frame.
+-
+-        Parameters:
+-            agents (list): List of AgentState objects for the current frame 
+-                           (already converted to the start frame of reference).
+-
+-        Returns:
+-            Dict[str, AgentState]: Dictionary mapping agent id (as a string) to AgentState.
+-        """
+-        dt = 1.0  # Assuming a fixed time-step of 1 second (for simplicity)
+-        output_agents: Dict[str, AgentState] = {}
+-        matched_ids = set()
+-        updated_prev_agents: List[PrevAgent] = []
+-
+-        # Process each new agent from the current frame.
+-        for new_agent in agents:
+-            found_match = None
+-            # Look for a previously tracked agent whose bounding box overlaps.
+-            for prev in self.prev_agents:
+-                if prev.last_id in matched_ids:
+-                    continue  # Already matched with another new agent.
+-                if self.__agents_overlap(prev.last_state, new_agent):
+-                    found_match = prev
+-                    break
+-
+-            if found_match is not None:
+-                # update velocity using the change in position.
+-                if hasattr(new_agent, 'velocity'):
+-                    new_agent.velocity = self.__calculate_velocity(found_match.last_state, new_agent, dt)
+-
+-                # Update the matched agent’s state and reset its lost-time counter.
+-                found_match.last_state = new_agent
+-                found_match.time_since_seen = 0.0
+-                matched_ids.add(found_match.last_id)
+-                output_agents[str(found_match.last_id)] = new_agent
+-                updated_prev_agents.append(found_match)
+-            else:
+-                # No match found – assign a new unique id.
+-                new_id = self.id_tracker.get_new_ped_id()
+-                new_prev = PrevAgent(new_id, new_agent)
+-                # initialize velocity to 0.
+-                if hasattr(new_agent, 'velocity'):
+-                    new_agent.velocity = 0.0
+-                output_agents[str(new_id)] = new_agent
+-                updated_prev_agents.append(new_prev)
+-
+-        # For all previously tracked agents that were not matched this frame,
+-        # update their time-since-seen and only keep them if they have not timed out.
+-        for prev in self.prev_agents:
+-            if prev.last_id not in matched_ids:
+-                prev.update_time(dt)
+-                if prev.time_since_seen < self.drop_agent_t:
+-                    updated_prev_agents.append(prev)
+-
+-        # Save the updated list of tracked agents.
+-        self.prev_agents = updated_prev_agents
+-        # update current_agents to include only those seen in the current frame.
+-        self.current_agents = list(output_agents.values())
+-        return output_agents
+-
+-    def __convert_to_start_frame(self):
+-        """Converts a list of AgentState agents from ouster Lidar frame of 
+-        reference (which is in reference to the current frame) to start 
+-        frame frame of reference
+-        """
+-        # you can ignore this function akul
+-        pass
+-        
+-    def __agents_overlap(self, ped1, ped2) -> bool:
+-        """
+-        Determines if two AgentState objects overlap based on their pose and dimensions.
+-
+-        Assumes each AgentState has:
+-            - pose with attributes x and y.
+-            - dimensions with attributes width and height.
+-
+-        Returns:
+-            bool: True if they overlap; False otherwise.
+-        """
+-        # Get first agent's properties.
+-        x1, y1 = ped1.pose.x, ped1.pose.y
+-        w1, h1 = ped1.dimensions.width, ped1.dimensions.height
+-
+-        # Get second agent's properties.
+-        x2, y2 = ped2.pose.x, ped2.pose.y
+-        w2, h2 = ped2.dimensions.width, ped2.dimensions.height
+-
+-        # Compute bounding boxes (assuming (x, y) is the center).
+-        left1, right1 = x1 - w1 / 2, x1 + w1 / 2
+-        top1, bottom1 = y1 - h1 / 2, y1 + h1 / 2
+-
+-        left2, right2 = x2 - w2 / 2, x2 + w2 / 2
+-        top2, bottom2 = y2 - h2 / 2, y2 + h2 / 2
+-
+-        # Check for overlap between the bounding boxes.
+-        overlap = not (right1 < left2 or left1 > right2 or bottom1 < top2 or top1 > bottom2)
+-        return overlap
+-
+-    def __calculate_velocity(self, old_state: AgentState, new_state: AgentState, dt: float) -> float:
+-        """
+-        Calculates the velocity based on the change in pose over time.
+-
+-        Parameters:
+-            old_state (AgentState): The previous state.
+-            new_state (AgentState): The current state.
+-            dt (float): Time difference between the two states.
+-
+-        Returns:
+-            float: The computed velocity.
+-        """
+-        dx = new_state.pose.x - old_state.pose.x
+-        dy = new_state.pose.y - old_state.pose.y
+-        return math.sqrt(dx * dx + dy * dy) / dt if dt > 0 else 0.0
+diff --git a/GEMstack/onboard/perception/IdTracker.py b/GEMstack/onboard/perception/IdTracker.py
+index 1c9c6ecb..15641fa0 100644
+--- a/GEMstack/onboard/perception/IdTracker.py
++++ b/GEMstack/onboard/perception/IdTracker.py
+@@ -2,11 +2,11 @@ class IdTracker():
+     """Abstracts out id tracking
+     """
+     def __init__(self):
+-        self.__ped_id = 0
++        self.__id = 0
+ 
+-    def get_new_ped_id(self) -> int:
+-        """Returns a unique pedestrian id
++    def get_new_id(self) -> int:
++        """Returns a unique agent id
+         """
+         assigned_id = self.__id
+-        self.__ped_id += 1 # id will intentionally overflow to get back to 0
++        self.__id += 1 # id will intentionally overflow to get back to 0
+         return assigned_id
+diff --git a/GEMstack/onboard/perception/PrevAgent.py b/GEMstack/onboard/perception/PrevAgent.py
+deleted file mode 100644
+index 210cea55..00000000
+--- a/GEMstack/onboard/perception/PrevAgent.py
++++ /dev/null
+@@ -1,17 +0,0 @@
+-# GEM imports:
+-from ...state import AgentState
+-
+-class PrevAgent():
+-    def __init__(self, last_id: int, last_state: AgentState):
+-        self.time_since_seen: float = 0.0 # Time since the agent was last seen in seconds
+-        self.last_id: int = last_id
+-        self.last_state: AgentState = last_state
+-
+-    def update_time(time: float):
+-        """Updates the time since the agent was last seen
+-        """
+-        if time <= 0:
+-            # TODO: log error here
+-            print("UPDATE TIME FOR LOST AGENT WAS LESS THAN OR EQUAL TO 0")
+-        else:
+-            self.time_since_seen += time
+\ No newline at end of file
+diff --git a/GEMstack/onboard/perception/pedestrian_detection.py b/GEMstack/onboard/perception/pedestrian_detection.py
+index 519d8550..e5832601 100644
+--- a/GEMstack/onboard/perception/pedestrian_detection.py
++++ b/GEMstack/onboard/perception/pedestrian_detection.py
+@@ -33,6 +33,7 @@ rviz
+ import os
+ from typing import List, Dict
+ from collections import defaultdict
++from datetime import datetime
+ # ROS, CV
+ import rospy
+ import message_filters
+@@ -48,7 +49,7 @@ from ...state import AllState,VehicleState,ObjectPose,ObjectFrameEnum,AgentState
+ from .pedestrian_detection_utils import *
+ from ..interface.gem import GEMInterface
+ from ..component import Component
+-from .AgentTracker import AgentTracker
++from .IdTracker import IdTracker
+ 
+ 
+ def box_to_fake_agent(box):
+@@ -110,6 +111,10 @@ class PedestrianDetector2D(Component):
+         self.tf_listener = tf.TransformListener()
+ 
+         if self.debug: self.init_debug()
++
++        self.prev_time = None # Time in seconds since last scan for basic velocity calculation
++        self.current_time = None # Time in seconds of current scan for basic velocity calculation
++        self.id_tracker = IdTracker()
+     
+     def init_debug(self,) -> None:
+          # Debug Publishers
+@@ -144,7 +149,7 @@ class PedestrianDetector2D(Component):
+     #            Work towards own tracking class instead of simple YOLO track?
+     #            Fix division by time
+     # ret: Dict[track_id: vel[x, y, z]]
+-    def find_vels(self, track_ids: List[int], obj_centers: List[np.ndarray]) -> Dict[int, np.ndarray]:
++    def find_vels(self, track_ids: List[int], obj_centers: List[np.ndarray], obj_dims: List[np.ndarray]) -> Dict[int, np.ndarray]:
+         # Object not seen -> velocity = None
+         track_id_center_map = dict(zip(track_ids, obj_centers))
+         vels = defaultdict(lambda: np.array(())) # None is faster, np.array matches other find_ methods.
+@@ -159,8 +164,7 @@ class PedestrianDetector2D(Component):
+                 if prev_agent.pose.x and prev_agent.pose.y and prev_agent.pose.z and track_id_center_map[prev_agent.track_id].shape == 3:
+                     vels[prev_track_id] = (track_id_center_map[prev_track_id] - np.array([prev_agent.pose.x, prev_agent.pose.y, prev_agent.pose.z])) / (self.curr_time - self.prev_time)
+         return vels
+-
+-
++    
+     # TODO: Separate debug/viz class, bbox and 2d 3d points funcs 
+     def viz_object_states(self, cv_image, boxes, extracted_pts_all):
+         # Extract 3D pedestrians points in lidar frame
+@@ -221,7 +225,7 @@ class PedestrianDetector2D(Component):
+         
+ 
+     def update_object_states(self, track_result: List[Results], extracted_pts_all: List[np.ndarray]) -> None:
+-        self.prev_agents = self.current_agents.copy()
++        # self.prev_agents = self.current_agents.copy()
+         self.current_agents.clear()
+ 
+         # Return if no track results available
+@@ -263,27 +267,124 @@ class PedestrianDetector2D(Component):
+ 
+         # TODO: CONVERT FROM VEHICLE FRAME TO START FRAME HERE
+         # Then compare previous and current agents with the same id to calculate velocity
+-        obj_vels = self.find_vels(track_ids, obj_centers)
+-
+-        # Update Current AgentStates
+-        for ind in range(num_objs):
+-            obj_center = (None, None, None) if obj_centers[ind].size == 0 else obj_centers[ind]
+-            obj_dim = (None, None, None) if obj_dims[ind].size == 0 else obj_dims[ind]
+-            self.current_agents[track_ids[ind]] = (
+-                AgentState(
+-                    track_id = track_ids[ind],
+-                    pose=ObjectPose(t=0, x=obj_center[0], y=obj_center[1], z=obj_center[2] ,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
+-                    # (l, w, h)
+-                    # TODO: confirm (z -> l, x -> w, y -> h)
+-                    dimensions=(obj_dim[0], obj_dim[1], obj_dim[2]),  
+-                    outline=None,
+-                    type=AgentEnum.PEDESTRIAN,
+-                    activity=AgentActivityEnum.MOVING,
+-                    velocity= None if obj_vels[track_ids[ind]].size == 0 else tuple(obj_vels[track_ids[ind]]),
+-                    yaw_rate=0
+-                ))
++        self.find_vels_and_ids(obj_centers, obj_dims)
++        # obj_vels = self.find_vels(track_ids, obj_centers)
++
++        # # Update Current AgentStates
++        # for ind in range(num_objs):
++        #     obj_center = (None, None, None) if obj_centers[ind].size == 0 else obj_centers[ind]
++        #     obj_dim = (None, None, None) if obj_dims[ind].size == 0 else obj_dims[ind]
++        #     self.current_agents[track_ids[ind]] = (
++        #         AgentState(
++        #             track_id = track_ids[ind],
++        #             pose=ObjectPose(t=0, x=obj_center[0], y=obj_center[1], z=obj_center[2] ,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
++        #             # (l, w, h)
++        #             # TODO: confirm (z -> l, x -> w, y -> h)
++        #             dimensions=(obj_dim[0], obj_dim[1], obj_dim[2]),  
++        #             outline=None,
++        #             type=AgentEnum.PEDESTRIAN,
++        #             activity=AgentActivityEnum.MOVING,
++        #             velocity= None if obj_vels[track_ids[ind]].size == 0 else tuple(obj_vels[track_ids[ind]]),
++        #             yaw_rate=0
++        #         ))
++            
++    def find_vels_and_ids(self, obj_centers: List[np.ndarray], obj_dims: List[np.ndarray]):
++        new_prev_agents = {} # Stores current agents in START frame for next time through (since 
++                             # planning wants us to send them agents in CURRENT frame)
++        # Object not seen -> velocity = None
++        vels = defaultdict(lambda: np.array(())) # None is faster, np.array matches other find_ methods.
++
++        # THIS ASSUMES EVERYTHING IS IN THE SAME FRAME WHICH WOULD WORK FOR STATIONARY CAR.
++        # TODO: NEED TO STORE AND INCORPORATE TRANSFORMS SOMEHOW TO DEAL WITH MOVING CAR CASE
++        assigned = False
++        num_pairings = len(obj_centers)
++        converted_centers = obj_centers # TODO: REPLACE WITH THIS: self.convert_vehicle_frame_to_start_frame(obj_centers)
++
++        # Loop through the indexes of the obj_center and obj_dim pairings
++        for idx in range(num_pairings):
++            assigned = False
++
++            # Loop through previous agents backwards
++            for prev_id, prev_state in reversed(self.prev_agents.items()):
++                # If an obj_center and obj_dim pair overlaps with a previous agent, assume that they're the same agent
++                if self.agents_overlap(converted_centers[idx], obj_dims[idx], prev_state):
++                    assigned = True
++
++                    if self.prev_time == None:
++                        # This shouldn't ever be triggered
++                        vel = 0
++                    else:
++                        delta_t = self.curr_time - self.prev_time
++                        vel = (obj_centers[idx] - np.array([prev_state.pose.x, prev_state.pose.y, prev_state.pose.z])) / delta_t.total_seconds()
++                        print("VELOCITY:")
++                        print(vel)
++
++                    self.current_agents[prev_id] = (
++                        AgentState(
++                            track_id = prev_id,
++                            pose=ObjectPose(t=0, x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
++                            # (l, w, h)
++                            # TODO: confirm (z -> l, x -> w, y -> h)
++                            dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_dims[idx][2]),  
++                            outline=None,
++                            type=AgentEnum.PEDESTRIAN,
++                            activity=AgentActivityEnum.MOVING,
++                            velocity= None if vel.size == 0 else tuple(vel),
++                            yaw_rate=0
++                        ))
++                    del self.prev_agents[prev_id] # Remove previous agent from previous agents
++                    break
++
++            # If not assigned:
++            if not assigned:
++                # Set velocity to 0 and assign the new agent a new id with IdTracker
++                id = self.id_tracker.get_new_id()
++                self.current_agents[id] = (
++                    AgentState(
++                        track_id = id,
++                        pose=ObjectPose(t=0, x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2] ,yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
++                        # (l, w, h)
++                        # TODO: confirm (z -> l, x -> w, y -> h)
++                        dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_dims[idx][2]),  
++                        outline=None,
++                        type=AgentEnum.PEDESTRIAN,
++                        activity=AgentActivityEnum.MOVING,
++                        velocity= None,
++                        yaw_rate=0
++                    ))
++        self.prev_agents = new_prev_agents
++
++    # Calculates whether 2 agents overlap in START frame. True if they do, false if not
++    def agents_overlap(obj_center: np.ndarray, obj_dim: np.ndarray, prev_agent: AgentState) -> bool:
++        # Calculate corners of obj_center and obj_dim pairing
++        x1_min, x1_max = obj_center[0] - obj_dim[0] / 2.0, obj_center[0] + obj_dim[0] / 2.0
++        y1_min, y1_max = obj_center[1] - obj_dim[1] / 2.0, obj_center[1] + obj_dim[1] / 2.0 # CENTER CALCULATION
++        z1_min, z1_max = obj_center[2] - obj_dim[2] / 2.0, obj_center[2] + obj_dim[2] / 2.0
++
++        # Calculate corners of AgentState
++        # Beware: AgentState(PhysicalObject) builds bbox from 
++        # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
++        # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
++        # TODO: confirm (z -> l, x -> w, y -> h)
++        x2_min, x2_max = prev_agent.pose.x - prev_agent.dimensions.width / 2.0, prev_agent.pose.x + prev_agent.dimensions.width / 2.0
++        y2_min, y2_max = prev_agent.pose.y, prev_agent.pose.y + prev_agent.dimensions.height # AGENT STATE CALCULATION
++        z2_min, z2_max = prev_agent.pose.z - prev_agent.dimensions.length / 2.0, prev_agent.pose.z + prev_agent.dimensions.length / 2.0
++        
++        # True if they overlap, false if not
++        return (
++            ( (x1_min <= x2_min and x2_min <= x1_max) or (x2_min <= x1_min and x1_min <= x2_max) ) and
++            ( (y1_min <= y2_min and y2_min <= y1_max) or (y2_min <= y1_min and y1_min <= y2_max) ) and
++            ( (z1_min <= z2_min and z2_min <= z1_max) or (z2_min <= z1_min and z1_min <= z2_max) )
++        )
++
++    def convert_vehicle_frame_to_start_frame(obj_centers: List[np.ndarray]) -> List[np.ndarray]:
++        pass
+ 
+     def ouster_oak_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
++        # Update times for basic velocity calculation
++        self.prev_time = self.current_time
++        self.current_time = datetime.now()
++
+         # Convert to cv2 image and run detector
+         cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
+         track_result = self.detector.track(source=cv_image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
+-- 
+2.38.1
+

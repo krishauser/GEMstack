@@ -1,0 +1,108 @@
+From ac1656363d08b8e478c812a3cbcfae29022c1004 Mon Sep 17 00:00:00 2001
+From: nvikramraj <nvikramraj1305@gmail.com>
+Date: Mon, 24 Feb 2025 01:12:04 -0600
+Subject: [PATCH 074/150] added viz and edge case fix
+
+---
+ GEMstack/onboard/perception/pedestrian_detection.py | 11 +++++++----
+ GEMstack/onboard/visualization/mpl_visualization.py |  8 ++++++++
+ launch/fixed_route.yaml                             |  1 +
+ launch/pedestrian_detection.yaml                    |  7 ++++---
+ 4 files changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/pedestrian_detection.py b/GEMstack/onboard/perception/pedestrian_detection.py
+index 99796cad..36ad9c9d 100644
+--- a/GEMstack/onboard/perception/pedestrian_detection.py
++++ b/GEMstack/onboard/perception/pedestrian_detection.py
+@@ -150,6 +150,8 @@ class PedestrianDetector2D(Component):
+ 
+     def update(self, vehicle : VehicleState) -> Dict[str,AgentState]:
+ 
++        # Edge cases
++
+         if(self.current_vehicle_state == None and self.previous_vehicle_state == None):
+             self.current_vehicle_state = vehicle
+             # We get vehicle state from GNSS in global state
+@@ -166,8 +168,8 @@ class PedestrianDetector2D(Component):
+         
+         print(f"Global state : {vehicle}")
+ 
+-        # Convert pose to start state.
+-        vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START,vehicle.pose,self.start_pose_abs)
++        # Convert pose to start state. Need to use previous_vehicle state as pedestrian info is delayed
++        vehicle_start_pose = vehicle.pose.to_frame(ObjectFrameEnum.START,self.previous_vehicle_state.pose,self.start_pose_abs)
+         print(f"Start state : {vehicle_start_pose}")
+ 
+         print(f"ped pose vehicle state = {self.current_agent_obj_dims['pose']}")
+@@ -314,8 +316,9 @@ class PedestrianDetector2D(Component):
+                 obj_centers_vehicle.append(np.array(()))
+         obj_centers = obj_centers_vehicle
+ 
+-        self.current_agent_obj_dims["pose"] = obj_center
+-        self.current_agent_obj_dims["dims"] = obj_dims
++        if(len(obj_center) != 0) and (len(obj_dims) != 0):
++            self.current_agent_obj_dims["pose"] = obj_center
++            self.current_agent_obj_dims["dims"] = obj_dims
+ 
+     # TODO: Refactor to make more efficient
+     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
+diff --git a/GEMstack/onboard/visualization/mpl_visualization.py b/GEMstack/onboard/visualization/mpl_visualization.py
+index ef9a2485..77a3e42c 100644
+--- a/GEMstack/onboard/visualization/mpl_visualization.py
++++ b/GEMstack/onboard/visualization/mpl_visualization.py
+@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
+ import matplotlib.animation as animation
+ import time
+ from collections import deque
++from ...state.agent import AgentEnum
+ 
+ class MPLVisualization(Component):
+     """Runs a matplotlib visualization at 10Hz. 
+@@ -77,6 +78,13 @@ class MPLVisualization(Component):
+         self.num_updates += 1
+         self.debug("vehicle","velocity",state.vehicle.v)
+         self.debug("vehicle","front wheel angle",state.vehicle.front_wheel_angle)
++        
++        # Add pedestrian tracking
++        for agent_id, agent in state.agents.items():
++            if agent.type == AgentEnum.PEDESTRIAN:
++                self.debug(f"ped_{agent_id}", "x", agent.pose.x)
++                self.debug(f"ped_{agent_id}", "y", agent.pose.y)
++        
+         time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(state.t))
+         #frame=ObjectFrameEnum.CURRENT
+         #state = state.to_frame(frame)
+diff --git a/launch/fixed_route.yaml b/launch/fixed_route.yaml
+index c05de8ff..69f3b94b 100644
+--- a/launch/fixed_route.yaml
++++ b/launch/fixed_route.yaml
+@@ -74,6 +74,7 @@ variants:
+                     agent_detection : OmniscientAgentDetector
+             visualization: !include "klampt_visualization.yaml"
+             #visualization: !include "mpl_visualization.yaml"
++            visualization: [!include "klampt_visualization.yaml", !include "mpl_visualization.yaml"]
+     log_ros:
+         log:
+             ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"
+\ No newline at end of file
+diff --git a/launch/pedestrian_detection.yaml b/launch/pedestrian_detection.yaml
+index 1a00fa79..64a8e1c9 100644
+--- a/launch/pedestrian_detection.yaml
++++ b/launch/pedestrian_detection.yaml
+@@ -57,9 +57,10 @@ variants:
+     detector_only:
+         run:
+             description: "Run the pedestrian detection code"
+-        drive:
+-            planning:
+-                trajectory_tracking:
++            drive:
++                planning:
++                    trajectory_tracking:
++            visualization: !include "mpl_visualization.yaml"
+     real_sim:
+         run:
+             description: "Run the pedestrian detection code with real detection and fake simulation"
+-- 
+2.38.1
+

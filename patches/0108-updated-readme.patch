@@ -1,0 +1,32 @@
+From cd4c649fe3a95e9e292c49d32e5cd0c9a88ee788 Mon Sep 17 00:00:00 2001
+From: nvikramraj <nvikramraj1305@gmail.com>
+Date: Tue, 8 Apr 2025 13:25:53 -0500
+Subject: [PATCH 108/150] updated readme
+
+---
+ launch/README.md | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/launch/README.md b/launch/README.md
+index 99373f58..9b1f21ce 100644
+--- a/launch/README.md
++++ b/launch/README.md
+@@ -7,6 +7,15 @@ Contains launch scripts for use in the standard executor, e.g., `python main.py
+ 
+ Head over here to setup gazebo docker container to run the simulation
+ 
++Install dependency packages
++
++```
++sudo apt-get install -y ros-noetic-ros-controllers ros-noetic-gazebo-ros-control ros-noetic-ackermann-msgs
++
++```
++
++    
++
+ 
+ ## Running GEM Stack with Gazebo
+ 
+-- 
+2.38.1
+

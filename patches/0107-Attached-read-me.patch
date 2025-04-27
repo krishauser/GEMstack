@@ -1,0 +1,57 @@
+From 0b90bc503b7eef2a17c7795c971d92cc1ca9d39e Mon Sep 17 00:00:00 2001
+From: nvikramraj <nvikramraj1305@gmail.com>
+Date: Tue, 8 Apr 2025 12:40:35 -0500
+Subject: [PATCH 107/150] Attached read me
+
+---
+ launch/README.md | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)
+
+diff --git a/launch/README.md b/launch/README.md
+index d90eabc0..99373f58 100644
+--- a/launch/README.md
++++ b/launch/README.md
+@@ -1 +1,39 @@
+ Contains launch scripts for use in the standard executor, e.g., `python main.py launch/fixed_route_sim.yaml`.
++
++
++# Gazebo Simulation Guide lines
++
++## Gazebo Simulation Setup
++
++Head over here to setup gazebo docker container to run the simulation
++
++
++## Running GEM Stack with Gazebo
++
++- Open two terminals
++- Launch the Gazebo simulator in the first terminal
++- In the other terminal navigate to GEM Stack folder and run the following command to launch GEM Stack
++
++```
++Sample command:
++
++python3 main.py --variant=sim --vehicle=e4_gazebo launch/gazebo_simulation.yaml
++
++
++Other variants:
++
++python3 main.py --variant={variant_name} --vehicle={vehicle_name} launch/gazebo_simulation.yaml
++
++Variants:
++sim
++
++Vehicle types:
++
++e2
++e4
++e2_gazebo
++e4_gazebo
++
++```
++
++- The gazebo_simulation.yaml can be editied to add your planning and perception code, more variants can be added on request.
+\ No newline at end of file
+-- 
+2.38.1
+

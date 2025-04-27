@@ -1,0 +1,140 @@
+From 49f45eef28f0af872b66973e5ce7d1b7e5806ed9 Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Sat, 15 Feb 2025 02:17:54 -0600
+Subject: [PATCH 027/150] segregate points by pedestrains
+
+---
+ GEMstack/onboard/perception/fusion.py       | 26 +++++-----
+ GEMstack/onboard/perception/fusion_utils.py | 53 +--------------------
+ 2 files changed, 16 insertions(+), 63 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/fusion.py b/GEMstack/onboard/perception/fusion.py
+index f48da3e1..6bc0ab40 100644
+--- a/GEMstack/onboard/perception/fusion.py
++++ b/GEMstack/onboard/perception/fusion.py
+@@ -60,7 +60,11 @@ class Fusion3D():
+         boxes = track_result[0].boxes
+ 
+         # Unpacking box dimentions detected into x,y,w,h
+-        all_extracted_pts = []
++        extracted_2d_pedestrians_pts = []
++        extracted_3d_pedestrians_pts = []
++        flattened_extracted_2d_pedestrians_pts = []
++        flattened_extracted_3d_pedestrians_pts = []
++
+         for box in boxes:
+             xywh = box.xywh[0].tolist()
+             self.last_person_boxes.append(xywh)
+@@ -80,25 +84,25 @@ class Fusion3D():
+                                     (pts[:, 1] < bottom_bound)
+                                     ]
+                 
+-                all_extracted_pts = all_extracted_pts + list(extracted_pts)
++                extracted_2d_pts = list(np.array(extracted_pts)[:, :2].astype(int))
++                extracted_2d_pedestrians_pts.append(extracted_2d_pts)
++                flattened_extracted_2d_pedestrians_pts = flattened_extracted_2d_pedestrians_pts + extracted_2d_pts
++               
++                extracted_3d_pts = list(np.array(extracted_pts)[:, -3:])
++                extracted_3d_pedestrians_pts.append(extracted_3d_pts)
++                flattened_extracted_3d_pedestrians_pts = flattened_extracted_3d_pedestrians_pts + extracted_3d_pts
+ 
+             # Used for visualization
+             if(self.visualization):
+                 cv_image = vis_2d_bbox(cv_image, xywh, box)
+         
+-        if len(all_extracted_pts) > 0:
+-            # Extract 2D points
+-            extracted_2d_pts = list(np.array(all_extracted_pts)[:, :2].astype(int))
+-
++        if len(extracted_2d_pedestrians_pts) > 0:
+             # Draw projected 2D LiDAR points on the image.
+-            for pt in extracted_2d_pts:
++            for pt in flattened_extracted_2d_pedestrians_pts:
+                 cv2.circle(cv_image, pt, 2, (0, 0, 255), -1)
+ 
+-            # Extract 3D points
+-            extracted_3d_pts = list(np.array(all_extracted_pts)[:, -3:])
+-
+             # Create point cloud from extracted 3D points
+-            ros_extracted_pedestrian_pc2 = create_point_cloud(extracted_3d_pts)
++            ros_extracted_pedestrian_pc2 = create_point_cloud(flattened_extracted_3d_pedestrians_pts)
+             self.pub_pedestrians_pc2.publish(ros_extracted_pedestrian_pc2)
+ 
+         
+diff --git a/GEMstack/onboard/perception/fusion_utils.py b/GEMstack/onboard/perception/fusion_utils.py
+index 69f27d5a..b8ffd03e 100644
+--- a/GEMstack/onboard/perception/fusion_utils.py
++++ b/GEMstack/onboard/perception/fusion_utils.py
+@@ -29,7 +29,7 @@ def downsample_points(lidar_points):
+     return transformed_points
+ 
+ 
+-# Credits: The following lines of codes (17 to 159 excluding lines 80 to 115) are adapted from the Calibration Team B
++# Credits: The following lines of codes (from 33 to 92) are adapted from the Calibration Team B
+ def load_extrinsics(extrinsics_file):
+     """
+     Load calibrated extrinsics from a .npz file.
+@@ -126,60 +126,9 @@ def vis_2d_bbox(image, xywh, box):
+ 
+     # Draw main text on top of the outline
+     cv2.putText(image, label, (text_x, text_y - baseline), font, font_scale, font_color, text_thickness)
+-
+     return image
+ 
+ 
+-def visualize_point_cloud(points):
+-    """
+-    Visualizes the given point cloud using Open3D.
+-
+-    Args:
+-        points (np.ndarray): Nx3 array of point cloud coordinates.
+-    """
+-    # Create a visualization window
+-    vis = o3d.visualization.Visualizer()
+-    vis.create_window()
+-
+-    pc = o3d.geometry.PointCloud()
+-    pc.points = o3d.utility.Vector3dVector(points)
+-    pc.paint_uniform_color([0.1, 0.7, 0.9])
+-
+-    vis.add_geometry(pc)
+-    vis.run()
+-
+-
+-def visualize_plane(inlier_cloud, outlier_cloud, bounding_box_2d_points):
+-    """
+-    Visualizes the detected plane with its 2D bounding box.
+-
+-    :param inlier_cloud: Open3D point cloud containing plane points.
+-    :param outlier_cloud: Open3D point cloud containing non-plane points.
+-    :param bounding_box_2d_points: 4 corner points of the 2D bounding box on the plane.
+-    """
+-    inlier_cloud.paint_uniform_color([1, 0, 0])  # Red for the plane
+-    outlier_cloud.paint_uniform_color([0.5, 0.5, 0.5])  # Gray for other points
+-
+-    # Create bounding box visualization
+-    bounding_box_pcd = o3d.geometry.PointCloud()
+-    bounding_box_pcd.points = o3d.utility.Vector3dVector(bounding_box_2d_points)
+-    bounding_box_pcd.paint_uniform_color([0, 1, 0])  # Green for bounding box corners
+-    
+-    # Create a bounding box line set (connect corners)
+-    lines = [
+-        [0, 1], [1, 2], [2, 3], [3, 0]   # Edges of the rectangle
+-    ]
+-    
+-    bounding_box_lines = o3d.geometry.LineSet()
+-    bounding_box_lines.points = o3d.utility.Vector3dVector(bounding_box_2d_points)
+-    bounding_box_lines.lines = o3d.utility.Vector2iVector(lines)
+-    
+-    bounding_box_lines.paint_uniform_color([0, 1, 0])  # Green for bounding box edges
+-    
+-    # Visualize
+-    o3d.visualization.draw_geometries([inlier_cloud, outlier_cloud, bounding_box_pcd, bounding_box_lines])
+-
+-
+ def create_point_cloud(points, color=(255, 0, 0)):
+     """
+     Converts a list of (x, y, z) points into a PointCloud2 message.
+-- 
+2.38.1
+

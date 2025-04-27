@@ -1,0 +1,45 @@
+From cfcd03b3715b3730dbaef3b49786ccaed7e5488f Mon Sep 17 00:00:00 2001
+From: danielzhuang11 <danielzhuang11@hotmail.com>
+Date: Thu, 24 Apr 2025 11:15:00 -0500
+Subject: [PATCH 124/150] revert current yaml, fix accel/heading states
+
+---
+ GEMstack/knowledge/defaults/current.yaml | 4 ++--
+ GEMstack/onboard/interface/gem_gazebo.py | 6 ++++++
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/GEMstack/knowledge/defaults/current.yaml b/GEMstack/knowledge/defaults/current.yaml
+index 5c6331b2..c886288b 100644
+--- a/GEMstack/knowledge/defaults/current.yaml
++++ b/GEMstack/knowledge/defaults/current.yaml
+@@ -12,8 +12,8 @@ control:
+         brake_amount : 0.5
+         brake_speed : 2.0
+     pure_pursuit:
+-        lookahead: 4.0
+-        lookahead_scale: 1.0
++        lookahead: 2.0
++        lookahead_scale: 3.0
+         crosstrack_gain: 1.0
+         desired_speed: trajectory
+     longitudinal_control:
+diff --git a/GEMstack/onboard/interface/gem_gazebo.py b/GEMstack/onboard/interface/gem_gazebo.py
+index 23d32805..b78ea0e0 100644
+--- a/GEMstack/onboard/interface/gem_gazebo.py
++++ b/GEMstack/onboard/interface/gem_gazebo.py
+@@ -225,6 +225,12 @@ class GEMGazeboInterface(GEMInterface):
+         
+         # Get current speed
+         v = self.last_reading.speed
++
++
++        #update last reading
++        self.last_reading.accelerator_pedal_position = command.accelerator_pedal_position
++        self.last_reading.brake_pedal_position = command.brake_pedal_position
++        self.last_reading.steering_wheel_angle = command.steering_wheel_angle
+         
+         # Convert pedal to acceleration
+         accelerator_pedal_position = np.clip(command.accelerator_pedal_position, 0.0, 1.0)
+-- 
+2.38.1
+

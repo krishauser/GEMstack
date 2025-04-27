@@ -1,0 +1,31 @@
+From 7ad05fd7adbcfb44068baabe9c83ec48d68cca2e Mon Sep 17 00:00:00 2001
+From: Lukas Dumasius <80981746+lukasdumasius@users.noreply.github.com>
+Date: Mon, 17 Feb 2025 21:46:59 -0600
+Subject: [PATCH 041/150] Check len(0) ouster points pedestrian_detection.py
+
+---
+ GEMstack/onboard/perception/pedestrian_detection.py | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/pedestrian_detection.py b/GEMstack/onboard/perception/pedestrian_detection.py
+index 947bd125..54c7ce0f 100644
+--- a/GEMstack/onboard/perception/pedestrian_detection.py
++++ b/GEMstack/onboard/perception/pedestrian_detection.py
+@@ -318,10 +318,11 @@ class PedestrianDetector2D(Component):
+                 extracted_pts = filter_ground_points(extracted_pts, self.ground_threshold)
+                 extracted_pts = filter_depth_points(extracted_pts)
+                 extracted_pts_all.append(extracted_pts)
++	    else: extracted_pts_all.append(np.array(())
+         
+-        if len(extracted_pts_all) > 0 and len(track_result) > 0:
+-            self.update_object_states(track_result, extracted_pts_all)
+-            if self.debug: self.viz_object_states(cv_image, boxes, extracted_pts_all)
++        #if len(extracted_pts_all) > 0 and len(track_result) > 0:
++        self.update_object_states(track_result, extracted_pts_all)
++        if self.debug: self.viz_object_states(cv_image, boxes, extracted_pts_all)
+ 
+ 
+     def rate(self):
+-- 
+2.38.1
+

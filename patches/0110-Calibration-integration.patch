@@ -1,0 +1,331 @@
+From 62c18b8a8b3da17173a3b7b6084e7fea83a92568 Mon Sep 17 00:00:00 2001
+From: nvikramraj <nvikramraj1305@gmail.com>
+Date: Mon, 14 Apr 2025 10:43:40 -0500
+Subject: [PATCH 110/150] Calibration integration
+
+---
+ .../knowledge/calibration/gem_e2_gazebo.yaml  | 59 +++++++++++++++++
+ .../knowledge/calibration/gem_e4_gazebo.yaml  | 64 +++++++++++++++++++
+ GEMstack/knowledge/defaults/e2_gazebo.yaml    |  8 +--
+ GEMstack/knowledge/defaults/e4_gazebo.yaml    | 10 +--
+ GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml |  2 +-
+ GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml |  2 +-
+ .../onboard/perception/object_detection.py    |  7 +-
+ launch/gazebo_simulation.yaml                 | 44 +++++++------
+ 8 files changed, 164 insertions(+), 32 deletions(-)
+ create mode 100644 GEMstack/knowledge/calibration/gem_e2_gazebo.yaml
+ create mode 100644 GEMstack/knowledge/calibration/gem_e4_gazebo.yaml
+
+diff --git a/GEMstack/knowledge/calibration/gem_e2_gazebo.yaml b/GEMstack/knowledge/calibration/gem_e2_gazebo.yaml
+new file mode 100644
+index 00000000..33f78368
+--- /dev/null
++++ b/GEMstack/knowledge/calibration/gem_e2_gazebo.yaml
+@@ -0,0 +1,59 @@
++calibration_date: "2023-08-31"  # Date of calibration YYYY-MM-DD
++reference: rear_axle_center  # rear axle center
++rear_axle_height: 0.273      # height of rear axle center above flat ground
++gnss_location: [1.1,0.0,0.3] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/vehicle_drivers/gem_gnss_control/scripts/gem_gnss_tracker_stanley_rtk.py.  Note conflict with pure pursuit location?
++gnss_yaw: 0.0 # radians
++front_radar_location: [1.45,0,0.07] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/platform_launch/launch/white_e2/platform.launch
++top_lidar: !include "gem_e2_velodyne.yaml"
++front_camera: !include "gem_e2_zed.yaml"
++T_frontcamera_vehicle:
++- - 0.04979815921110274
++  - -0.02889308605338095
++  - 0.998341277156963
++  - 0.6874899022540225
++- - -0.9986898492450907
++  - 0.010343220052680617
++  - 0.05011489006575621
++  - -0.006750728511462573
++- - -0.011774038000135968
++  - -0.9995289850272167
++  - -0.02834016107658961
++  - -0.07694233627246522
++- - 0.0
++  - 0.0
++  - 0.0
++  - 1.0
++T_toplidar_frontcamera:
++- - 0.029096143490519977
++  - -0.9995463314295703
++  - -0.007781115579835407
++  - -0.045768971801312515
++- - -0.005777780139254174
++  - 0.007616104089319731
++  - -0.999954305063568
++  - -0.3868171492765085
++- - 0.9995599190096819
++  - 0.02913977151915098
++  - -0.005553559684576381
++  - -0.6975440651652165
++- - 0.0
++  - 0.0
++  - 0.0
++  - 1.0
++T_toplidar_vehicle:
++- - 0.9995177984237671
++  - -0.020904183387756348
++  - 0.022959932684898376
++  - 0.0
++- - 0.020975051447749138
++  - 0.9997758865356445
++  - -0.0028501423075795174
++  - 0.0
++- - -0.0228952094912529
++  - 0.003330353880301118
++  - 0.9997323155403137
++  - 0.33000001311302185
++- - 0.0
++  - 0.0
++  - 0.0
++  - 1.0
+diff --git a/GEMstack/knowledge/calibration/gem_e4_gazebo.yaml b/GEMstack/knowledge/calibration/gem_e4_gazebo.yaml
+new file mode 100644
+index 00000000..d6dfc318
+--- /dev/null
++++ b/GEMstack/knowledge/calibration/gem_e4_gazebo.yaml
+@@ -0,0 +1,64 @@
++date: '2025-02-25 22:31:02.057447'
++calibration_type: absolute_vehicle_calibration
++gnss_location:
++- 1.1
++- 0
++- 1.62
++gnss_yaw: 0.0
++rear_axle_height: 0.33
++reference: rear_axle_center
++vehicle: gem_e4
++top_lidar: !include "gem_e4_ouster.yaml"
++front_camera: !include "gem_e4_oak.yaml"
++gnss_reference_point: [40.114001, -88.228837]
++T_frontcamera_vehicle:
++- - 0.04979815921110274
++  - -0.02889308605338095
++  - 0.998341277156963
++  - 0.6874899022540225
++- - -0.9986898492450907
++  - 0.010343220052680617
++  - 0.05011489006575621
++  - -0.006750728511462573
++- - -0.011774038000135968
++  - -0.9995289850272167
++  - -0.02834016107658961
++  - -0.07694233627246522
++- - 0.0
++  - 0.0
++  - 0.0
++  - 1.0
++T_toplidar_frontcamera:
++- - 0.029096143490519977
++  - -0.9995463314295703
++  - -0.007781115579835407
++  - -0.045768971801312515
++- - -0.005777780139254174
++  - 0.007616104089319731
++  - -0.999954305063568
++  - -0.3868171492765085
++- - 0.9995599190096819
++  - 0.02913977151915098
++  - -0.005553559684576381
++  - -0.6975440651652165
++- - 0.0
++  - 0.0
++  - 0.0
++  - 1.0
++T_toplidar_vehicle:
++- - 0.9995177984237671
++  - -0.020904183387756348
++  - 0.022959932684898376
++  - 0.0
++- - 0.020975051447749138
++  - 0.9997758865356445
++  - -0.0028501423075795174
++  - 0.0
++- - -0.0228952094912529
++  - 0.003330353880301118
++  - 0.9997323155403137
++  - 0.33000001311302185
++- - 0.0
++  - 0.0
++  - 0.0
++  - 1.0
+\ No newline at end of file
+diff --git a/GEMstack/knowledge/defaults/e2_gazebo.yaml b/GEMstack/knowledge/defaults/e2_gazebo.yaml
+index aebc4c9d..4a8b55c1 100644
+--- a/GEMstack/knowledge/defaults/e2_gazebo.yaml
++++ b/GEMstack/knowledge/defaults/e2_gazebo.yaml
+@@ -12,14 +12,14 @@ control:
+         brake_amount : 0.5
+         brake_speed : 2.0
+     pure_pursuit:
+-        lookahead: 2.0
++        lookahead: 4.0
+         lookahead_scale: 3.0
+         crosstrack_gain: 1.0
+         desired_speed: trajectory
+     longitudinal_control:
+-        pid_p: 1.0
+-        pid_i: 0.1
+-        pid_d: 0.0
++        pid_p: 0.1
++        pid_i: 0.5
++        pid_d: 0.5
+ 
+ #configure the simulator, if using
+ simulator:
+diff --git a/GEMstack/knowledge/defaults/e4_gazebo.yaml b/GEMstack/knowledge/defaults/e4_gazebo.yaml
+index aed9fbec..96ac7d36 100644
+--- a/GEMstack/knowledge/defaults/e4_gazebo.yaml
++++ b/GEMstack/knowledge/defaults/e4_gazebo.yaml
+@@ -12,14 +12,14 @@ control:
+         brake_amount : 0.5
+         brake_speed : 2.0
+     pure_pursuit:
+-        lookahead: 2.0
+-        lookahead_scale: 3.0
++        lookahead: 4.0
++        lookahead_scale: 1.0
+         crosstrack_gain: 1.0
+         desired_speed: trajectory
+     longitudinal_control:
+-        pid_p: 1.0
+-        pid_i: 0.1
+-        pid_d: 0.0
++        pid_p: 0.1
++        pid_i: 0.5
++        pid_d: 0.5
+ 
+ #configure the simulator, if using
+ simulator:
+diff --git a/GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml b/GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml
+index bb5aaaa5..c82a8b0d 100644
+--- a/GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml
++++ b/GEMstack/knowledge/vehicle/gem_e2_gazebo.yaml
+@@ -9,5 +9,5 @@ geometry: !include gem_e2_geometry.yaml
+ dynamics: !include gem_e2_dynamics.yaml
+ limits: !include gem_e2_slow_limits.yaml
+ control_defaults: !include gem_e2_control_defaults.yaml
+-calibration: !include ../calibration/gem_e2.yaml
++calibration: !include ../calibration/gem_e2_gazebo.yaml
+ sensors: !include gem_e2_sensor_environment_gazebo.yaml
+diff --git a/GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml b/GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml
+index f0b71cad..750b41fb 100644
+--- a/GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml
++++ b/GEMstack/knowledge/vehicle/gem_e4_gazebo.yaml
+@@ -9,5 +9,5 @@ geometry: !include gem_e4_geometry.yaml
+ dynamics: !include gem_e4_dynamics.yaml
+ limits: !include gem_e2_slow_limits.yaml
+ control_defaults: !include gem_e2_control_defaults.yaml
+-calibration: !include ../calibration/gem_e4.yaml
++calibration: !include ../calibration/gem_e4_gazebo.yaml
+ sensors: !include gem_e4_sensor_environment_gazebo.yaml
+diff --git a/GEMstack/onboard/perception/object_detection.py b/GEMstack/onboard/perception/object_detection.py
+index bd4ca414..3cc2619a 100644
+--- a/GEMstack/onboard/perception/object_detection.py
++++ b/GEMstack/onboard/perception/object_detection.py
+@@ -85,19 +85,22 @@ class ObjectDetection(Component):
+ 
+         track_result = self.detector.track(source=image, persist=True, conf=self.confidence)
+ 
+-        
++        class_names = self.detector.names
+         label_text = "Object "
+         font = cv2.FONT_HERSHEY_SIMPLEX
+         font_scale = 0.5
+         font_color = (255, 255, 255)  # White text
+         outline_color = (0, 0, 0)  # Black outline
+         line_type = 2
+-        text_thickness = 2 # Text thickness
++        text_thickness = 1 # Text thickness
+         outline_thickness = 1  # Thickness of the text outline
+ 
+         boxes = track_result[0].boxes
+         for box in boxes:
+ 
++            
++            class_id = int(box.cls.item())
++            label_text = class_names[class_id]
+             xywh = box.xywh[0].tolist()
+             x, y, w, h = xywh
+             id = box.id.item()
+diff --git a/launch/gazebo_simulation.yaml b/launch/gazebo_simulation.yaml
+index 9cd5d94e..3364d0f4 100644
+--- a/launch/gazebo_simulation.yaml
++++ b/launch/gazebo_simulation.yaml
+@@ -10,19 +10,21 @@ recovery:
+             type: recovery.StopTrajectoryTracker
+             print: False
+ # Driving behavior for the GEM vehicle following a fixed route
++
++# Default settings
+ drive: 
+     perception:
+         state_estimation : GNSSStateEstimator
+-        agent_detection : object_detection.ObjectDetection
++        perception_normalization : StandardPerceptionNormalizer
++        
+     planning:
+-        # relations_estimation: pedestrian_yield_logic.PedestrianYielder
+-        # route_planning:
+-        #     type: StaticRoutePlanner
+-        #     args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
+-        # motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+-        # trajectory_tracking:
+-        #     type: pure_pursuit.PurePursuitTrajectoryTracker
+-        #     print: False
++        route_planning:
++            type: StaticRoutePlanner
++            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
++        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
++        trajectory_tracking:
++            type: pure_pursuit.PurePursuitTrajectoryTracker
++            print: False
+ log:
+     # Specify the top-level folder to save the log files.  Default is 'logs'
+     #folder : 'logs' 
+@@ -63,26 +65,30 @@ variants:
+         run:
+             mode: simulation
+             vehicle_interface:
+-                type: gem_gazebo.GEMDoubleIntegratorSimulationInterface
+-                args:
+-                    scene: !relative_path '../scenes/gazebo.yaml'
++                type: gem_gazebo.GEMGazeboInterface
++                # args:
++                #     scene: !relative_path '../scenes/gazebo.yaml'
+ 
+             drive: 
+                 perception:
+                     state_estimation : GNSSStateEstimator
++                    agent_detection : object_detection.ObjectDetection
+                     perception_normalization : StandardPerceptionNormalizer
+ 
+                 planning:
++                    # Adding your custom relation estimation
++                    # relations_estimation: pedestrian_yield_logic.PedestrianYielder
++                    # Fixed route with pure pursuit
+                     route_planning:
+-                        # type: StaticRoutePlanner
+-                        # args: [!relative_path '../GEMstack/knowledge/routes/gazebo.csv']
++                        type: StaticRoutePlanner
++                        args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] # Fixed path
+                     motion_planning:
+-                        # type: RouteToTrajectoryPlanner
+-                        # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
++                        type: RouteToTrajectoryPlanner
++                        args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+                     trajectory_tracking:
+-                        # type: pure_pursuit.PurePursuitTrajectoryTracker
+-                        # args: {desired_speed: 2.5}  #approximately 5mph
+-                        # print: False
++                        type: pure_pursuit.PurePursuitTrajectoryTracker
++                        args: {desired_speed: 2.5}  #approximately 5mph
++                        print: True
+             # visualization: !include "klampt_visualization.yaml"
+             # visualization: !include "mpl_visualization.yaml"
+     log_ros:
+-- 
+2.38.1
+

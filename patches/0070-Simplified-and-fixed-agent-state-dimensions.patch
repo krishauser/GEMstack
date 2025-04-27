@@ -1,0 +1,67 @@
+From 410e13e6120c0ec7a2a853310f50a048d294f73a Mon Sep 17 00:00:00 2001
+From: LucasEby <lucaseby@outlook.com>
+Date: Sun, 23 Feb 2025 12:02:44 -0500
+Subject: [PATCH 070/150] Simplified and fixed agent state dimensions
+
+---
+ .../onboard/perception/pedestrian_detection.py | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/pedestrian_detection.py b/GEMstack/onboard/perception/pedestrian_detection.py
+index f8d14fde..1f6c1eb9 100644
+--- a/GEMstack/onboard/perception/pedestrian_detection.py
++++ b/GEMstack/onboard/perception/pedestrian_detection.py
+@@ -137,6 +137,7 @@ class PedestrianDetector2D(Component):
+             # self.start_pose_abs = vehicle.pose # Store first pose which is start frame
+             # self.start_pose_abs.to_frame(frame=ObjectFrameEnum.GLOBAL, current_pose=)
+         # self.current_vehicle_pose_sf = vehicle.pose # Vehicle pose in start frame
++        self.current_agents.clear()
+         return self.current_agents
+ 
+     # TODO: Improve Algo Knn, ransac, etc.
+@@ -283,8 +284,6 @@ class PedestrianDetector2D(Component):
+     # TODO: Moving Average across last N iterations pos/vel? Less spurious vals
+     # TODO Fix velocity calculation to calculate in ObjectFrameEnum.START
+     def find_vels_and_ids(self, agents: List[AgentState]):
+-        self.current_agents.clear()
+-
+         # Nothing was scanned, erase current (for current output) and previous list (for next time through because nothing was scanned)
+         if (len(agents) == 0):
+             self.current_agents = {}
+@@ -339,14 +338,9 @@ class PedestrianDetector2D(Component):
+         # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
+         # TODO: confirm (z -> l, x -> w, y -> h)
+ 
+-        # Calculate corners of obj_center and obj_dim pairing
+-        x1_min, x1_max = curr_agent.pose.x - curr_agent.dimensions[0] / 2.0, curr_agent.pose.x + curr_agent.dimensions[0] / 2.0
+-        y1_min, y1_max = curr_agent.pose.y, curr_agent.pose.y + curr_agent.dimensions[1] # AGENT STATE CALCULATION
+-        z1_min, z1_max = curr_agent.pose.z - curr_agent.dimensions[2] / 2.0, curr_agent.pose.z + curr_agent.dimensions[2] / 2.0
+-
+-        x2_min, x2_max = prev_agent.pose.x - prev_agent.dimensions[0] / 2.0, prev_agent.pose.x + prev_agent.dimensions[0] / 2.0
+-        y2_min, y2_max = prev_agent.pose.y, prev_agent.pose.y + prev_agent.dimensions[1] # AGENT STATE CALCULATION
+-        z2_min, z2_max = prev_agent.pose.z - prev_agent.dimensions[2] / 2.0, prev_agent.pose.z + prev_agent.dimensions[2] / 2.0
++        # Extract the corners of the agents:
++        (x1_min, x1_max), (y1_min, y1_max), (z1_min, z1_max) = curr_agent.bounds() # Bounds of current agent
++        (x2_min, x2_max), (y2_min, y2_max), (z2_min, z2_max) = prev_agent.bounds() # Bounds of previous agent
+ 
+         # True if they overlap, false if not
+         return (
+@@ -369,13 +363,13 @@ class PedestrianDetector2D(Component):
+             # Create agent in current frame:
+             agents.append(AgentState(
+                             track_id=0, # Temporary
+-                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
++                            pose=ObjectPose(t=(self.curr_time - self.t_start).total_seconds(), x=obj_centers[idx][0], y=obj_centers[idx][1], z=obj_centers[idx][2] - obj_dims[idx][2], yaw=0,pitch=0,roll=0,frame=ObjectFrameEnum.CURRENT),
+                             # Beware: AgentState(PhysicalObject) builds bbox from 
+                             # dims [-l/2,l/2] x [-w/2,w/2] x [0,h], not
+                             # [-l/2,l/2] x [-w/2,w/2] x [-h/2,h/2]
+                             # (l, w, h)
+                             # TODO: confirm (z -> l, x -> w, y -> h)
+-                            dimensions=(obj_dims[idx][0], obj_centers[idx][1] + obj_dims[idx][1], obj_dims[idx][2]),  
++                            dimensions=(obj_dims[idx][0], obj_dims[idx][1], obj_centers[idx][2] + obj_dims[idx][2]),  
+                             outline=None,
+                             type=AgentEnum.PEDESTRIAN,
+                             activity=AgentActivityEnum.UNDETERMINED, # Temporary
+-- 
+2.38.1
+

@@ -1,0 +1,27 @@
+From ca9ca3e47c60fa556b00b12932a8a573bde27c23 Mon Sep 17 00:00:00 2001
+From: RuimingShen <srm12043729@gmail.com>
+Date: Wed, 12 Feb 2025 18:47:45 -0800
+Subject: [PATCH 015/150] fixSDK
+
+---
+ setup/Dockerfile.cuda11.8 | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/setup/Dockerfile.cuda11.8 b/setup/Dockerfile.cuda11.8
+index 6e5b3750..e931083c 100644
+--- a/setup/Dockerfile.cuda11.8
++++ b/setup/Dockerfile.cuda11.8
+@@ -18,8 +18,8 @@ RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime \
+     && apt-get update && apt-get install -y tzdata \
+     && rm -rf /var/lib/apt/lists/*
+ 
+-# install Zed SDK
+-RUN wget https://download.stereolabs.com/zedsdk/4.1/cu118/ubuntu20 -O zed_sdk.run
++# install Zed SDK. If you want to install a different version, change to this https://download.stereolabs.com/zedsdk/4.2/cu12/ubuntu20
++RUN wget https://stereolabs.sfo2.cdn.digitaloceanspaces.com/zedsdk/4.2/ZED_SDK_Ubuntu20_cuda12.1_v4.2.4.zstd.run -O zed_sdk.run
+ RUN chmod +x zed_sdk.run
+ RUN ./zed_sdk.run -- silent
+ 
+-- 
+2.38.1
+

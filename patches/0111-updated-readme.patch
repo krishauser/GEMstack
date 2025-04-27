@@ -1,0 +1,25 @@
+From 6d6dffbd9f25616870978ad8da422a00782a1967 Mon Sep 17 00:00:00 2001
+From: nvikramraj <nvikramraj1305@gmail.com>
+Date: Tue, 15 Apr 2025 09:39:19 -0500
+Subject: [PATCH 111/150] updated readme
+
+---
+ launch/README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/launch/README.md b/launch/README.md
+index c00921e0..90fa79e6 100644
+--- a/launch/README.md
++++ b/launch/README.md
+@@ -10,7 +10,7 @@ Head over [here](https://github.com/harishkumarbalaji/POLARIS_GEM_Simulator/tree
+ Install dependency packages
+ 
+ ```
+-sudo apt-get install -y ros-noetic-ros-controllers ros-noetic-gazebo-ros-control ros-noetic-ackermann-msgs
++sudo apt-get install -y ros-noetic-ackermann-msgs
+ 
+ ```
+ 
+-- 
+2.38.1
+

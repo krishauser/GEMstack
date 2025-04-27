@@ -1,0 +1,25 @@
+From a5cb7e4a9767bf07d769a416fe14b30473777c84 Mon Sep 17 00:00:00 2001
+From: Praveen Kalva <praveenkalva@icloud.com>
+Date: Tue, 15 Apr 2025 23:55:44 +0000
+Subject: [PATCH 116/150] removed type check
+
+---
+ GEMstack/onboard/interface/gem_gazebo.py | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/GEMstack/onboard/interface/gem_gazebo.py b/GEMstack/onboard/interface/gem_gazebo.py
+index 7b45e065..a3c6f52c 100644
+--- a/GEMstack/onboard/interface/gem_gazebo.py
++++ b/GEMstack/onboard/interface/gem_gazebo.py
+@@ -127,8 +127,6 @@ class GEMGazeboInterface(GEMInterface):
+     def subscribe_sensor(self, name, callback, type=None):
+         if name == 'gnss':
+             topic = self.ros_sensor_topics['gps']
+-            if type is not None and (type is not GNSSReading and type is not NavSatFix):
+-                raise ValueError("Gazebo GEM e2 only supports NavSatFix/GNSSReading for GNSS")
+             # Fuse IMU orientation with GNSS position
+             def gnss_callback_wrapper(gps_msg: NavSatFix):
+                 if self.imu_data is None:
+-- 
+2.38.1
+

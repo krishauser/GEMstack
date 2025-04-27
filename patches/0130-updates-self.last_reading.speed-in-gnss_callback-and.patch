@@ -1,0 +1,165 @@
+From ac5f11ac2cedca4848023aef88f29dfc9b1b7af2 Mon Sep 17 00:00:00 2001
+From: pravshot <praveenkalva@icloud.com>
+Date: Fri, 2 May 2025 17:07:53 -0500
+Subject: [PATCH 130/150] updates self.last_reading.speed in gnss_callback and
+ removed unused imu condition in subscribe_sensor
+
+---
+ GEMstack/onboard/interface/gem_gazebo.py | 50 +++++++++++-------------
+ 1 file changed, 22 insertions(+), 28 deletions(-)
+
+diff --git a/GEMstack/onboard/interface/gem_gazebo.py b/GEMstack/onboard/interface/gem_gazebo.py
+index 3f7f7365..11d97736 100644
+--- a/GEMstack/onboard/interface/gem_gazebo.py
++++ b/GEMstack/onboard/interface/gem_gazebo.py
+@@ -1,7 +1,7 @@
+ from .gem import *
+ from ...utils import settings
+ import math
+-import time 
++import time
+ 
+ # ROS Headers
+ import rospy
+@@ -53,9 +53,9 @@ class GEMGazeboInterface(GEMInterface):
+         self.last_reading.wiper_level = 0
+         self.last_reading.headlights_on = False
+ 
+-      
+ 
+-        
++
++
+ 
+         # GNSS data subscriber
+         self.gnss_sub = None
+@@ -88,12 +88,9 @@ class GEMGazeboInterface(GEMInterface):
+         # Return Gazebo simulation time
+         return self.sim_time.to_sec()
+ 
+-    def gnss_vel_callback(self, msg):
+-        self.last_reading.speed = np.linalg.norm([msg.vector.x, msg.vector.y] )
+-
+     def get_reading(self) -> GEMVehicleReading:
+         return self.last_reading
+-    
++
+ 
+     def subscribe_sensor(self, name, callback, type=None):
+         if name == 'gnss':
+@@ -111,7 +108,7 @@ class GEMGazeboInterface(GEMInterface):
+                 # Convert IMU's yaw to heading (CW from North), then to navigation yaw (CCW from East)
+                 # This handles the coordinate frame differences between Gazebo and the navigation frame
+                 # Negate yaw to convert from ROS to heading
+-                heading = transforms.yaw_to_heading(-yaw - np.pi/2, degrees=False) 
++                heading = transforms.yaw_to_heading(-yaw - np.pi/2, degrees=False)
+                 navigation_yaw = transforms.heading_to_yaw(
+                     heading, degrees=False)
+ 
+@@ -127,10 +124,13 @@ class GEMGazeboInterface(GEMInterface):
+                     yaw=navigation_yaw
+                 )
+ 
++                # Calculate speed from GNSS
++                self.last_reading.speed = np.linalg.norm([gnss_msg.ve, gnss_msg.vn])
++
+                 # Create GNSS reading with fused data
+                 reading = GNSSReading(
+                     pose=pose,
+-                    speed=np.linalg.norm([gnss_msg.ve, gnss_msg.vn]),
++                    speed=self.last_reading.speed,
+                     status='error' if gnss_msg.error else 'ok'
+                 )
+                 # Added debug
+@@ -158,12 +158,6 @@ class GEMGazeboInterface(GEMInterface):
+                     callback(points)
+                 self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback_with_numpy)
+ 
+-        elif name == 'imu':
+-            topic = self.ros_sensor_topics[name]
+-            if type is not None and type is not Imu:
+-                raise ValueError("GEMGazeboInterface only supports Imu for IMU data")
+-            self.imu_sub = rospy.Subscriber(topic, Imu, callback)
+-
+         elif name == 'front_camera':
+             topic = self.ros_sensor_topics[name]
+             if type is not None and (type is not Image and type is not cv2.Mat):
+@@ -200,7 +194,7 @@ class GEMGazeboInterface(GEMInterface):
+             # Skip command, similar to hardware interface
+             return
+         self.last_command_time = t
+-        
++
+         # Get current speed
+         v = self.last_reading.speed
+ 
+@@ -209,36 +203,36 @@ class GEMGazeboInterface(GEMInterface):
+         self.last_reading.accelerator_pedal_position = command.accelerator_pedal_position
+         self.last_reading.brake_pedal_position = command.brake_pedal_position
+         self.last_reading.steering_wheel_angle = command.steering_wheel_angle
+-        
++
+         # Convert pedal to acceleration
+         accelerator_pedal_position = np.clip(command.accelerator_pedal_position, 0.0, 1.0)
+         brake_pedal_position = np.clip(command.brake_pedal_position, 0.0, 1.0)
+-        
++
+         # Zero out accelerator if brake is active (just like hardware interface)
+         if brake_pedal_position > 0.0:
+             accelerator_pedal_position = 0.0
+-            
++
+         # Calculate acceleration from pedal positions
+         acceleration = pedal_positions_to_acceleration(accelerator_pedal_position, brake_pedal_position, v, 0, 1)
+-        
++
+         # Apply reasonable limits to acceleration
+         max_accel = settings.get('vehicle.limits.max_acceleration', 1.0)
+         max_decel = settings.get('vehicle.limits.max_deceleration', -2.0)
+         acceleration = np.clip(acceleration, max_decel, max_accel)
+-        
++
+         # Convert wheel angle to steering angle (front wheel angle)
+         phides = steer2front(command.steering_wheel_angle)
+-        
++
+         # Apply steering angle limits
+         min_wheel_angle = settings.get('vehicle.geometry.min_wheel_angle', -0.6)
+         max_wheel_angle = settings.get('vehicle.geometry.max_wheel_angle', 0.6)
+         phides = np.clip(phides, min_wheel_angle, max_wheel_angle)
+-        
++
+         # Calculate target speed based on acceleration
+         # Don't use infinite speed, instead calculate a reasonable target speed
+         current_speed = v
+         target_speed = current_speed
+-        
++
+         if acceleration > 0:
+             # Accelerating - set target speed to current speed plus some increment
+             # This is more realistic than infinite speed
+@@ -248,16 +242,16 @@ class GEMGazeboInterface(GEMInterface):
+             # Braking - set target speed to zero if deceleration is significant
+             if brake_pedal_position > 0.1:
+                 target_speed = 0.0
+-        
++
+         # Create and publish drive message
+         msg = AckermannDrive()
+         msg.acceleration = acceleration
+         msg.speed = target_speed
+         msg.steering_angle = phides
+         msg.steering_angle_velocity = command.steering_wheel_speed  # Respect steering velocity limit
+-        
++
+         # Debug output
+         print(f"[ACKERMANN] Speed: {msg.speed:.2f}, Accel: {msg.acceleration:.2f}, Steer: {msg.steering_angle:.2f}")
+-        
++
+         self.ackermann_pub.publish(msg)
+-        self.last_command = command
+\ No newline at end of file
++        self.last_command = command
+-- 
+2.38.1
+

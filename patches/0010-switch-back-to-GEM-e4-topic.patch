@@ -1,0 +1,44 @@
+From 8aed8c7e0e04085f6bef6895d003ac728ddff73b Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Fri, 7 Feb 2025 23:47:30 -0600
+Subject: [PATCH 010/150] switch back to GEM e4 topic
+
+---
+ GEMstack/onboard/perception/pedestrian_detection.py | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/pedestrian_detection.py b/GEMstack/onboard/perception/pedestrian_detection.py
+index 8ae21444..936eb4e7 100644
+--- a/GEMstack/onboard/perception/pedestrian_detection.py
++++ b/GEMstack/onboard/perception/pedestrian_detection.py
+@@ -44,15 +44,15 @@ class PedestrianDetector2D(Component):
+ 		self.bridge = CvBridge()
+ 
+ 		# Subscribe to webcam
+-		rospy.Subscriber('/webcam', Image, self.image_callback)
++		# rospy.Subscriber('/webcam', Image, self.image_callback)
+ 
+ 		# Subscribe to GEM4 front camera
+-		# rospy.Subscriber('/oak/rgb/image_raw', Image, self.image_callback)
++		rospy.Subscriber('/oak/rgb/image_raw', Image, self.image_callback)
+ 
+ 		# Publish visualization
+ 		self.vis = rospy.Publisher("pedestrain_detection/annotate", Image, queue_size=1)
+ 
+-		# Publish AgentState data TODO: Need a custom data type for AgentState msg
++		# Publish AgentState data TODO: Need to implement a custom data type for AgentState msg
+ 		# self.agent_state = rospy.Publisher("pedestrain_detection/agent_state", AgentState, queue_size=1)
+          
+ 	def update(self, vehicle: VehicleState=None) -> Dict[str,AgentState]:
+@@ -93,7 +93,7 @@ class PedestrianDetector2D(Component):
+ 		agent_state = self.update()
+ 		print(f"agent_state: {agent_state}")
+ 
+-		# Publish AgentState object TODO: Need a custom data type for AgentState msg
++		# Publish AgentState object TODO: Need to implement a custom data type for AgentState msg
+ 		# self.agent_state.publish(agent_state)
+ 
+         # Add annotated visualization
+-- 
+2.38.1
+

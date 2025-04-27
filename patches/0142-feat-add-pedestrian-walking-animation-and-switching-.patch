@@ -1,0 +1,191 @@
+From fd738597d33ff08ee94c444ba2684ee5296365e4 Mon Sep 17 00:00:00 2001
+From: Tianshun Gao <tgao13@illinois.edu>
+Date: Wed, 2 Apr 2025 05:53:28 -0700
+Subject: [PATCH 142/150] (feat): add pedestrian walking animation and
+ switching cars for control
+
+---
+ .../sr_viz/threeD/components/Human.js         | 35 ++++++---
+ .../threeD/components/RoadVehicleViz.vue      | 73 ++++++++++++++++---
+ 2 files changed, 87 insertions(+), 21 deletions(-)
+
+diff --git a/GEMstack/onboard/visualization/sr_viz/threeD/components/Human.js b/GEMstack/onboard/visualization/sr_viz/threeD/components/Human.js
+index d7a31a7b..be4455cd 100644
+--- a/GEMstack/onboard/visualization/sr_viz/threeD/components/Human.js
++++ b/GEMstack/onboard/visualization/sr_viz/threeD/components/Human.js
+@@ -28,20 +28,37 @@ export default class Human {
+ 
+         const armGeometry = new THREE.CylinderGeometry(HUMAN_ARM_LENGTH / 6, HUMAN_ARM_LENGTH / 6, HUMAN_ARM_LENGTH);
+         const armMaterial = new THREE.MeshStandardMaterial({ color });
++
++        this.leftShoulderPivot = new THREE.Group();
++        this.leftShoulderPivot.position.set(
++            (HUMAN_BODY_LENGTH / 1.2) / 2 + HUMAN_ARM_LENGTH / 6,
++            HUMAN_LEG_LENGTH + HUMAN_BODY_LENGTH - HUMAN_ARM_LENGTH / 1.7,
++            0
++        );
++        this.group.add(this.leftShoulderPivot);
++
+         this.leftArm = new THREE.Mesh(armGeometry, armMaterial);
++        // this.leftArm.position.set(0, -HUMAN_ARM_LENGTH / 2, 0);
++        this.leftShoulderPivot.add(this.leftArm);
++
++        this.rightShoulderPivot = new THREE.Group();
++        this.rightShoulderPivot.position.set(
++            -(HUMAN_BODY_LENGTH / 1.2) / 2 - HUMAN_ARM_LENGTH / 6,
++            HUMAN_LEG_LENGTH + HUMAN_BODY_LENGTH - HUMAN_ARM_LENGTH / 1.7,
++            0
++        );
++        this.group.add(this.rightShoulderPivot);
++
+         this.rightArm = new THREE.Mesh(armGeometry, armMaterial);
+-        const armX = (HUMAN_BODY_LENGTH / 1.2) / 2 + HUMAN_ARM_LENGTH / 6;
+-        const armY = HUMAN_LEG_LENGTH + HUMAN_BODY_LENGTH - HUMAN_ARM_LENGTH / 1.7;
+-        this.leftArm.position.set(armX, armY, 0);
+-        this.rightArm.position.set(-armX, armY, 0);
+-        this.group.add(this.leftArm, this.rightArm);
++        // this.rightArm.position.set(0, -HUMAN_ARM_LENGTH / 2, 0);
++        this.rightShoulderPivot.add(this.rightArm);
+ 
+         const legGeometry = new THREE.CylinderGeometry(HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH);
+         const legMaterial = new THREE.MeshStandardMaterial({ color: HUMAN_LEG_COLOR });
+         this.leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+         this.rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+-        this.leftLeg.position.set(-0.2, HUMAN_LEG_LENGTH / 2, 0);
+-        this.rightLeg.position.set(0.2, HUMAN_LEG_LENGTH / 2, 0);
++        this.leftLeg.position.set(-HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH / 2, 0);
++        this.rightLeg.position.set(HUMAN_LEG_LENGTH / 6, HUMAN_LEG_LENGTH / 2, 0);
+         this.group.add(this.leftLeg, this.rightLeg);
+ 
+         this.group.position.set(position.x, position.y, position.z);
+@@ -55,8 +72,8 @@ export default class Human {
+ 
+         const swingAmount = Math.PI / 6;
+ 
+-        this.leftArm.rotation.x = Math.sin(this.walkingPhase) * swingAmount;
+-        this.rightArm.rotation.x = -Math.sin(this.walkingPhase) * swingAmount;
++        this.leftShoulderPivot.rotation.x = Math.sin(this.walkingPhase) * swingAmount;
++        this.rightShoulderPivot.rotation.x = -Math.sin(this.walkingPhase) * swingAmount;
+ 
+         this.leftLeg.rotation.x = -Math.sin(this.walkingPhase) * swingAmount;
+         this.rightLeg.rotation.x = Math.sin(this.walkingPhase) * swingAmount;
+diff --git a/GEMstack/onboard/visualization/sr_viz/threeD/components/RoadVehicleViz.vue b/GEMstack/onboard/visualization/sr_viz/threeD/components/RoadVehicleViz.vue
+index 54ce1099..805f9a75 100644
+--- a/GEMstack/onboard/visualization/sr_viz/threeD/components/RoadVehicleViz.vue
++++ b/GEMstack/onboard/visualization/sr_viz/threeD/components/RoadVehicleViz.vue
+@@ -13,6 +13,7 @@ import * as THREE from "three";
+ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+ import { Car, CAR_WIDTH, CAR_HEIGHT, CAR_LENGTH } from "@/components/Car.js";
+ import TrafficLight from "@/components/TrafficLight.js";
++import Human from "@/components/Human.js";
+ import {
+     CAR_MODEL_PATH,
+     TRAFFIC_LIGHT_MODEL_PATH,
+@@ -23,8 +24,12 @@ const camera = ref(null);
+ const cameraMode = ref("free");
+ let scene, renderer, controls;
+ 
+-let car, trafficLight1, roadGeometry, roadMaterial;
++let car, roadGeometry, roadMaterial;
+ let lastTime = performance.now();
++let cars = [];
++let humans = [];
++let trafficLights = [];
++let carIdx = 0;
+ 
+ const keys = { forward: false, backward: false, left: false, right: false };
+ 
+@@ -34,28 +39,69 @@ onMounted(() => {
+     window.addEventListener("keypress", handleKeyPress);
+ 
+     initScene();
+-    car = new Car(CAR_MODEL_PATH, { x: 0, y: 0, z: 0 }, loadCallBack);
++    car = createCar(0, 0, 0);
++    for (let i = 0; i < 4; i++) {
++        const offset = (i + 1) * 10;
++        createCar(
++            (i % 2 === 0 ? -1 : 1) * (Math.random() * 5 + offset),
++            0,
++            offset
++        );
++    }
++    createTrafficLight(0, 0, 5);
++    createHuman(-3, 0, 4);
++    createHuman(2, 0, 6);
++    animate();
++});
+ 
+-    trafficLight1 = new TrafficLight(
++function createCar(x, y, z) {
++    const newCar = new Car(CAR_MODEL_PATH, { x: x, y: y, z: z }, loadCallBack);
++    cars.push(newCar);
++    return newCar;
++}
++
++function createTrafficLight(x, y, z) {
++    const newTrafficLight = new TrafficLight(
+         TRAFFIC_LIGHT_MODEL_PATH,
+-        { x: 0, y: 0, z: 5 },
++        { x: x, y: y, z: z },
+         loadCallBack
+     );
++    trafficLights.push(newTrafficLight);
++    return newTrafficLight;
++}
+ 
+-    animate();
+-});
++function createHuman(x, y, z) {
++    const color = Math.random() * 0xffffff;
++    const newHuman = new Human(color, { x: x, y: y, z: z });
++    scene.add(newHuman.group);
++    humans.push(newHuman);
++    return newHuman;
++}
+ 
+ function loadCallBack(object) {
+     scene.add(object.group);
+ }
+ 
+ function handleKeyPress(event) {
+-    if (event.key === "c" || event.key === "C") {
+-        if (cameraMode.value === "free") {
+-            cameraMode.value = "follow";
+-        } else {
+-            cameraMode.value = "free";
+-        }
++    switch (event.key) {
++        case "c":
++        case "C":
++            if (cameraMode.value === "free") {
++                cameraMode.value = "follow";
++            } else {
++                cameraMode.value = "free";
++            }
++            break;
++        case "q":
++            carIdx = (carIdx - 1 + cars.length) % cars.length;
++            car = cars[carIdx];
++            break;
++        case "e":
++            carIdx = (carIdx + 1) % cars.length;
++            car = cars[carIdx];
++            break;
++        default:
++            break;
+     }
+ }
+ 
+@@ -191,6 +237,9 @@ function animate() {
+     if (car) {
+         car.update(keys, dt);
+     }
++    // for (const h of humans) {
++    //     h.walk();
++    // }
+     updateCamera();
+     controls.update();
+     renderer.render(scene, camera.value);
+-- 
+2.38.1
+

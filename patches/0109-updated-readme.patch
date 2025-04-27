@@ -1,0 +1,25 @@
+From 65df967f7b1f96f0979822a4a371a7f7b71d3306 Mon Sep 17 00:00:00 2001
+From: nvikramraj <nvikramraj1305@gmail.com>
+Date: Tue, 8 Apr 2025 13:27:41 -0500
+Subject: [PATCH 109/150] updated readme
+
+---
+ launch/README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/launch/README.md b/launch/README.md
+index 9b1f21ce..c00921e0 100644
+--- a/launch/README.md
++++ b/launch/README.md
+@@ -5,7 +5,7 @@ Contains launch scripts for use in the standard executor, e.g., `python main.py
+ 
+ ## Gazebo Simulation Setup
+ 
+-Head over here to setup gazebo docker container to run the simulation
++Head over [here](https://github.com/harishkumarbalaji/POLARIS_GEM_Simulator/tree/main) to setup gazebo docker container to run the simulation
+ 
+ Install dependency packages
+ 
+-- 
+2.38.1
+

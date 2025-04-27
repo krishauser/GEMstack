@@ -1,0 +1,24 @@
+From d3c9e4c1a4f76217c3c1971690c6cc9eb7c9907b Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Sat, 15 Feb 2025 02:19:43 -0600
+Subject: [PATCH 028/150] update comments
+
+---
+ GEMstack/onboard/perception/fusion.py | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/GEMstack/onboard/perception/fusion.py b/GEMstack/onboard/perception/fusion.py
+index 6bc0ab40..a7cd2171 100644
+--- a/GEMstack/onboard/perception/fusion.py
++++ b/GEMstack/onboard/perception/fusion.py
+@@ -40,6 +40,7 @@ class Fusion3D():
+ 
+ 
+     def fusion_callback(self, rgb_image_msg: Image, lidar_pc2_msg: PointCloud2):
++        # Convert to cv2 image and run detector
+         cv_image = self.bridge.imgmsg_to_cv2(rgb_image_msg, "bgr8") 
+         track_result = self.detector.track(source=cv_image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
+ 
+-- 
+2.38.1
+

@@ -1,0 +1,78 @@
+From 1355d5faa0002cbe44164bc12c62ed5701409808 Mon Sep 17 00:00:00 2001
+From: KenC1014 <kenken4016@gmail.com>
+Date: Fri, 14 Feb 2025 21:06:27 -0600
+Subject: [PATCH 020/150] extract clouds in 2d
+
+---
+ GEMstack/onboard/perception/fusion.py | 41 +++++++++++++++++++--------
+ 1 file changed, 29 insertions(+), 12 deletions(-)
+
+diff --git a/GEMstack/onboard/perception/fusion.py b/GEMstack/onboard/perception/fusion.py
+index d8cd1a41..d6bca214 100644
+--- a/GEMstack/onboard/perception/fusion.py
++++ b/GEMstack/onboard/perception/fusion.py
+@@ -42,32 +42,49 @@ class Fusion3D():
+         image = self.bridge.imgmsg_to_cv2(image, "bgr8") 
+         track_result = self.detector.track(source=image, classes=self.classes_to_detect, persist=True, conf=self.confidence)
+ 
++        # Convert 1D PointCloud2 data to x, y, z coords
++        lidar_points = convert_pointcloud2_to_xyz(lidar_pc2_msg)
++    
++        # Transform LiDAR points into the camera coordinate frame.
++        lidar_in_camera = transform_lidar_points(lidar_points, self.R, self.t)
++    
++        # Project the transformed points into the image plane.
++        projected_pts = project_points(lidar_in_camera, self.K)
++        
++        # Process bboxes
+         self.last_person_boxes = []
+         boxes = track_result[0].boxes
+ 
+         # Unpacking box dimentions detected into x,y,w,h
++        all_extracted_pts = []
+         for box in boxes:
+             xywh = box.xywh[0].tolist()
+             self.last_person_boxes.append(xywh)
+ 
++            # Extracting projected pts
++            x, y, w, h = xywh
++            left_bound = int(x - w / 2)
++            right_bound = int(x + w / 2)
++            top_bound = int(y - h / 2)
++            bottom_bound = int(y + h / 2)
++
++            if len(projected_pts) > 0:
++                pts = np.array(projected_pts)
++                extracted_pts = pts[(pts[:, 0] > left_bound) &
++                                    (pts[:, 0] < right_bound) &
++                                    (pts[:, 1] > top_bound) &
++                                    (pts[:, 1] < bottom_bound)
++                                    ]
++                
++                all_extracted_pts = all_extracted_pts + list(extracted_pts)
++            
+             # Used for visualization
+             if(self.visualization):
+                 image = vis_2d_bbox(image, xywh, box)
+-
+-        # Convert 1D PointCloud2 data to x, y, z coords
+-        lidar_points = convert_pointcloud2_to_xyz(lidar_pc2_msg)
+-    
+-        # Transform LiDAR points into the camera coordinate frame.
+-        lidar_in_camera = transform_lidar_points(lidar_points, self.R, self.t)
+-    
+-        # Project the transformed points into the image plane.
+-        projected_pts = project_points(lidar_in_camera, self.K)
+         
+         # Draw projected LiDAR points on the image.
+-        for pt in projected_pts:
++        for pt in all_extracted_pts:
+             cv2.circle(image, pt, 2, (0, 0, 255), -1)
+-
+-        # visualize_point_cloud(p_img_cloud)
+         
+         # Used for visualization
+         if(self.visualization):
+-- 
+2.38.1
+

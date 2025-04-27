@@ -1,0 +1,25 @@
+From 1e9c5063f8ead768c9349d32fa1ab68afb199766 Mon Sep 17 00:00:00 2001
+From: danielzhuang11 <danielzhuang11@hotmail.com>
+Date: Mon, 28 Apr 2025 13:23:18 -0500
+Subject: [PATCH 127/150] flipped lat and long
+
+---
+ GEMstack/onboard/interface/gem_gazebo.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/GEMstack/onboard/interface/gem_gazebo.py b/GEMstack/onboard/interface/gem_gazebo.py
+index b78ea0e0..57533413 100644
+--- a/GEMstack/onboard/interface/gem_gazebo.py
++++ b/GEMstack/onboard/interface/gem_gazebo.py
+@@ -133,7 +133,7 @@ class GEMGazeboInterface(GEMInterface):
+                 # Convert IMU's yaw to heading (CW from North), then to navigation yaw (CCW from East)
+                 # This handles the coordinate frame differences between Gazebo and the navigation frame
+                 # Negate yaw to convert from ROS to heading
+-                heading = transforms.yaw_to_heading(-yaw, degrees=False)
++                heading = transforms.yaw_to_heading(-yaw - np.pi/2, degrees=False) 
+                 navigation_yaw = transforms.heading_to_yaw(
+                     heading, degrees=False)
+ 
+-- 
+2.38.1
+
