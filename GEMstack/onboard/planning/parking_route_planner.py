@@ -9,7 +9,7 @@ from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCar
 from ...mathutils.dynamics import IntegratorControlSpace
 from ...mathutils import collisions
 from .astar import AStar
-import reed_shepp
+from . import reed_shepp
 
 
 def generate_action_set():

@@ -292,7 +292,7 @@ class ConeDetector3D(Component):
         self.undistort_map2 = None
 
     def rate(self) -> float:
-        return 10.0
+        return 4.0
 
     def state_inputs(self) -> list:
         return ['vehicle']
@@ -304,9 +304,9 @@ class ConeDetector3D(Component):
         self.rgb_sub = Subscriber('/camera_fr/arena_camera_node/image_raw', Image)
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub],
-                                                queue_size=10, slop=0.1)
+                                                queue_size=2000, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
-        self.detector = YOLO('GEMstack/knowledge/detection/cone.pt')
+        self.detector = YOLO('./GEMstack/knowledge/detection/cone.pt')
         self.detector.to('cuda')
 
         if self.camera_front:
@@ -355,7 +355,8 @@ class ConeDetector3D(Component):
         step2 = time.time()
         self.latest_lidar = pc2_to_numpy(lidar_msg, want_rgb=False)
         step3 = time.time()
-        # print('image callback: ', step2 - step1, 'lidar callback ', step3 - step2)
+
+        print('$$$$$$$$$$$$$$$$$$$$$$ \n image callback: ', step2 - step1, 'lidar callback ', step3 - step2)
 
     def undistort_image(self, image, K, D):
         h, w = image.shape[:2]
@@ -372,6 +373,8 @@ class ConeDetector3D(Component):
         return undistorted, newK
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
+
+        # self.synchronized_callback(self.rgb_sub, self.lidar_sub)
 
         start = time.time()
         downsample = False

@@ -8,7 +8,7 @@ from GEMstack.state.all import AllState
 from GEMstack.state.physical_object import ObjectFrameEnum
 from GEMstack.state.route import PlannerEnum, Route
 from .rrt_star import RRTStar
-from .parking_component import ParkingPlanner
+from .parking_route_planner import ParkingPlanner
 
 
 
@@ -37,7 +37,7 @@ class RoutePlanningComponent(Component):
         # print("Vehicle x:", state.vehicle.pose.x)
         # print("Vehicle y:", state.vehicle.pose.y)
         # print("Vehicle yaw:", state.vehicle.pose.yaw)
-        if state.mission_plan.planner_type.value == PlannerEnum.PARKING.value:
+        if state.mission_plan.planner_type == PlannerEnum.PARKING:
             print("I am in PARKING mode")
             # Not sure where I should construct this object
             self.planner = ParkingPlanner(state)
