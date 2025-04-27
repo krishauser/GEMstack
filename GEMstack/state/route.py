@@ -12,6 +12,7 @@ class PlannerEnum(Enum):
     RRT_STAR = 0                  #position / yaw in m / radians relative to starting pose of vehicle 
     HYBRID_A_STAR = 1                #position / yaw in m / radians relative to current pose of vehicle
     PARKING = 2                 #position in longitude / latitude, yaw=heading in radians with respect to true north (used in GNSS)
+    SCANNING = 3               
 
 
 @dataclass

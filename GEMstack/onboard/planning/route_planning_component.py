@@ -9,6 +9,7 @@ from GEMstack.state.physical_object import ObjectFrameEnum
 from GEMstack.state.route import PlannerEnum, Route
 from .rrt_star import RRTStar
 from .parking_planning import ParkingPlanner
+from .parking_scanning import StraightLineMotion
 
 
 
@@ -37,20 +38,32 @@ class RoutePlanningComponent(Component):
         # print("Vehicle x:", state.vehicle.pose.x)
         # print("Vehicle y:", state.vehicle.pose.y)
         # print("Vehicle yaw:", state.vehicle.pose.yaw)
-        if state.mission_plan.planner_type == PlannerEnum.PARKING:
+
+        if state.mission_plan.planner_type.name == "PARKING":
             print("I am in PARKING mode")
             # Not sure where I should construct this object
-            if (self.planner is None):
+            if isinstance(self.planner, StraightLineMotion): # we are transitioning from scanning to parking
+
+                # Check if the car is still in motion from scanning behavior
+                # if it is, we need to stop it before parking
+                self.planner.brake() # get car totally stopped before parking
                 state.vehicle.pose.yaw = 0 # needed this to avoid a weird error in the parking planner
-                self.planner = ParkingPlanner()
+            
+            self.planner = ParkingPlanner()
             
 
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
             return self.planner.update(state)
            
-        elif state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value:
+        elif state.mission_plan.planner_type.name == "RRT_STAR":
             print("I am in RRT mode")
-        else:
-            print("Unknown mode")
+        elif state.mission_plan.planner_type.name == "SCANNING":
+            # Run brute force straight line motion
+            if (self.planner is None) or (not isinstance(self.planner, StraightLineMotion)):
+                self.planner = StraightLineMotion()
+            
+            self.planner.update_speed()
+            print("I am in SCANNING mode")
+
         
         return self.route
