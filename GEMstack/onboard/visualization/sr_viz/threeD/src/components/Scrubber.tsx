@@ -13,7 +13,7 @@ export default function Scrubber({
     restart,
     setPlaybackSpeed,
     moveToTime,
-    duration
+    duration,
 }: {
     time: number;
     play: boolean;
@@ -46,24 +46,38 @@ export default function Scrubber({
     const formatDuration = (time: number) => {
         const minutes = Math.floor(time / 60);
         const seconds = Math.floor(time % 60);
-        return `${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-    }
+        return `${minutes < 10 ? "0" : ""}${minutes}:${
+            seconds < 10 ? "0" : ""
+        }${seconds}`;
+    };
     return (
         <div className="px-5 fixed bottom-5 left-1/6 h-20 w-2/3 bg-black/40 text-white shadow-lg rounded-full flex justify-center items-center">
-            <IconButton size="large" onClick={togglePlay}>
+            <IconButton size="large" onClick={togglePlay} sx={{marginRight: "20px", color: "white"}}>
                 {play ? (
                     <PauseIcon fontSize="inherit" />
                 ) : (
                     <PlayArrowIcon fontSize="inherit" />
                 )}
             </IconButton>
-            <div className="w-2/3 flex items-center">
-                <div>{time < duration ? formatDuration(time) : formatDuration(duration)}</div>
-                <Slider min={0} max={duration} step={0.000001} className="mx-8" disabled={duration === 0} onChange={handleSliderChange} value={time}/>
+            <div className="w-2/3 flex items-center select-none text-xl">
+                <div>
+                    {time < duration
+                        ? formatDuration(time)
+                        : formatDuration(duration)}
+                </div>
+                <Slider
+                    min={0}
+                    max={duration}
+                    step={0.000001}
+                    className="mx-8"
+                    disabled={duration === 0}
+                    onChange={handleSliderChange}
+                    value={time}
+                />
                 <div>{formatDuration(duration)}</div>
             </div>
-            <div>
-                <IconButton size="large" onClick={handleClick}>
+            <div className="ml-5 flex flex-nowrap">
+                <IconButton size="large" onClick={handleClick} sx={{color: "white"}}>
                     <SpeedIcon fontSize="inherit" />
                 </IconButton>
                 <Menu
@@ -89,7 +103,7 @@ export default function Scrubber({
                         </MenuItem>
                     ))}
                 </Menu>
-                <IconButton size="large">
+                <IconButton size="large" sx={{marginLeft: "20px", color: "white"}}>
                     <RefreshIcon fontSize="inherit" onClick={restart} />
                 </IconButton>
             </div>
