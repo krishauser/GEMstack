@@ -10,7 +10,7 @@ type CameraConfigMap = {
 
 const cameraConfig: CameraConfigMap = {
     first: {
-        position: [0, 1.5, -0.3],     // on top of vehicle
+        position: [0.2, 1.5, -0.3],     // on top of vehicle
         lookAt: [2, 1.5, 0],       // looking forward (+Z)
         damping: 0.1,
     },
