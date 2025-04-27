@@ -52,7 +52,6 @@ last_summon: Optional[Coordinates] = None
 bounding_box: List[Coordinates] = []
 
 
-# TODO: replace this mock with real implementation
 @app.post("/api/summon", response_model=Coordinates)
 def summon(coords: Coordinates):
     """
