@@ -23,14 +23,22 @@ class ParkingSim(Component):
     def update(self, state: AllState):
         # Calculate elapsed time since initialization.
         elapsed_time = time.time() - self.start_time
+
+        goal_vehicle_pose = ObjectPose(
+                frame=ObjectFrameEnum.START,
+                time=state.start_vehicle_pose.t,
+                x=state.vehicle.pose.x + 15,
+                y=state.vehicle.pose.y,
+                yaw=state.vehicle.pose.yaw,  
+        )
         
         # After 4 seconds, change the mission plan to use PARKING.
         if elapsed_time >= 4.0:
             print("Entering parking mode")
-            mission_plan = MissionPlan(1, 6, 0, PlannerEnum.PARKING)
+            mission_plan = MissionPlan(1, 6, 0, PlannerEnum.PARKING, state.start_vehicle_pose, goal_vehicle_pose)
         else:
             print("Entering RRT mode")
-            mission_plan = MissionPlan(1, 6, 0, PlannerEnum.RRT_STAR)
+            mission_plan = MissionPlan(1, 6, 0, PlannerEnum.RRT_STAR, state.start_vehicle_pose, goal_vehicle_pose)
 
         print("ParkingSim update with state:",mission_plan)
         return mission_plan

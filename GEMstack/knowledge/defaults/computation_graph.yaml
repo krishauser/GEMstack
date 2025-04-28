@@ -53,7 +53,7 @@ components:
       inputs: all
       outputs: route
   - route_planning_component: # one way
-      inputs: all
+      inputs: [vehicle,agents,mission_plan]
       outputs: route
   - motion_planning:
       inputs: all
