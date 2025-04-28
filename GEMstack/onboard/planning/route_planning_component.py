@@ -15,14 +15,16 @@ from ...utils import serialization
 from ...state import Route, ObjectFrameEnum
 import math
 import requests
+
 import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
 
 
-ORIGIN_PX       = (190, 80)
-SCALE_PX_PER_M  = 6.5  # px per meter
+ORIGIN_PX = (190, 80)
+SCALE_PX_PER_M = 6.5  # px per meter
+
 
 class RoutePlanningComponent(Component):
     """Reads a route from disk and returns it as the desired route."""
@@ -126,7 +128,7 @@ def max_visible_arc(circle_center, radius, geofence):
             curr_segment.append((x, y))
             # Calculate the tangent heading in a clockwise direction
             tangent_heading = -np.arctan2(y - yc, x - xc)  # Clockwise heading
-            if abs( 1 - tangent_heading) > abs( 1 - tangent_min):
+            if abs(1 - tangent_heading) > abs(1 - tangent_min):
                 if np.arctan2(yc, xc) < np.arctan2(y, x):
                     tangent_min = tangent_heading
                     min_index = i
@@ -204,9 +206,9 @@ class InspectRoutePlanner(Component):
     def __init__(self, state_machine, frame: str = "start"):
         self.geofence_area = [[0, 0], [20, 20]]
         self.state_list = state_machine
-        self.index = 1
+        self.index = 0
         self.mission = self.state_list[self.index]
-        self.circle_center = [10,17.5]
+        self.circle_center = [10, 17.5]
         self.radius = 5
         self.inspection_route = max_visible_arc(
             self.circle_center, self.radius, self.geofence_area
@@ -214,7 +216,6 @@ class InspectRoutePlanner(Component):
         self.start = [0, 0]
         self.bridge = CvBridge()
         self.img_pub = rospy.Publisher("/image_with_car_xy", Image, queue_size=1)
-
 
     def state_inputs(self):
         return ["all"]
@@ -261,7 +262,7 @@ class InspectRoutePlanner(Component):
         """
         # 1. Copy the base image
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        frame_path  = os.path.join(script_dir, "out.pgm")
+        frame_path = os.path.join(script_dir, "out.pgm")
         frame = cv2.imread(frame_path, cv2.IMREAD_COLOR)
         img_h, img_w = frame.shape[:2]
         # print("frame shape", frame.shape)
@@ -277,13 +278,7 @@ class InspectRoutePlanner(Component):
         pts = np.array([clamp(p) for p in route_pts], dtype=np.int32).reshape(-1, 1, 2)
 
         # 3. Draw the route polyline in green
-        cv2.polylines(
-            frame,
-            [pts],
-            isClosed=False,
-            color=(0, 255, 0),
-            thickness=2
-        )
+        cv2.polylines(frame, [pts], isClosed=False, color=(0, 255, 0), thickness=2)
 
         # 4. Draw start marker in blue (star)
         u_s, v_s = clamp(start_pt)
@@ -293,7 +288,7 @@ class InspectRoutePlanner(Component):
             color=(255, 0, 0),
             markerType=cv2.MARKER_STAR,
             markerSize=20,
-            thickness=3
+            thickness=3,
         )
 
         # 5. Draw goal marker in red (tilted cross)
@@ -304,7 +299,7 @@ class InspectRoutePlanner(Component):
             color=(0, 0, 255),
             markerType=cv2.MARKER_TILTED_CROSS,
             markerSize=20,
-            thickness=3
+            thickness=3,
         )
 
         # 6. Publish via ROS
@@ -315,29 +310,47 @@ class InspectRoutePlanner(Component):
 
     def rrt_route(self, start, goal):
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        map_path  = os.path.join(script_dir, "out.pgm")
+        map_path = os.path.join(script_dir, "out.pgm")
 
         # print("map_path", map_path)
 
         map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
-        occupancy_grid = (map_img > 0).astype(np.uint8) # (590, 1656)
-        x_bounds = (0,occupancy_grid.shape[1])
-        y_bounds = (0,occupancy_grid.shape[0])
-        start_u_x, start_u_y = self._car_to_pixel(start[0], start[1], occupancy_grid.shape[1], occupancy_grid.shape[0])
+        occupancy_grid = (map_img > 0).astype(np.uint8)  # (590, 1656)
+        x_bounds = (0, occupancy_grid.shape[1])
+        y_bounds = (0, occupancy_grid.shape[0])
+        start_u_x, start_u_y = self._car_to_pixel(
+            start[0], start[1], occupancy_grid.shape[1], occupancy_grid.shape[0]
+        )
         start = (start_u_x, start_u_y)
-        goal_u_x, goal_u_y = self._car_to_pixel(goal[0], goal[1], occupancy_grid.shape[1], occupancy_grid.shape[0])
-        goal = (goal_u_x, goal_u_y) # When we implement kinodynamic, we need to include target_yaw also
+        goal_u_x, goal_u_y = self._car_to_pixel(
+            goal[0], goal[1], occupancy_grid.shape[1], occupancy_grid.shape[0]
+        )
+        goal = (
+            goal_u_x,
+            goal_u_y,
+        )  # When we implement kinodynamic, we need to include target_yaw also
         step_size = 1.0
         max_iter = 2000
 
-        planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
+        planner = RRTStar(
+            start,
+            goal,
+            x_bounds,
+            y_bounds,
+            max_iter=max_iter,
+            step_size=step_size,
+            vehicle_width=1,
+            occupancy_grid=occupancy_grid,
+        )
         print("RRT mode")
         rrt_resp = planner.plan()
         self.visualize_route_pixels(rrt_resp, start, goal)
         for i in range(len(rrt_resp)):
             x, y = rrt_resp[i]
             # Convert to car coordinates
-            car_x, car_y = self._pixel_to_car(x, y, occupancy_grid.shape[1], occupancy_grid.shape[0])
+            car_x, car_y = self._pixel_to_car(
+                x, y, occupancy_grid.shape[1], occupancy_grid.shape[0]
+            )
             rrt_resp[i] = (car_x, car_y)
 
         return Route(frame=ObjectFrameEnum.START, points=rrt_resp)
@@ -346,8 +359,8 @@ class InspectRoutePlanner(Component):
         self.flag = 0
         self.route = Route(frame=ObjectFrameEnum.START, points=((0, 0, 0)))
         print("Mode ", state.mission.type)
+        print("Mission state:", self.mission)
         if self.mission == "IDLE":
-            print("Mission state:", self.mission)
             state.mission.type = MissionEnum.IDLE
             points_found, pts = check_point_exists(
                 state.vehicle, state.start_vehicle_pose
@@ -375,6 +388,8 @@ class InspectRoutePlanner(Component):
             state.mission.type = MissionEnum.DRIVE
             start = (state.vehicle.pose.x, state.vehicle.pose.y)
             goal = (self.inspection_route[0][0], self.inspection_route[0][1])
+            print("Current Position: ", start)
+            print("Goal Position: ", goal)
             if abs(start[0] - goal[0]) <= 1 and abs(start[1] - goal[1]) <= 1:
                 print(self.state_list[self.index + 1])
                 self.mission = self.state_list[self.index + 1]

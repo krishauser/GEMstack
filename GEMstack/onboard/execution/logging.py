@@ -231,61 +231,59 @@ class LoggingManager:
                 folder, item + "_%03d.png" % len(self.debug_messages[component][item])
             )
             cv2.imwrite(filename, value)
-        print("Component: ", component)
-        print("Item: ", item)
-        # else:
-        #     if item not in self.debug_messages[component]:
-        #         self.debug_messages[component][item] = []
-        #     self.debug_messages[component][item].append(
-        #         (time.time(), self.vehicle_time - self.start_vehicle_time, value)
-        #     )
+        else:
+            if item not in self.debug_messages[component]:
+                self.debug_messages[component][item] = []
+            self.debug_messages[component][item].append(
+                (time.time(), self.vehicle_time - self.start_vehicle_time, value)
+            )
 
     def debug_event(self, component: str, label: str) -> None:
         """Logs a debug event to the metadata."""
         if not self.log_folder:
             return
-        # if component not in self.debug_messages:
-        #     self.debug_messages[component] = []
-        # if label not in self.debug_messages[component]:
-        #     pass
-        #     self.debug_messages[component][label] = []
-        # self.debug_messages[component][label].append(
-        #     (time.time(), self.vehicle_time - self.start_vehicle_time, None)
-        # )
+        if component not in self.debug_messages:
+            self.debug_messages[component] = {}
+        if label not in self.debug_messages[component]:
+            self.debug_messages[component][label] = []
+
+        self.debug_messages[component][label].append(
+            (time.time(), self.vehicle_time - self.start_vehicle_time, None)
+        )
 
     def dump_debug(self):
         if not self.log_folder:
             return
-        # for k,v in self.debug_messages.items():
-        #     with open(os.path.join(self.log_folder,k+'_debug.csv'),'w') as f:
-        #         columns = []
-        #         isevent = {}
-        #         for col,vals in v.items():
-        #             if ',' in col:
-        #                 col = '"'+col+'"'
-        #             columns.append(col+' time')
-        #             columns.append(col+' vehicle time')
-        #             if not all(x[2] is None for x in vals):
-        #                 isevent[col] = False
-        #                 columns.append(col)
-        #             else:
-        #                 isevent[col] = True
-        #         f.write(','.join(columns)+'\n')
-        #         nrows = max(len(v[col]) for col in v)
-        #         for i in range(nrows):
-        #             row = []
-        #             for col,vals in v.items():
-        #                 if i < len(vals):
-        #                     row.append(str(vals[i][0]))
-        #                     row.append(str(vals[i][1]))
-        #                     if not isevent[col]:
-        #                         row.append(str(vals[i][2]))
-        #                 else:
-        #                     row.append('')
-        #                     row.append('')
-        #                     if not isevent[col]:
-        #                         row.append('')
-        #             f.write(','.join(row)+'\n')
+        for k, v in self.debug_messages.items():
+            with open(os.path.join(self.log_folder, k + "_debug.csv"), "w") as f:
+                columns = []
+                isevent = {}
+                for col, vals in v.items():
+                    if "," in col:
+                        col = '"' + col + '"'
+                    columns.append(col + " time")
+                    columns.append(col + " vehicle time")
+                    if not all(x[2] is None for x in vals):
+                        isevent[col] = False
+                        columns.append(col)
+                    else:
+                        isevent[col] = True
+                f.write(",".join(columns) + "\n")
+                nrows = max(len(v[col]) for col in v)
+                for i in range(nrows):
+                    row = []
+                    for col, vals in v.items():
+                        if i < len(vals):
+                            row.append(str(vals[i][0]))
+                            row.append(str(vals[i][1]))
+                            if not isevent[col]:
+                                row.append(str(vals[i][2]))
+                        else:
+                            row.append("")
+                            row.append("")
+                            if not isevent[col]:
+                                row.append("")
+                    f.write(",".join(row) + "\n")
 
     def pipeline_start_event(self, pipeline_name: str) -> None:
         """Logs a pipeline start event to the metadata."""
