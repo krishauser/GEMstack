@@ -25,7 +25,7 @@ class OccupancyGrid2:
 
         # Create the cv_bridge object
         self.bridge  = CvBridge()
-        self.map_image_pub = rospy.Publisher("/motion_image", Image, queue_size=1) 
+        self.map_image_pub = rospy.Publisher("/motion_image2", Image, queue_size=1) 
 
         # Subscribe information from sensors
         self.lat     = 0
@@ -104,9 +104,9 @@ class OccupancyGrid2:
 
     def gnss_to_image(self, lon, lat):
         
-        lon_x = int(self.img_width - self.img_width*(lon - self.lon_start_l) /self.lon_scale)
-        lat_y = int(self.img_height  -  self.img_height*(lat - self.lat_start_bt) * -1/self.lat_scale)
-        print(f"GNSS ({lat}, {lon}) → pixel ({lon_x}, {lat_y})")
+        lon_x = int(self.img_width*(lon - self.lon_start_l) /self.lon_scale)
+        lat_y = int(self.img_height  -  self.img_height*(lat - self.lat_start_bt)/self.lat_scale)
+        print(f"GNSS hiiiii ({lat}, {lon}) → pixel ({lon_x}, {lat_y})")
         pub_image = np.copy(self.map_image)
 
         if(lon_x >= 0 and lon_x <= self.img_width and 
@@ -120,10 +120,10 @@ class OccupancyGrid2:
         except CvBridgeError as e:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
-    def gnss_to_image_coords(self, lat, lon):
+    def gnss_to_image_coords(self, lon, lat):
         
-        lon_x = int(self.img_width - self.img_width*(lon - self.lon_start_l) /self.lon_scale)
-        lat_y = int(self.img_height  -  self.img_height*(lat - self.lat_start_bt) * -1/self.lat_scale)
+        lon_x = int(self.img_width*(lon - self.lon_start_l) /self.lon_scale)
+        lat_y = int(self.img_height  -  self.img_height*(lat - self.lat_start_bt)/self.lat_scale)
         print(f"GNSS ({lat}, {lon}) → pixel ({lon_x}, {lat_y})")
         return lon_x, lat_y
 

@@ -461,13 +461,13 @@ class InspectRoutePlanner(Component):
         goal_yaw = goal_global_pose.yaw
         print("Goal image coordinates", goal_x, goal_y, "yaw", goal_yaw)
 
-        # script_dir = os.path.dirname(os.path.abspath(__file__))
-        # map_path  = os.path.join(script_dir, "highbay_image.pgm")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        map_path  = os.path.join(script_dir, "highbay_image.pgm")
 
-        # print("map_path", map_path)
+        print("map_path", map_path)
 
-        # map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
-        # occupancy_grid = (map_img > 0).astype(np.uint8) #Brijesh check what this does, I assume black is free and white is occupied so this would return white for everything that is not 100% black
+        map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
+        occupancy_grid = (map_img > 0).astype(np.uint8) #Brijesh check what this does, I assume black is free and white is occupied so this would return white for everything that is not 100% black
         # x_bounds = (0,occupancy_grid.shape[1])
         # y_bounds = (0,occupancy_grid.shape[0])
         # start = (start_x, start_y) # add start_yaw. @Sai I have not integrated yaw into kinodynamic yet. but plls add
@@ -475,13 +475,12 @@ class InspectRoutePlanner(Component):
         # step_size = 1.0
         # max_iter = 2000
 
-        # self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
         script_dir = os.path.dirname(os.path.abspath(__file__))
         map_path  = os.path.join(script_dir, "highbay_image.pgm")
         
-        occupancy_grid = load_pgm_to_occupancy_grid(map_path)
-        start_w = [start_x, start_y, start_yaw]
-        goal_w = [goal_x, goal_y, goal_yaw]
+        # occupancy_grid = load_pgm_to_occupancy_grid(map_path)
+        start_w = [start_y, start_x, start_yaw]
+        goal_w = [goal_y, goal_x, goal_yaw]
 
         path = optimized_kinodynamic_rrt_planning(
             start_w, goal_w, occupancy_grid
@@ -490,18 +489,19 @@ class InspectRoutePlanner(Component):
         
         
         print("RRT mode")
-        rrt_resp = self.planner.plan()
+        # rrt_resp = self.planner.plan()
         # self.visualize_route_pixels(rrt_resp, start, goal)
-        for i in range(len(rrt_resp)):
-            x, y = rrt_resp[i]
+        waypoints = []
+        for i in range(len(path)):
+            x, y, theta = path[i]
             # Convert to car coordinates
             waypoint_lat, waypoint_lon = self.occupancy_grid.image_to_gnss(x, y) # Converts pixel to global frame. Brijesh check again what x corresponds to. Is x lat or is x lon? Change accordingly. Same as above comments
             # Convert global to start frame
             waypoint_start_pose = ObjectPose.from_frame(ObjectFrameEnum.GLOBAL, ObjectFrameEnum.START, waypoint_lat, waypoint_lon, 0.0, start_pose_abs=mission_plan.start_vehicle_pose) #not handling yaw cuz we don't know how to
-            rrt_resp[i] = (waypoint_start_pose.x, waypoint_start_pose.y)
+            waypoints[i] = (waypoint_start_pose.x, waypoint_start_pose.y)
 
-        print("Route points in start frame: ", rrt_resp) # Comment this out once you are done debugging
-        self.route = Route(frame=ObjectFrameEnum.START, points=rrt_resp)
+        print("Route points in start frame: ", waypoints) # Comment this out once you are done debugging
+        self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
 
     def update(self, state):
         self.flag = 0
@@ -538,8 +538,8 @@ class InspectRoutePlanner(Component):
             goal = ObjectPose(
                 frame=ObjectFrameEnum.START,
                 t=state.start_vehicle_pose.t,
-                x=state.vehicle.pose.x,
-                y=state.vehicle.pose.y+0.1,
+                x=state.vehicle.pose.x + 15,
+                y=state.vehicle.pose.y,
                 yaw=0.0,
             )
             print("Current Position: ", start)
@@ -549,8 +549,11 @@ class InspectRoutePlanner(Component):
                 self.mission = self.state_list[self.index + 1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
-
-            self.route = self.rrt_route(state, goal)
+            self.rrt_route(state, goal)
+            # self.route = self.rrt_route(state, goal)
+            self.route = Route(
+                frame=ObjectFrameEnum.START, points=self.inspection_route
+            )
 
         elif self.mission == "INSPECT":
             state.mission.type = MissionEnum.INSPECT

@@ -60,6 +60,7 @@ class OptimizedKinodynamicRRT:
             vehicle_length: Length of the vehicle
         """
         self.grid = occupancy_grid
+        print(self.grid.shape,"HIIIIIIIIIIIIIIIIIIIIIii")
         self.collision_lookup = collision_lookup
         
         # Initialize start and goal

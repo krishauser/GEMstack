@@ -75,17 +75,17 @@ def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid,
         return None
     
     # === STEP 4: Convert path to world coordinates ===
-    t_convert = time.time()
-    world_path = []
-    for grid_point in grid_path:
-        world_point = grid_to_world(grid_point[0], grid_point[1], grid_point[2], metadata)
-        world_path.append(world_point)
+    # t_convert = time.time()
+    # world_path = []
+    # for grid_point in grid_path:
+    #     world_point = grid_to_world(grid_point[0], grid_point[1], grid_point[2], metadata)
+    #     world_path.append(world_point)
     
-    print(f"Conversion completed in {time.time() - t_convert:.2f}s")
-    print(f"Final path has {len(world_path)} points")
-    print(f"Total planning time: {time.time() - t_start:.2f}s")
+    # print(f"Conversion completed in {time.time() - t_convert:.2f}s")
+    # print(f"Final path has {len(world_path)} points")
+    # print(f"Total planning time: {time.time() - t_start:.2f}s")
     
-    return world_path
+    return grid_path
 
 def main():
     """Main function for running the planner."""

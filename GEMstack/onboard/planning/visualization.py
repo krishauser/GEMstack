@@ -18,7 +18,7 @@ def visualize_path(occupancy_grid, path, metadata, start_world, goal_world, show
     plt.figure(figsize=(12, 12))
     
     # Show occupancy grid
-    plt.imshow(occupancy_grid.T, origin='lower', cmap='gray' )
+    plt.imshow(occupancy_grid, origin='lower', cmap='gray' )
     
     # Extract path points
     if path:
