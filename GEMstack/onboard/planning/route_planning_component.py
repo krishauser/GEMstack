@@ -6,8 +6,12 @@ from GEMstack.onboard.component import Component
 from GEMstack.state.agent import AgentState
 from GEMstack.state.mission import MissionEnum
 from GEMstack.state.all import AllState
+from GEMstack.state.mission_plan import MissionPlan
 from GEMstack.state.physical_object import ObjectFrameEnum, ObjectPose
 from GEMstack.state.route import PlannerEnum, Route
+from GEMstack.state.vehicle import VehicleState
+from .planner import optimized_kinodynamic_rrt_planning
+from .map_utils import load_pgm_to_occupancy_grid
 from .rrt_star import RRTStar
 from typing import List
 from ..component import Component
@@ -142,13 +146,13 @@ class RoutePlanningComponent(Component):
         print("vehicle", vehicle.pose.frame)
         print("Converting to GNSS frame", vehicle.pose.to_frame(ObjectFrameEnum.GLOBAL, start_pose_abs = mission_plan.start_vehicle_pose))
         vehicle_global_pose = vehicle.pose.to_frame(ObjectFrameEnum.GLOBAL, start_pose_abs = mission_plan.start_vehicle_pose)
-        for n, a in agents.items():
-            print("==========================\nAgent:", n, a.pose, a.velocity)
-            print('==============', a.pose.frame==ObjectFrameEnum.START)
-            print('==============', a.type==AgentEnum.PEDESTRIAN)
-            if a.type == AgentEnum.PEDESTRIAN:
-                print("Pedestrian detected")
-                # Do something with the pedestrian information
+        # for n, a in agents.items():
+        #     print("==========================\nAgent:", n, a.pose, a.velocity)
+        #     print('==============', a.pose.frame==ObjectFrameEnum.START)
+        #     print('==============', a.type==AgentEnum.PEDESTRIAN)
+        #     if a.type == AgentEnum.PEDESTRIAN:
+        #         print("Pedestrian detected")
+        #         # Do something with the pedestrian information
 
         print("Route Planner's mission:", mission_plan.planner_type.value)
         print("type of mission plan:", type(PlannerEnum.RRT_STAR))
@@ -161,7 +165,8 @@ class RoutePlanningComponent(Component):
 
         ## Step. 1 Convert vehicle pose to global frame
         vehicle_global_pose = vehicle.pose.to_frame(ObjectFrameEnum.GLOBAL, start_pose_abs = mission_plan.start_vehicle_pose)
-        self.occupancy_grid.gnss_to_image(vehicle_global_pose.x, vehicle_global_pose.y) # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
+        # self.occupancy_grid.gnss_to_image(vehicle_global_pose.x, vehicle_global_pose.y) # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
+        self.occupancy_grid.gnss_to_image(vehicle_global_pose.x, vehicle_global_pose.y)
 
         ## Step 2: Get start image coordinates aka position of vehicle in image
         start_x, start_y = self.occupancy_grid.gnss_to_image_coords(vehicle_global_pose.x, vehicle_global_pose.y) # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
@@ -174,7 +179,7 @@ class RoutePlanningComponent(Component):
         goal_yaw = goal_global_pose.yaw
         print("Goal image coordinates", goal_x, goal_y, "yaw", goal_yaw)
 
-        if state.mission_plan.planner_type.value == PlannerEnum.PARKING.value:
+        if mission_plan.planner_type.value == PlannerEnum.PARKING.value:
             print("I am in PARKING mode")
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
             base_path = os.path.dirname(__file__)
@@ -185,7 +190,7 @@ class RoutePlanningComponent(Component):
                 waypoints = waypoints[:,:2]
             print("waypoints", waypoints)
             self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
-        elif state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value:
+        elif mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value:
             print("I am in RRT mode")
             # start = (state.vehicle.pose.x, state.vehicle.pose.y)
             script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -334,7 +339,7 @@ class InspectRoutePlanner(Component):
     def __init__(self, state_machine, frame: str = "start"):
         self.geofence_area = [[0, 0], [20, 20]]
         self.state_list = state_machine
-        self.index = 0
+        self.index = 1
         self.mission = self.state_list[self.index]
         self.circle_center = [10, 17.5]
         self.radius = 5
@@ -344,6 +349,7 @@ class InspectRoutePlanner(Component):
         self.start = [0, 0]
         self.bridge = CvBridge()
         self.img_pub = rospy.Publisher("/image_with_car_xy", Image, queue_size=1)
+        self.occupancy_grid = OccupancyGrid2()
 
     def state_inputs(self):
         return ["all"]
@@ -440,33 +446,49 @@ class InspectRoutePlanner(Component):
         ## Step. 1 Convert vehicle pose to global frame
         vehicle_global_pose = state.vehicle.pose.to_frame(ObjectFrameEnum.GLOBAL, start_pose_abs = state.start_vehicle_pose)
         self.occupancy_grid.gnss_to_image(vehicle_global_pose.x, vehicle_global_pose.y) # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
+        # self.occupancy_grid.gnss_to_image(-88.236365, 40.092722)
 
         ## Step 2: Get start image coordinates aka position of vehicle in image
         start_x, start_y = self.occupancy_grid.gnss_to_image_coords(vehicle_global_pose.x, vehicle_global_pose.y) # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
+        # start_x, start_y = self.occupancy_grid.gnss_to_image_coords(40.092722, -88.236365)
         start_yaw = vehicle_global_pose.yaw
         print("Start image coordinates", start_x, start_y, "yaw", start_yaw)
 
         ## Step 3. Convert goal to global frame
         goal_global_pose = goal_start_pose.to_frame(ObjectFrameEnum.GLOBAL, start_pose_abs = state.start_vehicle_pose)
         goal_x, goal_y = self.occupancy_grid.gnss_to_image_coords(goal_global_pose.x, goal_global_pose.y) # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
+        # goal_x, goal_y = self.occupancy_grid.gnss_to_image_coords(40.092889, -88.235686)
         goal_yaw = goal_global_pose.yaw
         print("Goal image coordinates", goal_x, goal_y, "yaw", goal_yaw)
 
+        # script_dir = os.path.dirname(os.path.abspath(__file__))
+        # map_path  = os.path.join(script_dir, "highbay_image.pgm")
+
+        # print("map_path", map_path)
+
+        # map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
+        # occupancy_grid = (map_img > 0).astype(np.uint8) #Brijesh check what this does, I assume black is free and white is occupied so this would return white for everything that is not 100% black
+        # x_bounds = (0,occupancy_grid.shape[1])
+        # y_bounds = (0,occupancy_grid.shape[0])
+        # start = (start_x, start_y) # add start_yaw. @Sai I have not integrated yaw into kinodynamic yet. but plls add
+        # goal = (goal_x, goal_y) # add goal_yaw. @Sai I have not integrated yaw into kinodynamic yet. but plls add
+        # step_size = 1.0
+        # max_iter = 2000
+
+        # self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
         script_dir = os.path.dirname(os.path.abspath(__file__))
         map_path  = os.path.join(script_dir, "highbay_image.pgm")
+        
+        occupancy_grid = load_pgm_to_occupancy_grid(map_path)
+        start_w = [start_x, start_y, start_yaw]
+        goal_w = [goal_x, goal_y, goal_yaw]
 
-        print("map_path", map_path)
-
-        map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
-        occupancy_grid = (map_img > 0).astype(np.uint8) #Brijesh check what this does, I assume black is free and white is occupied so this would return white for everything that is not 100% black
-        x_bounds = (0,occupancy_grid.shape[1])
-        y_bounds = (0,occupancy_grid.shape[0])
-        start = (start_x, start_y) # add start_yaw. @Sai I have not integrated yaw into kinodynamic yet. but plls add
-        goal = (goal_x, goal_y) # add goal_yaw. @Sai I have not integrated yaw into kinodynamic yet. but plls add
-        step_size = 1.0
-        max_iter = 2000
-
-        self.planner = RRTStar(start, goal, x_bounds, y_bounds, max_iter=max_iter, step_size=step_size, vehicle_width=1, occupancy_grid=occupancy_grid)
+        path = optimized_kinodynamic_rrt_planning(
+            start_w, goal_w, occupancy_grid
+        )
+        
+        
+        
         print("RRT mode")
         rrt_resp = self.planner.plan()
         # self.visualize_route_pixels(rrt_resp, start, goal)
@@ -515,10 +537,10 @@ class InspectRoutePlanner(Component):
             start = (state.vehicle.pose.x, state.vehicle.pose.y)
             goal = ObjectPose(
                 frame=ObjectFrameEnum.START,
-                time=state.start_vehicle_pose.t,
-                x=self.inspection_route[0][0],
-                y=self.inspection_route[0][1],
-                yaw=self.inspection_route[0][2],
+                t=state.start_vehicle_pose.t,
+                x=state.vehicle.pose.x,
+                y=state.vehicle.pose.y+0.1,
+                yaw=0.0,
             )
             print("Current Position: ", start)
             print("Goal Position: ", goal)

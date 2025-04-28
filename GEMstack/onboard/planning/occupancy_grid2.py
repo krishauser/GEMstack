@@ -120,7 +120,7 @@ class OccupancyGrid2:
         except CvBridgeError as e:
             rospy.logerr("CvBridge Error: {0}".format(e))
 
-    def gnss_to_image_coords(self, lon, lat):
+    def gnss_to_image_coords(self, lat, lon):
         
         lon_x = int(self.img_width - self.img_width*(lon - self.lon_start_l) /self.lon_scale)
         lat_y = int(self.img_height  -  self.img_height*(lat - self.lat_start_bt) * -1/self.lat_scale)
