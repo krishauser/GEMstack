@@ -12,7 +12,6 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : pedestrian_detection.PedestrianDetector2D
         perception_normalization : StandardPerceptionNormalizer
     planning:
         route_planning:
