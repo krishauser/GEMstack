@@ -339,6 +339,14 @@ def pid_speed_control(distance_to_object, target_distance, current_speed, prev_e
     
     return target_speed, error, integral
 
+def remove_duplicate_points(points, threshold=0.1):
+    filtered = []
+    prev = None
+    for p in points:
+        if prev is None or np.linalg.norm(np.array(p) - np.array(prev)) > threshold:
+            filtered.append(p)
+            prev = p
+    return filtered
 
 
 class YieldTrajectoryPlanner(Component):
@@ -374,6 +382,7 @@ class YieldTrajectoryPlanner(Component):
     def rate(self):
         return 10.0
 
+
     def update(self, state: AllState):
         vehicle = state.vehicle  # type: VehicleState
         route = state.route  # type: Route
@@ -407,6 +416,8 @@ class YieldTrajectoryPlanner(Component):
 
         # Extract a 10 m segment of the route for planning lookahead.
         route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
+        # route_with_lookahead.points = remove_duplicate_points(route_with_lookahead.points,0.1)
+
         if DEBUG:
             print("[DEBUG] YieldTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
 

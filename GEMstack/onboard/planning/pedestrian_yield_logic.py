@@ -59,7 +59,7 @@ class PedestrianYielder(Component):
                         f"[DEBUG] ID {n}, relation:{check}, minimum distance:{min_dist}, time to min_dist: {t_min}, point of min_dist:{pt_min}")
                 if check == 'STOP':
                     res.append(EntityRelation(type=EntityRelationEnum.STOPPING_AT, obj1='', obj2=n))
-                if check == 'YIELD':
+                elif check == 'YIELD':
                     res.append(EntityRelation(type=EntityRelationEnum.CREEPING, obj1='', obj2=n)) #CREEPING
                 elif check == 'RUN':
                     res.append(EntityRelation(type=EntityRelationEnum.ACCELERATING, obj1='', obj2=n))
