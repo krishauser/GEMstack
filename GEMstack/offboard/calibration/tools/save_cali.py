@@ -61,7 +61,8 @@ def load_in(path,mode='matrix',return_distort=False):
                 'skew':np.array(y['skew']),
                 'distort':np.array(y['distort'])}
 
-def save_in(path,focal=None,center=None,skew=None,distort=None,matrix=None):
+from collections.abc import Iterable
+def save_in(path,focal=None,center=None,skew=0,distort=[0.0]*5,matrix=None):
     if matrix is not None:
         focal = matrix.diagonal()[0,-1]
         skew = matrix[0,1]
@@ -71,11 +72,16 @@ def save_in(path,focal=None,center=None,skew=None,distort=None,matrix=None):
     ret = {}
     ret['focal'] = focal
     ret['center'] = center
-    ret['skew'] = skew or 0
-    ret['distort'] = distort or [0,0,0,0,0]
+    ret['skew'] = skew 
+    assert len(distort) in [4,5]
+    ret['distort'] = distort
+    if len(ret['distort']) == 4:
+        ret['distort'] = list(ret['distort'])+[0.0]
     for i in ret:
         if type(ret[i]) == np.ndarray:
             ret[i] = ret[i].tolist()
+        if isinstance(ret[i],Iterable):
+            ret[i] = [*map(float,ret[i])]
     print(yaml.dump(ret,Dumper=SafeDumper,default_flow_style=False))
     with open(path,'w') as stream:
         yaml.dump(ret,stream,Dumper=SafeDumper,default_flow_style=False)
