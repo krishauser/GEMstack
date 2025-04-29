@@ -18,6 +18,7 @@ import time
 import math
 import ros_numpy
 import os
+from ...utils import settings
 
 
 # ----- Helper Functions -----
@@ -273,7 +274,7 @@ class ConeDetector3D(Component):
 
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.enable_tracking = False
+        self.enable_tracking = settings.get('drive.perception.enable_tracking')
         self.current_agents = {}
         self.tracked_agents = {}
         self.cone_counter = 0
@@ -281,13 +282,13 @@ class ConeDetector3D(Component):
         self.latest_lidar = None
         self.bridge = CvBridge()
         self.start_pose_abs = None
-        self.camera_front = False
-        self.visualize_2d = False
-        self.use_cyl_roi = False
+        self.camera_front = settings.get('drive.perception.camera_front')
+        self.visualize_2d = settings.get('drive.perception.visualize_2d')
+        self.use_cyl_roi = settings.get('drive.perception.use_cyl_roi')
         self.start_time = None
-        self.use_start_frame = False
-        self.save_data = False
-        self.orientation = False
+        self.use_start_frame = settings.get('drive.perception.use_start_frame')
+        self.save_data = settings.get('drive.perception.save_data')
+        self.orientation = settings.get('drive.perception.orientation')
         self.undistort_map1 = None
         self.undistort_map2 = None
 

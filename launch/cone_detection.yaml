@@ -14,6 +14,13 @@ drive:
         state_estimation : GNSSStateEstimator
         agent_detection : cone_detection.ConeDetector3D
         perception_normalization : StandardPerceptionNormalizer
+        enable_tracking : False
+        camera_front : False
+        visualize_2d : False
+        use_cyl_roi : False
+        use_start_frame : False
+        save_data : False
+        orientation : False
     planning:
         relations_estimation: 
             type: pedestrian_yield_logic.PedestrianYielder
