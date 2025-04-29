@@ -1,8 +1,7 @@
 ## Table of Contents
 - [img2pc.py](#img2pcpy) - Camera-to-LiDAR extrinsic calibration
 - [get_intrinsic_by_chessboard.py](#get_intrinsic_by_chessboardpy) - Intrinsic calibration using chessboard
-- [intrinsic_calibration_chessboard.py](#intrinsic_calibration_chessboardpy) - Intrinsic calibration using SfM
-
+- [get_intrinsic_by_SfM.py](#get_intrinsic_by_sfmpy) - Intrinsic calibration using SfM
 ---
 
 ## img2pc.py
