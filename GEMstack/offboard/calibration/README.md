@@ -19,6 +19,7 @@ python3 img2pc.py \
     [--out_path OUT_PATH] \
     [--n_features N_FEATURES]
 ```
+
 #### Parameters
 | Parameter | Description | Format | Required | Default |
 |-----------|-------------|--------|----------|---------|
