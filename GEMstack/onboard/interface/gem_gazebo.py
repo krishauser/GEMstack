@@ -133,11 +133,7 @@ class GEMGazeboInterface(GEMInterface):
                 # Convert IMU's yaw to heading (CW from North), then to navigation yaw (CCW from East)
                 # This handles the coordinate frame differences between Gazebo and the navigation frame
                 # Negate yaw to convert from ROS to heading
-<<<<<<< HEAD
-                heading = transforms.yaw_to_heading(-yaw, degrees=False)
-=======
                 heading = transforms.yaw_to_heading(-yaw - np.pi/2, degrees=False) 
->>>>>>> s2025_Simulation
                 navigation_yaw = transforms.heading_to_yaw(
                     heading, degrees=False)
 
