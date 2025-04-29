@@ -18,7 +18,7 @@ RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime \
     && apt-get update && apt-get install -y tzdata \
     && rm -rf /var/lib/apt/lists/*
 
-# install Zed SDK
+# install Zed SDK. If you want to install a different version, change to this https://download.stereolabs.com/zedsdk/4.2/cu12/ubuntu20
 RUN wget https://stereolabs.sfo2.cdn.digitaloceanspaces.com/zedsdk/4.2/ZED_SDK_Ubuntu20_cuda12.1_v4.2.4.zstd.run -O zed_sdk.run
 RUN chmod +x zed_sdk.run
 RUN ./zed_sdk.run -- silent
@@ -70,7 +70,7 @@ RUN pip3 install -r /tmp/requirements.txt
 
 
 # Install other Dependencies
-RUN apt-get install -y ros-noetic-septentrio-gnss-driver
+RUN apt-get install -y ros-noetic-septentrio-gnss-driver ros-noetic-ackermann-msgs
 
 USER ${USER}
 

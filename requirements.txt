@@ -17,3 +17,4 @@ scikit-learn
 # Inspection
 python-dotenv
 boto3
+lap==0.5.12

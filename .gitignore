@@ -169,10 +169,18 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+# ZED run files
+**/*.run
 .vscode/
 setup/zed_sdk.run
 
-cuda/
 #Ignore ROS bags
 *.bag
 
+cuda/
+homework/yolov8n.pt
+homework/yolo11n.pt
+GEMstack/knowledge/detection/yolov8n.pt
+GEMstack/knowledge/detection/yolo11n.pt
+yolov8n.pt
+yolo11n.pt

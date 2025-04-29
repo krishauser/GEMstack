@@ -1,0 +1,7 @@
+ros_topics:
+  top_lidar: /velodyne_points
+  front_camera: /front_single_camera/image_raw
+  front_depth: /notopic
+  gps: /gps/fix
+  imu: /imu
+  
