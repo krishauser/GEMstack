@@ -497,8 +497,15 @@ class InspectRoutePlanner(Component):
             # Convert to car coordinates
             waypoint_lat, waypoint_lon = self.occupancy_grid.image_to_gnss(x, y) # Converts pixel to global frame. Brijesh check again what x corresponds to. Is x lat or is x lon? Change accordingly. Same as above comments
             # Convert global to start frame
-            waypoint_start_pose = ObjectPose.from_frame(ObjectFrameEnum.GLOBAL, ObjectFrameEnum.START, waypoint_lat, waypoint_lon, 0.0, start_pose_abs=mission_plan.start_vehicle_pose) #not handling yaw cuz we don't know how to
-            waypoints[i] = (waypoint_start_pose.x, waypoint_start_pose.y)
+            waypoint_global_pose = ObjectPose(
+                frame=ObjectFrameEnum.GLOBAL,
+                t=state.start_vehicle_pose.t,
+                x=waypoint_lon,
+                y=waypoint_lat,
+                yaw=theta,
+            )
+            waypoint_start_pose = waypoint_global_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) #not handling yaw cuz we don't know how to
+            waypoints.append((waypoint_start_pose.x, waypoint_start_pose.y))
 
         print("Route points in start frame: ", waypoints) # Comment this out once you are done debugging
         self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
