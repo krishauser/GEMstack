@@ -75,29 +75,22 @@ class GEMHardwareInterface(GEMInterface):
         self.faults = []
 
         # -------------------- PACMod setup --------------------
-        # GEM vehicle enable
+        # GEM vehicle enable - Pacmod 2 does not have an enable flag and hence by default we have enabled it
         # self.enable_pub = self.node.create_publisher(Bool, '/pacmod/enable', 1)
         self.pacmod_enable = True
 
         # GEM vehicle gear control, neutral, forward and reverse, publish once
         self.gear_pub = self.node.create_publisher(SystemCmdInt, '/pacmod/shift_cmd', 1)
         self.gear_cmd = SystemCmdInt()
-        # self.gear_cmd.enable = True
         self.gear_cmd.command = SystemCmdInt.SHIFT_NEUTRAL 
 
         # GEM vehicle brake control
         self.brake_pub = self.node.create_publisher(SystemCmdFloat, '/pacmod/brake_cmd', 1)
         self.brake_cmd = SystemCmdFloat()
-        # self.brake_cmd.enable = False
-        # self.brake_cmd.clear  = True
-        # self.brake_cmd.ignore = True
 
         # GEM vehicle forward motion control
         self.accel_pub = self.node.create_publisher(SystemCmdFloat, '/pacmod/accel_cmd', 1)
         self.accel_cmd = SystemCmdFloat()
-        # self.accel_cmd.enable = False
-        # self.accel_cmd.clear  = True
-        # self.accel_cmd.ignore = True
 
         # GEM vehicle turn signal control
         self.turn_pub = self.node.create_publisher(SystemCmdInt, '/pacmod/turn_cmd', 1)
@@ -117,9 +110,10 @@ class GEMHardwareInterface(GEMInterface):
         """
 
         #TODO: publish TwistStamped to /front_radar/front_radar/vehicle_motion to get better radar tracks
-        
-        #subscribers should go last because the callback might be called before the object is initialized
-        # self.enable_sub = self.node.create_subscription(Bool, '/pacmod/enabled', self.pacmod_enable_callback, qos_profile)
+        # subscribers should go last because the callback might be called before the object is initialized
+
+        # ROS2 requires this class to be a separate node and hence we are spinning it up as a different thread.
+        # Logging will be impacted as the print messages wont be present on the console
         executor = MultiThreadedExecutor()
         executor.add_node(self.node)
         executor_thread = threading.Thread(target=executor.spin, daemon=True)
@@ -134,7 +128,6 @@ class GEMHardwareInterface(GEMInterface):
             enable_cmd = Bool()
             enable_cmd.data = True
             # self.enable_pub.publish(enable_cmd)
-            #this doesn't seem to work super well, need to send enable command multiple times
     
     def time(self):
         seconds = Clock().now().to_msg().sec
@@ -148,10 +141,10 @@ class GEMHardwareInterface(GEMInterface):
     
     def global_callback(self, msg):
         self.faults = []
+
+        # The error messages have been renamed according to the new convention
         if msg.override_active:
             self.faults.append("override_active")
-        # if msg.config_fault_active:
-        #     self.faults.append("config_fault_active")
         if msg.usr_can_timeout:
             self.faults.append("user_can_timeout")
         if msg.user_can_read_errors:
@@ -162,8 +155,6 @@ class GEMHardwareInterface(GEMInterface):
             self.faults.append("steering_can_timeout")
         if msg.veh_can_timeout:
             self.faults.append("vehicle_can_timeout")
-        # if msg.subsystem_can_timeout:
-        #     self.faults.append("subsystem_can_timeout")
 
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading
@@ -210,13 +201,6 @@ class GEMHardwareInterface(GEMInterface):
                                     )
                         speed = np.sqrt(msg.ve**2 + msg.vn**2)
                         callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
-                    # gnss_qos_profile = QoSProfile(
-                    #     reliability=QoSReliabilityPolicy.RELIABLE,
-                    #     history=QoSHistoryPolicy.KEEP_LAST,
-                    #     depth=10,
-                    #     durability=QoSDurabilityPolicy.VOLATILE,
-                    #     liveliness=QoSLivelinessPolicy.AUTOMATIC
-                    # )
                     self.gnss_sub = self.node.create_subscription(INSNavGeod, topic, callback_with_gnss_reading, QoSProfile(
                 reliability=QoSReliabilityPolicy.RELIABLE,
                 durability=QoSDurabilityPolicy.VOLATILE,
@@ -264,7 +248,7 @@ class GEMHardwareInterface(GEMInterface):
                 self.front_depth_sub = self.node.create_subscription(Image, topic, callback_with_cv2, qos_profile)
 
 
-    # PACMod enable callback function
+    # PACMod enable callback function - Removed as Pacmod2 does not have enable flag
     # def pacmod_enable_callback(self, msg):
     #     if self.pacmod_enable == False and msg.data == True:
     #         print("PACMod enabled, enabling gear, brake, accel, steer, and turn")
@@ -279,37 +263,20 @@ class GEMHardwareInterface(GEMInterface):
         return self.faults
 
     def send_first_command(self):
-        # ---------- Enable PACMod ----------
-
-        # enable forward gear
-        # self.gear_cmd.enable = True
         self.gear_cmd.command = SystemCmdInt.SHIFT_FORWARD
-        #helps debug whether gear command is being sent since you'll hear the backup beep
-        #self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_REVERSE
-
-        # enable brake
-        # self.brake_cmd.enable  = True
-        # self.brake_cmd.clear   = False
-        # self.brake_cmd.ignore  = False
         self.brake_cmd.command = 0.0
-
-        # enable gas 
-        # self.accel_cmd.enable  = True
-        # self.accel_cmd.clear   = False
-        # self.accel_cmd.ignore  = False
         self.accel_cmd.command = 0.0
 
         self.gear_pub.publish(self.gear_cmd)
-        self.turn_pub.publish(self.turn_cmd)
         self.brake_pub.publish(self.brake_cmd)
         self.accel_pub.publish(self.accel_cmd)
         self.last_command_time = self.time()
 
     def send_command(self, command : GEMVehicleCommand):
-        #throttle rate at which we send commands
+        # throttle rate at which we send commands
         t = self.time()
         if t < self.last_command_time + 1.0/self.max_send_rate:
-            #skip command, PACMod can't handle commands this fast
+            # skip command, PACMod can't handle commands this fast
             return
         self.last_command_time = t
         
@@ -321,6 +288,10 @@ class GEMHardwareInterface(GEMInterface):
             self.turn_cmd.command = SystemCmdInt.TURN_RIGHT
         else:
             self.turn_cmd.command = SystemCmdInt.TURN_NONE
+
+        # Major changes required in the following block
+        # Unlike Pacmod 1, Pacmod accepts simple integer and float as the value for accelerator and brake
+        # Need to find out if the simply giving brake = 0 and accelerator = n will work
 
         self.accel_cmd.command = command.accelerator_pedal_position
         if command.brake_pedal_position > 0.0:
@@ -342,16 +313,8 @@ class GEMHardwareInterface(GEMInterface):
             self.brake_cmd.command = maxbrake
         print("**************************")
 
-        # self.brake_cmd.enable  = True
-        # self.brake_cmd.clear   = False
-        # self.brake_cmd.ignore  = False
-
-        # self.accel_cmd.enable  = True
-        # self.accel_cmd.clear   = False
-        # self.accel_cmd.ignore  = False
         
         self.gear_cmd.command = SystemCmdInt.SHIFT_FORWARD
-        # self.gear_cmd.enable = True
         self.gear_pub.publish(self.gear_cmd)
         self.accel_pub.publish(self.accel_cmd)
         self.brake_pub.publish(self.brake_cmd)
