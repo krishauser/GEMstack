@@ -53,7 +53,7 @@ class ReedsSheppParking:
 
     def reeds_shepp_path(start_pose, final_pose, step_size=0.1, rho=3.657):# 3.657
         path = reeds_shepp.path_sample(start_pose, final_pose, rho, step_size)
-        waypoints = [(x, y, yaw) for x, y, yaw in path]
+        waypoints = [(x, y, yaw) for x, y, yaw, *_ in path]
         #waypoints = np.array(waypoints_for_obstacles_check)[:,:2]
         return waypoints
     

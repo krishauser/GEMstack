@@ -12,7 +12,7 @@ recovery:
 drive:
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : pedestrian_detection.PedestrianDetector2D
+        agent_detection : cone_detection.ConeDetector3D
         perception_normalization : StandardPerceptionNormalizer
     planning:
         relations_estimation: pedestrian_yield_logic.PedestrianYielder

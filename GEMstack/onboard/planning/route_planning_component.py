@@ -15,6 +15,7 @@ from .RRT import BiRRT
 from ...utils import serialization
 import math
 
+from .reeds_shepp_parking import ReedsSheppParking
 
 def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
     """
@@ -103,6 +104,24 @@ class RoutePlanningComponent(Component):
 
         # Used as route searchers' time limit as well as the update rate of the component
         self.update_rate = 10.0
+
+
+        # Added for parallel parking simulation test only. TODO: Delete after integration
+        # self.parked_cars = [
+        #     (17.33, -2.44),
+        #     (22.11, -2.44)  
+        # ]
+        # self.parking_utils = ReedsSheppParking(
+        #     static_horizontal_curb_xy_coordinates=[(0.0, -2.44),(24.9, -2.44)],
+        #     static_vertical_curb_xy_coordinates=[(12.45, -4.88)])
+        self.parked_cars = [
+            (-12.11, 7.56),
+            (-7.33, 7.56)
+        ]
+        self.parking_utils = ReedsSheppParking(
+            static_horizontal_curb_xy_coordinates=[(10.0, 7.56),(-14.9, 7.56)],
+            static_vertical_curb_xy_coordinates=[(-2.45, 5.12)])
+        self.parking_utils.closest = False
 
     def state_inputs(self):
         return ["all"]
@@ -209,24 +228,44 @@ class RoutePlanningComponent(Component):
             #         cones.append(agent)
 
             """ BEGIN: For simulation test only. Delete after integration """""""""""""""
-            def generate_turn(pose, step=1.0, num_points=10):
-                x, y, yaw = pose
-                yaw_left = yaw + math.pi / 4  # 左前方偏 45°
-                waypoints = []
-                for i in range(1, num_points + 1):
-                    dx = step * i * math.cos(yaw_left)
-                    dy = step * i * math.sin(yaw_left)
-                    waypoints.append([x + dx, y + dy])
-                return waypoints
+            # def generate_turn(pose, step=1.0, num_points=10):
+            #     x, y, yaw = pose
+            #     yaw_left = yaw + math.pi / 4  # 左前方偏 45°
+            #     waypoints = []
+            #     for i in range(1, num_points + 1):
+            #         dx = step * i * math.cos(yaw_left)
+            #         dy = step * i * math.sin(yaw_left)
+            #         waypoints.append([x + dx, y + dy])
+            #     return waypoints
+
+            # if not self.parking_route_existed:
+            #     current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
+            #     waypoints = generate_turn(current_pose)
+            #     self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
+            #     self.parking_route_existed = True
+            # else:
+            #     self.route = state.route
+            """ END """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+            # for agent in state.agents.values():
+            #     if agent.type == AgentEnum.CONE:
+            #         self.parked_cars.append((agent.pose.x, agent.pose.y))
 
             if not self.parking_route_existed:
-                current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
-                waypoints = generate_turn(current_pose)
-                self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
+                for agent in state.agents.values():
+                    if agent.type == AgentEnum.CONE:
+                        self.parked_cars = []
+                        self.parked_cars.append((agent.pose.x, agent.pose.y))
+
+                self.current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
+                self.parking_utils.find_collision_free_trajectory(self.parked_cars, self.current_pose, True)
                 self.parking_route_existed = True
+                
             else:
-                self.route = state.route
-            """ END """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+                self.waypoints_to_go = self.parking_utils.waypoints_to_go
+                self.parking_utils.find_collision_free_trajectory(self.parked_cars)
+                self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
+                # print("Route:", self.route)
 
         else:
             print("Unknown mode")
