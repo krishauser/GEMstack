@@ -34,11 +34,6 @@ class BiRRT:
         # (will revert back after route found)
         self.end_point = Point(goal[0],goal[1],self.angle_inverse(goal[2]))
         self.end_point.cost = 0        
-        
-        # obstacles and map boundary
-        self.OBSTACLE_LIST = []
-        for obstacle in obstacles:
-            self.OBSTACLE_LIST.append(Obstacle(obstacle[0],obstacle[1]))
             
         yaml_path = "../../knowledge/defaults/rrt_param.yaml"
         with open(yaml_path,'r') as file:
@@ -68,6 +63,34 @@ class BiRRT:
         self.MAP_X_HIGH = params['map']['upper_x']
         self.MAP_Y_LOW = params['map']['lower_y'] 
         self.MAP_Y_HIGH = params['map']['upper_y']
+        
+        self.obstacle_radius = params['map']['obstacle_radius'] # meter
+        
+        # occupency grid
+        self.grid = None 
+        self.grid_resolution = params['map']['grid_resolution'] # grids per meter
+        # the coordiante in start frame where in occupency grid is (0,0)
+        self.map_zero = [self.MAP_X_LOW , self.MAP_Y_LOW]
+        # initialize occupency grid
+        self.build_grid(obstacles)
+        
+    # Build occupency grid from obstacle list    
+    def build_grid(self, obstacles):
+ 
+        grid_height = (self.MAP_Y_HIGH - self.MAP_Y_LOW)*self.grid_resolution
+        grid_width = (self.MAP_X_HIGH - self.MAP_X_LOW)*self.grid_resolution
+        self.grid = np.zeros((round(grid_width),round(grid_height)))
+        
+        margin_low = -round((self.obstacle_radius + self.OFFSET)*self.grid_resolution)
+        margin_high = round((self.obstacle_radius + self.OFFSET)*self.grid_resolution)
+        for obstacle in obstacles :
+            obstacle_center = [round((obstacle[0]-self.map_zero[0])*self.grid_resolution),
+                               round((obstacle[1]-self.map_zero[1])*self.grid_resolution)]
+            
+            self.grid[obstacle_center[0],obstacle_center[1]] = 1
+            for x_margin in range(margin_low,margin_high):
+                for y_margin in range(margin_low,margin_high):
+                    self.grid[obstacle_center[0] + x_margin, obstacle_center[1] + y_margin] = 1
         
         
     def search(self):
@@ -228,11 +251,15 @@ class BiRRT:
             return angle + math.pi
         return angle-math.pi
 
+    # collision checking
     def is_valid(self,point):
-        for obstacle in self.OBSTACLE_LIST:
-            if self.distance(point, obstacle) < obstacle.radius + self.OFFSET:
-                return False
-        return True
+        xi = round((point.x - self.map_zero[0])*self.grid_resolution)
+        yi = round((point.y - self.map_zero[1])*self.grid_resolution)
+        
+        if xi < 0 or yi < 0 or xi >= self.grid.shape[0] or yi >= self.grid.shape[1]:
+            print("out boundary")
+            return False  # Out of bounds is considered collision
+        return 1 - self.grid[xi][yi]
                 
     # return the nearest point in the tree 
     def Nearest(self,tree,sample_p):

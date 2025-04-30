@@ -5,6 +5,8 @@ map:
     upper_x: 20 
     lower_y: -5
     upper_y: 20
+    grid_resolution: 10 # grids per meter for occupency grid
+    obstacle_radius: 0.2 # meter for determining the size of the obstacle in occupency grid
 # vehicle info 
 vehicle:
     heading_limit: 0.5235987756  # pi/6 in radians
