@@ -113,51 +113,14 @@ class ConeDetector3D(Component):
         if self.latest_image is None or self.latest_lidar is None:
             return {}
 
-        # Ensure data/ exists and build timestamp
-        os.makedirs("data", exist_ok=True)
+        # Build timestamp
         current_time = self.vehicle_interface.time()
         if self.start_time is None:
             self.start_time = current_time
         time_elapsed = current_time - self.start_time
 
         if self.save_data:
-            tstamp = int(self.vehicle_interface.time() * 1000)
-            # 1) Dump raw image
-            cv2.imwrite(f"data/{tstamp}_image.png", self.latest_image)
-            # 2) Dump raw LiDAR
-            np.savez(f"data/{tstamp}_lidar.npz", lidar=self.latest_lidar)
-            # 3) Write BEFORE_TRANSFORM
-            with open(f"data/{tstamp}_vehstate.txt", "w") as f:
-                vp = vehicle.pose
-                f.write(
-                    f"BEFORE_TRANSFORM "
-                    f"x={vp.x:.3f}, y={vp.y:.3f}, z={vp.z:.3f}, "
-                    f"yaw={vp.yaw:.2f}, pitch={vp.pitch:.2f}, roll={vp.roll:.2f}\n"
-                )
-            # Compute vehicle_start_pose in either START or CURRENT
-            if self.use_start_frame:
-                if self.start_pose_abs is None:
-                    self.start_pose_abs = vehicle.pose
-                vehicle_start_pose = vehicle.pose.to_frame(
-                    ObjectFrameEnum.START,
-                    vehicle.pose,
-                    self.start_pose_abs
-                )
-                mode = "START"
-            else:
-                vehicle_start_pose = vehicle.pose
-                mode = "CURRENT"
-            with open(f"data/{tstamp}_vehstate.txt", "a") as f:
-                f.write(
-                    f"AFTER_TRANSFORM "
-                    f"x={vehicle_start_pose.x:.3f}, "
-                    f"y={vehicle_start_pose.y:.3f}, "
-                    f"z={vehicle_start_pose.z:.3f}, "
-                    f"yaw={vehicle_start_pose.yaw:.2f}, "
-                    f"pitch={vehicle_start_pose.pitch:.2f}, "
-                    f"roll={vehicle_start_pose.roll:.2f}, "
-                    f"frame={mode}\n"
-                )
+            self.save_sensor_data(vehicle=vehicle)
 
         undistorted_img, current_K = undistort_image(self.latest_image, self.K, self.D)
         self.current_K = current_K
@@ -372,6 +335,48 @@ class ConeDetector3D(Component):
             del self.tracked_agents[agent_id]
 
         return self.tracked_agents
+    
+    def save_sensor_data(self, vehicle: VehicleState) -> None:
+        # Ensure data directory exists:
+        os.makedirs("data", exist_ok=True)
+        
+        tstamp = int(self.vehicle_interface.time() * 1000)
+        # 1) Dump raw image
+        cv2.imwrite(f"data/{tstamp}_image.png", self.latest_image)
+        # 2) Dump raw LiDAR
+        np.savez(f"data/{tstamp}_lidar.npz", lidar=self.latest_lidar)
+        # 3) Write BEFORE_TRANSFORM
+        with open(f"data/{tstamp}_vehstate.txt", "w") as f:
+            vp = vehicle.pose
+            f.write(
+                f"BEFORE_TRANSFORM "
+                f"x={vp.x:.3f}, y={vp.y:.3f}, z={vp.z:.3f}, "
+                f"yaw={vp.yaw:.2f}, pitch={vp.pitch:.2f}, roll={vp.roll:.2f}\n"
+            )
+        # Compute vehicle_start_pose in either START or CURRENT
+        if self.use_start_frame:
+            if self.start_pose_abs is None:
+                self.start_pose_abs = vehicle.pose
+            vehicle_start_pose = vehicle.pose.to_frame(
+                ObjectFrameEnum.START,
+                vehicle.pose,
+                self.start_pose_abs
+            )
+            mode = "START"
+        else:
+            vehicle_start_pose = vehicle.pose
+            mode = "CURRENT"
+        with open(f"data/{tstamp}_vehstate.txt", "a") as f:
+            f.write(
+                f"AFTER_TRANSFORM "
+                f"x={vehicle_start_pose.x:.3f}, "
+                f"y={vehicle_start_pose.y:.3f}, "
+                f"z={vehicle_start_pose.z:.3f}, "
+                f"yaw={vehicle_start_pose.yaw:.2f}, "
+                f"pitch={vehicle_start_pose.pitch:.2f}, "
+                f"roll={vehicle_start_pose.roll:.2f}, "
+                f"frame={mode}\n"
+            )
 
     # ----- Fake Cone Detector 2D (for Testing Purposes) -----
 
