@@ -424,6 +424,9 @@ class ExecutorBase:
 
     def set_log_folder(self,folder : str):
         self.logging_manager.set_log_folder(folder)
+
+    def set_auto_plot(self,enabled : bool):
+        self.logging_manager.set_auto_plot(enabled)
     
     def log_vehicle_interface(self,enabled=True):
         """Indicates that the vehicle interface should be logged"""

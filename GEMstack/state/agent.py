@@ -12,6 +12,7 @@ class AgentEnum(Enum):
     LARGE_TRUCK = 2
     PEDESTRIAN = 3
     BICYCLIST = 4
+    CONE = 5
 
 
 class AgentActivityEnum(Enum):
@@ -19,6 +20,9 @@ class AgentActivityEnum(Enum):
     MOVING = 1          # standard motion.  Predictions will be used here
     FAST = 2            # indicates faster than usual motion, e.g., runners.
     UNDETERMINED = 3    # unknown activity
+    STANDING = 4        # standing cone
+    LEFT = 5            # flipped cone facing left
+    RIGHT = 6           # flipped cone facing right
 
 
 @dataclass

@@ -11,25 +11,124 @@
 GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior or training for rosbag files.)  
 
 You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
-
-- numpy
-- scipy
-- matplotlib
-- opencv-python
-- torch
-- klampt
-- shapely
-- dacite
-- pyyaml
+- GEMstack Dependencies
+  - numpy
+  - scipy
+  - matplotlib
+  - opencv-python
+  - torch
+  - klampt==0.9.2
+  - shapely
+  - dacite
+  - pyyaml
+- Perception Dependencies
+  - ultralytics
 
 
 In order to interface with the actual GEM e2 vehicle, you will need [PACMOD2](https://github.com/astuff/pacmod2) - Autonomoustuff's low level interface to vehicle. You will also need Autonomoustuff's [sensor message packages](https://github.com/astuff/astuff_sensor_msgs).  The onboard computer uses Ubuntu 20.04 with Python 3.8, CUDA 11.6, and NVIDIA driver 515, so to minimize compatibility issues you should ensure that these are installed on your development system.
 
-From a fresh Ubuntu 20.04 with ROS Noetic and [CUDA 11.6 installed](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5), you can install these dependencies by running `setup/setup_this_machine.sh` from the top-level GEMstack folder.
+## Running the stack on Ubuntu 20.04 without Docker
+### Checking CUDA Version
 
-To build a Docker container with all these prerequisites, you can use the provided Dockerfile by running `docker build -t gem_stack setup/`.  For GPU support you will need the NVidia Container Runtime (run `setup/get_nvidia_container.sh` from this directory to install, or see [this tutorial](https://collabnix.com/introducing-new-docker-cli-api-support-for-nvidia-gpus-under-docker-engine-19-03-0-beta-release/) to install) and run `docker run -it --gpus all gem_stack /bin/bash`.
+Before proceeding, check your Nvidia Driver and supported CUDA version:
+```bash
+nvidia-smi
+```
+This will show your NVIDIA driver version and the maximum supported CUDA version. Make sure you have CUDA 11.8 or 12+ installed.
 
+From Ubuntu 20.04 install [CUDA 11.6](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5) or [CUDA 12+](https://gist.github.com/ksopyla/ee744bf013c83e4aa3fc525634d893c9) based on your current Nvidia Driver versio.
 
+To check the currently installed CUDA version:
+```bash
+nvcc --version
+```
+you can install the dependencies or GEMstack by running `setup/setup_this_machine.sh` from the top-level GEMstack folder.
+
+## Running the stack on Ubuntu 20.04 or 22.04 with Docker
+> [!NOTE]
+> Make sure to check the Nvidia Driver and supported CUDA version before proceeding by following the steps in the previous section.
+
+## Prerequisites
+- Docker (In Linux - Make sure to follow the post-installation steps from [here](https://docs.docker.com/engine/install/linux-postinstall/))
+- Nvidia Container Toolkit
+
+Try running the sample workload from the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/sample-workload.html) to check if your system is compatible.
+
+```bash
+sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
+```
+You should see the nvidia-smi output similar to [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/sample-workload.html#:~:text=all%20ubuntu%20nvidia%2Dsmi-,Your%20output%20should%20resemble%20the%20following%20output%3A,-%2B%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2B%0A%7C%20NVIDIA%2DSMI%20535.86.10).
+
+If you see the output, you are good to go. Otherwise, you will need to install the Docker and NVidia Container Toolkit by following the instructions. 
+- For **Docker**, follow the instructions [here](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository).
+  
+- For **Nvidia Container Toolkit**, run `setup/get_nvidia_container.sh` from this directory to install, or see [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more details.
+
+## Running the stack on Ubuntu 20.04 without Docker
+### Checking CUDA Version
+
+Before proceeding, check your Nvidia Driver and supported CUDA version:
+```bash
+nvidia-smi
+```
+This will show your NVIDIA driver version and the maximum supported CUDA version. Make sure you have CUDA 11.8 or 12+ installed.
+
+From Ubuntu 20.04 install [CUDA 11.6](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5) or [CUDA 12+](https://gist.github.com/ksopyla/ee744bf013c83e4aa3fc525634d893c9) based on your current Nvidia Driver versio.
+
+To check the currently installed CUDA version:
+```bash
+nvcc --version
+```
+you can install the dependencies or GEMstack by running `setup/setup_this_machine.sh` from the top-level GEMstack folder.
+
+## Running the stack on Ubuntu 20.04 or 22.04 with Docker
+> [!NOTE]
+> Make sure to check the Nvidia Driver and supported CUDA version before proceeding by following the steps in the previous section.
+
+For GPU support you will need the NVidia Container Toolkit (run `setup/get_nvidia_container.sh` from this directory to install, or see [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more details).
+
+## Building the Docker image
+
+To build a Docker image with all these prerequisites, you can use the provided Dockerfile by running.
+
+```bash
+bash setup/build_docker_image.sh
+```
+
+## Running the Docker container
+
+To run the container, you can use the provided Docker Compose file by running.
+> [!NOTE]
+> If you want to open multiple terminals to run the container, you can use the same command. It will automatically start a new terminal inside the same container.
+```bash
+bash run_docker_container.sh
+```
+## Usage Tips and Instructions
+
+### Using Host Volume
+
+You can use the host volume under the container's home directory inside the `<username>` folder. This allows you to build and run files that are on the host machine. For example, if you have a file on the host machine at `/home/<username>/project`, you can access it inside the container at `/home/<username>/host/project`.
+
+### Using Dev Containers Extension in VSCode
+
+To have a good developer environment inside the Docker container, you can use the Dev Containers extension in VSCode. Follow these steps:
+
+1. Install the Dev Containers extension in VSCode.
+2. Open the cloned repository in VSCode.
+3. Press `ctrl+shift+p`(or select the remote explorer icon from the left bar) and select `Dev-Containers: Attach to Running Container...`.
+4. Select the container name `gem_stack-container`.
+5. Once attached, Select `File->Open Folder...`.
+6. Select the folder/workspace you want to open in the container.
+
+This will set up the development environment inside the Docker container, allowing you to use VSCode features seamlessly.
+
+## Stopping the Docker container
+
+To stop the container, you can use the provided stop script by running.
+
+```bash
+bash stop_docker_container.sh
+```
 
 ## In this folder
 
