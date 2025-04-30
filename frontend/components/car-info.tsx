@@ -7,10 +7,10 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
+import { getCarStatus } from "@/api/status";
 
 export function CarInfo() {
     const [batteryLevel, setBatteryLevel] = useState(80)
-    const [temperature, setTemperature] = useState(72)
     const [isLocked, setIsLocked] = useState(true)
     const [isAcOn, setIsAcOn] = useState(false)
     const [isCharging, setIsCharging] = useState(false)
@@ -28,6 +28,18 @@ export function CarInfo() {
 
         return () => clearInterval(interval)
     }, [isCharging, batteryLevel])
+
+    useEffect(() => {
+       getCarStatus().then(data => {
+           if (data) {
+               setIsConnected(true)
+           } else {
+               setIsConnected(false)
+           }
+       }).catch(() => {
+           setIsConnected(false)
+       })
+    }, [])
 
     const getBatteryColor = () => {
         if (batteryLevel > 50) return "bg-green-500"
@@ -128,12 +140,12 @@ export function CarInfo() {
                     <div className="flex items-center gap-2">
                         <motion.span
                             className="font-medium"
-                            key={temperature}
+                            key={72}
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3 }}
                         >
-                            {temperature}°F
+                            {72}°F
                         </motion.span>
                         <Button
                             variant="outline"
