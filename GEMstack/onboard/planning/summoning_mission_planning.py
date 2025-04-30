@@ -73,8 +73,8 @@ class SummoningMissionPlanner(Component):
             return mission_plan
 
         if self.mode == 'sim':
-            settings.get('simulator.scene', None)
-            goal_location = scene('goal_location', [0.0, 0.0])  # for simulation test only
+            # scene = settings.get('simulator.scene', None)
+            goal_location = [10, 11] # scene.get('goal_location', [0.0, 0.0])  # for simulation test only
             goal_frame = 'start'
         elif self.mode == 'real':
             # TODO: Modify to a GET request to get goal location from the server
@@ -127,7 +127,7 @@ class SummoningMissionPlanner(Component):
             mission_plan.goal_pose = self.goal_pose
             dist = check_pose_distance(mission_plan.goal_pose, vehicle.pose)
             print("Distance to the goal:", dist)
-            if dist < 5:
+            if dist < 10 and vehicle.v < 0.5:
                 mission_plan.planner_type = self.state_machine.next_state()
 
         # Finish parking, back to idle and wait for the next goal location

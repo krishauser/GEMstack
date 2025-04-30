@@ -97,7 +97,7 @@ class RoutePlanningComponent(Component):
             raise ValueError("Unknown roadgraph file extension", ext)
 
         # Used as route searchers' time limit as well as the update rate of the component
-        self.update_rate = 10.0
+        self.update_rate = 0.25
 
     def state_inputs(self):
         return ["all"]
@@ -200,9 +200,9 @@ class RoutePlanningComponent(Component):
                     if region.type == RoadgraphRegionEnum.PARKING_LOT:
                         parking_slot.append(region.outline)
             else:
-                parking_slots = None
+                parking_lots = None
 
-            searcher = ReedsSheppParking(vehicle_pose=vehicle_pose, parking_slots=parking_slots,
+            searcher = ReedsSheppParking(vehicle_pose=vehicle_pose, parking_lots=parking_lots,
                                          detected_cones=detected_cones, update_rate=self.update_rate)
             waypoints = searcher.find_collision_free_trajectory()
 

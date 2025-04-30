@@ -15,7 +15,7 @@ Obstacle = Tuple[float, float, float, Dims] # (x, y, yaw, (width, length))
 
 
 # TODO: Take List[roadgrpah.regions.outline] (List[List[Tuple[float,float]]]) as the parking_slots input and find the desired variables in this method.
-def find_parking_region(vehicle_pose, parking_slots):
+def find_parking_region(vehicle_pose, parking_lots):
 
     return []
 
@@ -446,6 +446,7 @@ class ReedsSheppParking:
             self.objects_to_avoid_collisions += self.static_vertical_curb
         
         # Compute coordinates of parking spots in the parking lot defined by the static horizontal curb
+
         self.all_parking_spots_in_parking_lot = all_parking_spots_in_parking_lot(
         self.static_horizontal_curb, self.compact_parking_spot_size, yaw_of_parked_cars = self.yaw_of_parked_cars,
         shift_from_center_to_rear_axis=self.shift_from_center_to_rear_axis

@@ -4,6 +4,7 @@ import math
 import time
 import yaml
 from typing import Optional
+import os
 
 class Obstacle:
     def __init__(self,x=0,y=0,r=0.2):
@@ -35,7 +36,7 @@ class BiRRT:
         self.end_point = Point(goal[0],goal[1],self.angle_inverse(goal[2]))
         self.end_point.cost = 0        
             
-        yaml_path = "../../knowledge/defaults/rrt_param.yaml"
+        yaml_path = "GEMstack/knowledge/defaults/rrt_param.yaml"
         with open(yaml_path,'r') as file:
             params = yaml.safe_load(file)
         
@@ -50,7 +51,7 @@ class BiRRT:
         if update_rate is None:
             self.time_limit = params['rrt']['time_limit'] # sec
         else:
-            self.time_limit = 1 / update_rate
+            self.time_limit = 1.0 / update_rate
 
         # step size for local planner
         self.step_size = params['rrt']['step_size'] # meter
@@ -101,7 +102,7 @@ class BiRRT:
         start_time = time.time()
         
         # perform search within time limit
-        while (time.time()-start_time) <= self.time_limit:
+        while ((time.time()-start_time) <= self.time_limit):
             # uniformly sample a point within in the map
             sample_p = Point(random.uniform(self.MAP_X_LOW,self.MAP_X_HIGH),random.uniform(self.MAP_Y_LOW,self.MAP_Y_HIGH))
             Direction = None
