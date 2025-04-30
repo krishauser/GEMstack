@@ -36,12 +36,12 @@ class RoutePlanningComponent(Component):
         # print("Vehicle x:", state.vehicle.pose.x)
         # print("Vehicle y:", state.vehicle.pose.y)
         # print("Vehicle yaw:", state.vehicle.pose.yaw)
-        if state.mission_plan.planner_type.value == PlannerEnum.PARKING.value:
+        if state.mission_plan.planner_type.name == "PARKING":
             print("I am in PARKING mode")
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
            
-        elif state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value:
-            print("I am in RRT mode")
+        elif state.mission_plan.planner_type.name == "SCANNING":
+            print("I am in SCANNING mode")
         else:
             print("Unknown mode")
         

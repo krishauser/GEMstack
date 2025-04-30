@@ -30,14 +30,14 @@ class ParkingSim(Component):
 
         # After a goal is detected, change the mission plan to use PARKING.
         if state.goal:
-            print("\n Parking goal available. Entering parking mode......")
+            print("\n Parking goal available. Entering PARKING mode......")
             goal_x = state.goal.x
             goal_y = state.goal.y
             yaw = state.goal.yaw
             mission_plan = MissionPlan(goal_x, goal_y, yaw, PlannerEnum.PARKING)
         else:
-            print("\n Entering RRT mode......")
-            mission_plan = MissionPlan(1, 6, 0, PlannerEnum.RRT_STAR)
+            print("\n Entering SCANNING mode......")
+            mission_plan = MissionPlan(1, 6, 0, PlannerEnum.SCANNING)
 
         print(f"\n ParkingSim update with state: {mission_plan} \n")
         return mission_plan
