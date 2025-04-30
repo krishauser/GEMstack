@@ -22,13 +22,13 @@ control:
     
     # Stanley controller parameters (fine tune this)
     stanley:
-        control_gain: 1.0
-        softening_gain: 0.01
+        control_gain: 0.1
+        softening_gain: 0.2
         desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
     
     # Shared longitudinal control parameters
     longitudinal_control:
-        pid_p: 1.5                       # Proportional gain for speed PID controller
+        pid_p: 1.0                       # Proportional gain for speed PID controller
         pid_i: 0.1                       # Integral gain for speed PID controller
         pid_d: 0.0                       # Derivative gain for speed PID controller
 
