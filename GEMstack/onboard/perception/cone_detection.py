@@ -18,7 +18,6 @@ import time
 import math
 import ros_numpy
 import os
-from ...utils import settings
 
 
 # ----- Helper Functions -----
@@ -274,7 +273,7 @@ class ConeDetector3D(Component):
 
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
-        self.enable_tracking = settings.get('drive.perception.enable_tracking')
+        self.enable_tracking = False
         self.current_agents = {}
         self.tracked_agents = {}
         self.cone_counter = 0
@@ -282,13 +281,13 @@ class ConeDetector3D(Component):
         self.latest_lidar = None
         self.bridge = CvBridge()
         self.start_pose_abs = None
-        self.camera_front = settings.get('drive.perception.camera_front')
-        self.visualize_2d = settings.get('drive.perception.visualize_2d')
-        self.use_cyl_roi = settings.get('drive.perception.use_cyl_roi')
+        self.camera_front = False
+        self.visualize_2d = False
+        self.use_cyl_roi = False
         self.start_time = None
-        self.use_start_frame = settings.get('drive.perception.use_start_frame')
-        self.save_data = settings.get('drive.perception.save_data')
-        self.orientation = settings.get('drive.perception.orientation')
+        self.use_start_frame = False
+        self.save_data = False
+        self.orientation = False
         self.undistort_map1 = None
         self.undistort_map2 = None
 
@@ -305,7 +304,7 @@ class ConeDetector3D(Component):
         self.rgb_sub = Subscriber('/camera_fr/arena_camera_node/image_raw', Image)
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub],
-                                                queue_size=10, slop=0.1)
+                                                queue_size=200, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
         self.detector = YOLO('GEMstack/knowledge/detection/cone.pt')
         self.detector.to('cuda')
@@ -428,15 +427,18 @@ class ConeDetector3D(Component):
                     f"roll={vehicle_start_pose.roll:.2f}, "
                     f"frame={mode}\n"
                 )
-        start = time.time()
-        undistorted_img, current_K = self.undistort_image(lastest_image, self.K, self.D)
-        end = time.time()
-        # print('-------processing time undistort_image---', end -start)
-        self.current_K = current_K
-        orig_H, orig_W = undistorted_img.shape[:2]
+        if self.camera_front == False:
+            start = time.time()
+            undistorted_img, current_K = self.undistort_image(lastest_image, self.K, self.D)
+            end = time.time()
+            # print('-------processing time undistort_image---', end -start)
+            self.current_K = current_K
+            orig_H, orig_W = undistorted_img.shape[:2]
 
-        # --- Begin modifications for three-angle detection ---
-        img_normal = undistorted_img
+            # --- Begin modifications for three-angle detection ---
+            img_normal = undistorted_img
+        else:
+            img_normal = lastest_image.copy()
         results_normal = self.detector(img_normal, conf=0.3, classes=[0])
         combined_boxes = []
         if not self.enable_tracking:
@@ -444,8 +446,8 @@ class ConeDetector3D(Component):
         if self.orientation:
             img_left = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
             img_right = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_CLOCKWISE)
-            results_left = self.detector(img_left, conf=0.3, classes=[0])
-            results_right = self.detector(img_right, conf=0.3, classes=[0])
+            results_left = self.detector(img_left, conf=0.75, classes=[0])
+            results_right = self.detector(img_right, conf=0.75, classes=[0])
             boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
             boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
             for box in boxes_left:
@@ -514,9 +516,9 @@ class ConeDetector3D(Component):
 
             if self.use_cyl_roi:
                 global_filtered = filter_points_within_threshold(lidar_down, 30)
-                roi_cyl = cylindrical_roi(global_filtered, np.mean(points_3d, axis=0), radius=0.3, height=1.2)
+                roi_cyl = cylindrical_roi(global_filtered, np.mean(points_3d, axis=0), radius=0.4, height=1.2)
                 refined_cluster = remove_ground_by_min_range(roi_cyl, z_range=0.01)
-                refined_cluster = filter_depth_points(refined_cluster, max_depth_diff=0.2)
+                refined_cluster = filter_depth_points(refined_cluster, max_depth_diff=0.3)
             else:
                 refined_cluster = points_3d.copy()
             # end1 = time.time()
@@ -570,7 +572,7 @@ class ConeDetector3D(Component):
                 )
                 if existing_id is not None:
                     old_state = self.tracked_agents[existing_id]
-                    if vehicle.v < 0.1:
+                    if vehicle.v < 100:
                         alpha = 0.1
                         avg_x = alpha * new_pose.x + (1 - alpha) * old_state.pose.x
                         avg_y = alpha * new_pose.y + (1 - alpha) * old_state.pose.y
@@ -648,7 +650,7 @@ class ConeDetector3D(Component):
             return self.current_agents
 
         stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
-                     if current_time - agent.pose.t > 5.0]
+                     if current_time - agent.pose.t > 20.0]
         for agent_id in stale_ids:
             rospy.loginfo(f"Removing stale agent: {agent_id}\n")
             del self.tracked_agents[agent_id]
