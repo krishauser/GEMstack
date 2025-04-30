@@ -8,7 +8,7 @@
 
 ## Dependencies
 
-GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior or training for rosbag files.)  
+GEMstack uses Python 3.7+ and ROS Humble.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior or training for rosbag files.)  
 
 You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
 
@@ -23,9 +23,9 @@ You should also have the following Python dependencies installed, which you can 
 - pyyaml
 
 
-In order to interface with the actual GEM e2 vehicle, you will need [PACMOD2](https://github.com/astuff/pacmod2) - Autonomoustuff's low level interface to vehicle. You will also need Autonomoustuff's [sensor message packages](https://github.com/astuff/astuff_sensor_msgs).  The onboard computer uses Ubuntu 20.04 with Python 3.8, CUDA 11.6, and NVIDIA driver 515, so to minimize compatibility issues you should ensure that these are installed on your development system.
+In order to interface with the actual GEM e2 vehicle, you will need [PACMOD2](https://github.com/astuff/pacmod2) - Autonomoustuff's low level interface to vehicle. You will also need Autonomoustuff's [sensor message packages](https://github.com/astuff/astuff_sensor_msgs).  The onboard computer uses Ubuntu 22.04 with Python 3.8, CUDA 11.6, and NVIDIA driver 515, so to minimize compatibility issues you should ensure that these are installed on your development system.
 
-From a fresh Ubuntu 20.04 with ROS Noetic and [CUDA 11.6 installed](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5), you can install these dependencies by running `setup/setup_this_machine.sh` from the top-level GEMstack folder.
+From a fresh Ubuntu 22.04 with ROS Humble and [CUDA 11.6 installed](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5), you can install these dependencies by running `setup/setup_this_machine.sh` from the top-level GEMstack folder.
 
 To build a Docker container with all these prerequisites, you can use the provided Dockerfile by running `docker build -t gem_stack setup/`.  For GPU support you will need the NVidia Container Runtime (run `setup/get_nvidia_container.sh` from this directory to install, or see [this tutorial](https://collabnix.com/introducing-new-docker-cli-api-support-for-nvidia-gpus-under-docker-engine-19-03-0-beta-release/) to install) and run `docker run -it --gpus all gem_stack /bin/bash`.
 
