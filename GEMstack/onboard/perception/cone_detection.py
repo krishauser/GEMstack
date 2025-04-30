@@ -131,6 +131,10 @@ class ConeDetector3D(Component):
         img_normal = undistorted_img
         results_normal = self.detector(img_normal, conf=0.3, classes=[0])
         combined_boxes = []
+
+        # If we wish to determine the orientation of the cones do the following maybe?
+        # Why are we fabricating left and right oriented detections and adding it to the same list?
+        # Shouldn't we be just determining whether something is oriented left or right using the received images?
         if self.orientation:
             img_left = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
             img_right = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_CLOCKWISE)
@@ -154,6 +158,8 @@ class ConeDetector3D(Component):
             cx, cy, w, h = box
             combined_boxes.append((cx, cy, w, h, AgentActivityEnum.STANDING))
 
+        # Visualize the received images in 2D with their corresponding labels
+        # It draws rectangles and labels on the images:
         if getattr(self, 'visualize_2d', False):
             for (cx, cy, w, h, activity) in combined_boxes:
                 left = int(cx - w / 2)
@@ -177,13 +183,22 @@ class ConeDetector3D(Component):
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             cv2.imshow("Detection - Cone 2D", undistorted_img)
 
+        # Downsample the lidar data if enabled:
         if downsample:
             lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
         else:
-            lidar_down = self.latest_lidar.copy()
+            lidar_down = self.latest_lidar.copy() # Do we need to make a copy here?
 
+        # Transform the lidar points from lidar frame of reference to camera EXTRINSIC frame of reference.
+        # Then project the pixels onto the lidar points to "paint them" (essentially determine which ones are relevant for us)
         pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
         projected_pts = project_points(pts_cam, self.current_K, lidar_down)
+        # What is returned:
+        # projected_pts[:, 0]: u-coordinate in the image (horizontal pixel position)
+        # projected_pts[:, 1]: v-coordinate in the image (vertical pixel position)
+        # projected_pts[:, 2:5]: original X, Y, Z coordinates in the LiDAR frame
+        
+        # WE WOULD RUN POINT PILLARS ON THE TRANSFORMED POINTS HERE
 
         agents = {}
 
