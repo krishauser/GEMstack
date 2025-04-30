@@ -2,6 +2,7 @@
 import yaml
 from yaml import SafeDumper
 import numpy as np
+import cv2
 def represent_flow_style_list(dumper, data):
     return dumper.represent_sequence(yaml.resolver.BaseResolver.DEFAULT_SEQUENCE_TAG, data, flow_style=True)
 SafeDumper.add_representer(list, represent_flow_style_list)
@@ -85,6 +86,12 @@ def save_in(path,focal=None,center=None,skew=0,distort=[0.0]*5,matrix=None):
     print(yaml.dump(ret,Dumper=SafeDumper,default_flow_style=False))
     with open(path,'w') as stream:
         yaml.dump(ret,stream,Dumper=SafeDumper,default_flow_style=False)
+
+def undistort_image(image, camera_matrix, distortion_coefficients):
+    h,  w = image.shape[:2]
+    newK, roi = cv2.getOptimalNewCameraMatrix(camera_matrix, distortion_coefficients, (w,h), 1, (w,h))
+    image = cv2.undistort(image, camera_matrix, distortion_coefficients, None, newK)
+    return image, newK
 
 
 #%%

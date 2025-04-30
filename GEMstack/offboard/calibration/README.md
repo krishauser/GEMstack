@@ -46,28 +46,31 @@ python3 img2pc.py \
     [--pc_transform_path PC_TRANSFORM_PATH] \
     [--out_path OUT_PATH] \
     [--n_features N_FEATURES]
+    [--undistort]
 ```
 
 #### Parameters
 | Parameter | Description | Format | Required | Default |
 |-----------|-------------|--------|----------|---------|
 | `--img_path` | Input image path | .png | Yes | - |
-| `--pc_path` | Point cloud path | .npz | Yes | - |
+| `--lidar_path` | Point cloud path | .npz | Yes | - |
 | `--img_intrinsics_path` | Camera intrinsics file | .yaml | Yes | - |
-| `--pc_transform_path` | LiDAR extrinsic transform | .yaml | No | Identity |
+| `--lidar_transform_path` | LiDAR extrinsic transform | .yaml | No | Identity |
 | `--out_path` | Output extrinsic path | .yaml | No | None |
 | `--n_features` | Manual feature points | int | No | 8 |
+| `--undistort` | Flag for using distortion coefficients | - | - | - |
 
 ### Example
 ```bash
 root='/mnt/GEMstack'
 python3 img2pc.py \
-    --img_path $root/data/calib1/img/fl/fl16.png \
-    --pc_path $root/data/calib1/pc/ouster16.npz \
-    --pc_transform_path $root/GEMstack/knowledge/calibration/gem_e4_ouster.yaml \
-    --img_intrinsics_path $root/GEMstack/knowledge/calibration/gem_e4_oak_in.yaml \
-    --n_features 4 \
-    --out_path $root/GEMstack/knowledge/calibration/gem_e4_oak.yaml
+    --img_path $root/data/fl/fl16.png \
+    --lidar_path $root/data/ouster16.npz \
+    --lidar_transform_path $root/GEMstack/knowledge/calibration/gem_e4_ouster.yaml \
+    --img_intrinsics_path $root/GEMstack/knowledge/calibration/gem_e4_fl_in.yaml \
+    --n_features 8 \
+    --out_path $root/GEMstack/knowledge/calibration/gem_e4_fl.yaml \
+    --undistort
 ```
 
 ## test_transforms.py

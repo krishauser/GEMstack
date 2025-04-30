@@ -4,7 +4,7 @@ import glob
 import os
 import argparse
 
-from tools.save_cali import load_in
+from GEMstack.GEMstack.knowledge.calibration.calib_util import load_in, undistort_image
 
 def main():
     # Collect arguments
@@ -31,11 +31,7 @@ def main():
 
     for fn in image_files:
         image = cv.imread(fn)
-        h,  w = image.shape[:2]
-        new_camera_matrix, roi = cv.getOptimalNewCameraMatrix(camera_matrix, distortion_coefficients, (w,h), 1, (w,h))
-
-        # Undistort
-        dst = cv.undistort(image, camera_matrix, distortion_coefficients, None, new_camera_matrix)
+        dst, _ = undistort_image(image, camera_matrix, distortion_coefficients)
         cv.imwrite(fn.replace(camera, camera + "_rect"), dst)
 
 

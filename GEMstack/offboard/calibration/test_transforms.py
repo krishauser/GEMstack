@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import argparse
 from scipy.spatial.transform import Rotation as R
 from matplotlib.widgets import Slider
-from tools.save_cali import load_ex, load_in, save_ex
+from GEMstack.GEMstack.knowledge.calibration.calib_util import load_ex, load_in, save_ex, undistort_image
 
 x_rot = y_rot = z_rot = x_trans = y_trans = z_trans = None
 
@@ -156,10 +156,7 @@ def main():
     # Load Camera Intrinsics
     if args.undistort:
         K, distortion_coefficients = load_in(args.img_intrinsics_path, return_distort=True)
-        h,  w = image.shape[:2]
-        new_K, roi = cv.getOptimalNewCameraMatrix(K, distortion_coefficients, (w,h), 1, (w,h))
-        image = cv.undistort(image, K, distortion_coefficients, None, new_K)
-        K = new_K
+        image, K = undistort_image(image, K, distortion_coefficients)
     else:
         K = load_in(args.img_intrinsics_path)
 

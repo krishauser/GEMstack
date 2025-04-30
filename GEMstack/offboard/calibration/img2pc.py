@@ -2,7 +2,7 @@ import pyvista as pv
 import argparse
 import cv2
 import numpy as np
-from tools.save_cali import load_ex,save_ex,load_in,save_in
+from GEMstack.GEMstack.knowledge.calibration.calib_util import load_ex,save_ex,load_in,save_in, undistort_image
 from scipy.spatial.transform import Rotation as R
 from transform3d import Transform
 
@@ -115,10 +115,7 @@ def main():
     if args.undistort:
         K, distort = load_in(args.img_intrinsics_path,mode='matrix',return_distort=True)
         print('applying distortion coeffs', distort)
-        h,  w = img.shape[:2]
-        newK, roi = cv2.getOptimalNewCameraMatrix(K, distort, (w,h), 1, (w,h))
-        img = cv2.undistort(img, K, distort, None, newK)
-        K = newK
+        img, K = undistort_image(img, K, distort)
     else:
         K = load_in(args.img_intrinsics_path,mode='matrix')
 
