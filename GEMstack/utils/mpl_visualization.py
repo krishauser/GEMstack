@@ -67,6 +67,12 @@ def plot_object(obj : PhysicalObject, axis_len=None, outline=True, bbox=True, ax
     #plot bounding box
     R = obj.pose.rotation2d()
     t = [obj.pose.x,obj.pose.y]
+    
+    # Debug print every 50 calls (to avoid flooding console)
+    import random
+    if random.random() < 0.02:  # ~2% chance to print
+        print(f"Plotting object at position ({obj.pose.x:.2f}, {obj.pose.y:.2f}) with frame {obj.pose.frame}")
+        
     if bbox or (outline and obj.outline is None): 
         bounds = obj.bounds()
         (xmin,xmax),(ymin,ymax),(zmin,zmax) = bounds
@@ -79,6 +85,7 @@ def plot_object(obj : PhysicalObject, axis_len=None, outline=True, bbox=True, ax
             ax.plot(xs,ys,'r-')
         else:
             ax.plot(xs,ys,'b-')
+            
     #plot outline
     if outline and obj.outline:
         outline = [R.dot(p)+t for p in obj.outline]
@@ -86,6 +93,24 @@ def plot_object(obj : PhysicalObject, axis_len=None, outline=True, bbox=True, ax
         xs = [c[0] for c in outline]
         ys = [c[1] for c in outline]
         ax.plot(xs,ys,'r-')
+        
+    # Add a marker at the center to make small agents more visible
+    if isinstance(obj, AgentState):
+        # Make different agent types visually distinct
+        if obj.type == AgentEnum.PEDESTRIAN:
+            marker = 'o'
+            markersize = 10
+            color = 'r'
+        elif obj.type == AgentEnum.BICYCLIST:
+            marker = 's'
+            markersize = 10
+            color = 'g'
+        else:  # vehicles
+            marker = 'D'
+            markersize = 8
+            color = 'b'
+            
+        ax.plot(obj.pose.x, obj.pose.y, marker=marker, markersize=markersize, color=color)
 
 def plot_vehicle(vehicle : VehicleState, axis_len=0.1, ax=None):
     """Plots the vehicle in the given axes.  The coordinates
@@ -228,13 +253,42 @@ def plot_scene(scene : SceneState, xrange=None, yrange=None, ax=None, title = No
         else:
             ax.set_ylim(-yrange*0.5,yrange*0.5)
     #plot roadgraph
-    plot_roadgraph(scene.roadgraph,scene.route,ax=ax)
+    try:
+        if scene.roadgraph is not None:
+            plot_roadgraph(scene.roadgraph,scene.route,ax=ax)
+    except Exception as e:
+        print(f"Error plotting roadgraph: {str(e)}")
+    
     #plot vehicle and objects
-    plot_vehicle(scene.vehicle,ax=ax)
-    for k,a in scene.agents.items():
-        plot_object(a,ax=ax)
-    for k,o in scene.obstacles.items():
-        plot_object(o,ax=ax)
+    try:
+        if scene.vehicle is not None:
+            plot_vehicle(scene.vehicle,ax=ax)
+    except Exception as e:
+        print(f"Error plotting vehicle: {str(e)}")
+    
+    try:
+        if scene.agents:
+            # Print agent count for debugging
+            print(f"Plotting {len(scene.agents)} agents")
+            for agent_id, agent in scene.agents.items():
+                try:
+                    print(f"Agent {agent_id}: {agent.type}, pos=({agent.pose.x:.2f}, {agent.pose.y:.2f}), frame={agent.pose.frame}")
+                    plot_object(agent,ax=ax)
+                except Exception as e:
+                    print(f"Error plotting agent {agent_id}: {str(e)}")
+    except Exception as e:
+        print(f"Error plotting agents: {str(e)}")
+    
+    try:
+        if scene.obstacles:
+            for k,o in scene.obstacles.items():
+                try:
+                    plot_object(o,ax=ax)
+                except Exception as e:
+                    print(f"Error plotting obstacle {k}: {str(e)}")
+    except Exception as e:
+        print(f"Error plotting obstacles: {str(e)}")
+    
     if title is None:
         if show:
             ax.set_title("Scene at t = %.2f" % scene.t)

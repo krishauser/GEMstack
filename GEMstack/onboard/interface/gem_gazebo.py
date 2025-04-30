@@ -11,12 +11,14 @@ from sensor_msgs.msg import JointState  # For reading joint states from Gazebo
 # Changed from AckermannDriveStamped
 from ackermann_msgs.msg import AckermannDrive
 from rosgraph_msgs.msg import Clock
+from gazebo_msgs.msg import ModelStates
 from tf.transformations import euler_from_quaternion
 
 
 from ...state import ObjectPose,ObjectFrameEnum
 from ...knowledge.vehicle.geometry import steer2front
 from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration
+from ...state import AgentState, AgentEnum, AgentActivityEnum
 
 # OpenCV and cv2 bridge
 import cv2
@@ -31,6 +33,27 @@ class GNSSReading:
     speed: float
     status: str
 
+
+# Agent dimensions similar to what's in gem_simulator.py
+AGENT_DIMENSIONS = {
+    'pedestrian' : (0.5,0.5,1.6),
+    'bicyclist' : (1.8,0.5,1.6),
+    'car' : (4.0,2.5,1.4),
+    'medium_truck': (6.0,2.5,3.0),
+    'large_truck': (10.0,2.5,3.5)
+}
+
+# Map model prefixes to agent types
+MODEL_PREFIX_TO_AGENT_TYPE = {
+    'pedestrian': 'pedestrian',
+    'person': 'pedestrian',
+    'bicycle': 'bicyclist',
+    'bike': 'bicyclist',
+    'car': 'car',
+    'vehicle': 'car',
+    'truck': 'medium_truck',
+    'large_truck': 'large_truck'
+}
 
 class GEMGazeboInterface(GEMInterface):
     """Interface for connecting to the GEM e2 vehicle in Gazebo simulation."""
@@ -52,10 +75,6 @@ class GEMGazeboInterface(GEMInterface):
         self.last_reading.wiper_level = 0
         self.last_reading.headlights_on = False
 
-      
-
-        
-
         # IMU data subscriber
         self.imu_sub = None
         self.imu_data = None
@@ -68,6 +87,16 @@ class GEMGazeboInterface(GEMInterface):
         self.front_depth_sub = None
         self.top_lidar_sub = None
         self.front_radar_sub = None
+
+        # Agent detection
+        self.model_states_sub = None
+        self.tracked_model_prefixes = settings.get('simulator.agent_tracker.model_prefixes', 
+                                                 ['pedestrian', 'person', 'bicycle', 'bike', 'car', 'vehicle', 'truck'])
+        self.agent_detector_callback = None
+        self.last_agent_positions = {}
+        self.last_agent_velocities = {}
+        self.last_model_states_time = 0.0
+        self.agent_detection_rate = settings.get('simulator.agent_tracker.rate', 10.0)  # Hz
 
         self.faults = []
 
@@ -86,6 +115,9 @@ class GEMGazeboInterface(GEMInterface):
         # Add clock subscription for simulation time
         self.sim_time = rospy.Time(0)
         self.clock_sub = rospy.Subscriber('/clock', Clock, self.clock_callback)
+
+        # Subscribe to model states for agent detection
+        self.model_states_sub = rospy.Subscriber('/gazebo/model_states', ModelStates, self.model_states_callback)
 
     def start(self):
         print("Starting GEM Gazebo Interface")
@@ -106,6 +138,120 @@ class GEMGazeboInterface(GEMInterface):
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading
     
+    def model_states_callback(self, msg: ModelStates):
+        current_time = self.time()
+        
+        # Check if we should process this update (rate limiting)
+        if current_time - self.last_model_states_time < 1.0/self.agent_detection_rate:
+            return
+            
+        # Calculate time delta since last update
+        dt = current_time - self.last_model_states_time
+        self.last_model_states_time = current_time
+        
+        # Skip if no callback is registered
+        if self.agent_detector_callback is None:
+            return
+            
+        # Process all models
+        for i, model_name in enumerate(msg.name):
+            # Check if this model should be tracked as an agent
+            agent_type = None
+            for prefix in self.tracked_model_prefixes:
+                if model_name.lower().startswith(prefix.lower()):
+                    # Find the appropriate agent type from the prefix
+                    for key, value in MODEL_PREFIX_TO_AGENT_TYPE.items():
+                        if prefix.lower().startswith(key.lower()):
+                            agent_type = value
+                            break
+                    break
+                    
+            if agent_type is None:
+                continue  # Not an agent we're tracking
+                
+            # Get position and orientation
+            position = msg.pose[i].position
+            orientation = msg.pose[i].orientation
+            
+            # Get velocity from twist
+            linear_vel = msg.twist[i].linear
+            angular_vel = msg.twist[i].angular
+            
+            # Convert orientation quaternion to euler angles
+            quaternion = (orientation.x, orientation.y, orientation.z, orientation.w)
+            roll, pitch, yaw = euler_from_quaternion(quaternion)
+            
+            # Create object pose
+            pose = ObjectPose(
+                frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, 
+                t=current_time,
+                x=position.x,
+                y=position.y,  
+                z=position.z,  
+                roll=roll,
+                pitch=pitch,
+                yaw=yaw
+            )
+            
+            # Calculate velocity manually if twist data is zero or missing
+            velocity = (linear_vel.x, linear_vel.y, linear_vel.z)
+            velocity_is_zero = abs(linear_vel.x) < 1e-6 and abs(linear_vel.y) < 1e-6 and abs(linear_vel.z) < 1e-6
+            
+            if velocity_is_zero and model_name in self.last_agent_positions and dt > 0:
+                # Calculate velocity from position difference
+                prev_pos = self.last_agent_positions[model_name]
+                dx = position.x - prev_pos[0]
+                dy = position.y - prev_pos[1]
+                dz = position.z - prev_pos[2]
+                
+                # Calculate velocity (position change / time)
+                calculated_vel = (dx/dt, dy/dt, dz/dt)
+                
+                # Apply some smoothing with the previous velocity if available
+                if model_name in self.last_agent_velocities:
+                    prev_vel = self.last_agent_velocities[model_name]
+                    # Apply exponential smoothing (0.7 current + 0.3 previous)
+                    velocity = (
+                        0.7 * calculated_vel[0] + 0.3 * prev_vel[0],
+                        0.7 * calculated_vel[1] + 0.3 * prev_vel[1],
+                        0.7 * calculated_vel[2] + 0.3 * prev_vel[2]
+                    )
+                else:
+                    velocity = calculated_vel
+                
+                # Debug output for manual velocity calculation
+                if np.linalg.norm(velocity) > 0.01:
+                    print(f"Calculated velocity for {model_name}: {velocity}")
+            
+            # Determine activity state based on velocity magnitude
+            velocity_magnitude = np.linalg.norm(velocity)
+            if velocity_magnitude < 0.1:
+                activity = AgentActivityEnum.STOPPED
+            elif velocity_magnitude > 5.0:  # Arbitrary threshold for "fast"
+                activity = AgentActivityEnum.FAST
+            else:
+                activity = AgentActivityEnum.MOVING
+                
+            # Get agent dimensions
+            dimensions = AGENT_DIMENSIONS.get(agent_type, (1.0, 1.0, 1.0))  # Default if unknown
+            
+            # Create agent state
+            agent_state = AgentState(
+                pose=pose,
+                dimensions=dimensions,
+                outline=None,
+                type=getattr(AgentEnum, agent_type.upper()),
+                activity=activity,
+                velocity=velocity,
+                yaw_rate=angular_vel.z
+            )
+            
+            # Store current position for next velocity calculation
+            self.last_agent_positions[model_name] = (position.x, position.y, position.z)
+            self.last_agent_velocities[model_name] = velocity
+            
+            # Call the callback with the agent state
+            self.agent_detector_callback(model_name, agent_state)
 
     def subscribe_sensor(self, name, callback, type=None):
         if name == 'gnss':
@@ -210,10 +356,19 @@ class GEMGazeboInterface(GEMInterface):
                     cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="passthrough")
                     callback(cv_image)
                 self.front_depth_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+        
+        elif name == 'agent_detector':
+            if type is not None and type is not AgentState:
+                raise ValueError("GEMGazeboInterface only supports AgentState for agent_detector")
+            self.agent_detector_callback = callback
 
     def hardware_faults(self) -> List[str]:
         # In simulation, we don't have real hardware faults
         return self.faults
+
+    def sensors(self):
+        # Add agent_detector to the list of available sensors
+        return super().sensors() + ['agent_detector']
 
     def send_command(self, command : GEMVehicleCommand):
         # Throttle rate at which we send commands

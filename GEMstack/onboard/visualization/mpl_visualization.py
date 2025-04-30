@@ -93,21 +93,94 @@ class MPLVisualization(Component):
         self.debug("vehicle", "velocity", state.vehicle.v)
         self.debug("vehicle", "front_wheel_angle", state.vehicle.front_wheel_angle)
         
-        # Pedestrian metrics
+        # Pedestrian metrics and position debugging
+        ped_positions = []
         for agent_id, agent in state.agents.items():
             if agent.type == AgentEnum.PEDESTRIAN:
-                # self.debug(f"ped_{agent_id}", "x", agent.pose.x)
-                # self.debug(f"ped_{agent_id}", "y", agent.pose.y)
-                self.debug(f"ped_{agent_id}", "velocity", np.linalg.norm(agent.velocity))  # Magnitude of resultant velocity
+                # Position logging
+                ped_x, ped_y = agent.pose.x, agent.pose.y
+                ped_positions.append((ped_x, ped_y))
+                # Debug output every 10 updates
+                if self.num_updates % 10 == 0:
+                    print(f"Pedestrian {agent_id} position: ({ped_x:.2f}, {ped_y:.2f}), frame: {agent.pose.frame}")
+                    # Calculate distance from vehicle
+                    dist = np.sqrt((ped_x - state.vehicle.pose.x)**2 + (ped_y - state.vehicle.pose.y)**2)
+                    print(f"Distance to vehicle: {dist:.2f} meters")
+                
+                # Track positions for plotting
+                self.debug(f"ped_{agent_id}", "x", ped_x)
+                self.debug(f"ped_{agent_id}", "y", ped_y)
+                self.debug(f"ped_{agent_id}", "velocity", np.linalg.norm(agent.velocity))
                 self.debug(f"ped_{agent_id}", "yaw_rate", agent.yaw_rate)
         
         time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(state.t))
-        #frame=ObjectFrameEnum.CURRENT
-        #state = state.to_frame(frame)
-        xrange = [state.vehicle.pose.x - 10, state.vehicle.pose.x + 10]
-        yrange = [state.vehicle.pose.y - 10, state.vehicle.pose.y + 10]
-        #plot main visualization
-        mpl_visualization.plot(state,title="Scene %d at %s"%(self.num_updates,time_str),xrange=xrange,yrange=yrange,show=False,ax=self.axs[0])
+        
+        # Print coordinate frame information for debugging
+        if self.num_updates % 10 == 0:
+            print(f"Vehicle: pos=({state.vehicle.pose.x:.2f}, {state.vehicle.pose.y:.2f}), frame={state.vehicle.pose.frame}")
+            if state.start_vehicle_pose:
+                print(f"Start pose: pos=({state.start_vehicle_pose.x:.2f}, {state.start_vehicle_pose.y:.2f}), frame={state.start_vehicle_pose.frame}")
+            
+            if len(state.agents) > 0:
+                print(f"Number of agents: {len(state.agents)}")
+                
+        # Determine a good plot range that includes both vehicle and pedestrians
+        if len(ped_positions) > 0:
+            # Start with vehicle position
+            min_x, max_x = state.vehicle.pose.x, state.vehicle.pose.x
+            min_y, max_y = state.vehicle.pose.y, state.vehicle.pose.y
+            
+            # Expand to include pedestrians
+            for x, y in ped_positions:
+                min_x = min(min_x, x)
+                max_x = max(max_x, x)
+                min_y = min(min_y, y)
+                max_y = max(max_y, y)
+            
+            # Add margin - based on the content size
+            size_x = max(50, max_x - min_x)
+            size_y = max(50, max_y - min_y)
+            margin_x = max(20, size_x * 0.2)  # at least 20m or 20% of content
+            margin_y = max(20, size_y * 0.2)
+            
+            xrange = [min_x - margin_x, max_x + margin_x]
+            yrange = [min_y - margin_y, max_y + margin_y]
+        else:
+            # Default range around vehicle if no pedestrians
+            xrange = [state.vehicle.pose.x - 10, state.vehicle.pose.x + 10]
+            yrange = [state.vehicle.pose.y - 10, state.vehicle.pose.y + 10]
+        
+        # Print xrange and yrange for debugging
+        if self.num_updates % 10 == 0:
+            print(f"Plot range: X {xrange}, Y {yrange}")
+        
+        # Try converting state to START frame for visualization
+        try:
+            if state.start_vehicle_pose is not None:
+                state_start = state.to_frame(ObjectFrameEnum.START)
+                print(f"Successfully converted state to START frame")
+                
+                # Log the conversion for comparison
+                if len(state.agents) > 0 and self.num_updates % 10 == 0:
+                    for agent_id, agent in state.agents.items():
+                        # Get the agent in both frames
+                        agent_start = state_start.agents.get(agent_id)
+                        if agent_start:
+                            print(f"Agent {agent_id} in ABSOLUTE: ({agent.pose.x:.2f}, {agent.pose.y:.2f})")
+                            print(f"Agent {agent_id} in START: ({agent_start.pose.x:.2f}, {agent_start.pose.y:.2f})")
+                
+                # Try using the START frame for visualization
+                mpl_visualization.plot(state_start, title=f"START Frame: Scene {self.num_updates}", 
+                                      xrange=xrange, yrange=yrange, show=False, ax=self.axs[0])
+            else:
+                # Use original state if no start pose
+                mpl_visualization.plot(state, title=f"Scene {self.num_updates} at {time_str}", 
+                                      xrange=xrange, yrange=yrange, show=False, ax=self.axs[0])
+        except Exception as e:
+            print(f"Error converting to START frame: {str(e)}")
+            # Fallback to the original state
+            mpl_visualization.plot(state, title=f"Scene {self.num_updates} at {time_str}",
+                                  xrange=xrange, yrange=yrange, show=False, ax=self.axs[0])
         
         # Vehicle plot (axs[1])
         self.axs[1].clear()
