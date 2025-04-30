@@ -1,4 +1,5 @@
 import numpy as np
+import rospy
 from math import sin, cos, atan2
 
 # These imports match your existing project structure
@@ -70,6 +71,9 @@ class Stanley(object):
         i = settings.get('control.longitudinal_control.pid_i')
         self.pid_speed = PID(p, d, i, windup_limit=20)
 
+        self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
+        self.launch_start_time = None
+
         # Speed source: numeric or derived from path/trajectory
         if desired_speed is not None:
             self.desired_speed_source = desired_speed
@@ -113,6 +117,24 @@ class Stanley(object):
 
         self.current_path_parameter = 0.0
 
+    def set_racing_path(self, path: Path):
+        if path == self.path_arg:
+            return
+        self.path_arg = path
+        if len(path.points[0]) > 2:
+            path = path.get_dims([0,1])
+        if not isinstance(path, Trajectory):
+            self.path = path.arc_length_parameterize()
+            self.trajectory = path.racing_velocity_profile()
+            self.current_traj_parameter = 0.0
+            if self.desired_speed_source not in ['racing']:
+                raise ValueError("Racing: desired speed must be set to racing, currently set to: " + str(self.desired_speed_source))
+        else:
+            self.path = path.arc_length_parameterize()
+            self.trajectory = path
+            self.current_traj_parameter = self.trajectory.domain()[0]
+        self.current_path_parameter = 0.0
+
     def _find_front_axle_position(self, x, y, yaw):
         """Compute front-axle world position from the center/rear and yaw."""
         fx = x + self.wheelbase * cos(yaw)
@@ -125,6 +147,8 @@ class Stanley(object):
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
+
+
 
         # Current vehicle states
         curr_x = state.pose.x
@@ -176,8 +200,9 @@ class Stanley(object):
 
         desired_speed = self.desired_speed
         feedforward_accel = 0.0
-
-        if self.trajectory and self.desired_speed_source in ['path', 'trajectory']:
+        print(self.desired_speed)
+        # print(self.trajectory)
+        if self.trajectory and self.desired_speed_source in ['path', 'trajectory', 'racing']:
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
                 # End of trajectory -> stop
                 if component:
@@ -190,9 +215,15 @@ class Stanley(object):
                 else:
                     self.current_traj_parameter += dt
                     current_trajectory_time = self.current_traj_parameter
+                    print(current_trajectory_time)
 
                 deriv = self.trajectory.eval_derivative(current_trajectory_time)
-                desired_speed = min(np.linalg.norm(deriv), self.speed_limit)
+
+                # deriv 0 at time 0
+                if np.isnan(deriv[0]):
+                    desired_speed = 0.0
+                else:
+                    desired_speed = min(np.linalg.norm(deriv), self.speed_limit)
 
                 difference_dt = 0.1
                 future_t = current_trajectory_time + difference_dt
@@ -206,8 +237,11 @@ class Stanley(object):
             if desired_speed is None:
                 desired_speed = 4.0
 
-            # Cross-track-based slowdown (less aggressive than before).
-            desired_speed *= np.exp(-abs(cross_track_error) * 0.6)
+            # Cross-track-based slowdown (less aggressive than before). More aggressive for racing
+            if self.desired_speed_source in ['racing']:
+                desired_speed *= np.exp(-abs(cross_track_error) * 1.5)
+            else:
+                desired_speed *= np.exp(-abs(cross_track_error) * 0.6)
 
         # Clip to speed limit
         if desired_speed > self.speed_limit:
@@ -241,6 +275,9 @@ class Stanley(object):
             component.debug("Stanley: desired_speed (m/s)", desired_speed)
             component.debug("Stanley: feedforward_accel (m/s^2)", feedforward_accel)
             component.debug("Stanley: output_accel (m/s^2)", output_accel)
+            component.debug('Stanley: current yaw (rad)', curr_yaw)
+            component.debug('Stanley: current speed (m/s)', speed)
+
 
         if output_accel > self.max_accel:
             output_accel = self.max_accel
@@ -268,6 +305,9 @@ class StanleyTrajectoryTracker(Component):
         """
         self.stanley = Stanley(**kwargs)
         self.vehicle_interface = vehicle_interface
+        self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
+        self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
+        self.enable_launch_control = settings.get('control.launch_control.enable', False) # and vehicle.v < 0.1
 
     def rate(self):
         """Control frequency in Hz."""
@@ -293,7 +333,11 @@ class StanleyTrajectoryTracker(Component):
           3) Convert front wheel angle to steering wheel angle (if necessary)
           4) Send command to the vehicle
         """
-        self.stanley.set_path(trajectory)
+        # path to trajectory if racing enabled
+        if self.desired_speed_source in ['racing']: ## conditional needed for no racing
+            self.stanley.set_racing_path(trajectory)
+        else:
+            self.stanley.set_path(trajectory)
         accel, f_delta = self.stanley.compute(vehicle, self)
 
         # If your low-level interface expects steering wheel angle:
@@ -305,6 +349,25 @@ class StanleyTrajectoryTracker(Component):
         )
 
         cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
+        
+        if self.enable_launch_control:
+            print("launch control active")
+            if not hasattr(self,'_launch_start_time'):
+                self._launch_start_time = rospy.get_time()  
+            elapsed = rospy.get_time() - self._launch_start_time
+            if elapsed < self.stage_duration:
+                cmd.accelerator_pedal_position = 0.0
+                cmd.brake_pedal_position = 1.0
+            elif elapsed < 2 * self.stage_duration:
+                cmd.accelerator_pedal_position = 1.0
+                cmd.brake_pedal_position = 1.0
+            elif elapsed < 3 * self.stage_duration:
+                cmd.accelerator_pedal_position = 1.0
+                cmd.brake_pedal_position = 0.0
+            else:
+                self.enable_launch_control = False
+
+
         self.vehicle_interface.send_command(cmd)
 
     def healthy(self):

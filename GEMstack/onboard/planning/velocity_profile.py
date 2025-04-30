@@ -5,6 +5,13 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from scipy.signal import savgol_filter
 
+# from ..stanley import normalise_angle
+from ...knowledge.vehicle import dynamics
+from ...utils import settings
+
+# from ..mathutils import transforms,collisions
+
+
 def parse_route_csv(filename):
     """
     Parses the pure pursuit tracker log file and extracts the following data:
@@ -196,6 +203,36 @@ def plot_x_y(axis, x, y, x_label, y_label):
     axis.set_ylabel(y_label)
     axis.grid(True)
 
+def compute_velocity_profile(points):
+
+    v_max  = settings.get('vehicle.limits.max_speed')
+    ax_max = settings.get('vehicle.limits.max_longitudinal_acceleration')
+    ax_min = settings.get('vehicle.limits.min_longitudinal_acceleration')
+    ay_max = settings.get('vehicle.limits.max_lateral_acceleration')
+
+    points = np.array(points)
+    # print(points)
+    xs, ys = points[:,0], points [:,1]
+    # print(xs)
+
+    dx = np.diff(xs)
+    dy = np.diff(ys)
+    ds = np.hypot(dx, dy)
+    ds = np.append(ds, ds[-1])
+
+    kappa = compute_curvature_by_distance(xs,ys, ds)
+
+    v_lat = lateral_speed_limit(kappa, ay_max, v_max)
+    v_profile, forward_vs, backward_vs, v_lat = apply_trail_braking(ds, v_lat, kappa, ax_max, ax_min, ay_max)
+
+    v_profile = savgol_filter(v_profile, window_length=9, polyorder=3)
+
+    t = compute_time_profile(xs, ys, v_profile)
+
+    return t, v_profile
+
+
+
 if __name__=='__main__':
     if len(sys.argv) != 2:
         print("Usage: python velocity_profile.py <route file name>")
@@ -209,33 +246,16 @@ if __name__=='__main__':
         sys.exit(1)
     
     xs, ys = parse_route_csv(path_file)
-    # print(xs)
-    ay_max = 3.3
-    v_max  = 9
-    ax_max = 2.07
-    ax_min = -2.61
-    
-    # max long accel: 2.0769700074721493
-    # min long accel: -2.6197231578072313
-    # max lat accel: 3.3754426456004567
 
-    dx = np.diff(xs)
-    dy = np.diff(ys)
-    ds = np.hypot(dx, dy)
-    ds = np.append(ds, ds[-1])
+    points = list(zip(xs,ys))
 
-    kappa = compute_curvature_by_distance(xs,ys, ds)
+    t, v_profile = compute_velocity_profile(points)
 
-    v_lat = lateral_speed_limit(kappa, ay_max, v_max)
-    v_profile, forward_vs, backward_vs, v_lat = apply_trail_braking(ds, v_lat, kappa, ax_max, ax_min, ay_max)
-
-    # v_profile = moving_average(v_profile, 11)
-    v_profile = savgol_filter(v_profile, window_length=9, polyorder=3)
-
+    # # max long accel: 2.0769700074721493
+    # # min long accel: -2.6197231578072313
+    # # max lat accel: 3.3754426456004567
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
-
-    t = compute_time_profile(xs, ys, v_profile)
 
     dv = np.diff(v_profile)
     dt = np.diff(t)

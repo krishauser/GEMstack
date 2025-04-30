@@ -6,6 +6,7 @@ from .physical_object import ObjectFrameEnum, convert_point
 import math
 import numpy as np
 from typing import List,Tuple,Optional,Union
+from ..onboard.planning.velocity_profile import compute_velocity_profile
 
 @dataclass
 @register
@@ -79,6 +80,15 @@ class Path:
                 points.append(p2)
                 times.append(times[-1] + d/speed)
         return Trajectory(frame=self.frame,points=points,times=times)
+
+    def racing_velocity_profile(self) -> Trajectory:
+        """Returns a timed trajectory with max velocity profile parametrized by path radius"""
+        times = [0.0]
+        # print(self.points)
+        points = self.points
+        # print(points)
+        times, velocities = compute_velocity_profile(points)
+        return Trajectory(frame=self.frame,points=points,times=times, velocities=velocities)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
         """Returns the closest point on the path to the given point.  If

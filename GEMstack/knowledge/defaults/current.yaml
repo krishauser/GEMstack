@@ -17,9 +17,14 @@
          crosstrack_gain: 0.3
          desired_speed: trajectory #racing
      launch_control:
-         enabled: false
+         enable: 1
          stage_duration: 0.5
-         
+     # Stanley controller parameters (fine tune this)
+     stanley:
+         control_gain: 0.1
+         softening_gain: 0.2
+         desired_speed: racing        # Speed reference source: can be "trajectory", "path", "racing" or a constant value
+    
      longitudinal_control:
          pid_p: 0.8
          pid_i: 0.03
