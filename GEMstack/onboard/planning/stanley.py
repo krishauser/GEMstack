@@ -153,6 +153,7 @@ class Stanley(object):
 
         if reverse:
             cross_track_error = dx * (-tangent[1]) + dy * tangent[0]
+            self.k += self.k
         else:
             left_vec = np.array([sin(curr_yaw), -cos(curr_yaw)])
             cross_track_error = np.sign(np.dot(np.array([dx, dy]), left_vec)) * closest_dist
@@ -292,7 +293,8 @@ class StanleyTrajectoryTracker(Component):
     def __init__(self, vehicle_interface=None, **kwargs):
         self.stanley = Stanley(**kwargs)
         self.vehicle_interface = vehicle_interface
-
+        self.reverse = None
+        
     def rate(self):
         return 50.0
 
@@ -302,16 +304,99 @@ class StanleyTrajectoryTracker(Component):
     def state_outputs(self):
         return []
 
+    def _check_sharp_turn_ahead(self, lookahead_s=3.0, threshold_angle=np.pi/2.0, num_steps=4):
+        if not self.stanley.path:
+            return False
+
+        path = self.stanley.path
+        current_s = self.stanley.current_path_parameter
+        domain_start, domain_end = path.domain()
+
+        if current_s >= domain_end - 1e-3:
+            return False
+
+        step_s = lookahead_s / num_steps
+        s_prev = current_s
+        
+        try:
+            tangent_prev = path.eval_tangent(s_prev)
+            if np.linalg.norm(tangent_prev) < 1e-6:
+                s_prev_adjusted = min(s_prev + step_s / 2, domain_end)
+                if s_prev_adjusted <= s_prev:
+                    return False
+                tangent_prev = path.eval_tangent(s_prev_adjusted)
+                if np.linalg.norm(tangent_prev) < 1e-6:
+                    return False
+                s_prev = s_prev_adjusted
+                
+            angle_prev = atan2(tangent_prev[1], tangent_prev[0])
+
+        except Exception as e:
+            return False
+
+        for i in range(num_steps):
+            s_next = s_prev + step_s
+            s_next = min(s_next, domain_end)
+
+            if s_next <= s_prev + 1e-6:
+                break
+
+            try:
+                tangent_next = path.eval_tangent(s_next)
+                if np.linalg.norm(tangent_next) < 1e-6:
+                    s_prev = s_next
+                    continue 
+
+                angle_next = atan2(tangent_next[1], tangent_next[0])
+            except Exception as e:
+                break
+
+            angle_change = abs(normalise_angle(angle_next - angle_prev))
+
+            if angle_change > threshold_angle:
+                return True
+
+            angle_prev = angle_next
+            s_prev = s_next
+        return False
+
     def update(self, vehicle: VehicleState, trajectory: Trajectory):
         self.stanley.set_path(trajectory)
+        
+        if self.reverse == None:
+            curr_x = vehicle.pose.x
+            curr_y = vehicle.pose.y
+            curr_yaw = vehicle.pose.yaw if vehicle.pose.yaw is not None else 0.0
 
-        # TODO
-        reverse = False
-        # reverse = some_function_here()
-        accel, f_delta = self.stanley.compute(vehicle, self, reverse)
+            fx, fy = self.stanley._find_front_axle_position(curr_x, curr_y, curr_yaw)
+            path_domain_start = self.stanley.path.domain()[0]
+            search_domain_start = [path_domain_start, min(self.stanley.path.domain()[1], path_domain_start + 5.0)]
+
+            _, closest_param_at_start = self.stanley.path.closest_point_local((fx, fy), search_domain_start)
+            tangent_at_start = self.stanley.path.eval_tangent(closest_param_at_start)
+
+            if np.linalg.norm(tangent_at_start) > 1e-6:
+                path_yaw_at_start = atan2(tangent_at_start[1], tangent_at_start[0])
+                heading_diff = normalise_angle(path_yaw_at_start - curr_yaw)
+                self.reverse = abs(heading_diff) > (np.pi / 2.0)
+            else:
+                self.reverse = False
+            self.stanley.pid_speed.reset()
+            self.stanley.current_path_parameter = self.stanley.path.domain()[0]
+
+        else:  
+            is_sharp_turn_ahead = self._check_sharp_turn_ahead(
+                lookahead_s=4.0,     
+                threshold_angle=np.pi/2.0
+            )
+            print(f"Sharp turn ahead: {is_sharp_turn_ahead}")
+            if is_sharp_turn_ahead:
+                self.reverse = not self.reverse
+                self.stanley.set_path(trajectory)
+        accel, f_delta = self.stanley.compute(vehicle, self, self.reverse)
 
         steering_angle = front2steer(f_delta)
-        steering_angle = np.clip(
+        steering_angle = np.clip(	
             steering_angle,
             settings.get('vehicle.geometry.min_steering_angle', -0.5),
             settings.get('vehicle.geometry.max_steering_angle',  0.5)
