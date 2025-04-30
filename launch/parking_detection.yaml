@@ -47,9 +47,15 @@ variants:
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    # agent_detection : cone_detection.ConeDetector3D
-                    agent_detection : cone_detection_simple.ConeDetectorSimple3D
+                    agent_detection : cone_detection.ConeDetector3D
+                    # agent_detection : cone_detection_simple.ConeDetectorSimple3D
                     parking_detection: parking_detection.ParkingSpotsDetector3D
+                planning:
+                    parking_component:
+                        type: ParkingSim
+                    route_planning_component:
+                        type: RoutePlanningComponent
+                
     sim:
         run:
             mode: simulation
