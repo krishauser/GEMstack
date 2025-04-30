@@ -111,17 +111,21 @@ class RoutePlanningComponent(Component):
         #     (17.33, -2.44),
         #     (22.11, -2.44)  
         # ]
+        self.parked_cars = [
+
+        ]
         # self.parking_utils = ReedsSheppParking(
         #     static_horizontal_curb_xy_coordinates=[(0.0, -2.44),(24.9, -2.44)],
         #     static_vertical_curb_xy_coordinates=[(12.45, -4.88)])
-        self.parked_cars = [
-            (-12.11, 7.56),
-            (-7.33, 7.56)
-        ]
+        # self.parked_cars = [
+        #     (-12.11, 7.56),
+        #     (-7.33, 7.56)
+        # ]
         self.parking_utils = ReedsSheppParking(
-            static_horizontal_curb_xy_coordinates=[(10.0, 7.56),(-14.9, 7.56)],
-            static_vertical_curb_xy_coordinates=[(-2.45, 5.12)])
+            static_horizontal_curb_xy_coordinates=[(10.0, 7.56),(-20.0, 7.56)],
+            static_vertical_curb_xy_coordinates=[(-2.45, 20.12)])
         self.parking_utils.closest = False
+        self.parking_velocity_is_zero = False
 
     def state_inputs(self):
         return ["all"]
@@ -247,16 +251,21 @@ class RoutePlanningComponent(Component):
             #     self.route = state.route
             """ END """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-            # for agent in state.agents.values():
-            #     if agent.type == AgentEnum.CONE:
-            #         self.parked_cars.append((agent.pose.x, agent.pose.y))
+            # STOP BEFORE PARKING
+            # COMMENT OUT BECAUSE IT CAUSES ROUTE PLANNING FAILURE 
+            # if self.parking_velocity_is_zero == False and state.vehicle.v > 0.01:
+            #     print("@@@@@ Vehicle is moving, stop it first.")
+            #     self.route = Route(frame=ObjectFrameEnum.START, points=[[state.vehicle.pose.x, state.vehicle.pose.y]])
+            #     return self.route
+
+            self.parking_velocity_is_zero = True
+
+            for agent in state.agents.values():
+                if agent.type == AgentEnum.CONE:
+                    self.parked_cars = []
+                    self.parked_cars.append((agent.pose.x, agent.pose.y))
 
             if not self.parking_route_existed:
-                for agent in state.agents.values():
-                    if agent.type == AgentEnum.CONE:
-                        self.parked_cars = []
-                        self.parked_cars.append((agent.pose.x, agent.pose.y))
-
                 self.current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
                 self.parking_utils.find_collision_free_trajectory(self.parked_cars, self.current_pose, True)
                 self.parking_route_existed = True
