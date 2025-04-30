@@ -26,6 +26,11 @@ control:
         softening_gain: 0.2
         desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
     
+    # MPC controller parameters
+    mpc:
+        dt: 0.2                          # Time step for the MPC controller (seconds)
+        horizon: 30                      # Prediction horizon for the MPC controller (number of time steps)
+
     # Shared longitudinal control parameters
     longitudinal_control:
         pid_p: 1.0                       # Proportional gain for speed PID controller

@@ -1,19 +1,21 @@
 from ...utils import settings
-from ...state.vehicle import VehicleState,ObjectFrameEnum
+from ...state.vehicle import VehicleState,VehicleGearEnum
 from ...state.trajectory import Trajectory, Path
 from ...knowledge.vehicle.geometry import front2steer
 from ..component import Component
 import numpy as np
 import casadi
+import math
 
 class MPCController(object):
     """Model Predictive Controller for trajectory tracking."""
     def __init__(self, T=None, dt=None):
-        self.T = T if T is not None else settings.get('control.mpc.horizon', 10)
-        self.dt = dt if dt is not None else settings.get('control.mpc.dt', 0.1)
+        self.T = T if T is not None else settings.get('control.mpc.horizon', 30)
+        self.dt = dt if dt is not None else settings.get('control.mpc.dt', 0.2)
         self.L = settings.get('vehicle.geometry.wheelbase')
         self.v_bounds = [-settings.get('vehicle.limits.max_reverse_speed'), settings.get('vehicle.limits.max_speed')]
         self.delta_bounds = [settings.get('vehicle.geometry.min_wheel_angle'),settings.get('vehicle.geometry.max_wheel_angle')]
+        self.delta_rate_bounds = [-0.4, 0.4] # Predefined front wheel rate limit to simplify computation
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         self.a_bounds = [-settings.get('vehicle.limits.max_deceleration'), settings.get('vehicle.limits.max_acceleration')]
         self.trajectory = None 
@@ -21,44 +23,67 @@ class MPCController(object):
         self.prev_u = None  # Previous control inputs
         self.path = None
         self.path_arg = None
-
-    # def set_path(self, trajectory: Trajectory):
-    #     """Set the trajectory for the MPC controller."""
-    #     # Assume the argument can only be trajectory
-    #     assert isinstance(trajectory, Trajectory), "Invalid trajectory type."
-    #     print("*"*10)
-    #     print("set_path")
-    #     self.trajectory = trajectory
+        self.iter = 0
 
     def set_path(self, path : Path):
-        print("Get new path!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         if path == self.path_arg:
             return
         self.path_arg = path
+        self.iter = 0
         if len(path.points[0]) > 2:
             path = path.get_dims([0,1])
-        self.path = path.arc_length_parameterize()
-        self.trajectory = self.path
-        self.current_traj_parameter = self.trajectory.domain()[0]
+        self.path = path.arc_length_parameterize(1.0)
+        # self.path = path.arc_length_parameterize(0.5)
         self.current_path_parameter = 0.0
+        # self.prev_u = None
+        # self.prev_x = None
+        if not isinstance(path,Trajectory):
+            self.trajectory = None
+            self.current_traj_parameter = 0.0
+        else:
+            self.trajectory = path
+            self.current_traj_parameter = self.trajectory.domain()[0]
 
     def compute(self, state: VehicleState, component: Component = None):
         """Compute the control commands using MPC."""
+        if self.iter < 10 and self.prev_x is not None:
+            self.iter += 1
+            # return float(self.prev_u[self.iter, 0]), float(self.prev_x[self.iter + 1, 4])
+        self.iter = 0
+
+        if self.path is not None:
+            if self.path.frame != state.pose.frame:
+                print("Transforming trajectory from",self.path.frame.name,"to",state.pose.frame.name)
+                self.path = self.path.to_frame(state.pose.frame, current_pose=state.pose)
 
         if self.trajectory is not None:
             if self.trajectory.frame != state.pose.frame:
                 print("Transforming trajectory from",self.trajectory.frame.name,"to",state.pose.frame.name)
                 self.trajectory = self.trajectory.to_frame(state.pose.frame, current_pose=state.pose)
+        
+        x0 = np.array([state.pose.x, state.pose.y, state.pose.yaw % (2 * np.pi), state.v, state.front_wheel_angle])
 
-        x0 = np.array([state.pose.x, state.pose.y, state.pose.yaw, state.v])
+        print(x0)
 
-       # Interpolate trajectory points to match MPC time horizon
-        times = self.trajectory.times
-        points = self.trajectory.points
+        closest_dist,closest_time = self.path.closest_point_local((x0[0], x0[1]),[self.current_traj_parameter-7.0,self.current_traj_parameter+7.0], True)
+        # Interpolate trajectory points to match MPC time horizon
+        self.current_traj_parameter = closest_time
+
+        times = self.path.times
+        points = self.path.points
+        j = math.floor(self.current_path_parameter)
+        while j < len(times) - 1 and times[j+1] < closest_time:
+            j += 1
+        self.current_path_parameter = j
+        # print("closest_index: ", self.current_path_parameter)
+        # print("vehicle position: ", x0[0], x0[1])
+        # print("closest_point: ", points[int(self.current_path_parameter)])
+        # print("closest_time: ", closest_time)
+        # print("local points: ", points[j-5:j+5])
+
         traj_points = []
-        j = 0
         for i in range(self.T + 1):
-            t_query = times[0] + i * self.dt
+            t_query = closest_time + i * self.dt
             if t_query <= times[0]:
                 traj_points.append(points[0])
             elif t_query >= times[-1]:
@@ -69,22 +94,95 @@ class MPCController(object):
                 alpha = (t_query - times[j]) / (times[j+1] - times[j])
                 pt = (1 - alpha) * np.array(points[j]) + alpha * np.array(points[j+1])
                 traj_points.append(pt)
+        
+        # print("trajectory points: ", traj_points)
+        traj_str = ", ".join(
+            [f"np.array([{round(p[0], 8)}, {round(p[1], 8)}])" for p in traj_points]
+        )
+        print(f"traj_points = [{traj_str}]")
+
+        # Apply gradually decreasing offset correction
+        cur_offset = np.array([state.pose.x, state.pose.y]) - np.array(traj_points[0][0:2])
+        for i in range(len(traj_points)):
+            s = i / (len(traj_points) + 5)  # Normalized [0, 1]
+            decay_ratio = (1 - s) ** 1      # linear decay
+            
+            # Get direction of trajectory at this point
+            if i < len(traj_points) - 1:
+                tangent = np.array(traj_points[i+1]) - np.array(traj_points[i])
+            else:
+                tangent = np.array(traj_points[i]) - np.array(traj_points[i-1])
+            
+            tangent_norm = np.linalg.norm(tangent)
+            if tangent_norm == 0:
+                continue  # Skip degenerate points
+
+            tangent /= tangent_norm
+            normal = np.array([-tangent[1], tangent[0]])  # Rotate tangent by 90° to get normal
+
+            # Project initial offset onto this normal
+            offset_proj = np.dot(cur_offset, normal) * normal
+
+            # Apply decaying lateral offset
+            traj_points[i] = np.array(traj_points[i]) + decay_ratio * offset_proj
+
+        # print("trajectory points after correction: ", traj_points)
+        traj_corrected_str = ", ".join(
+            [f"np.array([{round(p[0], 8)}, {round(p[1], 8)}])" for p in traj_points]
+        )
+        print(f"traj_corrected = [{traj_corrected_str}]")
+
+        
+        target_angles = []
+        prev_angle = x0[2]
+
+        for i in range(1, len(traj_points)):
+            dx = traj_points[i][0] - traj_points[i-1][0]
+            dy = traj_points[i][1] - traj_points[i-1][1]
+            raw_angle = np.arctan2(dy, dx) % (2 * np.pi)
+
+            # Convert raw_angle to be close to prev_angle (modulo 2π), within ±0.5π
+            # Compute smallest angular difference
+            delta = ((raw_angle - prev_angle + np.pi) % (2 * np.pi)) - np.pi
+
+            # Clip delta to ±0.5π
+            if delta > 0.5 * np.pi:
+                delta -= np.pi
+            elif delta < -0.5 * np.pi:
+                delta += np.pi
+
+            corrected_angle = prev_angle + delta
+            assert abs(corrected_angle - prev_angle) < 0.5 * np.pi
+            target_angles.append(corrected_angle)
+            prev_angle = corrected_angle
+
+        # print(target_angles)
+
+        # delta_desired = []
+        # for i in range(1, len(target_angles)):
+        #     ds = np.linalg.norm(np.array(traj_points[i]) - np.array(traj_points[i-1]))
+        #     dtheta = target_angles[i] - target_angles[i-1]
+        #     dtheta = (dtheta + np.pi) % (2 * np.pi) - np.pi  # Normalize to [-pi, pi]
+            
+        #     curvature = dtheta / ds if ds > 1e-6 else 0.0
+        #     delta_ref = np.arctan(self.L * curvature)
+        #     delta_desired.append(delta_ref)
 
         # Optimization setup
         opti = casadi.Opti()
-        x = opti.variable(self.T+1, 4)  # [x, y, theta, v]
-        u = opti.variable(self.T, 2)    # [a, delta]
+        x = opti.variable(self.T+1, 5)  # [x, y, theta, v, delta]
+        u = opti.variable(self.T, 2)    # [a, delta_dot]
 
         def model(x, u):
             """Dynamic model of the vehicle using kinematic bicycle model"""
-            px, py, theta, v = x[0], x[1], x[2], x[3]
-            a, delta = u[0], u[1]
-            beta = casadi.atan(casadi.tan(delta) / 2.0)
-            dx = v * casadi.cos(theta + beta)
-            dy = v * casadi.sin(theta + beta)
+            px, py, theta, v, delta = x[0], x[1], x[2], x[3], x[4]
+            a, delta_dot = u[0], u[1]
+            dx = v * casadi.cos(theta)
+            dy = v * casadi.sin(theta)
             dtheta = v * casadi.tan(delta) / self.L
             dv = a
-            return casadi.vertcat(dx, dy, dtheta, dv)
+            ddelta = delta_dot
+            return casadi.vertcat(dx, dy, dtheta, dv, ddelta)
 
         obj = 0
         for t in range(self.T):
@@ -93,17 +191,30 @@ class MPCController(object):
             opti.subject_to(x[t+1,:] == x_next)
             target = traj_points[t+1]
             # Cost function
-            obj += casadi.sumsqr(x[t+1,0:2] - casadi.reshape(target[0:2], 1, 2))
-            obj += 0.1 * casadi.sumsqr(u[t,:])
+            # Apply larger cost for the first three points
+            weight = 10 if t < 3 else 1  # Larger weight for the first three points
+            obj += weight * casadi.sumsqr(x[t + 1, 0:2] - casadi.reshape(target[0:2], 1, 2))
+            
+            # Control effort penalty
+            obj += 0.1 * casadi.sumsqr(u[t, :])
+
+            # Heading angle error
+            # theta_error = x[t + 1, 2] - target_angles[t]
+            # obj += 1 * weight * casadi.sumsqr(theta_error)
+
+            # if t != self.T - 1:
+            #     delta_error = x[t + 1, 4] - delta_desired[t]
+            #     obj += 0.1 * weight * casadi.sumsqr(delta_error)
 
         # Initial condition
-        opti.subject_to(x[0, :] == casadi.reshape(x0[:4], 1, 4))
+        opti.subject_to(x[0, :] == casadi.reshape(x0, 1, 5))
 
         # Constraints
         for t in range(self.T):
-            opti.subject_to(opti.bounded(self.a_bounds[0], u[t,0], self.a_bounds[1]))
-            opti.subject_to(opti.bounded(self.delta_bounds[0], u[t,1], self.delta_bounds[1]))
-            opti.subject_to(opti.bounded(self.v_bounds[0], x[t+1,3], self.v_bounds[1]))
+            opti.subject_to(opti.bounded(self.a_bounds[0], u[t,0], self.a_bounds[1]))            # a
+            opti.subject_to(opti.bounded(self.delta_rate_bounds[0], u[t,1], self.delta_rate_bounds[1]))                # delta_dot
+            opti.subject_to(opti.bounded(self.delta_bounds[0], x[t+1,4], self.delta_bounds[1]))  # delta as state
+            opti.subject_to(opti.bounded(self.v_bounds[0], x[t+1,3], self.v_bounds[1]))          # v
 
         # Initial guess
         if self.prev_x is not None and self.prev_u is not None:
@@ -113,16 +224,33 @@ class MPCController(object):
 
         # Solver settings
         opti.minimize(obj)
-        opti.solver("ipopt", {"expand": True}, {"max_iter": 100})
+        p_opts = {"expand": True, 'ipopt.print_level': 0, 'print_time': 0, 'ipopt.sb': 'yes'}
+        s_opts = {"max_iter": 150}
+
+        opti.solver("ipopt", p_opts, s_opts)
 
         try:
             # Solve the optimization problem
             sol = opti.solve()
             acc = float(sol.value(u[0,0]))
-            delta = float(sol.value(u[0,1]))
+            # delta = float(sol.value(u[0,1]))
+            delta = float(sol.value(x[1,4]))
             self.prev_x = sol.value(x)
             self.prev_u = sol.value(u)
+            # if x0[3] < 1.3:
+            #     for i in range(len(self.prev_x)):
+            #         assert self.prev_x[i,3] <= 1.3
+
+            xy_array = [f"np.array([{round(self.prev_x[t,0],8)}, {round(self.prev_x[t,1],8)}])" for t in range(self.prev_x.shape[0])]
+            print("mpc = [", ", ".join(xy_array), "]")
+
             print(acc, delta)
+            # print(self.prev_u[0])
+            # print(self.prev_x[0])
+            # print(self.prev_x[1])
+            # print(self.prev_u)
+            # print(x0[4])
+            # print(delta)
             return acc, delta
         except RuntimeError:
             # Handle optimization failure
@@ -134,7 +262,7 @@ class MPCTrajectoryTracker(Component):
     def __init__(self, vehicle_interface=None, **args):
         self.mpc = MPCController(**args)
         self.vehicle_interface = vehicle_interface
-        print(type(vehicle_interface))
+        self.counter = 0
 
     def rate(self):
         return 5.0
