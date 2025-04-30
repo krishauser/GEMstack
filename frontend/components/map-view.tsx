@@ -22,6 +22,10 @@ export function MapView() {
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
 
+  const [userLocation, setUserLocation] = useState<{
+    lng: number;
+    lat: number;
+  } | null>(null);
   const [center, setCenter] = useState<{ lng: number; lat: number }>(
     INITIAL_CENTER
   );
@@ -29,22 +33,15 @@ export function MapView() {
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const [pitch, _] = useState(INITIAL_PITCH);
 
-  const [data, setData] = useState<GeoJSON.FeatureCollection | undefined>(
-    undefined
-  );
   const [isSummoning, setIsSummoning] = useState(false);
-  const [userLocation, setUserLocation] = useState<{
-    lng: number;
-    lat: number;
-  } | null>(null);
 
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
   const handleSummon = async () => {
+    toast.info(`Summoning to ${userLocation?.lat} ${userLocation?.lng}`)
     setIsSummoning(true);
     const coords = userLocation ? userLocation : center;
 
-    try {
       const summonReq = await summon(coords.lng, coords.lat);
 
       if (!summonReq.ok) {
@@ -53,45 +50,6 @@ export function MapView() {
         setIsSummoning(false);
         return;
       }
-
-      const eventSource = new EventSource("http://localhost:8000/api/summon");
-
-      eventSource.onmessage = (e) => {
-        const parsedData = JSON.parse(e.data);
-        const { lat, lon } = parsedData.current_position;
-
-        setData({
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              geometry: {
-                type: "Point",
-                coordinates: [lon, lat],
-              },
-              properties: {},
-            },
-          ],
-        });
-      };
-
-      eventSource.onerror = (err) => {
-        // If the EventSource is closed (readyState === 2) it is expected.
-        if (err.eventPhase === EventSource.CLOSED) {
-          console.log("Summon stream closed.");
-        } else {
-          console.error("EventSource error:", err);
-        }
-        eventSource.close();
-        setData(undefined);
-        setIsSummoning(false);
-      };
-    } catch (error: any) {
-      toast.error("Error triggering summon:", {
-        description: error.message,
-      });
-      setIsSummoning(false);
-    }
   };
 
   const handleZoomIn = () => {
@@ -112,7 +70,11 @@ export function MapView() {
       center: center,
       zoom: zoom,
       pitch: pitch,
-      style: "mapbox://styles/mapbox/streets-v12",
+      // style: "mapbox://styles/mapbox/satellite-v9",
+      maxBounds: [
+        [-88.2368, 40.0925], // Southwest coordinates
+        [-88.2346, 40.0935] // Northeast coordinates
+      ]
     });
 
     const draw = new MapboxDraw({
@@ -122,7 +84,7 @@ export function MapView() {
         polygon: true,
         trash: true,
       },
-      defaultMode: "draw_polygon",
+      defaultMode: "simple_select",
     });
 
     mapRef.current.on("load", async () => {
@@ -168,21 +130,18 @@ export function MapView() {
       }
     }
 
-    const geolocateControl = new mapboxgl.GeolocateControl({
-      positionOptions: {
-        enableHighAccuracy: true,
-      },
-      trackUserLocation: true,
-      showUserHeading: true,
-    });
-    mapRef.current.addControl(geolocateControl);
+    const marker = new mapboxgl.Marker({
+      draggable: true
+    })
+        .setLngLat(INITIAL_CENTER)
+        .addTo(mapRef.current);
 
-    geolocateControl.on("geolocate", (e) => {
-      setUserLocation({
-        lng: e.coords.longitude,
-        lat: e.coords.latitude,
-      });
-    });
+    function onDragEnd() {
+      const lngLat = marker.getLngLat();
+      setUserLocation({lat: lngLat.lat, lng: lngLat.lng})
+    }
+
+    marker.on('dragend', onDragEnd);
 
     mapRef.current.on("move", () => {
       // get the current center coordinates and zoom level from the map
@@ -204,27 +163,6 @@ export function MapView() {
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (!data) return;
-
-    const source = mapRef.current?.getSource("iss") as mapboxgl.GeoJSONSource;
-    if (source) {
-      source.setData(data);
-    }
-
-    if (
-      data.features.length > 0 &&
-      data.features[0].geometry.type === "Point" &&
-      Array.isArray(data.features[0].geometry.coordinates)
-    ) {
-      const coords = data.features[0].geometry.coordinates as [number, number];
-      mapRef.current?.flyTo({
-        center: coords,
-        speed: 0.5,
-      });
-    }
-  }, [data]);
 
   return (
     <div className="relative w-full h-full bg-neutral-800 flex items-center justify-center">
@@ -266,7 +204,7 @@ export function MapView() {
           className="rounded-
                 full bg-neutral-900 hover:bg-neutral-800"
           onClick={handleSummon}
-          disabled={isSummoning}
+          disabled={isSummoning || !userLocation}
         >
           <Locate className="h-5 w-5 mr-2" />
           {isSummoning ? "Summoning..." : "Summon My Car"}
