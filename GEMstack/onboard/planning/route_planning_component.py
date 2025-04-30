@@ -10,8 +10,10 @@ import numpy as np
 from .rrt_star import RRTStar
 from ..interface.gem import GEMInterface
 from ..component import Component
-from ...state import AllState, Roadgraph, Route, PlannerEnum, ObjectFrameEnum, Path, VehicleState, AgentState, AgentEnum
+from ...state import AllState, Roadgraph, Route, PlannerEnum, ObjectFrameEnum, Path, \
+    VehicleState, AgentState, AgentEnum, RoadgraphRegion, RoadgraphRegionEnum
 from .RRT import BiRRT
+from .reeds_shepp_parking import ReedsSheppParking
 from ...utils import serialization
 import math
 
@@ -32,7 +34,8 @@ def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
     return lane_points
 
 
-def plan_available_pose_on_lane(location, roadgraph, current_yaw=None):
+def find_available_pose_on_lane(location, roadgraph, pose_yaw=None):
+    # TODO: Check, not complete
     x, y = location
     min_dist = np.inf
     for lane in roadgraph.lanes.values():
@@ -61,8 +64,8 @@ def plan_available_pose_on_lane(location, roadgraph, current_yaw=None):
     goal_x = (left_x + right_x) / 2
     goal_y = (left_y + right_y) / 2
 
-    if current_yaw is not None:
-        return [goal_x, goal_y, current_yaw]
+    if pose_yaw is not None:
+        return [goal_x, goal_y, pose_yaw]
 
     return [goal_x, goal_y, goal_yaw]
 
@@ -93,14 +96,6 @@ class RoutePlanningComponent(Component):
         else:
             raise ValueError("Unknown roadgraph file extension", ext)
 
-        # TODO: Transform global map to start frame?
-        if self.map_frame == ObjectFrameEnum.GLOBAL:
-            self.start_pose_global = None      # Read from GNSS?
-            self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=self.start_pose_global)
-
-        # If parking route existed, not search anymore. For simulation testing only. TODO: Delete after integration
-        self.parking_route_existed = False
-
         # Used as route searchers' time limit as well as the update rate of the component
         self.update_rate = 10.0
 
@@ -122,6 +117,10 @@ class RoutePlanningComponent(Component):
         print("Vehicle x:", state.vehicle.pose.x)
         print("Vehicle y:", state.vehicle.pose.y)
         print("Vehicle yaw:", state.vehicle.pose.yaw)
+
+        """ Transform offline map to start frame """
+        if self.roadgraph.frame is not ObjectFrameEnum.START:
+            self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
 
         if state.mission_plan.planner_type.value == PlannerEnum.PARKING.value:
             print("I am in PARKING mode")
@@ -155,36 +154,22 @@ class RoutePlanningComponent(Component):
             if state.vehicle.v < 0.01:
                 self.route = None
 
-        # Summoning driving mode. (Added by Summoning) TODO: to be integrated with planning team's searcher with local obstacle avoidance
+        # Summoning driving mode. TODO: to be integrated with planning team's searcher
         elif state.mission_plan.planner_type == PlannerEnum.SUMMON_DRIVING:
             print("I am in SUMMON_DRIVING mode")
-            # Get all the points of lanes and transform to START frame
+            # Get all the points of lanes
             if self.map_type == 'roadgraph':
                 self.lane_points = get_lane_points_from_roadgraph(self.roadgraph)
             elif self.map_type == 'pointlist':
                 self.lane_points = self.roadgraph.points
 
-            # Transform the goal to START frame
-            if state.mission_plan.goal_pose.frame == ObjectFrameEnum.START:
-                goal_pose_ = state.mission_plan.goal_pose
-            elif state.mission_plan.goal_pose.frame == ObjectFrameEnum.GLOBAL:
-                goal_pose_ = state.mission_plan.goal_pose.to_frame(ObjectFrameEnum.START,
-                                                                   start_pose_abs=self.start_pose_global)
-            else:
-                raise ValueError("Frame argument not available. Should be 'start' or 'global'.")
+            # Find appropriate start and goal points that are on the lanes and fix for searching
+            current_pose = find_available_pose_on_lane([state.vehicle.pose.x, state.vehicle.pose.y],
+                                                    self.roadgraph, pose_yaw=state.vehicle.pose.yaw)
+            goal_pose = find_available_pose_on_lane([state.mission_plan.goal_pose.x, state.mission_plan.goal_pose.y], self.roadgraph)
 
-            # Check map searching boundaries for the searcher
-            points = np.array(self.lane_points)
-            map_margin = 5.0
-            map_size = [np.min(points[:, 0]) - map_margin, np.max(points[:, 0]) + map_margin,
-                        np.min(points[:, 1]) - map_margin, np.max(points[:, 1]) + map_margin]
             # Search for waypoints
-            # current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
-            current_pose = plan_available_pose_on_lane([state.vehicle.pose.x, state.vehicle.pose.y],
-                                                    self.roadgraph, current_yaw=state.vehicle.pose.yaw)
-            goal_pose = plan_available_pose_on_lane([goal_pose_.x, goal_pose_.y], self.roadgraph)
-            searcher = BiRRT(current_pose, goal_pose, self.lane_points, map_size, OFFSET=0.8, time_limit=0.1,
-                             heading_limit=math.pi/6, step_size = 0.5, search_r = 1.4, MAX_Iteration = 20000)
+            searcher = BiRRT(current_pose, goal_pose, self.lane_points, update_rate=self.update_rate)
             waypoints = searcher.search()
 
             # For now, waypoints of [x, y, heading] is not working in longitudinal_planning. Use [x, y] instead.
@@ -199,34 +184,32 @@ class RoutePlanningComponent(Component):
             else:
                 self.route = state.route   # Fail to find a path, keep the origin route.
 
-        # Parallel parking mode. (Added by Summoning) TODO: To be integrate with parallel parking
+        # Parallel parking mode. TODO: To be integrate with parallel parking
         elif state.mission_plan.planner_type == PlannerEnum.PARALLEL_PARKING:
             print("I am in PARALLEL_PARKING mode")
-            # TODO: Get cones information from perception, should have a AgentEnum for cones, for example AgentEnum.CONE
-            # cones = []
-            # for agent in state.agents.values():
-            #     if agent.type == AgentEnum.CONE:
-            #         cones.append(agent)
+            vehicle_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
 
-            """ BEGIN: For simulation test only. Delete after integration """""""""""""""
-            def generate_turn(pose, step=1.0, num_points=10):
-                x, y, yaw = pose
-                yaw_left = yaw + math.pi / 4  # 左前方偏 45°
-                waypoints = []
-                for i in range(1, num_points + 1):
-                    dx = step * i * math.cos(yaw_left)
-                    dy = step * i * math.sin(yaw_left)
-                    waypoints.append([x + dx, y + dy])
-                return waypoints
+            detected_cones = []
+            for name, agent in state.agents.items():
+                if agent.type == AgentEnum.CONE:
+                    detected_cones.append([agent.pose.x, agent.pose.y])
 
-            if not self.parking_route_existed:
-                current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
-                waypoints = generate_turn(current_pose)
-                self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
-                self.parking_route_existed = True
+            if self.map_type == 'roadgraph':
+                parking_slot = []
+                for name, region in self.roadgraph.regions:
+                    if region.type == RoadgraphRegionEnum.PARKING_LOT:
+                        parking_slot.append(region.outline)
             else:
-                self.route = state.route
-            """ END """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+                parking_slots = None
+
+            searcher = ReedsSheppParking(vehicle_pose=vehicle_pose, parking_slots=parking_slots,
+                                         detected_cones=detected_cones, update_rate=self.update_rate)
+            waypoints = searcher.find_collision_free_trajectory()
+
+            if waypoints:
+                self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
+            else:
+                self.route = state.route  # Fail to find a path, keep the origin route.
 
         else:
             print("Unknown mode")

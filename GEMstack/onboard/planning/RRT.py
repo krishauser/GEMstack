@@ -3,6 +3,7 @@ import random
 import math
 import time
 import yaml
+from typing import Optional
 
 class Obstacle:
     def __init__(self,x=0,y=0,r=0.2):
@@ -19,7 +20,7 @@ class Point:
         self.cost = float('inf')  # Cost to reach this node
 
 class BiRRT:
-    def __init__(self, start : list, goal : list, obstacles : list):
+    def __init__(self, start : list, goal : list, obstacles : list, update_rate : Optional[float] = None):
         
         self.path = []
         self.tree_from_start = []
@@ -51,7 +52,10 @@ class BiRRT:
         self.heading_limit = params['vehicle']['heading_limit'] # limit the heading change in route
         
         # max search time
-        self.time_limit = params['rrt']['time_limit'] # sec
+        if update_rate is None:
+            self.time_limit = params['rrt']['time_limit'] # sec
+        else:
+            self.time_limit = 1 / update_rate
 
         # step size for local planner
         self.step_size = params['rrt']['step_size'] # meter

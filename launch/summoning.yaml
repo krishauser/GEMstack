@@ -19,7 +19,7 @@ drive:
         summoning_mission_planning:
             type: SummoningMissionPlanner
             args:
-                mode: 'hardware'
+                mode: 'real'
                 state_machine: [PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING]
         route_planning_component:
            type: RoutePlanningComponent
@@ -72,13 +72,22 @@ variants:
             vehicle_interface:
                 type: gem_mixed.GEMRealSensorsWithSimMotionInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+                    scene: !relative_path '../scenes/summoning_demo.yaml'
             mission_execution: StandardExecutor
             require_engaged: False
             visualization: !include "klampt_visualization.yaml"
             drive:
                 perception:
                     state_estimation : OmniscientStateEstimator
+                planning:
+                    summoning_mission_planning:
+                        type: SummoningMissionPlanner
+                        args:
+                            mode: 'sim'
+                            state_machine: [ PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING ]
+                    route_planning_component:
+                        type: RoutePlanningComponent
+                        args: [ !relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json','start' ]
 
     fake_real:
         run:
@@ -94,7 +103,7 @@ variants:
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo_summoning.yaml'
+                    scene: !relative_path '../scenes/summoning_demo.yaml'
             visualization: !include "klampt_visualization.yaml"
             drive:
                 perception:
@@ -105,7 +114,7 @@ variants:
                     summoning_mission_planning:
                         type: SummoningMissionPlanner
                         args:
-                            mode: 'simulation'
+                            mode: 'sim'
                             state_machine: [ PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING ]
                     route_planning_component:
                         type: RoutePlanningComponent
