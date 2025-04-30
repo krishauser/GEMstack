@@ -107,7 +107,7 @@ def main(input_imgs, output_dir, out, refine=True):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Camera calibration using SfM')
     parser.add_argument('--input_imgs','-i', nargs='+', help='List of input imgs', required=True)
-    parser.add_argument('--workspace','-w', type=str, required=True,
+    parser.add_argument('--workspace','-w', type=str, required=False, default= '/tmp/colmap_tmp',
                         help='Output directory for results')
     parser.add_argument('--out_file','-o', type=str, required=True,
                         help='output yaml file')
