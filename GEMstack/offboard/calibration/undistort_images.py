@@ -11,7 +11,7 @@ def main():
     parser = argparse.ArgumentParser(description='Create copies of images with the distortion removed',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-i', '--img_intrinsics_path', type=str, required=True,
-                       help='Path to ymal file for image intrinsics')
+                       help='Path to yaml file for image intrinsics')
     parser.add_argument('-f', '--img_folder_path', type=str, required=True,
                        help='Path to folder containing PNG images')
     parser.add_argument('-c', '--camera_name', type=str, required=False,

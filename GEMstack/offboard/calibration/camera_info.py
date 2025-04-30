@@ -27,7 +27,7 @@ def get_intrinsics(folder):
         save_file = input("Save this file?")
         if save_file.lower() == 'y' or save_file.lower() == 'yes':
             print("Saving")
-            save_in(path=folder, distort=model.distortionCoeffs(), matrix=model.intrinsicMatrix())
+            save_in(path=folder + f"/{camera}.yaml", distort=model.distortionCoeffs(), matrix=model.intrinsicMatrix())
         else:
             print("Not saved")
 
@@ -54,7 +54,7 @@ def main(folder='data'):
     
 if __name__ == '__main__':
     import sys
-    folder = 'GEMstack/knowledge/calibration'
+    folder = 'data'
     if len(sys.argv) >= 2:
         folder = sys.argv[1]
     main(folder)
