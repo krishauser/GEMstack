@@ -325,12 +325,10 @@ class PedestrianDetector2D:
                                 [-0.02379784, 0.00689664, 0.999693, 1.95320223],
                                 [0., 0., 0., 1.]])
         if self.camera_front:
-            self.T_l2c = np.array([
-                [0.001090, -0.999489, -0.031941, 0.149698],
-                [-0.007664, 0.031932, -0.999461, -0.397813],
-                [0.999970, 0.001334, -0.007625, -0.691405],
-                [0., 0., 0., 1.000000]
-            ])
+            self.T_l2c = np.array([[2.89748006e-02, -9.99580136e-01, 3.68439439e-05, -3.07300513e-02],
+                [-9.49930618e-03, -3.12215512e-04, -9.99954834e-01, -3.86689354e-01],
+                [9.99534999e-01, 2.89731321e-02, -9.50437214e-03, -6.71425124e-01],
+                [0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
         else:
             self.T_l2c = np.array([[-0.71836368, -0.69527204, -0.02346088,  0.05718003],
      [-0.09720448,  0.13371206, -0.98624154, -0.1598301 ],
@@ -366,9 +364,9 @@ class PedestrianDetector2D:
 
         # 3. Run YOLO detections on each image.
         #    Detection box format is [cx, cy, w, h].
-        results_normal = self.detector(image, conf=0.5, classes=[0])
-        results_left = self.detector(image_left, conf=0.5, classes=[0])
-        results_right = self.detector(image_right, conf=0.5, classes=[0])
+        results_normal = self.detector(image, conf=0.3, classes=[0])
+        results_left = self.detector(image_left, conf=0.05, classes=[0])
+        results_right = self.detector(image_right, conf=0.05, classes=[0])
 
         boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
         boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
@@ -421,7 +419,7 @@ class PedestrianDetector2D:
             if debug_frustum:
                 bbox = [left, top, right, bottom]
                 z_near = 0.5  # can be adjusted
-                z_far = 15.0  # can be adjusted
+                z_far = 25.0  # can be adjusted
                 pts_frustum, lines_frustum = self.create_frustum_lines(bbox, self.current_K, z_near, z_far)
                 frustum_lineset = o3d.geometry.LineSet()
                 frustum_lineset.points = o3d.utility.Vector3dVector(pts_frustum)
@@ -457,7 +455,7 @@ class PedestrianDetector2D:
             if debug_reproj:
                 display_reprojected_cluster(image, points_3d, self.T_l2c, self.current_K)
 
-            points_3d = filter_points_within_threshold(points_3d, 25)
+            points_3d = filter_points_within_threshold(points_3d, 30)
             points_3d = filter_depth_points(points_3d, max_depth_diff=0.3)
             if points_3d.shape[0] < 4:
                 continue
@@ -466,12 +464,12 @@ class PedestrianDetector2D:
             # If cylindrical ROI is enabled, use global_filtered points to form a cylindrical ROI.
             center_roi = np.mean(points_3d, axis=0)
             if self.use_cyl_roi:
-                roi_cyl = cylindrical_roi(global_filtered, center_roi, radius=0.3, height=1.2)
-                refined_cluster = remove_ground_by_min_range(roi_cyl, z_range=0.01)
-                refined_cluster = filter_depth_points(refined_cluster, max_depth_diff=0.2)
+                roi_cyl = cylindrical_roi(global_filtered, center_roi, radius=0.4, height=1.2)
+                refined_cluster = remove_ground_by_min_range(roi_cyl, z_range=0.03)
+                refined_cluster = filter_depth_points(refined_cluster, max_depth_diff=0.3)
                 center_roi = np.mean(refined_cluster, axis=0)
             else:
-                refined_cluster = remove_ground_by_min_range(points_3d, z_range=0.05)
+                refined_cluster = points_3d.copy()
             if refined_cluster.shape[0] < 4:
                 continue
             # -------------------------------------------------
@@ -642,7 +640,7 @@ def project_all_points(points, T_l2c, K):
 def load_lidar_from_npz(file_path):
     data = np.load(file_path)
     print(data.keys())
-    return data['lidar_points']
+    return data['lidar']
 
 # -----------------------------
 # 5) Main function: runs process_frame and visualizes refined clusters and other point cloud geometries.
@@ -650,7 +648,7 @@ def load_lidar_from_npz(file_path):
 # -----------------------------
 def main():
     # Set whether to use the cylindrical ROI option (True or False).
-    use_cyl_roi_flag = False
+    use_cyl_roi_flag = True
     detector = PedestrianDetector2D(model_path='cone.pt')
     detector.use_cyl_roi = use_cyl_roi_flag
 
@@ -674,8 +672,8 @@ def main():
     # print(f"Found {num_frames} matching frames.")
     for i in range(1):
         # Use fixed file paths as an example; modify as needed.
-        image_path = f'../perception_4.9/image_1744216638.054.png'
-        lidar_path = f'../perception_4.9/lidar_1744216638.054.npz'
+        image_path = f'../4.21/1745270374568_image.png'
+        lidar_path = f'../4.21/1745270374568_lidar.npz'
         image = cv2.imread(image_path)
         if image is None:
             print("Failed to load image:", image_path)
