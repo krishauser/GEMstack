@@ -174,3 +174,5 @@ GEMstack/offboard/calibration/calibration_by_segmentation/refined_proj.png
 GEMstack/offboard/calibration/calibration_by_segmentation/extrinsic.txt
 
 repo/
+GEMstack/offboard/calibration/data/
+GEMstack/offboard/calibration/global_registration_result.txt
