@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
+from velocity_profile import compute_velocity_profile
 
 
 # --------------------------------------------------------------------------- Hua-Ta's Code START
@@ -797,6 +798,14 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
 
         current_pos = np.array([x[-1], y[-1]])
 
+    times = [0.0]
+    # print(self.points)
+    points = [x_all, y_all]
+    # print(points)
+    times, velocities = compute_velocity_profile(points)
+    print(times, velocities)
+    print("total time: ", times[-1])
+
     return to_gemstack_trajectory(x_all, y_all, v_all)
 
 # def test_slalom_fixe
@@ -1001,4 +1010,5 @@ if __name__ == "__main__":
             if case == 'slalom':
                 cones.pop(0)
     # test_planning(case='slalom', test_loop=2)
+    plan_full_slalom_trajectory()
 # ------------ Test Code END --------------
