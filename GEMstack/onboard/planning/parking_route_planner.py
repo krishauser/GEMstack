@@ -3,20 +3,18 @@ from ..component import Component
 from ...state import AllState, VehicleState, Path, Trajectory, Route, ObjectFrameEnum, AgentState, Obstacle, ObjectPose, PhysicalObject
 from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd
-from ...mathutils import quad_root
 from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCarIntegrator
 from ...mathutils.dynamics import IntegratorControlSpace
 from ...mathutils import collisions
 from .astar import AStar
 from .longitudinal_planning import longitudinal_plan
 from testing.reeds_shepp_path import path_length
-import reed_shepp
+from . import reed_shepp
 
 
 import numpy as np
 import math
 
-# @TODO Need to change the functions here to use VehicleState
 class ParkingSolverSecondOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
     and a 'node' is just a (x,y) tuple that represents a reachable position"""
@@ -197,10 +195,9 @@ class ParkingSolverSecondOrderDubins(AStar):
 
 def generate_action_set():
             return [
-                (.75, -0.3), (.75, 0.0), (.75, 0.3), (0.0, 0.0),
+                (.75, -0.3), (.75, 0.0), (.75, 0.3),
                 (-.75, -0.3), (-.75, 0.0), (-.75, 0.3)
             ]
-# @TODO Need to change the functions here to use VehicleState
 class ParkingSolverFirstOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
     and a 'node' is just a (x,y) tuple that represents a reachable position"""
@@ -212,7 +209,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._vehicle = None
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, .5, 0.25)
+        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1.5, 0.25)
         #@TODO create a more standardized way to define the actions
         self._actions = generate_action_set()
 
@@ -476,6 +473,7 @@ class ParkingPlanner(Component):
         print(f"Vehicle {vehicle}")
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         agents = state.agents # type: Dict[str, AgentState]
+        all_obstacles = {**agents, **obstacles}
         # print(f"Obstacles {obstacles}")
         print(f"Agents {agents}")
         route = state.route
@@ -494,12 +492,11 @@ class ParkingPlanner(Component):
         goal_state = self.vehicle_state_to_first_order(goal)
 
         # Update the planner
-        # self.planner.obstacles = list(obstacles.values())
-        self.planner.obstacles = list(agents.values())
+        self.planner.obstacles = list(all_obstacles.values())
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=100))
+        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=200))
         # points = [state[:2] for state in res] # change here to return the theta as well
         points = []
         for state in res:
