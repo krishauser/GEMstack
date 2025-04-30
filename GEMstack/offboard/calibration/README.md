@@ -22,13 +22,13 @@ There are two ways to calibrate the intrinsics, depending on what data you have.
 
 To use the `get_intrinsic_by_chessboard.py` script, collect a series of images with a large chessboard using either the data collection scripts or a rosbag. Select images where the chessboard is at different points in the camera frame, different distances including filling the entire frame, and at different angles. The script detects internal corners where four squares meet, so the extreme edge of the chessboard does not need to be in frame.
 
-To use the `get_intrinsic_by_SfM.py` script, *[fill in here]*
+To use the `get_intrinsic_by_SfM.py` script, prepare a set of images recorded from the same camera going through a continuous movement, and follow [this](#get_intrinsic_by_sfmpy)
 
 The `undistort_images.py` script can then be used to rectify a set of images using the calibrated intrinsics to evaluate or use in other applications.
 
 **Extrinsic Calibration**
 
-The `img2pc.py` file contains the main part of the extrinsic calibration process. Select a synchronized camera image and lidar pointcloud to align, ideally containing features that are easy to detect in both, such as boards or signs with corners. Alignment can be done with *[explain minimum number of points and any limitations on them]*. The first screen will ask you to select points on the image, and will close on its own once *n_features* points are selected. The second screen will ask you to select points in the point cloud, and will need to be closed manually once exactly *n_features* points are selected, or it will prompt you again. The extrinsic matrices will then be displayed, and if an *out_path* is provided they will also be saved.
+The `img2pc.py` file contains the main part of the extrinsic calibration process. Select a synchronized camera image and lidar pointcloud to align, ideally containing features that are easy to detect in both, such as boards or signs with corners. Alignment can be done with 4 feature pairs(must be coplanar) or 6+ points. The first screen will ask you to select points on the image, and will close on its own once *n_features* points are selected. The second screen will ask you to select points in the point cloud, and will need to be closed manually once exactly *n_features* points are selected, or it will prompt you again. The extrinsic matrices will then be displayed, and if an *out_path* is provided they will also be saved.
 
 The `test_transforms.py` file can then be used to manually fine-tune the calculated intrinsics. Use the sliders to change the translation and rotation to project the lidar points onto the image more accurately.
 
@@ -37,12 +37,14 @@ The `test_transforms.py` file can then be used to manually fine-tune the calcula
 
 Compute camera extrinsic parameters by manually selecting corresponding features in an image and point cloud.
 
+**Note**: On the img prompt, click n points and the window closed itself. On the pc prompt, right click n points and close the window manually.
+
 ### Usage
 ```bash
 python3 img2pc.py \
     --img_path IMG_PATH \
     --pc_path PC_PATH \
-    --img_intrinsics_path IMG_INTRINSICS_PATH \
+    --img_intrinsic_path IMG_INTRINSICS_PATH \
     [--pc_transform_path PC_TRANSFORM_PATH] \
     [--out_path OUT_PATH] \
     [--n_features N_FEATURES]
@@ -53,24 +55,26 @@ python3 img2pc.py \
 | Parameter | Description | Format | Required | Default |
 |-----------|-------------|--------|----------|---------|
 | `--img_path` | Input image path | .png | Yes | - |
-| `--lidar_path` | Point cloud path | .npz | Yes | - |
-| `--img_intrinsics_path` | Camera intrinsics file | .yaml | Yes | - |
-| `--lidar_transform_path` | LiDAR extrinsic transform | .yaml | No | Identity |
-| `--out_path` | Output extrinsic path | .yaml | No | None |
+| `--pc_path` | Point cloud path | .npz | Yes | - |
+| `--img_intrinsic_path` | Camera intrinsics file | .yaml | Yes | - |
+| `--pc_transform_path` | LiDAR extrinsic transform | .yaml | No | Identity |
 | `--n_features` | Manual feature points | int | No | 8 |
-| `--undistort` | Flag for using distortion coefficients | - | - | - |
+| `--out_path` | Output extrinsic path | .yaml | No | None |
+| `--no_undistort` | to undistort | - | - | False |
+| `--show` | visualize reprojection | - | - | False |
+
+*`--no_undistort True` is rare because it's almost sure that extrinsic solving performs better after undistortion*
 
 ### Example
 ```bash
 root='/mnt/GEMstack'
 python3 img2pc.py \
-    --img_path $root/data/fl/fl16.png \
-    --lidar_path $root/data/ouster16.npz \
-    --lidar_transform_path $root/GEMstack/knowledge/calibration/gem_e4_ouster.yaml \
-    --img_intrinsics_path $root/GEMstack/knowledge/calibration/gem_e4_fl_in.yaml \
-    --n_features 8 \
-    --out_path $root/GEMstack/knowledge/calibration/gem_e4_fl.yaml \
-    --undistort
+    --img_path $root/data/calib1/img/fl/fl16.png \
+    --pc_path $root/data/calib1/pc/ouster16.npz \
+    --pc_transform_path $root/GEMstack/knowledge/calibration/gem_e4_ouster.yaml \
+    --img_intrinsic_path $root/GEMstack/knowledge/calibration/gem_e4_oak_in.yaml \
+    --n_features 4 \
+    --out_path $root/GEMstack/knowledge/calibration/gem_e4_oak.yaml
 ```
 
 ## test_transforms.py
@@ -179,9 +183,10 @@ python3 intrinsic_calibration_chessboard.py \
 | Parameter | Description | Required |
 |-----------|-------------|----------|
 | `--input_imgs` | Input images (glob pattern) | Yes |
-| `--workspace` | Temporary directory path | Yes |
+| `--workspace` | Temporary directory path (default `/tmp/colmap_tmp`) | No |
 | `--out_file` | Output .yaml path | No |
 
+*note:`--workspace` allows you to save running time for continuing/redoing a previous job. you can clean it up after. check [colmap](https://colmap.github.io/) for more infomation*
 ### Example
 ```bash
 root='/mnt/GEMstack'

@@ -88,17 +88,17 @@ def main():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('-p', '--img_path', type=str, required=True,
                        help='Path to PNG image')
-    parser.add_argument('-l', '--lidar_path', type=str, required=True,
+    parser.add_argument('-l', '--pc_path', type=str, required=True,
                        help='Path to lidar NPZ point cloud')
-    parser.add_argument('-t', '--lidar_transform_path', type=str, required=True,
+    parser.add_argument('-t', '--pc_transform_path', type=str, required=True,
                        help='Path to yaml file for lidar extrinsics')
-    parser.add_argument('-i', '--img_intrinsics_path', type=str, required=True,
+    parser.add_argument('-i', '--img_intrinsic_path', type=str, required=True,
                        help='Path to yaml file for image intrinsics')
     parser.add_argument('-o', '--out_path', type=str, required=False,
                        help='Path to output yaml file for image extrinsics')
     parser.add_argument('-n', '--n_features', type=int, required=False, default=8,
                        help='Number of features to select and math')
-    parser.add_argument('-u','--undistort', action='store_true',
+    parser.add_argument('-u','--no_undistort', action='store_true',
                        help='Whether to use distortion parameters')
     parser.add_argument('-s', '--show', action='store_true',
                        help='Show projected points after calibration')
@@ -109,18 +109,20 @@ def main():
     # Load data
     N = args.n_features
     img = cv2.imread(args.img_path, cv2.IMREAD_UNCHANGED)
-    pc = np.load(args.lidar_path)['arr_0']
+    pc = np.load(args.pc_path)['arr_0']
     pc = pc[~np.all(pc == 0, axis=1)] # remove (0,0,0)'s
 
-    if args.undistort:
-        K, distort = load_in(args.img_intrinsics_path,mode='matrix',return_distort=True)
+    if not args.no_undistort:
+        K, distort = load_in(args.img_intrinsic_path,mode='matrix',return_distort=True)
         print('applying distortion coeffs', distort)
         img, K = undistort_image(img, K, distort)
     else:
-        K = load_in(args.img_intrinsics_path,mode='matrix')
+        K = load_in(args.img_intrinsic_path,mode='matrix')
 
-    lidar_ex = load_ex(args.lidar_transform_path,mode='matrix')
-    pc = np.pad(pc,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
+    lidar_ex = np.eye(4)
+    if args.pc_transform_path:
+        lidar_ex = load_ex(args.pc_transform_path,mode='matrix')
+        pc = np.pad(pc,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
     
     c2v = calib(args,pc,img,K,N)
     T = np.linalg.inv(c2v)
