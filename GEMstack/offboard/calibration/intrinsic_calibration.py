@@ -16,6 +16,10 @@ def main():
                        help='Name of the camera used to identify the correct images')
     parser.add_argument('-o', '--out_path', type=str, required=False,
                        help='Path to output ymal file for camera intrinsics')
+    parser.add_argument('-w', '--board_width', type=int, required=False,
+                       help='Width in number of internal corners of the checkerboard')
+    parser.add_argument('-h', '--board_height', type=int, required=False,
+                       help='Height in number of internal corners of the checkerboard')
     
     args = parser.parse_args()
 
@@ -26,14 +30,22 @@ def main():
         camera = args.camera_name
     image_files = glob.glob(os.path.join(folder, camera + '*.png'))
 
+    # Determine checkerboard shape
+    b_width = 8
+    if args.board_width:
+        b_width = args.board_width
+    b_height = 6
+    if args.board_height:
+        b_height = args.board_height
+
     # The following code is derived from https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
 
     # termination criteria
     criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
     
     # prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(7,5,0)
-    objp = np.zeros((6*8,3), np.float32)
-    objp[:,:2] = np.mgrid[0:8,0:6].T.reshape(-1,2)
+    objp = np.zeros((b_width * b_height,3), np.float32)
+    objp[:,:2] = np.mgrid[0:b_width,0:b_height].T.reshape(-1,2)
     
     # Arrays to store object points and image points from all the images.
     objpoints = [] # 3d point in real world space
@@ -44,7 +56,7 @@ def main():
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     
         # Find the chess board corners
-        ret, corners = cv.findChessboardCorners(gray, (8,6), None)
+        ret, corners = cv.findChessboardCorners(gray, (b_width, b_height), None)
     
         # If found, add object points, image points (after refining them)
         if ret == True:
@@ -54,7 +66,7 @@ def main():
             imgpoints.append(corners2)
     
             # Draw and display the corners
-            cv.drawChessboardCorners(img, (8,6), corners2, ret)
+            cv.drawChessboardCorners(img, (b_width,b_height), corners2, ret)
             cv.imshow('img', img)
             cv.waitKey(500)
 
