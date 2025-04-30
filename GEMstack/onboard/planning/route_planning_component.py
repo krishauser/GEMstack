@@ -7,6 +7,7 @@ from GEMstack.state.agent import AgentState
 from GEMstack.state.all import AllState
 from GEMstack.state.physical_object import ObjectFrameEnum
 from GEMstack.state.route import PlannerEnum, Route
+from GEMstack.state.trajectory import Trajectory
 from .rrt_star import RRTStar
 from .parking_planning import ParkingPlanner
 from .parking_scanning import StraightLineMotion
@@ -24,7 +25,7 @@ class RoutePlanningComponent(Component):
         return ["all"]
 
     def state_outputs(self) -> List[str]:
-        return ['route']
+        return ['trajectory']
 
     def rate(self):
         return 10.0 # very high for our computation ability
@@ -53,7 +54,9 @@ class RoutePlanningComponent(Component):
             
 
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
-            return self.planner.update(state)
+            traj = self.planner.update(state)
+            self.planner.visualize_trajectory(traj)
+            return traj
            
         elif state.mission_plan.planner_type.name == "RRT_STAR":
             print("I am in RRT mode")
@@ -66,4 +69,4 @@ class RoutePlanningComponent(Component):
             print("I am in SCANNING mode")
 
         
-        return self.route
+        return None

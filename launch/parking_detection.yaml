@@ -77,12 +77,16 @@ variants:
                     # agent_detection : cone_detection_simple.ConeDetectorSimple3D
                     parking_detection: parking_detection.ParkingSpotsDetector3D
                     perception_normalization : StandardPerceptionNormalizer
+                    
                 planning:
                     parking_component:
                         type: ParkingSim
                     route_planning_component:
                         type: RoutePlanningComponent
-                        multiprocess: True
+                        
+                trajectory_tracking:
+                    type: pure_pursuit.PurePursuitTrajectoryTracker
+                    print: True
     log_ros:
         log:
             ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"

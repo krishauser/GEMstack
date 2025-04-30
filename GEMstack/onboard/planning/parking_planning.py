@@ -10,6 +10,10 @@ from ...mathutils import collisions
 from .astar import AStar
 from .longitudinal_planning import longitudinal_plan
 from testing.reeds_shepp_path import path_length
+from visualization_msgs.msg import Marker
+from geometry_msgs.msg import Point
+import rospy
+import time
 
 
 import numpy as np
@@ -137,7 +141,7 @@ class ParkingSolverSecondOrderDubins(AStar):
             next_state = np.append(next_state, node[5] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
             else:
                 print(f"Rejected (collision): {next_state}")
@@ -305,7 +309,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
             nodes that can be reached (=any adjacent coordinate that is not a wall)
         """
-        print(f"[DEBUG] neighbors() called on node {node}")
+        # print(f"[DEBUG] neighbors() called on node {node}")
         neighbors = []
         # print(f"Node: {node}")
         for control in self.actions:
@@ -314,10 +318,10 @@ class ParkingSolverFirstOrderDubins(AStar):
             next_state = np.append(next_state, node[3] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
-            else:
-                print(f"Rejected first order (collision): {next_state}")
+            # else:
+                # print(f"Rejected first order (collision): {next_state}")
         return neighbors
     
     def is_valid_neighbor(self, path):
@@ -353,7 +357,7 @@ class ParkingSolverFirstOrderDubins(AStar):
                 #     obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose).polygon_parent()):
                     #polygon_intersects_polygon_2d when we have the acutal car geometry
                     # raise Exception("Collision detected")
-                    print("Collision detected")
+                    # print("Collision detected")
                     return False
         return True
 
@@ -505,3 +509,39 @@ class ParkingPlanner():
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
         print(traj)
         return traj 
+    
+
+    from rospy.exceptions import ROSInitException
+
+    def create_trajectory_line_marker(self, traj: Trajectory, frame_id="map", marker_id=0, color=(0.0, 0.0, 1.0, 1.0)) -> Marker:
+        marker = Marker()
+        marker.header.frame_id = frame_id
+
+        try:
+            marker.header.stamp = rospy.Time.now()
+        except ROSInitException:
+            # fallback to zero time (safe default in RViz)
+            marker.header.stamp = rospy.Time(0)
+
+        marker.ns = "trajectory"
+        marker.id = marker_id
+        marker.type = Marker.LINE_STRIP
+        marker.action = Marker.ADD
+
+        marker.scale.x = 0.1  # Line width
+        marker.color.r, marker.color.g, marker.color.b, marker.color.a = color
+
+        for pt in traj.points:
+            p = Point(x=pt[0], y=pt[1], z=pt[2] if len(pt) > 2 else 0.0)
+            marker.points.append(p)
+
+        return marker
+
+
+    def visualize_trajectory(self, traj: Trajectory, frame_id="vehicle"):
+       
+        self.marker_pub = rospy.Publisher("trajectory_markers", Marker, queue_size=1, latch=True)
+        rospy.sleep(0.5)  # ensure publisher is ready
+
+        line_marker = self.create_trajectory_line_marker(traj, frame_id=frame_id)
+        self.marker_pub.publish(line_marker)
