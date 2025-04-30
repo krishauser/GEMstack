@@ -64,10 +64,10 @@ def load_in(path,mode='matrix',return_distort=False):
 from collections.abc import Iterable
 def save_in(path,focal=None,center=None,skew=0,distort=[0.0]*5,matrix=None):
     if matrix is not None:
-        focal = matrix.diagonal()[0,-1]
+        focal = matrix.diagonal()[0:2]
         skew = matrix[0,1]
         center = matrix[0:2,2]
-        save_in(path,focal,center)
+        save_in(path,focal,center,skew,distort)
         return
     ret = {}
     ret['focal'] = focal

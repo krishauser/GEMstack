@@ -4,7 +4,7 @@ import glob
 import os
 import argparse
 
-from tools.save_cali import load_in, save_in
+from tools.save_cali import load_in
 
 def main():
     # Collect arguments

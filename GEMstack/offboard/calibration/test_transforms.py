@@ -1,13 +1,12 @@
 import numpy as np
-import cv2
+import cv2 as cv
 import matplotlib.pyplot as plt
 import argparse
 from scipy.spatial.transform import Rotation as R
 from matplotlib.widgets import Slider
 from tools.save_cali import load_ex, load_in, save_ex
 
-keep_running = True
-scale, x_rot, y_rot, z_rot, x_trans, y_trans, z_trans = None
+x_rot = y_rot = z_rot = x_trans = y_trans = z_trans = None
 
 def project_points(T_lidar_camera, lidar_homogeneous, K, shape):
     # Transform LiDAR points to Camera Frame
@@ -30,37 +29,25 @@ def project_points(T_lidar_camera, lidar_homogeneous, K, shape):
     img_h, img_w, _ = shape
     valid_pts = (u >= 0) & (u < img_w) & (v >= 0) & (v < img_h)
     u, v = u[valid_pts], v[valid_pts]
+    return u, v
 
 def modify_transform(T_lidar_camera):
     modified = np.copy(T_lidar_camera)
     rotation_mat = R.from_euler('xyz', [x_rot.val, y_rot.val, z_rot.val], degrees=True).as_matrix()
-    scale_mat = np.array([[scale.val, 0, 0], [0, scale.val, 0], [0, 0, scale.val]])
     translation_vec = np.array([x_trans.val, y_trans.val, z_trans.val])
-    modified[:3, :3] = T_lidar_camera[:3, :3] @ rotation_mat @ scale_mat
+    modified[:3, :3] = T_lidar_camera[:3, :3] @ rotation_mat
     modified[:3, 3] = T_lidar_camera[:3, 3] + translation_vec
     return modified
 
 def create_sliders(fig, update_func):
     # Create space for sliders
     fig.subplots_adjust(bottom=0.4)
-    scale_ax = fig.add_axes([0.25, 0.35, 0.65, 0.03])
     x_rot_ax = fig.add_axes([0.25, 0.3, 0.65, 0.03])
     y_rot_ax = fig.add_axes([0.25, 0.25, 0.65, 0.03])
     z_rot_ax = fig.add_axes([0.25, 0.2, 0.65, 0.03])
     x_trans_ax = fig.add_axes([0.25, 0.15, 0.65, 0.03])
     y_trans_ax = fig.add_axes([0.25, 0.1, 0.65, 0.03])
     z_trans_ax = fig.add_axes([0.25, 0.05, 0.65, 0.03])
-
-    # Make a slider to control the scale
-    global scale
-    scale = Slider(
-        ax=scale_ax,
-        label="Scale",
-        valmin=0.75,
-        valmax=1.25,
-        valinit=1,
-        orientation="horizontal"
-    )
 
     # Make sliders to control the rotation
     global x_rot
@@ -125,7 +112,6 @@ def create_sliders(fig, update_func):
     )
 
     # Register the update function with each slider
-    scale.on_changed(update_func)
     x_rot.on_changed(update_func)
     y_rot.on_changed(update_func)
     z_rot.on_changed(update_func)
@@ -140,15 +126,17 @@ def main():
     parser.add_argument('-p', '--img_path', type=str, required=True,
                        help='Path to PNG image')
     parser.add_argument('-l', '--lidar_path', type=str, required=True,
-                       help='Path to lidar point cloud')
+                       help='Path to lidar NPZ point cloud')
     parser.add_argument('-t', '--lidar_transform_path', type=str, required=True,
                        help='Path to lidar extrinsics')
     parser.add_argument('-e', '--camera_transform_path', type=str, required=True,
                        help='Path to camera extrinsics')
     parser.add_argument('-i', '--img_intrinsics_path', type=str, required=True,
-                       help='Path to ymal file for image intrinsics')
+                       help='Path to yaml file for image intrinsics')
     parser.add_argument('-o', '--out_path', type=str, required=False,
                        help='Path to output ymal file for camera intrinsics')
+    parser.add_argument('-u','--undistort', action='store_true',
+                       help='Whether to use distortion parameters')
     
     args = parser.parse_args()
 
@@ -157,16 +145,23 @@ def main():
     lidar_points = lidar_data['arr_0']  # Ensure the correct key
 
     # Load Camera Image
-    image = cv2.imread(args.img_path)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # Convert BGR to RGB
+    image = cv.imread(args.img_path)
+    image = cv.cvtColor(image, cv.COLOR_BGR2RGB)  # Convert BGR to RGB
 
     # Load Transformation Matrices
-    T_lidar_vehicle = load_ex(args.lidar_transform_path)
-    T_camera_vehicle = load_ex(args.camera_transform_path)
+    T_lidar_vehicle = load_ex(args.lidar_transform_path, 'matrix')
+    T_camera_vehicle = load_ex(args.camera_transform_path, 'matrix')
     T_lidar_camera = np.linalg.inv(T_camera_vehicle) @ T_lidar_vehicle
 
     # Load Camera Intrinsics
-    K = load_in(args.img_intrinsics_path)
+    if args.undistort:
+        K, distortion_coefficients = load_in(args.img_intrinsics_path, return_distort=True)
+        h,  w = image.shape[:2]
+        new_K, roi = cv.getOptimalNewCameraMatrix(K, distortion_coefficients, (w,h), 1, (w,h))
+        image = cv.undistort(image, K, distortion_coefficients, None, new_K)
+        K = new_K
+    else:
+        K = load_in(args.img_intrinsics_path)
 
     # Convert LiDAR points to homogeneous coordinates
     num_points = lidar_points.shape[0]
@@ -189,7 +184,7 @@ def main():
         modified = modify_transform(T_lidar_camera)
 
         # Update projected points
-        u, v = project_points(T_lidar_camera, lidar_homogeneous, K, image.shape)
+        u, v = project_points(modified, lidar_homogeneous, K, image.shape)
         dots.set_offsets(np.c_[u, v])
         plt.draw()
     
@@ -198,6 +193,7 @@ def main():
     plt.draw()
 
     # Update and keep displaying the modified plot
+    keep_running = True
     while keep_running:
         try:
             if plt.get_fignums():
@@ -209,9 +205,9 @@ def main():
 
     # Output and write the fine-tuned translation matrix
     modified = modify_transform(T_lidar_camera)
-    print(modified)
+    print(T_lidar_vehicle @ np.linalg.inv(modified))
     if args.out_path:
-        save_ex(args.out_path, matrix=modified)
+        save_ex(args.out_path, matrix=T_lidar_vehicle @ np.linalg.inv(modified))
 
 if __name__ == '__main__':
     main()
