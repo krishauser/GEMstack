@@ -9,10 +9,23 @@ recovery:
         trajectory_tracking : recovery.StopTrajectoryTracker
 
 # Driving behavior for the GEM vehicle.  Runs real pedestrian perception, yield planner, but does not send commands to real vehicle.
-drive: 
+drive:
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : cone_detection.ConeDetector3D
+        agent_detection :
+            type: cone_detection.ConeDetector3D
+            args:
+                camera_name: front_right #[front, front_right]
+                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+
+                # optional overrides
+                enable_tracking: False # True if you want ot enable tracking function
+                visualize_2d: False # True if you see 2D detection visualization
+                use_cyl_roi: False # True if you want to use a cylinder roi (no need to use if calibration is accurate)
+                save_data: False # True if you want to save the sensor input data
+                orientation: False # True if you need to detect flipped cones
+                use_start_frame: False # True if you need output in START frame, otherwise in CURRENT frame
+
         perception_normalization : StandardPerceptionNormalizer
     planning:
         relations_estimation: 
