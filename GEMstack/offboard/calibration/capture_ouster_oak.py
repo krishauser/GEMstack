@@ -5,63 +5,39 @@ import sensor_msgs.point_cloud2 as pc2
 import ctypes
 import struct
 
-# from ...state import VehicleState, ObjectPose
-# from ...onboard import Component
-
 # OpenCV and cv2 bridge
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
 import os
 import time
+from functools import partial
 
-# TODO: change these arrays to use dictionaries, format eg. {filename: data}
-lidar_points = None
-camera_image = None
-fl_image = None
-fr_image = None
-rl_image = None
-rr_image = None
-depth_images = None
-gnss_locations = None
-frame_position = None
+camera_images = {"oak": None, "fr": None, "fl": None, "rr": None, "rl": None, "fr_rect": None, "fl_rect": None, "rr_rect": None, "rl_rect": None}
+lidar_clouds = {"ouster": None, "livox": None}
+depth_images = {"depth": None}
+gnss_locations = {"nav_fix": None}
 lidar_filetype = ".npz"
 camera_filetype = ".png"
 depth_filetype = ".tif"
 gnss_filetype = ".npy"
 bridge = CvBridge()
 
-def lidar_callback(lidar : PointCloud2):
-    global lidar_points
-    lidar_points = (lidar)
+def lidar_callback(scanner, lidar : PointCloud2):
+    global lidar_clouds
+    lidar_clouds[scanner] = lidar
 
-def camera_callback(img : Image):
-    global camera_image
-    camera_image = (img)
+def camera_callback(camera, img : Image):
+    global camera_images
+    camera_images[camera] = img
 
-def fl_camera_callback(img : Image):
-    global fl_image
-    fl_image = (img)
-
-def fr_camera_callback(img : Image):
-    global fr_image
-    fr_image = (img)
-
-def rl_camera_callback(img : Image):
-    global rl_image
-    rl_image = (img)
-
-def rr_camera_callback(img : Image):
-    global rr_image
-    rr_image = (img)
-
-def depth_callback(img : Image):
+def depth_callback(camera, img : Image):
     global depth_images
-    depth_images = (img)
+    depth_images[camera] = img
 
-def gnss_callback(sat_fix : NavSatFix):
+def gnss_callback(gnss, sat_fix : NavSatFix):
     global gnss_locations
-    gnss_locations = (sat_fix)
+    gnss_locations[gnss] = sat_fix
 
 def pc2_to_numpy(pc2_msg, want_rgb = False):
     gen = pc2.read_points(pc2_msg, skip_nans=True)
@@ -87,74 +63,70 @@ def pc2_to_numpy(pc2_msg, want_rgb = False):
     else:
         return np.array(list(gen),dtype=np.float32)[:,:3]
 
-# def clear_scan():
-#     global lidar_points
-#     lidar_points = []
-#     global camera_image
-#     camera_image = []
-#     global depth_images
-#     depth_images = []
-#     global gnss_locations
-#     gnss_locations = []
+def clear_scan():
+    global camera_images
+    for camera in camera_images:
+        camera_images[camera] = None
+    global lidar_clouds
+    for lidar in lidar_clouds:
+        lidar_clouds[lidar] = None
+    global depth_images
+    for camera in depth_images:
+        depth_images[camera] = None
+    global gnss_locations
+    for gnss in gnss_locations:
+        gnss_locations[gnss] = None
 
-# TODO: when data is stored in dictionaries, change to only save files which exist and change error checking
-def save_scan(lidar_fn, camera_fn, fl_fn, fr_fn, rl_fn, rr_fn, depth_fn, gnss_fn, index):
-    # if len(lidar_filenames) != len(lidar_points) or len(camera_filenames) != len(camera_image) or len(depth_filenames) != len(depth_images):
-    #     print("Missing data, scan", index, "cannot be saved")
-    #     print(len(lidar_filenames), len(lidar_points), len(camera_filenames), len(camera_image), len(depth_filenames), len(depth_images))
-    #     return
+def save_scan(folder, index):
     print("Saving scan", index)
 
-    if frame_position != None:
-        np.save("state" + str(index), frame_position)
-    else:
-        print("No state found")
-
-    # for i in range(len(lidar_points)):
-    #     current_lidar = lidar_points[i]
-    # lidar_fn = lidar_filename + str(index) + lidar_filetype
-    pc = pc2_to_numpy(lidar_points,want_rgb=False) # convert lidar feed to numpy
-    np.savez(lidar_fn + str(index) + lidar_filetype,pc)
-
-    # for i in range(len(camera_image)):
-    #     current_camera = camera_image[i]
-    # camera_fn = camera_filenames[i] + str(index) + camera_filetype
-    cv2.imwrite(camera_fn + str(index) + camera_filetype,bridge.imgmsg_to_cv2(camera_image))
-    cv2.imwrite(fl_fn + str(index) + camera_filetype,bridge.imgmsg_to_cv2(fl_image))
-    cv2.imwrite(fr_fn + str(index) + camera_filetype,bridge.imgmsg_to_cv2(fr_image))
-    cv2.imwrite(rl_fn + str(index) + camera_filetype,bridge.imgmsg_to_cv2(rl_image))
-    cv2.imwrite(rr_fn + str(index) + camera_filetype,bridge.imgmsg_to_cv2(rr_image))
-
-    # for i in range(len(depth_images)):
-    dimage = bridge.imgmsg_to_cv2(depth_images)
-    # depth_fn = depth_filenames[i] + str(index) + depth_filetype
-    dimage_non_nan = dimage[np.isfinite(dimage)]
-    # print("Depth range",np.min(dimage_non_nan),np.max(dimage_non_nan))
-    dimage = np.nan_to_num(dimage,nan=0,posinf=0,neginf=0)
-    dimage = (dimage/4000*0xffff)
-    # print("Depth pixel range",np.min(dimage),np.max(dimage))
-    dimage = dimage.astype(np.uint16)
-    cv2.imwrite(depth_fn + str(index) + depth_filetype,dimage)
+    for lidar in lidar_clouds:
+        lidar_points = lidar_clouds[lidar]
+        if lidar_points != None:
+            lidar_fn = os.path.join(folder, lidar + str(index) + lidar_filetype)
+            pc = pc2_to_numpy(lidar_points, want_rgb=False) # convert lidar feed to numpy
+            np.savez(lidar_fn, pc)
     
-    # for i in range(len(gnss_locations)):
-    # sat_fix = gnss_locations[i]
-    # gnss_fn = gnss_filenames + str(index) + gnss_filetype
-    if gnss_locations:
-        coordinates = np.array([gnss_locations.latitude, gnss_locations.longitude])
-        np.save(gnss_fn + str(index) + gnss_filetype, coordinates)
+    for camera in camera_images:
+        camera_image = camera_images[camera]
+        if camera_image != None:
+            camera_fn = os.path.join(folder, camera + str(index) + camera_filetype)
+            cv2.imwrite(camera_fn, bridge.imgmsg_to_cv2(camera_image))
+
+    for camera in depth_images:
+        depth_image = depth_images[camera]
+        if depth_image != None:
+            depth_fn = os.path.join(folder, camera + str(index) + depth_filetype)
+            dimage = bridge.imgmsg_to_cv2(depth_image)
+            dimage_non_nan = dimage[np.isfinite(dimage)]
+            dimage = np.nan_to_num(dimage,nan=0,posinf=0,neginf=0)
+            dimage = (dimage/4000*0xffff)
+            dimage = dimage.astype(np.uint16)
+            cv2.imwrite(depth_fn, dimage)
+    
+    for gnss in gnss_locations:
+        location = gnss_locations[gnss]
+        if location != None:
+            gnss_fn = os.path.join(folder, gnss + str(index) + gnss_filetype)
+            coordinates = np.array([location.latitude, location.longitude])
+            np.save(gnss_fn + str(index) + gnss_filetype, coordinates)
 
 def main(folder='data',start_index=0):
     # Initialize node and establish subscribers
     rospy.init_node("capture_ouster_oak",disable_signals=True)
-    ouster_sub = rospy.Subscriber("/ouster/points", PointCloud2, lidar_callback)
-  #  livox_sub = rospy.Subscriber("/livox/lidar", PointCloud2, lidar_callback)
-    oak_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, camera_callback)
-    cam_fl_sub = rospy.Subscriber("/camera_fl/arena_camera_node/image_raw", Image, fl_camera_callback)
-    cam_fr_sub = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, fr_camera_callback)
-    cam_rl_sub = rospy.Subscriber("/camera_rl/arena_camera_node/image_raw", Image, rl_camera_callback)
-    cam_rr_sub = rospy.Subscriber("/camera_rr/arena_camera_node/image_raw", Image, rr_camera_callback)
-    depth_sub = rospy.Subscriber("/oak/stereo/image_raw", Image, depth_callback)
-    gnss_sub = rospy.Subscriber("/septentrio_gnss/navsatfix", NavSatFix, gnss_callback)
+    ouster_sub = rospy.Subscriber("/ouster/points", PointCloud2, partial(lidar_callback, "ouster"))
+    livox_sub = rospy.Subscriber("/livox/lidar", PointCloud2, partial(lidar_callback, "livox"))
+    oak_sub = rospy.Subscriber("/oak/rgb/image_raw", Image, partial(camera_callback, "oak"))
+    cam_fl_sub = rospy.Subscriber("/camera_fl/arena_camera_node/image_raw", Image, partial(camera_callback, "fl"))
+    cam_fr_sub = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, partial(camera_callback, "fr"))
+    cam_rl_sub = rospy.Subscriber("/camera_rl/arena_camera_node/image_raw", Image, partial(camera_callback, "rl"))
+    cam_rr_sub = rospy.Subscriber("/camera_rr/arena_camera_node/image_raw", Image, partial(camera_callback, "rr"))
+    cam_fl_rect_sub = rospy.Subscriber("/camera_fl/arena_camera_node/image_rect_color", Image, partial(camera_callback, "fl_rect"))
+    cam_fr_rect_sub = rospy.Subscriber("/camera_fr/arena_camera_node/image_rect_color", Image, partial(camera_callback, "fr_rect"))
+    cam_rl_rect_sub = rospy.Subscriber("/camera_rl/arena_camera_node/image_rect_color", Image, partial(camera_callback, "rl_rect"))
+    cam_rr_rect_sub = rospy.Subscriber("/camera_rr/arena_camera_node/image_rect_color", Image, partial(camera_callback, "rr_rect"))
+    depth_sub = rospy.Subscriber("/oak/stereo/image_raw", Image, partial(depth_callback, "depth"))
+    gnss_sub = rospy.Subscriber("/septentrio_gnss/navsatfix", NavSatFix, partial(gnss_callback, "nav_fix"))
 
     # Store scans
     index = start_index
@@ -163,31 +135,12 @@ def main(folder='data',start_index=0):
     print(" Storing depth images as", depth_filetype)
     print(" Ctrl+C to quit")
     while True:
-        if camera_image:
-            cv2.imshow("result",bridge.imgmsg_to_cv2(camera_image))
-            time.sleep(.5)
-            files = [os.path.join(folder, 'ouster'),os.path.join(folder, 'oak'),
-                            os.path.join(folder, 'fl'), os.path.join(folder, 'fr'),
-                            os.path.join(folder, 'rl'), os.path.join(folder, 'rr'),
-                            os.path.join(folder, 'depth'), os.path.join(folder, 'septentrio')]
-            # lidar_files = [os.path.join(folder, 'ouster')]
-            # camera_files = [os.path.join(folder, 'oak'),
-            #                 os.path.join(folder, 'fl'), os.path.join(folder, 'fr'),
-            #                 os.path.join(folder, 'rl'), os.path.join(folder, 'rr')]
-            # depth_files = [os.path.join(folder, 'depth')]
-            # gnss_files = [os.path.join(folder, 'septentrio')]
-            save_scan(*files, index)
-            # clear_scan()
+        if camera_images["oak"]:
+            cv2.imshow("result",bridge.imgmsg_to_cv2(camera_images["oak"]))
+            save_scan(folder, index)
+            clear_scan()
             index += 1
-
-# class StateTracker(Component):
-#     def rate(self):
-#         return 4.0 # Hz
-#     def state_inputs(self):
-#         return ['vehicle']
-#     def update(self, vehicle : VehicleState):
-#         global frame_position
-#         frame_position = np.array(vehicle.pose.frame, vehicle.pose.t, vehicle.pose.x, vehicle.pose.y)
+            time.sleep(.5)
 
 if __name__ == '__main__':
     import sys
