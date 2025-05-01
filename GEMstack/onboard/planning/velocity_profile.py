@@ -10,6 +10,7 @@ from ...knowledge.vehicle.geometry import steer2front
 from ...knowledge.vehicle import dynamics
 from ...knowledge.vehicle import geometry
 from ...utils import settings
+import pandas as pd
 
 # from ..mathutils import transforms,collisions
 
@@ -287,17 +288,22 @@ def compute_velocity_profile(points, plot=None):
         a = dv/dt
 
         plot_x_y(axs[0, 0], t, v_profile, "t", "v")
-        plot_x_y(axs[0, 1], t_steer, v_steer, "t", "v2")
+        # plot_x_y(axs[0, 1], t_steer, v_steer, "t", "v2")
         # plot_x_y(axs[0, 1], t[:-1], a, "t", "a")
         # plot_x_y(axs[1, 0], xs, ys, "x", "y")
         # plot_x_y(axs[1, 1], t, forward_vs, "t", "forward & backward vs")
         # plot_x_y(axs[1, 1], t, backward_vs, "t", "forward & backward vs")
-        # plot_x_y(axs[1, 1], t, xs, "t", "x & y")
+        plot_x_y(axs[0, 1], xs, v_profile, "x", "v")
         # plot_x_y(axs[1, 1], t, ys, "t", "x & y")
         # plt.show()
 
         plot_speed_profile_gradient(fig, axs[1, 0], xs, ys, v_profile)
         plot_speed_profile_gradient(fig, axs[1, 1], xs, ys, v_steer)
+
+
+        # Save to CSV
+        df = pd.DataFrame({'x': xs, 'y': ys, 'v': v_profile, 't': t})
+        df.to_csv('v_profile.csv', index=False)
 
 
         plt.tight_layout()

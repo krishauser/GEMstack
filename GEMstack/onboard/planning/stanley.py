@@ -181,6 +181,7 @@ class Stanley(object):
 
         # 2) Path heading
         target_x, target_y = self.path.eval(closest_parameter)
+        index, u = self.path.time_to_index(closest_parameter)
         tangent = self.path.eval_tangent(closest_parameter)
         path_yaw = atan2(tangent[1], tangent[0])
         desired_x = target_x
@@ -208,31 +209,56 @@ class Stanley(object):
                 if component:
                     component.debug_event("Stanley: Past the end of trajectory, stopping.")
                 desired_speed = 0.0
-                feedforward_accel = -2.0
+                feedforward_accel = -2.0            
             else:
-                if self.desired_speed_source == 'path':
-                    current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
+                #  Use racing velocity profile as target
+                if  self.desired_speed_source == 'racing':
+                    # desired_speed = self.trajectory.velocity_variable(closest_parameter)
+                    desired_speed = self.trajectory.velocities[index]
+                    desired_speed = min(desired_speed, self.speed_limit)
+                    # print("close param speed: " + str(closest_parameter))
+                    # current_trajectory_time = self.trajectory.parameter_to_time(closest_parameter)
+                    # print("time: " + str(current_trajectory_time))
+                    # print("des x: " +  str(desired_x))
+                    # print("curr speed: " + str(speed))
+                    # print("des speed: " + str(desired_speed))
+
+                    # difference_dt = 0.1
+                    # future_t = current_trajectory_time + difference_dt
+                    # future_parameter = self.trajectory.time_to_parameter(future_t)
+                    # next_desired_speed = self.trajectory.velocity_variable(future_parameter)
+                    next_desired_speed = self.trajectory.velocities[index + 1]
+                    next_desired_speed = min(next_desired_speed, self.speed_limit)
+                    # print("next des speed: " + str(next_desired_speed))
+                    difference_dt = self.trajectory.times[index + 1] - self.trajectory.times[index]
+                    feedforward_accel = (next_desired_speed - desired_speed) / difference_dt
+                    feedforward_accel = np.clip(feedforward_accel, -self.max_decel, self.max_accel)
+                    if speed < next_desired_speed and feedforward_accel < 0:
+                        feedforward_accel = 0.0
                 else:
-                    self.current_traj_parameter += dt
-                    current_trajectory_time = self.current_traj_parameter
-                    print(current_trajectory_time)
+                    if self.desired_speed_source == 'path':
+                        current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
+                    else:
+                        self.current_traj_parameter += dt
+                        current_trajectory_time = self.current_traj_parameter
+                        print(current_trajectory_time)
 
-                deriv = self.trajectory.eval_derivative(current_trajectory_time)
+                    deriv = self.trajectory.eval_derivative(current_trajectory_time)
 
-                # deriv 0 at time 0
-                if np.isnan(deriv[0]):
-                    desired_speed = 0.0
-                else:
-                    desired_speed = min(np.linalg.norm(deriv), self.speed_limit)
+                    # deriv 0 at time 0
+                    if np.isnan(deriv[0]):
+                        desired_speed = 0.0
+                    else:
+                        desired_speed = min(np.linalg.norm(deriv), self.speed_limit)
 
-                difference_dt = 0.1
-                future_t = current_trajectory_time + difference_dt
-                if future_t > self.trajectory.domain()[1]:
-                    future_t = self.trajectory.domain()[1]
-                future_deriv = self.trajectory.eval_derivative(future_t)
-                next_desired_speed = min(np.linalg.norm(future_deriv), self.speed_limit)
-                feedforward_accel = (next_desired_speed - desired_speed) / difference_dt
-                feedforward_accel = np.clip(feedforward_accel, -self.max_decel, self.max_accel)
+                    difference_dt = 0.1
+                    future_t = current_trajectory_time + difference_dt
+                    if future_t > self.trajectory.domain()[1]:
+                        future_t = self.trajectory.domain()[1]
+                    future_deriv = self.trajectory.eval_derivative(future_t)
+                    next_desired_speed = min(np.linalg.norm(future_deriv), self.speed_limit)
+                    feedforward_accel = (next_desired_speed - desired_speed) / difference_dt
+                    feedforward_accel = np.clip(feedforward_accel, -self.max_decel, self.max_accel)
         else:
             if desired_speed is None:
                 desired_speed = 4.0

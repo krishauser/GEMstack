@@ -84,10 +84,8 @@ class Path:
     def racing_velocity_profile(self) -> Trajectory:
         """Returns a timed trajectory with max velocity profile parametrized by path radius"""
         times = [0.0]
-        # print(self.points)
         points = self.points
-        # print(points)
-        times, velocities = compute_velocity_profile(points, True)
+        times, velocities = compute_velocity_profile(points, False)
         return Trajectory(frame=self.frame,points=points,times=times, velocities=velocities)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
@@ -308,11 +306,27 @@ class Trajectory(Path):
         if u < 0: u = 0
         return self.times[ind] + u*(self.times[ind+1]-self.times[ind])
 
+    def velocity_variable(self, t: float) -> float:
+        """Returns the trajectory velocity at a gven parameter if it is defined"""
+        if self.velocities is None:
+            raise ValueError("Trajectory has no explicit velocities")
+        if len(self.points) < 2:
+            return self.velocities[0]
+        # ind,u = self.time_to_index(t)
+        ind, u = self.parameter_to_index(t)
+        print("vel t: " +str(t))
+        print("vel index: " +str(ind))
+        v1 = self.velocities[ind]
+        v2 = self.velocities[ind+1]
+        return v1 + (v2-v1)*u
+
     def eval(self, t : float) -> List[float]:
         """Evaluates the trajectory at a given time."""
         if len(self.points) < 2:
             return self.points[0]
         ind,u = self.time_to_index(t)
+        print("eval t: " +str(t))
+        print("eval index: " +str(ind))
         return transforms.vector_madd(self.points[ind],transforms.vector_sub(self.points[ind+1],self.points[ind]),u)
 
     def eval_derivative(self, t : float) -> List[float]:
