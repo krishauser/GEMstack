@@ -16,7 +16,7 @@ drive:
             type: cone_detection.ConeDetector3D
             args:
                 camera_name: front_right #[front, front_right]
-                camera_calib_file: knowledge/calib/cameras.yaml
+                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
 
                 # optional overrides
                 enable_tracking: False
