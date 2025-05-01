@@ -87,7 +87,7 @@ class Path:
         # print(self.points)
         points = self.points
         # print(points)
-        times, velocities = compute_velocity_profile(points)
+        times, velocities = compute_velocity_profile(points, True)
         return Trajectory(frame=self.frame,points=points,times=times, velocities=velocities)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:

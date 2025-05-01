@@ -4,6 +4,7 @@ import os
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from scipy.signal import savgol_filter
+from ...knowledge.vehicle.geometry import steer2front
 
 # from ..stanley import normalise_angle
 from ...knowledge.vehicle import dynamics
@@ -174,6 +175,9 @@ def limit_velocity_by_steering_rate(ds, velocity, wheelbase, max_steering_rate, 
     dt = ds / (velocity + 1e-6)  # Add small value to prevent division by zero
     ddelta_dt = ddelta / (dt + 1e-6)
 
+    # max steering wheel rate to steering rate
+    max_steering_rate = steer2front(max_steering_rate)
+
     # Limit velocity where steering rate exceeds max
     limited_velocity = np.copy(velocity)
     for i in range(len(velocity)):
@@ -259,20 +263,47 @@ def compute_velocity_profile(points, plot=None):
     kappa = compute_curvature_by_distance(xs,ys, ds)
 
     v_lat = lateral_speed_limit(kappa, ay_max, v_max)
-    v_profile, forward_vs, backward_vs, v_lat = apply_trail_braking(ds, v_lat, kappa, ax_max, ax_min, ay_max)
+
+    v_steer = limit_velocity_by_steering_rate(ds, v_lat, wheelbase, max_steering_rate, kappa)
+    
+    v_steer = savgol_filter(v_steer, window_length=9, polyorder=3)
+    
+    t_steer = compute_time_profile(xs, ys, v_lat)
+
+    v_profile, forward_vs, backward_vs, v_lat = apply_trail_braking(ds, v_steer, kappa, ax_max, ax_min, ay_max)
 
     v_profile = savgol_filter(v_profile, window_length=9, polyorder=3)
 
     t = compute_time_profile(xs, ys, v_profile)
 
-    v_profile2 = limit_velocity_by_steering_rate(ds, v_profile, wheelbase, max_steering_rate, kappa)
-
-    t2 = compute_time_profile(xs, ys, v_profile)
-
-    if plot is None:
+    if plot is False:
         return t, v_profile
     else:
-        return t, v_profile, t2, v_profile2
+        fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+
+        dv = np.diff(v_profile)
+        dt = np.diff(t)
+
+        a = dv/dt
+
+        plot_x_y(axs[0, 0], t, v_profile, "t", "v")
+        plot_x_y(axs[0, 1], t_steer, v_steer, "t", "v2")
+        # plot_x_y(axs[0, 1], t[:-1], a, "t", "a")
+        # plot_x_y(axs[1, 0], xs, ys, "x", "y")
+        # plot_x_y(axs[1, 1], t, forward_vs, "t", "forward & backward vs")
+        # plot_x_y(axs[1, 1], t, backward_vs, "t", "forward & backward vs")
+        # plot_x_y(axs[1, 1], t, xs, "t", "x & y")
+        # plot_x_y(axs[1, 1], t, ys, "t", "x & y")
+        # plt.show()
+
+        plot_speed_profile_gradient(fig, axs[1, 0], xs, ys, v_profile)
+        plot_speed_profile_gradient(fig, axs[1, 1], xs, ys, v_steer)
+
+
+        plt.tight_layout()
+        plt.show()
+
+        return t, v_profile
 
 
 
