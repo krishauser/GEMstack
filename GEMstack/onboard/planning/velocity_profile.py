@@ -7,6 +7,7 @@ from scipy.signal import savgol_filter
 
 # from ..stanley import normalise_angle
 from ...knowledge.vehicle import dynamics
+from ...knowledge.vehicle import geometry
 from ...utils import settings
 
 # from ..mathutils import transforms,collisions
@@ -132,26 +133,59 @@ def apply_trail_braking(ds, v_lat, kappa, ax_max, ax_min, ay_max, max_iter=2, to
             
             backward_vs[i-1] = v_allowed
         
-        # for i in range(N - 2, -1, -1):
-        #     ax_limit = limit_ax_for_friction_ellipse(v_profile[i+1], kappa[i+1], abs(ax_min), ay_max)
-        #     arg = v_profile[i+1]**2 + 2 * ax_limit * ds[i]
-        #     # print("v_profile{i+1}: " + str(v_profile[i+1]))
-        #     # print("ax_limit: " + str(ax_limit))
-        #     # print("arg: "  + str(arg))
-        #     v_allowed = np.sqrt(max(arg,0.0))
-        #     v_profile[i] = min(v_profile[i], v_allowed)
-            
-        #     # v_profile[i] = alpha * v_profile[i] + (1 - alpha) * v_allowed
-
-        #     backward_vs[i] = v_allowed
-
-
         # --- Check convergence ---
         if np.allclose(v_profile, v_old, atol=tol):
             print("converged in " + str(iteration) + " iterations")
             break
 
     return v_profile, forward_vs, backward_vs, v_lat
+
+def limit_velocity_by_steering_rate(ds, velocity, wheelbase, max_steering_rate, kappa):
+    """
+    Limits the velocity based on steering angle rate of change.
+    
+    Parameters:
+        x (np.ndarray): x positions along the trajectory.
+        y (np.ndarray): y positions along the trajectory.
+        velocity (np.ndarray): velocity profile along the trajectory.
+        wheelbase (float): vehicle's wheelbase (L).
+        max_steering_rate (float): maximum allowable steering angle rate (rad/s).
+        
+    Returns:
+        np.ndarray: limited velocity profile.
+    """
+    # # Compute dx, dy
+    # dx = np.gradient(x)
+    # dy = np.gradient(y)
+
+    # # Compute yaw angle
+    # yaw = np.arctan2(dy, dx)
+
+    # # Compute curvature: kappa = d(yaw) / ds
+    # ds = np.sqrt(dx**2 + dy**2)
+    # dyaw = np.gradient(yaw)
+    # curvature = dyaw / ds
+
+    # Compute steering angle delta: delta = arctan(L * kappa)
+    steering_angle = np.arctan(wheelbase * kappa)
+
+    # Compute steering rate: d(delta)/dt
+    ddelta = np.gradient(steering_angle)
+    dt = ds / (velocity + 1e-6)  # Add small value to prevent division by zero
+    ddelta_dt = ddelta / (dt + 1e-6)
+
+    # Limit velocity where steering rate exceeds max
+    limited_velocity = np.copy(velocity)
+    for i in range(len(velocity)):
+        if abs(ddelta_dt[i]) > max_steering_rate:
+            # v = ds / dt = ddelta / d(delta/dt)
+            limited_velocity[i] = min(
+                velocity[i],
+                abs(ddelta[i] / max_steering_rate) / (ds[i] + 1e-6)
+            )
+
+    return limited_velocity
+
 
 def compute_time_profile(xs, ys, v_profile):
     xs = np.array(xs)
@@ -203,12 +237,14 @@ def plot_x_y(axis, x, y, x_label, y_label):
     axis.set_ylabel(y_label)
     axis.grid(True)
 
-def compute_velocity_profile(points):
+def compute_velocity_profile(points, plot=None):
 
     v_max  = settings.get('vehicle.limits.max_speed')
     ax_max = settings.get('vehicle.limits.max_longitudinal_acceleration')
     ax_min = settings.get('vehicle.limits.min_longitudinal_acceleration')
     ay_max = settings.get('vehicle.limits.max_lateral_acceleration')
+    max_steering_rate = settings.get('vehicle.limits.max_steering_rate')
+    wheelbase = settings.get('vehicle.geometry.wheelbase')
 
     points = np.array(points)
     # print(points)
@@ -229,7 +265,14 @@ def compute_velocity_profile(points):
 
     t = compute_time_profile(xs, ys, v_profile)
 
-    return t, v_profile
+    v_profile2 = limit_velocity_by_steering_rate(ds, v_profile, wheelbase, max_steering_rate, kappa)
+
+    t2 = compute_time_profile(xs, ys, v_profile)
+
+    if plot is None:
+        return t, v_profile
+    else:
+        return t, v_profile, t2, v_profile2
 
 
 
@@ -249,7 +292,7 @@ if __name__=='__main__':
 
     points = list(zip(xs,ys))
 
-    t, v_profile = compute_velocity_profile(points)
+    t, v_profile, t2, v_profile2 = compute_velocity_profile(points, plot=True)
 
     # # max long accel: 2.0769700074721493
     # # min long accel: -2.6197231578072313
@@ -263,15 +306,18 @@ if __name__=='__main__':
     a = dv/dt
 
     plot_x_y(axs[0, 0], t, v_profile, "t", "v")
-    plot_x_y(axs[0, 1], t[:-1], a, "t", "a")
+    plot_x_y(axs[0, 1], t2, v_profile2, "t", "v2")
+    # plot_x_y(axs[0, 1], t[:-1], a, "t", "a")
     # plot_x_y(axs[1, 0], xs, ys, "x", "y")
     # plot_x_y(axs[1, 1], t, forward_vs, "t", "forward & backward vs")
     # plot_x_y(axs[1, 1], t, backward_vs, "t", "forward & backward vs")
-    plot_x_y(axs[1, 1], t, xs, "t", "x & y")
-    plot_x_y(axs[1, 1], t, ys, "t", "x & y")
+    # plot_x_y(axs[1, 1], t, xs, "t", "x & y")
+    # plot_x_y(axs[1, 1], t, ys, "t", "x & y")
     # plt.show()
 
     plot_speed_profile_gradient(fig, axs[1, 0], xs, ys, v_profile)
+    plot_speed_profile_gradient(fig, axs[1, 1], xs, ys, v_profile2)
+
 
     plt.tight_layout()
     plt.show()
