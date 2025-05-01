@@ -133,7 +133,7 @@ class OccupancyGrid2:
 
 
 
-
+'''
 
 import math
 import random
@@ -3253,3 +3253,4 @@ def animate_path(occupancy_grid, path, metadata, interval=60, pad_cells=20,
     else:     
         plt.show()
     return ani
+'''
