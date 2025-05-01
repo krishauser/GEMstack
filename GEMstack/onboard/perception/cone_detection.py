@@ -18,6 +18,7 @@ import time
 import math
 import ros_numpy
 import os
+import yaml
 
 
 # ----- Helper Functions -----
@@ -269,30 +270,79 @@ class ConeDetector3D(Component):
 
     Tracking is optional: set `enable_tracking=False` to disable persistent tracking
     and return only detections from the current frame.
+
+    Supports multiple cameras; each camera’s intrinsics and extrinsics are
+    loaded from a single YAML calibration file via plain PyYAML.
     """
 
-    def __init__(self, vehicle_interface: GEMInterface):
-        self.vehicle_interface = vehicle_interface
-        self.enable_tracking = False
-        self.current_agents = {}
-        self.tracked_agents = {}
-        self.cone_counter = 0
-        self.latest_image = None
-        self.latest_lidar = None
-        self.bridge = CvBridge()
-        self.start_pose_abs = None
-        self.camera_front = False
-        self.visualize_2d = False
-        self.use_cyl_roi = False
-        self.start_time = None
-        self.use_start_frame = False
-        self.save_data = False
-        self.orientation = False
+    def __init__(
+        self,
+        vehicle_interface: GEMInterface,
+        camera_name: str,
+        camera_calib_file: str,
+        enable_tracking: bool = True,
+        visualize_2d: bool = False,
+        use_cyl_roi: bool = False,
+        T_l2v: list = None,
+        save_data: bool = True,
+        orientation: bool = True,
+        use_start_frame: bool = True,
+        **kwargs
+    ):
+        # Core interfaces and state
+        self.vehicle_interface   = vehicle_interface
+        self.current_agents      = {}
+        self.tracked_agents      = {}
+        self.cone_counter        = 0
+        self.latest_image        = None
+        self.latest_lidar        = None
+        self.bridge              = CvBridge()
+        self.start_pose_abs      = None
+        self.start_time          = None
+
+        # Config flags
+        self.camera_name     = camera_name
+        self.enable_tracking = enable_tracking
+        self.visualize_2d    = visualize_2d
+        self.use_cyl_roi     = use_cyl_roi
+        self.save_data       = save_data
+        self.orientation     = orientation
+        self.use_start_frame = use_start_frame
+
+        # 1) Load lidar→vehicle transform
+        if T_l2v is not None:
+            self.T_l2v = np.array(T_l2v)
+        else:
+            self.T_l2v = np.array([
+                [0.99939639,  0.02547917,  0.023615,    1.1],
+                [-0.02530848, 0.99965156, -0.00749882,  0.03773583],
+                [-0.02379784, 0.00689664,  0.999693,     1.95320223],
+                [0.0,         0.0,         0.0,          1.0]
+            ])
+
+        # 2) Load camera intrinsics/extrinsics from the supplied YAML
+        with open(camera_calib_file, 'r') as f:
+            calib = yaml.safe_load(f)
+
+        # Expect structure:
+        # cameras:
+        #   front:
+        #     K:   [[...], [...], [...]]
+        #     D:   [...]
+        #     T_l2c: [[...], ..., [...]]
+        cam_cfg = calib['cameras'][camera_name]
+        self.K     = np.array(cam_cfg['K'])
+        self.D     = np.array(cam_cfg['D'])
+        self.T_l2c = np.array(cam_cfg['T_l2c'])
+
+        # Derived transforms
+
         self.undistort_map1 = None
         self.undistort_map2 = None
+        self.camera_front = (camera_name=='front')
 
     def rate(self) -> float:
-        return 10.0
+        return 8
 
     def state_inputs(self) -> list:
         return ['vehicle']
@@ -301,48 +351,30 @@ class ConeDetector3D(Component):
         return ['agents']
 
     def initialize(self):
-        self.rgb_sub = Subscriber('/camera_fr/arena_camera_node/image_raw', Image)
+        # --- Determine the correct RGB topic for this camera ---
+        rgb_topic_map = {
+            'front': '/oak/rgb/image_raw',
+            'front_right': '/camera_fr/arena_camera_node/image_raw',
+            # add additional camera mappings here if needed
+        }
+        rgb_topic = rgb_topic_map.get(
+            self.camera_name,
+            f'/{self.camera_name}/rgb/image_raw'
+        )
+
+        # Subscribe to the RGB and LiDAR streams
+        self.rgb_sub = Subscriber(rgb_topic, Image)
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
-        self.sync = ApproximateTimeSynchronizer([self.rgb_sub, self.lidar_sub],
-                                                queue_size=200, slop=0.1)
+        self.sync = ApproximateTimeSynchronizer([
+            self.rgb_sub, self.lidar_sub
+        ], queue_size=200, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
+
+        # Initialize the YOLO detector
         self.detector = YOLO('GEMstack/knowledge/detection/cone.pt')
         self.detector.to('cuda')
-
-        if self.camera_front:
-            self.K = np.array([[684.83331299, 0., 573.37109375],
-                               [0., 684.60968018, 363.70092773],
-                               [0., 0., 1.]])
-        else:
-            self.K = np.array([[1.17625545e+03, 0.00000000e+00, 9.66432645e+02],
-                               [0.00000000e+00, 1.17514569e+03, 6.08580326e+02],
-                               [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
-
-        if self.camera_front:
-            self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-        else:
-            self.D = np.array([-2.70136325e-01, 1.64393255e-01, -1.60720782e-03, -7.41246708e-05,
-                               -6.19939758e-02])
-
-        self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
-                               [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
-                               [-0.02379784, 0.00689664, 0.999693, 1.95320223],
-                               [0., 0., 0., 1.]])
-        if self.camera_front:
-            self.T_l2c = np.array([
-                [2.89748006e-02, -9.99580136e-01, 3.68439439e-05, -3.07300513e-02],
-                [-9.49930618e-03, -3.12215512e-04, -9.99954834e-01, -3.86689354e-01],
-                [9.99534999e-01, 2.89731321e-02, -9.50437214e-03, -6.71425124e-01],
-                [0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 1.00000000e+00]
-            ])
-        else:
-            self.T_l2c = np.array([[-0.71836368, -0.69527204, -0.02346088, 0.05718003],
-                                   [-0.09720448, 0.13371206, -0.98624154, -0.1598301],
-                                   [0.68884317, -0.7061996, -0.16363744, -1.04767285],
-                                   [0., 0., 0., 1.]]
-                                  )
-        self.T_c2l = np.linalg.inv(self.T_l2c)
-        self.R_c2l = self.T_c2l[:3, :3]
+        self.T_c2l                = np.linalg.inv(self.T_l2c)
+        self.R_c2l                = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
     def synchronized_callback(self, image_msg, lidar_msg):
@@ -439,15 +471,18 @@ class ConeDetector3D(Component):
             img_normal = undistorted_img
         else:
             img_normal = lastest_image.copy()
-        results_normal = self.detector(img_normal, conf=0.3, classes=[0])
+            undistorted_img = lastest_image.copy()
+            orig_H, orig_W = lastest_image.shape[:2]
+            self.current_K = self.K
+        results_normal = self.detector(img_normal, conf=0.25, classes=[0])
         combined_boxes = []
         if not self.enable_tracking:
             self.cone_counter = 0
         if self.orientation:
             img_left = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
             img_right = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_CLOCKWISE)
-            results_left = self.detector(img_left, conf=0.75, classes=[0])
-            results_right = self.detector(img_right, conf=0.75, classes=[0])
+            results_left = self.detector(img_left, conf=0.05, classes=[0])
+            results_right = self.detector(img_right, conf=0.05, classes=[0])
             boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
             boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
             for box in boxes_left:
@@ -488,7 +523,6 @@ class ConeDetector3D(Component):
                 cv2.putText(undistorted_img, label, (left, max(top - 5, 20)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             cv2.imshow("Detection - Cone 2D", undistorted_img)
-
 
         start = time.time()
         pts_cam = transform_points_l2c(lidar_down, self.T_l2c)
