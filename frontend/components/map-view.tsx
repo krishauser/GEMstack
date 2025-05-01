@@ -1,7 +1,16 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Locate, Plus, Minus, ArrowUpCircle } from "lucide-react";
+import {
+  Locate,
+  Plus,
+  Minus,
+  ArrowUpCircle,
+  EyeOff,
+  ImageIcon,
+  SatelliteIcon,
+  MapIcon,
+} from "lucide-react";
 import mapboxgl, { LngLatLike } from "mapbox-gl";
 import React, { useRef, useEffect, useState } from "react";
 import "mapbox-gl/dist/mapbox-gl.css";
@@ -10,6 +19,7 @@ import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import { inspect } from "@/api/inspect";
 import { toast } from "sonner";
 import { summon } from "@/api/summon";
+import { SummonDialog } from "@/components/summon-dialog";
 
 const INITIAL_CENTER: { lng: number; lat: number } = {
   lng: -88.23556018270287,
@@ -27,29 +37,37 @@ export function MapView() {
     lat: number;
   } | null>(null);
   const [center, setCenter] = useState<{ lng: number; lat: number }>(
-    INITIAL_CENTER
+    INITIAL_CENTER,
   );
   const [boundingBox, setBoundingBox] = useState<LngLatLike[]>([]);
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const [pitch, _] = useState(INITIAL_PITCH);
-
+  const [satelliteMode, setSatelliteMode] = useState(false);
   const [isSummoning, setIsSummoning] = useState(false);
 
+  const streetStyle = "mapbox://styles/mapbox/standard";
+  const satelliteStyle = "mapbox://styles/mapbox/satellite-v9";
   const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
 
   const handleSummon = async () => {
-    toast.info(`Summoning to ${userLocation?.lat} ${userLocation?.lng}`)
+    toast.info(
+      `Summon to ${userLocation?.lat} ${userLocation?.lng} was placed into queue.`,
+      {
+        description:
+          "Summoning will begin shortly (as soon as GEM will pick up the event)",
+      },
+    );
     setIsSummoning(true);
     const coords = userLocation ? userLocation : center;
 
-      const summonReq = await summon(coords.lng, coords.lat);
+    const summonReq = await summon(coords.lng, coords.lat);
 
-      if (!summonReq.ok) {
-        const errorData = await summonReq.json();
-        console.error("Summon error:", errorData.detail || errorData);
-        setIsSummoning(false);
-        return;
-      }
+    if (!summonReq.ok) {
+      const errorData = await summonReq.json();
+      console.error("Summon error:", errorData.detail || errorData);
+      setIsSummoning(false);
+      return;
+    }
   };
 
   const handleZoomIn = () => {
@@ -57,6 +75,13 @@ export function MapView() {
   };
   const handleZoomOut = () => {
     mapRef.current?.zoomOut();
+  };
+
+  const toggleStyle = () => {
+    if (!mapRef.current) return;
+    const newMode = !satelliteMode;
+    setSatelliteMode(newMode);
+    mapRef.current.setStyle(newMode ? satelliteStyle : streetStyle);
   };
 
   useEffect(() => {
@@ -73,8 +98,8 @@ export function MapView() {
       // style: "mapbox://styles/mapbox/satellite-v9",
       maxBounds: [
         [-88.2368, 40.0925], // Southwest coordinates
-        [-88.2346, 40.0935] // Northeast coordinates
-      ]
+        [-88.2346, 40.0935], // Northeast coordinates
+      ],
     });
 
     const draw = new MapboxDraw({
@@ -131,17 +156,17 @@ export function MapView() {
     }
 
     const marker = new mapboxgl.Marker({
-      draggable: true
+      draggable: true,
     })
-        .setLngLat(INITIAL_CENTER)
-        .addTo(mapRef.current);
+      .setLngLat(INITIAL_CENTER)
+      .addTo(mapRef.current);
 
     function onDragEnd() {
       const lngLat = marker.getLngLat();
-      setUserLocation({lat: lngLat.lat, lng: lngLat.lng})
+      setUserLocation({ lat: lngLat.lat, lng: lngLat.lng });
     }
 
-    marker.on('dragend', onDragEnd);
+    marker.on("dragend", onDragEnd);
 
     mapRef.current.on("move", () => {
       // get the current center coordinates and zoom level from the map
@@ -166,6 +191,7 @@ export function MapView() {
 
   return (
     <div className="relative w-full h-full bg-neutral-800 flex items-center justify-center">
+      <SummonDialog />
       <div id="map-container" ref={mapContainerRef} />
       <div className="absolute top-6 left-6 bg-neutral-900/50 p-2 rounded-sm md:text-base text-xs md:max-w-none max-w-[200px]">
         Longitude: {center.lng.toFixed(4)} | Latitude: {center.lat.toFixed(4)} |
@@ -173,51 +199,65 @@ export function MapView() {
       </div>
 
       {/* Map controls */}
-      <div className="absolute bottom-6 right-6 flex flex-col gap-2">
-        <Button
-          variant="secondary"
-          size="icon"
-          className="rounded-full bg-neutral-900 hover:bg-neutral-800"
-          onClick={handleZoomIn}
-        >
-          <Plus
-            className="h-5 w-5"
-            onClick={() => setZoom(Math.min(zoom + 1, 20))}
-          />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          className="rounded-full bg-neutral-900 hover:bg-neutral-800"
-          onClick={handleZoomOut}
-        >
-          <Minus
-            className="h-5 w-5"
-            onClick={() => setZoom(Math.max(zoom - 1, 10))}
-          />
-        </Button>
-      </div>
+      <div className="absolute bottom-6 flex sm:flex-row flex-col-reverse gap-4 justify-between w-full px-6 sm:items-end">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            variant="secondary"
+            className="rounded-
+                full bg-neutral-900 hover:bg-neutral-800"
+            onClick={handleSummon}
+            disabled={!userLocation}
+          >
+            <Locate className="h-5 w-5 mr-2" />
+            Summon My Car
+          </Button>
+          <Button
+            variant="secondary"
+            className="rounded-
+                full bg-neutral-900 hover:bg-neutral-800"
+            onClick={() => inspect(boundingBox)}
+          >
+            <ArrowUpCircle className="h-5 w-5 mr-2" />
+            <span>Inspect Region</span>
+          </Button>
+        </div>
 
-      <div className="absolute bottom-6 left-6 flex gap-2">
-        <Button
-          variant="secondary"
-          className="rounded-
-                full bg-neutral-900 hover:bg-neutral-800"
-          onClick={handleSummon}
-          disabled={isSummoning || !userLocation}
-        >
-          <Locate className="h-5 w-5 mr-2" />
-          {isSummoning ? "Summoning..." : "Summon My Car"}
-        </Button>
-        <Button
-          variant="secondary"
-          className="rounded-
-                full bg-neutral-900 hover:bg-neutral-800"
-          onClick={() => inspect(boundingBox)}
-        >
-          <ArrowUpCircle className="h-5 w-5 mr-2" />
-          <span>Inspect Region</span>
-        </Button>
+        <div className="flex sm:flex-col gap-2">
+          <Button
+            variant="secondary"
+            size="icon"
+            className="rounded-full bg-neutral-900 hover:bg-neutral-800"
+            onClick={toggleStyle}
+          >
+            {satelliteMode ? (
+              <SatelliteIcon className="h-5 w-5" />
+            ) : (
+              <MapIcon className="h-5 w-5" />
+            )}
+          </Button>
+          <Button
+            variant="secondary"
+            size="icon"
+            className="rounded-full bg-neutral-900 hover:bg-neutral-800"
+            onClick={handleZoomIn}
+          >
+            <Plus
+              className="h-5 w-5"
+              onClick={() => setZoom(Math.min(zoom + 1, 20))}
+            />
+          </Button>
+          <Button
+            variant="secondary"
+            size="icon"
+            className="rounded-full bg-neutral-900 hover:bg-neutral-800"
+            onClick={handleZoomOut}
+          >
+            <Minus
+              className="h-5 w-5"
+              onClick={() => setZoom(Math.max(zoom - 1, 10))}
+            />
+          </Button>
+        </div>
       </div>
     </div>
   );
