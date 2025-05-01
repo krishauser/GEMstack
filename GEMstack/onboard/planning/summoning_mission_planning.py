@@ -46,6 +46,31 @@ class SummoningMissionPlanner(Component):
 
         self.count = 0      # for test only, simulate a delay to get the gaol location
 
+        # Set False when omitting the webapp. TODO: add a flag to the config file
+        self.flag_use_webapp = True
+
+        if self.flag_use_webapp:
+            # Initialize the state in the server
+            url = "http://localhost:8000/api/status"
+            data = {
+                "status": "IDLE"
+            }
+            response = requests.post(url=url, json=data)
+            if response.status_code == 200:
+                print("Status updated successfully")
+            else:
+                print("Failed to update status:", response.status_code)
+            url = "http://localhost:8000/api/summon"
+            data = {
+                "lat": 0,
+                "lon": 0
+            }
+            response = requests.post(url=url, json=data)
+            if response.status_code == 200:
+                print("Initialize goal location successfully")
+            else:
+                print("Failed to initialize goal location:", response.status_code)
+
     def state_inputs(self):
         return ['all']
 
@@ -64,17 +89,31 @@ class SummoningMissionPlanner(Component):
         if self.count <3:
             return mission_plan
 
-        # TODO: Modify to a GET request to get goal location from the server
-        # current_goal_location = self.goal_location
-        # url = ""
-        # response = requests.get(url)
-        # if response.status_code == 200:
-        #     data = response.json()
-        #     goal_location = data['goal_location']
-        #     goal_frame = data['goal_frame']
 
-        goal_location = [10, 11]  # for simulation test only
-        goal_frame = 'start'
+        if self.flag_use_webapp:
+            goal_location = None
+            url = "http://localhost:8000/api/summon"
+            response = requests.get(url)
+            print("GET:", response)
+            if response.status_code == 200:
+                data = response.json()
+                if data['lat'] == 0 and data['lon'] == 0:
+                    print("No goal location received")
+                    goal_location = None
+                    goal_frame = None
+                else:
+                    # TODO: ADD CONVERSION FROM LAT/LON TO X/Y GLOBAL COORDINATES
+                    goal_location = [data['lat'] , data['lon']]
+                    goal_frame = 'global'
+                    print("Goal location:", goal_location)
+                    print("Goal frame:", goal_frame)
+                   
+                    goal_location = [10, 0]  # for simlulation test only
+                    goal_frame = 'start'
+        else:
+            goal_location = [10, 11]  # for simulation test only
+            goal_frame = 'start'
+
 
         if self.goal_location == goal_location:
             self.new_goal = False
@@ -128,8 +167,18 @@ class SummoningMissionPlanner(Component):
         else:
             mission_plan = state.mission_plan
 
-        # TODO: POST request to update status to the server
-        # data =
-        # response = requests.post(url=url, data=data)
+
+        if self.flag_use_webapp:
+            url = "http://localhost:8000/api/status"
+            data = {
+                "status": mission_plan.planner_type.name
+            }
+            print("POST:", data)
+            response = requests.post(url=url, json=data)
+            if response.status_code == 200:
+                print("Status updated successfully")
+            else:
+                print("Failed to update status:", response.status_code)
+
 
         return mission_plan
