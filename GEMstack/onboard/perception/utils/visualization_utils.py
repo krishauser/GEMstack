@@ -1,6 +1,7 @@
 from sensor_msgs.msg import PointField
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
+from .constants import *
 import sensor_msgs.point_cloud2 as pc2
 import cv2
 import rospy
@@ -8,8 +9,6 @@ import struct
 import math
 import tf.transformations as tf_trans
 
-GEM_E4_LENGTH = 3.6  # m
-GEM_E4_WIDTH  = 1.5  # m
 
 def vis_2d_bbox(image, xywh, box):
     # Setup

@@ -2,10 +2,7 @@ import cv2
 import math
 import numpy as np
 from scipy.spatial import ConvexHull
-
-
-GEM_E4_LENGTH = 3.6  # m
-GEM_E4_WIDTH  = 1.5  # m
+from .constants import *
 
 
 def clickPoints(imgPath=None, numPoints=4):

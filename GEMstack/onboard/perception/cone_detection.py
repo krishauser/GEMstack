@@ -14,6 +14,7 @@ import sensor_msgs.point_cloud2 as pc2
 import struct, ctypes
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
+from .utils.constants import *
 import time
 import math
 import ros_numpy
@@ -313,12 +314,7 @@ class ConeDetector3D(Component):
         if T_l2v is not None:
             self.T_l2v = np.array(T_l2v)
         else:
-            self.T_l2v = np.array([
-                [0.99939639,  0.02547917,  0.023615,    1.1],
-                [-0.02530848, 0.99965156, -0.00749882,  0.03773583],
-                [-0.02379784, 0.00689664,  0.999693,     1.95320223],
-                [0.0,         0.0,         0.0,          1.0]
-            ])
+            self.T_l2v = np.array(T_LIDAR_TO_VEHICLE)
 
         # 2) Load camera intrinsics/extrinsics from the supplied YAML
         with open(camera_calib_file, 'r') as f:

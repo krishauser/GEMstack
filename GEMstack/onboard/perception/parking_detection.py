@@ -5,6 +5,7 @@ from typing import Dict
 from ..component import Component 
 from ...state import AgentState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum
 from ..interface.gem import GEMInterface
+from .utils.constants import *
 from .utils.detection_utils import *
 from .utils.parking_utils import *
 from .utils.visualization_utils import *
@@ -19,16 +20,13 @@ class ParkingSpotsDetector3D(Component):
         self.goal_parking_spot = None
         self.parking_obstacles_pose = []
         self.parking_obstacles_dim = []
-        self.ground_threshold = -0.15
+        self.ground_threshold = GROUND_THRESHOLD 
         self.visualization = True
-        self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
-                               [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
-                               [-0.02379784, 0.00689664, 0.999693, 1.95320223],
-                               [0., 0., 0., 1.]])
+        self.T_l2v = np.array(T_LIDAR_TO_VEHICLE)
 
 
         # Subscribers (note: we need top lidar only for visualization)
-        self.lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.callback, queue_size=1)
+        self.lidar_sub = self.vehicle_interface.subscribe_sensor("top_lidar", self.callback)
 
         # Publishers (all topics are for visualization purposes)
         self.pub_lidar_top_vehicle_pc2 = rospy.Publisher("lidar_top_vehicle/point_cloud", PointCloud2, queue_size=10)
@@ -76,40 +74,40 @@ class ParkingSpotsDetector3D(Component):
         # Transform top lidar pointclouds to vehicle frame for visualization
         latest_lidar_vehicle = transform_points(lidar_ouster_frame, self.T_l2v)
         latest_lidar_vehicle = filter_ground_points(latest_lidar_vehicle, self.ground_threshold)
-        ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "vehicle")
+        ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, LIDAR_PC_COLOR, VEHICLE_FRAME)
         self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
 
         # Create vehicle marker
-        ros_vehicle_marker = create_markers([[0.0, 0.0, 0.0, 0.0]], 
-                                            [[0.8, 0.5, 0.3]], 
-                                            (0.0, 0.0, 1.0, 1), 
-                                            "markers", "vehicle")
+        ros_vehicle_marker = create_markers([VEHICLE_FRAME_ORIGIN], 
+                                            [VEHICLE_MARKER_DIM], 
+                                            VEHICLE_MARKER_COLOR, 
+                                            "markers", VEHICLE_FRAME)
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
 
         # Delete previous markers
-        ros_delete_polygon_marker = delete_markers("polygon", 1)
+        ros_delete_polygon_marker = delete_markers("polygon", MAX_POLYGON_MARKERS)
         self.pub_polygon_marker.publish(ros_delete_polygon_marker)
-        ros_delete_parking_spot_markers = delete_markers("parking_spot", 1)
+        ros_delete_parking_spot_markers = delete_markers("parking_spot", MAX_PARKING_SPOT_MARKERS)
         self.pub_parking_spot_marker.publish(ros_delete_parking_spot_markers)
-        ros_delete_obstacles_markers = delete_markers("obstacles", 5)
+        ros_delete_obstacles_markers = delete_markers("obstacles", MAX_OBSTACLE_MARKERS)
         self.pub_obstacles_marker.publish(ros_delete_obstacles_markers)
 
         # Draw polygon first
         if len(ordered_cone_ground_centers_2D) > 0:
-            ros_polygon_marker = create_polygon_marker(ordered_cone_ground_centers_2D, ref_frame="vehicle")
+            ros_polygon_marker = create_polygon_marker(ordered_cone_ground_centers_2D, ref_frame=VEHICLE_FRAME)
             self.pub_polygon_marker.publish(ros_polygon_marker)
 
         # Create parking spot marker
         if goal_parking_spot:
-            ros_parking_spot_marker = create_parking_spot_marker(goal_parking_spot, ref_frame="vehicle")
+            ros_parking_spot_marker = create_parking_spot_marker(goal_parking_spot, ref_frame=VEHICLE_FRAME)
             self.pub_parking_spot_marker.publish(ros_parking_spot_marker)
 
         # Create parking obstacles marker
         if parking_obstacles_pose and parking_obstacles_dim:
             ros_obstacles_marker =  create_markers(parking_obstacles_pose, 
                                                       parking_obstacles_dim, 
-                                                      (1.0, 0.0, 0.0, 0.4), 
-                                                      "obstacles", "vehicle")
+                                                      OBSTACLE_MARKER_COLOR, 
+                                                      "obstacles", VEHICLE_FRAME)
             self.pub_obstacles_marker.publish(ros_obstacles_marker)
 
         # Draw 3D cone centers
@@ -117,7 +115,7 @@ class ParkingSpotsDetector3D(Component):
             cone_ground_centers = np.array(cone_pts_3D)
             cone_ground_centers[:, 2] = 0.0
             cone_ground_centers = [tuple(point) for point in cone_ground_centers]
-            ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=(255, 0, 255))
+            ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=CONE_CENTER_PC_COLOR)
             self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
 
@@ -135,7 +133,7 @@ class ParkingSpotsDetector3D(Component):
             cone_pts_3D.append(cone_pt_3D)
 
         # Detect parking spot
-        if len(cone_pts_3D) == 4:
+        if len(cone_pts_3D) == NUM_CONES_PER_PARKING_SPOT:
             goal_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D = detect_parking_spot(cone_pts_3D)
 
         # Update local variables for visualization
