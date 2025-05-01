@@ -13,7 +13,19 @@ recovery:
 drive: # Full pipeline on board
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : cone_detection.ConeDetector3D
+        agent_detection : 
+            type: cone_detection.ConeDetector3D
+            args:
+                camera_name: front_right #[front, front_right]
+                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+
+                # optional overrides
+                enable_tracking: False
+                visualize_2d: False
+                use_cyl_roi: False
+                save_data: False
+                orientation: False
+                use_start_frame: False
         # agent_detection : cone_detection_simple.ConeDetectorSimple3D
         parking_detection: parking_detection.ParkingSpotsDetector3D
         perception_normalization : StandardPerceptionNormalizer
@@ -52,7 +64,19 @@ variants:
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection : cone_detection.ConeDetector3D
+                    agent_detection : 
+                        type: cone_detection.ConeDetector3D
+                        args:
+                            camera_name: front_right #[front, front_right]
+                            camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+
+                            # optional overrides
+                            enable_tracking: False
+                            visualize_2d: False
+                            use_cyl_roi: False
+                            save_data: False
+                            orientation: False
+                            use_start_frame: False
                     # agent_detection : cone_detection_simple.ConeDetectorSimple3D
                     parking_detection: parking_detection.ParkingSpotsDetector3D
                 planning:
@@ -73,7 +97,19 @@ variants:
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection : cone_detection.ConeDetector3D
+                    agent_detection : 
+                        type: cone_detection.ConeDetector3D
+                        args:
+                            camera_name: front_right #[front, front_right]
+                            camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+
+                            # optional overrides
+                            enable_tracking: False
+                            visualize_2d: False
+                            use_cyl_roi: False
+                            save_data: False
+                            orientation: False
+                            use_start_frame: False
                     # agent_detection : cone_detection_simple.ConeDetectorSimple3D
                     parking_detection: parking_detection.ParkingSpotsDetector3D
                     perception_normalization : StandardPerceptionNormalizer

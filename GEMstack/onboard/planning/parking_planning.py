@@ -3,23 +3,23 @@ from ..component import Component
 from ...state import AllState, VehicleState, Path, Trajectory, Route, ObjectFrameEnum, AgentState, Obstacle, ObjectPose, PhysicalObject
 from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd
-from ...mathutils.quadratic_equation import quad_root
 from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCarIntegrator
 from ...mathutils.dynamics import IntegratorControlSpace
 from ...mathutils import collisions
 from .astar import AStar
 from .longitudinal_planning import longitudinal_plan
 from testing.reeds_shepp_path import path_length
+from . import reed_shepp
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 import rospy
 import time
 
 
+
 import numpy as np
 import math
 
-# @TODO Need to change the functions here to use VehicleState
 class ParkingSolverSecondOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
     and a 'node' is just a (x,y) tuple that represents a reachable position"""
@@ -141,7 +141,7 @@ class ParkingSolverSecondOrderDubins(AStar):
             next_state = np.append(next_state, node[5] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                # print(f"Accepted: {next_state}")
+                print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
             else:
                 print(f"Rejected (collision): {next_state}")
@@ -199,12 +199,10 @@ class ParkingSolverSecondOrderDubins(AStar):
         return temp_obj.polygon()
 
 def generate_action_set():
-    return [
-        (1.0, -0.3), (1.0, 0.0), (1.0, 0.3),
-        (-1.0, -0.3), (-1.0, 0.0), (-1.0, 0.3)
-    ]
-
-# @TODO Need to change the functions here to use VehicleState
+            return [
+                (.75, -0.3), (.75, 0.0), (.75, 0.3),
+                (-.75, -0.3), (-.75, 0.0), (-.75, 0.3)
+            ]
 class ParkingSolverFirstOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
     and a 'node' is just a (x,y) tuple that represents a reachable position"""
@@ -216,7 +214,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._vehicle = None
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 2, 0.25)
+        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1.5, 0.25)
         #@TODO create a more standardized way to define the actions
         self._actions = generate_action_set()
 
@@ -251,16 +249,15 @@ class ParkingSolverFirstOrderDubins(AStar):
         # print(f"Current Pose: {current}")
         # print(f"Goal Pose: {goal}")
         # if np.abs(current[3]) > 1: return False # car must be stopped, this equality will only work in simulation  
-        # return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
-        pos_dist = np.linalg.norm([current[0] - goal[0], current[1] - goal[1]])
-        yaw_dist = abs((current[2] - goal[2] + np.pi) % (2 * np.pi) - np.pi)
-        return pos_dist < 0.5 and yaw_dist < 0.3
+        return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
     
     def heuristic_cost_estimate(self, state_1, state_2):
         """computes the 'direct' distance between two (x,y) tuples"""
         # Extract position and orientation from states
         (x1, y1, theta1, t) = state_1
         (x2, y2, theta2, t) = state_2
+
+        return self.reed_shepp(state_1, state_2) # Using turning radius of 1.0
 
         return self.approx_reeds_shepp(state_1, state_2) # Using turning radius of 1.0
         return math.hypot(x2 - x1, y2 - y1, theta2 - theta1)
@@ -291,9 +288,24 @@ class ParkingSolverFirstOrderDubins(AStar):
         
         return path_length_cost # + velocity_penalty + time_penalty
     
+    def reed_shepp(self, state_1, state_2):
+        # Extract position and orientation from states
+        (x1, y1, theta1, t1) = state_1
+        (x2, y2, theta2, t2) = state_2
+
+        # Create start and goal configurations for Reeds-Shepp
+        start = (x1, y1, theta1)
+        goal = (x2, y2, theta2)
+        
+        # Calculate Reeds-Shepp path length
+        path = reed_shepp.get_optimal_path(start, goal)
+
+        return reed_shepp.path_length(path)  # Using turning radius of 1.0
+    
     def terminal_cost_estimate(self, state_1, state_2):
         """computes the 'direct' distance between two (x,y) tuples"""
         # Extract position and orientation from states
+        return self.reed_shepp(state_1, state_2)
         return self.approx_reeds_shepp(state_1, state_2)
 
     def distance_between(self, state_1, state_2):
@@ -309,7 +321,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
             nodes that can be reached (=any adjacent coordinate that is not a wall)
         """
-        # print(f"[DEBUG] neighbors() called on node {node}")
+        print(f"[DEBUG] neighbors() called on node {node}")
         neighbors = []
         # print(f"Node: {node}")
         for control in self.actions:
@@ -318,10 +330,10 @@ class ParkingSolverFirstOrderDubins(AStar):
             next_state = np.append(next_state, node[3] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                # print(f"Accepted: {next_state}")
+                print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
-            # else:
-                # print(f"Rejected first order (collision): {next_state}")
+            else:
+                print(f"Rejected first order (collision): {next_state}")
         return neighbors
     
     def is_valid_neighbor(self, path):
@@ -357,7 +369,7 @@ class ParkingSolverFirstOrderDubins(AStar):
                 #     obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose).polygon_parent()):
                     #polygon_intersects_polygon_2d when we have the acutal car geometry
                     # raise Exception("Collision detected")
-                    # print("Collision detected")
+                    print("Collision detected")
                     return False
         return True
 
@@ -466,12 +478,10 @@ class ParkingPlanner():
         print(f"Vehicle {vehicle}")
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         agents = state.agents # type: Dict[str, AgentState]
+        all_obstacles = {**agents, **obstacles}
         # print(f"Obstacles {obstacles}")
         print(f"Agents {agents}")
         route = state.route
-
-        print("x = ", state.mission_plan.goal_x)
-        
         goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=15, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0,yaw=state.mission_plan.goal_orientation)
         goal = VehicleState.zero()
         goal.pose = goal_pose
@@ -485,12 +495,8 @@ class ParkingPlanner():
         start_state = self.vehicle_state_to_first_order(vehicle)
         goal_state = self.vehicle_state_to_first_order(goal)
 
-        print("GOAL STATE", goal_state)
-        print("START STATE", start_state)
-
         # Update the planner
-        # self.planner.obstacles = list(obstacles.values())
-        self.planner.obstacles = list(agents.values())
+        self.planner.obstacles = list(all_obstacles.values())
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
@@ -545,3 +551,50 @@ class ParkingPlanner():
 
         line_marker = self.create_trajectory_line_marker(traj, frame_id=frame_id)
         self.marker_pub.publish(line_marker)
+
+    def visualize_trajectory_animated(self, traj: Trajectory, frame_id="vehicle"):
+        """Animates a moving marker along the trajectory in RViz."""
+        marker_pub = rospy.Publisher("animated_trajectory_marker", Marker, queue_size=1)
+        rate = rospy.Rate(20)  # 20 Hz for smooth animation
+
+        # Create a red sphere marker
+        marker = Marker()
+        marker.header.frame_id = frame_id
+        marker.ns = "animated_trajectory"
+        marker.id = 100
+        marker.type = Marker.SPHERE
+        marker.action = Marker.ADD
+        marker.scale.x = 0.4
+        marker.scale.y = 0.4
+        marker.scale.z = 0.4
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        try:
+            start_ros_time = rospy.Time.now().to_sec()
+        except rospy.ROSInitException:
+            print("[WARN] Cannot animate trajectory — ROS node not initialized.")
+            return
+
+        t_start = traj.times[0]
+        t_end = traj.times[-1]
+
+        while not rospy.is_shutdown():
+            t_now = rospy.Time.now().to_sec()
+            t = t_now - start_ros_time + t_start
+
+            if t > t_end:
+                break
+
+            pos = traj.eval(t)
+            marker.header.stamp = rospy.Time.now()
+            marker.pose.position.x = pos[0]
+            marker.pose.position.y = pos[1]
+            marker.pose.position.z = pos[2] if len(pos) > 2 else 0.0
+
+            marker_pub.publish(marker)
+            rate.sleep()
+
+        print("[INFO] Animated trajectory complete.")

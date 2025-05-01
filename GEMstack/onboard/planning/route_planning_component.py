@@ -56,6 +56,7 @@ class RoutePlanningComponent(Component):
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
             traj = self.planner.update(state)
             self.planner.visualize_trajectory(traj)
+            # self.planner.visualize_trajectory_animated(traj)
             return traj
            
         elif state.mission_plan.planner_type.name == "RRT_STAR":

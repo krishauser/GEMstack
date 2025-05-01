@@ -477,8 +477,7 @@ class ParkingPlanner(Component):
         # print(f"Obstacles {obstacles}")
         print(f"Agents {agents}")
         route = state.route
-        goal_point = route.points[-1] # I might need to change this to the same frame as the car?
-        goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
+        goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=15, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0,yaw=state.mission_plan.goal_orientation)
         goal = VehicleState.zero()
         goal.pose = goal_pose
         goal.v = 0
