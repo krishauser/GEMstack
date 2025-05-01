@@ -1,0 +1,22 @@
+events:
+- description: Hardware fault override_active
+  time: 1746127956.8610687
+  vehicle_time: 1746127956.8609285
+- description: Ctrl+C pressed, switching to recovery mode
+  time: 1746127960.991247
+  vehicle_time: 1746127960.9808881
+- description: Mission execution ended
+  time: 1746127961.0028353
+  vehicle_time: 1746127960.9808881
+exit_reason: normal exit
+git_branch: racing
+git_commit_id: 3c52fc3583724e93004383bef16ac443a0068d9e
+pipelines:
+- name: drive
+  time: 1746127919.4952004
+  vehicle_time: 1746127919.3950546
+- name: recovery
+  time: 1746127960.9939687
+  vehicle_time: 1746127960.9808881
+start_time: 1746127919.3550875
+start_time_human_readable: '2025-05-01 14:31:59'
