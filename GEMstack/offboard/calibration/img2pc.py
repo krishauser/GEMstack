@@ -60,12 +60,31 @@ def pc_projection(pc,T:Transform,K,img_shape) -> np.ndarray:
     return u[valid_pts],v[valid_pts]
 
 def calib(args,pc,img,K,N):
+def pc_projection(pc,T:Transform,K,img_shape) -> np.ndarray:
+    mask = ~(np.all(pc == 0, axis=1))
+    pc = pc[mask]
+
+    pc = T @ pc
+    if pc.shape[1] == 4:
+        pc = pc[:,:-1]/pc[:,[-1]]
+
+    assert pc.shape[1] == 3
+    x,y,z = pc.T
+    u = (K[0, 0] * x / z) + K[0, 2]
+    v = (K[1, 1] * y / z) + K[1, 2]
+
+    img_h, img_w, _ = img_shape
+    valid_pts = (u >= 0) & (u < img_w) & (v >= 0) & (v < img_h)
+    return u[valid_pts],v[valid_pts]
+
+def calib(args,pc,img,K,N):
     cpoints = np.array(pick_n_img(img,N)).astype(float)
     print(cpoints)
 
     lpoints = np.array(pick_n_pc(pc,N))
     print(lpoints)
 
+    success, rvec, tvec = cv2.solvePnP(lpoints, cpoints, K, None)
     success, rvec, tvec = cv2.solvePnP(lpoints, cpoints, K, None)
     R, _ = cv2.Rodrigues(rvec)
 

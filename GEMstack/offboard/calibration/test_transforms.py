@@ -1,6 +1,9 @@
+
 import numpy as np
 import cv2 as cv
+import cv2 as cv
 import matplotlib.pyplot as plt
+import argparse
 import argparse
 from scipy.spatial.transform import Rotation as R
 from matplotlib.widgets import Slider
@@ -16,7 +19,14 @@ def project_points(T_lidar_camera, lidar_homogeneous, K, shape):
     X_c = lidar_points_camera[:, 0]
     Y_c = lidar_points_camera[:, 1]
     Z_c = lidar_points_camera[:, 2]  # Depth
+    # Extract 3D points in camera frame
+    X_c = lidar_points_camera[:, 0]
+    Y_c = lidar_points_camera[:, 1]
+    Z_c = lidar_points_camera[:, 2]  # Depth
 
+    # Avoid division by zero
+    valid = Z_c > 0
+    X_c, Y_c, Z_c = X_c[valid], Y_c[valid], Z_c[valid]
     # Avoid division by zero
     valid = Z_c > 0
     X_c, Y_c, Z_c = X_c[valid], Y_c[valid], Z_c[valid]
@@ -24,7 +34,33 @@ def project_points(T_lidar_camera, lidar_homogeneous, K, shape):
     # Project points onto image plane
     u = (K[0, 0] * X_c / Z_c) + K[0, 2]
     v = (K[1, 1] * Y_c / Z_c) + K[1, 2]
+    # Project points onto image plane
+    u = (K[0, 0] * X_c / Z_c) + K[0, 2]
+    v = (K[1, 1] * Y_c / Z_c) + K[1, 2]
 
+    # Filter points within image bounds
+    img_h, img_w, _ = shape
+    valid_pts = (u >= 0) & (u < img_w) & (v >= 0) & (v < img_h)
+    u, v = u[valid_pts], v[valid_pts]
+    return u, v
+
+def modify_transform(T_lidar_camera):
+    modified = np.copy(T_lidar_camera)
+    rotation_mat = R.from_euler('xyz', [x_rot.val, y_rot.val, z_rot.val], degrees=True).as_matrix()
+    translation_vec = np.array([x_trans.val, y_trans.val, z_trans.val])
+    modified[:3, :3] = T_lidar_camera[:3, :3] @ rotation_mat
+    modified[:3, 3] = T_lidar_camera[:3, 3] + translation_vec
+    return modified
+
+def create_sliders(fig, update_func):
+    # Create space for sliders
+    fig.subplots_adjust(bottom=0.4)
+    x_rot_ax = fig.add_axes([0.25, 0.3, 0.65, 0.03])
+    y_rot_ax = fig.add_axes([0.25, 0.25, 0.65, 0.03])
+    z_rot_ax = fig.add_axes([0.25, 0.2, 0.65, 0.03])
+    x_trans_ax = fig.add_axes([0.25, 0.15, 0.65, 0.03])
+    y_trans_ax = fig.add_axes([0.25, 0.1, 0.65, 0.03])
+    z_trans_ax = fig.add_axes([0.25, 0.05, 0.65, 0.03])
     # Filter points within image bounds
     img_h, img_w, _ = shape
     valid_pts = (u >= 0) & (u < img_w) & (v >= 0) & (v < img_h)
@@ -59,6 +95,16 @@ def create_sliders(fig, update_func):
         valinit=0,
         orientation="horizontal"
     )
+    # Make sliders to control the rotation
+    global x_rot
+    x_rot = Slider(
+        ax=x_rot_ax,
+        label="X Rotation",
+        valmin=-30,
+        valmax=30,
+        valinit=0,
+        orientation="horizontal"
+    )
 
     global y_rot
     y_rot = Slider(
@@ -69,7 +115,25 @@ def create_sliders(fig, update_func):
         valinit=0,
         orientation="horizontal"
     )
+    global y_rot
+    y_rot = Slider(
+        ax=y_rot_ax,
+        label="Y Rotation",
+        valmin=-30,
+        valmax=30,
+        valinit=0,
+        orientation="horizontal"
+    )
 
+    global z_rot
+    z_rot = Slider(
+        ax=z_rot_ax,
+        label="Z Rotation",
+        valmin=-30,
+        valmax=30,
+        valinit=0,
+        orientation="horizontal"
+    )
     global z_rot
     z_rot = Slider(
         ax=z_rot_ax,
@@ -90,6 +154,16 @@ def create_sliders(fig, update_func):
         valinit=0,
         orientation="horizontal"
     )
+    # Make sliders to control the translation
+    global x_trans
+    x_trans = Slider(
+        ax=x_trans_ax,
+        label="X Translation",
+        valmin=-10,
+        valmax=10,
+        valinit=0,
+        orientation="horizontal"
+    )
 
     global y_trans
     y_trans = Slider(
@@ -100,7 +174,25 @@ def create_sliders(fig, update_func):
         valinit=0,
         orientation="horizontal"
     )
+    global y_trans
+    y_trans = Slider(
+        ax=y_trans_ax,
+        label="Y Translation",
+        valmin=-10,
+        valmax=10,
+        valinit=0,
+        orientation="horizontal"
+    )
 
+    global z_trans
+    z_trans = Slider(
+        ax=z_trans_ax,
+        label="Z Translation",
+        valmin=-10,
+        valmax=10,
+        valinit=0,
+        orientation="horizontal"
+    )
     global z_trans
     z_trans = Slider(
         ax=z_trans_ax,
