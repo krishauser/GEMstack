@@ -21,6 +21,9 @@ components:
   - lane_detection:
       inputs: [vehicle, roadgraph]
       outputs: vehicle_lane
+  - parking_detection:
+      inputs: agents
+      outputs: [goal, obstacles]
   - sign_detection: 
       inputs: [vehicle, roadgraph]
       outputs: roadgraph.signs
@@ -44,11 +47,23 @@ components:
       inputs: [vehicle, roadgraph, mission]
       outputs: route
   - driving_logic:
-      inputs: all
+      inputs: 
       outputs: intent
+  - parking_component: # one way
+      inputs: all
+      outputs: mission_plan
+  - summon_component: # one way
+      inputs: all
+      outputs: route
+  - route_planning_component: # one way
+      inputs: all
+      outputs: route
   - motion_planning:
       inputs: all
       outputs: trajectory
   - trajectory_tracking:
       inputs: [vehicle, trajectory]
       outputs: 
+  - signaling:
+      inputs: [intent]
+      outputs:
