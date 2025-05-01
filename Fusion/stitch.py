@@ -7,7 +7,7 @@ from sensor_msgs.msg import PointField, PointCloud2, Image
 from cv_bridge import CvBridge
 import sensor_msgs.point_cloud2 as pc2
 
-from DistortionRemove import *
+# from DistortionRemove import *
 
 
 # canvas shape
@@ -18,12 +18,12 @@ PIXEL_TO_METER = 0.02
 METER_TO_PIXEL = 1 / PIXEL_TO_METER
 
 
-srcFrontCamListXY = np.array([
-    [446, 504],  # FL
-    [712, 504],  # FR
-    [310, 700],  # RL
-    [895, 700],  # RR
-])  # origin
+# srcFrontCamListXY = np.array([
+#     [446, 504],  # FL
+#     [712, 504],  # FR
+#     [310, 700],  # RL
+#     [895, 700],  # RR
+# ])  # origin
 
 # dstFrontCamListXY = np.array([
 #     [-1.2834, -8.526 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794-4.423],  # FL
@@ -33,12 +33,12 @@ srcFrontCamListXY = np.array([
 # ])  # origin
 
 
-dstFrontCamListXY = np.array([
-    [-1.4834, -8.526 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794-4.423],  # FL
-    [ 1.466 , -8.3194],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432-4.2672],  # FR
-    [-1.4834, -4.103 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794],  # RL
-    [ 1.466 , -4.0522],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432],  # RR
-])  # tune by hand
+# dstFrontCamListXY = np.array([
+#     [-1.4834, -8.526 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794-4.423],  # FL
+#     [ 1.466 , -8.3194],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432-4.2672],  # FR
+#     [-1.4834, -4.103 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794],  # RL
+#     [ 1.466 , -4.0522],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432],  # RR
+# ])  # tune by hand
 
 
 

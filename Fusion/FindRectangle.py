@@ -230,7 +230,7 @@ if __name__ == "__main__":
         best_pose = scoredCandidates[0][0]
         visualizeCandidateCarPoses(cornerPts, candidates[:5], bestPose=best_pose)
 
-    
+
 
 
 
