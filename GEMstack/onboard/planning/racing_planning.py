@@ -36,7 +36,7 @@ def scenario_check(vehicle_state, cone_state):
     
     return cone_direction, cone_position
     
-def waypoint_generate(vehicle_state, cone_state):
+def waypoint_generate(vehicle_state, cones, cone_idx):
     """
     Generate waypoints based on the scenario.
     Args:
@@ -48,12 +48,14 @@ def waypoint_generate(vehicle_state, cone_state):
             flex_wp: flexible waypoint (used to maneuver)
             fixed_wp: fixed waypoint (goal position)
     """
-    scenario, cone_position = scenario_check(vehicle_state, cone_state)
+    scenario, cone_position = scenario_check(vehicle_state, [cones[cone_idx]])
     car_position = np.array(vehicle_state['position'])
     car_heading = vehicle_state['heading']  # in radians
+    current_heading = car_heading
+    target_heading = car_heading
 
     # ===== Parameters =====
-    u_turn_radius = 5.0      # Radius for U-turn
+    u_turn_radius = 11.5      # Radius for U-turn
     offset = 2.0                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
@@ -64,12 +66,18 @@ def waypoint_generate(vehicle_state, cone_state):
     # Vector perpendicular to heading (to determine left/right)
     perpendicular_vector = np.array([-np.sin(car_heading), np.cos(car_heading)])
 
+    if cone_idx > 0:
+        prev_cone_position = np.array((cones[cone_idx - 1]['x'], cones[cone_idx - 1]['y']))
+        cone_position = np.array((cones[cone_idx]['x'], cones[cone_idx]['y']))
+        target_heading = np.arctan2(cone_position[1] - prev_cone_position[1],
+                                    cone_position[0] - prev_cone_position[0])
+
     if scenario == 'standing':
         # U-turn: Generate points in a semi-circular arc around the cone
         cone = np.array(cone_position)
         
         # Number of waypoints to generate for the arc
-        num_arc_points = 7
+        num_arc_points = 9
         
         # Generate waypoints in a smooth semi-circular pattern on the RIGHT side
         flex_wps_list = []
@@ -78,7 +86,7 @@ def waypoint_generate(vehicle_state, cone_state):
         # But negate perpendicular_vector to go to the right side
         for i in range(num_arc_points):
             # Calculate angle in the semi-circle (0 to π)
-            angle = i * np.pi / (num_arc_points - 1)
+            angle = i * np.pi * 1 / (num_arc_points - 1)
             
             # MODIFIED: Negative perpendicular_vector to go to right side of cone
             # This creates a counter-clockwise turn around the cone
@@ -91,6 +99,8 @@ def waypoint_generate(vehicle_state, cone_state):
             
         # Fixed waypoint: behind the cone after U-turn (also on right side)
         fixed_wp = cone + u_turn_radius * perpendicular_vector
+
+        target_heading = target_heading + np.pi
         
         # For visualization only
         # for i, wp in enumerate(flex_wps_list):
@@ -155,7 +165,16 @@ def waypoint_generate(vehicle_state, cone_state):
         flex_wps_list = None
         fixed_wp = None
 
-    return scenario, flex_wps_list, fixed_wp
+    target_heading = (target_heading + np.pi) % (2 * np.pi) - np.pi
+    current_heading = (current_heading + np.pi) % (2 * np.pi) - np.pi
+
+    if abs(target_heading - current_heading) > np.pi: 
+        if target_heading < current_heading:
+            target_heading += 2 * np.pi
+        else:
+            target_heading -= 2 * np.pi
+
+    return scenario, flex_wps_list, fixed_wp, target_heading
     
 def velocity_profiling(path, acceleration, deceleration, max_speed, current_speed, lateral_acc_limit):
     """
@@ -775,18 +794,19 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
     current_pos = np.array(vehicle_state['position'])
     current_heading = vehicle_state['heading']
 
-    for cone in cones:
-        scenario, flex_wps, fixed_wp = waypoint_generate(vehicle_state, [cone])
+    for cone_idx, cone in enumerate(cones):
+        scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, cones, cone_idx)
         if not flex_wps or fixed_wp is None:
             continue
         # flex_wp = flex_wps[0]
+        current_heading = (current_heading + np.pi) % (2 * np.pi) - np.pi
 
         init_state = {
             'x': current_pos[0], 'y': current_pos[1], 'psi': current_heading,
             'c': 0.0, 'v': vehicle_state['velocity']
         }
         final_state = {
-            'x': fixed_wp[0], 'y': fixed_wp[1], 'psi': current_heading, 'c': 0.0
+            'x': fixed_wp[0], 'y': fixed_wp[1], 'psi': target_heading, 'c': 0.0
         }
 
         x, y, psi, c, v, eps, _ = trajectory_generation(init_state, final_state, waypoints=flex_wps)
@@ -795,6 +815,33 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
         v_all.extend(v)
 
         current_pos = np.array([x[-1], y[-1]])
+        current_heading = psi[-1]
+        current_steering = c[-1]
+
+        vehicle_state = {
+            'position': current_pos,
+            'heading': current_heading,
+            'velocity': v[-1]
+        }
+
+        current_pos = np.array([x[-1], y[-1]])
+
+    # # Plot overall trajectory
+    # plt.figure()
+    # plt.plot(x_all, y_all, label='Overall Trajectory')
+
+    # # Plot cones
+    # for i, cone in enumerate(cones):
+    #     plt.scatter(cone['x'], cone['y'], color='orange', s=10, label='Cone' if i == 0 else "")
+    #     plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
+
+    # plt.title('4-Cone Full Course Trajectory')
+    # plt.xlabel('X')
+    # plt.ylabel('Y')
+    # plt.legend()
+    # plt.axis('equal')
+    # plt.grid(True)
+    # plt.show()
 
     combined_xy = [[x, y] for x, y in zip(x_all, y_all)]
     path = Path(ObjectFrameEnum.START,combined_xy)
@@ -825,7 +872,10 @@ class SlalomTrajectoryPlanner(Component):
                 {'x': 10, 'y': 0.0, 'orientation': 'left'},
                 {'x': 30, 'y': 1.0, 'orientation': 'right'},
                 {'x': 50, 'y': 0.0, 'orientation': 'left'},
-                {'x': 70, 'y': 1.0, 'orientation': 'standing'}
+                {'x': 70, 'y': 1.0, 'orientation': 'standing'},
+                {'x': 50, 'y': 0.0, 'orientation': 'right'},
+                {'x': 30, 'y': 1.0, 'orientation': 'left'},
+                {'x': 10, 'y': 0.0, 'orientation': 'right'}
             ]
             vehicle_dict = {
                 'position': [vehicle.pose.x, vehicle.pose.y],
