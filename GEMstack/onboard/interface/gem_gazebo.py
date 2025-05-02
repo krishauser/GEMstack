@@ -133,7 +133,7 @@ class GEMGazeboInterface(GEMInterface):
                 # Convert IMU's yaw to heading (CW from North), then to navigation yaw (CCW from East)
                 # This handles the coordinate frame differences between Gazebo and the navigation frame
                 # Negate yaw to convert from ROS to heading
-                heading = transforms.yaw_to_heading(-yaw, degrees=False)
+                heading = transforms.yaw_to_heading(-yaw - np.pi/2, degrees=False) 
                 navigation_yaw = transforms.heading_to_yaw(
                     heading, degrees=False)
 
@@ -225,6 +225,12 @@ class GEMGazeboInterface(GEMInterface):
         
         # Get current speed
         v = self.last_reading.speed
+
+
+        #update last reading
+        self.last_reading.accelerator_pedal_position = command.accelerator_pedal_position
+        self.last_reading.brake_pedal_position = command.brake_pedal_position
+        self.last_reading.steering_wheel_angle = command.steering_wheel_angle
         
         # Convert pedal to acceleration
         accelerator_pedal_position = np.clip(command.accelerator_pedal_position, 0.0, 1.0)
