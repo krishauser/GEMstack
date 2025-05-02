@@ -1,6 +1,7 @@
 from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
+from .perception_utils import *
 from ultralytics import YOLO
 import cv2
 from typing import Dict
