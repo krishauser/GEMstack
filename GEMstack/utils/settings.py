@@ -1,23 +1,33 @@
 import json
-from ..knowledge import defaults
 import copy
 from typing import List,Union,Any
 
 SETTINGS = None
 
-def load_settings():
+def load_settings(settings_file : str = None):
     """Loads the settings object for the first time.
     
-    Order of operations is to look into defaults.SETTINGS, and then
-    look through the command line arguments to determine whether the user has
-    overridden any settings using --KEY=VALUE.
+    Order of operations is:
+    - If settings_file is given, load it.
+    - Otherwise, get the settings from defaults.SETTINGS
+    - Look through the command line arguments to determine whether the user has
+      overridden any settings using --KEY=VALUE.
     """
     global SETTINGS
     if SETTINGS is not None:
         return
     import os
     import sys
-    SETTINGS = copy.deepcopy(defaults.SETTINGS)
+    if settings_file is not None:
+        from .config import load_config_recursive
+        import os
+        print("**************************************************************")
+        print("Loading global settings from",settings_file)
+        print("**************************************************************")
+        SETTINGS = load_config_recursive(os.path.abspath(settings_file))
+    else:
+        from ..knowledge import defaults
+        SETTINGS = copy.deepcopy(defaults.SETTINGS)
     for arg in sys.argv:
         if arg.startswith('--'):
             k,v = arg.split('=',1)
