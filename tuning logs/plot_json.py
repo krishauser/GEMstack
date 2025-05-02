@@ -1,43 +1,68 @@
 import json
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 from datetime import datetime
+from bisect import bisect_left
 
-# Read the NDJSON data
-data = []
-with open('test1/behavior.json', 'r') as f:
+# Read the file and separate pose and speed entries
+pose_data = []
+speed_data = []
+
+with open("test1/behavior.json", "r") as f:
     for line in f:
-        if line.strip():
-            data.append(json.loads(line))
+        if not line.strip():
+            continue
+        entry = json.loads(line)
+        if "vehicle" in entry:
+            pose = entry["vehicle"]["data"]["pose"]
+            timestamp = entry["time"]
+            pose_data.append({
+                "time": timestamp,
+                "x": pose["x"],
+                "y": pose["y"]
+            })
+        elif "vehicle_interface_reading" in entry:
+            timestamp = entry["time"]
+            speed = entry["vehicle_interface_reading"]["data"].get("speed", 0.0)
+            speed_data.append({
+                "time": timestamp,
+                "speed": speed
+            })
 
-# Extract fields
-x_vals = []
-y_vals = []
-speeds = []
-times = []
+# Sort both lists by time
+pose_data.sort(key=lambda x: x["time"])
+speed_data.sort(key=lambda x: x["time"])
+speed_times = [s["time"] for s in speed_data]
 
-for entry in data:
-    # Skip if position is missing
-    if 'position' not in entry or 'vehicle_interface_reading' not in entry:
-        continue
+# Match each pose with the nearest speed
+matched_x = []
+matched_y = []
+matched_speeds = []
+
+for pose in pose_data:
+    t = pose["time"]
+    idx = bisect_left(speed_times, t)
     
-    pos = entry['position']
-    x_vals.append(pos.get('x', 0.0))
-    y_vals.append(pos.get('y', 0.0))
+    # Get closest speed entry within 0.01 seconds
+    candidates = []
+    if idx > 0:
+        candidates.append(speed_data[idx - 1])
+    if idx < len(speed_data):
+        candidates.append(speed_data[idx])
     
-    speeds.append(entry['vehicle_interface_reading']['data'].get('speed', 0.0))
-    times.append(datetime.fromtimestamp(entry['time']))
+    best_match = min(candidates, key=lambda s: abs(s["time"] - t), default=None)
+    
+    if best_match and abs(best_match["time"] - t) < 0.01:
+        matched_x.append(pose["x"])
+        matched_y.append(pose["y"])
+        matched_speeds.append(best_match["speed"])
 
-# Plotting
-fig, ax = plt.subplots(figsize=(10, 6))
-sc = ax.scatter(x_vals, y_vals, c=speeds, cmap='plasma', s=30, edgecolor='k')
-cbar = plt.colorbar(sc, ax=ax)
-cbar.set_label('Speed (m/s)')
-
-ax.set_title('Vehicle Position Colored by Speed')
-ax.set_xlabel('X Position (m)')
-ax.set_ylabel('Y Position (m)')
-ax.grid(True)
-
+# Plot
+plt.figure(figsize=(10, 6))
+sc = plt.scatter(matched_x, matched_y, c=matched_speeds, cmap='viridis', edgecolor='k', s=30)
+plt.colorbar(sc, label='Speed (m/s)')
+plt.xlabel("X Position (m)")
+plt.ylabel("Y Position (m)")
+plt.title("Vehicle Position Colored by Speed")
+plt.grid(True)
 plt.tight_layout()
 plt.show()
