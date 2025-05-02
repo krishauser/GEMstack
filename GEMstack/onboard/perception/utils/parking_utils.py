@@ -93,9 +93,6 @@ def find_all_candidate_parking_spots(cornerPts, angleStepDegree=10, positionStri
     
     refAngleDegree = getMaxLenEdgeAngleDegree(cornerPts)
     
-    for angleDegree in np.arange(-90, 90, angleStepDegree):
-        rect = ((0, 0), (GEM_E4_LENGTH, GEM_E4_WIDTH), float(angleDegree))
-    
     for angleDegree in np.arange(refAngleDegree, refAngleDegree+1):
         rect = ((0, 0), (GEM_E4_LENGTH, GEM_E4_WIDTH), float(angleDegree))
         carBox = cv2.boxPoints(rect)
@@ -118,6 +115,7 @@ def findMaxLenEdgePoints(cornerPts):
         
         if tempLen > maxLen:
             maxPt1, maxPt2 = pt1, pt2
+            tempLen = maxLen
     return maxPt1, maxPt2
 
 
