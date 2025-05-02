@@ -11,7 +11,9 @@ from .longitudinal_planning import longitudinal_plan
 from testing.reeds_shepp_path import path_length
 from . import reed_shepp
 
-
+import csv
+import os
+import time
 import numpy as np
 import math
 
@@ -209,7 +211,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._vehicle = None
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1.5, 0.25)
+        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 2, 0.25)
         #@TODO create a more standardized way to define the actions
         self._actions = generate_action_set()
 
@@ -316,7 +318,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
             nodes that can be reached (=any adjacent coordinate that is not a wall)
         """
-        print(f"[DEBUG] neighbors() called on node {node}")
+        # print(f"[DEBUG] neighbors() called on node {node}")
         neighbors = []
         # print(f"Node: {node}")
         for control in self.actions:
@@ -325,10 +327,10 @@ class ParkingSolverFirstOrderDubins(AStar):
             next_state = np.append(next_state, node[3] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
-            else:
-                print(f"Rejected first order (collision): {next_state}")
+            # else:
+                # print(f"Rejected first order (collision): {next_state}")
         return neighbors
     
     def is_valid_neighbor(self, path):
@@ -460,6 +462,7 @@ class ParkingPlanner(Component):
 
         return (x,y,theta,t)
 
+
     def update(self, state : AllState) -> Trajectory:
         """_summary_
 
@@ -496,11 +499,22 @@ class ParkingPlanner(Component):
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=200))
+        # res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=100))
+        res, plan_time = time_planner(self.planner, start_state, goal_state)
         # points = [state[:2] for state in res] # change here to return the theta as well
         points = []
         for state in res:
             points.append((state[0], state[1]))
+
+        #For Metric Capturing
+        success = is_successful_path(res)
+
+        print(f"[Metrics] Plan Time: {plan_time:.3f}s")
+        print(f"[Metrics] Success: {success}")
+        # Logging metrics
+        log_metrics_to_csv(filename=f"metrics_{3}.csv", plan_time=plan_time)
+
+
         times = [state[3] for state in res]
         path = Path(frame=vehicle.pose.frame, points=points)
         traj = Trajectory(path.frame,points,times)
@@ -511,3 +525,31 @@ class ParkingPlanner(Component):
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
         print(traj)
         return traj 
+    
+def time_planner(planner, start, goal) -> Tuple[List, float]:
+    start_time = time.time()
+    result = list(planner.astar(start, goal, reversePath=False, iterations=100))
+    end_time = time.time()
+    return result, end_time - start_time
+
+# Need to Change
+def is_successful_path(path: List[Tuple[float, float]]) -> bool:
+    return len(path) > 1
+
+# Add a function for recording collision as metric
+# Add a function for quality of the path
+
+def log_metrics_to_csv(filename: str, plan_time: float):
+
+    file_exists = os.path.isfile(filename)
+    
+    with open(filename, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        # Write header only once
+        if not file_exists:
+            writer.writerow([
+                "plan_time"
+            ])
+        writer.writerow([
+            round(plan_time, 4),
+        ])
