@@ -15,16 +15,16 @@ drive:
         agent_detection :
             type: cone_detection.ConeDetector3D
             args:
-                camera_name: front_right #[front, front_right]
+                camera_name: front #[front, front_right]
                 camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
 
                 # optional overrides
-                enable_tracking: False
-                visualize_2d: False
-                use_cyl_roi: False
-                save_data: False
-                orientation: False
-                use_start_frame: False
+                enable_tracking: True # True if you want ot enable tracking function
+                visualize_2d: False # True if you see 2D detection visualization
+                use_cyl_roi: False # True if you want to use a cylinder roi (no need to use if calibration is accurate)
+                save_data: False # True if you want to save the sensor input data
+                orientation: True # True if you need to detect flipped cones
+                use_start_frame: True # True if you need output in START frame, otherwise in CURRENT frame
 
         perception_normalization : StandardPerceptionNormalizer
     planning:

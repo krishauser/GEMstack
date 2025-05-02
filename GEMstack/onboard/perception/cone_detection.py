@@ -35,7 +35,6 @@ def filter_points_within_threshold(points, threshold=15.0):
     mask = distances <= threshold
     return points[mask]
 
-
 def match_existing_cone(
         new_center: np.ndarray,
         new_dims: tuple,
@@ -223,9 +222,9 @@ def pose_to_matrix(pose):
     y = pose.y if pose.y is not None else 0.0
     z = pose.z if pose.z is not None else 0.0
     if pose.yaw is not None and pose.pitch is not None and pose.roll is not None:
-        yaw = math.radians(pose.yaw)
-        pitch = math.radians(pose.pitch)
-        roll = math.radians(pose.roll)
+        yaw = pose.yaw
+        pitch = pose.pitch
+        roll = pose.roll
     else:
         yaw = 0.0
         pitch = 0.0
@@ -367,7 +366,7 @@ class ConeDetector3D(Component):
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([
             self.rgb_sub, self.lidar_sub
-        ], queue_size=200, slop=0.1)
+        ], queue_size=500, slop=0.05)
         self.sync.registerCallback(self.synchronized_callback)
 
         # Initialize the YOLO detector
@@ -474,15 +473,15 @@ class ConeDetector3D(Component):
             undistorted_img = lastest_image.copy()
             orig_H, orig_W = lastest_image.shape[:2]
             self.current_K = self.K
-        results_normal = self.detector(img_normal, conf=0.25, classes=[0])
+        results_normal = self.detector(img_normal, conf=0.35, classes=[0])
         combined_boxes = []
         if not self.enable_tracking:
             self.cone_counter = 0
         if self.orientation:
             img_left = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
             img_right = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_CLOCKWISE)
-            results_left = self.detector(img_left, conf=0.05, classes=[0])
-            results_right = self.detector(img_right, conf=0.05, classes=[0])
+            results_left = self.detector(img_left, conf=0.1, classes=[0])
+            results_right = self.detector(img_right, conf=0.1, classes=[0])
             boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
             boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
             for box in boxes_left:
@@ -545,8 +544,9 @@ class ConeDetector3D(Component):
                 continue
 
             points_3d = roi_pts[:, 2:5]
-            points_3d = filter_points_within_threshold(points_3d, 30)
-            points_3d = filter_depth_points(points_3d, max_depth_diff=0.3)
+            points_3d = filter_points_within_threshold(points_3d, 40)
+            points_3d = remove_ground_by_min_range(points_3d, z_range=0.08)
+            points_3d = filter_depth_points(points_3d, max_depth_diff=0.5)
 
             if self.use_cyl_roi:
                 global_filtered = filter_points_within_threshold(lidar_down, 30)
