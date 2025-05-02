@@ -136,10 +136,11 @@ class ParkingSolverSecondOrderDubins(AStar):
             next_state = np.append(next_state, node[5] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
             else:
-                print(f"Rejected (collision): {next_state}")
+                # print(f"Rejected (collision): {next_state}")
+                pass
         return neighbors
     
     def is_valid_neighbor(self, path):
@@ -195,8 +196,8 @@ class ParkingSolverSecondOrderDubins(AStar):
 
 def generate_action_set():
             return [
-                (.75, -0.3), (.75, 0.0), (.75, 0.3),
-                (-.75, -0.3), (-.75, 0.0), (-.75, 0.3)
+                (.5, -0.25), (.5, 0.0), (.5, 0.25),
+                (-.5, -0.25), (-.5, 0.0), (-.5, 0.25)
             ]
 class ParkingSolverFirstOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
@@ -209,7 +210,8 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._vehicle = None
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1.5, 0.25)
+        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 2, 0.25)
+        self.vehicle_outline = None
         #@TODO create a more standardized way to define the actions
         self._actions = generate_action_set()
 
@@ -316,7 +318,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         """ for a given configuration of the car in the maze, returns up to 4 adjacent(north,east,south,west)
             nodes that can be reached (=any adjacent coordinate that is not a wall)
         """
-        print(f"[DEBUG] neighbors() called on node {node}")
+        # print(f"[DEBUG] neighbors() called on node {node}")
         neighbors = []
         # print(f"Node: {node}")
         for control in self.actions:
@@ -325,10 +327,11 @@ class ParkingSolverFirstOrderDubins(AStar):
             next_state = np.append(next_state, node[3] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
             else:
-                print(f"Rejected first order (collision): {next_state}")
+                # print(f"Rejected first order (collision): {next_state}")
+                pass
         return neighbors
     
     def is_valid_neighbor(self, path):
@@ -351,20 +354,22 @@ class ParkingSolverFirstOrderDubins(AStar):
                 # print(point)
                 # print(obstacle.polygon_parent())
                 # print("====================================")
-                # print(f"Vehicle Object: {vehicle_object}")
-                # print(f"Vehicle Polygon: {vehicle_polygon}")
+                print(f"Vehicle Object: {vehicle_object}")
+                # print(f"Vehicle Polygon: {vehicle_object.polygon_parent()}")
                 # print(f"Obstacle Polygon: {obstacle.polygon_parent()}")
                 # print(f"Obstacle: {obstacle}")
                 # print(f"Point: {point}")
                 # print(f"Obstacle Applied at current point: {obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose)}")
                 # print(f"Obstacle Polygon at current point: {obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose).polygon_parent()}")
-                #!!!!! the obstacle is in the world frame!
+                #!!!!! the obstacle is in the absolute cartesian frame!
+                # The vehicle is in the start frame
+                # make sure that obstacles are in the start frame
                 if collisions.polygon_intersects_polygon_2d(vehicle_object.polygon_parent(), obstacle.polygon_parent()):
                 # if collisions.polygon_intersects_polygon_2d(vehicle_object.polygon_parent(), 
                 #     obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose).polygon_parent()):
                     #polygon_intersects_polygon_2d when we have the acutal car geometry
                     # raise Exception("Collision detected")
-                    print("Collision detected")
+                    # print("Collision detected")
                     return False
         return True
 
@@ -382,11 +387,16 @@ class ParkingSolverFirstOrderDubins(AStar):
         theta = state[2]
         t = state[3]
 
-        pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=t, x=x,y=y,z=0,yaw=theta)
-        
+        # pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=t, x=x,y=y,z=0,yaw=theta)
+
+        #In order to use the start frame as the frame, we might need to 
+        # keep track of the start frame to calculate the x,y,z? I'm not sure
+        # if we just assume that the start frame is always (0,0,0) then this should be fine
+        pose = ObjectPose(frame=ObjectFrameEnum.START,t=t, x=x,y=y,z=0,yaw=theta)
+
         temp_obj = PhysicalObject(pose=pose,
                                dimensions=self.vehicle.to_object().dimensions,
-                               outline=self.vehicle.to_object().outline)
+                               outline=self.vehicle_outline)
 
         return temp_obj
    
@@ -470,7 +480,9 @@ class ParkingPlanner(Component):
             Trajectory: _description_
         """
         vehicle = state.vehicle # type: VehicleState
-        print(f"Vehicle {vehicle}")
+        l,w,h = vehicle.to_object().dimensions
+        vehicle_outline = [(0,-w/2),(l,-w/2),(l,w/2),(0,w/2)]
+        print(f"Vehicle {vehicle.to_object()}")
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         agents = state.agents # type: Dict[str, AgentState]
         all_obstacles = {**agents, **obstacles}
@@ -478,7 +490,8 @@ class ParkingPlanner(Component):
         print(f"Agents {agents}")
         route = state.route
         goal_point = route.points[-1] # I might need to change this to the same frame as the car?
-        goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
+        # goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
+        goal_pose = ObjectPose(frame=ObjectFrameEnum.START, t=15, x=goal_point[0],y=goal_point[1],z=0,yaw=0)
         goal = VehicleState.zero()
         goal.pose = goal_pose
         goal.v = 0
@@ -494,9 +507,11 @@ class ParkingPlanner(Component):
         # Update the planner
         self.planner.obstacles = list(all_obstacles.values())
         self.planner.vehicle = vehicle
+        self.planner.vehicle_outline = vehicle_outline
+        print("====================================")
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=200))
+        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=100))
         # points = [state[:2] for state in res] # change here to return the theta as well
         points = []
         for state in res:
