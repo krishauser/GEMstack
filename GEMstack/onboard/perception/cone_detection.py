@@ -533,8 +533,8 @@ class ConeDetector3D(Component):
 
         for i, box_info in enumerate(combined_boxes):
             cx, cy, w, h, activity = box_info
-            left = int(cx - w / 2)
-            right = int(cx + w / 2)
+            left = int(cx - w / 1.6)
+            right = int(cx + w / 1.6)
             top = int(cy - h / 2)
             bottom = int(cy + h / 2)
             mask = (projected_pts[:, 0] >= left) & (projected_pts[:, 0] <= right) & \
