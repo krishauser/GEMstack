@@ -2,11 +2,11 @@ vehicle_state: [4.0, 5.0, 0.0, 0.0, 0.0]
 agents:
   Car1:
     type: car
-    position: [20.0, 4.5]
-    nominal_velocity: 0.5
+    position: [15.0, 4.5]
+    nominal_velocity: 0.7
      #nominal_acceleration: 5.0
 
-    target: [40.0, 4.5]
+    target: [50.0, 4.5]
     behavior: loop
     
   # Car:

@@ -8,7 +8,7 @@ from ...utils import serialization
 from ...mathutils import transforms
 import numpy as np
 
-DEBUG = False  # Set to False to disable debug output
+DEBUG = True  # Set to False to disable debug output
 
 
 def generate_dense_points(points: List[Tuple[float, float]], density: int = 10) -> List[Tuple[float, float]]:
@@ -99,7 +99,7 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
                     print(f"[DEBUG] Initial Decel: s = {s:.2f}, v = {v:.2f}, t = {t:.2f}")
 
             elif s <= initial_decel_distance + cruise_distance:  # Phase 2: Cruise at max_speed
-                s_in_cruise = s - initial_decel_distance    
+                s_in_cruise = s - initial_decel_distance
                 t = initial_decel_time + s_in_cruise / max_speed
                 if DEBUG:  # Print every 10m
                     print(f"[DEBUG] Cruise: s = {s:.2f}, v = {max_speed:.2f}, t = {t:.2f}")
@@ -207,11 +207,75 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
     return Trajectory(frame=path.frame, points=dense_points, times=times)
 
 
+def longitudinal_brake(path: Path, deceleration: float, current_speed: float,
+                       emergency_decel: float = 8.0) -> Trajectory:
+    # Vehicle already stopped - maintain position
+    if current_speed <= 0:
+        print("[DEBUG] longitudinal_brake: Zero velocity case! ", [path.points[0]] * len(path.points))
+        return Trajectory(
+            frame=path.frame,
+            points=[path.points[0]] * len(path.points),
+            times=[float(i) for i in range(len(path.points))]
+        )
+
+    # Get total path length
+    path_length = sum(
+        np.linalg.norm(np.array(path.points[i + 1]) - np.array(path.points[i]))
+        for i in range(len(path.points) - 1)
+    )
+
+    # Calculate stopping distance with normal deceleration
+    T_stop_normal = current_speed / deceleration
+    s_stop_normal = current_speed * T_stop_normal - 0.5 * deceleration * (T_stop_normal ** 2)
+
+    # Check if emergency braking is needed
+    if s_stop_normal > path_length:
+        if DEBUG:
+            print("[DEBUG] longitudinal_brake: Emergency braking needed!")
+            print(f"[DEBUG] longitudinal_brake: Normal stopping distance: {s_stop_normal:.2f}m")
+            print(f"[DEBUG] longitudinal_brake: Available distance: {path_length:.2f}m")
+
+        # Calculate emergency braking parameters
+        T_stop = current_speed / emergency_decel
+        s_stop = current_speed * T_stop - 0.5 * emergency_decel * (T_stop ** 2)
+
+        if DEBUG:
+            print(f"[DEBUG] longitudinal_brake: Emergency stopping distance: {s_stop:.2f}m")
+            print(f"[DEBUG] longitudinal_brake: Emergency stopping time: {T_stop:.2f}s")
+
+        decel_to_use = emergency_decel
+
+    else:
+        if DEBUG:
+            print("[DEBUG] longitudinal_brake: Normal braking sufficient")
+        T_stop = T_stop_normal
+        decel_to_use = deceleration
+
+    # Generate time points (use more points for smoother trajectory)
+    num_points = max(len(path.points), 50)
+    times = np.linspace(0, T_stop, num_points)
+
+    # Calculate distances at each time point using physics equation
+    distances = current_speed * times - 0.5 * decel_to_use * (times ** 2)
+
+    # Generate points along the path
+    points = []
+    for d in distances:
+        if d <= path_length:
+            points.append(path.eval(d))
+        else:
+            points.append(path.eval(d))
+
+    if DEBUG:
+        print(f"[DEBUG] longitudinal_brake: Using deceleration of {decel_to_use:.2f} m/s²")
+        print(f"[DEBUG] longitudinal_brake: Final stopping time: {T_stop:.2f}s")
+
+    return Trajectory(frame=path.frame, points=points, times=times.tolist())
+
 def longitudinal_brake(path: Path, deceleration: float, current_speed: float, emergency_decel: float = 8.0) -> Trajectory:
     # Vehicle already stopped - maintain position
     if current_speed <= 0:
         print("[DEBUG] longitudinal_brake: Zero velocity case! ", [path.points[0]] * len(path.points))
-        print("[DEBUG] longitudinal_brake: 2")
         return Trajectory(
             frame=path.frame,
             points=[path.points[0]] * len(path.points),
@@ -272,95 +336,58 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float, em
 
     return Trajectory(frame=path.frame, points=points, times=times.tolist())
 
-def inverse_speed_function(distance_to_object):
+# def inverse_speed_function(distance_to_object):
     
-    max_creep_speed = 1.0  # Maximum speed when creeping (m/s)
-    min_creep_speed = 0.2  # Minimum speed to maintain (m/s)
-    safe_distance = 5.0    # Distance at which to start slowing down (m)
+#     max_creep_speed = 1.0  # Maximum speed when creeping (m/s)
+#     min_creep_speed = 0.2  # Minimum speed to maintain (m/s)
+#     safe_distance = 5.0    # Distance at which to start slowing down (m)
     
-    # Almost stop when very close (≤0.25m)
-    if distance_to_object <= 0.25:
-        return 0.0  # Practically zero speed
+#     # Almost stop when very close (≤0.25m)
+#     if distance_to_object <= 0.25:
+#         return 0.0  # Practically zero speed
     
-    # Slow creep when close (≤1.5m)
-    if distance_to_object <= 3.0:
-        return min_creep_speed
-    speed = min_creep_speed + (max_creep_speed - min_creep_speed) * (distance_to_object / safe_distance)
-    return min(speed, max_creep_speed)
+#     # Slow creep when close (≤1.5m)
+#     if distance_to_object <= 3.0:
+#         return min_creep_speed
+#     speed = min_creep_speed + (max_creep_speed - min_creep_speed) * (distance_to_object / safe_distance)
+#     return min(speed, max_creep_speed)
 
 def pid_speed_control(distance_to_object, target_distance, current_speed, prev_error, integral, dt, 
                      kp=0.5, ki=0.1, kd=0.05, min_speed=0.2, max_speed=1.0):
-    """
-    PID controller for creep speed control based on distance to object.
-    
-    Args:
-        distance_to_object: Current distance to the object (m)
-        target_distance: Desired distance to maintain (m)
-        current_speed: Current vehicle speed (m/s)
-        prev_error: Previous error value (m)
-        integral: Accumulated error over time
-        dt: Time step (s)
-        kp, ki, kd: PID gains
-        min_speed, max_speed: Speed limits (m/s)
-        
-    Returns:
-        target_speed: Calculated target speed (m/s)
-        error: Current error for next iteration
-        integral: Updated integral term for next iteration
-    """
-    # Emergency stop when very close
     if distance_to_object <= 0.25:
         return 0.0, 0.0, 0.0
-    
-    # Calculate error (positive error means we're further than desired)
-    error = distance_to_object - target_distance
-    
-    # Update integral term with anti-windup
+    error = distance_to_object - target_distance    
     integral += error * dt
     integral = max(-5.0, min(integral, 5.0))  # Prevent integral windup
-    
-    # Calculate derivative term
     derivative = (error - prev_error) / dt if dt > 0 else 0
-    
-    # Calculate PID output
     p_term = kp * error
     i_term = ki * integral
     d_term = kd * derivative
-    
-    # Base speed adjustment
     speed_adjustment = p_term + i_term + d_term
-    
-    # Calculate target speed (base + adjustment)
     base_speed = 0.5  # Base creep speed
     target_speed = base_speed + speed_adjustment
-    
-    # Clamp speed between min and max values
     target_speed = max(min_speed, min(target_speed, max_speed))
-    
     return target_speed, error, integral
 
-def remove_duplicate_points(points, threshold=0.1):
+def remove_duplicate_points(points, threshold=1.0):
     filtered = []
     prev = None
+
     for p in points:
         if prev is None or np.linalg.norm(np.array(p) - np.array(prev)) > threshold:
+
             filtered.append(p)
             prev = p
+
     return filtered
 
 
 class YieldTrajectoryPlanner(Component):
-    """Follows the given route. Brakes if the ego–vehicle must yield
-    (e.g. to a pedestrian) or if the end of the route is near; otherwise,
-    it accelerates (or cruises) toward a desired speed. Also handles
-    maintaining safe distance from pedestrians by accelerating or decelerating.
-    """
-
     def __init__(self):
         self.route_progress = None
         self.t_last = None
         self.acceleration = 5
-        self.desired_speed = 2.0
+        self.desired_speed = 3.0 # m/s
         self.deceleration = 2.0
         self.emergency_brake = 8.0
         self.follow_acceleration = 3.0  # Slightly gentler acceleration for following
@@ -415,9 +442,15 @@ class YieldTrajectoryPlanner(Component):
         self.route_progress = closest_parameter
 
         # Extract a 10 m segment of the route for planning lookahead.
-        route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
-        # route_with_lookahead.points = remove_duplicate_points(route_with_lookahead.points,0.1)
+        route_with_lookahead = route.trim(closest_parameter, closest_parameter + 3.0)
+        #route_with_lookahead.points = remove_duplicate_points(route_with_lookahead.points,1.0)
+        #route_with_lookahead.points = filter_by_distance(route_with_lookahead.points, threshold=0.01)
 
+        print("[DEBUG] Points in route_with_lookahead:")
+        for pt in route_with_lookahead.points:
+            print(pt)
+        
+        
         if DEBUG:
             print("[DEBUG] YieldTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
 
@@ -486,7 +519,7 @@ class YieldTrajectoryPlanner(Component):
                             closest_distance = r.distance
                 ########################################################################################
                 # Use inverse function to determine appropriate speed
-                #target_speed = inverse_speed_function(closest_distance)
+                # target_speed = inverse_speed_function(closest_distance)
                 ########################################################################################
                 # Use PID function to determine appropriate speed
                 dt = t - self.t_last
