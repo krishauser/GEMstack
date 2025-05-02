@@ -1,4 +1,5 @@
-vehicle_state: [0.0, 20.0, 0.0, 0.0, 0.0]
+# vehicle_state: [-5.0, 20.0, 1.6, 0.0, 0.0]  # [x, y, yaw, v, front_wheel_angle]
+vehicle_state: [0.0, 0.0, 0.0, 0.0, 0.0]  # [x, y, yaw, v, front_wheel_angle]
 agents:
   cone1:
     type: pedestrian
