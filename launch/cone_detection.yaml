@@ -9,6 +9,7 @@ recovery:
         trajectory_tracking : recovery.StopTrajectoryTracker
 
 # Driving behavior for the GEM vehicle.  Runs real pedestrian perception, yield planner, but does not send commands to real vehicle.
+
 drive:
     perception:
         state_estimation : GNSSStateEstimator
@@ -130,3 +131,4 @@ variants:
                         type: pedestrian_yield_logic.PedestrianYielder
                         args:
                             mode: 'sim'
+

@@ -97,6 +97,7 @@ class ConeDetector3D(Component):
     def rate(self) -> float:
         return 8
 
+
     def state_inputs(self) -> list:
         return ['vehicle']
 
@@ -104,6 +105,7 @@ class ConeDetector3D(Component):
         return ['agents']
 
     def initialize(self):
+
         # --- Determine the correct RGB topic for this camera ---
         rgb_topic_map = {
             'front': '/oak/rgb/image_raw',
@@ -176,6 +178,7 @@ class ConeDetector3D(Component):
             self.start_time = current_time
         time_elapsed = current_time - self.start_time
 
+
         # Ensure data/ exists and build timestamp
         if self.save_data:
             self.save_sensor_data(vehicle=vehicle, latest_image=latest_image)
@@ -222,6 +225,7 @@ class ConeDetector3D(Component):
             cx, cy, w, h = box
             combined_boxes.append((cx, cy, w, h, AgentActivityEnum.STANDING))
 
+
         # Visualize the received images in 2D with their corresponding labels
         # It draws rectangles and labels on the images:
         if getattr(self, 'visualize_2d', False):
@@ -246,6 +250,7 @@ class ConeDetector3D(Component):
                 cv2.putText(undistorted_img, label, (left, max(top - 5, 20)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             cv2.imshow("Detection - Cone 2D", undistorted_img)
+
 
         start = time.time()
         # Transform the lidar points from lidar frame of reference to camera EXTRINSIC frame of reference.
@@ -273,6 +278,7 @@ class ConeDetector3D(Component):
             roi_pts = projected_pts[mask]
             if roi_pts.shape[0] < 5:
                 continue
+
 
             points_3d = roi_pts[:, 2:5]
             points_3d = filter_points_within_threshold(points_3d, 40)
@@ -337,7 +343,8 @@ class ConeDetector3D(Component):
                 )
                 if existing_id is not None:
                     old_state = self.tracked_agents[existing_id]
-                    if vehicle.v < 100:
+
+                    if vehicle.v < 100: # 0.1?
                         alpha = 0.1
                         avg_x = alpha * new_pose.x + (1 - alpha) * old_state.pose.x
                         avg_y = alpha * new_pose.y + (1 - alpha) * old_state.pose.y
@@ -401,6 +408,7 @@ class ConeDetector3D(Component):
 
         # If tracking not enabled, return only current frame detections
         if not self.enable_tracking:
+
             for agent_id, agent in self.current_agents.items():
                 p = agent.pose
                 rospy.loginfo(
@@ -502,7 +510,6 @@ class FakConeDetector(Component):
                 rospy.loginfo("Detected a Cone (simulated)")
         return res
 
-
 def box_to_fake_agent(box):
     x, y, w, h = box
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
@@ -511,6 +518,7 @@ def box_to_fake_agent(box):
                       type=AgentEnum.CONE, activity=AgentActivityEnum.MOVING,
                       velocity=(0, 0, 0), yaw_rate=0)
 
+  
 
 if __name__ == '__main__':
     pass
