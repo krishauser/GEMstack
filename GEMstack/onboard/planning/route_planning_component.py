@@ -32,8 +32,9 @@ ORIGIN_PX = (190, 80)
 SCALE_PX_PER_M = 6.5  # px per meter
 
 
-ORIGIN_PX       = (190, 80)
-SCALE_PX_PER_M  = 6.5  # px per meter
+ORIGIN_PX = (190, 80)
+SCALE_PX_PER_M = 6.5  # px per meter
+
 
 def is_inside_geofence(x, y, xmin, xmax, ymin, ymax):
     return xmin < x < xmax and ymin < y < ymax
@@ -100,6 +101,7 @@ def max_visible_arc(circle_center, radius, geofence):
 
     return max_arc[::-1]
 
+
 def heading(cx, cy, px, py):
     dx = px - cx
     dy = py - cy
@@ -119,13 +121,25 @@ def create_path_around_inspection(inspection_area, geofence, margin=1.0):
     top_possible = gymin < top_y < gymax
     bottom_possible = gymin < bottom_y < gymax
 
-    top_path = [(ixmin - margin, top_y), (ixmax + margin, top_y)] if top_possible else None
-    right_path = [(ixmax + margin, top_y), (ixmax + margin, bottom_y)] if top_possible else None
-    bottom_path = [(ixmax + margin, bottom_y), (ixmin - margin, bottom_y)] if bottom_possible else None
-    left_path = [(ixmin - margin, bottom_y), (ixmin - margin, top_y)] if bottom_possible else None
+    top_path = (
+        [(ixmin - margin, top_y), (ixmax + margin, top_y)] if top_possible else None
+    )
+    right_path = (
+        [(ixmax + margin, top_y), (ixmax + margin, bottom_y)] if top_possible else None
+    )
+    bottom_path = (
+        [(ixmax + margin, bottom_y), (ixmin - margin, bottom_y)]
+        if bottom_possible
+        else None
+    )
+    left_path = (
+        [(ixmin - margin, bottom_y), (ixmin - margin, top_y)]
+        if bottom_possible
+        else None
+    )
 
     if top_possible and bottom_possible:
-        full_path = top_path+ bottom_path
+        full_path = top_path + bottom_path
     elif top_possible:
         full_path = top_path
     elif bottom_possible:
@@ -133,11 +147,12 @@ def create_path_around_inspection(inspection_area, geofence, margin=1.0):
     else:
         full_path = []
 
-
     return full_path
 
 
-def check_point_exists(vehicle, start_pose, server_url="http://localhost:8000"):
+def check_point_exists(
+    vehicle, start_pose, server_url="https://summon-app-production.up.railway.app"
+):
     print("Vehicle pose frame", vehicle.pose.frame)
     # vehicle_global_pose = vehicle.pose.to_frame(ObjectFrameEnum.GLOBAL, start_frame=vehicle.pose)
     try:
@@ -181,7 +196,9 @@ class InspectRoutePlanner(Component):
         # self.inspection_route = max_visible_arc(
         #     self.circle_center, self.radius, self.geofence_area
         # )
-        self.inspection_route = create_path_around_inspection([[15,8],[25,12]], self.geofence_area)
+        self.inspection_route = create_path_around_inspection(
+            [[15, 8], [25, 12]], self.geofence_area
+        )
         self.start = [0, 0]
         self.bridge = CvBridge()
         self.img_pub = rospy.Publisher("/image_with_car_xy", Image, queue_size=1)
@@ -283,33 +300,45 @@ class InspectRoutePlanner(Component):
 
     def rrt_route(self, state, goal_start_pose):
         ## Step. 1 Convert vehicle pose to global frame
-        vehicle_global_pose = state.vehicle.pose.to_frame(ObjectFrameEnum.GLOBAL, start_pose_abs = state.start_vehicle_pose)
-        self.occupancy_grid.gnss_to_image(vehicle_global_pose.x, vehicle_global_pose.y) # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
+        vehicle_global_pose = state.vehicle.pose.to_frame(
+            ObjectFrameEnum.GLOBAL, start_pose_abs=state.start_vehicle_pose
+        )
+        self.occupancy_grid.gnss_to_image(
+            vehicle_global_pose.x, vehicle_global_pose.y
+        )  # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
         # self.occupancy_grid.gnss_to_image(-88.236365, 40.092722)
 
         ## Step 2: Get start image coordinates aka position of vehicle in image
-        start_x, start_y = self.occupancy_grid.gnss_to_image_coords(vehicle_global_pose.x, vehicle_global_pose.y) # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
+        start_x, start_y = self.occupancy_grid.gnss_to_image_coords(
+            vehicle_global_pose.x, vehicle_global_pose.y
+        )  # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
         # start_x, start_y = self.occupancy_grid.gnss_to_image_coords(40.092722, -88.236365)
         start_yaw = vehicle_global_pose.yaw
         print("Start image coordinates", start_x, start_y, "yaw", start_yaw)
 
         ## Step 3. Convert goal to global frame
-        goal_global_pose = goal_start_pose.to_frame(ObjectFrameEnum.GLOBAL, start_pose_abs = state.start_vehicle_pose)
-        goal_x, goal_y = self.occupancy_grid.gnss_to_image_coords(goal_global_pose.x, goal_global_pose.y) # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
+        goal_global_pose = goal_start_pose.to_frame(
+            ObjectFrameEnum.GLOBAL, start_pose_abs=state.start_vehicle_pose
+        )
+        goal_x, goal_y = self.occupancy_grid.gnss_to_image_coords(
+            goal_global_pose.x, goal_global_pose.y
+        )  # Brijesh check if x corresponds to lon and y corresponds to lat. If not SWAP
         # goal_x, goal_y = self.occupancy_grid.gnss_to_image_coords(40.092889, -88.235686)
         goal_yaw = goal_global_pose.yaw
         print("Goal image coordinates", goal_x, goal_y, "yaw", goal_yaw)
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        map_path  = os.path.join(script_dir, "highbay_image.pgm")
+        map_path = os.path.join(script_dir, "highbay_image.pgm")
 
         print("map_path", map_path)
 
         map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
-        occupancy_grid = (map_img > 0).astype(np.uint8) #Brijesh check what this does, I assume black is free and white is occupied so this would return white for everything that is not 100% black
+        occupancy_grid = (map_img > 0).astype(
+            np.uint8
+        )  # Brijesh check what this does, I assume black is free and white is occupied so this would return white for everything that is not 100% black
         # x_b
         self.t_last = None
-        self.bounds = (0,occupancy_grid.shape[1])
+        self.bounds = (0, occupancy_grid.shape[1])
         # y_bounds = (0,occupancy_grid.shape[0])
         # start = (start_x, start_y) # add start_yaw. @Sai I have not integrated yaw into kinodynamic yet. but plls add
         # goal = (goal_x, goal_y) # add goal_yaw. @Sai I have not integrated yaw into kinodynamic yet. but plls add
@@ -317,17 +346,15 @@ class InspectRoutePlanner(Component):
         # max_iter = 2000
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        map_path  = os.path.join(script_dir, "highbay_image.pgm")
-        
+        map_path = os.path.join(script_dir, "highbay_image.pgm")
+
         # occupancy_grid = load_pgm_to_occupancy_grid(map_path)
         start_w = [start_y, start_x, start_yaw]
         goal_w = [goal_y, goal_x, goal_yaw]
         # occupancy_grid[start_x-5:start_x +5][start_y-5] = 1
 
-        path = optimized_kinodynamic_rrt_planning(
-            start_w, goal_w, occupancy_grid
-        )
-        
+        path = optimized_kinodynamic_rrt_planning(start_w, goal_w, occupancy_grid)
+
         # print("RRT mode", path)
         # rrt_resp = self.planner.plan()
         # self.visualize_route_pixels(rrt_resp, start, goal)
@@ -338,7 +365,9 @@ class InspectRoutePlanner(Component):
         for i in range(len(path)):
             x, y, theta = path[i]
             # Convert to car coordinates
-            waypoint_lat, waypoint_lon = self.occupancy_grid.image_to_gnss(y, x) # Converts pixel to global frame. Brijesh check again what x corresponds to. Is x lat or is x lon? Change accordingly. Same as above comments
+            waypoint_lat, waypoint_lon = self.occupancy_grid.image_to_gnss(
+                y, x
+            )  # Converts pixel to global frame. Brijesh check again what x corresponds to. Is x lat or is x lon? Change accordingly. Same as above comments
             # Convert global to start frame
             waypoint_global_pose = ObjectPose(
                 frame=ObjectFrameEnum.GLOBAL,
@@ -347,7 +376,9 @@ class InspectRoutePlanner(Component):
                 y=waypoint_lat,
                 yaw=theta,
             )
-            waypoint_start_pose = waypoint_global_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) #not handling yaw cuz we don't know how to
+            waypoint_start_pose = waypoint_global_pose.to_frame(
+                ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose
+            )  # not handling yaw cuz we don't know how to
             waypoints.append((waypoint_start_pose.x, waypoint_start_pose.y))
             waypoint_global_pose = ObjectPose(
                 frame=ObjectFrameEnum.GLOBAL,
@@ -356,7 +387,9 @@ class InspectRoutePlanner(Component):
                 y=waypoint_lat,
                 yaw=theta,
             )
-            waypoint_start_pose = waypoint_global_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose) #not handling yaw cuz we don't know how to
+            waypoint_start_pose = waypoint_global_pose.to_frame(
+                ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose
+            )  # not handling yaw cuz we don't know how to
             waypoints.append((waypoint_start_pose.x, waypoint_start_pose.y))
 
         # print("Route points in start frame: ", waypoints) # Comment this out once you are done debugging
@@ -393,7 +426,7 @@ class InspectRoutePlanner(Component):
                 )
         elif self.mission == "NAV":
             state.mission.type = MissionEnum.DRIVE
-            
+
             print("I MMMMMMMMMMMMM HEEEEERRRRRRRRRRRRRRReeeeeeeeeeeee")
             start = (state.vehicle.pose.x, state.vehicle.pose.y)
             goal = ObjectPose(
@@ -402,17 +435,20 @@ class InspectRoutePlanner(Component):
                 x=self.inspection_route[0][0],
                 y=self.inspection_route[0][1],
                 # yaw=heading(self.circle_center[0], self.circle_center[1], self.inspection_route[0][0], self.inspection_route[0][1]),
-                yaw = 0
+                yaw=0,
             )
             print("Current Position: ", start)
             print("Goal Position: ", goal)
-            
+
             if self.planned_path_already == False:
                 self.x = self.rrt_route(state, goal)
                 self.planned_path_already = True
             self.route = self.x
 
-            if abs(state.vehicle.pose.x - goal.x) <= 3 and abs(state.vehicle.pose.y - goal.y) <= 3:
+            if (
+                abs(state.vehicle.pose.x - goal.x) <= 3
+                and abs(state.vehicle.pose.y - goal.y) <= 3
+            ):
                 print(self.state_list[self.index + 1])
                 self.mission = self.state_list[self.index + 1]
                 self.index += 1
@@ -437,7 +473,16 @@ class InspectRoutePlanner(Component):
                 frame=ObjectFrameEnum.START, points=self.inspection_route
             )
             ## Camera trigger logic
-            if heading(self.circle_center[0], self.circle_center[1], state.vehicle.pose.x, state.vehicle.pose.y)*state.vehicle.pose.yaw > 0:
+            if (
+                heading(
+                    self.circle_center[0],
+                    self.circle_center[1],
+                    state.vehicle.pose.x,
+                    state.vehicle.pose.y,
+                )
+                * state.vehicle.pose.yaw
+                > 0
+            ):
                 state.intent = VehicleIntentEnum.CAMERA_FR
             else:
                 state.intent = VehicleIntentEnum.CAMERA_RR
@@ -450,20 +495,23 @@ class InspectRoutePlanner(Component):
                 x=0,
                 y=0,
                 # yaw=heading(self.circle_center[0], self.circle_center[1], self.inspection_route[0][0], self.inspection_route[0][1]),
-                yaw = 0
+                yaw=0,
             )
             print("Goal Position: ", goal)
-            
+
             if self.planned_path_already == False:
                 self.x = self.rrt_route(state, goal)
                 self.planned_path_already = True
             self.route = self.x
 
-            if abs(state.vehicle.pose.x - goal.x) <= 3 and abs(state.vehicle.pose.y - goal.y) <= 3:
+            if (
+                abs(state.vehicle.pose.x - goal.x) <= 3
+                and abs(state.vehicle.pose.y - goal.y) <= 3
+            ):
                 print(self.state_list[self.index + 1])
                 self.mission = self.state_list[self.index + 1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
 
-        print('-------------------------------------------------')
+        print("-------------------------------------------------")
         return [self.route, state.mission]
