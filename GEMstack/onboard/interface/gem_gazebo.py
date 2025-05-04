@@ -2,6 +2,7 @@ from .gem import *
 from ...utils import settings
 import math
 import time 
+import random
 
 # ROS Headers
 import rospy
@@ -97,7 +98,17 @@ class GEMGazeboInterface(GEMInterface):
         self.last_agent_velocities = {}
         self.last_model_states_time = 0.0
         self.agent_detection_rate = settings.get('simulator.agent_tracker.rate', 10.0)  # Hz
-
+        
+        # Frame transformation variables
+        self.start_pose_abs = None  # Initial vehicle pose in GLOBAL frame
+        self.vehicle_model_pose = None  # Current vehicle pose from model_states
+        self.vehicle_gps_pose = None  # Current vehicle pose from GPS
+        self.t_start = None  # Start time
+        
+        # Stable transformation variables
+        self.transform_initialized = False
+        self.initial_vehicle_model_pose = None  # Vehicle pose in model_states at start
+        
         self.faults = []
 
         # Gazebo vehicle control
@@ -152,9 +163,54 @@ class GEMGazeboInterface(GEMInterface):
         # Skip if no callback is registered
         if self.agent_detector_callback is None:
             return
+        
+        # Find vehicle in model states
+        vehicle_idx = -1
+        for i, name in enumerate(msg.name):
+            if name.lower() in ['gem_e4', 'gem_e2', 'polaris', 'golf_cart', 'vehicle']:
+                vehicle_idx = i
+                break
+                
+        # If vehicle not found, cannot proceed
+        if vehicle_idx < 0:
+            return
             
-        # Process all models
+        # Get vehicle position and orientation from model states
+        vehicle_pos = msg.pose[vehicle_idx].position
+        vehicle_ori = msg.pose[vehicle_idx].orientation
+        quaternion = (vehicle_ori.x, vehicle_ori.y, vehicle_ori.z, vehicle_ori.w)
+        _, _, vehicle_yaw = euler_from_quaternion(quaternion)
+        
+        # Create vehicle model pose in ABSOLUTE_CARTESIAN frame (Gazebo's native frame)
+        self.vehicle_model_pose = ObjectPose(
+            frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,  # Gazebo uses its own coordinate system
+            t=current_time,
+            x=vehicle_pos.x,
+            y=vehicle_pos.y,
+            z=vehicle_pos.z,
+            yaw=vehicle_yaw
+        )
+        
+        # Initialize stable transformation when we have both GPS and model data
+        if not self.transform_initialized and self.vehicle_gps_pose is not None:
+            # Initialize start pose and transformation data
+            self.start_pose_abs = self.vehicle_gps_pose
+            self.initial_vehicle_model_pose = self.vehicle_model_pose
+            self.t_start = current_time
+            self.transform_initialized = True
+            
+            print("STABLE TRANSFORMATION INITIALIZED:")
+            print(f"  GPS position: ({self.start_pose_abs.x:.4f}, {self.start_pose_abs.y:.4f}, {self.start_pose_abs.z:.4f})")
+            print(f"  Model position: ({self.initial_vehicle_model_pose.x:.4f}, {self.initial_vehicle_model_pose.y:.4f}, {self.initial_vehicle_model_pose.z:.4f})")
+            print(f"  GPS orientation: {self.start_pose_abs.yaw:.4f} radians")
+            print(f"  Model orientation: {self.initial_vehicle_model_pose.yaw:.4f} radians")
+            
+        # Process all models except the vehicle itself
         for i, model_name in enumerate(msg.name):
+            # Skip the vehicle model itself
+            if i == vehicle_idx:
+                continue
+                
             # Check if this model should be tracked as an agent
             agent_type = None
             for prefix in self.tracked_model_prefixes:
@@ -169,7 +225,7 @@ class GEMGazeboInterface(GEMInterface):
             if agent_type is None:
                 continue  # Not an agent we're tracking
                 
-            # Get position and orientation
+            # Get position and orientation from model states
             position = msg.pose[i].position
             orientation = msg.pose[i].orientation
             
@@ -181,17 +237,58 @@ class GEMGazeboInterface(GEMInterface):
             quaternion = (orientation.x, orientation.y, orientation.z, orientation.w)
             roll, pitch, yaw = euler_from_quaternion(quaternion)
             
-            # Create object pose
-            pose = ObjectPose(
-                frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, 
+            # Debug print occasionally
+            if random.random() < 0.01:  # 1% chance to print
+                print(f"Agent {model_name} raw model_state position: ({position.x:.2f}, {position.y:.2f}, {position.z:.2f})")
+            
+            # Create agent pose in ABSOLUTE_CARTESIAN frame (Gazebo's native frame)
+            agent_global_pose = ObjectPose(
+                frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,  # Gazebo's coordinate system
                 t=current_time,
                 x=position.x,
-                y=position.y,  
-                z=position.z,  
+                y=position.y,
+                z=position.z,
                 roll=roll,
                 pitch=pitch,
                 yaw=yaw
             )
+            
+            # Transform agent pose to START frame using stable transformation
+            agent_pose = None
+            if self.transform_initialized:
+                # Calculate agent position relative to the *initial* vehicle position (from when START frame was established)
+                # This provides a stable transformation that doesn't change as the vehicle moves
+                rel_x = position.x - self.initial_vehicle_model_pose.x
+                rel_y = position.y - self.initial_vehicle_model_pose.y
+                rel_z = position.z - self.initial_vehicle_model_pose.z
+                
+                # Rotate by the *initial* vehicle orientation
+                cos_yaw = math.cos(-self.initial_vehicle_model_pose.yaw)
+                sin_yaw = math.sin(-self.initial_vehicle_model_pose.yaw)
+                rot_x = rel_x * cos_yaw - rel_y * sin_yaw
+                rot_y = rel_x * sin_yaw + rel_y * cos_yaw
+                
+                # Adjust yaw relative to *initial* vehicle orientation
+                rel_yaw = yaw - self.initial_vehicle_model_pose.yaw
+                
+                # Create the pose in START frame using the stable transformation
+                agent_pose = ObjectPose(
+                    frame=ObjectFrameEnum.START,
+                    t=current_time - self.t_start if self.t_start is not None else 0,
+                    x=rot_x,
+                    y=rot_y,
+                    z=rel_z,
+                    roll=roll,
+                    pitch=pitch,
+                    yaw=rel_yaw
+                )
+                
+                # Debug print occasionally
+                if random.random() < 0.01:  # 1% chance to print
+                    print(f"Agent {model_name} stable relative position: ({rot_x:.2f}, {rot_y:.2f}, {rel_z:.2f})")
+            else:
+                # If transformation not initialized yet, just use the model_states pose
+                agent_pose = agent_global_pose
             
             # Calculate velocity manually if twist data is zero or missing
             velocity = (linear_vel.x, linear_vel.y, linear_vel.z)
@@ -237,7 +334,7 @@ class GEMGazeboInterface(GEMInterface):
             
             # Create agent state
             agent_state = AgentState(
-                pose=pose,
+                pose=agent_pose,  # Using START frame pose
                 dimensions=dimensions,
                 outline=None,
                 type=getattr(AgentEnum, agent_type.upper()),
@@ -246,7 +343,7 @@ class GEMGazeboInterface(GEMInterface):
                 yaw_rate=angular_vel.z
             )
             
-            # Store current position for next velocity calculation
+            # Store current position for next velocity calculation (using raw positions)
             self.last_agent_positions[model_name] = (position.x, position.y, position.z)
             self.last_agent_velocities[model_name] = velocity
             
@@ -294,6 +391,9 @@ class GEMGazeboInterface(GEMInterface):
                     pitch=pitch,
                     yaw=navigation_yaw
                 )
+                
+                # Save the vehicle's GPS pose for coordinate transformation
+                self.vehicle_gps_pose = pose
 
                 # Create GNSS reading with fused data
                 reading = GNSSReading(
@@ -313,7 +413,7 @@ class GEMGazeboInterface(GEMInterface):
                 callback(reading)
 
             self.gnss_sub = rospy.Subscriber(topic, NavSatFix, gnss_callback_wrapper)
-
+        
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
             if type is not None and (type is not PointCloud2 and type is not np.ndarray):
