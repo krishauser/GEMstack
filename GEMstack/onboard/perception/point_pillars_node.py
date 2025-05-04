@@ -1,0 +1,249 @@
+# from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
+# from ..interface.gem import GEMInterface
+# from ..component import Component
+# from perception_utils import *
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+import rospy
+from sensor_msgs.msg import PointCloud2, Image
+from message_filters import Subscriber, ApproximateTimeSynchronizer
+from cv_bridge import CvBridge
+import time
+import os
+
+# PointPillars imports:
+import torch
+from pointpillars.model import PointPillars
+
+# Publisher imports:
+from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
+from geometry_msgs.msg import Pose, Vector3
+
+
+import numpy as np
+import ros_numpy
+def pc2_to_numpy_with_intensity(pc2_msg, want_rgb=False):
+    """
+    Convert a ROS PointCloud2 message into a numpy array quickly using ros_numpy.
+    This function extracts the x, y, z coordinates from the point cloud.
+    """
+    # Convert the ROS message to a numpy structured array
+    pc = ros_numpy.point_cloud2.pointcloud2_to_array(pc2_msg)
+    # Stack x,y,z fields to a (N,3) array
+    pts = np.stack((np.array(pc['x']).ravel(),
+                    np.array(pc['y']).ravel(),
+                    np.array(pc['z']).ravel(),
+                    np.array(pc['intensity']).ravel()), axis=1)
+    # Apply filtering (for example, x > 0 and z in a specified range)
+    mask = (pts[:, 0] > -0.5) & (pts[:, 2] < -1) & (pts[:, 2] > -2.7)
+    return pts[mask]
+
+class PointPillarsNode():
+    """
+    Detects Pedestrians by fusing YOLO 2D detections with LiDAR point cloud 
+    data by painting the points. Pedestrians are also detected with PointPillars
+    on the point cloud. The resulting 3D bounding boxes of each are fused together
+    with late sensor fusion.
+
+    Tracking is optional: set `enable_tracking=False` to disable persistent tracking
+    and return only detections from the current frame.
+    """
+
+    def __init__(
+        self,
+    ):
+        self.latest_image        = None
+        self.latest_lidar        = None
+        self.bridge              = CvBridge()
+        self.camera_name = 'front'
+        self.camera_front = (self.camera_name=='front')
+        self.score_threshold = 0.4
+        self.initialize()
+
+    def initialize(self):
+        # --- Determine the correct RGB topic for this camera ---
+        rgb_topic_map = {
+            'front': '/oak/rgb/image_raw',
+            'front_right': '/camera_fr/arena_camera_node/image_raw',
+            # add additional camera mappings here if needed
+        }
+        rgb_topic = rgb_topic_map.get(
+            self.camera_name,
+            f'/{self.camera_name}/rgb/image_raw'
+        )
+
+        # Initialize PointPillars node
+        rospy.init_node('pointpillars_box_publisher')
+        # Create bounding box publisher
+        self.pub = rospy.Publisher('/pointpillars_boxes', BoundingBoxArray, queue_size=10)
+        rospy.loginfo("PointPillars node initialized and waiting for messages.")
+
+        # Initialize PointPillars
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.pointpillars = PointPillars(
+                nclasses=3,
+                voxel_size=[0.16, 0.16, 4],
+                point_cloud_range=[0, -39.68, -3, 69.12, 39.68, 1],
+                max_num_points=32,
+                max_voxels=(16000, 40000)
+            )
+        self.pointpillars.to(device)
+
+        model_path = 'epoch_160.pth'
+        checkpoint = torch.load(model_path) #, map_location='cuda' if torch.cuda.is_available() else 'cpu')
+        self.pointpillars.load_state_dict(checkpoint)
+
+        # if torch.cuda.is_available():
+        #     self.pointpillars = self.pointpillars.cuda()
+
+        self.pointpillars.eval()
+        rospy.loginfo("PointPillars model loaded successfully")
+
+        if self.camera_front:
+            self.K = np.array([[684.83331299, 0., 573.37109375],
+                               [0., 684.60968018, 363.70092773],
+                               [0., 0., 1.]])
+        else:
+            self.K = np.array([[1.17625545e+03, 0.00000000e+00, 9.66432645e+02],
+                               [0.00000000e+00, 1.17514569e+03, 6.08580326e+02],
+                               [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+
+        if self.camera_front:
+            self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+        else:
+            self.D = np.array([-2.70136325e-01, 1.64393255e-01, -1.60720782e-03, -7.41246708e-05,
+                               -6.19939758e-02])
+
+        self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
+                               [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
+                               [-0.02379784, 0.00689664, 0.999693, 1.95320223],
+                               [0., 0., 0., 1.]])
+        if self.camera_front:
+            self.T_l2c = np.array([
+                [0.001090, -0.999489, -0.031941, 0.149698],
+                [-0.007664, 0.031932, -0.999461, -0.397813],
+                [0.999970, 0.001334, -0.007625, -0.691405],
+                [0., 0., 0., 1.000000]
+            ])
+        else:
+            self.T_l2c = np.array([[-0.71836368, -0.69527204, -0.02346088, 0.05718003],
+                                   [-0.09720448, 0.13371206, -0.98624154, -0.1598301],
+                                   [0.68884317, -0.7061996, -0.16363744, -1.04767285],
+                                   [0., 0., 0., 1.]]
+                                  )
+        self.T_c2l = np.linalg.inv(self.T_l2c)
+        self.R_c2l = self.T_c2l[:3, :3]
+        self.camera_origin_in_lidar = self.T_c2l[:3, 3]
+
+        # Subscribe to the RGB and LiDAR streams
+        self.rgb_sub = Subscriber(rgb_topic, Image)
+        self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
+        self.sync = ApproximateTimeSynchronizer([
+            self.rgb_sub, self.lidar_sub
+        ], queue_size=500, slop=0.05)
+        self.sync.registerCallback(self.synchronized_callback)
+
+    def synchronized_callback(self, image_msg, lidar_msg):
+        rospy.loginfo("Received synchronized RGB and LiDAR messages")
+        self.latest_lidar = pc2_to_numpy_with_intensity(lidar_msg, want_rgb=False)
+
+        downsample = False
+
+        if downsample:
+            lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
+        else:
+            lidar_down = self.latest_lidar.copy()
+
+        boxes = BoundingBoxArray()
+        boxes.header.frame_id = 'velodyne'
+        boxes.header.stamp = lidar_msg.header.stamp
+
+        pointpillars_detections = []
+        with torch.no_grad():
+            # Convert to tensor and format for PointPillars
+            lidar_tensor = torch.from_numpy(lidar_down).float()
+            if torch.cuda.is_available():
+                lidar_tensor = lidar_tensor.cuda()
+            
+            # Format as batch with a single point cloud
+            batched_pts = [lidar_tensor]
+            
+            # Get PointPillars predictions
+            results = self.pointpillars(batched_pts, mode='test')
+            
+            if results and len(results) > 0 and 'lidar_bboxes' in results[0]:
+                # Process PointPillars results
+                pp_bboxes = results[0]['lidar_bboxes']
+                pp_labels = results[0]['labels'] 
+                pp_scores = results[0]['scores']
+
+                for i, (bbox, label, score) in enumerate(zip(pp_bboxes, pp_labels, pp_scores)):
+                    # Skip low confidence detections and non-pedestrians (assuming class is 0)
+                    if (score < self.score_threshold) or (label != 0):
+                        continue
+                        
+                    # Extract center position and dimensions
+                    x, y, z, l, w, h, yaw = bbox
+
+                    # Transform from LiDAR to vehicle coordinates
+                    center_lidar = np.array([x, y, z, 1.0])
+                    center_vehicle = self.T_l2v @ center_lidar
+                    x_vehicle, y_vehicle, z_vehicle = center_vehicle[:3]
+                    
+                    # Transform rotation from LiDAR to vehicle frame
+                    R_lidar = R.from_euler('z', yaw).as_matrix()
+                    R_vehicle = self.T_l2v[:3, :3] @ R_lidar
+                    vehicle_yaw, vehicle_pitch, vehicle_roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
+                    
+                    # Create a ROS BoundingBox message
+                    box = BoundingBox()
+                    box.header.frame_id = 'velodyne'
+                    box.header.stamp = lidar_msg.header.stamp
+                    
+                    # Set the pose (position and orientation)
+                    box.pose.position.x = float(x_vehicle)
+                    box.pose.position.y = float(y_vehicle)
+                    box.pose.position.z = float(z_vehicle)
+                    
+                    # Convert yaw to quaternion
+                    quat = R.from_euler('z', yaw).as_quat()
+                    box.pose.orientation.x = float(quat[0])
+                    box.pose.orientation.y = float(quat[1])
+                    box.pose.orientation.z = float(quat[2])
+                    box.pose.orientation.w = float(quat[3])
+                    
+                    # Set the dimensions
+                    box.dimensions.x = float(l)  # length
+                    box.dimensions.y = float(w)  # width
+                    box.dimensions.z = float(h)  # height
+
+                    # Add class label and confidence score:
+                    box.value = float(score)
+                    box.label = int(label)
+
+                    boxes.boxes.append(box)
+                    
+                    # Also store detection info in the list if needed for other processing
+                    pointpillars_detections.append({
+                        'pose': {
+                            'position': [x, y, z],
+                            'orientation': [quat[0], quat[1], quat[2], quat[3]]
+                        },
+                        'dimensions': [l, w, h],
+                        'score': float(score)
+                    })
+                    
+                    rospy.loginfo(f"Pedestrian detected at ({x:.2f}, {y:.2f}, {z:.2f}) with score {score:.2f}")
+            
+            # Save point_pillars_detections here for later if needed
+
+            # Publish the bounding boxes
+            rospy.loginfo(f"Publishing {len(boxes.boxes)} pedestrian bounding boxes")
+            self.pub.publish(boxes)
+
+if __name__ == '__main__':
+    try:
+        node = PointPillarsNode()
+        rospy.spin()
+    except rospy.ROSInterruptException:
+        pass
