@@ -1,18 +1,5 @@
 #!/bin/bash
 
-# Check if nvidia-docker is installed
-if ! command -v nvidia-container-toolkit &> /dev/null; then
-    echo "NVIDIA Container Toolkit not found. Do you want to install it? (y/n)"
-    read -p ">" choice
-    if [ "$choice" = "y" ] || [ "$choice" = "Y" ]; then
-        echo "Installing NVIDIA Container Toolkit..."
-        ./setup/get_nvidia_container.sh
-    else
-        echo "NVIDIA Container Toolkit is required for GPU support."
-        echo "You can install it later by running ./get_nvidia_container.sh"
-    fi
-fi
-
 # Check if the point_pillars_node.py and model weights exist
 if [ ! -f "point_pillars_node.py" ]; then
     echo "ERROR: point_pillars_node.py not found in the current directory!"
@@ -44,6 +31,7 @@ if ! docker compose -f setup/docker-compose.yaml build; then
     # sudo -E docker compose -f setup/docker-compose.yaml build
 fi
 
+# Notify user of how to run the container
 echo "Build complete. To start the container, run:"
 echo "docker compose -f setup/docker-compose.yaml up"
 echo ""

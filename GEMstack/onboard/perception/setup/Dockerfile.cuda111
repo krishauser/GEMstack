@@ -65,16 +65,9 @@ RUN pip3 install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 \
 RUN pip3 install numba==0.48.0 numpy==1.19.5 PyYAML==6.0 setuptools==58.0.4 tensorboard tqdm==4.62.3
 RUN pip3 install opencv-python==4.5.5.62
 
-# Install Open3D directly using a specific wheel for Python 3.8
-# RUN pip3 install --no-cache-dir --pre https://storage.googleapis.com/open3d-releases-master/python-wheels/open3d-0.14.1-cp38-cp38-linux_x86_64.whl || \
-#     pip3 install --no-cache-dir open3d==0.13.0 || \
-#     pip3 install --no-cache-dir open3d==0.12.0
-# RUN pip3 install --no-cache-dir \
-#     https://storage.googleapis.com/open3d-releases-master/python-wheels/open3d-0.14.1-cp38-cp38-linux_x86_64.whl
+# Upgrade pip, setuptools, and wheel to try to install the required versions of Open3D and pandas
 RUN pip3 install --upgrade pip setuptools wheel
 RUN pip3 install open3d==0.14.1 pandas==1.1.5
-
-
 
 # Build and install PointPillars
 RUN python3 setup.py build_ext --inplace
