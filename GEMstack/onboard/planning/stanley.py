@@ -304,6 +304,7 @@ class StanleyTrajectoryTracker(Component):
     def state_outputs(self):
         return []
 
+    """
     def _check_sharp_turn_ahead(self, lookahead_s=3.0, threshold_angle=np.pi/2.0, num_steps=4):
         if not self.stanley.path:
             return False
@@ -359,7 +360,7 @@ class StanleyTrajectoryTracker(Component):
             angle_prev = angle_next
             s_prev = s_next
         return False
-
+    """
     def update(self, vehicle: VehicleState, trajectory: Trajectory):
         self.stanley.set_path(trajectory)
         
@@ -385,14 +386,18 @@ class StanleyTrajectoryTracker(Component):
             self.stanley.current_path_parameter = self.stanley.path.domain()[0]
 
         else:  
+            """
             is_sharp_turn_ahead = self._check_sharp_turn_ahead(
                 lookahead_s=4.0,     
                 threshold_angle=np.pi/2.0
             )
             print(f"Sharp turn ahead: {is_sharp_turn_ahead}")
+            
             if is_sharp_turn_ahead:
                 self.reverse = not self.reverse
                 self.stanley.set_path(trajectory)
+            """
+            pass
         accel, f_delta = self.stanley.compute(vehicle, self, self.reverse)
 
         steering_angle = front2steer(f_delta)
