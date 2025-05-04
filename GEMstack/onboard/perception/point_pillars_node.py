@@ -40,13 +40,7 @@ def pc2_to_numpy_with_intensity(pc2_msg, want_rgb=False):
 
 class PointPillarsNode():
     """
-    Detects Pedestrians by fusing YOLO 2D detections with LiDAR point cloud 
-    data by painting the points. Pedestrians are also detected with PointPillars
-    on the point cloud. The resulting 3D bounding boxes of each are fused together
-    with late sensor fusion.
-
-    Tracking is optional: set `enable_tracking=False` to disable persistent tracking
-    and return only detections from the current frame.
+    Detects Pedestrians with PointPillars and publishes the results in vehicle frame.
     """
 
     def __init__(

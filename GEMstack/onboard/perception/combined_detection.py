@@ -16,36 +16,14 @@ import time
 import os
 import yaml
 
-# PointPillars imports:
-import torch
-
-# Import compatibility layer first
-try:
-    import numpy_compat  # This will patch numpy before other imports
-except ImportError:
-    # Create inline patch if file doesn't exist
-    import numpy as np
-    if not hasattr(np, 'long'):
-        np.long = np.int64
-
-# Now try importing PointPillars
-try:
-    from pointpillars.model import PointPillars
-except ImportError as e:
-    # Provide a fallback
-    print(f"Warning: Failed to import PointPillars: {e}")
-    # Define a dummy PointPillars class to prevent further errors
-    class PointPillars:
-        def __init__(self, *args, **kwargs):
-            raise NotImplementedError("PointPillars failed to import correctly")
-
 
 class CombinedDetector3D(Component):
     """
-    Detects Pedestrians by fusing YOLO 2D detections with LiDAR point cloud 
-    data by painting the points. Pedestrians are also detected with PointPillars
-    on the point cloud. The resulting 3D bounding boxes of each are fused together
-    with late sensor fusion.
+    Fuses the boxes in the lists of bounding boxes published by YoloNode and 
+    PointPillarsNode with late sensor fusion.
+    TODO: SUBSCRIBE TO BOUNDING BOX LISTS AND PERFORM LATE SENSOR FUSION IN THIS FILE.
+    TODO: MODIFY YAML FILE FOR THE CONTROL TEAM'S BASIC PATH PLANNING CODE
+    TODO: REMOVE SOME CAMERA CALIBRATION MATRICES FROM FILE. USED IN THE NODES.
 
     Tracking is optional: set `enable_tracking=False` to disable persistent tracking
     and return only detections from the current frame.

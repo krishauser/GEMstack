@@ -237,9 +237,8 @@ def project_points(pts_cam, K, original_lidar_points):
 class YoloNode():
     """
     Detects Pedestrians by fusing YOLO 2D detections with LiDAR point cloud 
-    data by painting the points. Pedestrians are also detected with PointPillars
-    on the point cloud. The resulting 3D bounding boxes of each are fused together
-    with late sensor fusion.
+    data by painting the points. The painted data is converted to vehicle 
+    frame and then published as a list of bounding boxes.
 
     Tracking is optional: set `enable_tracking=False` to disable persistent tracking
     and return only detections from the current frame.
@@ -311,7 +310,7 @@ class YoloNode():
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
         # Initialize the YOLO detector
-        self.detector = YOLO('GEMstack/knowledge/detection/yolov8n.pt') # 'GEMstack/knowledge/detection/cone.pt')
+        self.detector = YOLO('yolov8n.pt') # 'GEMstack/knowledge/detection/cone.pt')
         self.detector.to('cuda')
 
         # Subscribe to the RGB and LiDAR streams
