@@ -15,8 +15,8 @@ services:
     tty: true
     volumes:
       # Mount the point_pillars_node.py file and model weights
-      - "./point_pillars_node.py:/home/ppuser/pointpillars_ws/point_pillars_node.py:ro"
-      - "./epoch_160.pth:/home/ppuser/pointpillars_ws/epoch_160.pth:ro"
+      - "../point_pillars_node.py:/home/ppuser/pointpillars_ws/point_pillars_node.py:ro"
+      - "../epoch_160.pth:/home/ppuser/pointpillars_ws/epoch_160.pth:ro"
       # Mount host home directory (optional)
       - "~:/home/ppuser/host:ro"
       - "/tmp/.X11-unix:/tmp/.X11-unix:rw"
@@ -24,11 +24,13 @@ services:
       - DISPLAY=${DISPLAY}
       # ROS master settings to connect to external roscore
       - ROS_MASTER_URI=http://host.docker.internal:11311
-      - ROS_HOSTNAME=point_pillars_container
-      - ROS_IP=127.0.0.1
+      - ROS_HOSTNAME=localhost
+      - ROS_IP=
       - NVIDIA_DRIVER_CAPABILITIES=all
       - NVIDIA_VISIBLE_DEVICES=all
     network_mode: "host"  # Use host network for direct ROS communication
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Added this line to resolve host.docker.internal
     ipc: host
     user: "ppuser:ppuser"  # Fixed username to match Dockerfile
     restart: unless-stopped  # Auto-restart if the container stops

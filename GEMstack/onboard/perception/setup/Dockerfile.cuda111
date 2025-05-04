@@ -66,8 +66,15 @@ RUN pip3 install numba==0.48.0 numpy==1.19.5 PyYAML==6.0 setuptools==58.0.4 tens
 RUN pip3 install opencv-python==4.5.5.62
 
 # Install Open3D directly using a specific wheel for Python 3.8
-RUN pip3 install --no-cache-dir --pre https://storage.googleapis.com/open3d-releases-master/python-wheels/open3d-0.14.1-cp38-cp38-linux_x86_64.whl || \
-    pip3 install --no-cache-dir open3d==0.13.0
+# RUN pip3 install --no-cache-dir --pre https://storage.googleapis.com/open3d-releases-master/python-wheels/open3d-0.14.1-cp38-cp38-linux_x86_64.whl || \
+#     pip3 install --no-cache-dir open3d==0.13.0 || \
+#     pip3 install --no-cache-dir open3d==0.12.0
+# RUN pip3 install --no-cache-dir \
+#     https://storage.googleapis.com/open3d-releases-master/python-wheels/open3d-0.14.1-cp38-cp38-linux_x86_64.whl
+RUN pip3 install --upgrade pip setuptools wheel
+RUN pip3 install open3d==0.14.1 pandas==1.1.5
+
+
 
 # Build and install PointPillars
 RUN python3 setup.py build_ext --inplace
@@ -76,11 +83,16 @@ RUN pip3 install .
 # Add ROS paths to bashrc
 RUN echo "source /opt/ros/noetic/setup.bash" >> /home/${USER}/.bashrc
 
-# Create startup script
-RUN echo '#!/bin/bash' > /home/${USER}/start_node.sh \
-    && echo 'cd /home/${USER}/pointpillars_ws' >> /home/${USER}/start_node.sh \
-    && echo 'python3 point_pillars_node.py' >> /home/${USER}/start_node.sh \
-    && chmod +x /home/${USER}/start_node.sh
+RUN apt-get update && apt-get install -y ros-noetic-ros-numpy
+
+# Create startup script with hardcoded path to avoid variable substitution issues
+RUN echo '#!/bin/bash' > /home/ppuser/start_node.sh \
+    && echo 'source /opt/ros/noetic/setup.bash' >> /home/ppuser/start_node.sh \
+# && echo 'source ~/catkin_ws/devel/setup.bash' >> /home/ppuser/start_node.sh \
+    && echo 'cd /home/ppuser/pointpillars_ws' >> /home/ppuser/start_node.sh \
+    && echo 'echo "Starting PointPillars node..."' >> /home/ppuser/start_node.sh \
+    && echo 'exec python3 point_pillars_node.py' >> /home/ppuser/start_node.sh \
+    && chmod +x /home/ppuser/start_node.sh
 
 # Set ownership of the workspace
 RUN chown -R ${USER}:${USER} /home/${USER}
@@ -88,5 +100,5 @@ RUN chown -R ${USER}:${USER} /home/${USER}
 USER ${USER}
 WORKDIR /home/${USER}/pointpillars_ws
 
-# Command to run when the container starts
-CMD ["/bin/bash", "-c", "/home/${USER}/start_node.sh"]
+# Command to run when the container starts - use hardcoded path
+CMD ["/bin/bash", "-c", "/home/ppuser/start_node.sh"]
