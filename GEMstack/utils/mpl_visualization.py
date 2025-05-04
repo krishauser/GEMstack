@@ -3,6 +3,7 @@ import matplotlib.patches as patches
 import numpy as np
 from . import settings
 from ..state import ObjectFrameEnum,ObjectPose,PhysicalObject,VehicleState,VehicleGearEnum,Path,Obstacle,AgentState,Roadgraph,RoadgraphLane,RoadgraphLaneEnum,RoadgraphCurve,RoadgraphCurveEnum,RoadgraphRegion,RoadgraphRegionEnum,RoadgraphSurfaceEnum,Trajectory,Route,SceneState,AllState
+from ..state.agent import AgentEnum
 
 CURVE_TO_STYLE = {
     RoadgraphCurveEnum.LANE_BOUNDARY : {'color':'k','linewidth':1,'linestyle':'-'},
@@ -68,7 +69,7 @@ def plot_object(obj : PhysicalObject, axis_len=None, outline=True, bbox=True, ax
     R = obj.pose.rotation2d()
     t = [obj.pose.x,obj.pose.y]
     
-    # Debug print every 50 calls (to avoid flooding console)
+    # Debug print occasionally
     import random
     if random.random() < 0.02:  # ~2% chance to print
         print(f"Plotting object at position ({obj.pose.x:.2f}, {obj.pose.y:.2f}) with frame {obj.pose.frame}")
@@ -95,22 +96,45 @@ def plot_object(obj : PhysicalObject, axis_len=None, outline=True, bbox=True, ax
         ax.plot(xs,ys,'r-')
         
     # Add a marker at the center to make small agents more visible
-    if isinstance(obj, AgentState):
-        # Make different agent types visually distinct
-        if obj.type == AgentEnum.PEDESTRIAN:
-            marker = 'o'
-            markersize = 10
-            color = 'r'
-        elif obj.type == AgentEnum.BICYCLIST:
-            marker = 's'
-            markersize = 10
-            color = 'g'
-        else:  # vehicles
-            marker = 'D'
-            markersize = 8
-            color = 'b'
-            
-        ax.plot(obj.pose.x, obj.pose.y, marker=marker, markersize=markersize, color=color)
+    try:
+        if isinstance(obj, AgentState):
+            # Make different agent types visually distinct
+            try:
+                # Try to identify pedestrians
+                is_pedestrian = False
+                try:
+                    is_pedestrian = obj.type == AgentEnum.PEDESTRIAN
+                except:
+                    # If direct comparison fails, try string comparison
+                    try:
+                        is_pedestrian = str(obj.type) == str(AgentEnum.PEDESTRIAN)
+                    except:
+                        # If string comparison fails, try substring match
+                        try:
+                            is_pedestrian = "PEDESTRIAN" in str(obj.type)
+                        except:
+                            # Last resort
+                            is_pedestrian = False
+                
+                # Set marker style based on agent type
+                if is_pedestrian:
+                    marker = 'o'
+                    markersize = 10
+                    color = 'r'
+                else:
+                    # Default for other agent types
+                    marker = 's'
+                    markersize = 8
+                    color = 'b'
+                    
+                ax.plot(obj.pose.x, obj.pose.y, marker=marker, markersize=markersize, color=color)
+                
+            except Exception as e:
+                # Fallback to basic marker if type identification fails
+                ax.plot(obj.pose.x, obj.pose.y, 'mo', markersize=8)
+                print(f"Using basic marker for agent due to error: {str(e)}")
+    except Exception as e:
+        print(f"Error adding agent marker: {str(e)}")
 
 def plot_vehicle(vehicle : VehicleState, axis_len=0.1, ax=None):
     """Plots the vehicle in the given axes.  The coordinates
@@ -252,36 +276,47 @@ def plot_scene(scene : SceneState, xrange=None, yrange=None, ax=None, title = No
             ax.set_ylim(yrange[0],yrange[1])
         else:
             ax.set_ylim(-yrange*0.5,yrange*0.5)
-    #plot roadgraph
+    
+    # Plot roadgraph if available
     try:
         if scene.roadgraph is not None:
             plot_roadgraph(scene.roadgraph,scene.route,ax=ax)
     except Exception as e:
         print(f"Error plotting roadgraph: {str(e)}")
     
-    #plot vehicle and objects
+    # Plot vehicle if available
     try:
         if scene.vehicle is not None:
             plot_vehicle(scene.vehicle,ax=ax)
     except Exception as e:
         print(f"Error plotting vehicle: {str(e)}")
+        # Fallback to basic marker for vehicle
+        try:
+            ax.plot(scene.vehicle.pose.x, scene.vehicle.pose.y, 'bo', markersize=10)
+        except:
+            pass
     
+    # Plot agents with careful error handling
     try:
         if scene.agents:
-            # Print agent count for debugging
             print(f"Plotting {len(scene.agents)} agents")
             for agent_id, agent in scene.agents.items():
                 try:
-                    print(f"Agent {agent_id}: {agent.type}, pos=({agent.pose.x:.2f}, {agent.pose.y:.2f}), frame={agent.pose.frame}")
                     plot_object(agent,ax=ax)
-                except Exception as e:
-                    print(f"Error plotting agent {agent_id}: {str(e)}")
+                except Exception as agent_e:
+                    print(f"Error plotting agent {agent_id}: {str(agent_e)}")
+                    # Fallback to a simple marker for this agent
+                    try:
+                        ax.plot(agent.pose.x, agent.pose.y, 'ro', markersize=8)
+                    except:
+                        pass
     except Exception as e:
         print(f"Error plotting agents: {str(e)}")
     
+    # Plot obstacles if available
     try:
         if scene.obstacles:
-            for k,o in scene.obstacles.items():
+            for k, o in scene.obstacles.items():
                 try:
                     plot_object(o,ax=ax)
                 except Exception as e:
@@ -289,11 +324,13 @@ def plot_scene(scene : SceneState, xrange=None, yrange=None, ax=None, title = No
     except Exception as e:
         print(f"Error plotting obstacles: {str(e)}")
     
+    # Set title
     if title is None:
         if show:
             ax.set_title("Scene at t = %.2f" % scene.t)
     else:
         ax.set_title(title)
+    
     if show:
         plt.show(block=False)
 

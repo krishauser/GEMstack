@@ -6,6 +6,7 @@ import matplotlib.animation as animation
 import time
 from collections import deque
 from ...state.agent import AgentEnum
+from ...state import ObjectFrameEnum, ObjectPose, AllState
 import numpy as np
 
 class MPLVisualization(Component):
@@ -93,25 +94,53 @@ class MPLVisualization(Component):
         self.debug("vehicle", "velocity", state.vehicle.v)
         self.debug("vehicle", "front_wheel_angle", state.vehicle.front_wheel_angle)
         
+        # Print debugging info about the vehicle's position and frame
+        if self.num_updates % 10 == 0:
+            print(f"Vehicle position: ({state.vehicle.pose.x:.2f}, {state.vehicle.pose.y:.2f}), frame: {state.vehicle.pose.frame}")
+        
         # Pedestrian metrics and position debugging
         ped_positions = []
         for agent_id, agent in state.agents.items():
-            if agent.type == AgentEnum.PEDESTRIAN:
-                # Position logging
-                ped_x, ped_y = agent.pose.x, agent.pose.y
-                ped_positions.append((ped_x, ped_y))
-                # Debug output every 10 updates
-                if self.num_updates % 10 == 0:
-                    print(f"Pedestrian {agent_id} position: ({ped_x:.2f}, {ped_y:.2f}), frame: {agent.pose.frame}")
-                    # Calculate distance from vehicle
-                    dist = np.sqrt((ped_x - state.vehicle.pose.x)**2 + (ped_y - state.vehicle.pose.y)**2)
-                    print(f"Distance to vehicle: {dist:.2f} meters")
+            try:
+                # Check agent type safely
+                is_pedestrian = False
+                try:
+                    is_pedestrian = agent.type == AgentEnum.PEDESTRIAN
+                except:
+                    # If there's an issue comparing, try string comparison
+                    try:
+                        is_pedestrian = str(agent.type) == str(AgentEnum.PEDESTRIAN)
+                    except:
+                        # If that fails, use substring match
+                        try:
+                            is_pedestrian = "PEDESTRIAN" in str(agent.type)
+                        except:
+                            # Last resort: assume it's a pedestrian if not explicitly marked as something else
+                            is_pedestrian = True
                 
-                # Track positions for plotting
-                self.debug(f"ped_{agent_id}", "x", ped_x)
-                self.debug(f"ped_{agent_id}", "y", ped_y)
-                self.debug(f"ped_{agent_id}", "velocity", np.linalg.norm(agent.velocity))
-                self.debug(f"ped_{agent_id}", "yaw_rate", agent.yaw_rate)
+                if is_pedestrian:
+                    # Position logging
+                    ped_x, ped_y = agent.pose.x, agent.pose.y
+                    ped_positions.append((ped_x, ped_y))
+                    # Debug output every 10 updates
+                    if self.num_updates % 10 == 0:
+                        print(f"Pedestrian {agent_id} position: ({ped_x:.2f}, {ped_y:.2f}), frame: {agent.pose.frame}")
+                        # Calculate distance from vehicle
+                        dist = np.sqrt((ped_x - state.vehicle.pose.x)**2 + (ped_y - state.vehicle.pose.y)**2)
+                        print(f"Distance to vehicle: {dist:.2f} meters")
+                    
+                    # Track positions for plotting
+                    self.debug(f"ped_{agent_id}", "x", ped_x)
+                    self.debug(f"ped_{agent_id}", "y", ped_y)
+                    # Calculate velocity magnitude safely
+                    try:
+                        vel_mag = np.linalg.norm(agent.velocity)
+                    except:
+                        vel_mag = 0.0
+                    self.debug(f"ped_{agent_id}", "velocity", vel_mag)
+                    self.debug(f"ped_{agent_id}", "yaw_rate", agent.yaw_rate)
+            except Exception as e:
+                print(f"Error processing agent {agent_id}: {str(e)}")
         
         time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(state.t))
         
@@ -154,56 +183,75 @@ class MPLVisualization(Component):
         if self.num_updates % 10 == 0:
             print(f"Plot range: X {xrange}, Y {yrange}")
         
-        # Try converting state to START frame for visualization
+        # Plot using the current state directly - avoid conversions that might fail
         try:
-            if state.start_vehicle_pose is not None:
-                state_start = state.to_frame(ObjectFrameEnum.START)
-                print(f"Successfully converted state to START frame")
-                
-                # Log the conversion for comparison
-                if len(state.agents) > 0 and self.num_updates % 10 == 0:
-                    for agent_id, agent in state.agents.items():
-                        # Get the agent in both frames
-                        agent_start = state_start.agents.get(agent_id)
-                        if agent_start:
-                            print(f"Agent {agent_id} in ABSOLUTE: ({agent.pose.x:.2f}, {agent.pose.y:.2f})")
-                            print(f"Agent {agent_id} in START: ({agent_start.pose.x:.2f}, {agent_start.pose.y:.2f})")
-                
-                # Try using the START frame for visualization
-                mpl_visualization.plot(state_start, title=f"START Frame: Scene {self.num_updates}", 
-                                      xrange=xrange, yrange=yrange, show=False, ax=self.axs[0])
-            else:
-                # Use original state if no start pose
-                mpl_visualization.plot(state, title=f"Scene {self.num_updates} at {time_str}", 
-                                      xrange=xrange, yrange=yrange, show=False, ax=self.axs[0])
-        except Exception as e:
-            print(f"Error converting to START frame: {str(e)}")
-            # Fallback to the original state
-            mpl_visualization.plot(state, title=f"Scene {self.num_updates} at {time_str}",
+            # First attempt: Just use current state as-is
+            mpl_visualization.plot(state, title=f"Scene {self.num_updates} at {time_str}", 
                                   xrange=xrange, yrange=yrange, show=False, ax=self.axs[0])
+        except Exception as e:
+            print(f"Error in basic plot: {str(e)}")
+            # If that fails, try a minimal plot with just essential elements
+            try:
+                # Fallback to a minimal plot without using state conversion
+                self.axs[0].clear()
+                self.axs[0].set_aspect('equal')
+                self.axs[0].set_xlabel('x (m)')
+                self.axs[0].set_ylabel('y (m)')
+                self.axs[0].set_xlim(xrange[0], xrange[1])
+                self.axs[0].set_ylim(yrange[0], yrange[1])
+                
+                # Just draw dots for vehicle and agents
+                self.axs[0].plot(state.vehicle.pose.x, state.vehicle.pose.y, 'bo', markersize=10, label='Vehicle')
+                
+                # Plot pedestrians as red dots
+                for x, y in ped_positions:
+                    self.axs[0].plot(x, y, 'ro', markersize=8)
+                
+                self.axs[0].set_title(f"Basic Scene {self.num_updates} at {time_str}")
+                self.axs[0].legend()
+            except Exception as e2:
+                print(f"Even basic plot failed: {str(e2)}")
         
         # Vehicle plot (axs[1])
-        self.axs[1].clear()
-        for k,v in self.vehicle_plot_values.items():
-            t = [x[0] for x in v]
-            y = [x[1] for x in v]
-            self.axs[1].plot(t,y,label=k)
-        self.axs[1].set_title('Vehicle Metrics')
-        self.axs[1].set_xlabel('Time (s)')
-        self.axs[1].legend()
+        try:
+            self.axs[1].clear()
+            has_data = False
+            for k,v in self.vehicle_plot_values.items():
+                if len(v) > 0:  # Only plot if we have data
+                    t = [x[0] for x in v]
+                    y = [x[1] for x in v]
+                    self.axs[1].plot(t,y,label=k)
+                    has_data = True
+            if has_data:
+                self.axs[1].legend()
+            self.axs[1].set_title('Vehicle Metrics')
+            self.axs[1].set_xlabel('Time (s)')
+        except Exception as e:
+            print(f"Error in vehicle plot: {str(e)}")
 
         # Pedestrian plot (axs[2])
-        self.axs[2].clear()
-        for k,v in self.pedestrian_plot_values.items():
-            t = [x[0] for x in v]
-            y = [x[1] for x in v]
-            self.axs[2].plot(t,y,label=k)
-        self.axs[2].set_title('Pedestrian Metrics')
-        self.axs[2].set_xlabel('Time (s)')
-        self.axs[2].legend()
+        try:
+            self.axs[2].clear()
+            has_data = False
+            for k,v in self.pedestrian_plot_values.items():
+                if len(v) > 0:  # Only plot if we have data
+                    t = [x[0] for x in v]
+                    y = [x[1] for x in v]
+                    self.axs[2].plot(t,y,label=k)
+                    has_data = True
+            if has_data:
+                self.axs[2].legend()
+            self.axs[2].set_title('Pedestrian Metrics')
+            self.axs[2].set_xlabel('Time (s)')
+        except Exception as e:
+            print(f"Error in pedestrian plot: {str(e)}")
 
-        self.fig.canvas.draw_idle()
-        self.fig.canvas.flush_events()
+        # Update canvas
+        try:
+            self.fig.canvas.draw_idle()
+            self.fig.canvas.flush_events()
+        except Exception as e:
+            print(f"Error updating canvas: {str(e)}")
 
         if self.save_as is not None and self.writer is not None:
             try:
