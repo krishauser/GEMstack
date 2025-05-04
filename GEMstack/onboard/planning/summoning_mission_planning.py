@@ -42,7 +42,7 @@ def check_pose_distance(goal_pose : Union[List, ObjectPose], current_pose : Obje
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, mode, state_machine):
+    def __init__(self, mode, webapp, state_machine):
         self.mode = mode
         self.state_machine = StateMachine([eval(s) for s in state_machine])
         self.goal_location = None
@@ -53,8 +53,8 @@ class SummoningMissionPlanner(Component):
 
         self.count = 0      # for test only, simulate a delay to get the gaol location
 
-        # Set False when omitting the webapp. TODO: add a flag to the config file
-        self.flag_use_webapp = True
+        # Set False in yaml file when omitting the webapp. 
+        self.flag_use_webapp = webapp
 
         if self.flag_use_webapp:
             # Initialize the state in the server
@@ -97,25 +97,6 @@ class SummoningMissionPlanner(Component):
         if self.count <3:
             return mission_plan
 
-        if self.mode == 'sim':
-            # scene = settings.get('simulator.scene', None)
-            goal_location = [10, 11] # scene.get('goal_location', [0.0, 0.0])  # for simulation test only
-            goal_frame = 'start'
-        elif self.mode == 'real':
-            # TODO: Modify to a GET request to get goal location from the server
-            # current_goal_location = self.goal_location
-            # url = ""
-            # response = requests.get(url)
-            # if response.status_code == 200:
-            #     data = response.json()
-            #     goal_location = data['goal_location']
-            #     goal_frame = data['goal_frame']
-            goal_location = [-88.235828, 40.092741]  # for highbay test only [-88.2358085, 40.092819]
-            goal_frame = 'global'
-        else:
-            raise ValueError("Invalid mode argument")
-
-
 
         if self.flag_use_webapp:
             goal_location = None
@@ -134,14 +115,25 @@ class SummoningMissionPlanner(Component):
                     goal_frame = 'global'
                     print("Goal location:", goal_location)
                     print("Goal frame:", goal_frame)
-                   
-                    goal_location = [10, 0]  # for simlulation test only
-                    goal_frame = 'start'
-        else:
-            goal_location = [10, 11]  # for simulation test only
-            goal_frame = 'start'
 
-
+        if self.flag_use_webapp is False or goal_location is not None:
+            if self.mode == 'sim':
+                # scene = settings.get('simulator.scene', None)
+                goal_location = [10, 11] # scene.get('goal_location', [0.0, 0.0])  # for simulation test only
+                goal_frame = 'start'
+            elif self.mode == 'real':
+                # TODO: Modify to a GET request to get goal location from the server
+                # current_goal_location = self.goal_location
+                # url = ""
+                # response = requests.get(url)
+                # if response.status_code == 200:
+                #     data = response.json()
+                #     goal_location = data['goal_location']
+                #     goal_frame = data['goal_frame']
+                goal_location = [-88.235828, 40.092741]  # for highbay test only [-88.2358085, 40.092819]
+                goal_frame = 'global'
+            else:
+                raise ValueError("Invalid mode argument")
 
 
         if self.goal_location == goal_location:
@@ -163,7 +155,9 @@ class SummoningMissionPlanner(Component):
             else:
                 raise ValueError("Invalid frame argument")
 
-        self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
+        # self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
+        # Moved into if statement above to avoid the case where goal_location is None
+            self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
 
         # Initiate state
         if mission_plan is None:
