@@ -11,9 +11,9 @@ from GEMstack.GEMstack.knowledge.calibration.calib_util import load_ex, load_in,
 
 x_rot = y_rot = z_rot = x_trans = y_trans = z_trans = None
 
-def project_points(T_lidar_camera, lidar_homogeneous, K, shape):
+def project_points(T_lidar_to_camera, lidar_homogeneous, K, shape):
     # Transform LiDAR points to Camera Frame
-    lidar_points_camera = (T_lidar_camera @ lidar_homogeneous.T).T  # (N, 4)
+    lidar_points_camera = (T_lidar_to_camera @ lidar_homogeneous.T).T  # (N, 4)
 
     # Extract 3D points in camera frame
     X_c = lidar_points_camera[:, 0]
@@ -44,35 +44,13 @@ def project_points(T_lidar_camera, lidar_homogeneous, K, shape):
     u, v = u[valid_pts], v[valid_pts]
     return u, v
 
-def modify_transform(T_lidar_camera):
-    modified = np.copy(T_lidar_camera)
+def modify_transform(T_lidar_to_camera):
+    modified = np.eye(4)
     rotation_mat = R.from_euler('xyz', [x_rot.val, y_rot.val, z_rot.val], degrees=True).as_matrix()
     translation_vec = np.array([x_trans.val, y_trans.val, z_trans.val])
-    modified[:3, :3] = T_lidar_camera[:3, :3] @ rotation_mat
-    modified[:3, 3] = T_lidar_camera[:3, 3] + translation_vec
-    return modified
-
-def create_sliders(fig, update_func):
-    # Create space for sliders
-    fig.subplots_adjust(bottom=0.4)
-    x_rot_ax = fig.add_axes([0.25, 0.3, 0.65, 0.03])
-    y_rot_ax = fig.add_axes([0.25, 0.25, 0.65, 0.03])
-    z_rot_ax = fig.add_axes([0.25, 0.2, 0.65, 0.03])
-    x_trans_ax = fig.add_axes([0.25, 0.15, 0.65, 0.03])
-    y_trans_ax = fig.add_axes([0.25, 0.1, 0.65, 0.03])
-    z_trans_ax = fig.add_axes([0.25, 0.05, 0.65, 0.03])
-    # Filter points within image bounds
-    img_h, img_w, _ = shape
-    valid_pts = (u >= 0) & (u < img_w) & (v >= 0) & (v < img_h)
-    u, v = u[valid_pts], v[valid_pts]
-    return u, v
-
-def modify_transform(T_lidar_camera):
-    modified = np.copy(T_lidar_camera)
-    rotation_mat = R.from_euler('xyz', [x_rot.val, y_rot.val, z_rot.val], degrees=True).as_matrix()
-    translation_vec = np.array([x_trans.val, y_trans.val, z_trans.val])
-    modified[:3, :3] = T_lidar_camera[:3, :3] @ rotation_mat
-    modified[:3, 3] = T_lidar_camera[:3, 3] + translation_vec
+    modified[:3, :3] = rotation_mat
+    modified[:3, 3] = translation_vec
+    modified = modified @ T_lidar_to_camera
     return modified
 
 def create_sliders(fig, update_func):
@@ -95,16 +73,6 @@ def create_sliders(fig, update_func):
         valinit=0,
         orientation="horizontal"
     )
-    # Make sliders to control the rotation
-    global x_rot
-    x_rot = Slider(
-        ax=x_rot_ax,
-        label="X Rotation",
-        valmin=-30,
-        valmax=30,
-        valinit=0,
-        orientation="horizontal"
-    )
 
     global y_rot
     y_rot = Slider(
@@ -115,25 +83,7 @@ def create_sliders(fig, update_func):
         valinit=0,
         orientation="horizontal"
     )
-    global y_rot
-    y_rot = Slider(
-        ax=y_rot_ax,
-        label="Y Rotation",
-        valmin=-30,
-        valmax=30,
-        valinit=0,
-        orientation="horizontal"
-    )
 
-    global z_rot
-    z_rot = Slider(
-        ax=z_rot_ax,
-        label="Z Rotation",
-        valmin=-30,
-        valmax=30,
-        valinit=0,
-        orientation="horizontal"
-    )
     global z_rot
     z_rot = Slider(
         ax=z_rot_ax,
@@ -154,16 +104,6 @@ def create_sliders(fig, update_func):
         valinit=0,
         orientation="horizontal"
     )
-    # Make sliders to control the translation
-    global x_trans
-    x_trans = Slider(
-        ax=x_trans_ax,
-        label="X Translation",
-        valmin=-10,
-        valmax=10,
-        valinit=0,
-        orientation="horizontal"
-    )
 
     global y_trans
     y_trans = Slider(
@@ -174,25 +114,7 @@ def create_sliders(fig, update_func):
         valinit=0,
         orientation="horizontal"
     )
-    global y_trans
-    y_trans = Slider(
-        ax=y_trans_ax,
-        label="Y Translation",
-        valmin=-10,
-        valmax=10,
-        valinit=0,
-        orientation="horizontal"
-    )
 
-    global z_trans
-    z_trans = Slider(
-        ax=z_trans_ax,
-        label="Z Translation",
-        valmin=-10,
-        valmax=10,
-        valinit=0,
-        orientation="horizontal"
-    )
     global z_trans
     z_trans = Slider(
         ax=z_trans_ax,
@@ -241,9 +163,9 @@ def main():
     image = cv.cvtColor(image, cv.COLOR_BGR2RGB)  # Convert BGR to RGB
 
     # Load Transformation Matrices
-    T_lidar_vehicle = load_ex(args.lidar_transform_path, 'matrix')
-    T_camera_vehicle = load_ex(args.camera_transform_path, 'matrix')
-    T_lidar_camera = np.linalg.inv(T_camera_vehicle) @ T_lidar_vehicle
+    T_lidar_to_vehicle = load_ex(args.lidar_transform_path, 'matrix')
+    T_camera_to_vehicle = load_ex(args.camera_transform_path, 'matrix')
+    T_lidar_to_camera = np.linalg.inv(T_camera_to_vehicle) @ T_lidar_to_vehicle
 
     # Load Camera Intrinsics
     if args.undistort:
@@ -261,7 +183,7 @@ def main():
     fig, ax = plt.subplots()
 
     # Project lidar points to camera frame
-    u, v = project_points(T_lidar_camera, lidar_homogeneous, K, image.shape)
+    u, v = project_points(T_lidar_to_camera, lidar_homogeneous, K, image.shape)
     
     # Plot projected points on camera image
     ax.imshow(image)
@@ -270,7 +192,7 @@ def main():
 
     # Define update function
     def update(val):
-        modified = modify_transform(T_lidar_camera)
+        modified = modify_transform(T_lidar_to_camera)
 
         # Update projected points
         u, v = project_points(modified, lidar_homogeneous, K, image.shape)
@@ -293,10 +215,10 @@ def main():
             keep_running = False
 
     # Output and write the fine-tuned translation matrix
-    modified = modify_transform(T_lidar_camera)
-    print(T_lidar_vehicle @ np.linalg.inv(modified))
+    modified = modify_transform(T_lidar_to_camera)
+    print(T_lidar_to_vehicle @ np.linalg.inv(modified))
     if args.out_path:
-        save_ex(args.out_path, matrix=T_lidar_vehicle @ np.linalg.inv(modified))
+        save_ex(args.out_path, matrix=T_lidar_to_vehicle @ np.linalg.inv(modified))
 
 if __name__ == '__main__':
     main()

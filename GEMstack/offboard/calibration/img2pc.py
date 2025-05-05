@@ -60,24 +60,6 @@ def pc_projection(pc,T:Transform,K,img_shape) -> np.ndarray:
     return u[valid_pts],v[valid_pts]
 
 def calib(args,pc,img,K,N):
-def pc_projection(pc,T:Transform,K,img_shape) -> np.ndarray:
-    mask = ~(np.all(pc == 0, axis=1))
-    pc = pc[mask]
-
-    pc = T @ pc
-    if pc.shape[1] == 4:
-        pc = pc[:,:-1]/pc[:,[-1]]
-
-    assert pc.shape[1] == 3
-    x,y,z = pc.T
-    u = (K[0, 0] * x / z) + K[0, 2]
-    v = (K[1, 1] * y / z) + K[1, 2]
-
-    img_h, img_w, _ = img_shape
-    valid_pts = (u >= 0) & (u < img_w) & (v >= 0) & (v < img_h)
-    return u[valid_pts],v[valid_pts]
-
-def calib(args,pc,img,K,N):
     cpoints = np.array(pick_n_img(img,N)).astype(float)
     print(cpoints)
 
@@ -141,15 +123,14 @@ def main():
     lidar_ex = np.eye(4)
     if args.pc_transform_path:
         lidar_ex = load_ex(args.pc_transform_path,mode='matrix')
-        pc = np.pad(pc,((0,0),(0,1)),constant_values=1) @ lidar_ex.T[:,:3]
+        pc = (lidar_ex @ np.pad(pc,((0,0),(0,1)),constant_values=1).T).T[:, :3]
     
     c2v = calib(args,pc,img,K,N)
     T = np.linalg.inv(c2v)
     print(T)
 
     if args.show:
-        T_lidar_camera = T @ lidar_ex
-        u,v = pc_projection(pc,Transform(T_lidar_camera),K,img.shape)
+        u,v = pc_projection(pc,Transform(T),K,img.shape)
         show_img = img.copy()
         for uu,vv in zip(u.astype(int),v.astype(int)):
             cv2.circle(show_img, (uu, vv), radius=1, color=(0, 0, 255), thickness=-1)
