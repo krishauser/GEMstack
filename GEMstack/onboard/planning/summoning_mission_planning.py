@@ -55,24 +55,26 @@ class SummoningMissionPlanner(Component):
 
         # Set False in yaml file when omitting the webapp. 
         self.flag_use_webapp = webapp
+        # self.url_status = "https://localhost:8000/api/status"
+        # self.url_summon = "https://localhost:8000/api/summon"
+        self.url_status = "https://summon-app-production.up.railway.app/api/status"
+        self.url_summon = "https://summon-app-production.up.railway.app/api/summon"
 
         if self.flag_use_webapp:
             # Initialize the state in the server
-            url = "http://localhost:8000/api/status"
             data = {
                 "status": "IDLE"
             }
-            response = requests.post(url=url, json=data)
+            response = requests.post(url=self.url_status, json=data)
             if response.status_code == 200:
                 print("Status updated successfully")
             else:
                 print("Failed to update status:", response.status_code)
-            url = "http://localhost:8000/api/summon"
             data = {
                 "lat": 0,
                 "lon": 0
             }
-            response = requests.post(url=url, json=data)
+            response = requests.post(url=self.url_summon, json=data)
             if response.status_code == 200:
                 print("Initialize goal location successfully")
             else:
@@ -100,8 +102,7 @@ class SummoningMissionPlanner(Component):
 
         if self.flag_use_webapp:
             goal_location = None
-            url = "http://localhost:8000/api/summon"
-            response = requests.get(url)
+            response = requests.get(self.url_summon)
             print("GET:", response)
             if response.status_code == 200:
                 data = response.json()
@@ -195,12 +196,11 @@ class SummoningMissionPlanner(Component):
 
 
         if self.flag_use_webapp:
-            url = "http://localhost:8000/api/status"
             data = {
                 "status": mission_plan.planner_type.name
             }
             print("POST:", data)
-            response = requests.post(url=url, json=data)
+            response = requests.post(url=self.url_status, json=data)
             if response.status_code == 200:
                 print("Status updated successfully")
             else:
