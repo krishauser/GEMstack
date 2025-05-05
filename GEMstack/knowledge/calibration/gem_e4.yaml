@@ -4,4 +4,18 @@ rear_axle_height: 0.33      # height of rear axle center above flat ground
 gnss_location: [1.10,0,1.62] # meters, taken from https://github.com/hangcui1201/POLARIS_GEM_e2_Real/blob/main/vehicle_drivers/gem_gnss_control/scripts/gem_gnss_tracker_stanley_rtk.py.  Note conflict with pure pursuit location?
 gnss_yaw: 0.0 # radians
 top_lidar: !include "gem_e4_ouster.yaml"
-front_camera: !include "gem_e4_oak.yaml"
+front_camera:
+- !include "gem_e4_oak.yaml"
+- !include "gem_e4_oak_in.yaml"
+front_right_camera:
+- !include "gem_e4_fr.yaml"
+- !include "gem_e4_fr_in.yaml"
+front_left_camera:
+- !include "gem_e4_fl.yaml"
+- !include "gem_e4_fl_in.yaml"
+rear_right_camera:
+- !include "gem_e4_rr.yaml"
+- !include "gem_e4_rr_in.yaml"
+rear_left_camera:
+- !include "gem_e4_rl.yaml"
+- !include "gem_e4_rl_in.yaml"
