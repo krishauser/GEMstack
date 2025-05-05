@@ -164,13 +164,13 @@ def check_point_exists(
             pt1 = ObjectPose(
                 frame=ObjectFrameEnum.GLOBAL,
                 t=0,
-                x=points[0]["lng"],
+                x=points[0]["lon"],
                 y=points[0]["lat"],
             )
             pt2 = ObjectPose(
                 frame=ObjectFrameEnum.GLOBAL,
                 t=0,
-                x=points[1]["lng"],
+                x=points[1]["lon"],
                 y=points[1]["lat"],
             )
             pt1 = pt1.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose)
