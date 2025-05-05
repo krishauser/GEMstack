@@ -2,9 +2,9 @@
 # map boundary in meter
 map:
     lower_x: -15 
-    upper_x: 30 
+    upper_x: 40 
     lower_y: -10
-    upper_y: 20
+    upper_y: 30
     grid_resolution: 10 # grids per meter for occupency grid
     obstacle_radius: 0.2 # meter for determining the size of the obstacle in occupency grid
 # vehicle info 
