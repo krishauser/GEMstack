@@ -110,7 +110,19 @@ def load_labels(file_path, is_gt=False):
         traceback.print_exc()
     return boxes
 
-def calculate_3d_iou(box1, box2):
+def get_aabb_corners(box):
+    # Uses internal format where cy is geometric center
+    cx, cy, cz, l, w, h = box[IDX_X], box[IDX_Y], box[IDX_Z], box[IDX_L], box[IDX_W], box[IDX_H]
+    # Ignores yaw
+    min_x, max_x = cx - l / 2, cx + l / 2
+    min_y, max_y = cy - h / 2, cy + h / 2 # Uses geometric center cy
+    min_z, max_z = cz - w / 2, cz + w / 2 # Assuming cz is center z (depth)
+    return min_x, max_x, min_y, max_y, min_z, max_z
+
+def get_volume(box):
+    return box[IDX_L] * box[IDX_W] * box[IDX_H]
+
+def calculate_3d_iou(box1, box2, get_corners_cb, get_volume_cb):
     """
     Calculates the 3D Intersection over Union (IoU) between two bounding boxes.
 
@@ -118,6 +130,9 @@ def calculate_3d_iou(box1, box2):
         box1, box2: List or tuple representing a 3D bounding box in the
                     *internal standardized format*: [cx, cy, cz, l, w, h, yaw, ...]
                     where cy is the geometric center y.
+        OR box1 and box2 are BoundingBox objects
+        get_corners_cb is a callback that is used to extract the parameters 
+            from the box1 and box2 arguments
 
     Returns:
         float: The 3D IoU value.
@@ -126,17 +141,8 @@ def calculate_3d_iou(box1, box2):
     """
 
     ####### Simple Axis-Aligned Bounding Box (AABB) IoU #######
-    def get_aabb_corners(box):
-        # Uses internal format where cy is geometric center
-        cx, cy, cz, l, w, h = box[IDX_X], box[IDX_Y], box[IDX_Z], box[IDX_L], box[IDX_W], box[IDX_H]
-        # Ignores yaw
-        min_x, max_x = cx - l / 2, cx + l / 2
-        min_y, max_y = cy - h / 2, cy + h / 2 # Uses geometric center cy
-        min_z, max_z = cz - w / 2, cz + w / 2 # Assuming cz is center z (depth)
-        return min_x, max_x, min_y, max_y, min_z, max_z
-
-    min_x1, max_x1, min_y1, max_y1, min_z1, max_z1 = get_aabb_corners(box1)
-    min_x2, max_x2, min_y2, max_y2, min_z2, max_z2 = get_aabb_corners(box2)
+    min_x1, max_x1, min_y1, max_y1, min_z1, max_z1 = get_corners_cb(box1)
+    min_x2, max_x2, min_y2, max_y2, min_z2, max_z2 = get_corners_cb(box2)
 
     # Calculate intersection volume
     inter_min_x = max(min_x1, min_x2)
@@ -152,8 +158,8 @@ def calculate_3d_iou(box1, box2):
     intersection_volume = inter_l * inter_h * inter_w
 
     # Calculate union volume
-    vol1 = box1[IDX_L] * box1[IDX_W] * box1[IDX_H]
-    vol2 = box2[IDX_L] * box2[IDX_W] * box2[IDX_H]
+    vol1 = get_volume_cb(box1)
+    vol2 = get_volume_cb(box2)
     # Ensure volumes are positive and non-zero for stable IoU
     vol1 = max(vol1, 1e-6)
     vol2 = max(vol2, 1e-6)
@@ -272,7 +278,7 @@ def evaluate_detector(gt_boxes_all_samples, pred_boxes_all_samples, classes, iou
             for gt_idx, gt_box in enumerate(gt_boxes):
                 # Explicitly check class match (belt-and-suspenders)
                 if pred_box[IDX_CLASS] == gt_box[IDX_CLASS]:
-                     iou = calculate_3d_iou(pred_box, gt_box)
+                     iou = calculate_3d_iou(pred_box, gt_box, get_aabb_corners)
                      if iou > best_iou:
                          best_iou = iou
                          best_gt_idx = gt_idx

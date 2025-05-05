@@ -11,16 +11,10 @@ import yaml
 from typing import Dict, List, Optional, Tuple
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-
-
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 
+from .sensorFusion.eval_3d_bbox_performance import calculate_3d_iou
 
-# TODO: Import IOU from IOU funcs in SensorFusion?
-
-# Reuse eval funcs?
-def calculate_3d_iou(box1: BoundingBox, box2: BoundingBox) -> float:
-    return 0.0
 
 def merge_boxes(box1: BoundingBox, box2: BoundingBox) -> BoundingBox:
      # TODO:  merging 
@@ -45,6 +39,21 @@ def merge_boxes(box1: BoundingBox, box2: BoundingBox) -> BoundingBox:
 
      return merged_box
 
+def get_aabb_corners(box: BoundingBox):
+    """
+    Calculates the 3D Intersection over Union (IoU) between two bounding boxes.
+    This implementation uses axis-aligned bounding boxes so it does not consider rotation.
+    """
+
+    # Extract position and dimensions from each box
+    cx, cy, cz = box.pose.position.x, box.pose.position.y, box.pose.position.z
+    l, w, h = box.dimensions.x, box.dimensions.y, box.dimensions.z
+
+    # min_x, max_x, min_y, max_y, min_z, max_z    
+    return cx, cx + l, cy, cy + w, cz, cz + h
+
+def get_volume(box):
+    return box.dimensions.x * box.dimensions.y * box.dimensions.z
 
 class CombinedDetector3D(Component):
     def __init__(
@@ -100,8 +109,7 @@ class CombinedDetector3D(Component):
         self.latest_yolo_bbxs = yolo_bbxs_msg
         self.latest_pp_bbxs = pp_bbxs_msg
 
-    def update(self, state: AllState) -> Dict[str, AgentState]:
-        vehicle = state.vehicle
+    def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         current_time = self.vehicle_interface.time()
 
         yolo_bbx_array = self.latest_yolo_bbxs
@@ -151,7 +159,7 @@ class CombinedDetector3D(Component):
                     continue
 
                 ## IoU
-                iou = calculate_3d_iou(yolo_box, pp_box)
+                iou = calculate_3d_iou(yolo_box, pp_box, get_aabb_corners, get_volume)
 
                 if iou > self.iou_threshold and iou > best_iou:
                     best_iou = iou
