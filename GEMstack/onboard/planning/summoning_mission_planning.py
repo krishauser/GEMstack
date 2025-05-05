@@ -47,7 +47,7 @@ class SummoningMissionPlanner(Component):
         self.count = 0      # for test only, simulate a delay to get the gaol location
 
         # Set False when omitting the webapp. TODO: add a flag to the config file
-        self.flag_use_webapp = True
+        self.flag_use_webapp = False
 
         if self.flag_use_webapp:
             # Initialize the state in the server
@@ -111,7 +111,7 @@ class SummoningMissionPlanner(Component):
                     goal_location = [10, 0]  # for simlulation test only
                     goal_frame = 'start'
         else:
-            goal_location = [10, 11]  # for simulation test only
+            goal_location = [5, 0]  # for simulation test only
             goal_frame = 'start'
 
 
