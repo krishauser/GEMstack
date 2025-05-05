@@ -26,16 +26,30 @@ class OccupancyGrid2:
         # Create the cv_bridge object
         self.bridge  = CvBridge()
         self.map_image_pub = rospy.Publisher("/motion_image2", Image, queue_size=1) 
+        self.map_image_pub = rospy.Publisher("/motion_image2", Image, queue_size=1) 
 
         # Subscribe information from sensors
         self.lat     = 0
         self.lon     = 0
         self.heading = 0
 
-        self.lat_start_bt = 40.092722  # 40.09269  
-        self.lon_start_l  = -88.236365 # -88.23628
-        self.lat_scale    = 0.00062   # 0.0007    
-        self.lon_scale    = 0.00136  # 0.00131   
+        # # Klampt
+        self.lat_scale    = 80  
+        self.lon_scale    = 80
+        self.lat_start_bt = -1 
+        self.lon_start_l  = -1
+
+        # Real vehicle
+        # self.lat_scale    = 0.00062   # 0.0007    
+        # self.lon_scale    = 0.00136  # 0.00131   
+        # self.lat_start_bt = 40.092722  # 40.09269  
+        # self.lon_start_l  = -88.236365 # -88.23628
+
+        # Gazebo
+        # self.lat_scale    = 0.00062
+        # self.lon_scale    = 0.00136
+        # self.lat_start_bt = -0.0001 # Needs Tuning
+        # self.lon_start_l  = -0.0004
 
         self.arrow        = 40 
         self.img_width    = 2107
@@ -104,6 +118,9 @@ class OccupancyGrid2:
 
     def gnss_to_image(self, lon, lat):
         
+        lon_x = int(self.img_width*(lon - self.lon_start_l) /self.lon_scale)
+        lat_y = int(self.img_height  -  self.img_height*(lat - self.lat_start_bt)/self.lat_scale)
+        print(f"GNSS hiiiii ({lat}, {lon}) → pixel ({lon_x}, {lat_y})")
         lon_x = int(self.img_width*(lon - self.lon_start_l) /self.lon_scale)
         lat_y = int(self.img_height  -  self.img_height*(lat - self.lat_start_bt)/self.lat_scale)
         print(f"GNSS hiiiii ({lat}, {lon}) → pixel ({lon_x}, {lat_y})")

@@ -1195,8 +1195,8 @@ class YieldTrajectoryPlanner(Component):
     ):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 3.0
-        self.desired_speed = 5.0
+        self.acceleration = 1.0
+        self.desired_speed = 1.0
         self.deceleration = 2.0
 
         self.min_deceleration = 1.0
@@ -1204,6 +1204,7 @@ class YieldTrajectoryPlanner(Component):
 
         self.mode = mode
         self.planner = params["planner"]
+        self.mission = None
 
     def state_inputs(self):
         return ["all"]
@@ -1216,6 +1217,8 @@ class YieldTrajectoryPlanner(Component):
 
     def update(self, state: AllState):
         start_time = time.time()
+        if self.mission == None:
+            self.mission = state.mission.type
 
         vehicle = state.vehicle  # type: VehicleState
         route = state.route  # type: Route
@@ -1249,6 +1252,10 @@ class YieldTrajectoryPlanner(Component):
             )
 
         # figure out where we are on the route
+        if state.mission.type!=self.mission:
+            self.route_progress = None
+            self.mission = state.mission.type
+            
         if self.route_progress is None:
             self.route_progress = 0.0
         closest_dist, closest_parameter = state.route.closest_point_local(
@@ -1256,10 +1263,7 @@ class YieldTrajectoryPlanner(Component):
         )
         self.route_progress = closest_parameter
 
-        lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
-        route_with_lookahead = route.trim(
-            closest_parameter, closest_parameter + lookahead_distance
-        )
+        # lookahead_distance = max(10, curr_v**2 / (2 * self.deceleration))
         # print("Lookahead distance:", lookahead_distance)
 
         route_to_end = route.trim(closest_parameter, len(route.points) - 1)

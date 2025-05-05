@@ -61,7 +61,7 @@ replay:  # Add items here to set certain topics / inputs to be replayed from log
 computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
 
 variants:
-    fake_sim:
+    sim:
         run:
             description: "Run the yielding trajectory planner in simulation with faked perception"
             mode: simulation
@@ -75,3 +75,12 @@ variants:
                     # agent_detection : pedestrian_detection.FakePedestrianDetector2D
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
+    gazebo:
+        run:
+            mode: simulation
+            vehicle_interface:
+                type: gem_gazebo.GEMGazeboInterface
+            drive:
+                perception:
+                    state_estimation: GNSSStateEstimator  # Matches your Gazebo GNSS implementation
+            # visualization: !include "mpl_visualization.yaml"

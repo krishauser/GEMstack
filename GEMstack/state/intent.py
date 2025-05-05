@@ -14,6 +14,8 @@ class VehicleIntentEnum(Enum):
     PARKING = 8         # normal driving, executing parking behavior 
     LEAVING_PARKING = 9        # normal driving, leaving a parking spot
     U_TURN = 10         # normal driving, executing U-turn outside of dedicated lane
+    CAMERA_FR = 11
+    CAMERA_RR = 12
 
 
 @dataclass
