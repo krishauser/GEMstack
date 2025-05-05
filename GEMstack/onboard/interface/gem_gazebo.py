@@ -167,7 +167,7 @@ class GEMGazeboInterface(GEMInterface):
         # Find vehicle in model states
         vehicle_idx = -1
         for i, name in enumerate(msg.name):
-            if name.lower() in ['gem_e4', 'gem_e2', 'polaris', 'golf_cart', 'vehicle']:
+            if name.lower() in ['gem_e4', 'gem_e2']:
                 vehicle_idx = i
                 break
                 

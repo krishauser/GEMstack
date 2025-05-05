@@ -88,3 +88,52 @@ python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/fixed_route.yaml
 - e2_gazebo
 - e4_gazebo
 ---
+
+## Agent Detection in Gazebo
+
+The Gazebo simulation environment supports detection of various types of agents (pedestrians, vehicles, etc.) that can be spawned in the simulation world. You can configure GEMstack to detect and track these agents.
+
+### Configuring Agent Detection in Launch File
+
+To enable agent detection in your Gazebo simulation, add the following to your launch file's `gazebo` variant:
+
+```yaml
+drive:
+    perception:
+        state_estimation: GNSSStateEstimator  # Matches your Gazebo GNSS implementation
+        agent_detection:
+            type: agent_detection.GazeboAgentDetector
+            args:
+                tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
+```
+
+The `tracked_model_prefixes` parameter specifies which types of models will be tracked as agents. The prefixes listed will match against the model names in Gazebo. For example, a model named `pedestrian1` will be tracked if `pedestrian` is in the list.
+
+### Spawning Agents in Gazebo
+
+You can spawn agents in Gazebo using a YAML configuration file.
+
+Follow the instructions in the [POLARIS GEM Simulator](https://github.com/harishkumarbalaji/POLARIS_GEM_Simulator/tree/main) repository to spawn agents in Gazebo.
+
+### Important Naming Considerations
+
+The `name` field in your agent configuration is crucial as it determines how models are identified in Gazebo's `model_states` topic. For agent detection to work:
+
+1. The model name prefix must match one of the prefixes in your `tracked_model_prefixes` configuration
+2. For example, a model named `pedestrian1` will be detected as a pedestrian if `pedestrian` is in your tracked prefixes
+3. The model type is derived from the prefix, so naming conventions are important
+
+When spawning models in Gazebo, ensure that their names have appropriate prefixes that match your GEMstack configuration.
+
+### How Agent Detection Works
+
+The `GazeboAgentDetector` component:
+1. Subscribes to Gazebo's `model_states` topic to get positions of all models
+2. Filters models based on the configured `tracked_model_prefixes`
+3. Transforms model positions from Gazebo's coordinate frame to GEMstack's START frame
+4. Creates `AgentState` objects for each detected agent
+5. Makes these agents available to other GEMstack components for planning and visualization
+
+The models in your simulation will appear in your GEMstack visualization and be available for planning and decision-making components to interact with.
+
+---

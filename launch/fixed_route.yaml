@@ -85,12 +85,7 @@ variants:
                     agent_detection:
                         type: agent_detection.GazeboAgentDetector
                         args:
-                            tracked_model_prefixes: ['pedestrian', 'person', 'car', 'vehicle', 'bicycle']
-            # Configure Gazebo agent tracking
-            simulator:
-                agent_tracker:
-                    model_prefixes: ['pedestrian', 'person', 'car', 'vehicle', 'bicycle', 'bike', 'truck']
-                    rate: 10.0  # Hz
+                            tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
             visualization: !include "mpl_visualization.yaml"
     log_ros:
         log:
