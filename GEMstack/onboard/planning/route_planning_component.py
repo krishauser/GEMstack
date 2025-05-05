@@ -11,6 +11,7 @@ from GEMstack.state.trajectory import Trajectory
 from .rrt_star import RRTStar
 from .parking_planning import ParkingPlanner
 from .parking_scanning import StraightLineMotion
+from .longitudinal_planning import longitudinal_plan
 
 
 
@@ -63,10 +64,24 @@ class RoutePlanningComponent(Component):
             print("I am in RRT mode")
         elif state.mission_plan.planner_type.name == "SCANNING":
             # Run brute force straight line motion
-            if (self.planner is None) or (not isinstance(self.planner, StraightLineMotion)):
-                self.planner = StraightLineMotion()
+            # if (self.planner is None) or (not isinstance(self.planner, StraightLineMotion)):
+                # self.planner = StraightLineMotion()
+
+            # print("Mission plan:", state.mission_plan)
+            # print("Vehicle x:", state.vehicle.pose.x)
+            # print("Vehicle y:", state.vehicle.pose.y)
+            # print("Vehicle yaw:", state.vehicle.pose.yaw)
+            desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
+                              (state.vehicle.pose.x + 10, state.vehicle.pose.y)]
             
-            self.planner.update_speed()
+            # @TODO these are constants we need to get from settings
+            return longitudinal_plan(desired_points,1,1,3,state.vehicle.speed)
+            # self.planner.update_speed()
+
+            # We want to just go straight
+            # Use longitudinal planner to go in a straight line
+
+            # Get current 
             print("I am in SCANNING mode")
 
         
