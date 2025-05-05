@@ -34,7 +34,7 @@ def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
     return lane_points
 
 
-def find_available_pose_on_lane(location, roadgraph, pose_yaw=None):
+def find_available_pose_in_lane(location, roadgraph, pose_yaw=None):
     # TODO: Check, not complete
     x, y = location
     min_dist = np.inf
@@ -164,12 +164,15 @@ class RoutePlanningComponent(Component):
                 self.lane_points = self.roadgraph.points
 
             # Find appropriate start and goal points that are on the lanes and fix for searching
-            current_pose = find_available_pose_on_lane([state.vehicle.pose.x, state.vehicle.pose.y],
+            start_pose = find_available_pose_in_lane([state.vehicle.pose.x, state.vehicle.pose.y],
                                                     self.roadgraph, pose_yaw=state.vehicle.pose.yaw)
-            goal_pose = find_available_pose_on_lane([state.mission_plan.goal_pose.x, state.mission_plan.goal_pose.y], self.roadgraph)
+            goal_pose = find_available_pose_in_lane([state.mission_plan.goal_pose.x, state.mission_plan.goal_pose.y], self.roadgraph)
+
+            print('Start pose:', start_pose)
+            print('Goal pose:', goal_pose)
 
             # Search for waypoints
-            searcher = BiRRT(current_pose, goal_pose, self.lane_points, update_rate=self.update_rate)
+            searcher = BiRRT(start_pose, goal_pose, self.lane_points, update_rate=self.update_rate)
             waypoints = searcher.search()
 
             # For now, waypoints of [x, y, heading] is not working in longitudinal_planning. Use [x, y] instead.
