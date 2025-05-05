@@ -76,7 +76,7 @@ class RoutePlanningComponent(Component):
             desired_path = Path(state.vehicle.pose.frame, desired_points)
             
             # @TODO these are constants we need to get from settings
-            return longitudinal_plan(desired_points,1,1,3,state.vehicle.v)
+            return longitudinal_plan(desired_path,1,1,3,state.vehicle.v)
             # self.planner.update_speed()
 
             # We want to just go straight
