@@ -69,11 +69,6 @@ def plot_object(obj : PhysicalObject, axis_len=None, outline=True, bbox=True, ax
     R = obj.pose.rotation2d()
     t = [obj.pose.x,obj.pose.y]
     
-    # Debug print occasionally
-    import random
-    if random.random() < 0.02:  # ~2% chance to print
-        print(f"Plotting object at position ({obj.pose.x:.2f}, {obj.pose.y:.2f}) with frame {obj.pose.frame}")
-        
     if bbox or (outline and obj.outline is None): 
         bounds = obj.bounds()
         (xmin,xmax),(ymin,ymax),(zmin,zmax) = bounds

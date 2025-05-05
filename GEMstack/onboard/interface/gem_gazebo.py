@@ -1,8 +1,6 @@
 from .gem import *
 from ...utils import settings
 import math
-import time 
-import random
 
 # ROS Headers
 import rospy
@@ -92,7 +90,7 @@ class GEMGazeboInterface(GEMInterface):
         # Agent detection
         self.model_states_sub = None
         self.tracked_model_prefixes = settings.get('simulator.agent_tracker.model_prefixes', 
-                                                 ['pedestrian', 'person', 'bicycle', 'bike', 'car', 'vehicle', 'truck'])
+                                                 ['pedestrian', 'bicycle', 'car'])
         self.agent_detector_callback = None
         self.last_agent_positions = {}
         self.last_agent_velocities = {}
@@ -183,7 +181,7 @@ class GEMGazeboInterface(GEMInterface):
         
         # Create vehicle model pose in ABSOLUTE_CARTESIAN frame (Gazebo's native frame)
         self.vehicle_model_pose = ObjectPose(
-            frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,  # Gazebo uses its own coordinate system
+            frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
             t=current_time,
             x=vehicle_pos.x,
             y=vehicle_pos.y,
@@ -237,13 +235,9 @@ class GEMGazeboInterface(GEMInterface):
             quaternion = (orientation.x, orientation.y, orientation.z, orientation.w)
             roll, pitch, yaw = euler_from_quaternion(quaternion)
             
-            # Debug print occasionally
-            if random.random() < 0.01:  # 1% chance to print
-                print(f"Agent {model_name} raw model_state position: ({position.x:.2f}, {position.y:.2f}, {position.z:.2f})")
-            
             # Create agent pose in ABSOLUTE_CARTESIAN frame (Gazebo's native frame)
             agent_global_pose = ObjectPose(
-                frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,  # Gazebo's coordinate system
+                frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
                 t=current_time,
                 x=position.x,
                 y=position.y,
@@ -257,7 +251,6 @@ class GEMGazeboInterface(GEMInterface):
             agent_pose = None
             if self.transform_initialized:
                 # Calculate agent position relative to the *initial* vehicle position (from when START frame was established)
-                # This provides a stable transformation that doesn't change as the vehicle moves
                 rel_x = position.x - self.initial_vehicle_model_pose.x
                 rel_y = position.y - self.initial_vehicle_model_pose.y
                 rel_z = position.z - self.initial_vehicle_model_pose.z
@@ -282,10 +275,6 @@ class GEMGazeboInterface(GEMInterface):
                     pitch=pitch,
                     yaw=rel_yaw
                 )
-                
-                # Debug print occasionally
-                if random.random() < 0.01:  # 1% chance to print
-                    print(f"Agent {model_name} stable relative position: ({rot_x:.2f}, {rot_y:.2f}, {rel_z:.2f})")
             else:
                 # If transformation not initialized yet, just use the model_states pose
                 agent_pose = agent_global_pose
@@ -315,10 +304,6 @@ class GEMGazeboInterface(GEMInterface):
                     )
                 else:
                     velocity = calculated_vel
-                
-                # Debug output for manual velocity calculation
-                if np.linalg.norm(velocity) > 0.01:
-                    print(f"Calculated velocity for {model_name}: {velocity}")
             
             # Determine activity state based on velocity magnitude
             velocity_magnitude = np.linalg.norm(velocity)
