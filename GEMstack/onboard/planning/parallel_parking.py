@@ -30,18 +30,25 @@ class SummoningParkingRoutePlanner(Component):
         else:
             raise ValueError("Unknown route file extension", ext)
         
-        # SLOT 4 (17.33, -2.44, 0.0, (1.7, 3.2))
-        # SLOT 5 (22.11, -2.44, 0.0, (1.7, 3.2))
-        self.parked_cars = [
+        # SLOT 1 (2.69, -2.44), SLOT 2  (7.57, -2.44)
+        # SLOT 3 (12.45, -2.44), SLOT 4 (17.33, -2.44)
+        # SLOT 5 (22.11, -2.44) 
 
-            (17.33, -2.44),
-            (22.11, -2.44)  
+        self.parked_cars = [
+            (2.69, -2.44),
+            (22.11, -2.44) 
         ]
-        self.parking_utils = ReedsSheppParking()
-        self.parking_utils.closest = False
-        self.parking_utils.find_collision_free_trajectory(self.parked_cars)
+
+        self.reedssheppparking = ReedsSheppParking()
+        # self.reedssheppparking.closest = True
+        # self.reedssheppparking.add_static_vertical_curb_as_obstacle = False
+        # self.reedssheppparking.add_static_horizontal_curb_as_obstacle = False
+        self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0.0, -2.44),(24.9, -2.44)]
+        self.reedssheppparking.find_available_parking_spots_and_search_vector(self.parked_cars)
+        self.reedssheppparking.find_collision_free_trajectory(self.parked_cars)
+
         
-        
+
 
     def state_inputs(self):
         return ['vehicle']
@@ -54,7 +61,6 @@ class SummoningParkingRoutePlanner(Component):
 
     def update(self, vehicle: VehicleState, x=0.0):
         self.current_pose = vehicle.pose
-        self.waypoints_to_go = self.parking_utils.waypoints_to_go
-        self.parking_utils.find_collision_free_trajectory(self.parked_cars)
+        self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
         self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
         return self.route
