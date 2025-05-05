@@ -28,6 +28,8 @@ The `undistort_images.py` script can then be used to rectify a set of images usi
 
 **Extrinsic Calibration**
 
+These scripts use a package within another folder in GEMstack: as such, you may need to add GEMstack to your python path. On Linux, this can be done by running `export PYTHON_LIB=<$PATH_TO_GEMSTACK>:PYTHON_LIB`, replacing `<$PATH_TO_GEMSTACK>` with the absolute path to the main GEMstack directory.
+
 The `img2pc.py` file contains the main part of the extrinsic calibration process. Select a synchronized camera image and lidar pointcloud to align, ideally containing features that are easy to detect in both, such as boards or signs with corners. Alignment can be done with 4 feature pairs(must be coplanar) or 6+ points. The first screen will ask you to select points on the image, and will close on its own once *n_features* points are selected. The second screen will ask you to select points in the point cloud, and will need to be closed manually once exactly *n_features* points are selected, or it will prompt you again. The extrinsic matrices will then be displayed, and if an *out_path* is provided they will also be saved.
 
 The `test_transforms.py` file can then be used to manually fine-tune the calculated intrinsics. Use the sliders to change the translation and rotation to project the lidar points onto the image more accurately.
