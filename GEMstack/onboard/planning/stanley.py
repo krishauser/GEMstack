@@ -70,6 +70,7 @@ class Stanley(object):
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
+        self.reverse = None
 
     def set_path(self, path: Path):
         if path == self.path_arg:
@@ -104,8 +105,47 @@ class Stanley(object):
         ry = y - self.wheelbase * sin(yaw)
         return rx, ry
 
-    def compute(self, state: VehicleState, component: Component = None, reverse = False):
-        """Compute the control outputs: (longitudinal acceleration, front wheel angle)."""
+    def initialize_state_and_direction(self, state: VehicleState):
+        if self.path is None:
+            raise ValueError("Stanley: Path must be set before initializing state and direction.")
+        curr_x = state.pose.x
+        curr_y = state.pose.y
+        curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
+        fx, fy = self._find_front_axle_position(curr_x, curr_y, curr_yaw)
+        path_domain_start, path_domain_end = self.path.domain()
+        search_end = min(path_domain_end, path_domain_start + 5.0)
+        search_domain_start = [path_domain_start, search_end]
+        _, closest_param_at_start = self.path.closest_point_local((fx, fy), search_domain_start)
+        tangent_at_start = self.path.eval_tangent(closest_param_at_start)
+        initial_reverse = False
+        if np.linalg.norm(tangent_at_start) > 1e-6:
+            path_yaw_at_start = atan2(tangent_at_start[1], tangent_at_start[0])
+            heading_diff = normalise_angle(path_yaw_at_start - curr_yaw)
+            initial_reverse = abs(heading_diff) > (np.pi / 2.0)
+        self.pid_speed.reset()
+        self.current_path_parameter = closest_param_at_start
+        if self.trajectory:
+            self.current_traj_parameter = self.trajectory.domain()[0]
+        return initial_reverse
+
+    def is_target_behind_vehicle(self, vehicle_pose, target_point_coords):
+        curr_x = vehicle_pose.x
+        curr_y = vehicle_pose.y
+        curr_yaw = vehicle_pose.yaw
+        if curr_yaw is None:
+            return False
+        target_x = target_point_coords[0]
+        target_y = target_point_coords[1]
+        vec_x = target_x - curr_x
+        vec_y = target_y - curr_y
+        if abs(vec_x) < 1e-6 and abs(vec_y) < 1e-6:
+            return False
+        heading_x = cos(curr_yaw)
+        heading_y = sin(curr_yaw)
+        dot_product = vec_x * heading_x + vec_y * heading_y
+        return (dot_product < 0)
+
+    def compute(self, state: VehicleState, component: Component = None):
         t = state.pose.t
         if self.t_last is None:
             self.t_last = t
@@ -135,11 +175,15 @@ class Stanley(object):
                 component.debug_event(f"Transforming trajectory from {self.trajectory.frame.name} to {state.pose.frame.name}")
             self.trajectory = transforms.transform_path(self.trajectory, self.trajectory.frame, state.pose.frame, current_pose=state.pose)
 
-        if reverse:
+
+        if self.reverse is None:
+            self.reverse = self.initialize_state_and_direction(state)
+
+        if self.reverse:
             fx, fy = self._find_rear_axle_position(curr_x, curr_y, curr_yaw)
         else:
             fx, fy = self._find_front_axle_position(curr_x, curr_y, curr_yaw)
-        search_start = self.current_path_parameter - 5.0
+        search_start = self.current_path_parameter - 0.0
         search_end   = self.current_path_parameter + 5.0
         closest_dist, closest_parameter = self.path.closest_point_local((fx, fy), [search_start, search_end])
         self.current_path_parameter = closest_parameter
@@ -151,7 +195,13 @@ class Stanley(object):
         dx = fx - target_x
         dy = fy - target_y
 
-        if reverse:
+        use_reverse = self.is_target_behind_vehicle(state.pose, (target_x, target_y))
+        if use_reverse:
+            self.reverse = True
+        else:
+            self.reverse = False
+
+        if self.reverse:
             cross_track_error = dx * (-tangent[1]) + dy * tangent[0]
             self.k += self.k
         else:
@@ -163,7 +213,7 @@ class Stanley(object):
         desired_speed = abs(self.desired_speed)
         feedforward_accel = 0.0
 
-        if reverse:
+        if self.reverse:
             heading_term = -yaw_error
             cross_term_input = self.k * (-cross_track_error) / (self.k_soft + abs(speed))
             cross_term = atan2(cross_term_input, 1.0)
@@ -253,7 +303,7 @@ class Stanley(object):
                 desired_speed *= np.exp(-abs(cross_track_error) * 0.6)
 
         if abs(desired_speed) > self.speed_limit:
-            if reverse:
+            if self.reverse:
                 desired_speed = self.speed_limit * -1.0 if desired_speed != 0 else 0.0
             else:
                 desired_speed = self.speed_limit
@@ -293,7 +343,6 @@ class StanleyTrajectoryTracker(Component):
     def __init__(self, vehicle_interface=None, **kwargs):
         self.stanley = Stanley(**kwargs)
         self.vehicle_interface = vehicle_interface
-        self.reverse = None
         
     def rate(self):
         return 50.0
@@ -304,101 +353,10 @@ class StanleyTrajectoryTracker(Component):
     def state_outputs(self):
         return []
 
-    """
-    def _check_sharp_turn_ahead(self, lookahead_s=3.0, threshold_angle=np.pi/2.0, num_steps=4):
-        if not self.stanley.path:
-            return False
-
-        path = self.stanley.path
-        current_s = self.stanley.current_path_parameter
-        domain_start, domain_end = path.domain()
-
-        if current_s >= domain_end - 1e-3:
-            return False
-
-        step_s = lookahead_s / num_steps
-        s_prev = current_s
-        
-        try:
-            tangent_prev = path.eval_tangent(s_prev)
-            if np.linalg.norm(tangent_prev) < 1e-6:
-                s_prev_adjusted = min(s_prev + step_s / 2, domain_end)
-                if s_prev_adjusted <= s_prev:
-                    return False
-                tangent_prev = path.eval_tangent(s_prev_adjusted)
-                if np.linalg.norm(tangent_prev) < 1e-6:
-                    return False
-                s_prev = s_prev_adjusted
-                
-            angle_prev = atan2(tangent_prev[1], tangent_prev[0])
-
-        except Exception as e:
-            return False
-
-        for i in range(num_steps):
-            s_next = s_prev + step_s
-            s_next = min(s_next, domain_end)
-
-            if s_next <= s_prev + 1e-6:
-                break
-
-            try:
-                tangent_next = path.eval_tangent(s_next)
-                if np.linalg.norm(tangent_next) < 1e-6:
-                    s_prev = s_next
-                    continue 
-
-                angle_next = atan2(tangent_next[1], tangent_next[0])
-            except Exception as e:
-                break
-
-            angle_change = abs(normalise_angle(angle_next - angle_prev))
-
-            if angle_change > threshold_angle:
-                return True
-
-            angle_prev = angle_next
-            s_prev = s_next
-        return False
-    """
     def update(self, vehicle: VehicleState, trajectory: Trajectory):
         self.stanley.set_path(trajectory)
-        
-        if self.reverse == None:
-            curr_x = vehicle.pose.x
-            curr_y = vehicle.pose.y
-            curr_yaw = vehicle.pose.yaw if vehicle.pose.yaw is not None else 0.0
 
-            fx, fy = self.stanley._find_front_axle_position(curr_x, curr_y, curr_yaw)
-            path_domain_start = self.stanley.path.domain()[0]
-            search_domain_start = [path_domain_start, min(self.stanley.path.domain()[1], path_domain_start + 5.0)]
-
-            _, closest_param_at_start = self.stanley.path.closest_point_local((fx, fy), search_domain_start)
-            tangent_at_start = self.stanley.path.eval_tangent(closest_param_at_start)
-
-            if np.linalg.norm(tangent_at_start) > 1e-6:
-                path_yaw_at_start = atan2(tangent_at_start[1], tangent_at_start[0])
-                heading_diff = normalise_angle(path_yaw_at_start - curr_yaw)
-                self.reverse = abs(heading_diff) > (np.pi / 2.0)
-            else:
-                self.reverse = False
-            self.stanley.pid_speed.reset()
-            self.stanley.current_path_parameter = self.stanley.path.domain()[0]
-
-        else:  
-            """
-            is_sharp_turn_ahead = self._check_sharp_turn_ahead(
-                lookahead_s=4.0,     
-                threshold_angle=np.pi/2.0
-            )
-            print(f"Sharp turn ahead: {is_sharp_turn_ahead}")
-            
-            if is_sharp_turn_ahead:
-                self.reverse = not self.reverse
-                self.stanley.set_path(trajectory)
-            """
-            pass
-        accel, f_delta = self.stanley.compute(vehicle, self, self.reverse)
+        accel, f_delta = self.stanley.compute(vehicle, self)
 
         steering_angle = front2steer(f_delta)
         steering_angle = np.clip(	
