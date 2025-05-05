@@ -14,7 +14,7 @@ max_accelerator_power_reverse: 10000.0 #Watts.  Power (backwards) in reverse gea
 
 acceleration_model : kris_v1
 accelerator_active_range : [0.32, 1.0]   #range of accelerator pedal where output acceleration is not flat
-brake_active_range : [0,1]             #range of brake pedal where output deceleration is not flat
+brake_active_range : [0.25,1]             #range of brake pedal where output deceleration is not flat
 
 internal_dry_deceleration: 0.2      #m/s^2: deceleration due to internal dry friction (non-speed dependent)
 internal_viscous_deceleration: 0.05  #1/s: scales the current velocity to get deceleration due to internal viscous friction (speed dependent)

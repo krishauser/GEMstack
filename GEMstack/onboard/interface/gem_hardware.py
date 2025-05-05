@@ -27,6 +27,7 @@ import cv2
 import numpy as np
 from ...utils import conversions
 
+
 class GEMHardwareInterface(GEMInterface):
     """Interface for connnecting to the physical GEM e2 vehicle."""
     def __init__(self):
@@ -187,6 +188,7 @@ class GEMHardwareInterface(GEMInterface):
                                     roll=math.radians(msg.roll),
                                     pitch=math.radians(msg.pitch),
                                     )
+                        # print("@@@@@, POSE", pose.x, pose.y)
                         speed = np.sqrt(msg.ve**2 + msg.vn**2)
                         callback(GNSSReading(pose,speed,('error' if msg.error else 'ok')))
                     self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, callback_with_gnss_reading)

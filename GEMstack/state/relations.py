@@ -23,6 +23,9 @@ class EntityRelation:
     type : EntityRelationEnum
     obj1 : str                  # Named object in the scene. '' indicates ego-vehicle
     obj2 : str                  # Named object in the scene. '' indicates ego-vehicle
+    yield_dist  : float         # Distance at which obj1 yields to obj2
+    yield_speed : float         # Speed at which obj1 yields to obj2
+    yield_decel : float         # Deceleration at which obj1 yields to obj2
     
 
 class EntityRelationGraph:

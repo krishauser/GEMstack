@@ -207,7 +207,7 @@ class GEMDoubleIntegratorSimulation:
             reading.brake_pedal_position = brake_pedal_position
             reading.accelerator_pedal_position = 0
         reading.speed = v
-        if v > 0:
+        if v >= 0:
             reading.gear = 1
         else:
             reading.gear = -1

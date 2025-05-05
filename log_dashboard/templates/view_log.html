@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>View Log - {{ log_folder }}</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/languages/yaml.min.js"></script>
+    <style>
+        html,
+        body {
+            overflow: scroll;
+            max-width: 100%;
+        }
+
+        body {
+            padding: 20px 0;
+        }
+
+        .file-list {
+            height: 70vh;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+
+        .file-item {
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 3px;
+            margin-bottom: 4px;
+        }
+
+        .file-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .file-item.selected {
+            background-color: #e7f3ff;
+            border-left: 3px solid #0078d7;
+        }
+
+        .file-content {
+            height: 70vh;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: "Consolas", "Monaco", "Courier New", monospace;
+            white-space: pre;
+            line-height: 1.5;
+            font-size: 14px;
+            background-color: #f8f9fa;
+            tab-size: 4;
+        }
+
+        .file-content.log-format .timestamp {
+            color: #0066cc;
+            font-weight: bold;
+        }
+
+        .file-content.log-format .error {
+            color: #cc0000;
+            font-weight: bold;
+        }
+
+        .file-content.log-format .value {
+            color: #006600;
+        }
+
+        .file-content.csv-format {
+            font-family: "Consolas", "Monaco", "Courier New", monospace;
+        }
+
+        .file-yaml {
+            color: #0078d7;
+        }
+
+        .file-text {
+            color: #333;
+        }
+
+        .file-csv {
+            color: #008000;
+        }
+
+        .file-container {
+            position: relative;
+            height: 70vh;
+            overflow: scroll;
+        }
+
+        .card {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #file-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .container-fluid {
+            padding-left: 30px;
+            padding-right: 30px;
+        }
+
+        @media (max-width: 768px) {
+
+            .file-list,
+            .file-content {
+                height: 50vh;
+            }
+        }
+
+        #load-more-btn {
+            position: sticky;
+            bottom: 10px;
+            margin: 10px auto;
+            display: block;
+            width: 200px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center my-4">
+            <h2>Log Details for {{ log_folder }}</h2>
+            <div class="btn-group">
+                <a href="/" class="btn btn-info">Back to Dashboard</a>
+                <button id="openFolderBtn" class="btn btn-secondary">Open Folder</button>
+            </div>
+        </div>
+
+        <div class="card p-3 mb-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Run Duration:</strong> {{ metadata.run_duration }}</p>
+                    <p><strong>Exit Reason:</strong> {{ metadata.exit_reason }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Mode:</strong> {{ metadata.mode }}</p>
+                    <p><strong>Launch Command:</strong> {{ metadata.launch_command }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-3">
+                <h4>Files</h4>
+                <div class="file-list">
+                    {% for file in files %}
+                    <div class="file-item" onclick="loadFile('{{ log_folder }}', '{{ file }}')">
+                        {% if file.endswith('.yaml') or file.endswith('.yml') %}
+                        <span class="file-yaml">📄 {{ file }}</span>
+                        {% elif file.endswith('.txt') or file.endswith('.log') %}
+                        <span class="file-text">📝 {{ file }}</span>
+                        {% elif file.endswith('.csv') %}
+                        <span class="file-csv">📊 {{ file }}</span>
+                        {% else %}
+                        <span>📄 {{ file }}</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4 id="file-name">Select a file to view</h4>
+                </div>
+                <div id="file-container" class="file-container">
+                    <pre><code id="file-content" class="file-content"></code></pre>
+                </div>
+                <div id="load-more-container" class="text-center mt-3">
+                    <button id="load-more-btn" class="btn btn-primary" onclick="loadMoreContent()"
+                        style="display:none;">Load More</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLogFolder = '';
+        let currentFilename = '';
+        let currentPage = 1;
+        let hasMorePages = false;
+
+        function loadFile(logFolder, filename) {
+            // Reset pagination
+            currentLogFolder = logFolder;
+            currentFilename = filename;
+            currentPage = 1;
+
+            // Highlight the selected file
+            $('.file-item').removeClass('selected');
+            $(event.currentTarget).addClass('selected');
+
+            // Update the file name
+            $('#file-name').text(filename);
+
+            // Show the file container
+            $('#file-container').show();
+
+            // Clear previous content
+            $('#file-content').text('');
+
+            if (filename === "behavior.json") {
+                addTrajectoryButton(logFolder);
+                add3DViewerButton(logFolder);
+            } else {
+                removeTrajectoryButton();
+                remove3DViewerButton();
+            }
+
+            // Load the file content
+            loadFileContent(logFolder, filename, currentPage);
+        }
+
+        function addTrajectoryButton(logFolder) {
+            // Check if the button already exists
+            if (document.getElementById("viewTrajectoryBtn")) return;
+
+            // Create the button
+            let button = document.createElement("button");
+            button.id = "viewTrajectoryBtn";
+            button.className = "btn btn-primary";
+            button.innerText = "View Trajectory";
+            logFolder = logFolder.replace(/\//g, "");
+            console.log("Adding trajectory button for log folder:", logFolder);
+            button.onclick = function () {
+                window.location.href = `/view_log/${encodeURIComponent(logFolder)}/render`;
+            };
+
+            // Append it to the button group
+            document.querySelector(".btn-group").appendChild(button);
+        }
+
+        function add3DViewerButton(logFolder) {
+            if (document.getElementById("view3DBtn")) return;
+
+            let button = document.createElement("button");
+            button.id = "view3DBtn";
+            button.className = "btn btn-dark";
+            button.innerText = "3D Visualization";
+            button.onclick = function () {
+                window.open(
+                    `http://localhost:3000/?folder=${encodeURIComponent(logFolder)}&file=${encodeURIComponent(currentFilename)}`,
+                    '_blank'
+                );
+            };
+
+            document.querySelector(".btn-group").appendChild(button);
+        }
+
+        function removeTrajectoryButton() {
+            let button = document.getElementById("viewTrajectoryBtn");
+            if (button) {
+                button.remove();
+            }
+        }
+
+        function removeTrajectoryButton() {
+            let button = document.getElementById("viewTrajectoryBtn");
+            if (button) button.remove();
+
+            let btn3D = document.getElementById("view3DBtn");
+            if (btn3D) btn3D.remove();
+        }
+
+        function loadFileContent(logFolder, filename, page) {
+            $.getJSON(`/view_file/${logFolder}/${filename}?page=${page}`, function (data) {
+                let fileElem = document.getElementById('file-content');
+                let content = data.content;
+
+                // On first page, set content
+                if (page === 1) {
+                    fileElem.textContent = content;
+                }
+                // On subsequent pages, append content
+                else {
+                    fileElem.textContent += content;
+                }
+
+                // Store pagination state
+                hasMorePages = data.has_more;
+                currentPage = page;
+
+                // Update file view formatting
+                if (filename.endsWith('.yaml') || filename.endsWith('.yml')) {
+                    fileElem.className = 'file-content yaml';
+                    hljs.highlightElement(fileElem);
+                } else if (filename.endsWith('.json')) {
+                    fileElem.className = 'file-content json';
+                    hljs.highlightElement(fileElem);
+                } else if (filename.endsWith('.log') || filename.endsWith('.txt')) {
+                    fileElem.className = 'file-content log-format';
+                    formatLogFile(fileElem.textContent, fileElem);
+                } else if (filename.endswith('.csv')) {
+                    fileElem.className = 'file-content csv-format';
+                    formatCsvFile(fileElem.textContent, fileElem);
+                } else {
+                    fileElem.className = 'file-content';
+                }
+
+                // Show/hide load more button based on pagination
+                toggleLoadMoreButton();
+            });
+        }
+
+        function loadMoreContent() {
+            if (hasMorePages) {
+                currentPage++;
+                loadFileContent(currentLogFolder, currentFilename, currentPage);
+            }
+        }
+
+        function toggleLoadMoreButton() {
+            if (hasMorePages) {
+                $('#load-more-btn').show();
+            } else {
+                $('#load-more-btn').hide();
+            }
+        }
+
+        function formatLogFile(content, element) {
+            // Replace the content with formatted HTML
+            let formattedContent = content
+                // Format timestamps (like 22:29:43.349:)
+                .replace(/(\d{2}:\d{2}:\d{2}\.\d{3}):/g, '<span class="timestamp">$1:</span>')
+                // Format error words
+                .replace(/\b(Error|ERROR|error|Exception|EXCEPTION|exception|Warning|WARNING|warning)\b/g, '<span class="error">$1</span>')
+                // Format numeric values with units
+                .replace(/(\d+(\.\d+)?\s*(m\/s(\^2)?|degrees))/g, '<span class="value">$1</span>');
+
+            element.innerHTML = formattedContent;
+        }
+
+        function formatCsvFile(content, element) {
+            // Check if it's actually CSV content
+            if (content.includes(',')) {
+                let rows = content.trim().split('\n');
+                let table = '<table class="table table-striped table-sm">';
+
+                // Process header row
+                let headers = rows[0].split(',');
+                table += '<thead><tr>';
+                headers.forEach(header => {
+                    table += `<th>${header.trim()}</th>`;
+                });
+                table += '</tr></thead><tbody>';
+
+                // Process data rows
+                for (let i = 1; i < rows.length; i++) {
+                    let cells = rows[i].split(',');
+                    table += '<tr>';
+                    cells.forEach(cell => {
+                        table += `<td>${cell.trim()}</td>`;
+                    });
+                    table += '</tr>';
+                }
+
+                table += '</tbody></table>';
+                element.innerHTML = table;
+            } else {
+                // If not properly formatted as CSV, display as plain text
+                element.textContent = content;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('openFolderBtn').addEventListener('click', function () {
+                openFolder('{{ log_folder }}');
+            });
+        });
+
+        function openFolder(folderName) {
+            window.location.href = `/open_folder/${encodeURIComponent(folderName)}`;
+        }
+    </script>
+</body>
+
+</html>

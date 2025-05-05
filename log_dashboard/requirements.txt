@@ -1,0 +1,6 @@
+flask
+pyyaml
+cachelib
+numpy
+matplotlib
+flask-cors

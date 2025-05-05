@@ -1,6 +1,6 @@
 from __future__ import annotations
 from ..component import Component
-from ...utils import serialization,logging,config,settings
+from ...utils import serialization,logging,config,settings,log_plot
 from typing import List,Optional,Dict,Set,Any
 import time
 import datetime
@@ -27,6 +27,10 @@ class LoggingManager:
         self.vehicle_time = None
         self.start_vehicle_time = None
         self.debug_messages = {}
+        self.auto_plot = False
+    
+    def set_auto_plot(self, auto_plot : bool) -> None:
+        self.auto_plot = auto_plot
 
     def logging(self) -> bool:
         return self.log_folder is not None
@@ -264,6 +268,8 @@ class LoggingManager:
 
     def close(self):
         self.dump_debug()
+        if self.auto_plot:
+            log_plot.main(self.log_folder)
         self.debug_messages = {}
         if self.rosbag_process is not None:
             out,err = self.rosbag_process.communicate()  # Will block 
