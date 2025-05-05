@@ -69,7 +69,7 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install -r /tmp/requirements.txt
 
 # Install other Dependencies
-RUN apt-get install -y ros-noetic-septentrio-gnss-driver ros-noetic-ackermann-msgs
+RUN apt-get install -y ros-noetic-septentrio-gnss-driver ros-noetic-ackermann-msgs ros-noetic-gazebo-msgs
 
 USER ${USER}
 

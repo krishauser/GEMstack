@@ -25,7 +25,7 @@ Follow the instructions in the linked repo to build and run the Docker container
 Install the required ROS packages:
 
 ```bash
-sudo apt-get install -y ros-noetic-ackermann-msgs
+sudo apt-get install -y ros-noetic-ackermann-msgs ros-noetic-gazebo-msgs
 ```
 
 ---
@@ -99,8 +99,6 @@ GEMstack/knowledge/defaults/
 - e2.yaml
 - e2_gazebo.yaml
 - e4_gazebo.yaml
-
----
 
 ## Agent Detection in Gazebo
 
