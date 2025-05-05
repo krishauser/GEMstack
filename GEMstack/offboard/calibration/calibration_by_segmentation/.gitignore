@@ -1,6 +1,0 @@
-weights/*
-init_proj*
-refined_proj*
-data/*
-extrinsic.txt
-!.gitignore
