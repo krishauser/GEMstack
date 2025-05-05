@@ -92,7 +92,7 @@ variants:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
                     scene: !relative_path '../scenes/parking_demo.yaml'
-            # visualization: !include "klampt_visualization.yaml"
+            visualization: !include "klampt_visualization.yaml"
 
             drive: 
                 perception:
@@ -113,6 +113,31 @@ variants:
                     # agent_detection : cone_detection_simple.ConeDetectorSimple3D
                     parking_detection: parking_detection.ParkingSpotsDetector3D
                     perception_normalization : StandardPerceptionNormalizer
+                    
+                planning:
+                    parking_component:
+                        type: ParkingSim
+                    route_planning_component:
+                        type: RoutePlanningComponent
+                        
+                trajectory_tracking:
+                    type: pure_pursuit.PurePursuitTrajectoryTracker
+                    print: True
+
+    fake_sim: # full pipeline w/ fake perception
+        run:
+            mode: simulation
+            vehicle_interface:
+                type: gem_simulator.GEMDoubleIntegratorSimulationInterface
+                args:
+                    scene: !relative_path '../scenes/parking_demo.yaml'
+            visualization: !include "klampt_visualization.yaml"
+
+            drive: 
+                perception:
+                    state_estimation : OmniscientStateEstimator
+                    agent_detection : OmniscientAgentDetector
+                        
                     
                 planning:
                     parking_component:
