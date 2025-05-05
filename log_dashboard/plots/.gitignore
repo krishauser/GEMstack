@@ -1,0 +1,5 @@
+*
+
+# track just these files
+!.gitignore
+!sample_plot.png
