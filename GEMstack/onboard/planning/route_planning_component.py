@@ -6,7 +6,7 @@ from GEMstack.onboard.component import Component
 from GEMstack.state.agent import AgentState
 from GEMstack.state.all import AllState
 from GEMstack.state.physical_object import ObjectFrameEnum
-from GEMstack.state.route import PlannerEnum, Route
+from GEMstack.state.route import PlannerEnum, Route, Path
 from GEMstack.state.trajectory import Trajectory
 from .rrt_star import RRTStar
 from .parking_planning import ParkingPlanner
@@ -73,9 +73,10 @@ class RoutePlanningComponent(Component):
             # print("Vehicle yaw:", state.vehicle.pose.yaw)
             desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
                               (state.vehicle.pose.x + 10, state.vehicle.pose.y)]
+            desired_path = Path(state.vehicle.pose.frame, desired_points)
             
             # @TODO these are constants we need to get from settings
-            return longitudinal_plan(desired_points,1,1,3,state.vehicle.speed)
+            return longitudinal_plan(desired_points,1,1,3,state.vehicle.v)
             # self.planner.update_speed()
 
             # We want to just go straight
