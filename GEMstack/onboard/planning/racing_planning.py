@@ -846,7 +846,7 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
 
     combined_xy = [[x, y] for x, y in zip(x_all, y_all)]
     path = Path(ObjectFrameEnum.START,combined_xy)
-    path = compute_headings(path)
+    path = compute_headings(path, True)
     path = path.arc_length_parameterize()
     return path.racing_velocity_profile()
 
