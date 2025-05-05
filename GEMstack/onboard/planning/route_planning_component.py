@@ -32,10 +32,6 @@ ORIGIN_PX = (190, 80)
 SCALE_PX_PER_M = 6.5  # px per meter
 
 
-ORIGIN_PX = (190, 80)
-SCALE_PX_PER_M = 6.5  # px per meter
-
-
 def is_inside_geofence(x, y, xmin, xmax, ymin, ymax):
     return xmin < x < xmax and ymin < y < ymax
 
