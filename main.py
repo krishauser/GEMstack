@@ -29,7 +29,6 @@ if __name__=='__main__':
         run_config = config.load_config_recursive(launch_file)
         settings.set('run',run_config)
         if settings.get('run.name',None) is None:
-            print("yes")
             settings.set('run.name',launch_file)
 
     from GEMstack.onboard.execution import entrypoint
