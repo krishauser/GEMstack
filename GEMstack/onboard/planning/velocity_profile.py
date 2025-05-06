@@ -278,9 +278,9 @@ def compute_velocity_profile(points, plot=True):
     wheelbase = settings.get('vehicle.geometry.wheelbase')
 
     points = np.array(points)
-    # print(points)
+    print(points)
     xs, ys = points[:,0], points [:,1]
-    # print(xs)
+    print(xs)
 
     dx = np.diff(xs)
     dy = np.diff(ys)
