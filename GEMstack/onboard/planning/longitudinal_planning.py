@@ -10,6 +10,9 @@ import numpy as np
 
 DEBUG = False  # Set to False to disable debug output
 
+def scurve(x):
+    x = np.clip(x, 0.0, 1.0)
+    return 6 * x**5 - 15 * x**4 + 10 * x**3 
 
 def generate_dense_points(points: List[Tuple[float, float]], density: int = 10) -> List[Tuple[float, float]]:
     if not points:
