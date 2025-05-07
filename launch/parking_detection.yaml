@@ -14,7 +14,7 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         # agent_detection : cone_detection.ConeDetector3D
-        agent_detection :
+        obstacle_detection :
             type: cone_detection.ConeDetector3D
             args:
                 camera_name: front_right #[front, front_right]
@@ -59,7 +59,7 @@ variants:
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection :
+                    obstacle_detection : 
                         type: cone_detection.ConeDetector3D
                         args:
                             camera_name: front_right #[front, front_right]

@@ -3,7 +3,7 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2
 from typing import Dict
 from ..component import Component 
-from ...state import AgentState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum
+from ...state import AgentState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleState
 from ..interface.gem import GEMInterface
 from .utils.constants import *
 from .utils.detection_utils import *
@@ -26,7 +26,8 @@ class ParkingSpotsDetector3D(Component):
 
 
         # Subscribers (note: we need top lidar only for visualization)
-        self.lidar_sub = self.vehicle_interface.subscribe_sensor("top_lidar", self.callback)
+        self.lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.callback, queue_size=1)
+        # self.lidar_sub = self.vehicle_interface.subscribe_sensor("top_lidar", self.callback)
 
         # Publishers (all topics are for visualization purposes)
         self.pub_lidar_top_vehicle_pc2 = rospy.Publisher("lidar_top_vehicle/point_cloud", PointCloud2, queue_size=10)
@@ -58,7 +59,7 @@ class ParkingSpotsDetector3D(Component):
         return 10.0  # Hz
 
     def state_inputs(self) -> list:
-        return ['agents']
+        return ['obstacles']
 
     def state_outputs(self) -> list:
         return ['goal', 'obstacles']
@@ -119,7 +120,7 @@ class ParkingSpotsDetector3D(Component):
             self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
 
-    def update(self, agents: Dict[str, AgentState]):
+    def update(self, agents: Dict[str, ObstacleState]):
         # Initial variables
         goal_parking_spot = None
         parking_obstacles_pose = []
