@@ -77,7 +77,9 @@ python3 main.py --variant=gazebo --settings={your_file}.yaml launch/{your_file}.
 Example command launching the fixed route with e4 vehicle:
 
 ```bash
-python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e4_gazebo.yaml launch/fixed_route.yaml
+python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e2.yaml launch/fixed_route.yaml
+or
+python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/current.yaml launch/fixed_route.yaml
 ```
 **Variants:**
  - sim
@@ -86,8 +88,6 @@ python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e4_gazeb
 **Vehicle types:**
 - e2
 - e4
-- e2_gazebo
-- e4_gazebo
 
 **Setting:**
 
@@ -97,8 +97,6 @@ Other available configuration files:
 
 GEMstack/knowledge/defaults/
 - e2.yaml
-- e2_gazebo.yaml
-- e4_gazebo.yaml
 
 ## Agent Detection in Gazebo
 
