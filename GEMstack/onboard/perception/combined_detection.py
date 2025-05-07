@@ -78,6 +78,7 @@ class CombinedDetector3D(Component):
 
         self.yolo_topic = "/yolo_boxes"
         self.pp_topic = "/pointpillars_boxes"
+        self.debug = False
 
         rospy.loginfo(f"CombinedDetector3D Initialized. Subscribing to '{self.yolo_topic}' and '{self.pp_topic}'.")
 
@@ -93,6 +94,7 @@ class CombinedDetector3D(Component):
     def initialize(self):
         self.yolo_sub = Subscriber(self.yolo_topic, BoundingBoxArray)
         self.pp_sub = Subscriber(self.pp_topic, BoundingBoxArray)
+        self.pub_fused = rospy.Publisher("/fused_boxes", BoundingBoxArray, queue_size=1)
 
         queue_size = 10
         slop = 0.1
@@ -140,6 +142,7 @@ class CombinedDetector3D(Component):
                              vehicle_state: VehicleState,
                              current_time: float
                             ) -> Dict[str, AgentState]:
+        original_header = yolo_bbx_array.header
         current_agents_in_frame: Dict[str, AgentState] = {}
         yolo_boxes: List[BoundingBox] = yolo_bbx_array.boxes
         pp_boxes: List[BoundingBox] = pp_bbx_array.boxes
@@ -183,7 +186,13 @@ class CombinedDetector3D(Component):
                 fused_boxes_list.append(pp_box)
                 rospy.logdebug(f"Kept unmatched PP box {j}")
 
-        # Agenstate
+        if self.debug:
+            # Work in progress to visualize combined results
+            fused_array = BoundingBoxArray()
+            fused_array.header = yolo_bbx_array.header
+            fused_array.boxes = fused_boxes_list
+            self.pub_fused.publish(fused_array)
+
         for i, box in enumerate(fused_boxes_list):
             try:
                  # Cur vehicle frame

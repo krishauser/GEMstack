@@ -253,6 +253,7 @@ class YoloNode():
         self.camera_name = 'front'
         self.camera_front = (self.camera_name=='front')
         self.score_threshold = 0.4
+        self.debug = True
         self.initialize()
 
     def initialize(self):
@@ -463,6 +464,20 @@ class YoloNode():
             box_msg.dimensions.x = float(dims[0])  # length
             box_msg.dimensions.y = float(dims[1])  # width
             box_msg.dimensions.z = float(dims[2])  # height
+
+            if self.debug:
+                print("X")
+                print(center_vehicle[0])
+                print("L")
+                print(dims[0])
+                print("Y")
+                print(center_vehicle[1])
+                print("W")
+                print(dims[1])
+                print("Z")
+                print(center_vehicle[2])
+                print("H")
+                print(dims[2])
             
             # Add confidence score and label
             box_msg.value = float(conf_scores[i])
