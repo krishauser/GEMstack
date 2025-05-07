@@ -48,6 +48,7 @@ def waypoint_generate(vehicle_state, cones, cone_idx):
             flex_wp: flexible waypoint (used to maneuver)
             fixed_wp: fixed waypoint (goal position)
     """
+    
     scenario, cone_position = scenario_check(vehicle_state, [cones[cone_idx]])
     car_position = np.array(vehicle_state['position'])
     car_heading = vehicle_state['heading']  # in radians
