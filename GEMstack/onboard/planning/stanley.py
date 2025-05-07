@@ -12,6 +12,7 @@ from ...state.vehicle import VehicleState, ObjectFrameEnum
 from ...state.trajectory import Path, Trajectory
 from ..interface.gem import GEMVehicleCommand
 from ..component import Component
+from .launch_control import LaunchControl
 
 #####################################
 # 1. Angle normalization
@@ -70,9 +71,6 @@ class Stanley(object):
         d = settings.get('control.longitudinal_control.pid_d')
         i = settings.get('control.longitudinal_control.pid_i')
         self.pid_speed = PID(p, d, i, windup_limit=20)
-
-        self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
-        self.launch_start_time = None
 
         # Speed source: numeric or derived from path/trajectory
         if desired_speed is not None:
@@ -332,8 +330,13 @@ class StanleyTrajectoryTracker(Component):
         self.stanley = Stanley(**kwargs)
         self.vehicle_interface = vehicle_interface
         self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
-        self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
-        self.enable_launch_control = settings.get('control.launch_control.enable', False) # and vehicle.v < 0.1
+
+        launch_control_enabled = settings.get('control.launch_control.enable', 0)
+        if launch_control_enabled:
+            stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
+            self.launch_control = LaunchControl(stage_duration, stop_threshold=0.1)
+        else:
+            self.launch_control = None
 
     def rate(self):
         """Control frequency in Hz."""
@@ -375,24 +378,8 @@ class StanleyTrajectoryTracker(Component):
         )
 
         cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
-        
-        if self.enable_launch_control:
-            print("launch control active")
-            if not hasattr(self,'_launch_start_time'):
-                self._launch_start_time = rospy.get_time()  
-            elapsed = rospy.get_time() - self._launch_start_time
-            if elapsed < self.stage_duration:
-                cmd.accelerator_pedal_position = 0.0
-                cmd.brake_pedal_position = 1.0
-            elif elapsed < 2 * self.stage_duration:
-                cmd.accelerator_pedal_position = 1.0
-                cmd.brake_pedal_position = 1.0
-            elif elapsed < 3 * self.stage_duration:
-                cmd.accelerator_pedal_position = 1.0
-                cmd.brake_pedal_position = 0.0
-            else:
-                self.enable_launch_control = False
-
+        if self.launch_control:
+            cmd = self.launch_control.apply_launch_control(cmd, vehicle.v)
 
         self.vehicle_interface.send_command(cmd)
 
