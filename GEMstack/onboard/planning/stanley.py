@@ -200,7 +200,7 @@ class Stanley(object):
 
         desired_speed = self.desired_speed
         feedforward_accel = 0.0
-        print(self.desired_speed)
+        # print(self.desired_speed)
         # print(self.trajectory)
         if self.trajectory and self.desired_speed_source in ['path', 'trajectory', 'racing']:
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
@@ -215,7 +215,7 @@ class Stanley(object):
                 else:
                     self.current_traj_parameter += dt
                     current_trajectory_time = self.current_traj_parameter
-                    print(current_trajectory_time)
+                    # print(current_trajectory_time)
 
                 deriv = self.trajectory.eval_derivative(current_trajectory_time)
 
@@ -308,6 +308,7 @@ class StanleyTrajectoryTracker(Component):
         self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
         self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
         self.enable_launch_control = settings.get('control.launch_control.enable', False) # and vehicle.v < 0.1
+        self.wait_time = settings.get('control.launch_control.wait_time', 0)
 
     def rate(self):
         """Control frequency in Hz."""
@@ -350,8 +351,15 @@ class StanleyTrajectoryTracker(Component):
 
         cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
         
+        if self.wait_time:
+            if not hasattr(self,'_launch_start_time'):
+                self._launch_start_time = rospy.get_time()  
+            if (abs(rospy.get_time() - self._launch_start_time) < self.wait_time):
+                cmd.accelerator_pedal_position = 0.0
+                cmd.brake_pedal_position = 1.0
+
         if self.enable_launch_control:
-            print("launch control active")
+            # print("launch control active")
             if not hasattr(self,'_launch_start_time'):
                 self._launch_start_time = rospy.get_time()  
             elapsed = rospy.get_time() - self._launch_start_time

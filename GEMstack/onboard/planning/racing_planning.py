@@ -9,6 +9,7 @@ from ...state.physical_object import ObjectFrameEnum
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
+import threading
 
 from typing import Dict
 
@@ -455,13 +456,12 @@ def no_cone_planning(vehicle_dict):
     vehicle_x, vehicle_y = vehicle_dict['position'][0], vehicle_dict['position'][1]
     vehicle_heading = vehicle_dict['heading']
     vehicle_velocity = vehicle_dict['velocity']
-    step_size = 0.5 
+    step_size = 0.00001
     for i in range(10):
         temp_points.append([vehicle_x + i * step_size * np.cos(vehicle_heading),
                             vehicle_y + i * step_size * np.sin(vehicle_heading)])
 
     path = Path(ObjectFrameEnum.START,temp_points)
-    # print(temp_points)
     path = compute_headings(path)
     path = path.arc_length_parameterize()
     # print(path)
@@ -499,7 +499,11 @@ class SlalomTrajectoryPlanner(Component):
         self.run_fake_plan = False
         self.onboard = True       
         # ----------------------------
-        
+        # Planner runs on different thread
+        self.plan_thread = None
+        self.plan_lock = threading.Lock()
+        self.plan_pending = False
+
         self.DEBUG_MODE = True
 
     def state_inputs(self):
@@ -566,8 +570,21 @@ class SlalomTrajectoryPlanner(Component):
                 print(f"Detected Cones: {self.cones}")
                 print("===================== ====== =====================")
 
-            print("cones when planning: ", self.cones)
-            self.trajectory = self.online_trajectory_planning(vehicle_dict, self.cones, distance_increment)
+            # self.trajectory = self.online_trajectory_planning(vehicle_dict, self.cones, distance_increment)
+            if not self.plan_pending:
+                self.plan_pending = True
+                vehicle_copy = vehicle_dict.copy()
+                cones_copy = list(self.cones)
+                distance_copy = distance_increment
+
+                def plan():
+                    new_traj = self.online_trajectory_planning(vehicle_copy, cones_copy, distance_copy)
+                    with self.plan_lock:
+                        self.trajectory = new_traj
+                        self.plan_pending = False
+
+                self.plan_thread = threading.Thread(target=plan)
+                self.plan_thread.start()
 
             # If no cones detected, drive forward
             if len(self.cones) == 0:
@@ -629,10 +646,10 @@ class SlalomTrajectoryPlanner(Component):
             self.run_fake_plan = False
         
         # Update output
-        return self.trajectory
+        with self.plan_lock:
+            return self.trajectory
 
     def online_trajectory_planning(self, vehicle_state, cones, distance_increment, replan_threshold=100.0):
-        print("planing......")
         if not hasattr(self, 'prev_cones'):
             self.prev_cones = None
 
@@ -679,7 +696,6 @@ class SlalomTrajectoryPlanner(Component):
             print("all cones: ", self.cones)
             current_cone_idx, updated_cones = self.get_current_cone_idx(self.cones, init_state)
             self.cones = updated_cones
-            print("updated cones are here: ", self.cones)
             print("init state: ", init_state)
             print("current cone: ", current_cone_idx)
 
