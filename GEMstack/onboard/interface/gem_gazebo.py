@@ -1,11 +1,12 @@
 from .gem import *
 from ...utils import settings
 import math
-import time 
+import time
 
 # ROS Headers
 import rospy
 from sensor_msgs.msg import Image, PointCloud2, Imu, NavSatFix
+from septentrio_gnss_driver.msg import INSNavGeod
 from geometry_msgs.msg import Vector3Stamped
 from sensor_msgs.msg import JointState  # For reading joint states from Gazebo
 # Changed from AckermannDriveStamped
@@ -52,13 +53,9 @@ class GEMGazeboInterface(GEMInterface):
         self.last_reading.wiper_level = 0
         self.last_reading.headlights_on = False
 
-      
 
-        
 
-        # IMU data subscriber
-        self.imu_sub = None
-        self.imu_data = None
+
 
         # GNSS data subscriber
         self.gnss_sub = None
@@ -77,12 +74,6 @@ class GEMGazeboInterface(GEMInterface):
         self.ackermann_cmd = AckermannDrive()
         self.last_command = None  # Store the last command
 
-        # Subscribe to IMU topic by default
-        self.imu_sub = rospy.Subscriber("/imu", Imu, self.imu_callback)
-
-        # Subscribe to GNSS Velocitu
-        self.gnss_vel_sub = rospy.Subscriber("/gps/fix_velocity", Vector3Stamped, self.gnss_vel_callback)
-
         # Add clock subscription for simulation time
         self.sim_time = rospy.Time(0)
         self.clock_sub = rospy.Subscriber('/clock', Clock, self.clock_callback)
@@ -97,33 +88,17 @@ class GEMGazeboInterface(GEMInterface):
         # Return Gazebo simulation time
         return self.sim_time.to_sec()
 
-    def imu_callback(self, msg: Imu):
-        self.imu_data = msg
-
-    def gnss_vel_callback(self, msg):
-        self.last_reading.speed = np.linalg.norm([msg.vector.x, msg.vector.y] )
-
     def get_reading(self) -> GEMVehicleReading:
         return self.last_reading
-    
+
 
     def subscribe_sensor(self, name, callback, type=None):
         if name == 'gnss':
-            topic = self.ros_sensor_topics['gps']
-            # Fuse IMU orientation with GNSS position
-            def gnss_callback_wrapper(gps_msg: NavSatFix):
-                if self.imu_data is None:
-                    return  # Wait for IMU data
-
-                # Get orientation from IMU
-                quaternion = (
-                    self.imu_data.orientation.x,
-                    self.imu_data.orientation.y,
-                    self.imu_data.orientation.z,
-                    self.imu_data.orientation.w
-                )
-                print(f"[IMU] Orientation: {quaternion}")
-                roll, pitch, yaw = euler_from_quaternion(quaternion)
+            topic = self.ros_sensor_topics['gnss']
+            def gnss_callback_wrapper(gnss_msg: INSNavGeod):
+                roll, pitch, yaw = gnss_msg.roll, gnss_msg.pitch, gnss_msg.heading
+                # Convert from degrees to radians
+                roll, pitch, yaw = math.radians(roll), math.radians(pitch), math.radians(yaw)
 
                 # Transform yaw to correct frame - Gazebo typically uses ROS standard frame (x-forward)
                 # while navigation uses x-east reference frame
@@ -133,31 +108,34 @@ class GEMGazeboInterface(GEMInterface):
                 # Convert IMU's yaw to heading (CW from North), then to navigation yaw (CCW from East)
                 # This handles the coordinate frame differences between Gazebo and the navigation frame
                 # Negate yaw to convert from ROS to heading
-                heading = transforms.yaw_to_heading(-yaw - np.pi/2, degrees=False) 
+                heading = transforms.yaw_to_heading(-yaw - np.pi/2, degrees=False)
                 navigation_yaw = transforms.heading_to_yaw(
                     heading, degrees=False)
 
                 # Create fused pose with transformed yaw
                 pose = ObjectPose(
                     frame=ObjectFrameEnum.GLOBAL,
-                    t=gps_msg.header.stamp,
-                    x=gps_msg.longitude,
-                    y=gps_msg.latitude,
-                    z=gps_msg.altitude,
+                    t=gnss_msg.header.stamp,
+                    x=gnss_msg.longitude,
+                    y=gnss_msg.latitude,
+                    z=gnss_msg.height,
                     roll=roll,
                     pitch=pitch,
                     yaw=navigation_yaw
                 )
 
+                # Calculate speed from GNSS
+                self.last_reading.speed = np.linalg.norm([gnss_msg.ve, gnss_msg.vn])
+
                 # Create GNSS reading with fused data
                 reading = GNSSReading(
                     pose=pose,
-                    speed= self.last_reading.speed,
-                    status='FIX' if gps_msg.status.status >= 0 else 'NO_FIX'
+                    speed=self.last_reading.speed,
+                    status='error' if gnss_msg.error else 'ok'
                 )
                 # Added debug
                 print(
-                    f"[GNSS] Raw coordinates: Lat={gps_msg.latitude:.6f}, Lon={gps_msg.longitude:.6f}")
+                    f"[GNSS] Raw coordinates: Lat={gnss_msg.latitude:.6f}, Lon={gnss_msg.longitude:.6f}")
                 # Added debug
                 print(
                     f"[GNSS-FUSED] Orientation: Roll={roll:.2f}, Pitch={pitch:.2f}, Yaw={yaw:.2f} rad")
@@ -166,7 +144,7 @@ class GEMGazeboInterface(GEMInterface):
 
                 callback(reading)
 
-            self.gnss_sub = rospy.Subscriber(topic, NavSatFix, gnss_callback_wrapper)
+            self.gnss_sub = rospy.Subscriber(topic, INSNavGeod, gnss_callback_wrapper)
 
         elif name == 'top_lidar':
             topic = self.ros_sensor_topics[name]
@@ -179,12 +157,6 @@ class GEMGazeboInterface(GEMInterface):
                     points = conversions.ros_PointCloud2_to_numpy(msg, want_rgb=False)
                     callback(points)
                 self.top_lidar_sub = rospy.Subscriber(topic, PointCloud2, callback_with_numpy)
-
-        elif name == 'imu':
-            topic = self.ros_sensor_topics[name]
-            if type is not None and type is not Imu:
-                raise ValueError("GEMGazeboInterface only supports Imu for IMU data")
-            self.imu_sub = rospy.Subscriber(topic, Imu, callback)
 
         elif name == 'front_camera':
             topic = self.ros_sensor_topics[name]
@@ -222,7 +194,7 @@ class GEMGazeboInterface(GEMInterface):
             # Skip command, similar to hardware interface
             return
         self.last_command_time = t
-        
+
         # Get current speed
         v = self.last_reading.speed
 
@@ -231,36 +203,36 @@ class GEMGazeboInterface(GEMInterface):
         self.last_reading.accelerator_pedal_position = command.accelerator_pedal_position
         self.last_reading.brake_pedal_position = command.brake_pedal_position
         self.last_reading.steering_wheel_angle = command.steering_wheel_angle
-        
+
         # Convert pedal to acceleration
         accelerator_pedal_position = np.clip(command.accelerator_pedal_position, 0.0, 1.0)
         brake_pedal_position = np.clip(command.brake_pedal_position, 0.0, 1.0)
-        
+
         # Zero out accelerator if brake is active (just like hardware interface)
         if brake_pedal_position > 0.0:
             accelerator_pedal_position = 0.0
-            
+
         # Calculate acceleration from pedal positions
         acceleration = pedal_positions_to_acceleration(accelerator_pedal_position, brake_pedal_position, v, 0, 1)
-        
+
         # Apply reasonable limits to acceleration
         max_accel = settings.get('vehicle.limits.max_acceleration', 1.0)
         max_decel = settings.get('vehicle.limits.max_deceleration', -2.0)
         acceleration = np.clip(acceleration, max_decel, max_accel)
-        
+
         # Convert wheel angle to steering angle (front wheel angle)
         phides = steer2front(command.steering_wheel_angle)
-        
+
         # Apply steering angle limits
         min_wheel_angle = settings.get('vehicle.geometry.min_wheel_angle', -0.6)
         max_wheel_angle = settings.get('vehicle.geometry.max_wheel_angle', 0.6)
         phides = np.clip(phides, min_wheel_angle, max_wheel_angle)
-        
+
         # Calculate target speed based on acceleration
         # Don't use infinite speed, instead calculate a reasonable target speed
         current_speed = v
         target_speed = current_speed
-        
+
         if acceleration > 0:
             # Accelerating - set target speed to current speed plus some increment
             # This is more realistic than infinite speed
@@ -270,16 +242,16 @@ class GEMGazeboInterface(GEMInterface):
             # Braking - set target speed to zero if deceleration is significant
             if brake_pedal_position > 0.1:
                 target_speed = 0.0
-        
+
         # Create and publish drive message
         msg = AckermannDrive()
         msg.acceleration = acceleration
         msg.speed = target_speed
         msg.steering_angle = phides
         msg.steering_angle_velocity = command.steering_wheel_speed  # Respect steering velocity limit
-        
+
         # Debug output
         print(f"[ACKERMANN] Speed: {msg.speed:.2f}, Accel: {msg.acceleration:.2f}, Steer: {msg.steering_angle:.2f}")
-        
+
         self.ackermann_pub.publish(msg)
         self.last_command = command
