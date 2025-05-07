@@ -205,7 +205,7 @@ def limit_velocity_by_steering_rate(ds, velocity, wheelbase, max_steering_rate, 
     # raise ValueError(max_steering_rate)
     max_steering_rate = steer2front(max_steering_rate)
     max_steering_rate = 1
-    
+
 
     # Limit velocity where steering rate exceeds max
     limited_velocity = np.copy(velocity)
@@ -387,11 +387,5 @@ if __name__=='__main__':
 
     plot_speed_profile_gradient(fig, axs[1, 0], xs, ys, v_profile)
     plot_speed_profile_gradient(fig, axs[1, 1], xs, ys, v_profile2)
-
-
     plt.tight_layout()
     plt.show()
-
-
-
-

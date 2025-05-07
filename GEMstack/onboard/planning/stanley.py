@@ -360,11 +360,10 @@ class StanleyTrajectoryTracker(Component):
           4) Send command to the vehicle
         """
         # path to trajectory if racing enabled
-        # if self.desired_speed_source in ['racing']: ## conditional needed for no racing
-        #     self.stanley.set_racing_path(trajectory)
-        # else:
-        #     self.stanley.set_path(trajectory)
-        self.stanley.set_path(trajectory)
+        if self.desired_speed_source in ['racing']: ## conditional needed for no racing
+            self.stanley.set_racing_path(trajectory)
+        else:
+            self.stanley.set_path(trajectory)
         accel, f_delta = self.stanley.compute(vehicle, self)
 
         # If your low-level interface expects steering wheel angle:

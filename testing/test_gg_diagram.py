@@ -8,9 +8,9 @@ sys.path.append(os.getcwd())
 import json
 import matplotlib.pyplot as plt
 import numpy as np
-# from GEMstack.mathutils.transforms import lat_lon_to_xy
+from GEMstack.mathutils.transforms import lat_lon_to_xy
 
-from pyproj import Proj, Transformer
+# from pyproj import Proj, Transformer
 from scipy.spatial import ConvexHull
 
 def latlon_to_xy(latitudes, longitudes, origin_lat, origin_lon):
@@ -72,7 +72,7 @@ def parse_behavior_log(filename):
                 if idx == 0:
                     ref_lat = y
                     ref_long = x
-                x, y = latlon_to_xy(y,x,ref_lat,ref_long)
+                x, y = lat_lon_to_xy(y,x,ref_lat,ref_long)
                 # Only add if all fields are available
                 if None not in (t, acceleration, heading_rate, speed)  and frame != 3:
                     times.append(t)

@@ -55,7 +55,7 @@ def waypoint_generate(vehicle_state, cones, cone_idx):
     target_heading = car_heading
 
     # ===== Parameters =====
-    u_turn_radius = 11.5      # Radius for U-turn
+    u_turn_radius = 7      # Radius for U-turn
     offset = 2.0                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
