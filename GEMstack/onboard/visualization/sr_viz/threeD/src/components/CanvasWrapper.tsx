@@ -9,6 +9,7 @@ import Agent from "./Agent";
 import TrafficLight from "./TrafficLight";
 import OtherVehicle from "./OtherVehicle";
 import Ground from "./Ground";
+import TrafficCone from "./TrafficCone";
 
 export default function CanvasWrapper({
   time,
@@ -17,7 +18,8 @@ export default function CanvasWrapper({
   time: number;
   setDuration: (duration: number) => void;
 }) {
-  const { vehicle, agents, trafficLights, otherVehicles } = useTimelineStore();
+  const { vehicle, agents, trafficLights, trafficCones, otherVehicles } =
+    useTimelineStore();
 
   useEffect(() => {
     if (vehicle.length > 0) {
@@ -50,6 +52,10 @@ export default function CanvasWrapper({
 
       {Object.entries(trafficLights).map(([id, timeline]) => (
         <TrafficLight key={id} id={id} timeline={timeline} time={syncedTime} />
+      ))}
+
+      {Object.entries(trafficCones).map(([id, timeline]) => (
+        <TrafficCone key={id} id={id} timeline={timeline} time={syncedTime} />
       ))}
 
       {Object.entries(otherVehicles).map(([id, timeline]) => (

@@ -22,7 +22,7 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
           continue;
         }
 
-        if (key === 'agents' || key === 'traffic_lights' || key === 'other_vehicles') {
+        if (key === 'agents' || key === 'traffic_lights' || key === 'traffic_cones' || key === 'other_vehicles') {
           for (const [itemId, itemValue] of Object.entries(value)) {
             if (typeof itemValue === 'object' && itemValue !== null && 'data' in itemValue) {
               const frame = (itemValue as any).data?.pose?.frame;
@@ -52,6 +52,7 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
 function guessTypeFromKey(key: string): string {
   if (key === 'agents') return 'AgentState';
   if (key === 'traffic_lights') return 'TrafficLightState';
+  if (key === 'traffic_cones') return 'TrafficConeState';
   if (key === 'other_vehicles') return 'OtherVehicleState';
   return 'Unknown';
 }

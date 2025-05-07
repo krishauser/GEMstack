@@ -5,6 +5,7 @@ export const useTimelineStore = create<TimelineStore>((set) => ({
     vehicle: [],
     agents: {},
     trafficLights: {},
+    trafficCones: {},
     otherVehicles: {},
     setTimeline: (timeline) => set(timeline),
 }));

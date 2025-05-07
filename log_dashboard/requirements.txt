@@ -1,4 +1,5 @@
 flask
+flask-cors
 pyyaml
 cachelib
 numpy

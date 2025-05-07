@@ -6,6 +6,7 @@ export function buildTimeline(entries: LogEntry[]): TimelineData {
     const vehicle: FrameData[] = [];
     const agents: Record<string, FrameData[]> = {};
     const trafficLights: Record<string, FrameData[]> = {};
+    const trafficCones: Record<string, FrameData[]> = {};
     const otherVehicles: Record<string, FrameData[]> = {};
 
     for (const entry of entries) {
@@ -32,12 +33,16 @@ export function buildTimeline(entries: LogEntry[]): TimelineData {
             const key = entry.key.trim();
             if (!trafficLights[key]) trafficLights[key] = [];
             trafficLights[key].push(frame);
-        } else if (entry.type === 'OtherVehicleState') {
+        } else if (entry.type === "TrafficConeState") {
+            const key = entry.key.trim();
+            if (!trafficCones[key]) trafficCones[key] = [];
+            trafficCones[key].push(frame);
+        }else if (entry.type === 'OtherVehicleState') {
             const key = entry.key.trim();
             if (!otherVehicles[key]) otherVehicles[key] = [];
             otherVehicles[key].push(frame);
         }
     }
 
-    return { vehicle, agents, trafficLights, otherVehicles };
+    return { vehicle, agents, trafficLights, trafficCones, otherVehicles };
 }
