@@ -57,7 +57,7 @@ components:
       outputs: route
   - route_planning_component: # one way
       inputs: all
-      outputs: trajectory
+      outputs: route
   - motion_planning:
       inputs: all
       outputs: trajectory

@@ -89,7 +89,7 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
         if DEBUG:
             print(f"[DEBUG] Phase 2 - Cruise: distance = {cruise_distance:.2f}")
             print(f"[DEBUG] Phase 3 - Final Decel: distance = {final_decel_distance:.2f}")
-
+            
         times = []
         for s in s_vals:
             if s <= initial_decel_distance:  # Phase 1: Initial deceleration to max_speed

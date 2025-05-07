@@ -26,7 +26,7 @@ class RoutePlanningComponent(Component):
         return ["all"]
 
     def state_outputs(self) -> List[str]:
-        return ['trajectory']
+        return ['route']
 
     def rate(self):
         return 10.0 # very high for our computation ability
@@ -44,12 +44,14 @@ class RoutePlanningComponent(Component):
         if state.mission_plan.planner_type.name == "PARKING":
             print("I am in PARKING mode")
             # Not sure where I should construct this object
-            if isinstance(self.planner, StraightLineMotion): # we are transitioning from scanning to parking
+            # if isinstance(self.planner, StraightLineMotion): # we are transitioning from scanning to parking
 
-                # Check if the car is still in motion from scanning behavior
-                # if it is, we need to stop it before parking
-                self.planner.brake() # get car totally stopped before parking
-                state.vehicle.pose.yaw = 0 # needed this to avoid a weird error in the parking planner
+            #     # Check if the car is still in motion from scanning behavior
+            #     # if it is, we need to stop it before parking
+
+            #     # print("I AM BRAKING")
+            # self.planner.brake() # get car totally stopped before parking
+            state.vehicle.pose.yaw = 0 # needed this to avoid a weird error in the parking planner
             
             self.planner = ParkingPlanner()
             
@@ -72,11 +74,11 @@ class RoutePlanningComponent(Component):
             # print("Vehicle y:", state.vehicle.pose.y)
             # print("Vehicle yaw:", state.vehicle.pose.yaw)
             desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
-                              (state.vehicle.pose.x + 10, state.vehicle.pose.y)]
+                              (state.vehicle.pose.x + 1, state.vehicle.pose.y)]
             desired_path = Path(state.vehicle.pose.frame, desired_points)
             
             # @TODO these are constants we need to get from settings
-            return longitudinal_plan(desired_path,1,1,3,state.vehicle.v)
+            return desired_path
             # self.planner.update_speed()
 
             # We want to just go straight
