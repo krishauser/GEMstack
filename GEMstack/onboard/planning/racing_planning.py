@@ -368,7 +368,7 @@ def trajectory_generation_dynamics(init_state, final_state, N=30, Lr=1.5,
                           eps_min=-0.2, eps_max=0.2,
                           v_min=2.0, v_max=11.0,
                           T_min = 0.5, T_max = 1000.0,
-                          waypoints=None, waypoint_headings=None, waypoint_penalty_weight=1000):
+                          waypoints=None, waypoint_headings=None, waypoint_penalty_weight=100):
     """
     Generate a dynamically feasible trajectory between init_state and final_state
     using curvature-based vehicle dynamics and nonlinear optimization.
@@ -524,6 +524,118 @@ def trajectory_generation_dynamics(init_state, final_state, N=30, Lr=1.5,
     return x_full, y_full, psi_full, c_full, v_full, a, eps, T_total, final_error
 #########
 
+def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
+                          w_c=10.0, w_eps=0.0, w_vvar=5.0,
+                          w_terminal=10.0,
+                          v_min=3.0, v_max=11.0,
+                          waypoints=None, waypoint_penalty_weight=100.0):
+    """
+    Generate a dynamically feasible trajectory between init_state and final_state
+    using curvature-based vehicle dynamics and nonlinear optimization.
+    
+    Now supports multiple waypoints.
+
+    Parameters:
+    - init_state (dict): Initial vehicle state with keys 'x', 'y', 'psi', 'c', 'v'.
+    - final_state (dict): Target vehicle state with keys 'x', 'y', 'psi', 'c'.
+    - N (int): Number of discrete time steps in the trajectory.
+    - T (float): Duration of each time step (in seconds).
+    - Lr (float): Distance from the vehicle's center to the rear axle.
+    - w_c (float): Weight for penalizing curvature (smoothness of turns).
+    - w_eps (float): Weight for penalizing curvature rate (reduces sharp steering changes).
+    - w_vvar (float): Weight for penalizing speed variance (encourages speed smoothness).
+    - w_terminal (float): Weight for penalizing final state deviation (soft constraint).
+    - v_min (float): Minimum allowed speed (in m/s).
+    - v_max (float): Maximum allowed speed (in m/s).
+    - waypoints (list or None): Optional list of (x, y) coordinates that the trajectory should pass near.
+    - waypoint_penalty_weight (float): Penalty weight for distance from waypoints (soft constraint).
+
+    Returns:
+    - x, y, psi, c, v, eps (np.ndarray): Arrays of optimized state and control values.
+    - final_error (dict): Final state errors in x, y, psi, and c.
+    """
+    def cost(p):
+        x_, y_, psi_, c_, v_, eps_ = np.split(p, [N - 1, 2 * (N - 1), 3 * (N - 1), 4 * (N - 1), 5 * (N - 1)])
+        c_seq = np.concatenate(([init_state['c']], c_))
+        v_seq = np.concatenate(([init_state['v']], v_))
+        x_final, y_final, psi_final, c_final = x_[-1], y_[-1], psi_[-1], c_[-1]
+
+        cost_c = w_c * np.sum(c_seq ** 2)
+        cost_eps = w_eps * np.sum(eps_ ** 2)
+        v_mean = np.mean(v_seq)
+        cost_vvar = w_vvar * np.mean((v_seq - v_mean) ** 2)
+
+        cost_terminal = w_terminal * (
+            (x_final - final_state['x']) ** 2 +
+            (y_final - final_state['y']) ** 2 +
+            (psi_final - final_state['psi']) ** 2 * 100 + 
+            (c_final - final_state['c']) ** 2 * 100
+        )
+
+        cost_waypoints = 0.0
+        if waypoints is not None and len(waypoints) > 0:
+            # Calculate equally spaced indices for each waypoint
+            num_waypoints = len(waypoints)
+            indices = [int((i + 1) * (N - 1) / (num_waypoints + 1)) for i in range(num_waypoints)]
+            
+            # Sum penalties for each waypoint at its corresponding index
+            for wp_idx, waypoint in enumerate(waypoints):
+                traj_idx = indices[wp_idx]
+                cost_waypoints += waypoint_penalty_weight * (
+                    (x_[traj_idx] - waypoint[0])**2 + (y_[traj_idx] - waypoint[1])**2
+                )
+
+        return cost_c + cost_eps + cost_vvar + cost_terminal + cost_waypoints
+    def dynamics_constraints(p):
+        x_, y_, psi_, c_, v_, eps_ = np.split(p, [N - 1, 2 * (N - 1), 3 * (N - 1), 4 * (N - 1), 5 * (N - 1)])
+        constraints = []
+        x_prev, y_prev, psi_prev, c_prev, v_prev = init_state['x'], init_state['y'], init_state['psi'], init_state['c'], init_state['v']
+        for k in range(N - 1):
+            dx = v_prev * np.cos(psi_prev + c_prev * Lr) * T
+            dy = v_prev * np.sin(psi_prev + c_prev * Lr) * T
+            dpsi = v_prev * c_prev * T
+            dc = eps_[k] * T
+            constraints.extend([
+                x_[k] - (x_prev + dx),
+                y_[k] - (y_prev + dy),
+                psi_[k] - (psi_prev + dpsi),
+                c_[k] - (c_prev + dc)
+            ])
+            x_prev, y_prev, psi_prev, c_prev, v_prev = x_[k], y_[k], psi_[k], c_[k], v_[k]
+        return constraints
+
+    # Initial guesses
+    x_vals = np.linspace(init_state['x'], final_state['x'], N)
+    y_vals = np.linspace(init_state['y'], final_state['y'], N)
+    psi_vals = np.linspace(init_state['psi'], final_state['psi'], N)
+    c_vals = np.linspace(init_state['c'], final_state['c'], N)
+    v_vals = np.ones(N) * init_state['v']
+    eps_vals = np.zeros(N - 1)
+
+    p0 = np.concatenate([x_vals[1:], y_vals[1:], psi_vals[1:], c_vals[1:], v_vals[1:], eps_vals])
+    bounds = [(None, None)] * (4 * (N - 1)) + [(v_min, v_max)] * (N - 1) + [(None, None)] * (N - 1)
+
+    result = minimize(cost, p0, bounds=bounds,
+                      constraints={'type': 'eq', 'fun': dynamics_constraints},
+                      options={'maxiter': 1000})
+    if not result.success:
+        raise RuntimeError("Optimization failed")
+
+    x_, y_, psi_, c_, v_, eps_ = np.split(result.x, [N - 1, 2 * (N - 1), 3 * (N - 1), 4 * (N - 1), 5 * (N - 1)])
+    x_full = np.concatenate(([init_state['x']], x_))
+    y_full = np.concatenate(([init_state['y']], y_))
+    psi_full = np.concatenate(([init_state['psi']], psi_))
+    c_full = np.concatenate(([init_state['c']], c_))
+    v_full = np.concatenate(([init_state['v']], v_))
+
+    final_error = {
+        'x_error': abs(x_full[-1] - final_state['x']),
+        'y_error': abs(y_full[-1] - final_state['y']),
+        'psi_error': abs(psi_full[-1] - final_state['psi']),
+        'c_error': abs(c_full[-1] - final_state['c']),
+    }
+
+    return x_full, y_full, psi_full, c_full, v_full, eps_, final_error
 
 def feasibility_check(trajectory, cone_map, car_width=2.0, safety_margin=0.3, v=10.0, Lr=1.5, T=0.1):
     """
@@ -916,8 +1028,8 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
             'x': fixed_wp[0], 'y': fixed_wp[1], 'psi': target_heading, 'c': 0.0
         }
 
-        # x, y, psi, c, v, eps, _ = trajectory_generation(init_state, final_state, waypoints=flex_wps)
-        x, y, psi, c, v, a, eps, T_total, final_error = trajectory_generation_dynamics(init_state, final_state, waypoints=flex_wps, waypoint_headings=waypoint_heading_list)
+        x, y, psi, c, v, eps, _ = trajectory_generation(init_state, final_state, waypoints=flex_wps)
+        # x, y, psi, c, v, a, eps, T_total, final_error = trajectory_generation_dynamics(init_state, final_state, waypoints=flex_wps, waypoint_headings=waypoint_heading_list)
         x_all.extend(x)
         y_all.extend(y)
         v_all.extend(v)

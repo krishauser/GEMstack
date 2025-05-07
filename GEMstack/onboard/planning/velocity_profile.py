@@ -204,7 +204,7 @@ def limit_velocity_by_steering_rate(ds, velocity, wheelbase, max_steering_rate, 
     # max steering wheel rate to steering rate
     # raise ValueError(max_steering_rate)
     max_steering_rate = steer2front(max_steering_rate)
-    max_steering_rate = 0.22
+    max_steering_rate = 1
     
 
     # Limit velocity where steering rate exceeds max

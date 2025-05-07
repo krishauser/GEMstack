@@ -29,7 +29,7 @@ def create_error_plot(t, error, xlabel, ylabel, title, save_path=None):
         plt.savefig(save_path, dpi=600)
 
 def main():
-    log_folder = '2025-04-17_17-44-12'
+    log_folder = '2025-05-07_17-49-13'
     df = pd.read_csv(log_folder + '/StanleyTrajectoryTracker_debug.csv')
     # df = pd.read_csv(log_folder + '/PurePursuitTrajectoryTracker_debug.csv')
     save_figures =True
