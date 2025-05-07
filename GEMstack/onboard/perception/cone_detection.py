@@ -44,8 +44,8 @@ class ConeDetector3D(Component):
     ):
         # Core interfaces and state
         self.vehicle_interface   = vehicle_interface
-        self.current_agents      = {}
-        self.tracked_agents      = {}
+        self.current_obstacles      = {}
+        self.tracked_obstacles      = {}
         self.cone_counter        = 0
         self.latest_image        = None
         self.latest_lidar        = None
@@ -260,7 +260,7 @@ class ConeDetector3D(Component):
         end = time.time()
         # print('-------processing time1---', end -start)
 
-        agents = {}
+        obstacles = {}
 
         for i, box_info in enumerate(combined_boxes):
             cx, cy, w, h, activity = box_info
@@ -332,11 +332,11 @@ class ConeDetector3D(Component):
                 existing_id = match_existing_cone(
                     np.array([new_pose.x, new_pose.y, new_pose.z]),
                     dims,
-                    self.tracked_agents,
-                    distance_threshold=2.0
+                    self.tracked_obstacles,
+                    distance_threshold=2
                 )
                 if existing_id is not None:
-                    old_state = self.tracked_agents[existing_id]
+                    old_state = self.tracked_obstacles[existing_id]
                     if vehicle.v < 100:
                         alpha = 0.1
                         avg_x = alpha * new_pose.x + (1 - alpha) * old_state.pose.x
@@ -356,7 +356,7 @@ class ConeDetector3D(Component):
                             roll=avg_roll,
                             frame=new_pose.frame
                         )
-                        updated_agent = ObstacleState(
+                        updated_obstacle = ObstacleState(
                             pose=updated_pose,
                             dimensions=dims,
                             outline=None,
@@ -366,13 +366,13 @@ class ConeDetector3D(Component):
                             yaw_rate=0
                         )
                     else:
-                        updated_agent = old_state
-                    agents[existing_id] = updated_agent
-                    self.tracked_agents[existing_id] = updated_agent
+                        updated_obstacle = old_state
+                    obstacles[existing_id] = updated_obstacle
+                    self.tracked_obstacles[existing_id] = updated_obstacle
                 else:
-                    agent_id = f"Cone{self.cone_counter}"
+                    obstacle_id = f"Cone{self.cone_counter}"
                     self.cone_counter += 1
-                    new_agent = ObstacleState(
+                    new_obstacle = ObstacleState(
                         pose=new_pose,
                         dimensions=dims,
                         outline=None,
@@ -381,12 +381,12 @@ class ConeDetector3D(Component):
                         velocity=(0, 0, 0),
                         yaw_rate=0
                     )
-                    agents[agent_id] = new_agent
-                    self.tracked_agents[agent_id] = new_agent
+                    obstacles[obstacle_id] = new_obstacle
+                    self.tracked_obstacles[obstacle_id] = new_obstacle
             else:
-                agent_id = f"Cone{self.cone_counter}"
+                obstacle_id = f"Cone{self.cone_counter}"
                 self.cone_counter += 1
-                new_agent = ObstacleState(
+                new_obstacle = ObstacleState(
                     pose=new_pose,
                     dimensions=dims,
                     outline=None,
@@ -395,43 +395,43 @@ class ConeDetector3D(Component):
                     velocity=(0, 0, 0),
                     yaw_rate=0
                 )
-                agents[agent_id] = new_agent
+                obstacles[obstacle_id] = new_obstacle
 
-        self.current_agents = agents
+        self.current_obstacles = obstacles
 
         # If tracking not enabled, return only current frame detections
         if not self.enable_tracking:
-            for agent_id, agent in self.current_agents.items():
-                p = agent.pose
+            for obstacle_id, obstacle in self.current_obstacles.items():
+                p = obstacle.pose
                 rospy.loginfo(
-                    f"Agent ID: {agent_id}\n"
+                    f"Agent ID: {obstacle_id}\n"
                     f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                     f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                    f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
-                    f"type:{agent.activity}"
+                    f"Velocity: (vx: {obstacle.velocity[0]:.3f}, vy: {obstacle.velocity[1]:.3f}, vz: {obstacle.velocity[2]:.3f})\n"
+                    f"type:{obstacle.activity}"
                 )
             end = time.time()
             # print('-------processing time', end -start)
-            return self.current_agents
+            return self.current_obstacles
 
-        stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
-                     if current_time - agent.pose.t > 20.0]
-        for agent_id in stale_ids:
-            rospy.loginfo(f"Removing stale agent: {agent_id}\n")
-            del self.tracked_agents[agent_id]
+        stale_ids = [obstacle_id for obstacle_id, obstacle in self.tracked_obstacles.items()
+                     if current_time - obstacle.pose.t > 20.0]
+        for obstacle_id in stale_ids:
+            rospy.loginfo(f"Removing stale obstacle: {obstacle_id}\n")
+            del self.tracked_obstacles[obstacle_id]
         if self.enable_tracking:
-            for agent_id, agent in self.tracked_agents.items():
-                p = agent.pose
+            for obstacle_id, obstacle in self.tracked_obstacles.items():
+                p = obstacle.pose
                 rospy.loginfo(
-                    f"Agent ID: {agent_id}\n"
+                    f"Agent ID: {obstacle_id}\n"
                     f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                     f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                    f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
-                    f"type:{agent.activity}"
+                    f"Velocity: (vx: {obstacle.velocity[0]:.3f}, vy: {obstacle.velocity[1]:.3f}, vz: {obstacle.velocity[2]:.3f})\n"
+                    f"type:{obstacle.activity}"
                 )
         end = time.time()
         # print('-------processing time', end -start)
-        return self.tracked_agents
+        return self.tracked_obstacles
 
     def save_sensor_data(self, vehicle: VehicleState, latest_image) -> None:
         os.makedirs("data", exist_ok=True)
@@ -489,7 +489,7 @@ class FakConeDetector(Component):
         return ['vehicle']
 
     def state_outputs(self):
-        return ['agents']
+        return ['obstacles']
 
     def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
         if self.t_start is None:
@@ -498,12 +498,12 @@ class FakConeDetector(Component):
         res = {}
         for time_range in self.times:
             if t >= time_range[0] and t <= time_range[1]:
-                res['cone0'] = box_to_fake_agent((0, 0, 0, 0))
+                res['cone0'] = box_to_fake_obstacle((0, 0, 0, 0))
                 rospy.loginfo("Detected a Cone (simulated)")
         return res
 
 
-def box_to_fake_agent(box):
+def box_to_fake_obstacle(box):
     x, y, w, h = box
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
