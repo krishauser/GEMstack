@@ -664,19 +664,39 @@ def trajectory_generation_dynamics(init_state, final_state, N=30, Lr=1.5,
         if waypoints is None or len(waypoints) == 0:
             return 0.0
     
-        x_ = p[:N -1]
-        y_ = p[N - 1:2 * (N-1)]
+        split_idx = 5 *(N - 1)
+        x_, y_, psi_, c_, v_= np.split(p[:split_idx], 5)
+        # x_ = p[:N -1]
+        # y_ = p[N - 1:2 * (N-1)]
+        # psi_ = [ 3 * (N - 1)]
         # Calculate equally spaced indices for each waypoint
         num_waypoints = len(waypoints)
         indices = [int((i + 1) * (N - 1) / (num_waypoints + 1)) for i in range(num_waypoints)]
-        penalty = 0.0 
+        penalty = 0.0
+        alignment_threshold = 0.3
         # Sum penalties for each waypoint at its corresponding index
         for wp_idx, waypoint in enumerate(waypoints):
             traj_idx = indices[wp_idx]
             penalty += waypoint_penalty_weight * (
                 (x_[traj_idx] - waypoint[0])**2 + (y_[traj_idx] - waypoint[1])**2
             )
+        # for wp_idx, waypoint in enumerate(waypoints):
+        #     traj_idx = indices[wp_idx]
+        #     wp_x, wp_y = waypoint
+        #     dx = wp_x - x_[traj_idx]
+        #     dy = wp_y - y_[traj_idx]
+        #     directional_vector = np.array([dx, dy])
+        #     norm = np.linalg.norm(directional_vector)
 
+        #     if norm < 1e-3:
+        #         continue
+
+        #     directional_vector /=norm
+        #     heading_vector = np.array([np.cos(psi_[traj_idx]), np.sin(psi_[traj_idx])])
+        #     alignment = np.dot(heading_vector, directional_vector)
+
+        #     if alignment > alignment_threshold:
+        #         penalty += waypoint_penalty_weight * (dx ** 2 + dy ** 2)
         return penalty
 
     # Initial guesses
