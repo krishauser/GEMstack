@@ -297,15 +297,6 @@ class GEMHardwareInterface(GEMInterface):
             self.accel_cmd.f64_cmd = 0.0
         self.brake_cmd.f64_cmd = command.brake_pedal_position
 
-        # if self.last_reading.speed == 0 and command.brake_pedal_position > 0.0 and command.accelerator_pedal_position > 0.0:
-        #     self.accel_cmd.f64_cmd = command.accelerator_pedal_position
-        #     self.brake_cmd.f64_cmd = command.brake_pedal_position
-        # else:
-        #     self.accel_cmd.f64_cmd = command.accelerator_pedal_position
-        #     if command.brake_pedal_position > 0.0:
-        #         self.accel_cmd.f64_cmd = 0.0
-        #     self.brake_cmd.f64_cmd = command.brake_pedal_position
-
         self.steer_cmd.angular_position = command.steering_wheel_angle
         self.steer_cmd.angular_velocity_limit = command.steering_wheel_speed
         print("**************************")
