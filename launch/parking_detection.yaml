@@ -92,7 +92,7 @@ variants:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
                     scene: !relative_path '../scenes/parking_demo.yaml'
-            visualization: !include "klampt_visualization.yaml"
+            # visualization: !include "klampt_visualization.yaml"
 
             drive: 
                 perception:
