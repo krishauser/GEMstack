@@ -433,6 +433,20 @@ class YoloNode():
             center = obb.center
             dims = tuple(obb.extent)
             R_lidar = obb.R.copy()
+
+            if self.debug:
+                print("X")
+                print(center[0])
+                print("L")
+                print(dims[0])
+                print("Y")
+                print(center[1])
+                print("W")
+                print(dims[1])
+                print("Z")
+                print(center[2])
+                print("H")
+                print(dims[2])
             
             # Transform from LiDAR to vehicle coordinates
             center_hom = np.append(center, 1)
@@ -465,19 +479,19 @@ class YoloNode():
             box_msg.dimensions.y = float(dims[1])  # width
             box_msg.dimensions.z = float(dims[2])  # height
 
-            if self.debug:
-                print("X")
-                print(center_vehicle[0])
-                print("L")
-                print(dims[0])
-                print("Y")
-                print(center_vehicle[1])
-                print("W")
-                print(dims[1])
-                print("Z")
-                print(center_vehicle[2])
-                print("H")
-                print(dims[2])
+            # if self.debug:
+            #     print("X")
+            #     print(center_vehicle[0])
+            #     print("L")
+            #     print(dims[0])
+            #     print("Y")
+            #     print(center_vehicle[1])
+            #     print("W")
+            #     print(dims[1])
+            #     print("Z")
+            #     print(center_vehicle[2])
+            #     print("H")
+            #     print(dims[2])
             
             # Add confidence score and label
             box_msg.value = float(conf_scores[i])

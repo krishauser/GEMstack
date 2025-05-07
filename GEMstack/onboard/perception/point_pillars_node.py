@@ -29,13 +29,10 @@ def pc2_to_numpy_with_intensity(pc2_msg, want_rgb=False):
     # Convert the ROS message to a numpy structured array
     pc = ros_numpy.point_cloud2.pointcloud2_to_array(pc2_msg)
     reflectivity = np.array(pc['reflectivity']).ravel()
-    
+    intensity = np.array(pc['intensity']).ravel()
+
     # Normalize reflectivity to 0-1 range
-    reflectivity_max = np.max(reflectivity)
-    if reflectivity_max > 1.0:
-        normalized_reflectivity = reflectivity / reflectivity_max
-    else:
-        normalized_reflectivity = reflectivity
+    normalized_reflectivity = reflectivity / 255.0
 
     # Stack x,y,z, r fields to a (N,4) array
     pts = np.stack((np.array(pc['x']).ravel(),
@@ -198,6 +195,20 @@ class PointPillarsNode():
                     # Extract center position and dimensions
                     x, y, z, l, w, h, yaw = bbox
 
+                    if self.debug:
+                        print("X LIDAR")
+                        print(x)
+                        print("L")
+                        print(l)
+                        print("Y LIDAR")
+                        print(y)
+                        print("W")
+                        print(w)
+                        print("Z LIDAR")
+                        print(z)
+                        print("H")
+                        print(h)
+
                     # Transform from LiDAR to vehicle coordinates
                     center_lidar = np.array([x, y, z, 1.0])
                     center_vehicle = self.T_l2v @ center_lidar
@@ -213,19 +224,19 @@ class PointPillarsNode():
                     box.header.frame_id = 'velodyne'
                     box.header.stamp = lidar_msg.header.stamp
                     
-                    if self.debug:
-                        print("X VEHICLE")
-                        print(x_vehicle)
-                        print("L")
-                        print(l)
-                        print("Y VEHICLE")
-                        print(y_vehicle)
-                        print("W")
-                        print(w)
-                        print("Z VEHICLE")
-                        print(z_vehicle)
-                        print("H")
-                        print(h)
+                    # if self.debug:
+                    #     print("X VEHICLE")
+                    #     print(x_vehicle)
+                    #     print("L")
+                    #     print(l)
+                    #     print("Y VEHICLE")
+                    #     print(y_vehicle)
+                    #     print("W")
+                    #     print(w)
+                    #     print("Z VEHICLE")
+                    #     print(z_vehicle)
+                    #     print("H")
+                    #     print(h)
 
                     # Set the pose (position and orientation)
                     box.pose.position.x = float(x_vehicle)
