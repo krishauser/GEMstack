@@ -40,9 +40,10 @@ $ source ~/catkin_ws/devel/setup.bash
 1. Install Docker
 2. Install Docker Compose
 3. A bash script was created to handle docker permissions issues and make the set up process simpler:
-$ bash GEMstack/onboard/perception/build_point_pillars.sh
+$ cd GEMstack/onboard/perception
+$ bash build_point_pillars.sh
 4. Start the container (use sudo if you run into permissions issues)
-$ docker compose -f GEMstack/onboard/perception/setup/docker-compose.yaml up
+$ docker compose -f setup/docker-compose.yaml up
 5. Run roscore on local machine (make sure you source first)
 $ roscore
 6. Start up YOLO node (make sure you source first):
