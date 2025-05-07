@@ -78,6 +78,7 @@ def findMaxLenEdgePoints(cornerPts):
         
         if tempLen > maxLen:
             maxPt1, maxPt2 = pt1, pt2
+            maxLen = tempLen
     return maxPt1, maxPt2
 
 
