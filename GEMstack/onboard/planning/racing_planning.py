@@ -61,7 +61,7 @@ def waypoint_generate(vehicle_state, cones, cone_idx):
     target_heading = car_heading
 
     # ===== Parameters =====
-    u_turn_radius = 11.5      # Radius for U-turn
+    u_turn_radius = 10.0      # Radius for U-turn
     offset = 2.0                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
@@ -455,7 +455,7 @@ def no_cone_planning(vehicle_dict):
     vehicle_x, vehicle_y = vehicle_dict['position'][0], vehicle_dict['position'][1]
     vehicle_heading = vehicle_dict['heading']
     vehicle_velocity = vehicle_dict['velocity']
-    step_size = 0.5 * (max(1,vehicle_velocity))
+    step_size = 0.5 
     for i in range(10):
         temp_points.append([vehicle_x + i * step_size * np.cos(vehicle_heading),
                             vehicle_y + i * step_size * np.sin(vehicle_heading)])
@@ -485,8 +485,11 @@ def got_new_cone(current_cones, prev_cones):
 class SlalomTrajectoryPlanner(Component):
     def __init__(self, **kwargs):
         # You can accept args here if needed
+        self.prev_vehicle_position = None
         self.trajectory = None
         self.prev_cones = None
+        self.travelled_distance = 0.0
+        self.cones = []
         # ----------------------------
         # Predifined-Cones Simulation
         # self.run_fake_plan = True
@@ -517,26 +520,40 @@ class SlalomTrajectoryPlanner(Component):
             for id, agent in agents.items():
                 if agent.type == AgentEnum.CONE:
                     # ===== RUNNING ONBOARD =====
-                    cones.append({
-                        'id': id,
-                        'x': agent.pose.x,
-                        'y': agent.pose.y,
-                        'orientation': agent.activity
-                    })
-                    # ===== TESTING ONBOARD in BASIC SIM =====
-                    # if n % 2 == 0:
-                    #     curr_activity = 'LEFT'
-                    # elif n % 2 == 1:
-                    #     curr_activity = 'RIGHT'
-                    # else:
-                    #     curr_activity = 'STANDING'
                     # cones.append({
                     #     'id': id,
                     #     'x': agent.pose.x,
                     #     'y': agent.pose.y,
-                    #     'orientation': curr_activity
+                    #     'orientation': agent.activity
                     # })
-                    # n = n + 1
+                    # ===== TESTING ONBOARD in BASIC SIM =====
+                    if n > 3:
+                        break
+                    if n % 4 == 0:
+                        curr_activity = 'LEFT'
+                    elif n % 4 == 1:
+                        curr_activity = 'RIGHT'
+                    elif n % 4 == 2:
+                        curr_activity = 'LEFT'
+                    else:
+                        curr_activity = 'STANDING'
+                    c = {
+                        'id': id,
+                        'x': agent.pose.x,
+                        'y': agent.pose.y,
+                        'orientation': curr_activity
+                    }
+                    n = n + 1
+                    if c['id'] not in {cone['id'] for cone in self.cones}:
+                        self.cones.append(c)
+            
+            curr_pos = np.array([vehicle.pose.x, vehicle.pose.y])
+            if self.prev_vehicle_position is None:
+                distance_increment = 0.0
+            else:
+                distance_increment = np.linalg.norm(curr_pos - self.prev_vehicle_position)
+
+            self.prev_vehicle_position = curr_pos
 
             vehicle_dict = {
                 'position': [vehicle.pose.x, vehicle.pose.y],
@@ -546,19 +563,23 @@ class SlalomTrajectoryPlanner(Component):
             if self.DEBUG_MODE:
                 print("===================== STATES =====================")
                 print(f"Vehicle State: {vehicle_dict}")
-                print(f"Detected Cones: {cones}")
+                print(f"Detected Cones: {self.cones}")
                 print("===================== ====== =====================")
+
+            print("cones when planning: ", self.cones)
+            self.trajectory = self.online_trajectory_planning(vehicle_dict, self.cones, distance_increment)
+
             # If no cones detected, drive forward
-            if len(cones) == 0:
+            if len(self.cones) == 0:
                 self.trajectory = no_cone_planning(vehicle_dict)
-            # Otherwise, plan trajectory
-            elif got_new_cone(cones, self.prev_cones):
-                # Replan only if new cones are detected
-                self.trajectory = plan_full_slalom_trajectory(vehicle_dict, cones)
-                self.prev_cones = cones
-            else:
-                # No need to update the plan if the same cones are detected
-                self.prev_cones = cones
+            # # Otherwise, plan trajectory
+            # elif got_new_cone(cones, self.prev_cones):
+            #     # Replan only if new cones are detected
+            #     self.trajectory = plan_full_slalom_trajectory(vehicle_dict, cones)
+            #     self.prev_cones = cones
+            # else:
+            #     # No need to update the plan if the same cones are detected
+            #     self.prev_cones = cones
         
         # Testing with predefined fake generated cone positions
         elif self.run_fake_plan:
@@ -610,13 +631,192 @@ class SlalomTrajectoryPlanner(Component):
         # Update output
         return self.trajectory
 
+    def online_trajectory_planning(self, vehicle_state, cones, distance_increment, replan_threshold=100.0):
+        print("planing......")
+        if not hasattr(self, 'prev_cones'):
+            self.prev_cones = None
 
+        if not hasattr(self, 'no_cone_ahead'):
+            self.no_cone_ahead = False
 
+        if not hasattr(self, 'visited_cone_ids'):
+            self.visited_cone_ids = set()
 
+        stitch_idx = -1
 
+        def got_new_cone(current, prev):
+            if prev is None:
+                return True
+            prev_ids = {c['id'] for c in prev}
+            return any(c['id'] not in prev_ids for c in current)
 
+        self.travelled_distance += distance_increment
+        new_cone_detected = got_new_cone(self.cones, self.prev_cones)
 
+        # Plan at the beginning or when new cones detected or after threshold distance
+        if self.trajectory is None or new_cone_detected or not self.no_cone_ahead or True:
+            self.prev_cones = self.cones
 
+            if self.trajectory is None:
+                current_position = vehicle_state['position']
+                init_state = {
+                    'x': current_position[0],
+                    'y': current_position[1],
+                    'psi': vehicle_state['heading'],  
+                    'c': 0.0,
+                    'v': vehicle_state['velocity']
+                }
+            else:
+                stitch_idx, init_point, heading = self.get_future_point_on_trajectory(self.trajectory, vehicle_state['position'], lookahead_distance=500.0)
+                init_state = {
+                    'x': init_point[0], 
+                    'y': init_point[1], 
+                    'psi': heading,
+                    'c': 0.0, 
+                    'v': vehicle_state['velocity']
+                }
+
+            print("all cones: ", self.cones)
+            current_cone_idx, updated_cones = self.get_current_cone_idx(self.cones, init_state)
+            self.cones = updated_cones
+            print("updated cones are here: ", self.cones)
+            print("init state: ", init_state)
+            print("current cone: ", current_cone_idx)
+
+            # No cone ahead
+            if current_cone_idx == -1:
+                self.no_cone_ahead = True
+                return self.trajectory
+            else:
+                self.no_cone_ahead = False
+
+            # No need to plan if there is no new cone detected and no cone ahead
+            if not new_cone_detected and self.no_cone_ahead:
+                return self.trajectory
+
+            self.visited_cone_ids.add(self.cones[current_cone_idx]['id'])
+            scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, self.cones, current_cone_idx)
+
+            if flex_wps and fixed_wp is not None:
+                final_state = {
+                    'x': fixed_wp[0], 'y': fixed_wp[1], 'psi': target_heading, 'c': 0.0
+                }
+
+                # Stitch from current vehicle position to new plan start
+                if self.trajectory is not None:
+                    # 1. Plan new trajectory from init_state onward
+                    x_new, y_new, _, _, v_new, _, _ = trajectory_generation(init_state, final_state, waypoints=flex_wps)
+
+                    # 2. Cut old trajectory up to init_state (e.g., index `stitch_idx`)
+                    old_points = self.trajectory.points[:stitch_idx]
+                    old_x = [p[0] for p in old_points]
+                    old_y = [p[1] for p in old_points]
+                    old_v = [vehicle_state['velocity']] * len(old_x)  # or extract from old trajectory if available
+
+                    # 3. Combine old + new
+                    x_full = np.concatenate([old_x, x_new])
+                    y_full = np.concatenate([old_y, y_new])
+                    v_full = np.concatenate([old_v, v_new])
+
+                    # 4. Create trajectory
+                    self.trajectory = to_gemstack_trajectory(x_full, y_full, v_full)
+                else:
+                    x, y, _, _, v, _, _ = trajectory_generation(init_state, final_state, waypoints=flex_wps)
+                    self.trajectory = to_gemstack_trajectory(x, y, v)
+
+                self.travelled_distance = 0.0
+
+        return self.trajectory
+
+    @staticmethod
+    def get_future_point_on_trajectory(trajectory, vehicle_position, lookahead_distance=80.0):
+        """
+        Finds a point `lookahead_distance` ahead of the current vehicle position along the trajectory.
+        """
+        traj_points = trajectory.points
+        current_pos = np.array(vehicle_position)
+
+        # Step 1: Find the closest point on trajectory
+        dists = [np.linalg.norm(current_pos - np.array([p[0], p[1]])) for p in traj_points]
+        closest_idx = np.argmin(dists)
+
+        # Step 2: Accumulate distance from closest_idx forward
+        accumulated = 0.0
+        heading = 0
+        for i in range(closest_idx + 1, len(traj_points)):
+            p1 = np.array([traj_points[i - 1][0], traj_points[i - 1][1]])
+            p2 = np.array([traj_points[i][0], traj_points[i][1]])
+            heading = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+            segment = np.linalg.norm(p2 - p1)
+            accumulated += segment
+            if accumulated >= lookahead_distance:
+                return i, traj_points[i], heading  # Return future point
+
+        p1 = np.array([traj_points[-2][0], traj_points[-2][1]])
+        p2 = np.array([traj_points[-1][0], traj_points[-1][1]])
+        heading = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+        # If not enough length, return the last point
+        return -1, traj_points[-1], heading
+
+    def get_current_cone_idx(self, cones, init_state, forward_dist=50.0, angle_thresh=np.pi):
+        """
+        Get the index of the nearest cone in front of the init_state.
+        If a 'STANDING' cone is found, previous cones are flipped and returned with the index of the standing cone.
+        
+        Args:
+            cones: List of cones.
+            init_state: Dict with keys 'x', 'y', 'psi'.
+            forward_dist: Max distance to search for cones ahead.
+            angle_thresh: Angle threshold to filter cones roughly in front.
+        
+        Returns:
+            idx: Index of the cone in front (after STANDING logic if needed).
+            updated_cones: Possibly updated cones with flipped orientations.
+        """
+        pos = np.array([init_state['x'], init_state['y']])
+        heading = init_state['psi']
+        heading_vec = np.array([np.cos(heading), np.sin(heading)])
+
+        best_idx = None
+        min_dist = float('inf')
+
+        # Search in the list of cones, which one is nearest ahead of init_state
+        for i, cone in enumerate(cones):
+            if cone['id'] in self.visited_cone_ids:
+                continue  # Skip already visited cones
+            cone_pos = np.array([cone['x'], cone['y']])
+            vec_to_cone = cone_pos - pos
+            dist = np.linalg.norm(vec_to_cone)
+            if dist > forward_dist:
+                continue
+            angle = np.arccos(np.clip(np.dot(heading_vec, vec_to_cone / (dist + 1e-8)), -1.0, 1.0))
+            if angle < angle_thresh and dist < min_dist:
+                best_idx = i
+                min_dist = dist
+
+        # If STANDING cone is ahead, flip previous cone directions
+        if best_idx is not None and cones[best_idx]['orientation'] == 'STANDING':
+            updated_cones = cones[:best_idx + 1] + [
+                self.flip_cone_orientation(c) for c in cones[:best_idx][::-1]
+            ] + cones[best_idx + 1:]
+            print("updated cones: ", updated_cones)
+            return best_idx, updated_cones
+        else:
+            # -1 means no available cone is ahead
+            return best_idx if best_idx is not None else -1, cones
+
+    @staticmethod
+    def flip_cone_orientation(cone):
+        """
+        Flip cone orientation LEFT↔RIGHT
+        """
+        flipped = cone.copy()
+        flipped['id'] = cone['id'] + 'flipped'
+        if cone['orientation'] == 'LEFT':
+            flipped['orientation'] = 'RIGHT'
+        elif cone['orientation'] == 'RIGHT':
+            flipped['orientation'] = 'LEFT'
+        return flipped
 
 ########################################################################################################################
 ########################################################################################################################
