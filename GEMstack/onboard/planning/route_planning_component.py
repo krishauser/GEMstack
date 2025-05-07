@@ -125,6 +125,7 @@ class RoutePlanningComponent(Component):
         # self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(24.9, 11+2.44),(0.0, 11+2.44)]
 
         self.parking_velocity_is_zero = False
+        self.parking_finished = False
 
     def state_inputs(self):
         return ["all"]
@@ -250,32 +251,46 @@ class RoutePlanningComponent(Component):
             #     self.route = state.route
             """ END """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-            # STOP BEFORE PARKING
-            # COMMENT OUT BECAUSE IT CAUSES ROUTE PLANNING FAILURE 
-            if self.parking_velocity_is_zero == False and state.vehicle.v > 0.01:
-                print("@@@@@ Vehicle is moving, stop it first.")
-                self.route = Route(frame=ObjectFrameEnum.START, points=[[state.vehicle.pose.x, state.vehicle.pose.y],[state.vehicle.pose.x, state.vehicle.pose.y]])
-                return self.route
-
-            self.parking_velocity_is_zero = True
-
-            for agent in state.agents.values():
-                if agent.type == AgentEnum.CONE:
-                    self.parked_cars = []
-                    self.parked_cars.append((agent.pose.x, agent.pose.y))
-
-            if not self.parking_route_existed:
-                self.current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
-                self.reedssheppparking.find_available_parking_spots_and_search_vector(self.parked_cars, self.current_pose)
-                self.reedssheppparking.find_collision_free_trajectory(self.parked_cars, self.current_pose, True)
-                self.parking_route_existed = True
-
+            if self.parking_finished:
+                print("Stopping at the parking spot.")
+                return None
+    
             else:
-                # COMMENT OUT BECAUSE SOMETIMES REROUTES COMPLETELY DIFFERENT PATHS
-                # self.reedssheppparking.find_collision_free_trajectory(self.parked_cars, self.current_pose, True)
-                self.waypoints_to_go = self.reedssheppparking.waypoints_to_go        
-                self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
-                print("Route:", self.route)
+                # STOP BEFORE PARKING
+                # COMMENT OUT BECAUSE IT CAUSES ROUTE PLANNING FAILURE 
+                if self.parking_velocity_is_zero == False and state.vehicle.v > 0.01:
+                    print("@@@@@ Vehicle is moving, stop it first.")
+                    # self.route = Route(frame=ObjectFrameEnum.START, points=[[state.vehicle.pose.x, state.vehicle.pose.y],[state.vehicle.pose.x, state.vehicle.pose.y]])
+                    # return self.route
+                    return None
+
+                self.parking_velocity_is_zero = True
+
+                # for agent in state.agents.values():
+                #     if agent.type == AgentEnum.CONE:
+                #         self.parked_cars = []
+                #         self.parked_cars.append((agent.pose.x, agent.pose.y))
+
+                if not self.parking_route_existed:
+                    self.current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
+                    self.reedssheppparking.find_available_parking_spots_and_search_vector(self.parked_cars, self.current_pose)
+                    self.reedssheppparking.find_collision_free_trajectory(self.parked_cars, self.current_pose, True)
+                    self.parking_route_existed = True
+
+                else:
+                    # COMMENT OUT BECAUSE SOMETIMES REROUTES COMPLETELY DIFFERENT PATHS
+                    # self.reedssheppparking.find_collision_free_trajectory(self.parked_cars, self.current_pose, True)
+                    self.waypoints_to_go = self.reedssheppparking.waypoints_to_go        
+                    self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
+                    # print("Route:", self.route)
+
+                    print(state.trajectory)
+
+                    # Stop if the current state is close to the goal
+                    # TODO: Move the parameter to config file
+                    if (state.vehicle.pose.x - self.waypoints_to_go[-1][0])**2 < 1.0:
+                        print("I am close to the goal, stop.")
+                        self.parking_finished = True
 
 
         else:

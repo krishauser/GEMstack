@@ -159,8 +159,10 @@ class Stanley(object):
         speed = state.v
 
         if self.path is None:
-            if component:
-                component.debug_event("No path provided to Stanley controller. Doing nothing.")
+            # [SUMMONING] COMMENTED OUT DUE TO THE ERROR: Execution: Exception in component StanleyTrajectoryTracker: list indices must be integers or slices, not str
+            # if component:
+            #     component.debug_event("No path provided to Stanley controller. Doing nothing.")
+            print("No path provided to Stanley controller. Doing nothing.")
             self.t_last = t
             self.pid_speed.reset()
             return (0.0, 0.0)
@@ -370,4 +372,6 @@ class StanleyTrajectoryTracker(Component):
 
     def healthy(self):
         """Optional: check if the controller has a valid path."""
-        return self.stanley.path is not None
+        #[SUMMONING] COMMENTED OUT TO KEEP STOPPING WHEN THE PATH IS NONE
+        # return self.stanley.path is not None
+        return True

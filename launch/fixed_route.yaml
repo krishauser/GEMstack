@@ -16,10 +16,10 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
+            # args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/reverse_15m.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/offset.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv']
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/backward_15m.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/forward_curve.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/backward_curve.csv']
@@ -31,7 +31,7 @@ drive:
         trajectory_tracking:
             # type: pure_pursuit.PurePursuitTrajectoryTracker
             type: stanley.StanleyTrajectoryTracker
-            args: {desired_speed: 2.5}  #approximately 5mph
+            args: {desired_speed: 1.5}  #approximately 5mph
             print: False
             # type: mpc.MPCTrajectoryTracker
 log:

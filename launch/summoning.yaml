@@ -15,7 +15,6 @@ drive:
         agent_detection : cone_detection.ConeDetector3D
         perception_normalization : StandardPerceptionNormalizer
     planning:
-        relations_estimation: pedestrian_yield_logic.PedestrianYielder
         summoning_mission_planning:
             type: SummoningMissionPlanner
             args:
@@ -25,10 +24,16 @@ drive:
            type: RoutePlanningComponent
 #           args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json','global']
            args: [ !relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json','start' ]
-        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+        motion_planning:
+            # rtpe: longitudinal_planning.YieldTrajectoryPlanner
+            type: RouteToTrajectoryPlanner
+            args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
-            type: pure_pursuit.PurePursuitTrajectoryTracker
+            # type: pure_pursuit.PurePursuitTrajectoryTracker
+            type: stanley.StanleyTrajectoryTracker
+            args: {desired_speed: 1.0}  #approximately 5mph
             print: False
+            # type: mpc.MPCTrajectoryTracker
 
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
