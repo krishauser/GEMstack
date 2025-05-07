@@ -76,51 +76,97 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
             print(f"[DEBUG] Handling case where current_speed ({current_speed:.2f}) > max_speed ({max_speed:.2f})")
 
         # Initial deceleration phase to reach max_speed
-        initial_decel_distance = (current_speed ** 2 - max_speed ** 2) / (2 * deceleration)
-        initial_decel_time = (current_speed - max_speed) / deceleration
-        remaining_distance = L - initial_decel_distance
+    #    initial_decel_distance = (current_speed ** 2 - max_speed ** 2) / (2 * deceleration)
+    #    initial_decel_time = (current_speed - max_speed) / deceleration
+    #    remaining_distance = L - initial_decel_distance
 
-        if DEBUG:
-            print(
-                f"[DEBUG] Phase 1 - Initial Decel: distance = {initial_decel_distance:.2f}, time = {initial_decel_time:.2f}")
-            print(f"[DEBUG] Remaining distance after reaching max_speed: {remaining_distance:.2f}")
+    #    if DEBUG:
+    #        print(
+    #            f"[DEBUG] Phase 1 - Initial Decel: distance = {initial_decel_distance:.2f}, time = {initial_decel_time:.2f}")
+    #        print(f"[DEBUG] Remaining distance after reaching max_speed: {remaining_distance:.2f}")
 
         # Calculate final deceleration distance needed to stop from max_speed
-        final_decel_distance = (max_speed ** 2) / (2 * deceleration)
-        cruise_distance = remaining_distance - final_decel_distance
+    #    final_decel_distance = (max_speed ** 2) / (2 * deceleration)
+    #    cruise_distance = remaining_distance - final_decel_distance
 
-        if DEBUG:
-            print(f"[DEBUG] Phase 2 - Cruise: distance = {cruise_distance:.2f}")
-            print(f"[DEBUG] Phase 3 - Final Decel: distance = {final_decel_distance:.2f}")
+        # PHASE 1: Initial deceleration from current_speed to max_speed
+        s_decel1 = (current_speed ** 2 - max_speed ** 2) / (2 * deceleration)
+        t_decel1 = (current_speed - max_speed) / deceleration
+
+        # PHASE 3: Final deceleration from max_speed to 0
+        s_decel3 = (max_speed ** 2) / (2 * deceleration)
+        t_decel3 = max_speed / deceleration
+
+        # PHASE 2: Cruise at max_speed for remaining path
+        s_cruise = max(0.0, L - s_decel1 - s_decel3)
+        t_cruise = s_cruise / max_speed if max_speed > 0 else 0.0
+
+
+    #    if DEBUG:
+    #        print(f"[DEBUG] Phase 2 - Cruise: distance = {cruise_distance:.2f}")
+    #        print(f"[DEBUG] Phase 3 - Final Decel: distance = {final_decel_distance:.2f}")
 
         times = []
+        t = 0.0
+        prev_s = 0.0
+        # final_t = None
         for s in s_vals:
-            if s <= initial_decel_distance:  # Phase 1: Initial deceleration to max_speed
-                v = math.sqrt(current_speed ** 2 - 2 * deceleration * s)
-                t = (current_speed - v) / deceleration
-                if DEBUG:  # Print every 10m
-                    print(f"[DEBUG] Initial Decel: s = {s:.2f}, v = {v:.2f}, t = {t:.2f}")
+            ds = s - prev_s
 
-            elif s <= initial_decel_distance + cruise_distance:  # Phase 2: Cruise at max_speed
-                s_in_cruise = s - initial_decel_distance
-                t = initial_decel_time + s_in_cruise / max_speed
-                if DEBUG:  # Print every 10m
-                    print(f"[DEBUG] Cruise: s = {s:.2f}, v = {max_speed:.2f}, t = {t:.2f}")
+        #    if s <= initial_decel_distance:  # Phase 1: Initial deceleration to max_speed
+            if s <= s_decel1:
+                # Phase 1: Decel from current_speed to max_speed
+                ratio = s / s_decel1 if s_decel1 > 0 else 1.0
+            #    v = math.sqrt(current_speed ** 2 - 2 * deceleration * s)
+                v = current_speed + (max_speed - current_speed) * scurve(ratio)
+            #    t = (current_speed - v) / deceleration
+            #    if DEBUG:  # Print every 10m
+            #        print(f"[DEBUG] Initial Decel: s = {s:.2f}, v = {v:.2f}, t = {t:.2f}")
 
-            else:  # Phase 3: Final deceleration to stop
-                s_in_final_decel = s - (initial_decel_distance + cruise_distance)
-                v = math.sqrt(max(max_speed ** 2 - 2 * deceleration * s_in_final_decel, 0.0))
-                t = initial_decel_time + cruise_distance / max_speed + (max_speed - v) / deceleration
-                if DEBUG:  # Print every 10m
-                    print(f"[DEBUG] Final Decel: s = {s:.2f}, v = {v:.2f}, t = {t:.2f}")
+        #    elif s <= initial_decel_distance + cruise_distance:  # Phase 2: Cruise at max_speed
+        #        s_in_cruise = s - initial_decel_distance
+        #        t = initial_decel_time + s_in_cruise / max_speed
+        #        if DEBUG:  # Print every 10m
+        #            print(f"[DEBUG] Cruise: s = {s:.2f}, v = {max_speed:.2f}, t = {t:.2f}")
+            elif s <= s_decel1 + s_cruise:
+                # Phase 2: Cruise at max speed
+                v = max_speed
 
+
+            # else:  # Phase 3: Final deceleration to stop
+            #     s_in_final_decel = s - (initial_decel_distance + cruise_distance)
+            #     v = math.sqrt(max(max_speed ** 2 - 2 * deceleration * s_in_final_decel, 0.0))
+            #     t = initial_decel_time + cruise_distance / max_speed + (max_speed - v) / deceleration
+            #     if DEBUG:  # Print every 10m
+            #         print(f"[DEBUG] Final Decel: s = {s:.2f}, v = {v:.2f}, t = {t:.2f}")
+            elif s <= s_decel1 + s_cruise + s_decel3:
+                s_in_final = s - (s_decel1 + s_cruise)
+                ratio = s_in_final / s_decel3 if s_decel3 > 0 else 1.0
+                v = max_speed * (1.0 - scurve(ratio))
+
+                # if v < 0.05 and final_t is None:
+                #     final_t = t
+            
+            else:
+                # v = 0.0
+                # if final_t is not None:
+                #     times.append(final_t)
+                if DEBUG:
+                    print("[DEBUG] Trajectory complete: Three phases executed")
+                    print(f"[DEBUG] Total time: {times[-1]:.2f}")
+                return Trajectory(frame = path.frame, points=dense_points[:len(times)], times=times)
+                
+            v = max(1e-3, v)
+            dt = ds / v
+            t += dt
             times.append(t)
+            prev_s = s
 
-        if DEBUG:
-            print("[DEBUG] Trajectory complete: Three phases executed")
-            print(f"[DEBUG] Total time: {times[-1]:.2f}")
+        # if DEBUG:
+        #     print("[DEBUG] Trajectory complete: Three phases executed")
+        #     print(f"[DEBUG] Total time: {times[-1]:.2f}")
 
-        return Trajectory(frame=path.frame, points=dense_points, times=times)
+        return Trajectory(frame=path.frame, points=dense_points[:len(times)], times=times)
 
     if acceleration <= 0:
         if DEBUG:
