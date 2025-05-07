@@ -7,6 +7,7 @@ import os
 import numpy as np
 from typing import List
 
+
 class SummoningParkingRoutePlanner(Component):
     def __init__(self, routefn: str, vehicle_interface: GEMInterface, frame: str = 'start'):
         self.vehicle_interface = vehicle_interface
@@ -36,8 +37,7 @@ class SummoningParkingRoutePlanner(Component):
 
         self.parked_cars = [
             (2.69, -2.44),
-            (22.11, -2.44)
-
+            (22.11, -2.44)  
         ]
 
         self.reedssheppparking = ReedsSheppParking()
@@ -47,6 +47,8 @@ class SummoningParkingRoutePlanner(Component):
         self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0.0, -2.44),(24.9, -2.44)]
         self.reedssheppparking.find_available_parking_spots_and_search_vector(self.parked_cars)
         self.reedssheppparking.find_collision_free_trajectory_to_park(self.parked_cars)
+        self.unpark_flag = True
+        
 
         
 
@@ -62,7 +64,16 @@ class SummoningParkingRoutePlanner(Component):
 
     def update(self, vehicle: VehicleState, x=0.0):
         self.current_pose = vehicle.pose
-        
+        current_position = np.array([self.current_pose.x, self.current_pose.y])
+        parking_spot_position = np.array([self.reedssheppparking.parking_spot_to_go[0][0], self.reedssheppparking.parking_spot_to_go[0][1]])
+
+        # Check if the vehicle is close to the parking spot    
+        if np.linalg.norm(current_position - parking_spot_position) < 0.5 and self.unpark_flag:
+            # If the vehicle is close to the parking spot, unpark it
+            self.reedssheppparking.find_collision_free_trajectory_to_unpark(vehicle_pose=(self.current_pose.x, self.current_pose.y, self.current_pose.yaw),
+                                                                      update_pose=True)
+            self.unpark_flag = False
+                                                    
         self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
         self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
         return self.route
