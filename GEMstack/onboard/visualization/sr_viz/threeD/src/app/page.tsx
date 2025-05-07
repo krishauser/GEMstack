@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ControlPanel from "@/components/ControlPanel";
 import CanvasWrapper from "@/components/CanvasWrapper";
 import Scrubber from "@/components/Scrubber";
+import { VehicleInfoPanel } from "@/components/VehicleInfoPanel";
 import { usePlaybackTime } from "@/hooks/usePlaybackTime";
 
 export default function HomePage() {
@@ -20,7 +21,10 @@ export default function HomePage() {
     setDuration,
   } = usePlaybackTime();
 
-  const [searchParams, setSearchParams] = useState<{ folder?: string; file?: string }>({});
+  const [searchParams, setSearchParams] = useState<{
+    folder?: string;
+    file?: string;
+  }>({});
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -33,7 +37,11 @@ export default function HomePage() {
 
   return (
     <main className="relative w-screen h-screen bg-white">
-      <ControlPanel reset={reset} folder={searchParams.folder} file={searchParams.file} />
+      <ControlPanel
+        reset={reset}
+        folder={searchParams.folder}
+        file={searchParams.file}
+      />
       <CanvasWrapper time={time} setDuration={setDuration} />
       <Scrubber
         time={time}
@@ -44,6 +52,7 @@ export default function HomePage() {
         moveToTime={moveToTime}
         duration={duration}
       />
+      <VehicleInfoPanel time={time} />
     </main>
   );
 }
