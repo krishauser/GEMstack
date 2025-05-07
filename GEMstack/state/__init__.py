@@ -11,6 +11,7 @@ __all__ = ['PhysicalObject','ObjectPose','ObjectFrameEnum',
            'Obstacle',
            'Sign',
            'AgentState','AgentEnum','AgentActivityEnum',
+           'ObstacleState','ObstacleMaterialEnum','ObstacleStateEnum',
            'SceneState',
            'VehicleIntent','VehicleIntentEnum',
            'AgentIntent',
@@ -23,7 +24,7 @@ from .physical_object import PhysicalObject, ObjectPose, ObjectFrameEnum
 from .trajectory import Path,Trajectory
 from .vehicle import VehicleState,VehicleGearEnum
 from .roadgraph import Roadgraph, RoadgraphLane, RoadgraphCurve, RoadgraphRegion, RoadgraphCurveEnum, RoadgraphLaneEnum, RoadgraphRegionEnum, RoadgraphSurfaceEnum, RoadgraphConnectionEnum
-from .obstacle import Obstacle, ObstacleMaterialEnum
+from .obstacle import Obstacle, ObstacleMaterialEnum, ObstacleState, ObstacleStateEnum
 from .sign import Sign, SignEnum, SignalLightEnum, SignState
 from .roadmap import Roadmap
 from .agent import AgentState, AgentEnum, AgentActivityEnum

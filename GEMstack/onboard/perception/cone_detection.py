@@ -1,4 +1,4 @@
-from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
+from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum, ObstacleStateEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .perception_utils import *
@@ -156,12 +156,12 @@ class ConeDetector3D(Component):
         # print('--------undistort', end-start)
         return undistorted, newK
 
-    def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
+    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
         downsample = False
         # Gate guards against data not being present for both sensors:
         if self.latest_image is None or self.latest_lidar is None:
             return {}
-        lastest_image = self.latest_image.copy()
+        latest_image = self.latest_image.copy()
         
         # Set up current time variables
         start = time.time()
@@ -182,7 +182,7 @@ class ConeDetector3D(Component):
         
         if self.camera_front == False:
             start = time.time()
-            undistorted_img, current_K = self.undistort_image(lastest_image, self.K, self.D)
+            undistorted_img, current_K = self.undistort_image(latest_image, self.K, self.D)
             end = time.time()
             # print('-------processing time undistort_image---', end -start)
             self.current_K = current_K
@@ -191,9 +191,9 @@ class ConeDetector3D(Component):
             # --- Begin modifications for three-angle detection ---
             img_normal = undistorted_img
         else:
-            img_normal = lastest_image.copy()
-            undistorted_img = lastest_image.copy()
-            orig_H, orig_W = lastest_image.shape[:2]
+            img_normal = latest_image.copy()
+            undistorted_img = latest_image.copy()
+            orig_H, orig_W = latest_image.shape[:2]
             self.current_K = self.K
         results_normal = self.detector(img_normal, conf=0.35, classes=[0])
         combined_boxes = []
@@ -202,25 +202,25 @@ class ConeDetector3D(Component):
         if self.orientation:
             img_left = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_COUNTERCLOCKWISE)
             img_right = cv2.rotate(undistorted_img.copy(), cv2.ROTATE_90_CLOCKWISE)
-            results_left = self.detector(img_left, conf=0.1, classes=[0])
-            results_right = self.detector(img_right, conf=0.1, classes=[0])
+            results_left = self.detector(img_left, conf=0.15, classes=[0])
+            results_right = self.detector(img_right, conf=0.15, classes=[0])
             boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
             boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
             for box in boxes_left:
                 cx, cy, w, h = box
                 new_cx = cy
                 new_cy = orig_W - 1 - cx
-                combined_boxes.append((new_cx, new_cy, h, w, AgentActivityEnum.RIGHT))
+                combined_boxes.append((new_cx, new_cy, h, w, ObstacleStateEnum.RIGHT))
             for box in boxes_right:
                 cx, cy, w, h = box
                 new_cx = orig_H - 1 - cy
                 new_cy = cx
-                combined_boxes.append((new_cx, new_cy, h, w, AgentActivityEnum.LEFT))
+                combined_boxes.append((new_cx, new_cy, h, w, ObstacleStateEnum.LEFT))
 
         boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
         for box in boxes_normal:
             cx, cy, w, h = box
-            combined_boxes.append((cx, cy, w, h, AgentActivityEnum.STANDING))
+            combined_boxes.append((cx, cy, w, h, ObstacleStateEnum.STANDING))
 
         # Visualize the received images in 2D with their corresponding labels
         # It draws rectangles and labels on the images:
@@ -230,13 +230,13 @@ class ConeDetector3D(Component):
                 right = int(cx + w / 2)
                 top = int(cy - h / 2)
                 bottom = int(cy + h / 2)
-                if activity == AgentActivityEnum.STANDING:
+                if activity == ObstacleStateEnum.STANDING:
                     color = (255, 0, 0)
                     label = "STANDING"
-                elif activity == AgentActivityEnum.RIGHT:
+                elif activity == ObstacleStateEnum.RIGHT:
                     color = (0, 255, 0)
                     label = "RIGHT"
-                elif activity == AgentActivityEnum.LEFT:
+                elif activity == ObstacleStateEnum.LEFT:
                     color = (0, 0, 255)
                     label = "LEFT"
                 else:
@@ -356,11 +356,11 @@ class ConeDetector3D(Component):
                             roll=avg_roll,
                             frame=new_pose.frame
                         )
-                        updated_agent = AgentState(
+                        updated_agent = ObstacleState(
                             pose=updated_pose,
                             dimensions=dims,
                             outline=None,
-                            type=AgentEnum.CONE,
+                            type=ObstacleMaterialEnum.TRAFFIC_CONE,
                             activity=activity,
                             velocity=(0, 0, 0),
                             yaw_rate=0
@@ -372,11 +372,11 @@ class ConeDetector3D(Component):
                 else:
                     agent_id = f"Cone{self.cone_counter}"
                     self.cone_counter += 1
-                    new_agent = AgentState(
+                    new_agent = ObstacleState(
                         pose=new_pose,
                         dimensions=dims,
                         outline=None,
-                        type=AgentEnum.CONE,
+                        type=ObstacleMaterialEnum.TRAFFIC_CONE,
                         activity=activity,
                         velocity=(0, 0, 0),
                         yaw_rate=0
@@ -386,11 +386,11 @@ class ConeDetector3D(Component):
             else:
                 agent_id = f"Cone{self.cone_counter}"
                 self.cone_counter += 1
-                new_agent = AgentState(
+                new_agent = ObstacleState(
                     pose=new_pose,
                     dimensions=dims,
                     outline=None,
-                    type=AgentEnum.CONE,
+                    type=ObstacleMaterialEnum.TRAFFIC_CONE,
                     activity=activity,
                     velocity=(0, 0, 0),
                     yaw_rate=0
@@ -437,7 +437,7 @@ class ConeDetector3D(Component):
         os.makedirs("data", exist_ok=True)
         tstamp = int(self.vehicle_interface.time() * 1000)
         # 1) Dump raw image
-        cv2.imwrite(f"data/{tstamp}_image.png", lastest_image)
+        cv2.imwrite(f"data/{tstamp}_image.png", latest_image)
         # 2) Dump raw LiDAR
         np.savez(f"data/{tstamp}_lidar.npz", lidar=self.latest_lidar)
         # 3) Write BEFORE_TRANSFORM
@@ -491,7 +491,7 @@ class FakConeDetector(Component):
     def state_outputs(self):
         return ['agents']
 
-    def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
+    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
         if self.t_start is None:
             self.t_start = self.vehicle_interface.time()
         t = self.vehicle_interface.time() - self.t_start
@@ -507,8 +507,8 @@ def box_to_fake_agent(box):
     x, y, w, h = box
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
-    return AgentState(pose=pose, dimensions=dims, outline=None,
-                      type=AgentEnum.CONE, activity=AgentActivityEnum.MOVING,
+    return ObstacleState(pose=pose, dimensions=dims, outline=None,
+                      type=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING,
                       velocity=(0, 0, 0), yaw_rate=0)
 
 
