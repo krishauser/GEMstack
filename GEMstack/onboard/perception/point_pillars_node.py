@@ -10,6 +10,7 @@ from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
 import time
 import os
+import ros_numpy
 
 # PointPillars imports:
 import torch
@@ -20,23 +21,40 @@ from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from geometry_msgs.msg import Pose, Vector3
 
 
-import numpy as np
-import ros_numpy
 def pc2_to_numpy_with_intensity(pc2_msg, want_rgb=False):
     """
     Convert a ROS PointCloud2 message into a numpy array quickly using ros_numpy.
-    This function extracts the x, y, z coordinates from the point cloud.
+    This function extracts the x, y, z coordinates and reflecivity from the point cloud.
     """
     # Convert the ROS message to a numpy structured array
     pc = ros_numpy.point_cloud2.pointcloud2_to_array(pc2_msg)
-    # Stack x,y,z fields to a (N,3) array
+    reflectivity = np.array(pc['reflectivity']).ravel()
+    
+    # Normalize reflectivity to 0-1 range
+    reflectivity_max = np.max(reflectivity)
+    if reflectivity_max > 1.0:
+        normalized_reflectivity = reflectivity / reflectivity_max
+    else:
+        normalized_reflectivity = reflectivity
+
+    # Stack x,y,z, r fields to a (N,4) array
     pts = np.stack((np.array(pc['x']).ravel(),
                     np.array(pc['y']).ravel(),
                     np.array(pc['z']).ravel(),
-                    np.array(pc['intensity']).ravel()), axis=1)
-    # Apply filtering (for example, x > 0 and z in a specified range)
-    mask = (pts[:, 0] > -0.5) & (pts[:, 2] < -1) & (pts[:, 2] > -2.7)
+                    normalized_reflectivity), 
+                    axis=1)
+
+    # Restrict points to the model's default range:
+    x_min, y_min, z_min = 0, -39.68, -3
+    x_max, y_max, z_max = 69.12, 39.68, 1
+
+    mask = (
+        (pts[:, 0] >= x_min) & (pts[:, 0] <= x_max) &
+        (pts[:, 1] >= y_min) & (pts[:, 1] <= y_max) &
+        (pts[:, 2] >= z_min) & (pts[:, 2] <= z_max)
+    )
     return pts[mask]
+
 
 class PointPillarsNode():
     """
@@ -52,6 +70,7 @@ class PointPillarsNode():
         self.camera_name = 'front'
         self.camera_front = (self.camera_name=='front')
         self.score_threshold = 0.4
+        self.debug = True
         self.initialize()
 
     def initialize(self):
@@ -163,7 +182,7 @@ class PointPillarsNode():
             batched_pts = [lidar_tensor]
             
             # Get PointPillars predictions
-            results = self.pointpillars(batched_pts, mode='test')
+            results = self.pointpillars.forward(batched_pts, mode='test')
             
             if results and len(results) > 0 and 'lidar_bboxes' in results[0]:
                 # Process PointPillars results
@@ -194,6 +213,20 @@ class PointPillarsNode():
                     box.header.frame_id = 'velodyne'
                     box.header.stamp = lidar_msg.header.stamp
                     
+                    if self.debug:
+                        print("X VEHICLE")
+                        print(x_vehicle)
+                        print("L")
+                        print(l)
+                        print("Y VEHICLE")
+                        print(y_vehicle)
+                        print("W")
+                        print(w)
+                        print("Z VEHICLE")
+                        print(z_vehicle)
+                        print("H")
+                        print(h)
+
                     # Set the pose (position and orientation)
                     box.pose.position.x = float(x_vehicle)
                     box.pose.position.y = float(y_vehicle)
