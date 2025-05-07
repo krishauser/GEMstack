@@ -195,7 +195,7 @@ def waypoint_generate_relaxed(vehicle_state, cones, cone_idx):
     target_heading = car_heading
 
     # ===== Parameters =====
-    u_turn_radius = 11.5      # Radius for U-turn
+    u_turn_radius = 7      # Radius for U-turn
     offset = 2.0                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
@@ -302,17 +302,17 @@ def waypoint_generate_relaxed(vehicle_state, cones, cone_idx):
         else:
             target_heading -= 2 * np.pi
 
-    # For visualization only
-    for i, wp in enumerate(flex_wps_list):
-        plt.plot(wp[0], wp[1], 'ro')  # Plot all waypoints in red
-        plt.text(wp[0], wp[1], f'wp{i}', fontsize=9)
+    # # For visualization only
+    # for i, wp in enumerate(flex_wps_list):
+    #     plt.plot(wp[0], wp[1], 'ro')  # Plot all waypoints in red
+    #     plt.text(wp[0], wp[1], f'wp{i}', fontsize=9)
         
-    plt.plot(fixed_wp[0], fixed_wp[1], 'bo')  # Plot fixed waypoint in blue
-    plt.plot(cone[0], cone[1], 'gx')  # Plot cone in green
-    plt.plot(car_position[0], car_position[1], 'ks')  # Plot car position
-    plt.axis('equal')  # Equal aspect ratio for better visualization
-    plt.grid(True)
-    plt.show()
+    # plt.plot(fixed_wp[0], fixed_wp[1], 'bo')  # Plot fixed waypoint in blue
+    # plt.plot(cone[0], cone[1], 'gx')  # Plot cone in green
+    # plt.plot(car_position[0], car_position[1], 'ks')  # Plot car position
+    # plt.axis('equal')  # Equal aspect ratio for better visualization
+    # plt.grid(True)
+    # plt.show()
 
     return scenario, flex_wps_list, fixed_wp, target_heading
     
@@ -575,9 +575,9 @@ def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
 def trajectory_generation_dynamics(init_state, final_state, N=30, Lr=1.5,
                           a_min=-3.0, a_max=3.0,
                           eps_min=-0.2, eps_max=0.2,
-                          v_min=3.0, v_max=11.0,
-                          T_min = 0.5, T_max = 500.0,
-                          waypoints=None, waypoint_penalty_weight=1.0):
+                          v_min=2.0, v_max=11.0,
+                          T_min = 0.5, T_max = 1000.0,
+                          waypoints=None, waypoint_penalty_weight=1, waypoint_headings=None):
     """
     Generate a dynamically feasible trajectory between init_state and final_state
     using curvature-based vehicle dynamics and nonlinear optimization.
@@ -1100,6 +1100,7 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
     x_all, y_all, v_all = [], [], []
     current_pos = np.array(vehicle_state['position'])
     current_heading = vehicle_state['heading']
+    waypoint_all = []
 
     for cone_idx, cone in enumerate(cones):
         # scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, cones, cone_idx)
@@ -1107,6 +1108,7 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
         if not flex_wps or fixed_wp is None:
             continue
         # flex_wp = flex_wps[0]
+        waypoint_all.extend(flex_wps)
         current_heading = (current_heading + np.pi) % (2 * np.pi) - np.pi
 
         init_state = {
@@ -1143,6 +1145,11 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
     for i, cone in enumerate(cones):
         plt.scatter(cone['x'], cone['y'], color='orange', s=10, label='Cone' if i == 0 else "")
         plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
+
+    # plot waypoints
+    for i, wp in enumerate(waypoint_all):
+        plt.plot(wp[0], wp[1], 'ro')  # Plot all waypoints in red
+        plt.text(wp[0], wp[1], f'wp{i}', fontsize=9)
 
     plt.title('4-Cone Full Course Trajectory')
     plt.xlabel('X')
