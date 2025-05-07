@@ -23,4 +23,3 @@ cameras:
       - [ 0.68884317, -0.70619960, -0.16363744, -1.04767285]
       - [ 0.0,          0.0,          0.0,          1.0      ]
 
-  # add other cameras (back_left, front_right, back_right) similarly...
