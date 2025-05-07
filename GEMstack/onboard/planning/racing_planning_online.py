@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import minimize
 
 from typing import Dict
+import time
 
 # --------------------------
 # This is the main code for the racing trajectory planner.
@@ -386,12 +387,17 @@ def to_gemstack_trajectory(x_all, y_all, v_all, T=0.1):
     return Trajectory(points=points, times=t_vals, frame=ObjectFrameEnum.START)
 
 
-def plan_full_slalom_trajectory(vehicle_state, cones):
+def plan_full_slalom_trajectory(vehicle_state, cones, prev_conesID=None):
     x_all, y_all, v_all = [], [], []
     current_pos = np.array(vehicle_state['position'])
     current_heading = vehicle_state['heading']
-
+    processed_coneIDs = []
+    count = 0
     for cone_idx, cone in enumerate(cones):
+        if count == 1:
+            break
+        if (prev_conesID is not None) and (cone_idx in prev_conesID) :
+            continue
         scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, cones, cone_idx)
         print(f"Scenario: {scenario}, Cone: {cone}, Flex WP: {flex_wps}, Fixed WP: {fixed_wp}")
         if not flex_wps or fixed_wp is None:
@@ -422,6 +428,8 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
             'velocity': v[-1]
         }
         current_pos = np.array([x[-1], y[-1]])
+        processed_coneIDs.append(cone_idx)
+        count += 1
 
     # # Plot overall trajectory
     # plt.figure()
@@ -446,7 +454,7 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
     path = compute_headings(path)
     path = path.arc_length_parameterize()
     # print(path)
-    return path.racing_velocity_profile()
+    return path.racing_velocity_profile(), processed_coneIDs
     # return to_gemstack_trajectory(x_all, y_all, v_all)
 
 
@@ -467,18 +475,18 @@ def no_cone_planning(vehicle_dict):
     # print(path)
     return path.racing_velocity_profile()
 
-def got_new_cone(current_cones, prev_cones):
-    if current_cones is None:
-        return False
-    if prev_cones is None:
-        return True
-    prev_ids = {cone['id'] for cone in prev_cones}
+# def got_new_cone(current_cones, prev_cones):
+#     if current_cones is None:
+#         return False
+#     if prev_cones is None:
+#         return True
+#     prev_ids = {cone['id'] for cone in prev_cones}
 
-    for cone in current_cones:
-        if cone['id'] not in prev_ids:
-            return True  # Found a new cone not in previous list
+#     for cone in current_cones:
+#         if cone['id'] not in prev_ids:
+#             return True  # Found a new cone not in previous list
 
-    return False
+#     return False
 ################################################
 # Main Racing Trajectory Planner Class
 ################################################
@@ -486,7 +494,8 @@ class SlalomTrajectoryPlanner(Component):
     def __init__(self, **kwargs):
         # You can accept args here if needed
         self.trajectory = None
-        self.prev_cones = None
+        self.prev_coneIDs = []
+        self.time = None
         # ----------------------------
         # Predifined-Cones Simulation
         # self.run_fake_plan = True
@@ -514,51 +523,53 @@ class SlalomTrajectoryPlanner(Component):
             # Get all current detected cones
             cones = []
             n = 0
-            for id, agent in agents.items():
-                if agent.type == AgentEnum.CONE:
-                    # ===== RUNNING ONBOARD =====
-                    # cones.append({
-                    #     'id': id,
-                    #     'x': agent.pose.x,
-                    #     'y': agent.pose.y,
-                    #     'orientation': agent.activity
-                    # })
-                    # ===== TESTING ONBOARD in BASIC SIM =====
-                    if n % 2 == 0:
-                        curr_activity = 'LEFT'
-                    elif n % 2 == 1:
-                        curr_activity = 'RIGHT'
-                    else:
-                        curr_activity = 'STANDING'
-                    cones.append({
-                        'id': id,
-                        'x': agent.pose.x,
-                        'y': agent.pose.y,
-                        'orientation': curr_activity
-                    })
-                    n = n + 1
+            now = time.time()
 
-            vehicle_dict = {
-                'position': [vehicle.pose.x, vehicle.pose.y],
-                'heading': vehicle.pose.yaw,
-                'velocity': vehicle.v
-            }
-            if self.DEBUG_MODE:
-                print("===================== STATES =====================")
-                print(f"Vehicle State: {vehicle_dict}")
-                print(f"Detected Cones: {cones}")
-                print("===================== ====== =====================")
-            # If no cones detected, drive forward
-            if len(cones) == 0:
-                self.trajectory = no_cone_planning(vehicle_dict)
-            # Otherwise, plan trajectory
-            elif got_new_cone(cones, self.prev_cones):
-                # Replan only if new cones are detected
-                self.trajectory = plan_full_slalom_trajectory(vehicle_dict, cones)
-                self.prev_cones = cones
-            else:
-                # No need to update the plan if the same cones are detected
-                self.prev_cones = cones
+            # Replan every 3 seconds
+            if self.time is None or now - self.time > 5:
+                self.time = now
+
+                for id, agent in agents.items():
+                    if agent.type == AgentEnum.CONE:
+                        # ===== RUNNING ONBOARD =====
+                        # cones.append({
+                        #     'id': id,
+                        #     'x': agent.pose.x,
+                        #     'y': agent.pose.y,
+                        #     'orientation': agent.activity
+                        # })
+                        # ===== TESTING ONBOARD in BASIC SIM =====
+                        if n % 2 == 0:
+                            curr_activity = 'LEFT'
+                        elif n % 2 == 1:
+                            curr_activity = 'RIGHT'
+                        else:
+                            curr_activity = 'STANDING'
+                        cones.append({
+                            'id': id,
+                            'x': agent.pose.x,
+                            'y': agent.pose.y,
+                            'orientation': curr_activity
+                        })
+                        n = n + 1
+
+                vehicle_dict = {
+                    'position': [vehicle.pose.x, vehicle.pose.y],
+                    'heading': vehicle.pose.yaw,
+                    'velocity': vehicle.v
+                }
+                if self.DEBUG_MODE:
+                    print("===================== STATES =====================")
+                    print(f"Vehicle State: {vehicle_dict}")
+                    print(f"Detected Cones: {cones}")
+                    print("===================== ====== =====================")
+                # If no cones detected, drive forward
+                if len(cones) == 0:
+                    self.trajectory = no_cone_planning(vehicle_dict)
+                # Otherwise, plan trajectory
+                else:
+                    self.trajectory, processed_ids = plan_full_slalom_trajectory(vehicle_dict, cones, self.prev_coneIDs)
+                    self.prev_coneIDs = self.prev_coneIDs + processed_ids
         
         # Testing with predefined fake generated cone positions
         elif self.run_fake_plan:
