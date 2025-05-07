@@ -36,16 +36,17 @@ class SummoningParkingRoutePlanner(Component):
 
         self.parked_cars = [
             (2.69, -2.44),
-            (22.11, -2.44) 
+            (22.11, -2.44)
+
         ]
 
         self.reedssheppparking = ReedsSheppParking()
         # self.reedssheppparking.closest = True
-        # self.reedssheppparking.add_static_vertical_curb_as_obstacle = False
-        # self.reedssheppparking.add_static_horizontal_curb_as_obstacle = False
+        self.reedssheppparking.add_static_vertical_curb_as_obstacle = False
+        self.reedssheppparking.add_static_horizontal_curb_as_obstacle = False
         self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0.0, -2.44),(24.9, -2.44)]
         self.reedssheppparking.find_available_parking_spots_and_search_vector(self.parked_cars)
-        self.reedssheppparking.find_collision_free_trajectory(self.parked_cars)
+        self.reedssheppparking.find_collision_free_trajectory_to_park(self.parked_cars)
 
         
 
@@ -61,6 +62,7 @@ class SummoningParkingRoutePlanner(Component):
 
     def update(self, vehicle: VehicleState, x=0.0):
         self.current_pose = vehicle.pose
+        
         self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
         self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
         return self.route
