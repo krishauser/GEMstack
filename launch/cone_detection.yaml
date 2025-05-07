@@ -18,13 +18,17 @@ drive:
                 camera_name: front #[front, front_right]
                 camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
 
-                # optional overrides
-                enable_tracking: True # True if you want ot enable tracking function
-                visualize_2d: False # True if you see 2D detection visualization
-                use_cyl_roi: False # True if you want to use a cylinder roi (no need to use if calibration is accurate)
-                save_data: False # True if you want to save the sensor input data
-                orientation: True # True if you need to detect flipped cones
-                use_start_frame: True # True if you need output in START frame, otherwise in CURRENT frame
+                T_l2v:
+                  - [0.99939639,  0.02547917,  0.023615,    1.1]
+                  - [-0.02530848, 0.99965156, -0.00749882,  0.03773583]
+                  - [-0.02379784, 0.00689664,  0.999693,     1.95320223]
+                  - [0.0,         0.0,         0.0,          1.0]
+                enable_tracking:  True   # True if you want to enable tracking
+                visualize_2d:     False  # True to see 2D detection visualization
+                use_cyl_roi:      False  # True to use a cylinder ROI
+                save_data:        False  # True to save sensor input data
+                orientation:      True   # True to detect flipped cones
+                use_start_frame:  True   # True to output in START frame
 
         perception_normalization : StandardPerceptionNormalizer
     planning:
