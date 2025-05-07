@@ -68,15 +68,18 @@ In one terminal, run the Gazebo simulator (using the instructions provided in th
 Open a second terminal and launch GEMStack with your configured launch file.
 
 ```bash
-python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/{your_file}.yaml
+python3 main.py --variant=gazebo --settings={your_file}.yaml launch/{your_file}.yaml
+
 ```
 - Make sure to set the variant to `gazebo`.
-- You can specify the vehicle type to be `e2_gazebo` or `e4_gazebo`.
+- You can specify the settings file to  GEMstack/knowledge/defaults/e4_gazebo.yaml or e2_gazebo.yaml till we work on closing the sim to real gap.
 
 Example command launching the fixed route with e4 vehicle:
 
 ```bash
-python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/fixed_route.yaml
+python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e2.yaml launch/fixed_route.yaml
+or
+python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/current.yaml launch/fixed_route.yaml
 ```
 **Variants:**
  - sim
@@ -85,6 +88,14 @@ python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/fixed_route.yaml
 **Vehicle types:**
 - e2
 - e4
-- e2_gazebo
-- e4_gazebo
+
+**Setting:**
+
+By default it takes GEMstack/knowledge/defaults/current.yaml which is GEM E4 Vehicle configuration settings.
+
+Other available configuration files:
+
+GEMstack/knowledge/defaults/
+- e2.yaml
+
 ---
