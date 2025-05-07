@@ -101,7 +101,7 @@ class ConeDetector3D(Component):
         return ['vehicle']
 
     def state_outputs(self) -> list:
-        return ['agents']
+        return ['obstacles']
 
     def initialize(self):
         # --- Determine the correct RGB topic for this camera ---
