@@ -191,35 +191,23 @@ def limit_velocity_by_steering_rate(ds, velocity, wheelbase, max_steering_rate, 
     # Compute steering angle delta: delta = arctan(L * kappa)
     steering_angle = np.arctan(wheelbase * kappa)
 
-    # if np.any(ds < 0):
-    #     raise ValueError("negative ds")
-    # else:
-    #     raise ValueError("positive ds")
-        
     # Compute steering rate: d(delta)/dt
     ddelta = np.gradient(steering_angle)
     dt = ds / (velocity + 1e-6)  # Add small value to prevent division by zero
     ddelta_dt = ddelta / (dt + 1e-6)
 
     # max steering wheel rate to steering rate
-    # raise ValueError(max_steering_rate)
     max_steering_rate = steer2front(max_steering_rate)
 
     # Limit velocity where steering rate exceeds max
     limited_velocity = np.copy(velocity)
     for i in range(len(velocity)):
         if abs(ddelta_dt[i]) > max_steering_rate:
-            print("dt: " +str(dt[i]))
-            print("ds: " +str(ds[i]))
-            print("ddelta: " +str(ddelta[i]))
-            print("deltadt: " +str(ddelta_dt[i]))
             ddelta_dt[i] = max_steering_rate
             limited_velocity[i] = max(0, min(
                 velocity[i],
                 abs((ds[i] / (ddelta[i] / ddelta_dt[i])+ 1e-6) - 1e-6)
             ))
-            print(velocity[i])
-            print(abs(ds[i] / ddelta[i] / ddelta_dt[i]))
     return limited_velocity, steering_angle
 
 
