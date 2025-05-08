@@ -179,6 +179,7 @@ class ParkingSpotsDetector3D(Component):
             obstacle_id += 1
         
         # Constructing goal pose
+        print(f"-----GOAL: {goal_parking_spot}")
         x, y, yaw = goal_parking_spot
         goal_pose = ObjectPose(
                         t=current_time,

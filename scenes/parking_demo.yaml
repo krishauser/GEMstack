@@ -18,32 +18,32 @@ agents:
   
   cone1:
     type: cone
-    position: [10.0, 8.0]
+    position: [50.0, 8.0]
     nominal_velocity: 0.0
-    target: [20.0, 8.0]
+    target: [60.0, 8.0]
     behavior: loop
     yaw: 0
 
   cone2:
     type: cone
-    position: [16.0, 8.0]
+    position: [56.0, 8.0]
     nominal_velocity: 0.0
-    target: [20.0, 8.0]
+    target: [60.0, 8.0]
     behavior: loop
     yaw: 0
 
   cone3:
     type: cone
-    position: [10.0, 4.0]
+    position: [50.0, 4.0]
     nominal_velocity: 0.0
-    target: [20.0, 8.0]
+    target: [60.0, 8.0]
     behavior: loop
     yaw: 0
 
   cone4:
     type: cone
-    position: [16.0, 4.0]
+    position: [56.0, 4.0]
     nominal_velocity: 0.0
-    target: [20.0, 8.0]
+    target: [60.0, 8.0]
     behavior: loop
     yaw: 0
