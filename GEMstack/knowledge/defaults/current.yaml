@@ -17,7 +17,6 @@
          crosstrack_gain: 0.3
          desired_speed: trajectory #racing
      launch_control:
-         enable: 1
          stage_duration: 0.5
      # Stanley controller parameters (fine tune this)
      stanley:

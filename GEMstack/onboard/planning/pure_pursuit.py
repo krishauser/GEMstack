@@ -13,7 +13,7 @@ import rospy
 
 class PurePursuit(object):   
     """Implements a pure pursuit controller on a second-order Dubins vehicle."""
-    def __init__(self, lookahead = None, lookahead_scale = None, crosstrack_gain = None, desired_speed = None):
+    def __init__(self, lookahead = None, lookahead_scale = None, crosstrack_gain = None, desired_speed = None, launch_control = None):
         self.look_ahead = lookahead if lookahead is not None else settings.get('control.pure_pursuit.lookahead',4.0)
         self.look_ahead_scale = lookahead_scale if lookahead_scale is not None else settings.get('control.pure_pursuit.lookahead_scale',3.0)
         self.crosstrack_gain = crosstrack_gain if crosstrack_gain is not None else settings.get('control.pure_pursuit.crosstrack_gain',0.41)
@@ -40,6 +40,8 @@ class PurePursuit(object):
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
+
+        self.launch_control = launch_control
 
     def set_path(self, path : Path):
         if path == self.path_arg:
@@ -231,7 +233,7 @@ class PurePursuitTrajectoryTracker(Component):
     def __init__(self,vehicle_interface=None, **args):
         self.pure_pursuit = PurePursuit(**args)
         self.vehicle_interface = vehicle_interface
-        launch_control_enabled = settings.get('control.launch_control.enable', 0)
+        launch_control_enabled = self.pure_pursuit.launch_control
         if launch_control_enabled:
             stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
             self.launch_control = LaunchControl(stage_duration, stop_threshold=0.1)

@@ -43,7 +43,8 @@ class Stanley(object):
         self,
         control_gain=None,
         softening_gain=None,
-        desired_speed=None
+        desired_speed=None,
+        launch_control=None
     ):
         """
         :param control_gain:       Stanley lateral control gain k (lowered from the default to reduce overshoot).
@@ -90,6 +91,8 @@ class Stanley(object):
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
+
+        self.launch_control = launch_control
 
     def set_path(self, path: Path):
         """Sets the path or trajectory to track."""
@@ -331,7 +334,7 @@ class StanleyTrajectoryTracker(Component):
         self.vehicle_interface = vehicle_interface
         self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
 
-        launch_control_enabled = settings.get('control.launch_control.enable', 0)
+        launch_control_enabled = self.stanley.launch_control
         if launch_control_enabled:
             stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
             self.launch_control = LaunchControl(stage_duration, stop_threshold=0.1)
