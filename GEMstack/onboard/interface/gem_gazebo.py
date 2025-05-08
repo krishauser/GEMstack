@@ -62,6 +62,10 @@ class GEMGazeboInterface(GEMInterface):
 
         # Other sensors
         self.front_camera_sub = None
+        self.front_left_camera_sub = None
+        self.front_right_camera_sub = None
+        self.rear_left_camera_sub = None
+        self.rear_right_camera_sub = None
         self.front_depth_sub = None
         self.top_lidar_sub = None
         self.front_radar_sub = None
@@ -169,6 +173,54 @@ class GEMGazeboInterface(GEMInterface):
                     cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
                     callback(cv_image)
                 self.front_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+
+        elif name == 'front_left_camera':
+            topic = self.ros_sensor_topics[name]
+            if type is not None and (type is not Image and type is not cv2.Mat):
+                raise ValueError("GEMGazeboInterface only supports Image or OpenCV for front left camera")
+            if type is None or type is Image:
+                self.front_left_camera_sub = rospy.Subscriber(topic, Image, callback)
+            else:
+                def callback_with_cv2(msg: Image):
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
+                    callback(cv_image)
+                self.front_left_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+
+        elif name == 'front_right_camera':
+            topic = self.ros_sensor_topics[name]
+            if type is not None and (type is not Image and type is not cv2.Mat):
+                raise ValueError("GEMGazeboInterface only supports Image or OpenCV for front right camera")
+            if type is None or type is Image:
+                self.front_right_camera_sub = rospy.Subscriber(topic, Image, callback)
+            else:
+                def callback_with_cv2(msg: Image):
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
+                    callback(cv_image)
+                self.front_right_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+
+        elif name == 'rear_left_camera':
+            topic = self.ros_sensor_topics[name]
+            if type is not None and (type is not Image and type is not cv2.Mat):
+                raise ValueError("GEMGazeboInterface only supports Image or OpenCV for rear left camera")
+            if type is None or type is Image:
+                self.rear_left_camera_sub = rospy.Subscriber(topic, Image, callback)
+            else:
+                def callback_with_cv2(msg: Image):
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
+                    callback(cv_image)
+                self.rear_left_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
+
+        elif name == 'rear_right_camera':
+            topic = self.ros_sensor_topics[name]
+            if type is not None and (type is not Image and type is not cv2.Mat):
+                raise ValueError("GEMGazeboInterface only supports Image or OpenCV for rear right camera")
+            if type is None or type is Image:
+                self.rear_right_camera_sub = rospy.Subscriber(topic, Image, callback)
+            else:
+                def callback_with_cv2(msg: Image):
+                    cv_image = conversions.ros_Image_to_cv2(msg, desired_encoding="bgr8")
+                    callback(cv_image)
+                self.rear_right_camera_sub = rospy.Subscriber(topic, Image, callback_with_cv2)
         # Front depth sensor has not been added to gazebo yet.
         # This code is placeholder until we add front depth sensor.
         elif name == 'front_depth':

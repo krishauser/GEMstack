@@ -3,4 +3,7 @@ ros_topics:
   front_camera: /oak/rgb/image_raw
   front_depth: /oak/stereo/image_raw
   gnss: /septentrio_gnss/insnavgeod
-  
+  front_left_camera: /camera_fl/arena_camera_node/image_raw
+  front_right_camera: /camera_fr/arena_camera_node/image_raw
+  rear_left_camera: /camera_rl/arena_camera_node/image_raw
+  rear_right_camera: /camera_rr/arena_camera_node/image_raw
