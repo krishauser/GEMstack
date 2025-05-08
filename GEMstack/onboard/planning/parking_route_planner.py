@@ -198,10 +198,16 @@ class ParkingSolverSecondOrderDubins(AStar):
 
         return temp_obj.polygon()
 
-def generate_action_set():
+# def generate_action_set(max_vel, max_turn_rate):
+#             return [
+#                 (.75, -0.3), (.75, 0.0), (.75, 0.3),
+#                 (-.75, -0.3), (-.75, 0.0), (-.75, 0.3)
+#             ]
+
+def generate_action_set(max_vel, max_turn_rate):
             return [
-                (.75, -0.3), (.75, 0.0), (.75, 0.3),
-                (-.75, -0.3), (-.75, 0.0), (-.75, 0.3)
+                (max_vel, -max_turn_rate), (max_vel, 0.0), (max_vel, max_turn_rate),
+                (-max_vel, -max_turn_rate), (-max_vel, 0.0), (-max_vel, max_turn_rate)
             ]
 class ParkingSolverFirstOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
@@ -212,11 +218,17 @@ class ParkingSolverFirstOrderDubins(AStar):
 
         # Vehicle model
         self._vehicle = None
+
+        # settings
+        self.T = settings.get("planning.dubins.integrator.time_step", 1.5)
+        self.dt = settings.get("planning.dubins.integrator.time_step", .25)
+        self.max_v = settings.get("planning.dubins.actions.max_velocity", 0.75)
+        self.max_turn_rate = settings.get("planning.dubins.actions.max_turn_rate", 0.3)
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
-        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, 1.5, 0.25)
+        self.vehicle_sim = DubinsCarIntegrator(self.vehicle, self.T, self.dt)
         #@TODO create a more standardized way to define the actions
-        self._actions = generate_action_set()
+        self._actions = generate_action_set(self.max_v, self.max_turn_rate)
 
 
     @property
@@ -420,6 +432,8 @@ class ParkingPlanner():
         # self.planner = ParkingSolverSecondOrderDubins()
         self.planner = ParkingSolverFirstOrderDubins()
 
+        self.iterations = settings.get("planning.astar.iterations", 20000)
+
     def state_inputs(self):
         return ['all']
 
@@ -481,8 +495,12 @@ class ParkingPlanner():
         all_obstacles = {**agents, **obstacles}
         # print(f"Obstacles {obstacles}")
         print(f"Agents {agents}")
-        route = state.route
-        goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=15, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0,yaw=state.mission_plan.goal_orientation)
+        # goal= state.goal
+        # print(goal.frame)
+        # assert goal.frame == ObjectFrameEnum.ABSOLUTE_CARTESIAN
+        # assert goal.v == 0
+        # print(f"Goal {goal}")
+        goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=0.0, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0.0,yaw=state.mission_plan.goal_orientation)
         goal = VehicleState.zero()
         goal.pose = goal_pose
         goal.v = 0
@@ -500,7 +518,7 @@ class ParkingPlanner():
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=10000))
+        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=self.iterations))
         # points = [state[:2] for state in res] # change here to return the theta as well
         points = []
         for state in res:

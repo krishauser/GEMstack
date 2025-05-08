@@ -9,7 +9,7 @@ from GEMstack.state.physical_object import ObjectFrameEnum
 from GEMstack.state.route import PlannerEnum, Route, Path
 from GEMstack.state.trajectory import Trajectory
 from .rrt_star import RRTStar
-from .parking_planning import ParkingPlanner
+from .parking_route_planner import ParkingPlanner
 from .parking_scanning import StraightLineMotion
 from .longitudinal_planning import longitudinal_plan
 
