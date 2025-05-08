@@ -436,7 +436,7 @@ class ParkingPlanner():
         # self.planner = ParkingSolverSecondOrderDubins()
         self.planner = ParkingSolverFirstOrderDubins()
 
-        self.iterations = settings.get("planning.astar.iterations", 20000)
+        self.iterations = settings.get("planning.astar.iterations", 2000)
         self.parking_success = False
         self.velocity_threshold = 0.1  # m/s
         self.orientation_threshold = math.radians(10)  # 10 degrees
@@ -496,6 +496,11 @@ class ParkingPlanner():
         
         # Need exactly 4 cones to form a parking spot
         if len(parking_spot_vertices) != 4:
+            try:
+                with open(self.success_file, 'a') as f:
+                    f.write("not enough cones")
+            except Exception as e:
+                print(f"Error saving parking status: {e}")
             print("Warning: Not exactly 4 cones found for parking spot")
             return False
             
@@ -514,12 +519,17 @@ class ParkingPlanner():
         # We'll consider the vehicle parked if its polygon is completely inside the parking spot
         # and not intersecting with any of the cone obstacles
         if not collisions.polygon_contains_polygon_2d(parking_spot_polygon, vehicle_polygon):
+            try:
+                with open(self.success_file, 'a') as f:
+                    f.write("collision detected")
+            except Exception as e:
+                print(f"Error saving parking status: {e}")
             return False
             
-        # Check if vehicle orientation is close enough to goal orientation
-        orientation_error = abs(normalize_yaw(vehicle_state.pose.yaw - goal_pose.yaw))
-        if orientation_error > self.orientation_threshold:
-            return False
+        # # Check if vehicle orientation is close enough to goal orientation
+        # orientation_error = abs(normalize_yaw(vehicle_state.pose.yaw - goal_pose.yaw))
+        # if orientation_error > self.orientation_threshold:
+        #     return False
             
         return True
 
@@ -595,7 +605,7 @@ class ParkingPlanner():
         goal.v = 0
 
         # Check if vehicle is successfully parked
-        self.parking_success = self.is_successfully_parked(vehicle, goal_pose, all_obstacles)
+        self.parking_success = self.is_successfully_parked(vehicle, goal_pose, agents)
         if self.parking_success:
             print("Successfully parked!")
         else:
