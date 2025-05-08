@@ -18,7 +18,7 @@ def visualize_path(occupancy_grid, path, metadata, start_world, goal_world, show
     plt.figure(figsize=(12, 12))
     
     # Show occupancy grid
-    plt.imshow(occupancy_grid.T, origin='lower', cmap='gray' )
+    plt.imshow(occupancy_grid, cmap='gray', origin='lower')
     
     # Extract path points
     if path:
@@ -95,7 +95,7 @@ def animate_path(occupancy_grid, path, metadata, interval=60, pad_cells=20,
     ymin, ymax = min(ys)-pad_cells, max(ys)+pad_cells
 
     fig, ax = plt.subplots(figsize=((xmax-xmin)/50, (ymax-ymin)/50))
-    ax.imshow(occupancy_grid.T, origin='lower', cmap='gray')
+    ax.imshow(occupancy_grid, cmap='gray')
     ax.set_xlim(xmin, xmax); ax.set_ylim(ymin, ymax)
     ax.set_aspect('equal'); ax.set_xticks([]); ax.set_yticks([])
 

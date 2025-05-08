@@ -3,23 +3,13 @@ import random
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-from utils import normalize_angle
-from collision import fast_collision_check
+from utils import normalize_angle # Assuming utils.py contains normalize_angle
+from collision import fast_collision_check # Assuming collision.py contains fast_collision_check
 import scipy.spatial
 
 class RRTNode:
     def __init__(self, x, y, theta, v=0.0, phi=0.0, cost=0.0, parent=None):
-        """
-        Initialize RRT node with full kinodynamic state for car-like robot.
-        
-        Args:
-            x, y: Position coordinates
-            theta: Heading angle (radians)
-            v: Velocity (pixels/step)
-            phi: Steering angle (radians)
-            cost: Cost to reach this node
-            parent: Parent node
-        """
+        """Node in the RRT tree with position, orientation, velocity and steering."""
         self.x = x
         self.y = y
         self.theta = theta
@@ -32,726 +22,400 @@ class RRTNode:
     def get_state(self):
         """Get complete state as (x, y, theta, v, phi)."""
         return (self.x, self.y, self.theta, self.v, self.phi)
-    
+        
     def get_position(self):
         """Get position as (x, y)."""
         return (self.x, self.y)
-        
-    def distance_to(self, other):
-        """Simple Euclidean distance for nearest neighbor search."""
-        return math.sqrt((self.x - other.x)**2 + (self.y - other.y)**2)
 
 class OptimizedKinodynamicRRT:
     def __init__(self, occupancy_grid, collision_lookup, metadata, start, goal,
-                 max_iter=3000, step_size=2.0, goal_sample_rate=0.25,
-                 turning_radius=3.0, vehicle_length=4.0):
+                 max_iter=3000, step_size=2.0, goal_sample_rate=0.25):
         """
-        Initialize Optimized Kinodynamic RRT planner.
-        
-        Args:
-            occupancy_grid: Binary grid (1=obstacle, 0=free)
-            collision_lookup: Collision lookup table
-            metadata: Map metadata
-            start: (x, y, theta) start state
-            goal: (x, y, theta) goal state
-            max_iter: Maximum iterations
-            step_size: Step size for path sampling
-            goal_sample_rate: Probability of sampling the goal
-            turning_radius: Minimum turning radius
-            vehicle_length: Length of the vehicle
+        Simplified Kinodynamic RRT planner for autonomous vehicles.
         """
         self.grid = occupancy_grid
         self.collision_lookup = collision_lookup
         self.metadata = metadata
         
-        # Initialize start and goal
         self.start = RRTNode(start[0], start[1], start[2])
         self.goal = RRTNode(goal[0], goal[1], goal[2])
         
-        # Parameters
         self.max_iter = max_iter
-        self.step_size = step_size
+        self.step_size = step_size # Target extension length for controls
         self.goal_sample_rate = goal_sample_rate
-        self.turning_radius = turning_radius
-        self.vehicle_length = vehicle_length
-        self.dt = 0.1  # Time step for simulation
+        self.vehicle_length = 4.0
+        self.dt = 0.1 # Time step for simulation
         
-        # Initialize RRT tree with start node
         self.nodes = [self.start]
         self.kdtree = None
+        self.kdtree_rebuild_freq = 50
         
-        # Goal-related parameters
         self.goal_found = False
         self.goal_node = None
-        self.position_boundary = 8.0
-        self.orientation_boundary = math.pi/4  
+        # Thresholds for considering goal reached
+        self.goal_position_threshold = 2.0 # Original: 8.0. Consider tightening (e.g., 1.5-2.0m) for precise docking.
+        self.goal_angle_threshold = math.radians(15.0) # Original: 15 deg. Consider tightening (e.g., 5-10 deg).
         
-        # System constraints
-        self.max_steering_angle = math.pi/6  # Maximum steering angle
-        self.max_velocity = 20.0  # Maximum velocity
-        self.min_velocity = 0.0  # Minimum velocity (no reverse)
+        self.max_steering_angle = math.pi / 2
+        self.max_velocity = 8.0
+        self.min_velocity = 1.0 
         
-        # Grid dimensions
-        self.x_min, self.y_min = 0, 0
-        self.x_max, self.y_max = occupancy_grid.shape
+        self.grid_dims = occupancy_grid.shape
+        self.time_budget = 1
         
-        # KD-Tree related parameters
-        self.kdtree_rebuild_freq = 50  # Rebuild KD-tree every X nodes
+        self.primitives = self._initialize_motion_primitives()
         
-        # Time budget
-        self.time_budget = 1.8
-        
-        # Direct distance for informed sampling
-        self.direct_distance = math.sqrt((self.goal.x - self.start.x)**2 + 
-                                         (self.goal.y - self.start.y)**2)
-                                         
-        self._initialize_motion_primitives()
-        
-        self.use_pff_controller = True
-        self.pff_control_weights = {
-            'velocity': 0.7,
-            'steering': 0.8 
-        }
-    
+        self.steering_gain = 0.8
+        self.smoothness_weight = 3.0 
+        # NEW: Weight for penalizing heading error when targeting the goal state
+        self.goal_heading_weight = 25.0 # Tune this: Higher values prioritize goal heading more. Start with 20-50.
+
     def _initialize_motion_primitives(self):
-        """
-        Pre-compute a set of motion primitives for faster expansion.
-        Each primitive is a trajectory generated with different control inputs.
-        """
-        self.primitives = []
+        primitives = []
+        velocities = [self.max_velocity * 0.5, self.max_velocity * 0.8]
+        steering_range = self.max_steering_angle * 0.8
+        steering_angles = np.linspace(-steering_range, steering_range, 5) # Includes 0
         
-        # Generate primitives with various steering and velocity combinations
-        velocities = np.linspace(self.max_velocity * 0.3, self.max_velocity, 5)
-        steering_angles = np.linspace(-self.max_steering_angle, self.max_steering_angle, 7)
-        
-        # Initialize with standard primitives
         for v in velocities:
             for phi in steering_angles:
-                # Generate primitive trajectory
                 primitive = self._generate_primitive(v, phi)
                 if primitive:
-                    self.primitives.append(primitive)
+                    primitives.append(primitive)
         
-        # Add special primitives for common maneuvers
-        # Straight line motion
-        straight = self._generate_primitive(self.max_velocity * 0.8, 0.0)
+        straight = self._generate_primitive(self.max_velocity * 0.8, 0.0, steps=20)
         if straight:
-            self.primitives.append(straight)
-        
-        # Sharp turns
-        sharp_left = self._generate_primitive(self.max_velocity * 0.4, self.max_steering_angle)
-        sharp_right = self._generate_primitive(self.max_velocity * 0.4, -self.max_steering_angle)
-        if sharp_left:
-            self.primitives.append(sharp_left)
-        if sharp_right:
-            self.primitives.append(sharp_right)
+            primitives.append(straight)
+            primitives.append(straight) # Add twice for higher probability
             
-        print(f"Initialized {len(self.primitives)} motion primitives")
-    
+        print(f"Initialized {len(primitives)} motion primitives")
+        return primitives
+        
     def _generate_primitive(self, velocity, steering_angle, steps=15):
-        """
-        Generate a single motion primitive with fixed velocity and steering angle.
-        
-        Args:
-            velocity: Constant velocity for this primitive
-            steering_angle: Constant steering angle for this primitive
-            steps: Number of steps in the primitive
-            
-        Returns:
-            List of states (x, y, theta, v, phi) representing the primitive
-        """
-        # Initial state (at origin with zero heading)
         x, y, theta = 0.0, 0.0, 0.0
-        
         primitive = [(x, y, theta, velocity, steering_angle)]
         
-        # Forward simulate with the given controls
         for _ in range(steps):
+            actual_steering = steering_angle * (0.7 if velocity > self.max_velocity*0.7 else 1.0)
+            
             x_next = x + velocity * math.cos(theta) * self.dt
             y_next = y + velocity * math.sin(theta) * self.dt
-            theta_next = normalize_angle(theta + (velocity * math.tan(steering_angle) / self.vehicle_length) * self.dt)
+            theta_next = normalize_angle(theta + (velocity * math.tan(actual_steering) / 
+                                                  self.vehicle_length) * self.dt)
             
-            # Update state
             x, y, theta = x_next, y_next, theta_next
-            primitive.append((x, y, theta, velocity, steering_angle))
+            primitive.append((x, y, theta, velocity, actual_steering))
             
         return primitive
-    
-    def _compute_optimal_controls(self, x, y, theta, v, phi, target_position):
-        """
-        PFF controller - compute optimal controls to reach target position.
-        
-        Args:
-            x, y, theta, v, phi: Current state
-            target_position: Target position (x, y)
-            
-        Returns:
-            Tuple of (optimal_velocity, optimal_steering_angle)
-        """
-        dx = target_position[0] - x
-        dy = target_position[1] - y
-        target_angle = math.atan2(dy, dx)
-        
-        heading_error = normalize_angle(target_angle - theta)
 
-        distance = math.sqrt(dx*dx + dy*dy)
-        alignment_factor = math.cos(heading_error)
-
-        alignment_factor = max(0.0, alignment_factor)
-
-        v_optimal = min(
-            self.max_velocity,
-            self.max_velocity * min(1.0, distance / (5.0 * self.step_size)) * alignment_factor
-        )
-        
-        steering_gain = 1.5
-        phi_optimal = steering_gain * heading_error
-        
-        phi_optimal = max(-self.max_steering_angle, min(self.max_steering_angle, phi_optimal))
-        
-        v_optimal = v * (1 - self.pff_control_weights['velocity']) + v_optimal * self.pff_control_weights['velocity']
-        phi_optimal = phi * (1 - self.pff_control_weights['steering']) + phi_optimal * self.pff_control_weights['steering']
-        
-        return v_optimal, phi_optimal
-    
-    def _informed_sampling(self):
-        """
-        Sample from an informed ellipsoidal region when a path is found.
-        Otherwise, sample from entire space.
-        """
-        if not self.goal_found or random.random() < 0.2:
-            return self._random_state()
-            
-        # Calculate ellipsoid parameters
-        c_best = self.goal_node.cost
-        c_min = self.direct_distance
-        
-        # Ellipse with foci at start and goal
-        x_center = (self.start.x + self.goal.x) / 2
-        y_center = (self.start.y + self.goal.y) / 2
-        
-        a = c_best / 2
-        c = c_min / 2
-        b = math.sqrt(max(0.001, a*a - c*c))
-        
-        # Sample from unit ball and transform
-        while True:
-            r = random.random()
-            angle = random.uniform(0, 2*math.pi)
-            x = r * math.cos(angle)
-            y = r * math.sin(angle)
-            
-            if x*x + y*y <= 1:
-                # Direction from start to goal
-                theta = math.atan2(self.goal.y - self.start.y, 
-                                  self.goal.x - self.start.x)
-                
-                # Transform to ellipse
-                x_rot = x * math.cos(theta) - y * math.sin(theta)
-                y_rot = x * math.sin(theta) + y * math.cos(theta)
-                
-                x_ellipse = x_center + a * x_rot
-                y_ellipse = y_center + b * y_rot
-                
-                # Verify bounds and collision
-                if (self.x_min <= x_ellipse <= self.x_max and
-                    self.y_min <= y_ellipse <= self.y_max and
-                    not fast_collision_check(x_ellipse, y_ellipse, self.collision_lookup)):
-                    return (x_ellipse, y_ellipse)
-    
-    def _random_state(self):
-        """Generate a random state in the grid."""
-        if random.random() < self.goal_sample_rate:
-            return self.goal.get_position()
-            
-        while True:
-            x = random.uniform(self.x_min, self.x_max)
-            y = random.uniform(self.y_min, self.y_max)
-            
-            # Check if the sampled point is in free space
-            if not fast_collision_check(x, y, self.collision_lookup):
-                return (x, y)
-    
     def _build_kdtree(self):
-        """Build KD-tree for fast nearest neighbor search."""
         positions = np.array([(node.x, node.y) for node in self.nodes])
         self.kdtree = scipy.spatial.cKDTree(positions)
     
-    def _nearest_node(self, rand_position):
-        """Find the nearest node to the random position using KD-tree."""
+    def _nearest_node(self, position):
         if self.kdtree is None or len(self.nodes) % self.kdtree_rebuild_freq == 0:
             self._build_kdtree()
             
-        _, idx = self.kdtree.query([rand_position[0], rand_position[1]])
+        _, idx = self.kdtree.query([position[0], position[1]])
         return self.nodes[idx]
     
-    def _select_best_primitive(self, from_node, target_position):
-        """
-        Select the best motion primitive to reach the target position.
-        
-        Args:
-            from_node: Starting node
-            target_position: Target position (x, y)
+    def _sample_position(self):
+        if random.random() < self.goal_sample_rate:
+            return self.goal.get_position() # Returns (x,y) tuple
             
-        Returns:
-            Transformed primitive (list of states) and its end node
-        """
-        best_distance = float('inf')
-        best_primitive = None
+        while True:
+            x = random.uniform(0, self.grid_dims[0])
+            y = random.uniform(0, self.grid_dims[1])
+            
+            if not fast_collision_check(y, x, self.collision_lookup): # Note: fast_collision_check(y,x,...)
+                return (x, y)
+
+    # MODIFIED: To handle target_state (x, y, optional_theta)
+    def _generate_new_node(self, from_node, sampled_position):
+        """Generate new node using optimal controls to reach target position/state."""
+        target_state_for_steering = None
+        is_targeting_final_goal_position = (abs(sampled_position[0] - self.goal.x) < 1e-3 and \
+                                            abs(sampled_position[1] - self.goal.y) < 1e-3)
+
+        if is_targeting_final_goal_position:
+            target_state_for_steering = (self.goal.x, self.goal.y, self.goal.theta)
+        else:
+            target_state_for_steering = (sampled_position[0], sampled_position[1], None)
+
+        # Try motion primitives first
+        _, end_node_primitive = self._select_best_primitive(from_node, target_state_for_steering)
+        
+        if end_node_primitive is not None:
+            return end_node_primitive
+            
+        # Fall back to direct PFF controller
+        return self._apply_controls(from_node, target_state_for_steering)
+    
+    # MODIFIED: To accept target_state and use goal_heading_weight
+    def _select_best_primitive(self, from_node, target_state):
+        """Select best motion primitive considering distance, smoothness, and goal heading."""
+        best_score = float('inf')
+        best_primitive_transformed = None
         best_end_node = None
         
-        # Current state
-        x, y, theta, v, phi = from_node.get_state()
+        x0, y0, theta0_parent, _, phi0_parent = from_node.get_state()
+        target_x, target_y, target_heading_opt = target_state
         
-        # For each primitive
-        for primitive in self.primitives:
-            # Transform primitive to start at from_node
-            transformed_primitive = self._transform_primitive(primitive, from_node)
-            
-            # Get the end state
-            end_state = transformed_primitive[-1]
-            
-            # Calculate distance to target
-            dist_to_target = math.sqrt((end_state[0] - target_position[0])**2 + 
-                                      (end_state[1] - target_position[1])**2)
+        is_final_goal_with_heading = (target_heading_opt is not None and \
+                                      abs(target_x - self.goal.x) < 1e-3 and \
+                                      abs(target_y - self.goal.y) < 1e-3)
 
-            # Check if this primitive is better
-            if dist_to_target < best_distance:
-                # Check if primitive is collision-free
+        for primitive_model in self.primitives: # primitive_model is relative to (0,0,0)
+            transformed_primitive_path = self._transform_primitive(primitive_model, from_node)
+            end_state_of_primitive = transformed_primitive_path[-1] # (x, y, theta, v, phi) in global frame
+            
+            distance_moved = math.hypot(end_state_of_primitive[0] - x0, end_state_of_primitive[1] - y0)
+            # Ensure primitive makes some progress
+            if distance_moved < self.step_size * 0.1: # Reduced min progress slightly
+                continue
+                
+            # Cost 1: Distance from primitive's end to target_x, target_y (sampled point or goal position)
+            distance_to_target_xy = math.hypot(
+                end_state_of_primitive[0] - target_x,
+                end_state_of_primitive[1] - target_y
+            )
+            
+            # Cost 2: Smoothness (steering effort/change)
+            # Using the steering angle of the primitive itself as a measure of effort
+            primitive_steering_angle = primitive_model[0][4] # Steering angle of this base primitive
+            # Optional: consider change from parent: abs(primitive_steering_angle - phi0_parent)
+            smoothness_cost = abs(primitive_steering_angle)
+
+            score = distance_to_target_xy + self.smoothness_weight * smoothness_cost
+
+            # Cost 3: Heading error if targeting the final goal state with a specific heading
+            if is_final_goal_with_heading:
+                angle_diff_to_goal_orientation = abs(normalize_angle(end_state_of_primitive[2] - target_heading_opt))
+                score += self.goal_heading_weight * angle_diff_to_goal_orientation
+            
+            if score < best_score:
                 collision = False
-                for state in transformed_primitive:
-                    if fast_collision_check(state[0], state[1], self.collision_lookup):
+                for state_in_path in transformed_primitive_path: # Check each point in the transformed path
+                    if fast_collision_check(state_in_path[1], state_in_path[0], self.collision_lookup): # Check (y,x)
                         collision = True
                         break
                 
                 if not collision:
-                    best_distance = dist_to_target
-                    best_primitive = transformed_primitive
+                    best_score = score
+                    # best_primitive_transformed = transformed_primitive_path # This is the path segment
                     
-                    # Create end node
-                    primitive_cost = len(primitive) * self.dt
                     best_end_node = RRTNode(
-                        end_state[0], end_state[1], end_state[2], 
-                        end_state[3], end_state[4],
-                        cost=from_node.cost + primitive_cost,
+                        end_state_of_primitive[0], end_state_of_primitive[1], end_state_of_primitive[2],
+                        end_state_of_primitive[3], end_state_of_primitive[4], # v, phi from end_state_of_primitive
+                        cost=from_node.cost + len(primitive_model) * self.dt, # Cost based on primitive duration
                         parent=from_node
                     )
-                    best_end_node.path_from_parent = transformed_primitive
+                    best_end_node.path_from_parent = transformed_primitive_path
         
-        return best_primitive, best_end_node
-    
-    def _transform_primitive(self, primitive, from_node):
-        """
-        Transform a primitive to start at from_node's state.
-        
-        Args:
-            primitive: Motion primitive (list of states)
-            from_node: Node to start from
-            
-        Returns:
-            Transformed primitive
-        """
-        # Starting state
-        x0, y0, theta0 = from_node.x, from_node.y, from_node.theta
-        
-        # Transform each state in the primitive
-        transformed = []
-        
-        for state in primitive:
-            # Original state in primitive's local frame
-            local_x, local_y, local_theta, v, phi = state
-            
-            # Transform to global frame
-            # Rotate
-            rotated_x = local_x * math.cos(theta0) - local_y * math.sin(theta0)
-            rotated_y = local_x * math.sin(theta0) + local_y * math.cos(theta0)
-            
-            # Translate
-            global_x = rotated_x + x0
-            global_y = rotated_y + y0
-            
-            # Add theta offset
-            global_theta = normalize_angle(local_theta + theta0)
-            
-            # Add to transformed primitive
-            transformed.append((global_x, global_y, global_theta, v, phi))
-            
-        return transformed
-    
-    def _new_state_pff(self, from_node, rand_position):
-        """
-        Generate a new state using the PFF controller.
-        Only samples position, automatically determines optimal velocity and steering.
-        
-        Args:
-            from_node: Node to expand from
-            rand_position: Target position (x, y)
-            
-        Returns:
-            New node or None if no valid state found
-        """
+        return None, best_end_node # Return (path_segment, node) - path segment not strictly needed by caller if node has it
+
+    # MODIFIED: To accept target_state (but PFF mainly uses x,y part)
+    def _apply_controls(self, from_node, target_state):
+        """Apply PFF controller to generate trajectory toward target x,y."""
         x, y, theta, v, phi = from_node.get_state()
-    
-        # Let PFF controller determine optimal controls
-        v_optimal, phi_optimal = self._compute_optimal_controls(x, y, theta, v, phi, rand_position)
+        target_x, target_y, _ = target_state # PFF primarily aims for position (x,y)
         
-        # Ensure v_optimal is never zero to avoid division by zero
-        min_velocity = 1e-3  # Small positive value
-        if abs(v_optimal) < min_velocity:
-            v_optimal = min_velocity
-        
-        # Now safely calculate max_steps
-        max_steps = max(1, int(self.step_size / (v_optimal * self.dt)))
-        steps = min(max_steps, 15)  # Cap to 15 steps
-        
-        # Path storage
-        path = [(x, y, theta, v, phi)]
-        
-        # Forward simulation with reduced collision checks
-        check_interval = 2  # Only check every 2 steps
-        
-        for i in range(steps):
-            # Car-like robot kinematic model
-            x_next = x + v_optimal * math.cos(theta) * self.dt
-            y_next = y + v_optimal * math.sin(theta) * self.dt
-            theta_next = normalize_angle(theta + (v_optimal * math.tan(phi_optimal) / self.vehicle_length) * self.dt)
+        dx = target_x - x
+        dy = target_y - y
+        dist_to_target_xy = math.hypot(dx, dy)
+
+        # Adjusted minimum progress for PFF to be smaller than primitive, to allow finer moves if needed
+        if dist_to_target_xy < self.step_size * 0.1: 
+            return None
             
-            # Check for collision at reduced frequency
-            if i % check_interval == 0 and fast_collision_check(x_next, y_next, self.collision_lookup):
-                return None
-            
-            # Update state
-            x, y, theta = x_next, y_next, theta_next
-            path.append((x, y, theta, v_optimal, phi_optimal))
+        target_angle_to_xy = math.atan2(dy, dx)
+        heading_error = normalize_angle(target_angle_to_xy - theta)
         
-        # Create new node
-        new_node = RRTNode(x, y, theta, v_optimal, phi_optimal, cost=from_node.cost + steps*self.dt, parent=from_node)
+        alignment = max(0.3, math.cos(heading_error))
+        # Velocity profile: scale by distance to target, up to max_velocity
+        velocity_scale = min(1.0, dist_to_target_xy / (3.0 * self.step_size)) # Reach max_vel if target is ~3 steps away
+        velocity = self.max_velocity * velocity_scale
+        velocity = max(self.min_velocity, velocity * alignment) 
+        velocity = min(velocity, self.max_velocity) # Ensure it doesn't exceed max_velocity
+
+        steering = self.steering_gain * heading_error
+        max_allowed_steering = self.max_steering_angle * 0.8 # More conservative steering
+        steering = max(-max_allowed_steering, min(max_allowed_steering, steering))
+        
+        # Determine number of steps for PFF extension
+        # Aim to cover roughly self.step_size or until target, bounded
+        if velocity < 1e-2: # Avoid division by zero or excessively many steps
+            num_steps = 20
+        else:
+            # Steps to cover distance, or target self.step_size, or max 20
+            steps_to_cover_dist = int(dist_to_target_xy / (velocity * self.dt))
+            steps_for_step_size = int(self.step_size / (velocity * self.dt))
+            num_steps = min(max(10, steps_for_step_size), steps_to_cover_dist, 20) 
+            num_steps = max(1, num_steps) # Ensure at least one step
+
+        path = [(x, y, theta, v, phi)] # Initial state of the segment
+        current_x, current_y, current_theta = x, y, theta
+
+        for _ in range(num_steps):
+            x_next = current_x + velocity * math.cos(current_theta) * self.dt
+            y_next = current_y + velocity * math.sin(current_theta) * self.dt
+            theta_next = normalize_angle(current_theta + (velocity * math.tan(steering) / 
+                                                          self.vehicle_length) * self.dt)
+            
+            # Collision check for each PFF step
+            if fast_collision_check(y_next, x_next, self.collision_lookup): # Check (y,x)
+                return None # Collision along PFF path segment
+                
+            current_x, current_y, current_theta = x_next, y_next, theta_next
+            path.append((current_x, current_y, current_theta, velocity, steering))
+        
+        new_node = RRTNode(current_x, current_y, current_theta, velocity, steering,
+                           cost=from_node.cost + num_steps * self.dt, 
+                           parent=from_node)
         new_node.path_from_parent = path
         
         return new_node
-    
-    def _new_state_motion_primitive(self, from_node, rand_position):
-        """
-        Generate a new state using pre-computed motion primitives.
+
+    def plan(self, visualize_final=True):
+        self.start_time = time.time()
         
-        Args:
-            from_node: Node to expand from
-            rand_position: Target position (x, y)
-            
-        Returns:
-            New node or None if no valid primitive found
-        """
-        # Select best primitive to reach target
-        _, end_node = self._select_best_primitive(from_node, rand_position)
-        
-        return end_node
-    
-    def _new_state(self, from_node, rand_position):
-        """
-        Generate a new state by applying controls and forward simulating.
-        Dispatches to PFF controller or motion primitives based on configuration.
-        
-        Args:
-            from_node: Node to expand from
-            rand_position: Target position (x, y) to expand toward
-            
-        Returns:
-            New node or None if no valid state found
-        """
-        # Randomly choose between PFF controller and motion primitives
-        # PFF is generally more optimal but motion primitives are faster
-        if random.random() < 0.7:  # 70% chance to use PFF
-            return self._new_state_pff(from_node, rand_position)
-        else:
-            return self._new_state_motion_primitive(from_node, rand_position)
-    
-    def _is_goal_reached(self, node):
-        """
-        Two-phase goal reaching with precise heading alignment.
-        First phase: Reach goal position with relaxed heading
-        Second phase: Achieve exact heading orientation
-        """
-        # Distance to goal
-        dist = math.sqrt((node.x - self.goal.x)**2 + (node.y - self.goal.y)**2)
-        
-        # Angle difference
-        angle_diff = abs(normalize_angle(node.theta - self.goal.theta))
-        
-        # Make boundaries more lenient as time passes
-        elapsed = time.time() - self.start_time
-        position_boundary = min(self.position_boundary * (1 + elapsed/2), 15.0)
-        
-        # Phase 1: Position-focused with relaxed heading constraints
-        if dist <= position_boundary / 3:
-            # Phase 2: When very close to goal position, require precise heading
-            # Stricter angle tolerance when close to goal position
-            angle_threshold = math.radians(5.0)
-            return dist <= position_boundary and angle_diff <= angle_threshold
-        else:
-            # Relaxed heading constraint when far from goal
-            angle_boundary = min(self.orientation_boundary * (1 + elapsed/2), math.pi/2)
-            return dist <= position_boundary and angle_diff <= angle_boundary
-    
-    def _refine_final_heading(self, near_goal_node):
-        """
-        Refine the final heading to match goal orientation exactly.
-        Uses in-place steering to adjust the heading at the final position.
-        """
-        # Get final position
-        x, y = near_goal_node.x, near_goal_node.y
-        current_theta = near_goal_node.theta
-        goal_theta = self.goal.theta
-        
-        # Calculate heading difference
-        heading_diff = normalize_angle(goal_theta - current_theta)
-        
-        # Avoid unnecessary adjustments for very small differences
-        if abs(heading_diff) < math.radians(1.0):
-            return
-        
-        # Create a turning-in-place maneuver
-        # Use reduced velocity and appropriate steering to turn in place
-        turning_velocity = 2.0  # Slow velocity for precise turning
-        
-        # Determine steering direction based on shortest turn
-        steering_angle = math.copysign(self.max_steering_angle/2, heading_diff)
-        
-        # Create path for turning in place
-        path = [(x, y, current_theta, turning_velocity, steering_angle)]
-        theta = current_theta
-        
-        # Simulate turning until aligned with goal heading
-        max_steps = 30  # Prevent infinite loops
-        for _ in range(max_steps):
-            # Apply steering but maintain position (turn in place approximation)
-            new_theta = normalize_angle(theta + (turning_velocity * math.tan(steering_angle) / 
-                                            self.vehicle_length) * self.dt)
-            
-            # Check if we've aligned with goal heading
-            if abs(normalize_angle(new_theta - goal_theta)) < math.radians(1.0):
-                path.append((x, y, goal_theta, 0.0, 0.0))  # Final state with exact heading
+        for i in range(self.max_iter):
+            if time.time() - self.start_time > self.time_budget:
+                print("Time budget exceeded.")
                 break
+            
+            if (i+1) % 500 == 0:
+                print(f"Iteration {i+1}, nodes: {len(self.nodes)}")
                 
-            path.append((x, y, new_theta, turning_velocity, steering_angle))
-            theta = new_theta
+            rand_sampled_pos = self._sample_position() # This is an (x,y) tuple
+            nearest = self._nearest_node(rand_sampled_pos)
+            newly_generated_node = self._generate_new_node(nearest, rand_sampled_pos) # Pass (x,y) sample
+            
+            if newly_generated_node is None:
+                continue
+            
+            self.nodes.append(newly_generated_node)
+            
+            if self._is_goal_reached(newly_generated_node):
+                self.goal_found = True
+                self.goal_node = newly_generated_node # This node met the criteria
+                print(f"Path found at iteration {i+1}")
+                break
         
-        # Create a new goal node with the refined heading
-        refined_node = RRTNode(x, y, goal_theta, 0.0, 0.0, 
-                         cost=near_goal_node.cost + len(path)*self.dt,
-                         parent=near_goal_node.parent)
-        refined_node.path_from_parent = path
+        if self.goal_found:
+            path = self._extract_path()
+            if visualize_final:
+                self._visualize_result(path)
+            return path
+        else:
+            print("No path found within iterations/time.")
+            if visualize_final:
+                self._visualize_result(None) # Visualize tree even if no path
+            return None
+
+    # MODIFIED: Stricter goal condition
+    def _is_goal_reached(self, node):
+        """Check if node has reached goal satisfying both position and heading."""
+        dist_to_goal_pos = math.hypot(node.x - self.goal.x, node.y - self.goal.y)
+        angle_diff_to_goal_theta = abs(normalize_angle(node.theta - self.goal.theta))
         
-        # Replace the goal node
-        self.goal_node = refined_node
-    
+        # For goal to be reached, both position and orientation must be within their respective thresholds.
+        if dist_to_goal_pos <= self.goal_position_threshold and \
+           angle_diff_to_goal_theta <= self.goal_angle_threshold:
+            return True
+        return False
+        
     def _extract_path(self):
-        """Extract the full path from start to goal."""
-        if not self.goal_found:
+        if not self.goal_found or self.goal_node is None:
             return None
             
         path = []
-        node = self.goal_node
+        current_node = self.goal_node
         
-        while node is not None:
-            # Add node's path from parent in reverse order
-            if node.path_from_parent:
-                for point in reversed(node.path_from_parent):
-                    # Only keep (x, y, theta)
-                    if not path or (point[0], point[1], point[2]) != path[0]:
-                        path.insert(0, (point[0], point[1], point[2]))
-            # If no path from parent, add the node itself
-            elif node.parent is None and (not path or (node.x, node.y, node.theta) != path[0]):
-                path.insert(0, (node.x, node.y, node.theta))
-                
-            node = node.parent
+        while current_node is not None:
+            if current_node.path_from_parent: # If it has a path segment leading to it
+                # Insert points from this segment in correct order (from parent to current_node)
+                # The path_from_parent should already be in forward order.
+                # We are backtracking, so add to the front of the main path.
+                for point in reversed(current_node.path_from_parent):
+                    path.insert(0, (point[0], point[1], point[2])) # x, y, theta
+            elif current_node == self.start: # For the very start node, add its state
+                 path.insert(0, (current_node.x, current_node.y, current_node.theta))
             
-        return path
+            current_node = current_node.parent
+        
+        # Remove consecutive duplicates that arise from path segments starting with the parent's state
+        if not path: return []
+        
+        deduplicated_path = [path[0]]
+        for i in range(1, len(path)):
+            # Compare (x,y,theta) for duplication
+            if not (abs(path[i][0] - path[i-1][0]) < 1e-3 and \
+                    abs(path[i][1] - path[i-1][1]) < 1e-3 and \
+                    abs(normalize_angle(path[i][2] - path[i-1][2])) < 1e-3) :
+                deduplicated_path.append(path[i])
+        
+        return deduplicated_path
+
+
+    def _transform_primitive(self, primitive, from_node):
+        x0, y0, theta0 = from_node.x, from_node.y, from_node.theta
+        
+        transformed = []
+        
+        path_segment = []
+
+        for rel_x, rel_y, rel_theta, rel_v, rel_phi in primitive:
+            # Rotate relative position
+            rotated_x = rel_x * math.cos(theta0) - rel_y * math.sin(theta0)
+            rotated_y = rel_x * math.sin(theta0) + rel_y * math.cos(theta0)
+            
+            # Translate to global frame
+            global_x = rotated_x + x0
+            global_y = rotated_y + y0
+            global_theta = normalize_angle(rel_theta + theta0)
+            
+            # v and phi are typically absolute controls or resulting velocities, not needing transformation
+            transformed.append((global_x, global_y, global_theta, rel_v, rel_phi)) 
+            
+        return transformed
     
-    def _visualize_tree(self, title="Optimized RRT Tree", show_goal_path=False):
-        """Visualize the RRT tree with path if found."""
-        plt.figure(figsize=(12, 12))
-        plt.imshow(self.grid.T, origin='lower', cmap='gray')
+    def _visualize_result(self, path):
+        plt.figure(figsize=(12, 12)) # Increased size slightly
+        plt.imshow(self.grid, origin='lower', cmap='gray', extent=[0, self.grid_dims[1], 0, self.grid_dims[0]]) # Match grid dims if not square
         
-        # Plot a subset of edges for visualization efficiency
-        max_edges = min(300, len(self.nodes))
-        sample_step = max(1, len(self.nodes) // max_edges)
+        # Plot tree edges (subset for efficiency)
+        # subsample = max(1, len(self.nodes) // 200) # Original
+        for node in self.nodes: # Plot all for better visualization if not too many
+            if node.parent and node.path_from_parent and len(node.path_from_parent) > 1:
+                xs = [p[0] for p in node.path_from_parent]
+                ys = [p[1] for p in node.path_from_parent]
+                plt.plot(xs, ys, color='skyblue', alpha=0.4, linewidth=0.8) # Lighter color for tree
         
-        for i in range(0, len(self.nodes), sample_step):
-            node = self.nodes[i]
-            if node.parent:
-                if node.path_from_parent:
-                    xs = [p[0] for p in node.path_from_parent]
-                    ys = [p[1] for p in node.path_from_parent]
-                    plt.plot(xs, ys, 'b-', alpha=0.3, linewidth=0.5)
+        plt.scatter(self.start.x, self.start.y, color='lime', s=150, marker='o', edgecolor='black', label='Start')
+        plt.arrow(self.start.x, self.start.y, 
+                  2.0 * math.cos(self.start.theta), 2.0 * math.sin(self.start.theta), # Length of arrow: 2 units
+                  color='lime', head_width=0.8, head_length=1.0, edgecolor='black')
+
+        plt.scatter(self.goal.x, self.goal.y, color='red', s=150, marker='X', edgecolor='black', label='Goal')
+        plt.arrow(self.goal.x, self.goal.y, 
+                  2.0 * math.cos(self.goal.theta), 2.0 * math.sin(self.goal.theta), 
+                  color='red', head_width=0.8, head_length=1.0, edgecolor='black')
         
-        # Plot start and goal
-        plt.scatter(self.start.x, self.start.y, color='green', s=100, marker='o', label='Start')
-        plt.scatter(self.goal.x, self.goal.y, color='red', s=100, marker='x', label='Goal')
-        
-        # Plot goal path if found
-        if show_goal_path and self.goal_found:
-            path = self._extract_path()
-            if path:
-                xs = [p[0] for p in path]
-                ys = [p[1] for p in path]
-                plt.plot(xs, ys, 'g-', linewidth=2, label='Path')
-                
-        plt.title(title)
+        if path and len(path) > 1:
+            xs = [p[0] for p in path]
+            ys = [p[1] for p in path]
+            plt.plot(xs, ys, color='green', linestyle='-', linewidth=2.5, label='Path')
+            # Plot heading indicators along the path
+            for i in range(0, len(path), max(1, len(path)//20)): # ~20 arrows on path
+                 plt.arrow(path[i][0], path[i][1],
+                           1.0 * math.cos(path[i][2]), 1.0 * math.sin(path[i][2]),
+                           color='darkgreen', head_width=0.4, head_length=0.6, alpha=0.7)
+
+        plt.title("Optimized Kinodynamic RRT Path Planning")
+        plt.xlabel("X-position (m)")
+        plt.ylabel("Y-position (m)")
         plt.legend()
+        plt.axis('equal') # Ensure aspect ratio is maintained
+        plt.grid(True, linestyle='--', alpha=0.5)
         plt.tight_layout()
         plt.show()
-    
-    def plan(self, visualize_steps=False, visualize_final=True):
-        """
-        Run the Optimized Kinodynamic RRT algorithm.
-        
-        Args:
-            visualize_steps: Whether to visualize intermediate steps
-            visualize_final: Whether to visualize the final tree
-            
-        Returns:
-            List of (x, y, theta) poses if path found, None otherwise
-        """
-        print(f"Starting Optimized Kinodynamic RRT with {self.max_iter} iterations")
-        print(f"Using PFF controller and motion primitives for faster planning")
-        self.start_time = time.time()
-        
-        # Initial KD-tree build
-        self._build_kdtree()
-        
-        # Main loop with time budget
-        for i in range(self.max_iter):
-            # Check time budget
-            elapsed = time.time() - self.start_time
-            if elapsed > self.time_budget:
-                if self.goal_found:
-                    print(f"Time budget reached after {i} iterations, path found")
-                    break
-                else:
-                    # Increase goal bias if no path found yet
-                    self.goal_sample_rate = min(0.7, self.goal_sample_rate * 1.2)
-            
-            # Progress reporting (reduced frequency)
-            if (i+1) % 500 == 0:
-                print(f"Iteration {i+1}, nodes: {len(self.nodes)}, time: {elapsed:.2f}s")
-                
-            if visualize_steps and (i+1) % 500 == 0:
-                self._visualize_tree(title=f"RRT Tree at iteration {i+1}")
-                
-            # 1. Sample random position with informed sampling when possible
-            rand_position = self._informed_sampling() if self.goal_found else self._random_state()
-            
-            # 2. Find nearest node using KD-tree
-            nearest_node = self._nearest_node(rand_position)
-            
-            # 3. Generate new state with kinodynamic constraints
-            new_node = self._new_state(nearest_node, rand_position)
-            
-            # Skip if no valid state
-            if new_node is None:
-                continue
-                
-            # 4. Add node to the tree
-            self.nodes.append(new_node)
-            
-            # 5. Check if goal reached
-            if not self.goal_found and self._is_goal_reached(new_node):
-                self.goal_found = True
-                self.goal_node = new_node
-                print(f"Found path to goal at iteration {i+1}, time: {elapsed:.2f}s")
-                
-                # Check if heading needs refinement
-                angle_diff = abs(normalize_angle(new_node.theta - self.goal.theta))
-                if angle_diff > math.radians(5.0):  # More than 5 degrees off
-                    print("Path found but refining final heading...")
-                    self._refine_final_heading(new_node)
-                
-                # Early termination when a "good enough" path is found
-                direct_dist = self.direct_distance
-                path_length = new_node.cost
-                
-                # If path is within 30% of optimal length estimate or time is running out
-                if path_length < direct_dist * 1.3 or elapsed > 0.8 * self.time_budget:
-                    print("Found good enough path, terminating early")
-                    break
-        
-        # Check if a path was found
-        if not self.goal_found:
-            print(f"No path found in {time.time() - self.start_time:.2f}s")
-            if visualize_final:
-                self._visualize_tree(title="RRT Tree (No path found)")
-            return None
-            
-        # Extract path
-        path = self._extract_path()
-        total_time = time.time() - self.start_time
-        
-        print(f"Path found with {len(path)} points in {total_time:.2f} seconds")
-        
-        if visualize_final:
-            self._visualize_tree(title=f"Path found in {total_time:.2f}s", show_goal_path=True)
-            
-        return path
-        
-    # def replan(self, updated_occupancy_grid, collision_lookup, current_state):
-    #     """
-    #     Replan efficiently when occupancy grid changes.
-        
-    #     Args:
-    #         updated_occupancy_grid: New occupancy grid
-    #         collision_lookup: New collision lookup table
-    #         current_state: Current robot state (x, y, theta)
-            
-    #     Returns:
-    #         New path or None if no path found
-    #     """
-    #     # Update environment information
-    #     self.grid = updated_occupancy_grid
-    #     self.collision_lookup = collision_lookup
-        
-    #     # Set new starting point (robot's current position)
-    #     self.start = RRTNode(current_state[0], current_state[1], current_state[2])
-        
-    #     # Set shorter time budget for replanning
-    #     old_time_budget = self.time_budget
-    #     self.time_budget = 0.5  # 500ms for replanning
-        
-    #     # Check if the current path is still valid
-    #     if self.goal_found:
-    #         old_path = self._extract_path()
-    #         if old_path:
-    #             # Check if old path is collision-free
-    #             valid = True
-    #             for state in old_path:
-    #                 if fast_collision_check(state[0], state[1], self.collision_lookup):
-    #                     valid = False
-    #                     break
-                
-    #             if valid:
-    #                 # Path is still valid, no need to replan
-    #                 print("Current path still valid, no replanning needed")
-    #                 return old_path
-        
-    #     # Path invalid or not found, replan from current position
-    #     # Try to reuse valid parts of the tree
-    #     valid_nodes = []
-    #     for node in self.nodes:
-    #         if not fast_collision_check(node.x, node.y, self.collision_lookup):
-    #             valid_nodes.append(node)
-        
-    #     # Reset tree with valid nodes
-    #     self.nodes = [self.start]
-    #     if valid_nodes and len(valid_nodes) > 50:  # Only reuse if enough valid nodes
-    #         self.nodes.extend(valid_nodes[:min(500, len(valid_nodes))])  # Limit to 500 nodes
-        
-    #     # Reset goal found status
-    #     self.goal_found = False
-    #     self.goal_node = None
-        
-    #     # Plan new path
-    #     new_path = self.plan()
-        
-    #     # Restore original time budget
-    #     self.time_budget = old_time_budget
-        
-    #     return new_path
