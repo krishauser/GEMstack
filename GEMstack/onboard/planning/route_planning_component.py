@@ -12,6 +12,8 @@ from .parking_route_planner import ParkingPlanner
 from .parking_scanning import StraightLineMotion
 from .longitudinal_planning import longitudinal_plan
 import time
+import datetime
+
 class RoutePlanningComponent(Component):
     """Reads a route from disk and returns it as the desired route."""
     def __init__(self):
@@ -23,12 +25,45 @@ class RoutePlanningComponent(Component):
         self.already_computed = False
         self.planning_time = 0.0
         self.last_planning_time = 0.0
+        
+        # Create logs directory if it doesn't exist
+        self.logs_dir = "logs"
+        if not os.path.exists(self.logs_dir):
+            os.makedirs(self.logs_dir)
+            
+        # Create metrics log file with timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.metrics_file = os.path.join(self.logs_dir, f"parking_metrics_{timestamp}.csv")
+        
+        # Write header to metrics file
+        with open(self.metrics_file, 'w') as f:
+            f.write("Timestamp,Planning Time,Previous Planning Time,Time Difference,Goal X,Goal Y,Goal Yaw\n")
+        
+    def log_metrics(self, state: AllState):
+        """Log metrics to file with timestamp"""
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        metrics = [
+            timestamp,
+            f"{self.planning_time:.3f}",
+            f"{self.last_planning_time:.3f}",
+            f"{self.planning_time - self.last_planning_time:.3f}",
+            f"{state.mission_plan.goal_x:.3f}",
+            f"{state.mission_plan.goal_y:.3f}",
+            f"{state.mission_plan.goal_orientation:.3f}"
+        ]
+        
+        with open(self.metrics_file, 'a') as f:
+            f.write(','.join(metrics) + '\n')
+        
     def state_inputs(self):
         return ["all"]
+
     def state_outputs(self) -> List[str]:
         return ['route']
+
     def rate(self):
         return 10.0 # very high for our computation ability
+
     def update(self, state: AllState):
         # print("Route Planner's mission:", state.mission_plan.planner_type.value)
         # print("type of mission plan:", type(PlannerEnum.RRT_STAR))
@@ -67,12 +102,10 @@ class RoutePlanningComponent(Component):
                 self.route = self.planner.update(state)
                 # Calculate planning time
                 self.planning_time = time.time() - start_time
-                print(f"\n=== Planning Metrics ===")
-                print(f"Total Planning Time: {self.planning_time:.3f} seconds")
-                if self.last_planning_time > 0:
-                    print(f"Previous Planning Time: {self.last_planning_time:.3f} seconds")
-                    print(f"Time Difference: {self.planning_time - self.last_planning_time:.3f} seconds")
-                self.last_planning_time = self.planning_time
+                
+                # Log metrics to file
+                self.log_metrics(state)
+                
                 print("=== Planning Complete ===\n")
                 self.planner.visualize_trajectory(self.route)
                 self.already_computed = True
