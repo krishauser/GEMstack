@@ -87,6 +87,7 @@ class ConeDetector3D(Component):
         self.K     = np.array(cam_cfg['K'])
         self.D     = np.array(cam_cfg['D'])
         self.T_l2c = np.array(cam_cfg['T_l2c'])
+        self.T_l2v = np.array(cam_cfg['T_l2v'])
 
         # Derived transforms
 

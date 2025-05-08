@@ -1,9 +1,10 @@
 import rospy
+import yaml
 import numpy as np
 from sensor_msgs.msg import PointCloud2
 from typing import Dict
 from ..component import Component 
-from ...state import AgentState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleState
+from ...state import ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleState
 from ..interface.gem import GEMInterface
 from .utils.constants import *
 from .utils.detection_utils import *
@@ -12,7 +13,13 @@ from .utils.visualization_utils import *
 
 
 class ParkingSpotsDetector3D(Component):
-    def __init__(self, vehicle_interface: GEMInterface):
+    def __init__(
+            self, 
+            vehicle_interface: GEMInterface,
+            camera_name: str,
+            camera_calib_file: str,
+            visualize_3d: bool = True
+        ):
         # Init Variables
         self.vehicle_interface = vehicle_interface
         self.cone_pts_3D = []
@@ -21,9 +28,16 @@ class ParkingSpotsDetector3D(Component):
         self.parking_obstacles_pose = []
         self.parking_obstacles_dim = []
         self.ground_threshold = GROUND_THRESHOLD 
-        self.visualization = True
-        self.T_l2v = np.array(T_LIDAR_TO_VEHICLE)
+        self.visualization = visualize_3d
 
+        # Load camera lidar to vehicle transform from the supplied YAML
+        with open(camera_calib_file, 'r') as f:
+            calib = yaml.safe_load(f)
+        cam_cfg = calib['cameras'][camera_name]
+        self.T_l2v = np.array(cam_cfg['T_l2v'])
+
+        if self.T_l2v is None:
+            rospy.logerr("Camera calibration information missing. Please load the correct config.")
 
         # Subscribers (note: we need top lidar only for visualization)
         self.lidar_sub = rospy.Subscriber("/ouster/points", PointCloud2, self.callback, queue_size=1)

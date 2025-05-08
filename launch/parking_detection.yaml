@@ -27,7 +27,12 @@ drive:
                 save_data: False
                 orientation: False
                 use_start_frame: False
-        parking_detection: parking_detection.ParkingSpotsDetector3D
+        parking_detection:
+            type: parking_detection.ParkingSpotsDetector3D
+            args:
+                camera_name: front_right #[front, front_right]
+                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                visualize_3d: True
         perception_normalization : StandardPerceptionNormalizer
     planning:
         _mission_planner:
@@ -73,7 +78,12 @@ variants:
                             orientation: False
                             use_start_frame: False
                     # agent_detection : cone_detection_simple.ConeDetectorSimple3D
-                    parking_detection: parking_detection.ParkingSpotsDetector3D
+                    parking_detection:
+                        type: parking_detection.ParkingSpotsDetector3D
+                        args:
+                            camera_name: front_right #[front, front_right]
+                            camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                            visualize_3d: True
                 planning:
                     _mission_planner:
                         type: parking_component.ParkingSim
