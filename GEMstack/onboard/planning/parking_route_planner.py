@@ -10,6 +10,11 @@ from .astar import AStar
 from .longitudinal_planning import longitudinal_plan
 from testing.reeds_shepp_path import path_length
 from . import reed_shepp
+from visualization_msgs.msg import Marker
+from geometry_msgs.msg import Point
+import rospy
+import time
+
 
 
 import numpy as np
@@ -136,7 +141,7 @@ class ParkingSolverSecondOrderDubins(AStar):
             next_state = np.append(next_state, node[5] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
             else:
                 print(f"Rejected (collision): {next_state}")
@@ -325,7 +330,7 @@ class ParkingSolverFirstOrderDubins(AStar):
             next_state = np.append(next_state, node[3] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
             else:
                 print(f"Rejected first order (collision): {next_state}")
@@ -391,7 +396,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         return temp_obj
    
 
-class ParkingPlanner(Component):
+class ParkingPlanner():
     """_summary_
 
     Args:
@@ -419,7 +424,7 @@ class ParkingPlanner(Component):
         return ['all']
 
     def state_outputs(self) -> List[str]:
-        return ['trajectory']
+        return ['route']
 
     def rate(self):
         return 1.0
@@ -460,7 +465,7 @@ class ParkingPlanner(Component):
 
         return (x,y,theta,t)
 
-    def update(self, state : AllState) -> Trajectory:
+    def update(self, state : AllState) -> Route:
         """_summary_
 
         Args:
@@ -495,7 +500,7 @@ class ParkingPlanner(Component):
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=200))
+        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=10000))
         # points = [state[:2] for state in res] # change here to return the theta as well
         points = []
         for state in res:
@@ -503,10 +508,93 @@ class ParkingPlanner(Component):
         times = [state[3] for state in res]
         path = Path(frame=vehicle.pose.frame, points=points)
         traj = Trajectory(path.frame,points,times)
-        print("===========================")
-        print(f"Points: {points}")
-        print(f"Times: {times}")
-        # route = Path(frame=vehicle.pose.frame, points=points)
+        # print("===========================")
+        # print(f"Points: {points}")
+        # print(f"Times: {times}")
+        route = Path(frame=vehicle.pose.frame, points=points)
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
         print(traj)
-        return traj 
+        return route 
+    
+
+    from rospy.exceptions import ROSInitException
+
+    def create_trajectory_line_marker(self, traj: Trajectory, frame_id="map", marker_id=0, color=(0.0, 0.0, 1.0, 1.0)) -> Marker:
+        marker = Marker()
+        marker.header.frame_id = frame_id
+
+        try:
+            marker.header.stamp = rospy.Time.now()
+        except ROSInitException:
+            # fallback to zero time (safe default in RViz)
+            marker.header.stamp = rospy.Time(0)
+
+        marker.ns = "trajectory"
+        marker.id = marker_id
+        marker.type = Marker.LINE_STRIP
+        marker.action = Marker.ADD
+
+        marker.scale.x = 0.1  # Line width
+        marker.color.r, marker.color.g, marker.color.b, marker.color.a = color
+
+        for pt in traj.points:
+            p = Point(x=pt[0], y=pt[1], z=pt[2] if len(pt) > 2 else 0.0)
+            marker.points.append(p)
+
+        return marker
+
+
+    def visualize_trajectory(self, traj: Trajectory, frame_id="vehicle"):
+       
+        self.marker_pub = rospy.Publisher("trajectory_markers", Marker, queue_size=1, latch=True)
+        rospy.sleep(0.5)  # ensure publisher is ready
+
+        line_marker = self.create_trajectory_line_marker(traj, frame_id=frame_id)
+        self.marker_pub.publish(line_marker)
+
+    def visualize_trajectory_animated(self, traj: Trajectory, frame_id="vehicle"):
+        """Animates a moving marker along the trajectory in RViz."""
+        marker_pub = rospy.Publisher("animated_trajectory_marker", Marker, queue_size=1)
+        rate = rospy.Rate(20)  # 20 Hz for smooth animation
+
+        # Create a red sphere marker
+        marker = Marker()
+        marker.header.frame_id = frame_id
+        marker.ns = "animated_trajectory"
+        marker.id = 100
+        marker.type = Marker.SPHERE
+        marker.action = Marker.ADD
+        marker.scale.x = 0.4
+        marker.scale.y = 0.4
+        marker.scale.z = 0.4
+        marker.color.r = 1.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        try:
+            start_ros_time = rospy.Time.now().to_sec()
+        except rospy.ROSInitException:
+            print("[WARN] Cannot animate trajectory — ROS node not initialized.")
+            return
+
+        t_start = traj.times[0]
+        t_end = traj.times[-1]
+
+        while not rospy.is_shutdown():
+            t_now = rospy.Time.now().to_sec()
+            t = t_now - start_ros_time + t_start
+
+            if t > t_end:
+                break
+
+            pos = traj.eval(t)
+            marker.header.stamp = rospy.Time.now()
+            marker.pose.position.x = pos[0]
+            marker.pose.position.y = pos[1]
+            marker.pose.position.z = pos[2] if len(pos) > 2 else 0.0
+
+            marker_pub.publish(marker)
+            rate.sleep()
+
+        print("[INFO] Animated trajectory complete.")
