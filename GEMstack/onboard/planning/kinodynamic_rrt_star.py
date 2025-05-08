@@ -56,7 +56,7 @@ class OptimizedKinodynamicRRT:
         self.goal_position_threshold = 2.0 # Original: 8.0. Consider tightening (e.g., 1.5-2.0m) for precise docking.
         self.goal_angle_threshold = math.radians(15.0) # Original: 15 deg. Consider tightening (e.g., 5-10 deg).
         
-        self.max_steering_angle = math.pi / 2
+        self.max_steering_angle = math.pi / 6
         self.max_velocity = 8.0
         self.min_velocity = 1.0 
         
