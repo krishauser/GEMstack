@@ -244,7 +244,7 @@ class PedestrianDetector3D(Component):
                     yaw_rate = (new_pose.yaw - old.pose.yaw) / dt
                     speed = np.linalg.norm([vx, vy, vz])
                     activity = (AgentActivityEnum.MOVING
-                                if speed > 0.1 else AgentActivityEnum.STANDING)
+                                if speed > 0.1 else AgentActivityEnum.STOPPED)
 
                     updated = AgentState(
                         pose=new_pose,
@@ -265,7 +265,7 @@ class PedestrianDetector3D(Component):
                         dimensions=dims,
                         outline=None,
                         type=AgentEnum.PEDESTRIAN,
-                        activity=AgentActivityEnum.STANDING,
+                        activity=AgentActivityEnum.STOPPED,
                         velocity=(0, 0, 0),
                         yaw_rate=0
                     )
@@ -279,7 +279,7 @@ class PedestrianDetector3D(Component):
                     dimensions=dims,
                     outline=None,
                     type=AgentEnum.PEDESTRIAN,
-                    activity=AgentActivityEnum.STANDING,
+                    activity=AgentActivityEnum.STOPPED,
                     velocity=(0, 0, 0),
                     yaw_rate=0
                 )
@@ -377,7 +377,7 @@ def box_to_fake_agent(box):
         pose=pose,
         dimensions=dims,
         outline=None,
-        type=AgentEnum.CONE,
+        type=AgentEnum.PEDESTRIAN,
         activity=AgentActivityEnum.MOVING,
         velocity=(0, 0, 0),
         yaw_rate=0
