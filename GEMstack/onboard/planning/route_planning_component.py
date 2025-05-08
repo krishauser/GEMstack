@@ -31,7 +31,6 @@ import cv2
 ORIGIN_PX = (190, 80)
 SCALE_PX_PER_M = 6.5  # px per meter
 
-
 def is_inside_geofence(x, y, xmin, xmax, ymin, ymax):
     return xmin < x < xmax and ymin < y < ymax
 
@@ -118,7 +117,7 @@ def create_path_around_inspection(inspection_area, geofence, margin=1.0):
     bottom_possible = gymin < bottom_y < gymax
 
     top_path = (
-        [(ixmin - margin, top_y), (ixmax + margin, top_y)] if top_possible else None
+        [(ixmin - 2, top_y), (ixmax + 2, top_y)] if top_possible else None
     )
     right_path = (
         [(ixmax + margin, top_y), (ixmax + margin, bottom_y)] if top_possible else None
@@ -143,7 +142,7 @@ def create_path_around_inspection(inspection_area, geofence, margin=1.0):
     else:
         full_path = []
 
-    return full_path
+    return top_path
 
 
 def check_point_exists(
@@ -183,24 +182,23 @@ class InspectRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
 
     def __init__(self, state_machine, frame: str = "start"):
-        self.geofence_area = [[0, 0], [40, 40]]
+        self.geofence_area = [[-40, -40], [40, 40]]
         self.state_list = state_machine
-        self.index = 1
+        self.index = 0
         self.mission = self.state_list[self.index]
-        self.circle_center = [20, 10]
-        self.radius = 5
+        self.circle_center = [10,5]
+        self.radius = 2
         # self.inspection_route = max_visible_arc(
         #     self.circle_center, self.radius, self.geofence_area
         # )
         self.inspection_route = create_path_around_inspection(
-            [[15, 8], [25, 12]], self.geofence_area
+            [[15,2], [10,5]], self.geofence_area
         )
         self.start = [0, 0]
         self.bridge = CvBridge()
         self.img_pub = rospy.Publisher("/image_with_car_xy", Image, queue_size=1)
         self.occupancy_grid = OccupancyGrid2()
         self.planned_path_already = False
-        self.planned_path_inspect_already = False
         self.x = None
 
     def state_inputs(self):
@@ -325,7 +323,6 @@ class InspectRoutePlanner(Component):
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
         map_path = os.path.join(script_dir, "highbay_image.pgm")
-
         print("map_path", map_path)
 
         map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
@@ -409,16 +406,20 @@ class InspectRoutePlanner(Component):
                 self.index += 1
                 print("CHANGING STATES", self.mission)
                 self.start = [state.vehicle.pose.x, state.vehicle.pose.y]
-                self.circle_center = [
-                    (self.inspection_area[0][0] + self.inspection_area[1][0]) / 2,
-                    (self.inspection_area[0][1] + self.inspection_area[1][1]) / 2,
-                ]
-                self.radius = (
-                    (self.inspection_area[0][0] + self.inspection_area[1][0]) ** 2
-                    + (self.inspection_area[0][1] + self.inspection_area[1][1]) ** 2
-                ) ** 0.5 / 2
-                self.inspection_route = max_visible_arc(
-                    self.circle_center, self.radius, self.geofence_area
+                # self.circle_center = [
+                #     (self.inspection_area[0][0] + self.inspection_area[1][0]) / 2,
+                #     (self.inspection_area[0][1] + self.inspection_area[1][1]) / 2,
+                # ]
+                # self.radius = (
+                #     (self.inspection_area[0][0] + self.inspection_area[1][0]) ** 2
+                #     + (self.inspection_area[0][1] + self.inspection_area[1][1]) ** 2
+                # ) ** 0.5 / 2
+                # self.inspection_route = max_visible_arc(
+                #     self.circle_center, self.radius, self.geofence_area
+                # )
+
+                self.inspection_route = create_path_around_inspection(
+                    self.inspection_area, self.geofence_area
                 )
         elif self.mission == "NAV":
             state.mission.type = MissionEnum.DRIVE
@@ -441,10 +442,7 @@ class InspectRoutePlanner(Component):
                 self.planned_path_already = True
             self.route = self.x
 
-            if (
-                abs(state.vehicle.pose.x - goal.x) <= 3
-                and abs(state.vehicle.pose.y - goal.y) <= 3
-            ):
+            if (abs(state.vehicle.pose.x - goal.x) <= 3 and abs(state.vehicle.pose.y - goal.y) <= 3):
                 print(self.state_list[self.index + 1])
                 self.mission = self.state_list[self.index + 1]
                 self.index += 1
@@ -459,15 +457,16 @@ class InspectRoutePlanner(Component):
             print(abs(start[0] - goal[0]))
             print(abs(start[1] - goal[1]))
             # if abs(start[0] - goal[0]) <= 4 and abs(start[1] - goal[1]) <= 4:
-            if len(state.trajectory.points) <= 2:
+            self.route = Route(
+                frame=ObjectFrameEnum.START, points=self.inspection_route
+            )
+            if (abs(state.vehicle.pose.x - goal[0]) <= 3 and abs(state.vehicle.pose.y - goal[1]) <= 3):
                 print(self.state_list[self.index + 1])
                 self.mission = self.state_list[self.index + 1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
 
-            self.route = Route(
-                frame=ObjectFrameEnum.START, points=self.inspection_route
-            )
+            
             ## Camera trigger logic
             if (
                 heading(
@@ -484,7 +483,7 @@ class InspectRoutePlanner(Component):
                 state.intent = VehicleIntentEnum.CAMERA_RR
 
         elif self.mission == "FINISH":
-            state.mission.type = MissionEnum.INSPECT_UPLOAD
+            state.mission.type = MissionEnum.HOME
             goal = ObjectPose(
                 frame=ObjectFrameEnum.START,
                 t=state.start_vehicle_pose.t,
@@ -508,6 +507,7 @@ class InspectRoutePlanner(Component):
                 self.mission = self.state_list[self.index + 1]
                 self.index += 1
                 print("CHANGING STATES", self.mission)
+
 
         print("-------------------------------------------------")
         return [self.route, state.mission]

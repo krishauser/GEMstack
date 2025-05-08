@@ -97,8 +97,8 @@ class SaveInspectionData(Component):
         # Convert the image message to an OpenCV image (assuming it is already in cv2.Mat format or convert as needed)
         try:
             # Convert the ROS Image message to an OpenCV image (BGR format)
-            self.latest_fr_image = self.bridge.imgmsg_to_cv2(fr_image_msg, "rgb8")
-            self.latest_rr_image = self.bridge.imgmsg_to_cv2(rr_image_msg, "rgb8")
+            self.latest_fr_image = self.bridge.imgmsg_to_cv2(fr_image_msg, "bgr8")
+            self.latest_rr_image = self.bridge.imgmsg_to_cv2(rr_image_msg, "bgr8")
         except Exception as e:
             rospy.logerr("Failed to convert image: {}".format(e))
             self.latest_fr_image = None
@@ -108,11 +108,14 @@ class SaveInspectionData(Component):
         self.latitude = rad_to_deg(gnss_msg.latitude)
         self.longitude = rad_to_deg(gnss_msg.longitude)
         self.altitude = gnss_msg.height
+        self.yaw = gnss_msg.heading
+        self.pitch = gnss_msg.pitch
+        self.roll = gnss_msg.roll
 
     def update(self, state) -> Dict[str, AgentState]:
         # Process only if synchronized sensor data is available
         if self.latest_fr_image is None and self.latest_rr_image is None or self.latest_lidar is None:
-            return {}
+            return
 
         current_time = self.vehicle_interface.time()
 
@@ -125,7 +128,7 @@ class SaveInspectionData(Component):
 
             # Save GNSS data
             with open(os.path.join(self.folder_path, 'gnss.txt'), 'a') as fh:
-                fh.write(f'{self.latitude},{self.longitude},{self.altitude}\n')
+                fh.write(f'{self.latitude},{self.longitude},{self.altitude},{self.yaw}, {self.roll}, {self.pitch}\n')
 
             # Save LIDAR point cloud
             with open(os.path.join(self.folder_path, f'pc_{self.index}.b'), 'wb') as fh:
@@ -135,4 +138,4 @@ class SaveInspectionData(Component):
 
         elif state.mission.type == MissionEnum.INSPECT_UPLOAD:
             # upload lidar and camera to s3
-            push_folder_to_s3('./inspection_data', 'bucket', 'prefix')
+            push_folder_to_s3(self.folder_path, "cs588", "inspect_results")
