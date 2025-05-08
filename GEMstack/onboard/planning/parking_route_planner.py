@@ -442,51 +442,26 @@ class ParkingPlanner():
         self.orientation_threshold = math.radians(10)  # 10 degrees
         
         # Create logs directory if it doesn't exist
-        self.logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
+        self.logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'log_success')
         os.makedirs(self.logs_dir, exist_ok=True)
+        self.success_file = os.path.join(self.logs_dir, 'parking_success.txt')
 
-    def save_parking_status(self, vehicle_state: VehicleState, goal_pose: ObjectPose, parking_success: bool):
-        """Save parking status and metrics to a JSON file.
+    def save_parking_message(self, success: bool):
+        """Save a parking status message to a text file.
         
         Args:
-            vehicle_state (VehicleState): Current state of the vehicle
-            goal_pose (ObjectPose): Goal parking pose
-            parking_success (bool): Whether parking was successful
+            success (bool): Whether parking was successful
         """
-        # Create timestamp for filename
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = os.path.join(self.logs_dir, f'parking_status_{timestamp}.json')
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        status = "successful" if success else "unsuccessful"
+        message = f"Parking {status} at {timestamp}\n"
         
-        # Calculate metrics
-        position_error = np.linalg.norm(np.array([vehicle_state.pose.x, vehicle_state.pose.y]) - 
-                                      np.array([goal_pose.x, goal_pose.y]))
-        orientation_error = abs(normalize_yaw(vehicle_state.pose.yaw - goal_pose.yaw))
-        
-        # Create data dictionary
-        data = {
-            'timestamp': timestamp,
-            'parking_success': parking_success,
-            'vehicle_state': {
-                'position': [vehicle_state.pose.x, vehicle_state.pose.y],
-                'orientation': vehicle_state.pose.yaw,
-                'velocity': vehicle_state.v
-            },
-            'goal_state': {
-                'position': [goal_pose.x, goal_pose.y],
-                'orientation': goal_pose.yaw
-            },
-            'metrics': {
-                'position_error': position_error,
-                'orientation_error': orientation_error,
-                'velocity': vehicle_state.v
-            }
-        }
-        
-        # Save to JSON file
-        with open(filename, 'w') as f:
-            json.dump(data, f, indent=4)
-        
-        print(f"Parking status saved to {filename}")
+        try:
+            with open(self.success_file, 'a') as f:
+                f.write(message)
+            print(f"Parking status saved to {self.success_file}")
+        except Exception as e:
+            print(f"Error saving parking status: {e}")
 
     def is_successfully_parked(self, vehicle_state: VehicleState, goal_pose: ObjectPose, obstacles: Dict[str, Obstacle]) -> bool:
         """Check if the vehicle is successfully parked in the parking spot.
@@ -623,10 +598,11 @@ class ParkingPlanner():
         self.parking_success = self.is_successfully_parked(vehicle, goal_pose, all_obstacles)
         if self.parking_success:
             print("Successfully parked!")
-            # Save parking status when successful
-            self.save_parking_status(vehicle, goal_pose, True)
         else:
             print("Not yet successfully parked")
+            
+        # Save parking status
+        self.save_parking_message(self.parking_success)
 
         # Need to parse and create second order dubin car states
         start_state = self.vehicle_state_to_first_order(vehicle)
