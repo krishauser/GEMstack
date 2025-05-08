@@ -1,4 +1,5 @@
-from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum, ObstacleStateEnum
+from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum, \
+    ObstacleStateEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .perception_utils import *
@@ -29,49 +30,37 @@ class ConeDetector3D(Component):
     """
 
     def __init__(
-        self,
-        vehicle_interface: GEMInterface,
-        camera_name: str,
-        camera_calib_file: str,
-        enable_tracking: bool = True,
-        visualize_2d: bool = False,
-        use_cyl_roi: bool = False,
-        T_l2v: list = None,
-        save_data: bool = True,
-        orientation: bool = True,
-        use_start_frame: bool = True,
-        **kwargs
+            self,
+            vehicle_interface: GEMInterface,
+            camera_name: str,
+            camera_calib_file: str,
+            enable_tracking: bool = True,
+            visualize_2d: bool = False,
+            use_cyl_roi: bool = False,
+            save_data: bool = True,
+            orientation: bool = True,
+            use_start_frame: bool = True,
+            **kwargs
     ):
         # Core interfaces and state
-        self.vehicle_interface   = vehicle_interface
-        self.current_obstacles      = {}
-        self.tracked_obstacles      = {}
-        self.cone_counter        = 0
-        self.latest_image        = None
-        self.latest_lidar        = None
-        self.bridge              = CvBridge()
-        self.start_pose_abs      = None
-        self.start_time          = None
+        self.vehicle_interface = vehicle_interface
+        self.current_obstacles = {}
+        self.tracked_obstacles = {}
+        self.cone_counter = 0
+        self.latest_image = None
+        self.latest_lidar = None
+        self.bridge = CvBridge()
+        self.start_pose_abs = None
+        self.start_time = None
 
         # Config flags
-        self.camera_name     = camera_name
+        self.camera_name = camera_name
         self.enable_tracking = enable_tracking
-        self.visualize_2d    = visualize_2d
-        self.use_cyl_roi     = use_cyl_roi
-        self.save_data       = save_data
-        self.orientation     = orientation
+        self.visualize_2d = visualize_2d
+        self.use_cyl_roi = use_cyl_roi
+        self.save_data = save_data
+        self.orientation = orientation
         self.use_start_frame = use_start_frame
-
-        # 1) Load lidar→vehicle transform
-        if T_l2v is not None:
-            self.T_l2v = np.array(T_l2v)
-        else:
-            self.T_l2v = np.array([
-                [0.99939639,  0.02547917,  0.023615,    1.1],
-                [-0.02530848, 0.99965156, -0.00749882,  0.03773583],
-                [-0.02379784, 0.00689664,  0.999693,     1.95320223],
-                [0.0,         0.0,         0.0,          1.0]
-            ])
 
         # 2) Load camera intrinsics/extrinsics from the supplied YAML
         with open(camera_calib_file, 'r') as f:
@@ -84,15 +73,16 @@ class ConeDetector3D(Component):
         #     D:   [...]
         #     T_l2c: [[...], ..., [...]]
         cam_cfg = calib['cameras'][camera_name]
-        self.K     = np.array(cam_cfg['K'])
-        self.D     = np.array(cam_cfg['D'])
+        self.K = np.array(cam_cfg['K'])
+        self.D = np.array(cam_cfg['D'])
         self.T_l2c = np.array(cam_cfg['T_l2c'])
+        self.T_l2v = np.array(cam_cfg['T_l2v'])
 
         # Derived transforms
 
         self.undistort_map1 = None
         self.undistort_map2 = None
-        self.camera_front = (camera_name=='front')
+        self.camera_front = (camera_name == 'front')
 
     def rate(self) -> float:
         return 8
@@ -126,8 +116,8 @@ class ConeDetector3D(Component):
         # Initialize the YOLO detector
         self.detector = YOLO('GEMstack/knowledge/detection/cone.pt')
         self.detector.to('cuda')
-        self.T_c2l                = np.linalg.inv(self.T_l2c)
-        self.R_c2l                = self.T_c2l[:3, :3]
+        self.T_c2l = np.linalg.inv(self.T_l2c)
+        self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
     def synchronized_callback(self, image_msg, lidar_msg):
@@ -162,7 +152,7 @@ class ConeDetector3D(Component):
         if self.latest_image is None or self.latest_lidar is None:
             return {}
         latest_image = self.latest_image.copy()
-        
+
         # Set up current time variables
         start = time.time()
         current_time = self.vehicle_interface.time()
@@ -179,7 +169,7 @@ class ConeDetector3D(Component):
         # Ensure data/ exists and build timestamp
         if self.save_data:
             self.save_sensor_data(vehicle=vehicle, latest_image=latest_image)
-        
+
         if self.camera_front == False:
             start = time.time()
             undistorted_img, current_K = self.undistort_image(latest_image, self.K, self.D)
@@ -508,8 +498,8 @@ def box_to_fake_obstacle(box):
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
     return ObstacleState(pose=pose, dimensions=dims, outline=None,
-                      type=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING,
-                      velocity=(0, 0, 0), yaw_rate=0)
+                         type=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING,
+                         velocity=(0, 0, 0), yaw_rate=0)
 
 
 if __name__ == '__main__':
