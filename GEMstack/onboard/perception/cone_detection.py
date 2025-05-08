@@ -16,6 +16,8 @@ from cv_bridge import CvBridge
 import time
 import os
 import yaml
+import json
+import matplotlib.pyplot as plt
 
 
 class ConeDetector3D(Component):
@@ -83,6 +85,10 @@ class ConeDetector3D(Component):
         self.undistort_map1 = None
         self.undistort_map2 = None
         self.camera_front = (camera_name == 'front')
+
+        # Log cone data
+
+        self.detection_log = []
 
     def rate(self) -> float:
         return 8
@@ -421,7 +427,49 @@ class ConeDetector3D(Component):
                 )
         end = time.time()
         # print('-------processing time', end -start)
+        self.log_cone_data_to_file(self.tracked_obstacles, 1)
+        self.visualize_cone_positions()
         return self.tracked_obstacles
+    
+    # ----- Save Sensor Data -----
+    def log_cone_data_to_file(self, agents_dict, step_n, save_path="cone_log.json"):
+        for agent_id, agent in agents_dict.items():
+            self.detection_log.append({
+                'n': step_n,
+                'id': agent_id,
+                'x': agent.pose.x,
+                'y': agent.pose.y,
+                'orientation': str(agent.activity)
+            })
+        with open(save_path, "w") as f:
+            json.dump(self.detection_log, f, indent=2)
+
+    def visualize_cone_positions(self, log_path="cone_log.json"):
+        with open(log_path, "r") as f:
+            data = json.load(f)
+
+        xs, ys, colors = [], [], []
+        for entry in data:
+            xs.append(entry["x"])
+            ys.append(entry["y"])
+            orientation = entry["orientation"]
+            if orientation == "ObstacleStateEnum.RIGHT":
+                colors.append("green")
+            elif orientation == "ObstacleStateEnum.LEFT":
+                colors.append("red")
+            elif orientation == "ObstacleStateEnum.STANDING":
+                colors.append("blue")
+            else:
+                colors.append("gray")
+
+        plt.figure(figsize=(8, 6))
+        plt.scatter(xs, ys, c=colors, label="Cones")
+        plt.xlabel("X Position (m)")
+        plt.ylabel("Y Position (m)")
+        plt.title("Cone Positions Over Time")
+        plt.grid(True)
+        plt.axis("equal")
+        plt.show()
 
     def save_sensor_data(self, vehicle: VehicleState, latest_image) -> None:
         os.makedirs("data", exist_ok=True)
