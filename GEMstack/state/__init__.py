@@ -36,6 +36,6 @@ from .agent_intent import AgentIntent
 from .relations import EntityRelation, EntityRelationEnum, EntityRelationGraph
 from .mission import MissionEnum,MissionObjective
 from .route import Route, PlannerEnum
-from .mission_plan import MissionPlan
+from .mission import MissionPlan
 from .predicates import PredicateValues
 from .all import AllState

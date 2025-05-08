@@ -7,7 +7,7 @@ from .intent import VehicleIntent
 from .agent_intent import AgentIntent,AgentIntentMixture
 from .relations import EntityRelation
 from .mission import MissionObjective
-from .mission_plan import MissionPlan
+from .mission import MissionPlan
 from .route import Route
 from .trajectory import Trajectory
 from .predicates import PredicateValues
