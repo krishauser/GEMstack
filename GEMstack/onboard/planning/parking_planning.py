@@ -424,7 +424,7 @@ class ParkingPlanner():
         return ['all']
 
     def state_outputs(self) -> List[str]:
-        return ['trajectory']
+        return ['route']
 
     def rate(self):
         return 1.0
@@ -465,7 +465,7 @@ class ParkingPlanner():
 
         return (x,y,theta,t)
 
-    def update(self, state : AllState) -> Trajectory:
+    def update(self, state : AllState) -> Route:
         """_summary_
 
         Args:
@@ -511,10 +511,10 @@ class ParkingPlanner():
         print("===========================")
         print(f"Points: {points}")
         print(f"Times: {times}")
-        # route = Path(frame=vehicle.pose.frame, points=points)
+        route = Path(frame=vehicle.pose.frame, points=points)
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
         print(traj)
-        return traj 
+        return route 
     
 
     from rospy.exceptions import ROSInitException
