@@ -174,16 +174,7 @@ class PurePursuit(object):
             curve_radius = self.path.fit_curve_radius((curr_x,curr_y), curve_points)
             # map curve radius to desired_speed. Note curve_radius can be inf if all points are colinear
             print("curve_radius: ", curve_radius)
-            #if curve_radius < 10:
-            #    desired_speed = 2.5
-            #elif curve_radius < 15:
-            #    desired_speed = 3
-            #elif curve_radius < 20:
-            #    desired_speed = 4
-            #elif curve_radius < 30:
-            #    desired_speed = 5
-            #else:
-            #    desired_speed = 10
+
             desired_speed = (.5*curve_radius)**.5
         else:
             #decay speed when crosstrack error is high
@@ -191,21 +182,7 @@ class PurePursuit(object):
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
 
-
-        # # # braking for 50m dash test
-        # if self.current_path_parameter >= self.path.domain()[1]:
-        #     if component is not None:
-        #         component.debug_event('Past the end of trajectory')
-        #         #past the end, just stop
-        #     desired_speed = 0.0
-        #     feedforward_accel = -3.0
-        #     f_delta = 0
-
-
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
-
-        # self.brake_cmd.f64_cmd = maxbrake
-        # self.accel_cmd.f64_cmd = 0
 
         if component is not None:
             component.debug('curr pt',(curr_x,curr_y))
