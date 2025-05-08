@@ -21,6 +21,7 @@ class RoutePlanningComponent(Component):
         print("Route Planning Component init")
         self.route = None
         self.planner = None
+        self.computed_parking_route = False
         
     def state_inputs(self):
         return ["all"]
@@ -41,7 +42,7 @@ class RoutePlanningComponent(Component):
         # print("Vehicle y:", state.vehicle.pose.y)
         # print("Vehicle yaw:", state.vehicle.pose.yaw)
 
-        if state.mission_plan.planner_type.name == "PARKING":
+        if state.mission_plan.planner_type.name == "PARKING" and not self.computed_parking_route:
             print("I am in PARKING mode")
             # Not sure where I should construct this object
             # if isinstance(self.planner, StraightLineMotion): # we are transitioning from scanning to parking
@@ -53,7 +54,7 @@ class RoutePlanningComponent(Component):
             
             self.planner = ParkingPlanner()
             
-
+            self.computed_parking_route = True
             # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
             traj = self.planner.update(state)
             self.planner.visualize_trajectory(traj)
@@ -71,8 +72,9 @@ class RoutePlanningComponent(Component):
             # print("Vehicle x:", state.vehicle.pose.x)
             # print("Vehicle y:", state.vehicle.pose.y)
             # print("Vehicle yaw:", state.vehicle.pose.yaw)
+            print("I am in SCANNING mode")
             desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
-                              (state.vehicle.pose.x + 10, state.vehicle.pose.y)]
+                              (state.vehicle.pose.x + 1, state.vehicle.pose.y)]
             desired_path = Path(state.vehicle.pose.frame, desired_points)
             
             # @TODO these are constants we need to get from settings
@@ -83,7 +85,7 @@ class RoutePlanningComponent(Component):
             # Use longitudinal planner to go in a straight line
 
             # Get current 
-            print("I am in SCANNING mode")
+            
 
         
         return None

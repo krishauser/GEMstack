@@ -141,7 +141,7 @@ class ParkingSolverSecondOrderDubins(AStar):
             next_state = np.append(next_state, node[5] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
             else:
                 print(f"Rejected (collision): {next_state}")
@@ -330,7 +330,7 @@ class ParkingSolverFirstOrderDubins(AStar):
             next_state = np.append(next_state, node[3] + self.vehicle_sim.T)
             next_state = np.round(next_state, 3)
             if self.is_valid_neighbor([next_state]):
-                print(f"Accepted: {next_state}")
+                # print(f"Accepted: {next_state}")
                 neighbors.append(tuple(next_state))
             else:
                 print(f"Rejected first order (collision): {next_state}")
@@ -508,9 +508,9 @@ class ParkingPlanner():
         times = [state[3] for state in res]
         path = Path(frame=vehicle.pose.frame, points=points)
         traj = Trajectory(path.frame,points,times)
-        print("===========================")
-        print(f"Points: {points}")
-        print(f"Times: {times}")
+        # print("===========================")
+        # print(f"Points: {points}")
+        # print(f"Times: {times}")
         route = Path(frame=vehicle.pose.frame, points=points)
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
         print(traj)

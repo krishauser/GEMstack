@@ -8,7 +8,7 @@ class MissionPlan:
     goal_x: float
     goal_y: float
     goal_orientation: float
-    planner_type : PlannerEnum = PlannerEnum.RRT_STAR
+    planner_type : PlannerEnum = PlannerEnum.SCANNING
     # other mission-specific parameters can be added here
 
 

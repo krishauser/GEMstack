@@ -142,11 +142,11 @@ variants:
                 planning:
                     parking_component:
                         type: ParkingSim
-                    # route_planning_component:
-                    #     type: RoutePlanningComponent
-                    route_planning:
-                        type: StaticRoutePlanner
-                        args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
+                    route_planning_component:
+                        type: RoutePlanningComponent
+                    # route_planning:
+                    #     type: StaticRoutePlanner
+                    #     args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
                     motion_planning: longitudinal_planning.YieldTrajectoryPlanner
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
