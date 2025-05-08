@@ -433,6 +433,36 @@ class ParkingPlanner():
         self.planner = ParkingSolverFirstOrderDubins()
 
         self.iterations = settings.get("planning.astar.iterations", 20000)
+        self.parking_success = False
+        self.parking_success_threshold = 0.5  # meters
+        self.velocity_threshold = 0.1  # m/s
+
+    def is_successfully_parked(self, vehicle_state: VehicleState, goal_pose: ObjectPose) -> bool:
+        """Check if the vehicle is successfully parked in the parking spot.
+        
+        Args:
+            vehicle_state (VehicleState): Current state of the vehicle
+            goal_pose (ObjectPose): Goal parking pose
+            
+        Returns:
+            bool: True if vehicle is successfully parked, False otherwise
+        """
+        # Check if vehicle is stopped
+        if abs(vehicle_state.v) > self.velocity_threshold:
+            return False
+            
+        # Check if vehicle is close enough to goal position
+        position_error = np.linalg.norm(np.array([vehicle_state.pose.x, vehicle_state.pose.y]) - 
+                                      np.array([goal_pose.x, goal_pose.y]))
+        if position_error > self.parking_success_threshold:
+            return False
+            
+        # Check if vehicle orientation is close enough to goal orientation
+        orientation_error = abs(normalize_yaw(vehicle_state.pose.yaw - goal_pose.yaw))
+        if orientation_error > math.radians(10):  # 10 degrees tolerance
+            return False
+            
+        return True
 
     def state_inputs(self):
         return ['all']
@@ -505,9 +535,12 @@ class ParkingPlanner():
         goal.pose = goal_pose
         goal.v = 0
 
-        # # Need to parse and create second order dubin car states
-        # start_state = self.vehicle_state_to_dynamics(vehicle)
-        # goal_state = self.vehicle_state_to_dynamics(goal)
+        # Check if vehicle is successfully parked
+        self.parking_success = self.is_successfully_parked(vehicle, goal_pose)
+        if self.parking_success:
+            print("Successfully parked!")
+        else:
+            print("Not yet successfully parked")
 
         # Need to parse and create second order dubin car states
         start_state = self.vehicle_state_to_first_order(vehicle)
