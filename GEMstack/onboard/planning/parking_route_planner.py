@@ -14,11 +14,12 @@ from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 import rospy
 import time
-
-
-
 import numpy as np
 import math
+
+def normalize_yaw(yaw):
+    """Normalize yaw angle to [-pi, pi]"""
+    return math.atan2(math.sin(yaw), math.cos(yaw))
 
 class ParkingSolverSecondOrderDubins(AStar):
     """sample use of the astar algorithm. In this exemple we work on a maze made of ascii characters,
@@ -434,15 +435,16 @@ class ParkingPlanner():
 
         self.iterations = settings.get("planning.astar.iterations", 20000)
         self.parking_success = False
-        self.parking_success_threshold = 0.5  # meters
         self.velocity_threshold = 0.1  # m/s
+        self.orientation_threshold = math.radians(10)  # 10 degrees
 
-    def is_successfully_parked(self, vehicle_state: VehicleState, goal_pose: ObjectPose) -> bool:
+    def is_successfully_parked(self, vehicle_state: VehicleState, goal_pose: ObjectPose, obstacles: Dict[str, Obstacle]) -> bool:
         """Check if the vehicle is successfully parked in the parking spot.
         
         Args:
             vehicle_state (VehicleState): Current state of the vehicle
             goal_pose (ObjectPose): Goal parking pose
+            obstacles (Dict[str, Obstacle]): Dictionary of obstacles including parking cones
             
         Returns:
             bool: True if vehicle is successfully parked, False otherwise
@@ -451,15 +453,47 @@ class ParkingPlanner():
         if abs(vehicle_state.v) > self.velocity_threshold:
             return False
             
-        # Check if vehicle is close enough to goal position
-        position_error = np.linalg.norm(np.array([vehicle_state.pose.x, vehicle_state.pose.y]) - 
-                                      np.array([goal_pose.x, goal_pose.y]))
-        if position_error > self.parking_success_threshold:
+        # Get vehicle polygon
+        vehicle_object = PhysicalObject(
+            pose=vehicle_state.pose,
+            dimensions=vehicle_state.dimensions,
+            outline=vehicle_state.outline
+        )
+        vehicle_polygon = vehicle_object.polygon_parent()
+        
+        # Get parking spot polygon from cones
+        parking_spot_vertices = []
+        for obstacle in obstacles.values():
+            if isinstance(obstacle, AgentState):
+                # Get cone position
+                x, y = obstacle.pose.x, obstacle.pose.y
+                parking_spot_vertices.append((x, y))
+        
+        # Need exactly 4 cones to form a parking spot
+        if len(parking_spot_vertices) != 4:
+            print("Warning: Not exactly 4 cones found for parking spot")
+            return False
+            
+        # Create a polygon from the parking spot vertices
+        # We'll use the collision detection utilities to check if the vehicle is inside
+        parking_spot_object = PhysicalObject(
+            pose=ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=0.0, x=0.0, y=0.0, z=0.0, yaw=0.0),
+            dimensions=[max(abs(x) for x, _ in parking_spot_vertices) * 2,
+                       max(abs(y) for _, y in parking_spot_vertices) * 2,
+                       4.0],
+            outline=parking_spot_vertices
+        )
+        parking_spot_polygon = parking_spot_object.polygon_parent()
+        
+        # Check if vehicle is inside parking spot
+        # We'll consider the vehicle parked if its polygon is completely inside the parking spot
+        # and not intersecting with any of the cone obstacles
+        if not collisions.polygon_contains_polygon_2d(parking_spot_polygon, vehicle_polygon):
             return False
             
         # Check if vehicle orientation is close enough to goal orientation
         orientation_error = abs(normalize_yaw(vehicle_state.pose.yaw - goal_pose.yaw))
-        if orientation_error > math.radians(10):  # 10 degrees tolerance
+        if orientation_error > self.orientation_threshold:
             return False
             
         return True
@@ -536,7 +570,7 @@ class ParkingPlanner():
         goal.v = 0
 
         # Check if vehicle is successfully parked
-        self.parking_success = self.is_successfully_parked(vehicle, goal_pose)
+        self.parking_success = self.is_successfully_parked(vehicle, goal_pose, all_obstacles)
         if self.parking_success:
             print("Successfully parked!")
         else:
