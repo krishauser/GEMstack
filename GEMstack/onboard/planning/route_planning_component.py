@@ -37,11 +37,40 @@ class RoutePlanningComponent(Component):
         
         # Write header to metrics file
         with open(self.metrics_file, 'w') as f:
-            f.write("Timestamp,Planning Time,Previous Planning Time,Time Difference,Goal X,Goal Y,Goal Yaw\n")
+            f.write("Timestamp,Planning Time,Previous Planning Time,Time Difference," + 
+                   "Goal X,Goal Y,Goal Yaw," +
+                   "Final X,Final Y,Final Yaw," +
+                   "Position Error,Orientation Error\n")
         
-    def log_metrics(self, state: AllState):
+    def log_metrics(self, state: AllState, final_state=None):
         """Log metrics to file with timestamp"""
         timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        
+        # Calculate position and orientation errors if we have final state
+        position_error = 0.0
+        orientation_error = 0.0
+        final_x = 0.0
+        final_y = 0.0
+        final_yaw = 0.0
+        
+        if final_state is not None:
+            final_x = final_state[0]
+            final_y = final_state[1]
+            final_yaw = final_state[2]
+            
+            # Calculate position error (Euclidean distance)
+            position_error = np.sqrt(
+                (final_x - state.mission_plan.goal_x)**2 + 
+                (final_y - state.mission_plan.goal_y)**2
+            )
+            
+            # Calculate orientation error (absolute difference)
+            orientation_error = abs(final_yaw - state.mission_plan.goal_orientation)
+            # Normalize orientation error to [-pi, pi]
+            while orientation_error > np.pi:
+                orientation_error -= 2 * np.pi
+            orientation_error = abs(orientation_error)
+        
         metrics = [
             timestamp,
             f"{self.planning_time:.3f}",
@@ -49,7 +78,12 @@ class RoutePlanningComponent(Component):
             f"{self.planning_time - self.last_planning_time:.3f}",
             f"{state.mission_plan.goal_x:.3f}",
             f"{state.mission_plan.goal_y:.3f}",
-            f"{state.mission_plan.goal_orientation:.3f}"
+            f"{state.mission_plan.goal_orientation:.3f}",
+            f"{final_x:.3f}",
+            f"{final_y:.3f}",
+            f"{final_yaw:.3f}",
+            f"{position_error:.3f}",
+            f"{orientation_error:.3f}"
         ]
         
         with open(self.metrics_file, 'a') as f:
@@ -65,46 +99,39 @@ class RoutePlanningComponent(Component):
         return 10.0 # very high for our computation ability
 
     def update(self, state: AllState):
-        # print("Route Planner's mission:", state.mission_plan.planner_type.value)
-        # print("type of mission plan:", type(PlannerEnum.RRT_STAR))
-        # print("Route Planner's mission:", state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value)
-        # print("Route Planner's mission:", state.mission_plan.planner_type.value == PlannerEnum.PARKING.value)
-        # print("Mission plan:", state.mission_plan)
-        # print("Vehicle x:", state.vehicle.pose.x)
-        # print("Vehicle y:", state.vehicle.pose.y)
-        # print("Vehicle yaw:", state.vehicle.pose.yaw)
         if state.mission_plan.planner_type.name == "PARKING" and not self.compute_parking_route:
             print("I am in PARKING mode")
-            # Not sure where I should construct this object
-            # if isinstance(self.planner, StraightLineMotion): # we are transitioning from scanning to parking
-                # Check if the car is still in motion from scanning behavior
-                # if it is, we need to stop it before parking
-                # self.planner.brake() # get car totally stopped before parking
-            # state.vehicle.pose.yaw = 0 # needed this to avoid a weird error in the parking planner
-            # self.planner = ParkingPlanner()
-            # self.computed_parking_route = True
-            # # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
-            # traj = self.planner.update(state)
-            # self.planner.visualize_trajectory(traj)
-            # self.planner.visualize_trajectory_animated(traj)
             desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
                               (state.vehicle.pose.x, state.vehicle.pose.y)]
             desired_path = Path(state.vehicle.pose.frame, desired_points)
+
             self.compute_parking_route = True
             return desired_path
         elif state.mission_plan.planner_type.name == "PARKING" and self.compute_parking_route and not self.done_computing:
             state.vehicle.pose.yaw = 0 # needed this to avoid a weird error in the parking planner
+            
             if not self.already_computed:
                 print("\n=== Starting Parking Route Planning ===")
                 start_time = time.time()
+                
                 self.planner = ParkingPlanner()
                 self.done_computing = True
                 self.route = self.planner.update(state)
+                
                 # Calculate planning time
                 self.planning_time = time.time() - start_time
                 
+                # Get final state from the route
+                final_state = None
+                if self.route and len(self.route.points) > 0:
+                    # Get the last point from the route
+                    final_point = self.route.points[-1]
+                    # Get the final orientation from the planner's last state
+                    if hasattr(self.planner, 'planner') and hasattr(self.planner.planner, 'last_state'):
+                        final_state = self.planner.planner.last_state
+                
                 # Log metrics to file
-                self.log_metrics(state)
+                self.log_metrics(state, final_state)
                 
                 print("=== Planning Complete ===\n")
                 self.planner.visualize_trajectory(self.route)
@@ -113,21 +140,10 @@ class RoutePlanningComponent(Component):
         elif state.mission_plan.planner_type.name == "RRT_STAR":
             print("I am in RRT mode")
         elif state.mission_plan.planner_type.name == "SCANNING":
-            # Run brute force straight line motion
-            # if (self.planner is None) or (not isinstance(self.planner, StraightLineMotion)):
-                # self.planner = StraightLineMotion()
-            # print("Mission plan:", state.mission_plan)
-            # print("Vehicle x:", state.vehicle.pose.x)
-            # print("Vehicle y:", state.vehicle.pose.y)
-            # print("Vehicle yaw:", state.vehicle.pose.yaw)
             print("I am in SCANNING mode")
             desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
                               (state.vehicle.pose.x + 1, state.vehicle.pose.y)]
             desired_path = Path(state.vehicle.pose.frame, desired_points)
-            # @TODO these are constants we need to get from settings
             return desired_path
-            # self.planner.update_speed()
-            # We want to just go straight
-            # Use longitudinal planner to go in a straight line
-            # Get current
+        
         return None
