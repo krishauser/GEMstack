@@ -480,12 +480,22 @@ class ParkingPlanner():
         # Get final position from trajectory
         x, y, theta, t = final_state
         
-        # Create vehicle object at final position
+        # Calculate the offset from rear to centroid
+        # The vehicle's length is in the x direction of the vehicle frame
+        vehicle_length = self.planner.vehicle.to_object().dimensions[0]  # Length of vehicle
+        centroid_offset = vehicle_length / 2.0  # Distance from rear to centroid
+        
+        # Calculate the centroid position by moving forward from the rear position
+        # Using basic trigonometry to move in the direction the vehicle is facing
+        centroid_x = x + centroid_offset * math.cos(theta)
+        centroid_y = y + centroid_offset * math.sin(theta)
+        
+        # Create vehicle object at centroid position
         final_pose = ObjectPose(
             frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
             t=t,
-            x=x,
-            y=y,
+            x=centroid_x,
+            y=centroid_y,
             z=0.0,
             yaw=theta
         )
@@ -546,9 +556,6 @@ class ParkingPlanner():
             parking_spot_vertices[1],  # bottom-right
         ]
         
-        # Create a polygon from the ordered vertices
-        #parking_spot_polygon = shapely.Polygon(ordered_vertices)
-        
         # First check if vehicle collides with any cone
         for cone_object in cone_objects:
             if collisions.polygon_intersects_polygon_2d(vehicle_polygon, cone_object.polygon_parent()):
@@ -557,7 +564,7 @@ class ParkingPlanner():
                     with open(self.success_file, 'a') as f:
                         f.write("Collides with Cone")
                 except Exception as e:
-                        print(f"Error saving parking status: {e}")
+                    print(f"Error saving parking status: {e}")
                 return False
         
         # Then check if vehicle is contained within parking spot
@@ -565,15 +572,20 @@ class ParkingPlanner():
             print("Vehicle is not contained within parking spot")
             try:
                 with open(self.success_file, 'a') as f:
-                    f.write("Not Contained with praking spot")
+                    f.write("Not Contained with parking spot")
             except Exception as e:
-                    print(f"Error saving parking status: {e}")
+                print(f"Error saving parking status: {e}")
             return False
             
         # Finally check if final orientation is close enough to goal orientation
         orientation_error = abs(normalize_yaw(theta - goal_pose.yaw))
         if orientation_error > self.orientation_threshold:
             print("Vehicle orientation is not within threshold")
+            try:
+                with open(self.success_file, 'a') as f:
+                    f.write("Orientation not within threshold")
+            except Exception as e:
+                print(f"Error saving parking status: {e}")
             return False
             
         return True
@@ -679,7 +691,7 @@ class ParkingPlanner():
             try:
                 with open(self.success_file, 'a') as f:
                     f.write("Final State")
-                    f.write(final_state)
+                    f.write(str(final_state))
                     f.write("Final State End")
                 print(f"Parking status saved to {self.success_file}")
             except Exception as e:
