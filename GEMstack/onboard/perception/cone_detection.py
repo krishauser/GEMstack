@@ -1,3 +1,5 @@
+from open3d.examples.geometry.point_cloud_transformation import transform
+
 from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum, \
     ObstacleStateEnum
 from ..interface.gem import GEMInterface
@@ -312,7 +314,7 @@ class ConeDetector3D(Component):
                     vehicle.pose,
                     self.start_pose_abs
                 )
-                T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
+                T_vehicle_to_start = vehicle_start_pose.transform()
                 xp, yp, zp = (T_vehicle_to_start @ np.append(refined_center, 1))[:3]
                 out_frame = ObjectFrameEnum.START
             else:
@@ -361,8 +363,6 @@ class ConeDetector3D(Component):
                             outline=None,
                             type=ObstacleMaterialEnum.TRAFFIC_CONE,
                             activity=activity,
-                            velocity=(0, 0, 0),
-                            yaw_rate=0
                         )
                     else:
                         updated_obstacle = old_state
@@ -377,8 +377,6 @@ class ConeDetector3D(Component):
                         outline=None,
                         type=ObstacleMaterialEnum.TRAFFIC_CONE,
                         activity=activity,
-                        velocity=(0, 0, 0),
-                        yaw_rate=0
                     )
                     obstacles[obstacle_id] = new_obstacle
                     self.tracked_obstacles[obstacle_id] = new_obstacle
@@ -391,8 +389,6 @@ class ConeDetector3D(Component):
                     outline=None,
                     type=ObstacleMaterialEnum.TRAFFIC_CONE,
                     activity=activity,
-                    velocity=(0, 0, 0),
-                    yaw_rate=0
                 )
                 obstacles[obstacle_id] = new_obstacle
 
@@ -403,10 +399,9 @@ class ConeDetector3D(Component):
             for obstacle_id, obstacle in self.current_obstacles.items():
                 p = obstacle.pose
                 rospy.loginfo(
-                    f"Agent ID: {obstacle_id}\n"
+                    f"Cone ID: {obstacle_id}\n"
                     f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                     f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                    f"Velocity: (vx: {obstacle.velocity[0]:.3f}, vy: {obstacle.velocity[1]:.3f}, vz: {obstacle.velocity[2]:.3f})\n"
                     f"type:{obstacle.activity}"
                 )
             end = time.time()
@@ -422,10 +417,9 @@ class ConeDetector3D(Component):
             for obstacle_id, obstacle in self.tracked_obstacles.items():
                 p = obstacle.pose
                 rospy.loginfo(
-                    f"Agent ID: {obstacle_id}\n"
+                    f"Cone ID: {obstacle_id}\n"
                     f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                     f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                    f"Velocity: (vx: {obstacle.velocity[0]:.3f}, vy: {obstacle.velocity[1]:.3f}, vz: {obstacle.velocity[2]:.3f})\n"
                     f"type:{obstacle.activity}"
                 )
         end = time.time()
@@ -507,8 +501,7 @@ def box_to_fake_obstacle(box):
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
     return ObstacleState(pose=pose, dimensions=dims, outline=None,
-                         type=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING,
-                         velocity=(0, 0, 0), yaw_rate=0)
+                         type=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING)
 
 
 if __name__ == '__main__':
