@@ -572,8 +572,8 @@ class ParkingPlanner():
             print("Vehicle is not contained within parking spot")
             try:
                 with open(self.success_file, 'a') as f:
-                    f.write("\nOrdered Vertices{ordered_vertices}")
-                    f.write("\nVehicle_Polygon{vehicle_polygon}")
+                    f.write(f"\nOrdered Vertices{ordered_vertices}")
+                    f.write(f"\nVehicle_Polygon{vehicle_polygon}")
                     f.write("\nNot Contained with parking spot")
             except Exception as e:
                 print(f"Error saving parking status: {e}")
