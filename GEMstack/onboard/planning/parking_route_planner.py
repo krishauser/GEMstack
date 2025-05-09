@@ -19,6 +19,7 @@ import math
 import json
 import os
 from datetime import datetime
+#
 
 def normalize_yaw(yaw):
     """Normalize yaw angle to [-pi, pi]"""
@@ -498,34 +499,66 @@ class ParkingPlanner():
         
         # Get parking spot polygon from cones
         parking_spot_vertices = []
+        cone_objects = []
         for obstacle in obstacles.values():
             if isinstance(obstacle, AgentState):
                 # Get cone position
                 x, y = obstacle.pose.x, obstacle.pose.y
                 parking_spot_vertices.append((x, y))
+                
+                # Create cone object for collision checking
+                cone_pose = ObjectPose(
+                    frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
+                    t=0.0,
+                    x=x,
+                    y=y,
+                    z=0.0,
+                    yaw=0.0
+                )
+                cone_object = PhysicalObject(
+                    pose=cone_pose,
+                    dimensions=[0.1, 0.1, 1.0],  # Small dimensions for cone
+                    outline=[(-0.05, -0.05), (0.05, -0.05), (0.05, 0.05), (-0.05, 0.05)]
+                )
+                cone_objects.append(cone_object)
         
         # Need exactly 4 cones to form a parking spot
         if len(parking_spot_vertices) != 4:
             print("Warning: Not exactly 4 cones found for parking spot")
             return False
             
-        # Create a polygon from the parking spot vertices
-        parking_spot_object = PhysicalObject(
-            pose=ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=0.0, x=0.0, y=0.0, z=0.0, yaw=0.0),
-            dimensions=[max(abs(x) for x, _ in parking_spot_vertices) * 2,
-                       max(abs(y) for _, y in parking_spot_vertices) * 2,
-                       4.0],
-            outline=parking_spot_vertices
-        )
-        parking_spot_polygon = parking_spot_object.polygon_parent()
+        # Order the vertices to form a proper polygon
+        # Sort by x coordinate first, then by y coordinate
+        parking_spot_vertices.sort(key=lambda p: (p[0], p[1]))
         
-        # Check if final position is inside parking spot
-        if not collisions.polygon_contains_polygon_2d(parking_spot_polygon, vehicle_polygon):
+        # Create a polygon from the parking spot vertices
+        # The vertices should be ordered in a way that forms a proper rectangle
+        # [bottom-left, top-left, top-right, bottom-right]
+        ordered_vertices = [
+            parking_spot_vertices[0],  # bottom-left
+            parking_spot_vertices[2],  # top-left
+            parking_spot_vertices[3],  # top-right
+            parking_spot_vertices[1],  # bottom-right
+        ]
+        
+        # Create a polygon from the ordered vertices
+        #parking_spot_polygon = shapely.Polygon(ordered_vertices)
+        
+        # First check if vehicle collides with any cone
+        for cone_object in cone_objects:
+            if collisions.polygon_intersects_polygon_2d(vehicle_polygon, cone_object.polygon_parent()):
+                print("Vehicle collides with a cone")
+                return False
+        
+        # Then check if vehicle is contained within parking spot
+        if not collisions.polygon_contains_polygon_2d(ordered_vertices, vehicle_polygon):
+            print("Vehicle is not contained within parking spot")
             return False
             
-        # Check if final orientation is close enough to goal orientation
+        # Finally check if final orientation is close enough to goal orientation
         orientation_error = abs(normalize_yaw(theta - goal_pose.yaw))
         if orientation_error > self.orientation_threshold:
+            print("Vehicle orientation is not within threshold")
             return False
             
         return True
