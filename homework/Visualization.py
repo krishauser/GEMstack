@@ -8,6 +8,7 @@ from ultralytics import YOLO
 from sklearn.cluster import DBSCAN
 from scipy.spatial.transform import Rotation as R
 import time
+import matplotlib.pyplot as plt
 
 # -----------------------------
 # 1) Minimal Stub Classes
@@ -77,6 +78,51 @@ def downsample_points(lidar_points, voxel_size=0.15):
     pcd.points = o3d.utility.Vector3dVector(lidar_points)
     down_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
     return np.asarray(down_pcd.points)
+
+def load_start_pose(vehstate_filepath):
+    """
+    Read the line starting with 'AFTER_TRANSFORM' from the given file and
+    return an ObjectPose in the START frame.
+    """
+    with open(vehstate_filepath, 'r') as f:
+        for line in f:
+            if line.startswith("AFTER_TRANSFORM"):
+                # line looks like:
+                # AFTER_TRANSFORM x=17.551, y=0.164, z=0.016, yaw=0.31, pitch=-0.02, roll=-0.01, frame=START
+                parts = line.strip().split()
+                kvs = {}
+                for token in parts[1:]:
+                    key, val = token.rstrip(',').split('=')
+                    kvs[key] = val
+                return ObjectPose(
+                    t=None,
+                    x=float(kvs['x']),
+                    y=float(kvs['y']),
+                    z=float(kvs['z']),
+                    yaw=float(kvs['yaw']),
+                    pitch=float(kvs['pitch']),
+                    roll=float(kvs['roll']),
+                    frame=kvs['frame']
+                )
+    raise RuntimeError(f"No AFTER_TRANSFORM line found in {vehstate_filepath}")
+
+
+def visualize_z_distribution(points_3d, bins=50):
+    """
+    Visualize the distribution of Z values in a point cloud.
+
+    Args:
+        points_3d (np.ndarray): Array of shape (N,3) with XYZ coordinates.
+        bins (int): Number of histogram bins.
+    """
+    z_vals = points_3d[:, 2]
+    plt.figure()
+    plt.hist(z_vals, bins=bins)
+    plt.xlabel("Z coordinate")
+    plt.ylabel("Frequency")
+    plt.title("Z Distribution of Points")
+    plt.show()
+
 
 def transform_points_l2c(lidar_points, T_l2c):
     """
@@ -240,7 +286,7 @@ def pose_to_matrix(pose):
     y = pose.y if pose.y is not None else 0.0
     z = pose.z if pose.z is not None else 0.0
     if pose.yaw is not None and pose.pitch is not None and pose.roll is not None:
-        yaw = np.radians(pose.yaw)
+        yaw = pose.yaw
         pitch = np.radians(pose.pitch)
         roll = np.radians(pose.roll)
     else:
@@ -344,7 +390,8 @@ class PedestrianDetector2D:
         # Flag: whether to use cylindrical ROI option.
         self.use_cyl_roi = True
 
-    def process_frame(self, image, lidar_points, current_time=0.0, debug_reproj=False, debug_frustum=False):
+    def process_frame(self, image, lidar_points, current_time=0.0, debug_reproj=False, debug_frustum=False,
+                      start_pose_abs = None):
         agents = {}
         self.cluster_geometries = []
         self.cluster_obbs = []
@@ -364,9 +411,9 @@ class PedestrianDetector2D:
 
         # 3. Run YOLO detections on each image.
         #    Detection box format is [cx, cy, w, h].
-        results_normal = self.detector(image, conf=0.3, classes=[0])
-        results_left = self.detector(image_left, conf=0.05, classes=[0])
-        results_right = self.detector(image_right, conf=0.05, classes=[0])
+        results_normal = self.detector(image, conf=0.4, classes=[0])
+        results_left = self.detector(image_left, conf=0.1, classes=[0])
+        results_right = self.detector(image_right, conf=0.1, classes=[0])
 
         boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
         boxes_left = np.array(results_left[0].boxes.xywh.cpu()) if len(results_left) > 0 else []
@@ -408,10 +455,21 @@ class PedestrianDetector2D:
 
         # 5. For each combined 2D bounding box, process LiDAR points to obtain 3D position and orientation.
         refined_all = []
+        if lidar_points.shape[0] > 0:
+            roi_pcd = o3d.geometry.PointCloud()
+            roi_pcd.points = o3d.utility.Vector3dVector(lidar_points)
+            # this will pop up a window showing just those points
+            o3d.visualization.draw_geometries(
+                [roi_pcd],
+                window_name="ROI 3D Points",
+                width=800,
+                height=600
+            )
         for box_info in combined_boxes:
             cx, cy, w, h, activity = box_info
-            left = int(cx - w / 2)
-            right = int(cx + w / 2)
+            print(cx, cy, w, h)
+            left = int(cx - w / 1.5)
+            right = int(cx + w / 1.5)
             top = int(cy - h / 2)
             bottom = int(cy + h / 2)
 
@@ -419,7 +477,7 @@ class PedestrianDetector2D:
             if debug_frustum:
                 bbox = [left, top, right, bottom]
                 z_near = 0.5  # can be adjusted
-                z_far = 25.0  # can be adjusted
+                z_far = 30.0  # can be adjusted
                 pts_frustum, lines_frustum = self.create_frustum_lines(bbox, self.current_K, z_near, z_far)
                 frustum_lineset = o3d.geometry.LineSet()
                 frustum_lineset.points = o3d.utility.Vector3dVector(pts_frustum)
@@ -452,11 +510,34 @@ class PedestrianDetector2D:
             roi_2d_pts = projected_pts[mask]
             points_3d = roi_2d_pts[:, 2:5]  # Extract the original 3D coordinates
 
+            if points_3d.shape[0] > 0:
+                roi_pcd = o3d.geometry.PointCloud()
+                roi_pcd.points = o3d.utility.Vector3dVector(points_3d)
+                # this will pop up a window showing just those points
+                o3d.visualization.draw_geometries(
+                    [roi_pcd],
+                    window_name="ROI 3D Points",
+                    width=800,
+                    height=600
+                )
             if debug_reproj:
                 display_reprojected_cluster(image, points_3d, self.T_l2c, self.current_K)
+            visualize_z_distribution(points_3d)
+            points_3d = filter_points_within_threshold(points_3d, 100)
+            # print(points_3d)
+            points_3d = remove_ground_by_min_range(points_3d, z_range=0.08)
+            points_3d = filter_depth_points(points_3d, max_depth_diff=0.5)
 
-            points_3d = filter_points_within_threshold(points_3d, 30)
-            points_3d = filter_depth_points(points_3d, max_depth_diff=0.3)
+            if points_3d.shape[0] > 0:
+                roi_pcd = o3d.geometry.PointCloud()
+                roi_pcd.points = o3d.utility.Vector3dVector(points_3d)
+                # this will pop up a window showing just those points
+                o3d.visualization.draw_geometries(
+                    [roi_pcd],
+                    window_name="ROI 3D Points",
+                    width=800,
+                    height=600
+                )
             if points_3d.shape[0] < 4:
                 continue
 
@@ -465,7 +546,7 @@ class PedestrianDetector2D:
             center_roi = np.mean(points_3d, axis=0)
             if self.use_cyl_roi:
                 roi_cyl = cylindrical_roi(global_filtered, center_roi, radius=0.4, height=1.2)
-                refined_cluster = remove_ground_by_min_range(roi_cyl, z_range=0.03)
+                refined_cluster = remove_ground_by_min_range(roi_cyl, z_range=0.01)
                 refined_cluster = filter_depth_points(refined_cluster, max_depth_diff=0.3)
                 center_roi = np.mean(refined_cluster, axis=0)
             else:
@@ -498,6 +579,16 @@ class PedestrianDetector2D:
             # Convert rotation matrix to Euler angles (in degrees)
             euler_vehicle = R.from_matrix(R_vehicle).as_euler('zyx', degrees=True)
             yaw, pitch, roll = euler_vehicle
+
+            if start_pose_abs is not None:
+                T_vehicle_to_start = pose_to_matrix(start_pose_abs)
+
+                # transform your point (vehicle‐frame) into START frame
+                p_start_hom = T_vehicle_to_start @ np.append(refined_center_vehicle, 1.0)
+                xp, yp, zp = p_start_hom[:3]
+
+                # overwrite or store for output
+                refined_center_vehicle = np.array([xp, yp, zp])
 
             new_pose = ObjectPose(
                 t=current_time,
@@ -672,8 +763,16 @@ def main():
     # print(f"Found {num_frames} matching frames.")
     for i in range(1):
         # Use fixed file paths as an example; modify as needed.
-        image_path = f'../4.21/1745270374568_image.png'
-        lidar_path = f'../4.21/1745270374568_lidar.npz'
+        current_time_ms = 1746802907471
+        image_path = f'../5.9/{current_time_ms}_image.png'
+        lidar_path = f'../5.9/{current_time_ms}_lidar.npz'
+
+        try:
+            veh_txt = f"../4.30/{current_time_ms}_vehstate.txt"
+            start_pose_abs = load_start_pose(veh_txt)
+        except:
+            start_pose_abs = None
+
         image = cv2.imread(image_path)
         if image is None:
             print("Failed to load image:", image_path)
@@ -681,7 +780,7 @@ def main():
         lidar_points = load_lidar_from_npz(lidar_path)
 
         agents, processed_image = detector.process_frame(image, lidar_points, current_time=float(i),
-                                                         debug_reproj=True, debug_frustum=True)
+                                                         debug_reproj=True, debug_frustum=True, start_pose_abs = start_pose_abs)
         # Print detected agent information.
         print("Detected Agents:")
         for agent_id, agent_state in agents.items():
