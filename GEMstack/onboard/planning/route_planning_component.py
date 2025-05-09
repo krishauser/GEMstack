@@ -179,7 +179,7 @@ class RoutePlanningComponent(Component):
         self.parking_route_existed = False
 
         # Used as route searchers' time limit as well as the update rate of the component
-        self.update_rate = 0.25
+        self.update_rate = 0.5
 
     def state_inputs(self):
         return ["all"]

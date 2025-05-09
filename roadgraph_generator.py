@@ -111,8 +111,8 @@ def create_straight_lane(left_back : Tuple[float,float,float], left_forward : Tu
     lane.right = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY, segments=right_boundary_points)
 
     if begin_left is not None and begin_right is not None:
-        begin_boundary_points = segment_straight_line(begin_left, begin_right, resolution=resolution)
-        lane.begin = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY, segments=begin_boundary_points)
+        begin_boundary_points = segment_straight_line(begin_left, begin_right, resolution=resolution, crossable=crossable)
+        lane.begin = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY, segments=begin_boundary_points, crossable=crossable)
     if end_right is not None and end_left is not None:
         end_boundary_points = segment_straight_line(end_right, end_left, resolution=resolution)
         lane.end = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY, segments=end_boundary_points)
@@ -133,8 +133,8 @@ def create_arc_lane(left_back : Tuple[float,float,float], left_forward : Tuple[f
     lane = RoadgraphLane()
     left_boundary_points = segment_arc(left_back, left_forward, left_radius, direction, resolution=resolution)
     right_boundary_points = segment_arc(right_back, right_forward, right_radius, direction, resolution=resolution)
-    lane.left = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY, segments=left_boundary_points)
-    lane.right = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY, segments=right_boundary_points)
+    lane.left = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY, segments=left_boundary_points, crossable=crossable)
+    lane.right = RoadgraphCurve(type=RoadgraphCurveEnum.LANE_BOUNDARY, segments=right_boundary_points, crossable=crossable)
 
     if begin_left is not None and begin_right is not None:
         begin_boundary_points = segment_straight_line(begin_left, begin_right, resolution=resolution)
@@ -192,7 +192,6 @@ def create_lane(left_back : Tuple, left_forward : Tuple,
 
 if __name__ == '__main__':
     resolution = 0.4
-
     filename = 'GEMstack/knowledge/routes/summoning_roadgraph_sim.json'
     frame = ObjectFrameEnum.START
     roadgraph = Roadgraph(frame=frame)
@@ -306,6 +305,7 @@ if __name__ == '__main__':
 
     lon_ratio = (-88.235527 + 88.236129) / 51.34  # lon / m
     lat_ratio = (40.092819 - 40.092741) / 8.66    # lat / m
+    resolution = 0.4 * min(lon_ratio, lat_ratio)
 
     # Create lane segments
     roadgraph.lanes['highbay_outer_lane'] = create_straight_lane(left_back=(-88.236129, 40.092741 + lat_ratio * 1.5, 0.0), left_forward=(-88.235527, 40.092741 + lat_ratio * 1.5, 0.0),
