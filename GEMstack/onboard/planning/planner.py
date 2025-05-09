@@ -10,11 +10,10 @@ from kinodynamic_rrt_star import OptimizedKinodynamicRRT  # Updated import
 from summon_rrt import BiRRT
 from map_utils import load_pgm_to_occupancy_grid
 from visualization import visualize_path, animate_path
-from test_dubins import run_tests
 
 def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, metadata,
                                    safety_margin=2, vehicle_width=1.7, step_size=1.0,
-                                   turning_radius=3.0, max_iterations=3000):
+                                   turning_radius=3.0, max_iterations=3000, bidirectional=True):
     """
     Optimized Kinodynamic RRT planning from start to goal
     
@@ -44,6 +43,17 @@ def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, 
     # === STEP 2: Build collision lookup ===
     t_lookup = time.time()
     collision_lookup = build_collision_lookup(occupancy_grid, safety_margin, vehicle_width)
+    import matplotlib.pyplot as plt
+
+    # Visualize collision lookup
+    plt.figure(figsize=(10, 10))
+    print(collision_lookup)
+    plt.imshow(collision_lookup['collision_mask'], cmap="gray", origin="lower")
+    plt.title("Collision Lookup Table")
+    plt.xlabel("Grid X")
+    plt.ylabel("Grid Y")
+    plt.colorbar(label="Collision Status")
+    plt.show()
     print(f"Built collision lookup in {time.time() - t_lookup:.2f}s")
     
     # === STEP 3: Run Optimized Kinodynamic RRT ===
@@ -57,10 +67,7 @@ def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, 
         start=start_grid,
         goal=goal_grid,
         max_iter=max_iterations,
-        step_size=step_size * 2.0,
-        goal_sample_rate=0.25,
-        turning_radius=turning_radius,
-        vehicle_length=vehicle_width * 2.5
+        # bidirectional=bidirectional
     )
 
     ## Testing Summoning RRT implementation
@@ -94,14 +101,15 @@ def main():
     parser.add_argument("--test", action="store_true", help="run unit tests and exit")
     parser.add_argument("--vis", action="store_true", help="show visualizations for tests or planning result")
     parser.add_argument("--animate", "-a", action="store_true", help="animate planned path")
-    parser.add_argument("--max-iter", type=int, default=20000, help="maximum RRT iterations")
+    parser.add_argument("--max-iter", type=int, default=40000, help="maximum RRT iterations")
     parser.add_argument("--pad", type=int, default=100, help="crop padding (cells)")
     parser.add_argument("--safety", type=int, default=2, help="safety margin (cells)")
     parser.add_argument("--map-pgm", type=str, default="rrt_occupancy_map.pgm", help="path to PGM map file")
     parser.add_argument("--map-yaml", type=str, default="rrt_occupancy_map.yaml", help="path to YAML metadata file")
-    parser.add_argument("--step-size", type=float, default=1.0, help="step size for path sampling")
+    parser.add_argument("--step-size", type=float, default=0.5, help="step size for path sampling")
     parser.add_argument("--turning-radius", type=float, default=1.0, help="minimum turning radius")
-    parser.add_argument("--vehicle-width", type=float, default=1.7, help="vehicle width in meters")
+    parser.add_argument("--vehicle-width", type=float, default=1.5, help="vehicle width in meters")
+    parser.add_argument("--bidirectional", type=bool, default=False, help="Use bidirectional RRT*")
     
     if "--vis" not in os.sys.argv and "--animate" not in os.sys.argv and "-a" not in os.sys.argv:
         matplotlib.use("Agg")
@@ -119,9 +127,13 @@ def main():
     
     occupancy_grid, meta = load_pgm_to_occupancy_grid(args.map_pgm, args.map_yaml)
     
-    start_w = (-15.0, -35.0, 2*math.pi/2)
-    goal_w = (5.0, 45.0, 2*math.pi/2)
-    # goal_w = (10.0, -25.0, 0*math.pi/2)
+    start_w = (-15.0, -35.0, 0*math.pi/2)
+    goal_w = (5.0, -35.0, 2*math.pi/2)
+    # start_w = (15.0, 2.0, 0*math.pi/2)
+    # goal_w = (15.0, 11.0, 2*math.pi/2)
+    # goal_w = (.0, 5.0, 1*math.pi/2)
+
+    visualize_path(occupancy_grid, [], meta, start_w, goal_w)
     
     path = optimized_kinodynamic_rrt_planning(
         start_w, goal_w, occupancy_grid, meta,
@@ -129,7 +141,8 @@ def main():
         vehicle_width=args.vehicle_width,
         step_size=args.step_size,
         turning_radius=args.turning_radius,
-        max_iterations=args.max_iter
+        max_iterations=args.max_iter,
+        bidirectional=args.bidirectional
     )
     
     if path:

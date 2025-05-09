@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.ndimage import distance_transform_edt
+import matplotlib.pyplot as plt
 
 def build_collision_lookup(grid, safety_margin=2, vehicle_width=1.0):
     """
@@ -17,7 +18,7 @@ def build_collision_lookup(grid, safety_margin=2, vehicle_width=1.0):
     margin = safety_margin + vehicle_width / 2.0
     return {
         "distance": dist,
-        "collision_mask": dist <= margin,
+        "collision_mask": (dist <= margin),
         "margin": margin,
     }
 
@@ -34,6 +35,9 @@ def fast_collision_check(x, y, lookup):
     """
     xi, yi = int(round(x)), int(round(y))
     cm = lookup["collision_mask"]
+    # print(lookup["collision_mask"])
+    # plt.imshow(lookup["collision_mask"], origin="lower")
+    # plt.show()
     if xi < 0 or yi < 0 or xi >= cm.shape[0] or yi >= cm.shape[1]:
         return True  # Out of bounds is considered collision
     return cm[xi, yi]
