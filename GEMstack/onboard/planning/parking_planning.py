@@ -387,7 +387,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         theta = state[2]
         t = state[3]
 
-        pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=t, x=x,y=y,z=0,yaw=theta)
+        pose = ObjectPose(frame=ObjectFrameEnum.CURRENT,t=t, x=x,y=y,z=0,yaw=theta)
         
         temp_obj = PhysicalObject(pose=pose,
                                dimensions=self.vehicle.to_object().dimensions,
@@ -456,6 +456,7 @@ class ParkingPlanner():
         Returns:
             Tuple[float, float]: _description_
         """
+        vehicle_state.pose = vehicle_state.pose.to_frame()
         x = vehicle_state.pose.x
         y = vehicle_state.pose.y
         theta = vehicle_state.pose.yaw # check that this is correct
@@ -482,7 +483,11 @@ class ParkingPlanner():
         # print(f"Obstacles {obstacles}")
         print(f"Agents {agents}")
         route = state.route
-        goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=15, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0,yaw=state.mission_plan.goal_orientation)
+        goal_pose = ObjectPose(frame=ObjectFrameEnum.CURRENT, t=15, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0,yaw=state.mission_plan.goal_orientation)
+        print("Checking VALUE: ", state.start_vehicle_pose)
+        start_pose = state.vehicle.pose.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
+        start_cur = VehicleState.zero()
+        start_cur.pose = start_pose
         goal = VehicleState.zero()
         goal.pose = goal_pose
         goal.v = 0
@@ -492,7 +497,7 @@ class ParkingPlanner():
         # goal_state = self.vehicle_state_to_dynamics(goal)
 
         # Need to parse and create second order dubin car states
-        start_state = self.vehicle_state_to_first_order(vehicle)
+        start_state = self.vehicle_state_to_first_order(start_cur) # MAY BE AN ISSUE
         goal_state = self.vehicle_state_to_first_order(goal)
 
         # Update the planner
@@ -506,14 +511,20 @@ class ParkingPlanner():
         for state in res:
             points.append((state[0], state[1]))
         times = [state[3] for state in res]
-        path = Path(frame=vehicle.pose.frame, points=points)
-        traj = Trajectory(path.frame,points,times)
+        route = Path(frame=ObjectFrameEnum.CURRENT, points=points)
+        print(f"ROUTE BEFORE FRAME CHANGE: {route}")
+        route = route.to_frame(frame=ObjectFrameEnum.START,\
+                               current_pose = start_cur, # does this want the current pose in the current frame?
+                               start_pose_abs = state.start_vehicle_pose
+                               )
+        print(f"ROUTE AFTER FRAME CHANGE: {route}")
+        # traj = Trajectory(path.frame,points,times)
         # print("===========================")
         # print(f"Points: {points}")
         # print(f"Times: {times}")
-        route = Path(frame=vehicle.pose.frame, points=points)
+        # route = Path(frame=vehicle.pose.frame, points=points)
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
-        print(traj)
+        # print(traj)
         return route 
     
 
