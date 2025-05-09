@@ -76,8 +76,10 @@ class RoutePlanningComponent(Component):
                 self.planner = ParkingPlanner()
                 self.done_computing = True
                 self.route = self.planner.update(state)
+                self.route = self.route.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
                 self.planner.visualize_trajectory(self.route)
                 self.already_computed = True
+
             return self.route
         elif state.mission_plan.planner_type.name == "RRT_STAR":
             print("I am in RRT mode")

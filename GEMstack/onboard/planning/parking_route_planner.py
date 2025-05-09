@@ -399,7 +399,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         theta = state[2]
         t = state[3]
 
-        pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=t, x=x,y=y,z=0,yaw=theta)
+        pose = ObjectPose(frame=ObjectFrameEnum.CURRENT,t=t, x=x,y=y,z=0,yaw=theta)
         
         temp_obj = PhysicalObject(pose=pose,
                                dimensions=self.vehicle.to_object().dimensions,
@@ -432,7 +432,7 @@ class ParkingPlanner():
         # self.planner = ParkingSolverSecondOrderDubins()
         self.planner = ParkingSolverFirstOrderDubins()
 
-        self.iterations = settings.get("planning.astar.iterations", 20000)
+        self.iterations = settings.get("planning.astar.iterations", 200)
 
     def state_inputs(self):
         return ['all']
@@ -452,6 +452,7 @@ class ParkingPlanner():
         Returns:
             Tuple[float, float]: _description_
         """
+        vehicle_state.pose = vehicle_state.pose.to_frame()
         x = vehicle_state.pose.x
         y = vehicle_state.pose.y
         theta = vehicle_state.pose.yaw # check that this is correct
@@ -500,7 +501,11 @@ class ParkingPlanner():
         # assert goal.frame == ObjectFrameEnum.ABSOLUTE_CARTESIAN
         # assert goal.v == 0
         # print(f"Goal {goal}")
-        goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=0.0, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0.0,yaw=state.mission_plan.goal_orientation)
+        goal_pose = ObjectPose(frame=ObjectFrameEnum.CURRENT, t=15, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0,yaw=state.mission_plan.goal_orientation)
+        print("Checking VALUE: ", state.start_vehicle_pose)
+        start_pose = state.vehicle.pose.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
+        start_cur = VehicleState.zero()
+        start_cur.pose = start_pose        
         goal = VehicleState.zero()
         goal.pose = goal_pose
         goal.v = 0
@@ -510,7 +515,7 @@ class ParkingPlanner():
         # goal_state = self.vehicle_state_to_dynamics(goal)
 
         # Need to parse and create second order dubin car states
-        start_state = self.vehicle_state_to_first_order(vehicle)
+        start_state = self.vehicle_state_to_first_order(start_cur)
         goal_state = self.vehicle_state_to_first_order(goal)
 
         # Update the planner
