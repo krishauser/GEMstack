@@ -9,9 +9,10 @@ from ...mathutils import transforms
 from ...knowledge.vehicle.geometry import front2steer
 from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
 from ...state.vehicle import VehicleState, ObjectFrameEnum
-from ...state.trajectory import Path, Trajectory
+from ...state.trajectory import Path, Trajectory, compute_headings
 from ..interface.gem import GEMVehicleCommand
 from ..component import Component
+from .launch_control import LaunchControl
 
 #####################################
 # 1. Angle normalization
@@ -42,7 +43,8 @@ class Stanley(object):
         self,
         control_gain=None,
         softening_gain=None,
-        desired_speed=None
+        desired_speed=None,
+        launch_control=None
     ):
         """
         :param control_gain:       Stanley lateral control gain k (lowered from the default to reduce overshoot).
@@ -71,9 +73,6 @@ class Stanley(object):
         i = settings.get('control.longitudinal_control.pid_i')
         self.pid_speed = PID(p, d, i, windup_limit=20)
 
-        self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
-        self.launch_start_time = None
-
         # Speed source: numeric or derived from path/trajectory
         if desired_speed is not None:
             self.desired_speed_source = desired_speed
@@ -92,6 +91,8 @@ class Stanley(object):
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
+
+        self.launch_control = launch_control
 
     def set_path(self, path: Path):
         """Sets the path or trajectory to track."""
@@ -124,8 +125,10 @@ class Stanley(object):
         if len(path.points[0]) > 2:
             path = path.get_dims([0,1])
         if not isinstance(path, Trajectory):
+            # path = Path(ObjectFrameEnum.START,path)
+            path = compute_headings(path, True)
             self.path = path.arc_length_parameterize()
-            self.trajectory = path.racing_velocity_profile()
+            self.trajectory = self.path.racing_velocity_profile()
             self.current_traj_parameter = 0.0
             if self.desired_speed_source not in ['racing']:
                 raise ValueError("Racing: desired speed must be set to racing, currently set to: " + str(self.desired_speed_source))
@@ -147,8 +150,6 @@ class Stanley(object):
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
-
-
 
         # Current vehicle states
         curr_x = state.pose.x
@@ -177,7 +178,7 @@ class Stanley(object):
         search_start = self.current_path_parameter - 5.0
         search_end   = self.current_path_parameter + 5.0
         closest_dist, closest_parameter = self.path.closest_point_local((fx, fy), [search_start, search_end])
-        self.current_path_parameter = closest_parameter
+        self.current_path_parameter = closest_parameter        
 
         # 2) Path heading
         target_x, target_y = self.path.eval(closest_parameter)
@@ -201,8 +202,7 @@ class Stanley(object):
 
         desired_speed = self.desired_speed
         feedforward_accel = 0.0
-        print(self.desired_speed)
-        # print(self.trajectory)
+        
         if self.trajectory and self.desired_speed_source in ['path', 'trajectory', 'racing']:
             if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
                 # End of trajectory -> stop
@@ -213,26 +213,16 @@ class Stanley(object):
             else:
                 #  Use racing velocity profile as target
                 if  self.desired_speed_source == 'racing':
-                    # desired_speed = self.trajectory.velocity_variable(closest_parameter)
                     desired_speed = self.trajectory.velocities[index]
                     desired_speed = min(desired_speed, self.speed_limit)
-                    # print("close param speed: " + str(closest_parameter))
-                    # current_trajectory_time = self.trajectory.parameter_to_time(closest_parameter)
-                    # print("time: " + str(current_trajectory_time))
-                    # print("des x: " +  str(desired_x))
-                    # print("curr speed: " + str(speed))
-                    # print("des speed: " + str(desired_speed))
-
-                    # difference_dt = 0.1
-                    # future_t = current_trajectory_time + difference_dt
-                    # future_parameter = self.trajectory.time_to_parameter(future_t)
-                    # next_desired_speed = self.trajectory.velocity_variable(future_parameter)
+                    
                     next_desired_speed = self.trajectory.velocities[index + 1]
                     next_desired_speed = min(next_desired_speed, self.speed_limit)
-                    # print("next des speed: " + str(next_desired_speed))
                     difference_dt = self.trajectory.times[index + 1] - self.trajectory.times[index]
+                    
                     feedforward_accel = (next_desired_speed - desired_speed) / difference_dt
                     feedforward_accel = np.clip(feedforward_accel, -self.max_decel, self.max_accel)
+                    
                     if speed < next_desired_speed and feedforward_accel < 0:
                         feedforward_accel = 0.0
                 else:
@@ -310,7 +300,7 @@ class Stanley(object):
 
         if output_accel < -self.max_decel:
             output_accel = -self.max_decel
-            
+
         self.t_last = t
         return (output_accel, desired_steering_angle)
 
@@ -332,8 +322,13 @@ class StanleyTrajectoryTracker(Component):
         self.stanley = Stanley(**kwargs)
         self.vehicle_interface = vehicle_interface
         self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
-        self.stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
-        self.enable_launch_control = settings.get('control.launch_control.enable', False) # and vehicle.v < 0.1
+
+        launch_control_enabled = self.stanley.launch_control
+        if launch_control_enabled:
+            stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
+            self.launch_control = LaunchControl(stage_duration, stop_threshold=0.1)
+        else:
+            self.launch_control = None
 
     def rate(self):
         """Control frequency in Hz."""
@@ -359,11 +354,12 @@ class StanleyTrajectoryTracker(Component):
           3) Convert front wheel angle to steering wheel angle (if necessary)
           4) Send command to the vehicle
         """
-        # path to trajectory if racing enabled
-        if self.desired_speed_source in ['racing']: ## conditional needed for no racing
+        # path to trajectory if racing enabled and using route instead of planner
+        if self.desired_speed_source in ['racing'] and not isinstance(trajectory, Trajectory): ## conditional needed for no racing
             self.stanley.set_racing_path(trajectory)
         else:
             self.stanley.set_path(trajectory)
+        
         accel, f_delta = self.stanley.compute(vehicle, self)
 
         # If your low-level interface expects steering wheel angle:
@@ -375,24 +371,8 @@ class StanleyTrajectoryTracker(Component):
         )
 
         cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
-        
-        if self.enable_launch_control:
-            print("launch control active")
-            if not hasattr(self,'_launch_start_time'):
-                self._launch_start_time = rospy.get_time()  
-            elapsed = rospy.get_time() - self._launch_start_time
-            if elapsed < self.stage_duration:
-                cmd.accelerator_pedal_position = 0.0
-                cmd.brake_pedal_position = 1.0
-            elif elapsed < 2 * self.stage_duration:
-                cmd.accelerator_pedal_position = 1.0
-                cmd.brake_pedal_position = 1.0
-            elif elapsed < 3 * self.stage_duration:
-                cmd.accelerator_pedal_position = 1.0
-                cmd.brake_pedal_position = 0.0
-            else:
-                self.enable_launch_control = False
-
+        if self.launch_control:
+            cmd = self.launch_control.apply_launch_control(cmd, vehicle.v)
 
         self.vehicle_interface.send_command(cmd)
 
