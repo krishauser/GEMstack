@@ -16,6 +16,12 @@ import math
 from ...utils import settings
 
 
+def check_distance(goal_pose : ObjectPose, current_pose : ObjectPose):
+    goal = np.array([goal_pose.x, goal_pose.y])
+    current = np.array([current_pose.x, current_pose.y])
+    return np.linalg.norm(goal - current)
+
+
 class StateMachine:
     def __init__(self, state_list : List = None):
         self.state_list = state_list
@@ -35,15 +41,14 @@ class StateMachine:
 def check_pose_distance(goal_pose : Union[List, ObjectPose], current_pose : ObjectPose):
     if type(goal_pose) is ObjectPose:
         goal = np.array([goal_pose.x, goal_pose.y])
-    elif type(goal_pose) is List or type(goal_pose) is list:
+    elif type(goal_pose) is List:
         goal = np.array([goal_pose[0], goal_pose[1]])
     current = np.array([current_pose.x, current_pose.y])
     return np.linalg.norm(goal - current)
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, mode, webapp, state_machine):
-        self.mode = mode
+    def __init__(self, use_webapp, state_machine):
         self.state_machine = StateMachine([eval(s) for s in state_machine])
         self.goal_location = None
         self.new_goal = False
@@ -53,13 +58,13 @@ class SummoningMissionPlanner(Component):
 
         self.count = 0      # for test only, simulate a delay to get the gaol location
 
-        # Set False in yaml file when omitting the webapp. 
-        self.flag_use_webapp = webapp
         # TODO: Move the webapp URL to the config file
         # self.url_status = "https://localhost:8000/api/status"
         # self.url_summon = "https://localhost:8000/api/summon"
         self.url_status = "https://summon-app-production.up.railway.app/api/status"
         self.url_summon = "https://summon-app-production.up.railway.app/api/summon"
+        # Set False when omitting the webapp. TODO: add a flag to the config file
+        self.flag_use_webapp = use_webapp
 
         if self.flag_use_webapp:
             # Initialize the state in the server
@@ -91,13 +96,13 @@ class SummoningMissionPlanner(Component):
         return 1.0
 
     def update(self, state: AllState):
+        start_vehicle_pose = state.start_vehicle_pose
         vehicle = state.vehicle
         mission_plan = state.mission_plan
-        start_vehicle_pose = state.start_vehicle_pose
 
         # To simulate a delay to get the goal location
         self.count += 1
-        if self.count <3:
+        if self.count <2:
             return mission_plan
 
 
@@ -153,6 +158,8 @@ class SummoningMissionPlanner(Component):
         # self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
         # Moved into if statement above to avoid the case where goal_location is None
             self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
+        if self.goal_pose:
+            self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
 
         # Initiate state
         if mission_plan is None:
@@ -164,25 +171,26 @@ class SummoningMissionPlanner(Component):
             if self.new_goal:
                 mission_plan.goal_pose = self.goal_pose
                 mission_plan.planner_type = self.state_machine.next_state()
+                print("============== Next state:", mission_plan.planner_type)
 
-        # Close to the goal location, begin to search for parking
+        # Reach the end of the route, begin to search for parking
         elif mission_plan.planner_type == PlannerEnum.SUMMON_DRIVING:
             mission_plan.goal_pose = self.goal_pose
-            dist = check_pose_distance(mission_plan.goal_pose, vehicle.pose)
-            print("Distance to the goal:", dist)
-            if dist < 10 and vehicle.v < 0.5:
-                mission_plan.planner_type = self.state_machine.next_state()
+            if state.route:
+                _, closest_index = state.route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
+                if closest_index == len(state.route.points) - 1:
+                    mission_plan.planner_type = self.state_machine.next_state()
+                    print("============== Next state:", mission_plan.planner_type)
 
         # Finish parking, back to idle and wait for the next goal location
         elif mission_plan.planner_type == PlannerEnum.PARALLEL_PARKING:
             if state.route:
-                parking_spot = state.route.points[-1]
-                dist = check_pose_distance(parking_spot, vehicle.pose)
-                print("Distance to the end point of the route:", dist)
-                if dist < 1 and vehicle.v < 0.01:
+                _, closest_index = state.route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
+                if closest_index == len(state.route.points) - 1:
                     mission_plan.planner_type = self.state_machine.next_state()
                     self.goal_pose = None
                     mission_plan.goal_pose = self.goal_pose
+                    print("============== Next state:", mission_plan.planner_type)
 
         # No state change
         else:

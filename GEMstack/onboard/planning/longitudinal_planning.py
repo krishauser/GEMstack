@@ -431,7 +431,10 @@ class YieldTrajectoryPlanner(Component):
             self.route_progress = closest_parameter
 
             # Extract a 10 m segment of the route for planning lookahead.
-            route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
+            if closest_parameter:
+                route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
+            else:
+                route_with_lookahead = route
             if DEBUG:
                 print("[DEBUG] YieldTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
 

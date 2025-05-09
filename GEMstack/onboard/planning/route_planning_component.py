@@ -2,6 +2,8 @@ import os
 from typing import Dict, List
 
 import numpy as np
+from numpy import ndarray
+
 # from GEMstack.onboard.component import Component
 # from GEMstack.state.agent import AgentState
 # from GEMstack.state.all import AllState,
@@ -13,68 +15,141 @@ from ..component import Component
 from ...state import AllState, Roadgraph, Route, PlannerEnum, ObjectFrameEnum, Path, \
     VehicleState, AgentState, AgentEnum, RoadgraphRegion, RoadgraphRegionEnum
 from .RRT import BiRRT
-from .reeds_shepp_parking import ReedsSheppParking
 from ...utils import serialization
-import math
+
 
 
 def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
     """
-    Get all lane points from a roadgraph.
-    Ouput: A list of [x, y, z], z = 0 for general cases.
+    Get all points of the lanes in a roadgraph object.
+    Ouput: A list of [x, y]
     """
     lane_points = []
     for lane in roadgraph.lanes.values():
-        for pts in lane.left.segments:
-            for pt in pts:
-                lane_points.append(pt)
-        for pts in lane.right.segments:
-            for pt in pts:
-                lane_points.append(pt)
+        if not lane.left.crossable:
+            for pts in lane.left.segments:
+                for pt in pts:
+                    lane_points.append(pt[:2])
+        if not lane.right.crossable:
+            for pts in lane.right.segments:
+                for pt in pts:
+                    lane_points.append(pt[:2])
     return lane_points
 
 
-def find_available_pose_in_lane(location, roadgraph, pose_yaw=None):
-    # TODO: Check, not complete
-    x, y = location
+def find_available_pose_in_lane(position, roadgraph, pose_yaw=None, map_type='roadgraph'):
+    goal = np.array(position)
+    if map_type == 'roadgraph':
+        left_x, left_y = goal
+        right_x, right_y = goal
+        goal_lane = None
+        min_dist = np.inf
+        goal_yaw = pose_yaw
+        for lane in roadgraph.lanes.values():
+            for pts in lane.right.segments:
+                pts = np.array(pts)
+                dists = np.linalg.norm(pts[:, :2] - goal, axis=1)
+                min_idx = np.argmin(dists)
+                dist = dists[min_idx]
+                if dist < min_dist:
+                    min_dist = dist
+                    right_x, right_y, _ = pts[min_idx]
+                    goal_lane = lane
+
+                    # Find orientation
+                    if 0 < min_idx < len(pts) - 1:
+                        tangent = pts[min_idx + 1] - pts[min_idx - 1]
+                    elif min_idx == 0:
+                        tangent = pts[1] - pts[0]
+                    else:  # idx == last point
+                        tangent = pts[-1] - pts[-2]
+                    tangent_unit = tangent / np.linalg.norm(tangent)
+                    goal_yaw = np.arctan2(tangent_unit[1], tangent_unit[0])
+
+        min_dist = np.inf
+        for pts in goal_lane.left.segments:
+            pts = np.array(pts)
+            dists = np.linalg.norm(pts[:, :2] - np.array([right_x, right_y]), axis=1)
+            min_idx = np.argmin(dists)
+            dist = dists[min_idx]
+            if dist < min_dist:
+                left_x, left_y, _ = pts[min_idx]
+
+        goal_x = (left_x + right_x) / 2
+        goal_y = (left_y + right_y) / 2
+
+        if pose_yaw is not None:
+            return [goal_x, goal_y, pose_yaw]
+        else:
+            return [goal_x, goal_y, goal_yaw]
+    elif map_type == 'pointlist':
+        pts = np.array(roadgraph)
+        dists = np.linalg.norm(pts[:, :2] - goal, axis=1)
+        min_idx = np.argmin(dists)
+        if 0 < min_idx < len(pts) - 1:
+            if np.linalg.norm(pts[min_idx] - pts[min_idx - 1]) < np.linalg.norm(pts[min_idx + 1] - pts[min_idx]):
+                tangent = pts[min_idx] - pts[min_idx - 1]
+            else:
+                tangent = pts[min_idx + 1] - pts[min_idx]
+        elif min_idx == 0:
+            tangent = pts[1] - pts[0]
+        else:  # idx == last point
+            tangent = pts[-1] - pts[-2]
+        tangent_unit = tangent / np.linalg.norm(tangent)
+        goal_yaw = np.arctan2(tangent_unit[1], tangent_unit[0])
+        return [goal[0], goal[1], goal_yaw]
+    else:
+        raise ValueError('map_type must be one of "roadgraph", "pointlist"')
+
+
+def find_closest_lane(position, roadgraph : Roadgraph):
+    position = np.array(position)
+    closest_lane = None
     min_dist = np.inf
     for lane in roadgraph.lanes.values():
         for pts in lane.right.segments:
-            for idx, pt in enumerate(pts):
-                dist = math.dist((x, y), pt[:2])
-                if dist < min_dist:
-                    right_x, right_y = pt[0], pt[1]
-                    min_dist = dist
-                    goal_lane = lane
-                    if idx > 0:
-                        dx = pts[idx][0] - pts[idx - 1][0]
-                        dy = pts[idx][1] - pts[idx - 1][1]
-                    else:
-                        dx = pts[idx + 1][0] - pts[idx][0]
-                        dy = pts[idx + 1][1] - pts[idx][1]
-                    goal_yaw = math.atan2(dy, dx)
-
-    min_dist = np.inf
-    for pts in goal_lane.left.segments:
-        for pt in pts:
-            dist = math.dist((right_x, right_y), pt[:2])
+            pts = np.array(pts)
+            dists = np.linalg.norm(pts[:, :2] - position, axis=1)
+            min_idx = np.argmin(dists)
+            dist = dists[min_idx]
             if dist < min_dist:
-                left_x, left_y = pt[0], pt[1]
+                right_x, right_y, _ = pts[min_idx]
+                min_dist = dist
+                closest_lane = lane
+    return closest_lane
 
-    goal_x = (left_x + right_x) / 2
-    goal_y = (left_y + right_y) / 2
 
-    if pose_yaw is not None:
-        return [goal_x, goal_y, pose_yaw]
+def find_parking_lots(roadgraph, goal_pose, max_lane_to_parking_lot_gap=1.0):
+    # TODO: incomplete, finish goal_parking_area_central_axis
+    parking_lots = []
+    for region in roadgraph.regions.values():
+        if region.type == RoadgraphRegionEnum.PARKING_LOT:
+            parking_lots.append(region.outline)
 
-    return [goal_x, goal_y, goal_yaw]
+    goal_lane = find_closest_lane(goal_pose, roadgraph)
+
+    goal_parking_lots = []
+    for lane_points in goal_lane.right.segments:
+        for outline in parking_lots:
+            for pt in outline:
+                if np.linalg.norm(np.array(lane_points) - np.array(pt[:, :2]), axis=1) < max_lane_to_parking_lot_gap:
+                    goal_parking_lots.append(outline)
+
+    goal_parking_area_central_axis = None
+
+    return goal_parking_area_central_axis
 
 
 class RoutePlanningComponent(Component):
     """Reads a route from disk and returns it as the desired route."""
-    def __init__(self, roadgraphfn : str = None, map_frame : str = None):
+    def __init__(self, roadgraphfn : str = None, map_type : str = 'roadgraph', map_frame : str = 'start'):
         self.planner = None
         self.route = None
+        self.map_type = map_type
+        self.lane_points = []
+        self.map_boundary = None
+
+        print(map_type, map_frame)
 
         """ Read offline map of lanes """
         if map_frame == 'global':
@@ -86,13 +161,17 @@ class RoutePlanningComponent(Component):
 
         base, ext = os.path.splitext(roadgraphfn)
         if ext in ['.json', '.yml', '.yaml']:
-            with open(roadgraphfn, 'r') as f:
-                self.roadgraph = serialization.load(f)
-            self.map_type = 'roadgraph'
-        elif ext in ['.csv', '.txt']:
-            roadgraph = np.loadtxt(roadgraphfn, delimiter=',', dtype=float)
-            self.map_type = 'pointlist'
-            self.roadgraph = Path(frame=self.map_frame, points=roadgraph.tolist())
+            if self.map_type == 'roadgraph':
+                with open(roadgraphfn, 'r') as f:
+                    self.roadgraph = serialization.load(f)
+            else:
+                raise ValueError('map_type must be "roadgraph" for ".json", ".yml", ".yaml" extensions.')
+        elif ext in ['.csv', '.txt'] and self.map_type == 'pointlist':
+            if self.map_type == 'pointlist':
+                roadgraph = np.loadtxt(roadgraphfn, delimiter=',', dtype=float)
+                self.roadgraph = Path(frame=self.map_frame, points=roadgraph.tolist())
+            else:
+                raise ValueError('map_type must be "pointlist" for ".csv", ".txt" extensions.')
         else:
             raise ValueError("Unknown roadgraph file extension", ext)
 
@@ -112,7 +191,7 @@ class RoutePlanningComponent(Component):
         return self.update_rate
 
     def update(self, state: AllState):
-        print("Route Planner's mission:", state.mission_plan.planner_type)
+        print("Route Planner's mission:", state.mission_plan.planner_type, state.mission_plan.goal_pose)
         # print("type of mission plan:", type(PlannerEnum.RRT_STAR))
         # print("Route Planner's mission:", state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value)
         # print("Route Planner's mission:", state.mission_plan.planner_type.value == PlannerEnum.PARKING.value)
@@ -124,6 +203,18 @@ class RoutePlanningComponent(Component):
         """ Transform offline map to start frame """
         if self.roadgraph.frame is not ObjectFrameEnum.START:
             self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+        # Get all the points of lanes
+        if self.map_type == 'roadgraph':
+            self.lane_points = get_lane_points_from_roadgraph(self.roadgraph)
+        elif self.map_type == 'pointlist':
+            self.lane_points = self.roadgraph.points
+        # Define map boundary for searching
+        margin = 10
+        lane_points = np.array(self.lane_points)
+        # Map_boundary: x_min, x_max, y_min, y_max
+        self.map_boundary = [np.min(lane_points[:, 0]) - margin, np.max(lane_points[:, 0]) + margin,
+                             np.min(lane_points[:, 1]) - margin, np.max(lane_points[:, 1]) + margin]
+        """"""""""""
 
         if state.mission_plan.planner_type.value == PlannerEnum.PARKING.value:
             print("I am in PARKING mode")
@@ -160,22 +251,17 @@ class RoutePlanningComponent(Component):
         # Summoning driving mode. TODO: to be integrated with planning team's searcher
         elif state.mission_plan.planner_type == PlannerEnum.SUMMON_DRIVING:
             print("I am in SUMMON_DRIVING mode")
-            # Get all the points of lanes
-            if self.map_type == 'roadgraph':
-                self.lane_points = get_lane_points_from_roadgraph(self.roadgraph)
-            elif self.map_type == 'pointlist':
-                self.lane_points = self.roadgraph.points
 
             # Find appropriate start and goal points that are on the lanes and fix for searching
             start_pose = find_available_pose_in_lane([state.vehicle.pose.x, state.vehicle.pose.y],
-                                                    self.roadgraph, pose_yaw=state.vehicle.pose.yaw)
-            goal_pose = find_available_pose_in_lane([state.mission_plan.goal_pose.x, state.mission_plan.goal_pose.y], self.roadgraph)
-
+                                                    self.roadgraph, pose_yaw=state.vehicle.pose.yaw, map_type=self.map_type)
+            goal_pose = find_available_pose_in_lane([state.mission_plan.goal_pose.x, state.mission_plan.goal_pose.y],
+                                                    self.roadgraph, map_type=self.map_type)
             print('Start pose:', start_pose)
             print('Goal pose:', goal_pose)
 
             # Search for waypoints
-            searcher = BiRRT(start_pose, goal_pose, self.lane_points, update_rate=self.update_rate)
+            searcher = BiRRT(start_pose, goal_pose, self.lane_points, self.map_boundary, update_rate=self.update_rate)
             waypoints = searcher.search()
 
             # For now, waypoints of [x, y, heading] is not working in longitudinal_planning. Use [x, y] instead.
@@ -190,7 +276,7 @@ class RoutePlanningComponent(Component):
             else:
                 self.route = state.route   # Fail to find a path, keep the origin route.
 
-        # Parallel parking mode. TODO: To be integrate with parallel parking
+        # Parallel parking mode.
         elif state.mission_plan.planner_type == PlannerEnum.PARALLEL_PARKING:
             print("I am in PARALLEL_PARKING mode")
 
