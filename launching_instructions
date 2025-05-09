@@ -1,0 +1,15 @@
+python3 main.py --variant=fake_sim launch/parking_detection.yaml    --- To launch the simulation for creep control
+
+
+
+
+parking_demo.ymal -- Set up cone positions
+
+
+
+longitudinal_planning --- Creep control logic
+
+
+
+
+parking_route_planner.py ---- Change computation paramters.
