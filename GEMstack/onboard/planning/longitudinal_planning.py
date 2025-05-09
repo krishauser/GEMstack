@@ -298,48 +298,80 @@ def longitudinal_brake(path: Path, deceleration: float, current_speed: float, em
     T_stop_normal = current_speed / deceleration
     s_stop_normal = current_speed * T_stop_normal - 0.5 * deceleration * (T_stop_normal ** 2)
     
-    # Check if emergency braking is needed
+    # # Check if emergency braking is needed
+    # if s_stop_normal > path_length:
+    #     if DEBUG:
+    #         print("[DEBUG] longitudinal_brake: Emergency braking needed!")
+    #         print(f"[DEBUG] longitudinal_brake: Normal stopping distance: {s_stop_normal:.2f}m")
+    #         print(f"[DEBUG] longitudinal_brake: Available distance: {path_length:.2f}m")
+        
+    #     # Calculate emergency braking parameters
+    #     T_stop = current_speed / emergency_decel
+    #     s_stop = current_speed * T_stop - 0.5 * emergency_decel * (T_stop ** 2)
+        
+    #     if DEBUG:
+    #         print(f"[DEBUG] longitudinal_brake: Emergency stopping distance: {s_stop:.2f}m")
+    #         print(f"[DEBUG] longitudinal_brake: Emergency stopping time: {T_stop:.2f}s")
+        
+    #     decel_to_use = emergency_decel
+        
+    # else:
+    #     if DEBUG:
+    #         print("[DEBUG] longitudinal_brake: Normal braking sufficient")
+    #     T_stop = T_stop_normal
+    #     decel_to_use = deceleration
+
     if s_stop_normal > path_length:
         if DEBUG:
             print("[DEBUG] longitudinal_brake: Emergency braking needed!")
-            print(f"[DEBUG] longitudinal_brake: Normal stopping distance: {s_stop_normal:.2f}m")
-            print(f"[DEBUG] longitudinal_brake: Available distance: {path_length:.2f}m")
-        
-        # Calculate emergency braking parameters
-        T_stop = current_speed / emergency_decel
-        s_stop = current_speed * T_stop - 0.5 * emergency_decel * (T_stop ** 2)
-        
-        if DEBUG:
-            print(f"[DEBUG] longitudinal_brake: Emergency stopping distance: {s_stop:.2f}m")
-            print(f"[DEBUG] longitudinal_brake: Emergency stopping time: {T_stop:.2f}s")
-        
         decel_to_use = emergency_decel
-        
     else:
         if DEBUG:
             print("[DEBUG] longitudinal_brake: Normal braking sufficient")
-        T_stop = T_stop_normal
         decel_to_use = deceleration
+
+    T_stop = current_speed / decel_to_use
+    s_stop = current_speed * T_stop - 0.5 * decel_to_use * T_stop**2
+
+    if DEBUG:
+        print(f"[DEBUG] Using deceleration = {decel_to_use:.2f}, time to stop = {T_stop:.2f}s, distance = {s_stop:.2f}m")
 
     # Generate time points (use more points for smoother trajectory)
     num_points = max(len(path.points), 50)
     times = np.linspace(0, T_stop, num_points)
     
     # Calculate distances at each time point using physics equation
-    distances = current_speed * times - 0.5 * decel_to_use * (times ** 2)
+    # distances = current_speed * times - 0.5 * decel_to_use * (times ** 2)
+
+    velocities = [current_speed * (1.0 - scurve(t/T_stop)) for t in times]
+
+    positions = []
     
-    # Generate points along the path
+    # # Generate points along the path
+    # points = []
+    # for d in distances:
+    #     if d <= path_length:
+    #         points.append(path.eval(d))
+    #     else:
+    #         points.append(path.eval(d))
+
+    # if DEBUG:
+    #     print(f"[DEBUG] longitudinal_brake: Using deceleration of {decel_to_use:.2f} m/s²")
+    #     print(f"[DEBUG] longitudinal_brake: Final stopping time: {T_stop:.2f}s")
+
+    s = 0.0
+    for i in range(1, num_points):
+        dt = times[i] - times[i-1]
+        v_avg = 0.5 * (velocities[i] + velocities[i - 1])
+        s += v_avg * dt
+        positions.append(s)
+
     points = []
-    for d in distances:
-        if d <= path_length:
-            points.append(path.eval(d))
-        else:
-            points.append(path.eval(d))
+    for d in positions:
+        d_clamped = min(d, path_length)
+        points.append(path.eval(d_clamped))
 
-    if DEBUG:
-        print(f"[DEBUG] longitudinal_brake: Using deceleration of {decel_to_use:.2f} m/s²")
-        print(f"[DEBUG] longitudinal_brake: Final stopping time: {T_stop:.2f}s")
-
+    times = times[1:]
     return Trajectory(frame=path.frame, points=points, times=times.tolist())
 
 class YieldTrajectoryPlanner(Component):
