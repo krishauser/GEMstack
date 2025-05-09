@@ -177,7 +177,7 @@ def polygon_contains_polygon_2d(poly1 : List[Tuple[float,float]], poly2 : List[T
     Returns:
         bool: True if poly1 contains poly2, False otherwise
     """
-    return shapely.Polygon(poly1).contains(shapely.Polygon(poly2))
+    return shapely.Polygon(poly1).contains_properly(shapely.Polygon(poly2))
 
 class CollisionDetector2D:
     """A class for detecting collisions between many types of objects.
