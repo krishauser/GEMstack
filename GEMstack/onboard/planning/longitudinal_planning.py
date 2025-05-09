@@ -224,37 +224,59 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
         print("[DEBUG] longitudinal_plan: s_cruise =", s_cruise, "t_cruise =", t_cruise)
 
     times = []
+    t = 0.0
+    prev_s = 0.0
+    beyond_stop = False
     for s in s_vals:
+        ds = s - prev_s
         if s <= s_accel:  # Acceleration phase
-            v = math.sqrt(current_speed ** 2 + 2 * acceleration * s)
+            ratio = s / s_accel if s_accel > 0 else 1.0
+            # v = math.sqrt(current_speed ** 2 + 2 * acceleration * s)
+            v = current_speed + (v_target - current_speed) * scurve(ratio)
             t_point = (v - current_speed) / acceleration
 
             if DEBUG:
                 print(f"[DEBUG] Acceleration Phase: s = {s:.2f}, v = {v:.2f}, t = {t_point:.2f}")
 
         elif s <= s_accel + s_cruise:  # Cruise phase
+            v = v_target
             t_point = t_accel + (s - s_accel) / v_target
 
             if DEBUG:
                 print(f"[DEBUG] Cruise Phase: s = {s:.2f}, t = {t_point:.2f}")
 
-        else:  # Deceleration phase
+        elif s <= s_accel + s_cruise + s_decel:  # Deceleration phase
             s_decel_phase = s - s_accel - s_cruise
-            v_decel = math.sqrt(max(v_target ** 2 - 2 * deceleration * s_decel_phase, 0.0))
-            t_point = t_accel + t_cruise + (v_target - v_decel) / deceleration
-
+            ratio = s_decel_phase / s_decel if s_decel > 0 else 1.0
+            # v_decel = math.sqrt(max(v_target ** 2 - 2 * deceleration * s_decel_phase, 0.0))
+            v = v_target * (1.0 - scurve(ratio))
+            # t_point = t_accel + t_cruise + (v_target - v_decel) / deceleration
             if t_point < times[-1]:  # Ensure time always increases
                 t_point = times[-1] + 0.01  # Small time correction step
 
-            if DEBUG:
-                print(f"[DEBUG] Deceleration Phase: s = {s:.2f}, v = {v_decel:.2f}, t = {t_point:.2f}")
+            # if DEBUG:
+            #     print(f"[DEBUG] Deceleration Phase: s = {s:.2f}, v = {v_decel:.2f}, t = {t_point:.2f}")
 
-        times.append(t_point)
+            if DEBUG:
+                print(f"[DEBUG] Deceleration Phase: s = {s:.2f}, v = {v:.2f}")
+        else:
+            beyond_stop = True
+
+        v = max(1e-3, v)
+        if beyond_stop:
+            times.append(times[-1] + 0.01)
+        else:
+            dt = ds / v
+            t += dt
+            # times.append(t_point)
+            times.append(t)
+        prev_s = s
 
     if DEBUG:
         print("[DEBUG] longitudinal_plan: Final times =", times)
 
-    return Trajectory(frame=path.frame, points=dense_points, times=times)
+    # return Trajectory(frame=path.frame, points=dense_points, times=times)
+    return Trajectory(frame=path.frame, points=dense_points[:len(times)], times=times)
 
 
 def longitudinal_brake(path: Path, deceleration: float, current_speed: float,
