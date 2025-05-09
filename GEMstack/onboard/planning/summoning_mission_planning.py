@@ -111,7 +111,8 @@ class SummoningMissionPlanner(Component):
                     goal_location = [10, 0]  # for simlulation test only
                     goal_frame = 'start'
         else:
-            goal_location = [1, 0]  # for simulation test only
+            goal_location = [10, 0]  # for simulation test only
+            # goal_location = [1, 0]  # for simulation test only
             goal_frame = 'start'
 
 

@@ -280,17 +280,27 @@ class RoutePlanningComponent(Component):
                 else:
                     # COMMENT OUT BECAUSE SOMETIMES REROUTES COMPLETELY DIFFERENT PATHS
                     # self.reedssheppparking.find_collision_free_trajectory(self.parked_cars, self.current_pose, True)
-                    self.waypoints_to_go = self.reedssheppparking.waypoints_to_go        
-                    self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
-                    # print("Route:", self.route)
 
-                    print(state.trajectory)
+                    self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
+                    self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
+
+                    # waypoints_to_go = self.reedssheppparking.waypoints_to_go
+                    # # Remove the waypoints from the beginning to the current position
+                    # current_closest_index = 0
+                    # for i, waypoint in enumerate(waypoints_to_go):
+                    #     if math.dist((state.vehicle.pose.x, state.vehicle.pose.y), waypoint[:2]) < 1.0:
+                    #         current_closest_index = i
+                    # self.waypoints_to_go = waypoints_to_go[current_closest_index:]
+
+                    # self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
+                    # print("Route:", self.route)
 
                     # Stop if the current state is close to the goal
                     # TODO: Move the parameter to config file
-                    if (state.vehicle.pose.x - self.waypoints_to_go[-1][0])**2 < 1.0:
-                        print("I am close to the goal, stop.")
-                        self.parking_finished = True
+                    # if (state.vehicle.pose.x - self.waypoints_to_go[-1][0])**2 < 0.5:
+                    # if len(self.waypoints_to_go) < 3:
+                    #     print("I am close to the goal, stop.")
+                    #     self.parking_finished = True
 
 
         else:
