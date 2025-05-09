@@ -19,12 +19,17 @@ drive:
         summoning_mission_planning:
             type: SummoningMissionPlanner
             args:
-                mode: 'hardware'
                 state_machine: [PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING]
         route_planning_component:
-           type: RoutePlanningComponent
-#           args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json','global']
-           args: [ !relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json','start' ]
+            type: RoutePlanningComponent
+            # Arguments: [path/to/roadgraph, map_type, map_frame]
+                # Roadgraph file's extension must be ".json", ".yml", ".yaml", ".csv", ".txt".
+                # Map_type is 'roadgraph' for ".json", ".yml", ".yaml", and 'pointlist' for ".csv", ".txt".
+                # Make sure 'roadgraph' map_type match the structure of Roadgraph object in GEMstack.
+                # 'pointlist' is just a list of points, carefully choose the start pose and goal pose to make sure they are in the lanes.
+                # Map_frame should be either 'global' for or 'start'.
+            args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json', 'roadgraph', 'start']
+            # args: roadgraphfn: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json', 'roadgraph', 'global']
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
@@ -72,7 +77,7 @@ variants:
             vehicle_interface:
                 type: gem_mixed.GEMRealSensorsWithSimMotionInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
+                    scene: !relative_path '../scenes/summoning_demo.yaml'
             mission_execution: StandardExecutor
             require_engaged: False
             visualization: !include "klampt_visualization.yaml"
@@ -94,19 +99,10 @@ variants:
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo_summoning.yaml'
+                    scene: !relative_path '../scenes/summoning_demo.yaml'
             visualization: !include "klampt_visualization.yaml"
             drive:
                 perception:
 #                    agent_detection : pedestrian_detection.FakePedestrianDetector2D
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
-                planning:
-                    summoning_mission_planning:
-                        type: SummoningMissionPlanner
-                        args:
-                            mode: 'simulation'
-                            state_machine: [ PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING ]
-                    route_planning_component:
-                        type: RoutePlanningComponent
-                        args: [ !relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json','start' ]

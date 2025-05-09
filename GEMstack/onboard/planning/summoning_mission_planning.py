@@ -1,4 +1,7 @@
-from typing import List
+from typing import List, Union
+
+from klampt.vis import scene
+
 from ..component import Component
 from ...utils import serialization
 from ...state import Route, ObjectFrameEnum, AllState, VehicleState, Roadgraph, MissionObjective, MissionEnum, \
@@ -36,7 +39,7 @@ class StateMachine:
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, mode, state_machine):
+    def __init__(self, state_machine):
         self.state_machine = StateMachine([eval(s) for s in state_machine])
         self.goal_location = None
         self.new_goal = False
@@ -81,12 +84,13 @@ class SummoningMissionPlanner(Component):
         return 1.0
 
     def update(self, state: AllState):
+        start_vehicle_pose = state.start_vehicle_pose
         vehicle = state.vehicle
         mission_plan = state.mission_plan
 
         # To simulate a delay to get the goal location
         self.count += 1
-        if self.count <3:
+        if self.count <2:
             return mission_plan
 
 
@@ -107,13 +111,17 @@ class SummoningMissionPlanner(Component):
                     goal_frame = 'global'
                     print("Goal location:", goal_location)
                     print("Goal frame:", goal_frame)
-                   
+
                     goal_location = [10, 0]  # for simlulation test only
                     goal_frame = 'start'
         else:
-            goal_location = [5, 0]  # for simulation test only
+            # Test points:
+            # Key points: [0, 0], [0, 30], [38.5, 8.5], [33, 14]，[27.5, 8.5]，[15, 3], [2.5, 8.5], [15, 14], [-3, 14], [-8.5, 8.5]
+            # Points not in the lane:[15, -3], [15, 6], [15, 11], [15, 17]
+            goal_location = [15, 6]
             goal_frame = 'start'
-
+            # goal_location = [-88.235828, 40.092741]  # for highbay test only [-88.2358085, 40.092819]
+            # goal_frame = 'global'
 
         if self.goal_location == goal_location:
             self.new_goal = False
@@ -123,16 +131,19 @@ class SummoningMissionPlanner(Component):
 
         if self.new_goal:
             if goal_frame == 'global':
-                self.goal_pose = ObjectPose(t=time.time(), x=self.goal_location[0], y=self.goal_location[1],
+                self.goal_pose = ObjectPose(t=time.time(), x=goal_location[0], y=goal_location[1],
                                             frame=ObjectFrameEnum.GLOBAL)
             elif goal_frame == 'cartesian':
-                self.goal_pose = ObjectPose(t=time.time(), x=self.goal_location[0], y=self.goal_location[1],
+                self.goal_pose = ObjectPose(t=time.time(), x=goal_location[0], y=goal_location[1],
                                         frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN)
             elif goal_frame == 'start':
-                self.goal_pose = ObjectPose(t=time.time() - self.start_time, x=self.goal_location[0], y=self.goal_location[1],
+                self.goal_pose = ObjectPose(t=time.time() - self.start_time, x=goal_location[0], y=goal_location[1],
                                             frame=ObjectFrameEnum.START)
             else:
                 raise ValueError("Invalid frame argument")
+
+        if self.goal_pose:
+            self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
 
         # Initiate state
         if mission_plan is None:
@@ -143,25 +154,27 @@ class SummoningMissionPlanner(Component):
         elif mission_plan.planner_type == PlannerEnum.IDLE:
             if self.new_goal:
                 mission_plan.goal_pose = self.goal_pose
-                mission_plan.start_pose = self.start_pose
                 mission_plan.planner_type = self.state_machine.next_state()
+                print("============== Next state:", mission_plan.planner_type)
 
-        # Close to the goal location, begin to search for parking
+        # Reach the end of the route, begin to search for parking
         elif mission_plan.planner_type == PlannerEnum.SUMMON_DRIVING:
             mission_plan.goal_pose = self.goal_pose
-            mission_plan.start_pose = self.start_pose
-            dist = check_distance(mission_plan.goal_pose, vehicle.pose)
-            print("Distance to the goal:", dist)
-            if dist < 5:
-                mission_plan.planner_type = self.state_machine.next_state()
+            if state.route:
+                _, closest_index = state.route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
+                if closest_index == len(state.route.points) - 1:
+                    mission_plan.planner_type = self.state_machine.next_state()
+                    print("============== Next state:", mission_plan.planner_type)
 
         # Finish parking, back to idle and wait for the next goal location
         elif mission_plan.planner_type == PlannerEnum.PARALLEL_PARKING:
             if state.route:
-                dist = check_distance(mission_plan.goal_pose, vehicle.pose)
-                print("Distance to the end point of the route:", dist)
-                if dist < 0.2 and vehicle.v < 0.01:
+                _, closest_index = state.route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
+                if closest_index == len(state.route.points) - 1:
                     mission_plan.planner_type = self.state_machine.next_state()
+                    self.goal_pose = None
+                    mission_plan.goal_pose = self.goal_pose
+                    print("============== Next state:", mission_plan.planner_type)
 
         # No state change
         else:
