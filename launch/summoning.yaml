@@ -19,6 +19,7 @@ drive:
         summoning_mission_planning:
             type: SummoningMissionPlanner
             args:
+                use_webapp: false
                 state_machine: [PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING]
         route_planning_component:
             type: RoutePlanningComponent

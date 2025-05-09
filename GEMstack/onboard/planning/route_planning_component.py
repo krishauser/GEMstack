@@ -2,6 +2,8 @@ import os
 from typing import Dict, List
 
 import numpy as np
+from numpy import ndarray
+
 # from GEMstack.onboard.component import Component
 # from GEMstack.state.agent import AgentState
 # from GEMstack.state.all import AllState,
@@ -37,7 +39,6 @@ def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
 
 
 def find_available_pose_in_lane(position, roadgraph, pose_yaw=None, map_type='roadgraph'):
-    # TODO: Check, not complete
     goal = np.array(position)
     if map_type == 'roadgraph':
         left_x, left_y = goal
@@ -52,9 +53,11 @@ def find_available_pose_in_lane(position, roadgraph, pose_yaw=None, map_type='ro
                 min_idx = np.argmin(dists)
                 dist = dists[min_idx]
                 if dist < min_dist:
-                    right_x, right_y, _ = pts[min_idx]
                     min_dist = dist
+                    right_x, right_y, _ = pts[min_idx]
                     goal_lane = lane
+
+                    # Find orientation
                     if 0 < min_idx < len(pts) - 1:
                         tangent = pts[min_idx + 1] - pts[min_idx - 1]
                     elif min_idx == 0:
@@ -63,6 +66,7 @@ def find_available_pose_in_lane(position, roadgraph, pose_yaw=None, map_type='ro
                         tangent = pts[-1] - pts[-2]
                     tangent_unit = tangent / np.linalg.norm(tangent)
                     goal_yaw = np.arctan2(tangent_unit[1], tangent_unit[0])
+
         min_dist = np.inf
         for pts in goal_lane.left.segments:
             pts = np.array(pts)
@@ -97,6 +101,44 @@ def find_available_pose_in_lane(position, roadgraph, pose_yaw=None, map_type='ro
         return [goal[0], goal[1], goal_yaw]
     else:
         raise ValueError('map_type must be one of "roadgraph", "pointlist"')
+
+
+def find_closest_lane(position, roadgraph : Roadgraph):
+    position = np.array(position)
+    closest_lane = None
+    min_dist = np.inf
+    for lane in roadgraph.lanes.values():
+        for pts in lane.right.segments:
+            pts = np.array(pts)
+            dists = np.linalg.norm(pts[:, :2] - position, axis=1)
+            min_idx = np.argmin(dists)
+            dist = dists[min_idx]
+            if dist < min_dist:
+                right_x, right_y, _ = pts[min_idx]
+                min_dist = dist
+                closest_lane = lane
+    return closest_lane
+
+
+def find_parking_lots(roadgraph, goal_pose, max_lane_to_parking_lot_gap=1.0):
+    # TODO: incomplete, finish goal_parking_area_central_axis
+    parking_lots = []
+    for region in roadgraph.regions.values():
+        if region.type == RoadgraphRegionEnum.PARKING_LOT:
+            parking_lots.append(region.outline)
+
+    goal_lane = find_closest_lane(goal_pose, roadgraph)
+
+    goal_parking_lots = []
+    for lane_points in goal_lane.right.segments:
+        for outline in parking_lots:
+            for pt in outline:
+                if np.linalg.norm(np.array(lane_points) - np.array(pt[:, :2]), axis=1) < max_lane_to_parking_lot_gap:
+                    goal_parking_lots.append(outline)
+
+    goal_parking_area_central_axis = None
+
+    return goal_parking_area_central_axis
 
 
 class RoutePlanningComponent(Component):
@@ -163,7 +205,8 @@ class RoutePlanningComponent(Component):
             (22.11, -2.44)
         ]
         self.reedssheppparking = ReedsSheppParking()
-        self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0.0, -2.44),(24.9, -2.44)]
+        self.reedssheppparking.static_horizontal_curb_xy_coordinates = None
+        self.parking_route_existed = False
 
     def state_inputs(self):
         return ["all"]
@@ -263,39 +306,34 @@ class RoutePlanningComponent(Component):
         # Parallel parking mode.
         elif state.mission_plan.planner_type == PlannerEnum.PARALLEL_PARKING:
             print("I am in PARALLEL_PARKING mode")
-            vehicle_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
 
             if self.map_type == 'roadgraph':
-                parking_lots = []
-                for region in self.roadgraph.regions.values():
-                    if region.type == RoadgraphRegionEnum.PARKING_LOT:
-                        parking_lots.append(region.outline)
+                # self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0.0, -2.44), (24.9, -2.44)]
+                self.reedssheppparking.static_horizontal_curb_xy_coordinates = find_parking_lots(self.roadgraph, state.vehicle.pose)
+
+                self.parking_velocity_is_zero = True
+
+                self.parked_cars = []
+                for agent in state.agents.values():
+                    if agent.type == AgentEnum.CONE:
+                        self.parked_cars.append((agent.pose.x, agent.pose.y))
+
+                if not self.parking_route_existed:
+                    self.current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
+                    self.reedssheppparking.find_available_parking_spots_and_search_vector(self.parked_cars,
+                                                                                          self.current_pose)
+                    self.reedssheppparking.find_collision_free_trajectory(self.parked_cars, self.current_pose, True)
+                    self.parking_route_existed = True
+
+                else:
+                    self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
+                    self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
+                    # print("Route:", self.route)
+
+                # if waypoints:
+                #     self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
             else:
-                parking_lots = None
-
-            self.parking_velocity_is_zero = True
-
-            self.parked_cars = []
-            for agent in state.agents.values():
-                if agent.type == AgentEnum.CONE:
-                    self.parked_cars.append((agent.pose.x, agent.pose.y))
-
-            if not self.parking_route_existed:
-                self.current_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
-                self.reedssheppparking.find_available_parking_spots_and_search_vector(self.parked_cars,
-                                                                                      self.current_pose)
-                self.reedssheppparking.find_collision_free_trajectory(self.parked_cars, self.current_pose, True)
-                self.parking_route_existed = True
-
-            else:
-                self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
-                self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
-                # print("Route:", self.route)
-
-            # if waypoints:
-            #     self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
-            # else:
-            #     self.route = state.route  # Fail to find a path, keep the origin route.
+                self.route = state.route  # Fail to find a parking path, keep the origin route.
 
         else:
             print("Unknown mode")

@@ -56,13 +56,13 @@ class ReedsSheppParking:
 
     
 
-    def reeds_shepp_path(start_pose, final_pose, step_size=0.1, rho=3.657):# 3.657
+    def reeds_shepp_path(self, start_pose, final_pose, step_size=0.1, rho=3.657):# 3.657
         path = reeds_shepp.path_sample(start_pose, final_pose, rho, step_size)
         waypoints = [(x, y, yaw) for x, y, yaw, *_ in path]
         #waypoints = np.array(waypoints_for_obstacles_check)[:,:2]
         return waypoints
     
-    def rectangle_polygon(center: Pose, dims: Dims) -> Polygon:
+    def rectangle_polygon(self, center: Pose, dims: Dims) -> Polygon:
         """
         Build a shapely Polygon for an oriented rectangle.
         
@@ -89,7 +89,7 @@ class ReedsSheppParking:
         world_corners = (R @ corners.T).T + np.array([x, y])
         return Polygon(world_corners)    
     
-    def is_trajectory_collision_free(
+    def is_trajectory_collision_free(self,
         trajectory: List[Pose],
         vehicle_dims: Dims,
         obstacles: List[Obstacle]
@@ -122,7 +122,7 @@ class ReedsSheppParking:
         return True
 
 
-    def find_parking_positions(
+    def find_parking_positions(self,
         obstacles: List[Tuple[float, float, float, Tuple[float, float]]],
         vehicle_dims: Tuple[float, float],
         margin: float = 0.2
@@ -190,7 +190,7 @@ class ReedsSheppParking:
 
         return slots
 
-    def all_parking_spots_in_parking_lot(
+    def all_parking_spots_in_parking_lot(self,
         static_horizontal_curb: List[Tuple[float, float, float, Dims]],
         compact_parking_spot_size: Dims,
         yaw_of_parked_cars: float = 0.0,
@@ -259,7 +259,7 @@ class ReedsSheppParking:
     #         return max(available_parking_spots, key=distance)
     # 
 
-    def pick_parking_spot(
+    def pick_parking_spot(self,
         available_spots: List[Tuple[float, float, float]],
         all_spots: List[Tuple[float, float, float]],
         vehicle_pose: Tuple[float, float, float]
@@ -310,7 +310,7 @@ class ReedsSheppParking:
         return ranked_spots[0][2]
     
 
-    def search_axis_direction(parking_spot_to_go, vehicle_pose):
+    def search_axis_direction(self, parking_spot_to_go, vehicle_pose):
         dx = parking_spot_to_go[0][0] - vehicle_pose[0]
         if dx > 0:
             return True
@@ -333,7 +333,7 @@ class ReedsSheppParking:
 
     #     return available_parking_spots  
 
-    def available_parking_spots(
+    def available_parking_spots(self,
         all_parking_spots: List[Pose],
         parked_cars: List[Obstacle],
         spot_dims: Dims,
@@ -370,14 +370,14 @@ class ReedsSheppParking:
 
         return available
     
-    def yaw_of_parked_cars(curb_0, curb_1):
+    def yaw_of_parked_cars(self, curb_0, curb_1):
         # Compute the vector v from p1 to p2
         # v_x = x2 - x1, v_y = y2 - y1
         v = (curb_1[0] - curb_0[0], curb_1[1] - curb_0[1])
         angle_rad = math.atan2(v[1], v[0]) # TODO: Double check if CCW is the positive direction
         return angle_rad
 
-    def shift_points_perpendicular_ccw(p1, p2, shift_amount):
+    def shift_points_perpendicular_ccw(self, p1, p2, shift_amount):
         """
         Shift points p1 and p2 by a given amount perpendicular (to the left)
         of the vector from p1 to p2.
@@ -428,7 +428,7 @@ class ReedsSheppParking:
     
 
 
-    def project_point_on_axis(p1, p2, p3):
+    def project_point_on_axis(self, p1, p2, p3):
         """
         Project point p3 orthogonally onto the line (axis) defined by p1 -> p2.
 
@@ -471,7 +471,7 @@ class ReedsSheppParking:
     
 
 
-    def move_point_along_vector(p0, direction, step=0.1, positive_direction=True):
+    def move_point_along_vector(self, p0, direction, step=0.1, positive_direction=True):
         """
         Move the point p0 by a fixed step along the given direction vector.
 

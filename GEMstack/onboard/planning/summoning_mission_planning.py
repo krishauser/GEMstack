@@ -39,7 +39,7 @@ class StateMachine:
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, state_machine):
+    def __init__(self, use_webapp, state_machine):
         self.state_machine = StateMachine([eval(s) for s in state_machine])
         self.goal_location = None
         self.new_goal = False
@@ -50,7 +50,7 @@ class SummoningMissionPlanner(Component):
         self.count = 0      # for test only, simulate a delay to get the gaol location
 
         # Set False when omitting the webapp. TODO: add a flag to the config file
-        self.flag_use_webapp = False
+        self.flag_use_webapp = use_webapp
 
         if self.flag_use_webapp:
             # Initialize the state in the server
@@ -118,7 +118,7 @@ class SummoningMissionPlanner(Component):
             # Test points:
             # Key points: [0, 0], [0, 30], [38.5, 8.5], [33, 14]，[27.5, 8.5]，[15, 3], [2.5, 8.5], [15, 14], [-3, 14], [-8.5, 8.5]
             # Points not in the lane:[15, -3], [15, 6], [15, 11], [15, 17]
-            goal_location = [15, 6]
+            goal_location = [15, 11]
             goal_frame = 'start'
             # goal_location = [-88.235828, 40.092741]  # for highbay test only [-88.2358085, 40.092819]
             # goal_frame = 'global'
