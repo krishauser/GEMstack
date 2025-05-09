@@ -110,7 +110,7 @@ class ConeDetector3D(Component):
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([
             self.rgb_sub, self.lidar_sub
-        ], queue_size=500, slop=0.05)
+        ], queue_size=500, slop=0.03)
         self.sync.registerCallback(self.synchronized_callback)
 
         # Initialize the YOLO detector
@@ -185,6 +185,8 @@ class ConeDetector3D(Component):
             undistorted_img = latest_image.copy()
             orig_H, orig_W = latest_image.shape[:2]
             self.current_K = self.K
+            # print(self.K)
+            # print(self.T_l2c)
         results_normal = self.detector(img_normal, conf=0.35, classes=[0])
         combined_boxes = []
         if not self.enable_tracking:
@@ -198,14 +200,18 @@ class ConeDetector3D(Component):
             boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
             for box in boxes_left:
                 cx, cy, w, h = box
-                new_cx = cy
-                new_cy = orig_W - 1 - cx
-                combined_boxes.append((new_cx, new_cy, h, w, ObstacleStateEnum.RIGHT))
+                new_cx = orig_W - 1 - cy
+                new_cy = cx
+                new_w = h  # Swap width and height.
+                new_h = w
+                combined_boxes.append((new_cx, new_cy, new_w, new_h, ObstacleStateEnum.RIGHT))
             for box in boxes_right:
                 cx, cy, w, h = box
-                new_cx = orig_H - 1 - cy
-                new_cy = cx
-                combined_boxes.append((new_cx, new_cy, h, w, ObstacleStateEnum.LEFT))
+                new_cx = cy
+                new_cy = orig_H - 1 - cx
+                new_w = h  # Swap width and height.
+                new_h = w
+                combined_boxes.append((new_cx, new_cy, new_w, new_h, ObstacleStateEnum.LEFT))
 
         boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
         for box in boxes_normal:
@@ -254,6 +260,7 @@ class ConeDetector3D(Component):
 
         for i, box_info in enumerate(combined_boxes):
             cx, cy, w, h, activity = box_info
+            # print(cx, cy, w, h)
             left = int(cx - w / 1.6)
             right = int(cx + w / 1.6)
             top = int(cy - h / 2)
@@ -261,10 +268,12 @@ class ConeDetector3D(Component):
             mask = (projected_pts[:, 0] >= left) & (projected_pts[:, 0] <= right) & \
                    (projected_pts[:, 1] >= top) & (projected_pts[:, 1] <= bottom)
             roi_pts = projected_pts[mask]
+            # print(roi_pts)
             if roi_pts.shape[0] < 5:
                 continue
 
             points_3d = roi_pts[:, 2:5]
+
             points_3d = filter_points_within_threshold(points_3d, 40)
             points_3d = remove_ground_by_min_range(points_3d, z_range=0.08)
             points_3d = filter_depth_points(points_3d, max_depth_diff=0.5)

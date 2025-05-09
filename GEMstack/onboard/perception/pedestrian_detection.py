@@ -96,7 +96,7 @@ class PedestrianDetector3D(Component):
         self.rgb_sub = Subscriber(rgb_topic, Image)
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer(
-            [self.rgb_sub, self.lidar_sub], queue_size=500, slop=0.05
+            [self.rgb_sub, self.lidar_sub], queue_size=500, slop=0.025
         )
         self.sync.registerCallback(self.synchronized_callback)
 
@@ -163,6 +163,7 @@ class PedestrianDetector3D(Component):
 
         agents: Dict[str, AgentState] = {}
         for (cx, cy, w, h) in boxes2d:
+            # print(cx, cy, w, h)
             # Define ROI in image for each detection
             left = int(cx - w / 2)
             right = int(cx + w / 2)
@@ -257,6 +258,7 @@ class PedestrianDetector3D(Component):
                     )
                     agents[existing] = updated
                     self.tracked_agents[existing] = updated
+
                 else:
                     aid = f"Pedestrian{self.pedestrian_counter}"
                     self.pedestrian_counter += 1
@@ -271,6 +273,15 @@ class PedestrianDetector3D(Component):
                     )
                     agents[aid] = new_agent
                     self.tracked_agents[aid] = new_agent
+                for agent_id, agent in self.current_agents.items():
+                    p = agent.pose
+                    rospy.loginfo(
+                        f"Agent ID: {agent_id}\n"
+                        f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
+                        f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
+                        f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
+                        f"type:{agent.activity}"
+                    )
             else:
                 aid = f"Pedestrian{self.pedestrian_counter}"
                 self.pedestrian_counter += 1
