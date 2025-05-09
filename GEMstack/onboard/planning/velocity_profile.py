@@ -13,12 +13,9 @@ import pandas as pd
 
 def parse_route_csv(filename):
     """
-    Parses the pure pursuit tracker log file and extracts the following data:
-      - vehicle time (from column index 19)
-      - X position actual (from column index 2)
-      - Y position actual (from column index 5)
-      - X position desired (from column index 11)
-      - Y position desired (from column index 14)
+    Parses the route file and  extracts:
+      - X position desired (from column index 0)
+      - Y position desired (from column index 1)
     """
 
     data = np.genfromtxt(filename, delimiter=',', skip_header=1)
@@ -31,23 +28,19 @@ def compute_spline_curvature(x, y, s=0.0, num=1000):
     Computes curvature from 2D path (x, y) using parametric splines.
     
     Parameters:
-        x, y : list or np.array
-            Input path coordinates
-        s : float
-            Smoothing factor for spline (0 = interpolating spline)
-        num : int
-            Number of points to evaluate spline and curvature at
+        x, y (np.array): path coordinates
+        s (float): Smoothing factor for spline (0 = interpolating spline)
+        num (int): Number of points to evaluate spline and curvature at
             
     Returns:
-        x_smooth, y_smooth, curvature : np.ndarrays
+        kappa (float): curvature profile along the trajectory
     """
     # Fit parametric spline
     num = len(x)
-    tck, u = splprep([x, y], s=s)
+    tck, _ = splprep([x, y], s=s)
     u_fine = np.linspace(0, 1, num)
     
     # Evaluate spline and its first and second derivatives
-    x_smooth, y_smooth = splev(u_fine, tck)
     dx, dy = splev(u_fine, tck, der=1)
     ddx, ddy = splev(u_fine, tck, der=2)
 
@@ -58,10 +51,33 @@ def compute_spline_curvature(x, y, s=0.0, num=1000):
     return kappa
 
 def lateral_speed_limit(kappa, ay_max, v_max):
+    """
+    Limits the velocity based on curvature and lateral acceleration limits.
+    
+    Parameters:
+        kappa (np.ndarray): curvature profile along the trajectory
+        ay_max (float): maximum lateral acceleration
+        v_max (float): maximum velocity
+
+    Returns:
+        np.minimum(v_lat, v_max): velocity profile limited by lateral acceleration
+    """
     v_lat = np.sqrt(np.maximum(ay_max / (np.abs(kappa) + 1e-8), 0))
     return np.minimum(v_lat, v_max)
 
 def limit_ax_for_friction_ellipse(v, kappa, ax_limit, ay_max):
+    """
+    Longitudinal acceleration limit based on current lateral acceleration.
+    
+    Parameters:
+        v (float): velocity
+        kappa (float): curvature
+        ax_limit (float): maximum longitudinal acceleration
+        ay_limit (float): maximum lateral acceleration
+
+    Returns:
+        ax_limit * ax_ratio: maximum allowed longitudinal acceleration
+    """
     # Compute a_y at current v
     ay = v**2 * kappa
     ay_ratio = ay / ay_max
