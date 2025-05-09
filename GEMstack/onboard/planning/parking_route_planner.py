@@ -431,8 +431,8 @@ class ParkingPlanner():
         # Create the Astar object 
         # self.planner = ParkingSolverSecondOrderDubins()
         self.planner = ParkingSolverFirstOrderDubins()
-
-        self.iterations = settings.get("planning.astar.iterations", 200)
+        # SET HERE
+        self.iterations = settings.get("planning.astar.iterations", 300)
 
     def state_inputs(self):
         return ['all']

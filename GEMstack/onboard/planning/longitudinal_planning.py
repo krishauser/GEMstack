@@ -382,6 +382,8 @@ class YieldTrajectoryPlanner(Component):
         self.desired_speed = 2.0
         self.deceleration = 2.0
         self.emergency_brake = 8.0
+        # Parameters for end-of-route linear deceleration
+        self.end_stop_distance = 15.0  # Distance in meters to start linear deceleration
 
     def state_inputs(self):
         return ['all']
@@ -391,6 +393,45 @@ class YieldTrajectoryPlanner(Component):
 
     def rate(self):
         return 10.0
+    
+    def check_end_of_route(self, route, current_parameter):
+        """Check if vehicle is approaching the end of the route and calculate
+        appropriate linear deceleration parameters.
+        
+        Args:
+            route: The complete route
+            current_parameter: Current position along the route
+            
+        Returns:
+            (bool, float): Tuple containing:
+                - Whether the vehicle should start decelerating
+                - Adjusted speed if deceleration needed, otherwise desired_speed
+        """
+        route_length = route.length()
+        
+        distance_remaining = route_length - current_parameter
+        
+        if DEBUG:
+            print(f"[DEBUG] check_end_of_route: Route length = {route_length}, " 
+                  f"Current position = {current_parameter}, "
+                  f"Distance remaining = {distance_remaining}")
+        
+        if distance_remaining <= self.end_stop_distance:
+            if distance_remaining > 0.1:  # Avoid division by very small numbers
+                required_decel = (self.desired_speed ** 2) / (2 * distance_remaining)
+                
+                linear_factor = distance_remaining / self.end_stop_distance
+                adjusted_speed = self.desired_speed * linear_factor
+                if DEBUG:
+                    print(f"[DEBUG] End deceleration active: {distance_remaining:.2f}m remaining, " 
+                          f"required deceleration = {required_decel:.2f} m/s², "
+                          f"speed adjusted to {adjusted_speed:.2f} m/s")
+                
+                return True, adjusted_speed
+            else:
+                return True, 0.0
+        
+        return False, self.desired_speed
 
     def update(self, state: AllState):
         vehicle = state.vehicle  # type: VehicleState
@@ -423,6 +464,12 @@ class YieldTrajectoryPlanner(Component):
             print("[DEBUG] YieldTrajectoryPlanner.update: Closest parameter on route =", closest_parameter)
         self.route_progress = closest_parameter
 
+        # Check if approaching end of route and get adjusted speed
+        approaching_end, target_speed = self.check_end_of_route(route, closest_parameter)
+        if DEBUG and approaching_end:
+            print("[DEBUG] YieldTrajectoryPlanner.update: Vehicle is approaching end of route")
+            print(f"[DEBUG] YieldTrajectoryPlanner.update: Target speed = {target_speed}")
+
         # Extract a 10 m segment of the route for planning lookahead.
         route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
         if DEBUG:
@@ -447,13 +494,18 @@ class YieldTrajectoryPlanner(Component):
             for r in state.relations
         ) if should_brake == False else False
 
-        should_accelerate = (not should_brake and not should_decelerate and curr_v < self.desired_speed)
+        # If approaching end of route, override the target speed
+        if approaching_end:
+            should_accelerate = (not should_brake and not should_decelerate and curr_v < target_speed)
+        else:
+            should_accelerate = (not should_brake and not should_decelerate and curr_v < self.desired_speed)
 
         if DEBUG:
             print("[DEBUG] YieldTrajectoryPlanner.update: stay_braking =", stay_braking)
             print("[DEBUG] YieldTrajectoryPlanner.update: should_brake =", should_brake)
             print("[DEBUG] YieldTrajectoryPlanner.update: should_accelerate =", should_accelerate)
             print("[DEBUG] YieldTrajectoryPlanner.update: should_decelerate =", should_decelerate)
+            print("[DEBUG] YieldTrajectoryPlanner.update: target_speed =", target_speed if approaching_end else self.desired_speed)
 
         if stay_braking:
             traj = longitudinal_brake(route_with_lookahead, 0.0, 0.0, 0.0)
@@ -467,6 +519,12 @@ class YieldTrajectoryPlanner(Component):
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
             if DEBUG:
                 print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+        elif approaching_end:
+            # Use linear deceleration to stop at end of route
+            traj = longitudinal_plan(route_with_lookahead, self.acceleration,
+                                     self.deceleration, target_speed, curr_v)
+            if DEBUG:
+                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan with end-of-route deceleration.")
         elif should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration,
                                      self.deceleration, self.desired_speed, curr_v)
@@ -481,6 +539,6 @@ class YieldTrajectoryPlanner(Component):
 
         self.t_last = t
         if DEBUG:
-            print('[DEBUG] Current Velocity of the Car: LOOK!', curr_v, self.desired_speed)
+            print(f'[DEBUG] Current Velocity: {curr_v}, Target Speed: {target_speed if approaching_end else self.desired_speed}')
             print("[DEBUG] YieldTrajectoryPlanner.update: Returning trajectory with", len(traj.points), "points.")
         return traj
