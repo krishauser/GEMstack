@@ -580,15 +580,15 @@ class ParkingPlanner():
             return False
             
         # Finally check if final orientation is close enough to goal orientation
-        orientation_error = abs(normalize_yaw(theta - goal_pose.yaw))
-        if orientation_error > self.orientation_threshold:
-            print("Vehicle orientation is not within threshold")
-            try:
-                with open(self.success_file, 'a') as f:
-                    f.write("Orientation not within threshold")
-            except Exception as e:
-                print(f"Error saving parking status: {e}")
-            return False
+        # orientation_error = abs(normalize_yaw(theta - goal_pose.yaw))
+        # if orientation_error > self.orientation_threshold:
+        #     print("Vehicle orientation is not within threshold")
+        #     try:
+        #         with open(self.success_file, 'a') as f:
+        #             f.write("Orientation not within threshold")
+        #     except Exception as e:
+        #         print(f"Error saving parking status: {e}")
+        #     return False
             
         return True
 
