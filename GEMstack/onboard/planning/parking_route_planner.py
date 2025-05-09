@@ -525,6 +525,11 @@ class ParkingPlanner():
         # Need exactly 4 cones to form a parking spot
         if len(parking_spot_vertices) != 4:
             print("Warning: Not exactly 4 cones found for parking spot")
+            try:
+                with open(self.success_file, 'a') as f:
+                    f.write("No Four Cones")
+            except Exception as e:
+                print(f"Error saving parking status: {e}")
             return False
             
         # Order the vertices to form a proper polygon
@@ -548,11 +553,21 @@ class ParkingPlanner():
         for cone_object in cone_objects:
             if collisions.polygon_intersects_polygon_2d(vehicle_polygon, cone_object.polygon_parent()):
                 print("Vehicle collides with a cone")
+                try:
+                    with open(self.success_file, 'a') as f:
+                        f.write("Collides with Cone")
+                except Exception as e:
+                        print(f"Error saving parking status: {e}")
                 return False
         
         # Then check if vehicle is contained within parking spot
         if not collisions.polygon_contains_polygon_2d(ordered_vertices, vehicle_polygon):
             print("Vehicle is not contained within parking spot")
+            try:
+                with open(self.success_file, 'a') as f:
+                    f.write("Not Contained with praking spot")
+            except Exception as e:
+                    print(f"Error saving parking status: {e}")
             return False
             
         # Finally check if final orientation is close enough to goal orientation
