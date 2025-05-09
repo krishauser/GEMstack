@@ -26,6 +26,8 @@ if __name__ == "__main__":
 
     roadgraphfn = "GEMstack/knowledge/routes/summoning_roadgraph_sim.json"
     map_frame = 'start'
+    # roadgraphfn = "GEMstack/knowledge/routes/summoning_roadgraph_highbay.json"
+    # map_frame = 'global'
     base, ext = os.path.splitext(roadgraphfn)
     if ext in ['.json', '.yml', '.yaml']:
         with open(roadgraphfn, 'r') as f:
@@ -43,11 +45,11 @@ if __name__ == "__main__":
     elif map_type == 'pointlist':
         lane_points = roadgraph.points
 
-    np.savetxt('roadgraph_lane_points.txt', lane_points, delimiter=',')
+    # np.savetxt('roadgraph_lane_points.txt', lane_points, delimiter=',')
 
     lane_points = np.array(lane_points)
-    x = lane_points[:, 0]
-    y = lane_points[:, 1]
+    x = lane_points[:, 0] #*100
+    y = lane_points[:, 1] #*100
     plt.scatter(x,y)
     plt.axis('equal')
     plt.show()

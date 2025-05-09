@@ -177,7 +177,7 @@ class RoutePlanningComponent(Component):
             raise ValueError("Unknown roadgraph file extension", ext)
 
         # Used as route searchers' time limit as well as the update rate of the component
-        self.update_rate = 0.25
+        self.update_rate = 0.5
 
 
         # Added for parallel parking simulation test only. TODO: Delete after integration
