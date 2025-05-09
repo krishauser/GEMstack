@@ -1,0 +1,54 @@
+# This file defines all of the possible elements of the computation
+# graph for the onboard behavior stack.
+#
+# `components` lists the components in order, and defines their permissable inputs and outputs.
+# See AllState for attributes that can be listed as inputs or outputs.
+#
+# The actual implementation of each component must use a subset of the specified inputs
+# and must generate a superset of the specified outputs.
+components:   
+  - state_estimation: 
+      outputs: vehicle
+  - roadgraph_update:
+      inputs: vehicle
+      outputs: roadgraph
+  - obstacle_detection:
+      inputs: vehicle
+      outputs: obstacles
+  - agent_detection:
+      inputs: vehicle
+      outputs: agents
+  - lane_detection:
+      inputs: [vehicle, roadgraph]
+      outputs: vehicle_lane
+  - sign_detection: 
+      inputs: [vehicle, roadgraph]
+      outputs: roadgraph.signs
+  - environment_detection:
+      inputs: vehicle
+      outputs: environment
+  - intent_estimation:
+      inputs: [vehicle, roadgraph, agents]
+      outputs: agent_intents
+  - relations_estimation:
+      inputs: [vehicle, roadgraph, agents, obstacles]
+      outputs: relations
+  - predicate_evaluation:
+      inputs: [vehicle, roadgraph, agents, obstacles]
+      outputs: predicates
+  - perception_normalization:
+      inputs: all
+  - mission_execution:
+      outputs: mission
+  - route_planning:
+      inputs: [vehicle, roadgraph, mission]
+      outputs: route
+  - driving_logic:
+      inputs: all
+      outputs: intent
+  - motion_planning:
+      inputs: all
+      outputs: trajectory
+  - trajectory_tracking:
+      inputs: [vehicle, trajectory]
+      outputs: 

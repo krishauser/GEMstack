@@ -1,0 +1,50 @@
+# ********* Main settings entry point for behavior stack ***********
+
+# Configure settings for the vehicle / vehicle model
+vehicle:  !include ../vehicle/gem_e4.yaml
+
+#arguments for algorithm components here
+model_predictive_controller:
+    dt: 0.1
+    lookahead: 20
+
+control:
+    recovery:
+        brake_amount : 0.5
+        brake_speed : 2.0
+    
+    # Pure Pursuit controller parameters
+    pure_pursuit:
+        lookahead: 2.0                  # Base lookahead distance (meters)
+        lookahead_scale: 3.0             # Velocity-dependent lookahead scaling factor
+        crosstrack_gain: 0.5             # Gain for crosstrack error correction (default: 1)
+        desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
+    
+    # Stanley controller parameters (fine tune this)
+    stanley:
+        control_gain: 1.0
+        softening_gain: 0.2
+        desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
+    
+    # MPC controller parameters
+    mpc:
+        dt: 0.2                          # Time step for the MPC controller (seconds)
+        horizon: 30                      # Prediction horizon for the MPC controller (number of time steps)
+
+    # Shared longitudinal control parameters
+    longitudinal_control:
+        pid_p: 1.0                       # Proportional gain for speed PID controller
+        pid_i: 0.1                       # Integral gain for speed PID controller
+        pid_d: 0.0                       # Derivative gain for speed PID controller
+
+#configure the simulator, if using
+simulator:
+    dt: 0.01
+    real_time_multiplier: 1.0            # make the simulator run faster than real time by making this > 1
+    gnss_emulator: 
+        dt: 0.1                          # 10Hz
+        #position_noise: 0.1             # 10cm noise
+        #orientation_noise: 0.04         # 2.3 degrees noise
+        #velocity_noise:
+        #    constant: 0.04              # 4cm/s noise
+        #    linear: 0.02                # 2% noise

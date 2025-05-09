@@ -1,0 +1,11 @@
+length: 2.45                 #distance from front to rear bumper, meters
+width: 1.7                  #widest distance from left to right, meters
+height: 2.08                 #meters
+bounds: [[-0.35,2.10],[-0.85,0.85],[0,2.08]]  #meters, [[x_min,x_max],[y_min,y_max],[z_min,z_max]] with origin the ground point below rear axle center
+wheel_radius: 0.28          #meters
+wheelbase: 1.75             #distance from rear to front axle, meters
+min_wheel_angle: -0.6108    #radians, 35 degrees
+max_wheel_angle: 0.6108     #radians, 35 degrees
+min_steering_angle: -11.0   #radians, 630 degrees
+max_steering_angle: 11.0    #radians, 630 degrees
+urdf_model: !relative_path model/gem_e2.urdf

@@ -1,0 +1,8 @@
+max_steering_rate: 4.0       #radians/s
+max_speed: 10.0   #m/s, approx 20 mph
+max_reverse_speed: 2.5   #m/s, approx 5 mph
+max_acceleration: 3.0   #m/s^2
+max_deceleration: 5.0   #m/s^2
+max_accelerator_pedal: 1.0   #0-1
+max_brake_pedal: 1.0         #0-1
+
