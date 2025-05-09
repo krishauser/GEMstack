@@ -72,6 +72,7 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
         return longitudinal_brake(path, deceleration, current_speed)
 
     if current_speed > max_speed:  # Case where car is exceeding the max speed so we need to slow down (do initial slowdown)
+        print("IN CURRENT SPEED > MAX SPEED CASE")
         if DEBUG:
             print(f"[DEBUG] Handling case where current_speed ({current_speed:.2f}) > max_speed ({max_speed:.2f})")
 
