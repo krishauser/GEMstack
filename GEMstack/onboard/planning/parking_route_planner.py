@@ -459,30 +459,40 @@ class ParkingPlanner():
         try:
             with open(self.success_file, 'a') as f:
                 f.write(message)
+                f.write(success)
+                f.write("End")
             print(f"Parking status saved to {self.success_file}")
         except Exception as e:
             print(f"Error saving parking status: {e}")
 
-    def is_successfully_parked(self, vehicle_state: VehicleState, goal_pose: ObjectPose, obstacles: Dict[str, Obstacle]) -> bool:
-        """Check if the vehicle is successfully parked in the parking spot.
+    def is_successfully_parked(self, final_state: List[float], goal_pose: ObjectPose, obstacles: Dict[str, Obstacle]) -> bool:
+        """Check if the final position in the trajectory is within the parking spot.
         
         Args:
-            vehicle_state (VehicleState): Current state of the vehicle
+            final_state (List[float]): Final state from trajectory (x, y, theta, t)
             goal_pose (ObjectPose): Goal parking pose
             obstacles (Dict[str, Obstacle]): Dictionary of obstacles including parking cones
             
         Returns:
-            bool: True if vehicle is successfully parked, False otherwise
+            bool: True if final position is within parking spot, False otherwise
         """
-        # Check if vehicle is stopped
-        if abs(vehicle_state.v) > self.velocity_threshold:
-            return False
-            
-        # Get vehicle polygon
+        # Get final position from trajectory
+        x, y, theta, t = final_state
+        
+        # Create vehicle object at final position
+        final_pose = ObjectPose(
+            frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
+            t=t,
+            x=x,
+            y=y,
+            z=0.0,
+            yaw=theta
+        )
+        
         vehicle_object = PhysicalObject(
-            pose=vehicle_state.pose,
-            dimensions=vehicle_state.dimensions,
-            outline=vehicle_state.outline
+            pose=final_pose,
+            dimensions=self.planner.vehicle.to_object().dimensions,
+            outline=self.planner.vehicle.to_object().outline
         )
         vehicle_polygon = vehicle_object.polygon_parent()
         
@@ -496,16 +506,10 @@ class ParkingPlanner():
         
         # Need exactly 4 cones to form a parking spot
         if len(parking_spot_vertices) != 4:
-            try:
-                with open(self.success_file, 'a') as f:
-                    f.write("not enough cones")
-            except Exception as e:
-                print(f"Error saving parking status: {e}")
             print("Warning: Not exactly 4 cones found for parking spot")
             return False
             
         # Create a polygon from the parking spot vertices
-        # We'll use the collision detection utilities to check if the vehicle is inside
         parking_spot_object = PhysicalObject(
             pose=ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=0.0, x=0.0, y=0.0, z=0.0, yaw=0.0),
             dimensions=[max(abs(x) for x, _ in parking_spot_vertices) * 2,
@@ -515,21 +519,14 @@ class ParkingPlanner():
         )
         parking_spot_polygon = parking_spot_object.polygon_parent()
         
-        # Check if vehicle is inside parking spot
-        # We'll consider the vehicle parked if its polygon is completely inside the parking spot
-        # and not intersecting with any of the cone obstacles
+        # Check if final position is inside parking spot
         if not collisions.polygon_contains_polygon_2d(parking_spot_polygon, vehicle_polygon):
-            try:
-                with open(self.success_file, 'a') as f:
-                    f.write("collision detected")
-            except Exception as e:
-                print(f"Error saving parking status: {e}")
             return False
             
-        # # Check if vehicle orientation is close enough to goal orientation
-        # orientation_error = abs(normalize_yaw(vehicle_state.pose.yaw - goal_pose.yaw))
-        # if orientation_error > self.orientation_threshold:
-        #     return False
+        # Check if final orientation is close enough to goal orientation
+        orientation_error = abs(normalize_yaw(theta - goal_pose.yaw))
+        if orientation_error > self.orientation_threshold:
+            return False
             
         return True
 
@@ -604,16 +601,6 @@ class ParkingPlanner():
         goal.pose = goal_pose
         goal.v = 0
 
-        # Check if vehicle is successfully parked
-        self.parking_success = self.is_successfully_parked(vehicle, goal_pose, agents)
-        if self.parking_success:
-            print("Successfully parked!")
-        else:
-            print("Not yet successfully parked")
-            
-        # Save parking status
-        self.save_parking_message(self.parking_success)
-
         # Need to parse and create second order dubin car states
         start_state = self.vehicle_state_to_first_order(vehicle)
         goal_state = self.vehicle_state_to_first_order(goal)
@@ -637,7 +624,30 @@ class ParkingPlanner():
         route = Path(frame=vehicle.pose.frame, points=points)
         # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
         print(traj)
-        return route 
+
+        # Check if final position in trajectory is within parking spot
+        if len(res) > 0:
+            final_state = res[-1]  # Get the last state from the trajectory
+            try:
+                with open(self.success_file, 'a') as f:
+                    f.write("Final State")
+                    f.write(final_state)
+                    f.write("Final State End")
+                print(f"Parking status saved to {self.success_file}")
+            except Exception as e:
+                print(f"Error saving parking status: {e}")
+            self.parking_success = self.is_successfully_parked(final_state, goal_pose, agents)
+            if self.parking_success:
+                print("Final position is within parking spot!")
+            else:
+                print("Final position is not within parking spot")
+                
+            # Save parking status
+            self.save_parking_message(self.parking_success)
+        else:
+            print("No trajectory generated")
+
+        return route
     
 
     from rospy.exceptions import ROSInitException
