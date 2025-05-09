@@ -276,7 +276,7 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
         print("[DEBUG] longitudinal_plan: Final times =", times)
 
     # return Trajectory(frame=path.frame, points=dense_points, times=times)
-    return Trajectory(frame=path.frame, points=dense_points[:len(times)], times=times)
+    return Trajectory(frame=path.frame, points=dense_points, times=times)
 
 
 def longitudinal_brake(path: Path, deceleration: float, current_speed: float,
