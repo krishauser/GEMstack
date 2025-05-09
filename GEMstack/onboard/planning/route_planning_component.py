@@ -96,6 +96,9 @@ class RoutePlanningComponent(Component):
         else:
             raise ValueError("Unknown roadgraph file extension", ext)
 
+        # If parking route existed, not search anymore. For simulation testing only. TODO: Delete after integration
+        self.parking_route_existed = False
+
         # Used as route searchers' time limit as well as the update rate of the component
         self.update_rate = 0.25
 
@@ -190,29 +193,88 @@ class RoutePlanningComponent(Component):
         # Parallel parking mode. TODO: To be integrate with parallel parking
         elif state.mission_plan.planner_type == PlannerEnum.PARALLEL_PARKING:
             print("I am in PARALLEL_PARKING mode")
-            vehicle_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
 
-            detected_cones = []
-            for name, agent in state.agents.items():
-                if agent.type == AgentEnum.CONE:
-                    detected_cones.append([agent.pose.x, agent.pose.y])
+            if self.parking_route_existed is False:
 
-            if self.map_type == 'roadgraph':
-                parking_slot = []
-                for name, region in self.roadgraph.regions:
-                    if region.type == RoadgraphRegionEnum.PARKING_LOT:
-                        parking_slot.append(region.outline)
+                vehicle_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
+
+                detected_cones = []
+                for name, agent in state.agents.items():
+                    if agent.type == AgentEnum.CONE:
+                        detected_cones.append([agent.pose.x, agent.pose.y])
+
+                if self.map_type == 'roadgraph':
+                    parking_slots = []
+                    for name, region in self.roadgraph.regions.items():
+                        if region.type == RoadgraphRegionEnum.PARKING_LOT:
+                            parking_slots.append(region.outline)
+                else:
+                    parking_slots = None
+
+                # print("Parking slots:", parking_slots)
+
+                # Parking slots: [[(30.0, 12.5), (30.0, 15), (0.0, 15), (0.0, 12.5)]]
+                # curbs => center points of both sides of the parking slot
+                # Choose closest point and set to 1st curb
+                # ex) vehicle_pose = (30,15,3.14)
+                #       curbs = [(30.0, 13.75),(0.0, 13.75)]
+                # ex) vehicle_pose = (0,15,0)
+                #       curbs = [(0.0, 13.75),(30.0, 13.75)]
+
+                # TODO: Just stop when there is no parking slot
+
+                # TODO: Just stop when slot is not available after detection
+
+                # TODO: Test only. Move to roadgraph or comment out
+                # Scenario 1: Start parking from [0,0], park around [12, -2.44]
+                parking_slots = [[(0.0, 0.0), (0.0, -4.88), (24.9, -4.88), (24.9, 0.0)]]
+                detected_cones = [
+                    (2.69, -2.44),
+                    (22.11, -2.44)  
+                ]
+
+                # Find the closest parking slot point to the current vehicle position
+                closest_parking_slot = None
+                closest_parking_slot_point = None
+                min_distance_to_slot = 0
+                for ps in parking_slots:
+                    for pt in ps:
+                        d = math.dist((vehicle_pose[0], vehicle_pose[1]), pt)
+                        if closest_parking_slot_point is None or d < min_distance_to_slot:
+                            closest_parking_slot = ps
+                            closest_parking_slot_point = pt
+                            min_distance_to_slot = d
+                print("Closest parking slot:", closest_parking_slot)
+                print("Closest parking slot point:", closest_parking_slot_point)
+
+                # curb1: closest curb. calculate from the center of 1st and 2nd points
+                curb1 = ((closest_parking_slot[0][0] + closest_parking_slot[1][0]) / 2,
+                        (closest_parking_slot[0][1] + closest_parking_slot[1][1]) / 2)
+                # curb2: the other curb. calculate from the center of 3rd and 4th points
+                curb2 = ((closest_parking_slot[2][0] + closest_parking_slot[3][0]) / 2,
+                        (closest_parking_slot[2][1] + closest_parking_slot[3][1]) / 2)
+                print("Curb:", [curb1, curb2])
+
+                print("Detected cones:", detected_cones)
+                
+                if closest_parking_slot:
+                    searcher = ReedsSheppParking()
+                    searcher.add_static_vertical_curb_as_obstacle = False
+                    searcher.add_static_horizontal_curb_as_obstacle = False
+                    searcher.static_horizontal_curb_xy_coordinates = [curb1, curb2]
+                    searcher.find_available_parking_spots_and_search_vector(detected_cones)
+                    searcher.find_collision_free_trajectory_to_park(detected_cones)
+                    self.route = Route(frame=ObjectFrameEnum.START, points=searcher.waypoints_to_go.tolist())
+                    print("Route:", self.route)
+                    self.parking_route_existed = True
+                # If there is no parking slot, stop the vehicle
+                else:
+                    print("No parking slot available. Stop the vehicle.")
+                    return None
+            
+            # There is a parking route already
             else:
-                parking_lots = None
-
-            searcher = ReedsSheppParking(vehicle_pose=vehicle_pose, parking_lots=parking_lots,
-                                         detected_cones=detected_cones, update_rate=self.update_rate)
-            waypoints = searcher.find_collision_free_trajectory()
-
-            if waypoints:
-                self.route = Route(frame=ObjectFrameEnum.START, points=waypoints)
-            else:
-                self.route = state.route  # Fail to find a path, keep the origin route.
+                self.route = state.route
 
         else:
             print("Unknown mode")
