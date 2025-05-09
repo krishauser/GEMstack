@@ -1,5 +1,5 @@
 vehicle_state: [4.0, 5.0, 0.0, 0.0, 0.0]
-goal_location: [10, 11]
+goal_location: [10, 12]
 agents:
   ped1:
     type: pedestrian

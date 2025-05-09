@@ -21,7 +21,7 @@ class Point:
         self.cost = float('inf')  # Cost to reach this node
 
 class BiRRT:
-    def __init__(self, start : list, goal : list, obstacles : list, update_rate : Optional[float] = None):
+    def __init__(self, start : list, goal : list, obstacles : list, map_boundary : list, update_rate : Optional[float] = None):
         
         self.path = []
         self.tree_from_start = []
@@ -60,10 +60,14 @@ class BiRRT:
         self.search_r = params['rrt']['search_r'] # meter
         
         # Map boundary in meter
-        self.MAP_X_LOW = params['map']['lower_x'] 
-        self.MAP_X_HIGH = params['map']['upper_x']
-        self.MAP_Y_LOW = params['map']['lower_y'] 
-        self.MAP_Y_HIGH = params['map']['upper_y']
+        # self.MAP_X_LOW = params['map']['lower_x']
+        # self.MAP_X_HIGH = params['map']['upper_x']
+        # self.MAP_Y_LOW = params['map']['lower_y']
+        # self.MAP_Y_HIGH = params['map']['upper_y']
+        self.MAP_X_LOW = map_boundary[0]
+        self.MAP_X_HIGH = map_boundary[1]
+        self.MAP_Y_LOW = map_boundary[2]
+        self.MAP_Y_HIGH = map_boundary[3]
         
         self.obstacle_radius = params['map']['obstacle_radius'] # meter
         

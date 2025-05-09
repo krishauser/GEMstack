@@ -3,6 +3,7 @@ from typing import List
 from GEMstack.state import Roadgraph, Path
 from GEMstack.utils import serialization
 import os
+import matplotlib.pyplot as plt
 
 
 def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
@@ -43,3 +44,10 @@ if __name__ == "__main__":
         lane_points = roadgraph.points
 
     np.savetxt('roadgraph_lane_points.txt', lane_points, delimiter=',')
+
+    lane_points = np.array(lane_points)
+    x = lane_points[:, 0]
+    y = lane_points[:, 1]
+    plt.scatter(x,y)
+    plt.axis('equal')
+    plt.show()

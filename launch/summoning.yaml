@@ -19,12 +19,17 @@ drive:
         summoning_mission_planning:
             type: SummoningMissionPlanner
             args:
-                mode: 'real'
                 state_machine: [PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING]
         route_planning_component:
-           type: RoutePlanningComponent
-#           args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json','global']
-           args: [ !relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json','start' ]
+            type: RoutePlanningComponent
+            # Arguments: [path/to/roadgraph, map_type, map_frame]
+                # Roadgraph file's extension must be ".json", ".yml", ".yaml", ".csv", ".txt".
+                # Map_type is 'roadgraph' for ".json", ".yml", ".yaml", and 'pointlist' for ".csv", ".txt".
+                # Make sure 'roadgraph' map_type match the structure of Roadgraph object in GEMstack.
+                # 'pointlist' is just a list of points, carefully choose the start pose and goal pose to make sure they are in the lanes.
+                # Map_frame should be either 'global' for or 'start'.
+            args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json', 'roadgraph', 'start']
+            # args: roadgraphfn: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json', 'roadgraph', 'global']
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
@@ -79,15 +84,6 @@ variants:
             drive:
                 perception:
                     state_estimation : OmniscientStateEstimator
-                planning:
-                    summoning_mission_planning:
-                        type: SummoningMissionPlanner
-                        args:
-                            mode: 'sim'
-                            state_machine: [ PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING ]
-                    route_planning_component:
-                        type: RoutePlanningComponent
-                        args: [ !relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json','start' ]
 
     fake_real:
         run:
@@ -110,12 +106,3 @@ variants:
 #                    agent_detection : pedestrian_detection.FakePedestrianDetector2D
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
-                planning:
-                    summoning_mission_planning:
-                        type: SummoningMissionPlanner
-                        args:
-                            mode: 'sim'
-                            state_machine: [ PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING ]
-                    route_planning_component:
-                        type: RoutePlanningComponent
-                        args: [ !relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json','start' ]
