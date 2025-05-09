@@ -134,7 +134,7 @@ class ParkingSpotsDetector3D(Component):
             self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
 
-    def update(self, agents: Dict[str, ObstacleState]):
+    def update(self, cone_obstacles: Dict[str, ObstacleState]):
         # Initial variables
         goal_parking_spot = None
         parking_obstacles_pose = []
@@ -143,7 +143,7 @@ class ParkingSpotsDetector3D(Component):
 
         # Populate cone points
         cone_pts_3D = []
-        for cone in agents.values():
+        for cone in cone_obstacles.values():
             cone_pt_3D = (cone.pose.x, cone.pose.y, 0.0)
             cone_pts_3D.append(cone_pt_3D)
 
