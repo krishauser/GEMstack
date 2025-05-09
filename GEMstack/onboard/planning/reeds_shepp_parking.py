@@ -38,7 +38,7 @@ class ReedsSheppParking:
         self.static_vertical_curb_xy_coordinates = static_vertical_curb_xy_coordinates
         self.add_static_horizontal_curb_as_obstacle = add_static_horizontal_curb_as_obstacle
 
-        self.all_parking_spots_in_parking_lot  = all_parking_spots_in_parking_lot
+        self.all_parking_spots_in_parking_lot_var  = all_parking_spots_in_parking_lot
 
         self.vehicle_pose = vehicle_pose
         self.x_axis_of_search = self.vehicle_pose[0]
@@ -54,15 +54,16 @@ class ReedsSheppParking:
         self.closest = closest # If True, the closest parking spot will be selected, otherwise the farthest one will be selected
         self.vehicle_turning_radius = vehicle_turning_radius
         self.clearance_step = clearance_step
+        self.search_axis_direction_var = False
 
 
          
 
     
 
-    def reeds_shepp_path(start_pose, final_pose, step_size=0.1, vehicle_turning_radius=3.657):# Runing 
+    def reeds_shepp_path(self,start_pose, final_pose, step_size=0.1, vehicle_turning_radius=3.657):# Runing 
         path = reeds_shepp.path_sample(start_pose, final_pose, vehicle_turning_radius, step_size)
-        waypoints = [(x, y, yaw) for x, y, yaw in path]
+        waypoints = [(x, y, yaw) for x, y, yaw, *_ in path]
         #waypoints = np.array(waypoints_for_obstacles_check)[:,:2]
         return waypoints
     
@@ -111,13 +112,13 @@ class ReedsSheppParking:
         """
         # Pre-build obstacle polygons once
         obstacle_polys = [
-            ReedsSheppParking.rectangle_polygon((ox, oy, oyaw), dims)
+            self.rectangle_polygon((ox, oy, oyaw), dims)
             for ox, oy, oyaw, dims in obstacles
         ]
         
         # For each pose along the trajectory, test intersection
         for pose in trajectory:
-            veh_poly = ReedsSheppParking.rectangle_polygon(pose, vehicle_dims)
+            veh_poly = self.rectangle_polygon(pose, vehicle_dims)
             for obs_poly in obstacle_polys:
                 if veh_poly.intersects(obs_poly):
                     # collision detected
@@ -197,7 +198,7 @@ class ReedsSheppParking:
     def all_parking_spots_in_parking_lot(self,
         static_horizontal_curb: List[Tuple[float, float, float, Dims]],
         compact_parking_spot_size: Dims,
-        yaw_of_parked_cars: float = 0.0,
+        yaw_of_parked_cars_var: float = 0.0,
         margin: float = 0.0
     ) -> List[Pose]:
         """
@@ -206,7 +207,7 @@ class ReedsSheppParking:
         Args:
             static_horizontal_curb: List of 2 curb endpoints, each as (x, y, yaw, dims).
             compact_parking_spot_size: (width, length) of parking spot.
-            yaw_of_parked_cars: orientation of parked cars (rad).
+            yaw_of_parked_cars_var: orientation of parked cars (rad).
             margin: optional spacing between adjacent spots.
 
         Returns:
@@ -221,10 +222,10 @@ class ReedsSheppParking:
         L1 = dims1[1]
 
         # Start and end points shifted to actual line segment ends
-        p0 = (x0 + math.cos(yaw_of_parked_cars) * L0 / 2,
-            y0 + math.sin(yaw_of_parked_cars) * L0 / 2)
-        p1 = (x1 - math.cos(yaw_of_parked_cars) * L1 / 2,
-            y1 - math.sin(yaw_of_parked_cars) * L1 / 2)
+        p0 = (x0 + math.cos(yaw_of_parked_cars_var) * L0 / 2,
+            y0 + math.sin(yaw_of_parked_cars_var) * L0 / 2)
+        p1 = (x1 - math.cos(yaw_of_parked_cars_var) * L1 / 2,
+            y1 - math.sin(yaw_of_parked_cars_var) * L1 / 2)
 
         dx = p1[0] - p0[0]
         dy = p1[1] - p0[1]
@@ -246,11 +247,11 @@ class ReedsSheppParking:
             dist = (i + 0.5) * spacing  # center of spot
             x = p0[0] + dir_x * dist
             y = p0[1] + dir_y * dist
-            parking_spots.append((x, y, yaw_of_parked_cars))
+            parking_spots.append((x, y, yaw_of_parked_cars_var))
 
         return parking_spots
 
-    # def pick_parking_spot(available_parking_spots, x, y, yaw = 0.0, closest = True):
+    # def pick_parking_spot(available_parking_spots_var, x, y, yaw = 0.0, closest = True):
 
     #     def distance(spot):
     #         dx = spot[0] - x
@@ -258,9 +259,9 @@ class ReedsSheppParking:
     #         return math.hypot(dx, dy)
         
     #     if closest:
-    #         return min(available_parking_spots, key=distance)
+    #         return min(available_parking_spots_var, key=distance)
     #     else:
-    #         return max(available_parking_spots, key=distance)
+    #         return max(available_parking_spots_var, key=distance)
     # 
 
     def pick_parking_spot(self,
@@ -280,7 +281,7 @@ class ReedsSheppParking:
         """
 
         # Helper: distance to current pose
-        def dist_to_vehicle(spot):
+        def dist_to_vehicle(self, spot):
             dx = spot[0] - vehicle_pose[0]
             dy = spot[1] - vehicle_pose[1]
             return math.hypot(dx, dy)
@@ -321,7 +322,7 @@ class ReedsSheppParking:
         else:
             return False     
 
-    # def available_parking_spots(all_parking_spots_in_parking_lot, parked_cars, compact_parking_spot_size, yaw_of_parked_cars=0.0):
+    # def available_parking_spots(all_parking_spots_in_parking_lot, parked_cars, compact_parking_spot_size, yaw_of_parked_cars_var=0.0):
     #     available_parking_spots = []
     #     for spot in all_parking_spots_in_parking_lot:
     #         # Check if the parking spot is occupied by a parked car
@@ -356,12 +357,12 @@ class ReedsSheppParking:
             List of available parking spot poses.
         """
         spot_polygons = [
-            ReedsSheppParking.rectangle_polygon(spot, spot_dims)
+            self.rectangle_polygon(spot, spot_dims)
             for spot in all_parking_spots
         ]
 
         car_polygons = [
-            ReedsSheppParking.rectangle_polygon((x, y, yaw), dims)
+            self.rectangle_polygon((x, y, yaw), dims)
             for x, y, yaw, dims in parked_cars
         ]
 
@@ -512,8 +513,7 @@ class ReedsSheppParking:
         return (x_new, y_new)
 
 
-    @staticmethod
-    def stitch_paths(pose_list: List[Pose], step_size: float, turning_radius: float) -> List[Pose]:
+    def stitch_paths(self, pose_list: List[Pose], step_size: float, turning_radius: float) -> List[Pose]:
         """
         Given a list of poses, compute and stitch Reeds-Shepp paths between consecutive poses.
 
@@ -527,7 +527,7 @@ class ReedsSheppParking:
         """
         stitched_path = []
         for i in range(len(pose_list) - 1):
-            segment = ReedsSheppParking.reeds_shepp_path(
+            segment = self.reeds_shepp_path(
                 pose_list[i],
                 pose_list[i+1],
                 step_size=step_size,
@@ -545,24 +545,23 @@ class ReedsSheppParking:
         self.detected_cones = detected_cones
         self.vehicle_pose = vehicle_pose
 
+
+
         # Compute yaw of parked cars based on static horizontal curb direction
-        self.yaw_of_parked_cars = ReedsSheppParking.yaw_of_parked_cars(
-            self.static_horizontal_curb_xy_coordinates[0],
-            self.static_horizontal_curb_xy_coordinates[1]
-        )
+        self.yaw_of_parked_cars_var = self.yaw_of_parked_cars(self.static_horizontal_curb_xy_coordinates[0], self.static_horizontal_curb_xy_coordinates[1])
 
         # Construct curb obstacle representations with yaw
         self.static_horizontal_curb = [
             (
                 self.static_horizontal_curb_xy_coordinates[0][0],
                 self.static_horizontal_curb_xy_coordinates[0][1],
-                self.yaw_of_parked_cars,
+                self.yaw_of_parked_cars_var,
                 self.static_horizontal_curb_size
             ),
             (
                 self.static_horizontal_curb_xy_coordinates[1][0],
                 self.static_horizontal_curb_xy_coordinates[1][1],
-                self.yaw_of_parked_cars,
+                self.yaw_of_parked_cars_var,
                 self.static_horizontal_curb_size
             )
         ]
@@ -570,14 +569,14 @@ class ReedsSheppParking:
             (
                 self.static_vertical_curb_xy_coordinates[0][0],
                 self.static_vertical_curb_xy_coordinates[0][1],
-                self.yaw_of_parked_cars,
+                self.yaw_of_parked_cars_var,
                 self.static_vertical_curb_size
             )
         ]
 
         # Convert cones to parked cars if any are detected
         if self.detected_cones:
-           self.parked_cars = [(x, y, self.yaw_of_parked_cars, self.vehicle_dims) for x, y in self.detected_cones]
+           self.parked_cars = [(x, y, self.yaw_of_parked_cars_var, self.vehicle_dims) for x, y in self.detected_cones]
         else:
             self.parked_cars = self.detected_cones
 
@@ -590,27 +589,28 @@ class ReedsSheppParking:
 
         # Compute full set of parking spots along the curb if not already available
         if not self.all_parking_spots_in_parking_lot:
-            self.all_parking_spots_in_parking_lot = ReedsSheppParking.all_parking_spots_in_parking_lot(
+            self.all_parking_spots_in_parking_lot_var = self.all_parking_spots_in_parking_lot(
                 self.static_horizontal_curb,
                 self.compact_parking_spot_size,
-                yaw_of_parked_cars=self.yaw_of_parked_cars
+                yaw_of_parked_cars_var=self.yaw_of_parked_cars_var
             )
 
         # Filter out occupied spots
-        self.available_parking_spots = ReedsSheppParking.available_parking_spots(
-            self.all_parking_spots_in_parking_lot,
+        self.available_parking_spots_var = self.available_parking_spots(
+            self.all_parking_spots_in_parking_lot_var,
             self.parked_cars,
             self.compact_parking_spot_size,
             clearance=0.0
         )
-
-        if not self.available_parking_spots:
-            raise ValueError("No parking spot available.")
+        print("self.available_parking_spots_var", self.available_parking_spots_var)
+        if not self.available_parking_spots_var:
+            return
+            #raise ValueError("No parking spot available.")
 
         # Select the best available parking spot
-        self.parking_spot_to_go, self.priority = ReedsSheppParking.pick_parking_spot(
-                self.available_parking_spots,
-                self.all_parking_spots_in_parking_lot,
+        self.parking_spot_to_go, self.priority = self.pick_parking_spot(
+                self.available_parking_spots_var,
+                self.all_parking_spots_in_parking_lot_var,
                 self.vehicle_pose
             )
         
@@ -624,44 +624,44 @@ class ReedsSheppParking:
         )
 
         # Determine direction of search axis (forward or backward)
-        self.x_axis_of_search_direction_positive = ReedsSheppParking.search_axis_direction(
+        self.x_axis_of_search_direction_positive = self.search_axis_direction(
             self.parking_spot_to_go,
             self.vehicle_pose
         )
 
         # Build the shifted search axis and compute bounds
         # TODO: Find search direction using yaw and vehicle pose
-        self.curb_0_xy_shifted, self.curb_1_xy_shifted, self.search_axis_direction = ReedsSheppParking.shift_points_perpendicular_ccw(
+        self.curb_0_xy_shifted, self.curb_1_xy_shifted, self.search_axis_direction_var = self.shift_points_perpendicular_ccw(
             self.static_horizontal_curb_xy_coordinates[0],
             self.static_horizontal_curb_xy_coordinates[1],
             self.parking_lot_axis_shift_margin
         )
 
         # Horizontal axis search direction
-        _ , _, self.horizontal_search_axis_direction = ReedsSheppParking.shift_points_perpendicular_ccw(
+        _ , _, self.horizontal_search_axis_direction = self.shift_points_perpendicular_ccw(
             self.static_horizontal_curb_xy_coordinates[0],
             self.curb_0_xy_shifted,
             self.parking_lot_axis_shift_margin
         )
 
         # Project vehicle pose onto the search axis
-        self.vehicle_pose_proj = ReedsSheppParking.project_point_on_axis(
+        self.vehicle_pose_proj = self.project_point_on_axis(
             self.curb_0_xy_shifted,
             self.curb_1_xy_shifted,
             self.vehicle_pose[0:2]
         )
 
         # Compute bounds for the search axis
-        self.upper_bound_xy = ReedsSheppParking.move_point_along_vector(
+        self.upper_bound_xy = self.move_point_along_vector(
             self.curb_1_xy_shifted,
-            self.search_axis_direction,
+            self.search_axis_direction_var,
             step=2 * self.compact_parking_spot_size[1],
             positive_direction=True
         )
 
-        self.lower_bound_xy = ReedsSheppParking.move_point_along_vector(
+        self.lower_bound_xy = self.move_point_along_vector(
             self.curb_0_xy_shifted,
-            self.search_axis_direction,
+            self.search_axis_direction_var,
             step=2 * self.compact_parking_spot_size[1],
             positive_direction=False
         )
@@ -676,11 +676,15 @@ class ReedsSheppParking:
         if update_pose:
             self.vehicle_pose = vehicle_pose
 
+        if not self.available_parking_spots_var:    
+           self.waypoints_to_go = []
+           print("No parking spot available.")
+           return
         # Try in both directions
         directions = [self.x_axis_of_search_direction_positive, not self.x_axis_of_search_direction_positive]  
         for direction_flag in directions:
             self.x_axis_of_search_direction_positive = direction_flag
-            self.vehicle_pose_proj = ReedsSheppParking.project_point_on_axis(
+            self.vehicle_pose_proj = self.project_point_on_axis(
             self.curb_0_xy_shifted,
             self.curb_1_xy_shifted,
             self.vehicle_pose[0:2]
@@ -689,9 +693,9 @@ class ReedsSheppParking:
 
             while True:
                 # Move projected pose along the search axis
-                self.vehicle_pose_proj = ReedsSheppParking.move_point_along_vector(
+                self.vehicle_pose_proj = self.move_point_along_vector(
                     self.vehicle_pose_proj,
-                    self.search_axis_direction,
+                    self.search_axis_direction_var,
                     step=self.search_step_size,
                     positive_direction=self.x_axis_of_search_direction_positive
                 )
@@ -700,7 +704,7 @@ class ReedsSheppParking:
                 start_proj = (
                     self.vehicle_pose_proj[0],# - self.shift_from_center_to_rear_axis,
                     self.vehicle_pose_proj[1],
-                    self.yaw_of_parked_cars
+                    self.yaw_of_parked_cars_var
                 )
                 
                 # Plan path in segments:
@@ -711,9 +715,9 @@ class ReedsSheppParking:
                    clearance_step = 0.0    
 
                 # Compute the parking spot minus some clearance
-                self.parking_spot_to_go_minus_clearance = ReedsSheppParking.move_point_along_vector(
+                self.parking_spot_to_go_minus_clearance = self.move_point_along_vector(
                     self.parking_spot_to_go[0][0:2],
-                    self.search_axis_direction,
+                    self.search_axis_direction_var,
                     step=clearance_step, # TODO: Pass as an input
                     positive_direction=False
                 )
@@ -721,7 +725,7 @@ class ReedsSheppParking:
                 # Adding yaw
                 self.parking_spot_to_go_minus_clearance = (self.parking_spot_to_go_minus_clearance[0],
                                                            self.parking_spot_to_go_minus_clearance[1], 
-                                                           self.yaw_of_parked_cars)
+                                                           self.yaw_of_parked_cars_var)
                 
                 # Poses to connect with reeds-shepp paths
                 waypoints_to_connect = [self.vehicle_pose, 
@@ -730,7 +734,7 @@ class ReedsSheppParking:
                                         self.parking_spot_to_go[0]]
                 
                 # Computing the reeds-shepp paths
-                self.waypoints_for_obstacles_check = ReedsSheppParking.stitch_paths(
+                self.waypoints_for_obstacles_check = self.stitch_paths(
                         waypoints_to_connect,
                         step_size=self.search_step_size,
                         turning_radius=self.vehicle_turning_radius
@@ -739,7 +743,7 @@ class ReedsSheppParking:
                 self.waypoints_to_go = np.array(self.waypoints_for_obstacles_check)[:, :2]
 
                 # Check if trajectory is collision-free
-                if ReedsSheppParking.is_trajectory_collision_free(
+                if self.is_trajectory_collision_free(
                     self.waypoints_for_obstacles_check,
                     self.vehicle_dims,
                     self.objects_to_avoid_collisions
@@ -754,7 +758,7 @@ class ReedsSheppParking:
                     # TODO: Also implement the horizontal search axis direction by accumulating points in "waypoints_to_connect".
                     # If car can fit in the parking spot, then parking path should exits if there are
                     # no obstacles across holonomic paths.
-                    # Use self.horizontal_search_axis_direction
+                    # Use self.horizontal_search_axis_direction_var
                     break  # Give up in this direction
 
         # If both directions fail        
@@ -769,16 +773,16 @@ class ReedsSheppParking:
             self.vehicle_pose = vehicle_pose 
 
         # Find current vehicle pose projected on the search axis
-        self.vehicle_pose_proj = ReedsSheppParking.project_point_on_axis(
+        self.vehicle_pose_proj = self.project_point_on_axis(
             self.curb_0_xy_shifted,
             self.curb_1_xy_shifted,
             self.vehicle_pose[0:2]
         )           
 
         # Move projected pose along the search axis
-        self.vehicle_pose_proj = ReedsSheppParking.move_point_along_vector(
+        self.vehicle_pose_proj = self.move_point_along_vector(
             self.vehicle_pose_proj,
-            self.search_axis_direction,
+            self.search_axis_direction_var,
             step=self.compact_parking_spot_size[1]*2,
             positive_direction=True
         )
@@ -787,15 +791,15 @@ class ReedsSheppParking:
         start_proj = (
             self.vehicle_pose_proj[0],# - self.shift_from_center_to_rear_axis,
             self.vehicle_pose_proj[1],
-            self.yaw_of_parked_cars
+            self.yaw_of_parked_cars_var
         )
         
         
         while True:
             # Move projected pose along the search axis
-            self.vehicle_pose_proj = ReedsSheppParking.move_point_along_vector(
+            self.vehicle_pose_proj = self.move_point_along_vector(
                 self.vehicle_pose_proj,
-                self.search_axis_direction,
+                self.search_axis_direction_var,
                 step=self.search_step_size,
                 positive_direction=False
             )
@@ -804,10 +808,10 @@ class ReedsSheppParking:
             start_proj = (
                 self.vehicle_pose_proj[0],# - self.shift_from_center_to_rear_axis,
                 self.vehicle_pose_proj[1],
-                self.yaw_of_parked_cars
+                self.yaw_of_parked_cars_var
             )
 
-            waypoints_1 = ReedsSheppParking.reeds_shepp_path(
+            waypoints_1 = self.reeds_shepp_path(
                     self.vehicle_pose,
                     start_proj,
                     step_size=self.search_step_size,
@@ -817,7 +821,7 @@ class ReedsSheppParking:
             self.waypoints_to_go = np.array(self.waypoints_for_obstacles_check)[:, :2]
 
             # Check if trajectory is collision-free
-            if ReedsSheppParking.is_trajectory_collision_free(
+            if self.is_trajectory_collision_free(
                 self.waypoints_for_obstacles_check,
                 self.vehicle_dims,
                 self.objects_to_avoid_collisions
