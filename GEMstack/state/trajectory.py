@@ -86,9 +86,7 @@ class Path:
     def racing_velocity_profile(self) -> Trajectory:
         """Returns a timed trajectory with max velocity profile parametrized by path radius"""
         times = [0.0]
-        # print(self.points)
         points = self.points
-        # print(points)
         times, velocities = compute_velocity_profile(points)
         return Trajectory(frame=self.frame,points=points,times=times, velocities=velocities)
 
@@ -368,8 +366,13 @@ class Trajectory(Path):
         """
         param_range = [self.time_to_parameter(time_range[0]),self.time_to_parameter(time_range[1])]
         #print("Searching within time range",time_range,"= param range",param_range)
+        if len(self.points[0]) > 2:
+            heading_points = self.points
+            self.points = [(x, y) for x, y, z in self.points]
         distance, closest_index = Path.closest_point_local(self,x,param_range,edges)
         closest_time = self.parameter_to_time(closest_index)
+        if len(self.points[0]) > 2:
+            self.points = heading_points
         return distance, closest_time
     
     def trim(self, start : float, end : float) -> Trajectory:
