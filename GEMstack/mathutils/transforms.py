@@ -72,11 +72,11 @@ def point_segment_distance(x,a,b) -> Tuple[float,float]:
     udotv = np.dot(u,v)
     if udotv < 0:
         return vector_norm(u),0
-    elif udotv > vnorm:
+    elif udotv > vnorm**2:
         return vector_norm(vector_sub(x,b)),1
     else:
-        param = udotv/vnorm
-        return vector_norm(vector_sub(u,vector_mul(v,param/vnorm))),param
+        param = udotv/vnorm**2
+        return vector_norm(vector_sub(u,vector_mul(v,param))),param
 
 def rotate2d(point, angle : float, origin=None):
     """Rotates a point about the origin by an angle"""
