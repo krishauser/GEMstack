@@ -1,3 +1,4 @@
+import cv2
 import ros_numpy
 import numpy as np
 
@@ -23,3 +24,41 @@ def pc2_to_numpy(pc2_msg, want_rgb=False):
     # Apply filtering (for example, x > 0 and z in a specified range)
     mask = (pts[:, 0] > 0) & (pts[:, 2] < -1.5) & (pts[:, 2] > -2.7)
     return pts[mask]
+
+
+def is_parallelogram(approx, length_tolerance=0.2):
+    if len(approx) != 4:
+        return False
+
+    if not cv2.isContourConvex(approx):
+        return False
+
+    # Extract the 4 points
+    pts = [approx[i][0] for i in range(4)]
+
+    # Compute side lengths
+    def side_length(p1, p2):
+        return np.linalg.norm(p1 - p2)
+
+    lengths = [
+        side_length(pts[0], pts[1]),  # Side 1
+        side_length(pts[1], pts[2]),  # Side 2
+        side_length(pts[2], pts[3]),  # Side 3
+        side_length(pts[3], pts[0])   # Side 4
+    ]
+
+    # Check if opposite sides are approximately equal
+    def is_close(l1, l2):
+        return abs(l1 - l2) / max(l1, l2) < length_tolerance
+
+    if not (is_close(lengths[0], lengths[2]) and is_close(lengths[1], lengths[3])):
+        return False
+
+    return True
+
+
+def is_big_parallelogram(approx, min_area=1000, length_tolerance=0.2):
+    if not is_parallelogram(approx, length_tolerance):
+        return False
+    area = cv2.contourArea(approx)
+    return area >= min_area

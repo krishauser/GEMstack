@@ -1,58 +1,20 @@
 import os
 import cv2
 import rospy
-import numpy as np
 from typing import Dict
 from ultralytics import YOLO
 from cv_bridge import CvBridge
 from ..component import Component
 from ...state import VehicleState, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum, ObstacleStateEnum
 from sensor_msgs.msg import Image
-
-
-def is_parallelogram(approx, length_tolerance=0.2):
-    if len(approx) != 4:
-        return False
-
-    if not cv2.isContourConvex(approx):
-        return False
-
-    # Extract the 4 points
-    pts = [approx[i][0] for i in range(4)]
-
-    # Compute side lengths
-    def side_length(p1, p2):
-        return np.linalg.norm(p1 - p2)
-
-    lengths = [
-        side_length(pts[0], pts[1]),  # Side 1
-        side_length(pts[1], pts[2]),  # Side 2
-        side_length(pts[2], pts[3]),  # Side 3
-        side_length(pts[3], pts[0])   # Side 4
-    ]
-
-    # Check if opposite sides are approximately equal
-    def is_close(l1, l2):
-        return abs(l1 - l2) / max(l1, l2) < length_tolerance
-
-    if not (is_close(lengths[0], lengths[2]) and is_close(lengths[1], lengths[3])):
-        return False
-
-    return True
-
-
-def is_big_parallelogram(approx, min_area=1000, length_tolerance=0.2):
-    if not is_parallelogram(approx, length_tolerance):
-        return False
-    area = cv2.contourArea(approx)
-    return area >= min_area
+from .utils.detection_utils import *
 
 
 class ParkingDetectorLaneBased(Component):
     def __init__(self):
         # Initial variables
         self.bridge = CvBridge()
-        self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/best.pt'
+        self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/parking_spot.pt'
         self.model = YOLO(self.model_path)
         self.model.to('cuda')
         self.parking_spots_corners = []
@@ -89,22 +51,23 @@ class ParkingDetectorLaneBased(Component):
                 if mask.shape != (h_orig, w_orig):
                     mask = cv2.resize(mask, (w_orig, h_orig), interpolation=cv2.INTER_NEAREST)
 
-                # 3) Compute centroid
-                M = cv2.moments(mask)
-                cx = int(M['m10'] / (M['m00'] + 1e-6))
-                cy = int(M['m01'] / (M['m00'] + 1e-6))
-                centers.append((cx, cy))
-
-                # 4) Find contours and approximate polygon to get corners
+                # 3) Find contours and approximate polygon to get corners
                 contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 for cnt in contours:
                     epsilon = 0.02 * cv2.arcLength(cnt, True)
                     approx = cv2.approxPolyDP(cnt, epsilon, True)
 
                     if is_big_parallelogram(approx):
-                        approxes.append(approx)
+                        # Store corners
                         corners_four = approx.reshape(4, 2)
                         corners.append(corners_four)
+                        # Store approxes
+                        approxes.append(approx)
+                        # Store centers
+                        M = cv2.moments(mask)
+                        cx = int(M['m10'] / (M['m00'] + 1e-6))
+                        cy = int(M['m01'] / (M['m00'] + 1e-6))
+                        centers.append((cx, cy))
 
         self.parking_spots_corners = corners
         self.visualize(image_annotated, centers, corners, approxes)
