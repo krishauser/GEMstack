@@ -293,11 +293,9 @@ if __name__ == '__main__':
     roadgraph.regions['lane0_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
                                                                           outline=[(30.0, 12.5), (30.0, 15), (0.0, 15), (0.0, 12.5)])
     roadgraph.regions['lane1_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
-                                                                          outline=[(30.0, 12.5), (30.0, 15), (0.0, 15),
-                                                                                   (0.0, 12.5)])
+                                                                          outline=[(30.0, 12.5), (30.0, 15), (0.0, 15), (0.0, 12.5)])
     roadgraph.regions['lane2_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
-                                                                          outline=[(30.0, 12.5), (30.0, 15), (0.0, 15),
-                                                                                   (0.0, 12.5)])
+                                                                          outline=[(30.0, 12.5), (30.0, 15), (0.0, 15), (0.0, 12.5)])
   
 
     with open(filename, 'w') as f:
@@ -309,8 +307,8 @@ if __name__ == '__main__':
     frame = ObjectFrameEnum.GLOBAL
     roadgraph = Roadgraph(frame=frame)
 
-    lon_ratio = (-88.235527 + 88.236129) / 51.34  # lon / m
-    lat_ratio = (40.092819 - 40.092741) / 8.66    # lat / m
+    lon_ratio = abs((-88.23525192774008) - (-88.23596797249934)) / 40  # 0.00071604475, lon / m 
+    lat_ratio = abs(40.09275263991526 - 40.092857270282984) / 12   #0.00010463036 lat / m
     resolution = 0.4 * min(lon_ratio, lat_ratio)
 
     # Create lane segments
@@ -341,11 +339,21 @@ if __name__ == '__main__':
                                            crossable=False,
                                            route_name='')
 
-    roadgraph.regions['highbay_parallel_parking_slot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
-                                                                           outline=[(-88.235527, 40.092819 + lat_ratio * 1.5),
-                                                                                    (-88.235527, 40.092819 + lat_ratio * 4),
-                                                                                    (-88.236129, 40.092819 + lat_ratio * 4),
-                                                                                    (-88.236129, 40.092819 + lat_ratio * 1.5)])
+
+    roadgraph.lanes['lane_0'] = create_lane(left_back=(0.0, 1.49, 0.0), left_forward=(30, 1.49, 0.0),
+                                            right_back=(0.0, -1.5, 0.0), right_forward=(30, -1.5, 0.0),
+                                            left_crossable=False,
+                                            right_crossable=False,
+                                            resolution=resolution,
+                                            route_name=''
+                                            )
+    roadgraph.lanes['arc_1_1'] = create_lane(left_back=(30.0, 1.5, 0.0), left_forward=(37.0, 8.5, 0.0),
+                                            right_back=(30.0, -1.5, 0.0), right_forward=(40.0, 8.5, 0.0),
+                                            left_crossable=False, left_type='arc', left_radius=7.0, left_direction='ccw',
+                                            right_crossable=False, right_type='arc', right_radius=10.0, right_direction='ccw',
+                                            resolution=resolution,
+                                            route_name=''
+                                            )
 
 
     with open(filename, 'w') as f:
