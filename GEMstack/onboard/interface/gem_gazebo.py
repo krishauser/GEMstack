@@ -1,3 +1,4 @@
+from GEMstack.state.obstacle import ObstacleMaterialEnum, ObstacleState, ObstacleStateEnum
 from .gem import *
 from ...utils import settings
 import math
@@ -53,7 +54,8 @@ MODEL_PREFIX_TO_AGENT_TYPE = {
     'car': 'car',
     'vehicle': 'car',
     'truck': 'medium_truck',
-    'large_truck': 'large_truck'
+    'large_truck': 'large_truck',
+    'cone': 'traffic_cone'
 }
 
 class GEMGazeboInterface(GEMInterface):
@@ -63,6 +65,7 @@ class GEMGazeboInterface(GEMInterface):
         GEMInterface.__init__(self)
         self.max_send_rate = settings.get('vehicle.max_command_rate', 10.0)
         self.ros_sensor_topics = settings.get('vehicle.sensors.ros_topics')
+        print("GEM Gazebo Interface initialized", self.ros_sensor_topics)
         self.last_command_time = 0.0
         self.last_reading = GEMVehicleReading()
         self.last_reading.speed = 0.0
@@ -198,11 +201,14 @@ class GEMGazeboInterface(GEMInterface):
             # Skip the vehicle model itself
             if i == vehicle_idx:
                 continue
+
                 
             # Check if this model should be tracked as an agent
             agent_type = None
             for prefix in self.tracked_model_prefixes:
+
                 if model_name.lower().startswith(prefix.lower()):
+                    # print(f"Processing model: {model_name}")
                     # Find the appropriate agent type from the prefix
                     for key, value in MODEL_PREFIX_TO_AGENT_TYPE.items():
                         if prefix.lower().startswith(key.lower()):
@@ -308,22 +314,40 @@ class GEMGazeboInterface(GEMInterface):
             dimensions = AGENT_DIMENSIONS.get(agent_type, (1.0, 1.0, 1.0))  # Default if unknown
             
             # Create agent state
-            agent_state = AgentState(
-                pose=agent_pose,  # Using START frame pose
-                dimensions=dimensions,
-                outline=None,
-                type=getattr(AgentEnum, agent_type.upper()),
-                activity=activity,
-                velocity=velocity,
-                yaw_rate=angular_vel.z
-            )
+            if not model_name.startswith('cone'):
+                print(f"Detected AGENT: {model_name}")
+                agent_state = AgentState(
+                    pose=agent_pose,  # Using START frame pose
+                    dimensions=dimensions,
+                    outline=None,
+                    type=getattr(AgentEnum, agent_type.upper()),
+                    activity=activity,
+                    velocity=velocity,
+                    yaw_rate=angular_vel.z
+                )
+                
+                # Store current position for next velocity calculation (using raw positions)
+                self.last_agent_positions[model_name] = (position.x, position.y, position.z)
+                self.last_agent_velocities[model_name] = velocity
+                # Call the callback with the agent state
+                self.agent_detector_callback(model_name, agent_state)
+
+            if model_name.startswith('cone'):
+                # print(f"Detected cone: {model_name}")
+                # Create obstacle state for cones
+                obstacle_state = ObstacleState(
+                    dimensions=(0,0,0),
+                    outline=None,
+                    pose=agent_pose,
+                    type=ObstacleMaterialEnum.TRAFFIC_CONE,
+                    activity=ObstacleStateEnum.STANDING,
+                    velocity=(0, 0, 0),
+                    yaw_rate=0
+                )
+                self.cone_detector_callback(model_name, obstacle_state)
+
             
-            # Store current position for next velocity calculation (using raw positions)
-            self.last_agent_positions[model_name] = (position.x, position.y, position.z)
-            self.last_agent_velocities[model_name] = velocity
-            
-            # Call the callback with the agent state
-            self.agent_detector_callback(model_name, agent_state)
+
 
     def subscribe_sensor(self, name, callback, type=None):
         if name == 'gnss':
@@ -424,6 +448,11 @@ class GEMGazeboInterface(GEMInterface):
                 raise ValueError("GEMGazeboInterface only supports AgentState for agent_detector")
             self.agent_detector_callback = callback
 
+        elif name == 'cone_detector':
+            if type is not None and type is not ObstacleState:
+                raise ValueError("GEMGazeboInterface only supports ObstacleState for cone_detector")
+            self.cone_detector_callback = callback
+
     def hardware_faults(self) -> List[str]:
         # In simulation, we don't have real hardware faults
         return self.faults
@@ -459,10 +488,12 @@ class GEMGazeboInterface(GEMInterface):
 
         # Calculate acceleration from pedal positions
         acceleration = pedal_positions_to_acceleration(accelerator_pedal_position, brake_pedal_position, v, 0, 1)
-
+        print("acceleration before", acceleration)
         # Apply reasonable limits to acceleration
         max_accel = settings.get('vehicle.limits.max_acceleration', 1.0)
-        max_decel = settings.get('vehicle.limits.max_deceleration', -2.0)
+        max_decel = -1 * settings.get('vehicle.limits.max_deceleration', 2.0) # cuz ackermann expects neg but pure pursiut wants positive decel val
+        print("max_accel", max_accel)
+        print("max_decel", max_decel)
         acceleration = np.clip(acceleration, max_decel, max_accel)
 
         # Convert wheel angle to steering angle (front wheel angle)
@@ -477,7 +508,7 @@ class GEMGazeboInterface(GEMInterface):
         # Don't use infinite speed, instead calculate a reasonable target speed
         current_speed = v
         target_speed = current_speed
-
+        print("acceleration ", acceleration)
         if acceleration > 0:
             # Accelerating - set target speed to current speed plus some increment
             # This is more realistic than infinite speed
@@ -485,6 +516,7 @@ class GEMGazeboInterface(GEMInterface):
             target_speed = min(current_speed + acceleration * 0.5, max_speed)
         elif acceleration < 0:
             # Braking - set target speed to zero if deceleration is significant
+            print("braking ", acceleration)
             if brake_pedal_position > 0.1:
                 target_speed = 0.0
 

@@ -13,7 +13,7 @@ class OmniscientAgentDetector(Component):
         self.lock = threading.Lock()
 
     def rate(self):
-        return 4.0
+        return 10.0
     
     def state_inputs(self):
         return []
@@ -25,6 +25,7 @@ class OmniscientAgentDetector(Component):
         self.vehicle_interface.subscribe_sensor('agent_detector',self.agent_callback, AgentState)
     
     def agent_callback(self, name : str, agent : AgentState):
+        print(f"AGENT detected: {name}")
         with self.lock:
             self.agents[name] = agent
 
