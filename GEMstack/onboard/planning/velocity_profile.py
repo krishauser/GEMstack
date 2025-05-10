@@ -287,21 +287,21 @@ def compute_velocity_profile(points, plot=True):
 
         a = dv/dt
 
-        plot_x_y(axs[0, 0], t, v_profile, "t", "v")
-        plot_x_y(axs[1, 0], t[:-1], a, "t", "a")
-        # plot_x_y(axs[1, 1], t, forward_vs, "t", "forward & backward vs")
-        # plot_x_y(axs[1, 1], t, backward_vs, "t", "forward & backward vs")
-        plot_x_y(axs[0, 1], t, kappa, "t", "kappa")
+        # plot_x_y(axs[0, 0], t, v_profile, "t", "v")
+        # plot_x_y(axs[1, 0], t[:-1], a, "t", "a")
+        # # plot_x_y(axs[1, 1], t, forward_vs, "t", "forward & backward vs")
+        # # plot_x_y(axs[1, 1], t, backward_vs, "t", "forward & backward vs")
+        # plot_x_y(axs[0, 1], t, kappa, "t", "kappa")
 
-        plot_speed_profile_gradient(fig, axs[1, 1], xs, ys, v_profile)
+        # plot_speed_profile_gradient(fig, axs[1, 1], xs, ys, v_profile)
 
-        # # Save to CSV
-        # df = pd.DataFrame({'x': xs, 'y': ys, 'v': v_profile, 't': t})
-        # df.to_csv('v_profile.csv', index=False)
+        # # # Save to CSV
+        # # df = pd.DataFrame({'x': xs, 'y': ys, 'v': v_profile, 't': t})
+        # # df.to_csv('v_profile.csv', index=False)
 
 
-        plt.tight_layout()
-        plt.show()
+        # plt.tight_layout()
+        # plt.show()
 
         return t, v_profile
 
