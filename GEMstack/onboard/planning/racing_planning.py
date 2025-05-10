@@ -62,7 +62,7 @@ def waypoint_generate(vehicle_state, cones, cone_idx):
     target_heading = car_heading
 
     # ===== Parameters =====
-    u_turn_radius = 10.0      # Radius for U-turn
+    u_turn_radius = 11.5      # Radius for U-turn
     offset = 2.0                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
@@ -213,6 +213,19 @@ def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
     - x, y, psi, c, v, eps (np.ndarray): Arrays of optimized state and control values.
     - final_error (dict): Final state errors in x, y, psi, and c.
     """
+    final_heading = (final_state['psi'] + np.pi) % (2 * np.pi) - np.pi
+    init_heading = (init_state['psi'] + np.pi) % (2 * np.pi) - np.pi
+
+    if abs(final_heading - init_heading) > np.pi: 
+        if final_heading < init_heading:
+            final_heading += 2 * np.pi
+        else:
+            final_heading -= 2 * np.pi
+
+    init_state['psi'] = init_heading
+    final_state['psi'] = final_heading
+    print("init and final headings: ", init_heading, final_heading)
+
     def cost(p):
         x_, y_, psi_, c_, v_, eps_ = np.split(p, [N - 1, 2 * (N - 1), 3 * (N - 1), 4 * (N - 1), 5 * (N - 1)])
         c_seq = np.concatenate(([init_state['c']], c_))
@@ -692,6 +705,8 @@ class SlalomTrajectoryPlanner(Component):
                     'c': 0.0, 
                     'v': vehicle_state['velocity']
                 }
+                vehicle_state['position'] = np.array([init_point[0], init_point[1]])
+                vehicle_state['heading'] = heading
 
             print("all cones: ", self.cones)
             current_cone_idx, updated_cones = self.get_current_cone_idx(self.cones, init_state)
@@ -710,7 +725,7 @@ class SlalomTrajectoryPlanner(Component):
             if not new_cone_detected and self.no_cone_ahead:
                 return self.trajectory
 
-            self.visited_cone_ids.add(self.cones[current_cone_idx]['id'])
+            self.visited_cone_ids.add(self.cones[current_cone_idx]['id'])                
             scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, self.cones, current_cone_idx)
 
             if flex_wps and fixed_wp is not None:
@@ -720,8 +735,9 @@ class SlalomTrajectoryPlanner(Component):
 
                 # Stitch from current vehicle position to new plan start
                 if self.trajectory is not None:
+                    print("init and final state: ", init_state, final_state)
                     # 1. Plan new trajectory from init_state onward
-                    x_new, y_new, _, _, v_new, _, _ = trajectory_generation(init_state, final_state, waypoints=flex_wps)
+                    x_new, y_new, psi_new, _, v_new, _, _ = trajectory_generation(init_state, final_state, waypoints=flex_wps)
 
                     # 2. Cut old trajectory up to init_state (e.g., index `stitch_idx`)
                     old_points = self.trajectory.points[:stitch_idx]
@@ -733,6 +749,29 @@ class SlalomTrajectoryPlanner(Component):
                     x_full = np.concatenate([old_x, x_new])
                     y_full = np.concatenate([old_y, y_new])
                     v_full = np.concatenate([old_v, v_new])
+
+                    if current_cone_idx == 6:
+                        # Plot overall trajectory
+                        plt.figure()
+                        plt.plot(x_full, y_full, label='Overall Trajectory')
+
+                        # Plot cones
+                        for i, cone in enumerate(self.cones):
+                            plt.scatter(cone['x'], cone['y'], color='orange', s=10, label='Cone' if i == 0 else "")
+                            plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
+
+                        # Plot fixed waypoint
+                        if fixed_wp is not None:
+                            plt.plot(fixed_wp[0], fixed_wp[1], 'ro', label='Fixed Waypoint')
+                            plt.text(fixed_wp[0], fixed_wp[1] + 0.5, 'Fixed', fontsize=9, color='red')
+
+                        plt.title('4-Cone Full Course Trajectory')
+                        plt.xlabel('X')
+                        plt.ylabel('Y')
+                        plt.legend()
+                        plt.axis('equal')
+                        plt.grid(True)
+                        plt.show()
 
                     # 4. Create trajectory
                     self.trajectory = to_gemstack_trajectory(x_full, y_full, v_full)
