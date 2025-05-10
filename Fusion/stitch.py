@@ -6,6 +6,7 @@ from std_msgs.msg import Header
 from sensor_msgs.msg import PointField, PointCloud2, Image
 from cv_bridge import CvBridge
 import sensor_msgs.point_cloud2 as pc2
+import time
 
 from DistortionRemove import *
 
@@ -18,12 +19,12 @@ PIXEL_TO_METER = 0.02
 METER_TO_PIXEL = 1 / PIXEL_TO_METER
 
 
-srcFrontCamListXY = np.array([
-    [446, 504],  # FL
-    [712, 504],  # FR
-    [310, 700],  # RL
-    [895, 700],  # RR
-])  # origin
+# srcFrontCamListXY = np.array([
+#     [446, 504],  # FL
+#     [712, 504],  # FR
+#     [310, 700],  # RL
+#     [895, 700],  # RR
+# ])  # origin
 
 # dstFrontCamListXY = np.array([
 #     [-1.2834, -8.526 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794-4.423],  # FL
@@ -33,12 +34,12 @@ srcFrontCamListXY = np.array([
 # ])  # origin
 
 
-dstFrontCamListXY = np.array([
-    [-1.4834, -8.526 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794-4.423],  # FL
-    [ 1.466 , -8.3194],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432-4.2672],  # FR
-    [-1.4834, -4.103 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794],  # RL
-    [ 1.466 , -4.0522],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432],  # RR
-])  # tune by hand
+# dstFrontCamListXY = np.array([
+#     [-1.4834, -8.526 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794-4.423],  # FL
+#     [ 1.466 , -8.3194],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432-4.2672],  # FR
+#     [-1.4834, -4.103 ],  # [-1.3/2-0.1-0.5334  , 0.151-1.46-2.794],  # RL
+#     [ 1.466 , -4.0522],  # [1.3/2+0.1+1.016    , 0.151-1.46-2.7432],  # RR
+# ])  # tune by hand
 
 
 
@@ -314,7 +315,7 @@ class ImageSubscriberAndFunctions():
         self.maskedImage = maskCamKeyArea(self.image, self.maskName)
         self.transformedImage = self.perspectiveTransform.getTransformedImg(self.maskedImage)
 
-def cvtPixel2MeterInVehicleFrame(pixelPosXY, pixelSize=PIXEL_TO_METER):
+def cvtBirdEyeViewPixel2MeterInVehicleFrame(pixelPosXY, pixelSize=PIXEL_TO_METER):
     """
     From:
     ·---→x
@@ -334,13 +335,73 @@ def cvtPixel2MeterInVehicleFrame(pixelPosXY, pixelSize=PIXEL_TO_METER):
     return np.array([meterX, meterY])
 
 
-if __name__ == "__main__":  # test cvt frames
-    print(cvtPixel2MeterInVehicleFrame([0,0], pixelSize=PIXEL_TO_METER))
-    print(cvtPixel2MeterInVehicleFrame([1200,0], pixelSize=PIXEL_TO_METER))
-    print(cvtPixel2MeterInVehicleFrame([0,1800], pixelSize=PIXEL_TO_METER))
-    print(cvtPixel2MeterInVehicleFrame([1200,1800], pixelSize=PIXEL_TO_METER))
+def cvtOriginImgPixel2DToVehicleFrameMeter3D(TransMat, pixelPointXY):
+    """
+    pixelPointXY: (u, v) in original image (pixel)
+    TransMat: 3x3 perspective transform matrix (pixel -> real world meter)
+    """
+    BASE_VEHICLE_DIST = 1.10  # meter
     
-    exit
+    point = np.array([pixelPointXY[0], pixelPointXY[1], 1.0], dtype=np.float32).reshape(3, 1)
+    
+    # 透视变换
+    transformed = TransMat @ point
+    transformed /= transformed[2, 0]  # 归一化
+
+    x_real = transformed[0, 0]  # meter
+    y_real = transformed[1, 0]  # meter
+    z_real = 0.0  # 固定在地面
+
+    # 转 pointcloud 坐标系（和你之前cvtImg2PointCloudMsg一致）
+    x_pc = -y_real
+    y_pc = -x_real
+    z_pc = z_real
+
+    # return np.array([x_pc + BASE_VEHICLE_DIST, y_pc, z_pc], dtype=np.float32)
+    return np.array([x_pc + BASE_VEHICLE_DIST, y_pc], dtype=np.float32)
+
+
+if __name__ == "__main__":
+    
+    # img = cv2.imread(os.path.join(os.path.dirname(__file__), "Pics", "front_right.png"), cv2.IMREAD_COLOR)
+    # cv2.imshow("img", img)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+    # exit(0)
+    
+    TransMat = cv2.getPerspectiveTransform( np.float32(pixelFrontRightCamListXY), 
+                                            np.float32(worldFrontRightCamListXY))
+    
+    result = cvtOriginImgPixel2DToVehicleFrameMeter3D(TransMat, (48, 672))
+    print(result)
+    result = cvtOriginImgPixel2DToVehicleFrameMeter3D(TransMat, (1691, 791))
+    print(result)
+    result = cvtOriginImgPixel2DToVehicleFrameMeter3D(TransMat, (205, 882))
+    print(result)
+    result = cvtOriginImgPixel2DToVehicleFrameMeter3D(TransMat, (1516, 1003))
+    print(result)
+    exit(-1)
+
+
+"""
+48, 672
+
+1691, 791
+
+205, 882
+
+1516, 1003
+"""
+
+
+
+# if __name__ != "__main__":  # test cvt frames
+#     print(cvtBirdEyeViewPixel2MeterInVehicleFrame([0,0], pixelSize=PIXEL_TO_METER))
+#     print(cvtBirdEyeViewPixel2MeterInVehicleFrame([1200,0], pixelSize=PIXEL_TO_METER))
+#     print(cvtBirdEyeViewPixel2MeterInVehicleFrame([0,1800], pixelSize=PIXEL_TO_METER))
+#     print(cvtBirdEyeViewPixel2MeterInVehicleFrame([1200,1800], pixelSize=PIXEL_TO_METER))
+    
+#     exit
     
 
 
@@ -367,13 +428,27 @@ if __name__ == "__main__":  # sub and pub
     pc_pub = rospy.Publisher("/image_pointcloud", PointCloud2, queue_size=1)
     rate = rospy.Rate(1)  # times per second
     
+    
+    # save_dir = os.path.join(os.path.dirname(__file__), "StitchImages/multiple_slanted_all_valid")
+    # if os.path.exists(save_dir) is False:
+    #     os.makedirs(save_dir)
+    
     while not rospy.is_shutdown():
 
         stitched_img = combineImages([
-            frontCamImageSub.transformedImage * 2,
+            frontCamImageSub.transformedImage,
             frontLeftCamImageSub.transformedImage,
             frontRightCamImageSub.transformedImage
         ])
+        
+        # now = rospy.Time.now()
+        # t_sec = now.to_sec()
+        # t_nsec = now.to_nsec()
+        
+        # t_str = time.strftime("%Y%m%d_%H%M%S", time.localtime(t_sec))
+        # save_filename = f"{t_str}_{t_nsec}.png"
+        # save_path = os.path.join(save_dir, save_filename)
+        # cv2.imwrite(save_path, stitched_img)
 
         pc_msg = cvtImg2PointCloudMsg(stitched_img, frameId="base_footprint", pixelSize=PIXEL_TO_METER, stride=2)
         pc_pub.publish(pc_msg)

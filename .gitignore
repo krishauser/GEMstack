@@ -178,3 +178,4 @@ cuda/
 **/logs/*
 **/*.bag
 
+**/StitchImages/*
