@@ -63,7 +63,7 @@ class MPCController(object):
         
         x0 = np.array([state.pose.x, state.pose.y, state.pose.yaw % (2 * np.pi), state.v, state.front_wheel_angle])
 
-        print(x0)
+        # print(x0)
 
         closest_dist,closest_time = self.path.closest_point_local((x0[0], x0[1]),[self.current_traj_parameter-7.0,self.current_traj_parameter+7.0], True)
         # Interpolate trajectory points to match MPC time horizon
@@ -96,10 +96,10 @@ class MPCController(object):
                 traj_points.append(pt)
         
         # print("trajectory points: ", traj_points)
-        traj_str = ", ".join(
-            [f"np.array([{round(p[0], 8)}, {round(p[1], 8)}])" for p in traj_points]
-        )
-        print(f"traj_points = [{traj_str}]")
+        # traj_str = ", ".join(
+        #     [f"np.array([{round(p[0], 8)}, {round(p[1], 8)}])" for p in traj_points]
+        # )
+        # print(f"traj_points = [{traj_str}]")
 
         # Apply gradually decreasing offset correction
         cur_offset = np.array([state.pose.x, state.pose.y]) - np.array(traj_points[0][0:2])
@@ -127,10 +127,10 @@ class MPCController(object):
             traj_points[i] = np.array(traj_points[i]) + decay_ratio * offset_proj
 
         # print("trajectory points after correction: ", traj_points)
-        traj_corrected_str = ", ".join(
-            [f"np.array([{round(p[0], 8)}, {round(p[1], 8)}])" for p in traj_points]
-        )
-        print(f"traj_corrected = [{traj_corrected_str}]")
+        # traj_corrected_str = ", ".join(
+        #     [f"np.array([{round(p[0], 8)}, {round(p[1], 8)}])" for p in traj_points]
+        # )
+        # print(f"traj_corrected = [{traj_corrected_str}]")
 
         
         target_angles = []
@@ -237,12 +237,9 @@ class MPCController(object):
             delta = float(sol.value(x[1,4]))
             self.prev_x = sol.value(x)
             self.prev_u = sol.value(u)
-            # if x0[3] < 1.3:
-            #     for i in range(len(self.prev_x)):
-            #         assert self.prev_x[i,3] <= 1.3
 
-            xy_array = [f"np.array([{round(self.prev_x[t,0],8)}, {round(self.prev_x[t,1],8)}])" for t in range(self.prev_x.shape[0])]
-            print("mpc = [", ", ".join(xy_array), "]")
+            # xy_array = [f"np.array([{round(self.prev_x[t,0],8)}, {round(self.prev_x[t,1],8)}])" for t in range(self.prev_x.shape[0])]
+            # print("mpc = [", ", ".join(xy_array), "]")
 
             print(acc, delta)
             # print(self.prev_u[0])
