@@ -168,39 +168,25 @@ class ParkingSpotsDetector3D(Component):
                 grouped_ordered_ground_centers_2D.append(ordered_ground_centers_2D)
                 parking_obstacles_poses += parking_obstacles_pose
                 parking_obstacles_dims += parking_obstacles_dim
-        
-        # Return if no goal parking spot is found
-        if len(goal_parking_spots) < 1:
-            return None
-        
-        # Now select the closest parking goal
-        if len(goal_parking_spots) > 1:
-            self.goal_parking_spot = closest_point_to_origin(goal_parking_spots)
-        else:
-            self.goal_parking_spot = goal_parking_spots[0]
 
         # Update local variables for visualization
         self.cone_pts_3D = cone_pts_3D
         self.grouped_ordered_ground_centers_2D = grouped_ordered_ground_centers_2D
         self.parking_obstacles_poses = parking_obstacles_poses
         self.parking_obstacles_dims = parking_obstacles_dims
-
+        
+        # Now select the closest parking goal, return if none is found
         if len(goal_parking_spots) > 1:
-            print("\n")
-            print(f"self.cone_pts_3D: {self.cone_pts_3D}")
-            print("\n")
-            print(f"self.all_ordered_ground_centers_2D: {self.grouped_ordered_ground_centers_2D}")
-            print("\n")
-            print(f"self.goal_parking_spot: {self.goal_parking_spot}")
-            print("\n")
-            print(f"self.parking_obstacles_pose: {self.parking_obstacles_poses}")
-            print("\n")
-            print(f"self.parking_obstacles_dims: {self.parking_obstacles_dims}")
-            print("\n")
+            self.goal_parking_spot = closest_point_to_origin(goal_parking_spots)
+        elif len(goal_parking_spots) == 1:
+            self.goal_parking_spot = goal_parking_spots[0]
+        else:
+            self.goal_parking_spot = None
+            return None
         
         # Constructing parking obstacles
         current_time = self.vehicle_interface.time()
-        obstacle_id = 0
+        obstacle_id = 30
         parking_obstacles = {}
         for o_pose, o_dim in zip(self.parking_obstacles_poses, self.parking_obstacles_dims):
             x, y, z, yaw = o_pose

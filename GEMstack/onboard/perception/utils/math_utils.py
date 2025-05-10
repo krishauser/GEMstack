@@ -10,10 +10,8 @@ def group_points_by_multiple_of_k(points, k):
 
 def closest_point_to_origin(points):
     if not points:
-        return None  # Return None if the list is empty
-
+        return None
     points_array = np.array(points)
-    distances = np.linalg.norm(points_array, axis=1)  # Compute Euclidean distances
-    min_index = np.argmin(distances)  # Index of the closest point
-
+    distances = np.linalg.norm(points_array, axis=1)
+    min_index = np.argmin(distances)
     return tuple(points_array[min_index])

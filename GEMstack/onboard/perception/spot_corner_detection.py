@@ -7,7 +7,7 @@ from cv_bridge import CvBridge
 from ..component import Component
 from ..interface.gem import GEMInterface
 from ...state import VehicleState, Obstacle, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum
-from sensor_msgs.msg import Image, PointCloud2
+from sensor_msgs.msg import Image
 from .utils.constants import *
 from .utils.detection_utils import *
 from .utils.visualization_utils import *
@@ -35,7 +35,6 @@ class CornerDetector3D(Component):
 
         # Publishers
         self.pub_detection_fr = rospy.Publisher("/parking_spot_detection/annotated_image/front_right", Image, queue_size=1)
-        self.pub_detection_corners_pc2 = rospy.Publisher("/parking_spot_detectio/corners/point_cloud", PointCloud2, queue_size=10)
 
     # Main sensors callback
     def callback(self, right_cam_msg):
@@ -134,14 +133,9 @@ class CornerDetector3D(Component):
             for approx in approxes:
                 cv2.polylines(image, [approx], isClosed=True, color=(0, 255, 0), thickness=5)
 
-        # Draw 3D corners
-        # ros_detection_corners_pc2 = create_point_cloud(np.array(corners_3d_vehicle_frame).reshape(-1, 3), LIDAR_PC_COLOR, VEHICLE_FRAME)
-        # self.pub_detection_corners_pc2.publish(ros_detection_corners_pc2)
-
         # Publish the annotated
         right_cam_annotated_ros_img = self.bridge.cv2_to_imgmsg(image, 'bgr8')
         self.pub_detection_fr.publish(right_cam_annotated_ros_img)
-
 
 
     def spin(self):
