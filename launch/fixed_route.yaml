@@ -23,6 +23,7 @@ drive:
             # args: [!relative_path '../GEMstack/knowledge/routes/backward_15m.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/forward_curve.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/backward_curve.csv']
+            # args: [!relative_path '../GEMstack/knowledge/routes/yamada.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_oval.csv']
 
         motion_planning:
@@ -31,8 +32,8 @@ drive:
         trajectory_tracking:
             # type: pure_pursuit.PurePursuitTrajectoryTracker
             type: stanley.StanleyTrajectoryTracker
-            args: {desired_speed: 2.5}  #approximately 5mph
-            print: False
+            args: {desired_speed: 5.0}  #approximately 5mph
+            print: True
             # type: mpc.MPCTrajectoryTracker
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'

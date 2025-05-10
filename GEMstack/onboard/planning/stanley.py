@@ -71,6 +71,7 @@ class Stanley(object):
         self.current_traj_parameter = 0.0
         self.t_last = None
         self.reverse = None
+        self.sharp_turn = False
 
     def set_path(self, path: Path):
         if path == self.path_arg:
@@ -145,6 +146,62 @@ class Stanley(object):
         dot_product = vec_x * heading_x + vec_y * heading_y
         return (dot_product < 0)
 
+    def _check_sharp_turn_ahead(self, lookahead_s=3.0, threshold_angle=np.pi/2.0, num_steps=4):
+        if not self.path:
+            return False
+
+        path = self.path
+        current_s = self.current_path_parameter
+        domain_start, domain_end = path.domain()
+
+        if current_s >= domain_end - 1e-3:
+            return False
+
+        step_s = lookahead_s / num_steps
+        s_prev = current_s
+        
+        try:
+            tangent_prev = path.eval_tangent(s_prev)
+            if np.linalg.norm(tangent_prev) < 1e-6:
+                s_prev_adjusted = min(s_prev + step_s / 2, domain_end)
+                if s_prev_adjusted <= s_prev:
+                    return False
+                tangent_prev = path.eval_tangent(s_prev_adjusted)
+                if np.linalg.norm(tangent_prev) < 1e-6:
+                    return False
+                s_prev = s_prev_adjusted
+                
+            angle_prev = atan2(tangent_prev[1], tangent_prev[0])
+
+        except Exception as e:
+            return False
+
+        for i in range(num_steps):
+            s_next = s_prev + step_s
+            s_next = min(s_next, domain_end)
+
+            if s_next <= s_prev + 1e-6:
+                break
+
+            try:
+                tangent_next = path.eval_tangent(s_next)
+                if np.linalg.norm(tangent_next) < 1e-6:
+                    s_prev = s_next
+                    continue 
+
+                angle_next = atan2(tangent_next[1], tangent_next[0])
+            except Exception as e:
+                break
+
+            angle_change = abs(normalise_angle(angle_next - angle_prev))
+
+            if angle_change > threshold_angle:
+                return True
+
+            angle_prev = angle_next
+            s_prev = s_next
+        return False
+
     def compute(self, state: VehicleState, component: Component = None):
         t = state.pose.t
         if self.t_last is None:
@@ -183,7 +240,7 @@ class Stanley(object):
             fx, fy = self._find_rear_axle_position(curr_x, curr_y, curr_yaw)
         else:
             fx, fy = self._find_front_axle_position(curr_x, curr_y, curr_yaw)
-        search_start = self.current_path_parameter - 0.0
+        search_start = self.current_path_parameter
         search_end   = self.current_path_parameter + 5.0
         closest_dist, closest_parameter = self.path.closest_point_local((fx, fy), [search_start, search_end])
         self.current_path_parameter = closest_parameter
@@ -195,12 +252,17 @@ class Stanley(object):
         dx = fx - target_x
         dy = fy - target_y
 
+        is_sharp_turn_ahead = self._check_sharp_turn_ahead(
+            lookahead_s=2.0,     
+            threshold_angle=np.pi/2.0
+        )
+        if is_sharp_turn_ahead and not self.sharp_turn:
+            self.sharp_turn = True
         use_reverse = self.is_target_behind_vehicle(state.pose, (target_x, target_y))
-        if use_reverse:
+        if use_reverse and self.sharp_turn and not self.reverse:
             self.reverse = True
-        else:
-            self.reverse = False
-
+            self.sharp_turn = False
+        
         if self.reverse:
             cross_track_error = dx * (-tangent[1]) + dy * tangent[0]
             self.k += self.k
