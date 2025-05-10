@@ -8,7 +8,15 @@ import PauseIcon from "@mui/icons-material/Pause";
 import SpeedIcon from "@mui/icons-material/Speed";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-export const Scrubber2 = ({ duration, startTime, loading }: { duration: number, startTime: number, loading: boolean }) => {
+export const Scrubber2 = ({
+    duration,
+    startTime,
+    loading,
+}: {
+    duration: number;
+    startTime: number;
+    loading: boolean;
+}) => {
     const {
         setStartTime,
         currentTime,
@@ -38,10 +46,10 @@ export const Scrubber2 = ({ duration, startTime, loading }: { duration: number, 
     };
     const handleSliderChangeCommitted = () => {
         setIsDragging(false);
-    }
+    };
     const togglePlay = () => {
         setIsPlaying((prev: boolean) => !prev);
-    }
+    };
     const restart = () => {
         setCurrentTime(0);
     };
@@ -59,7 +67,7 @@ export const Scrubber2 = ({ duration, startTime, loading }: { duration: number, 
         if (!isPlaying) return;
         const interval = setInterval(() => {
             setCurrentTime((prev: number) =>
-                Math.min(prev + selectedSpeed * frameRate / 1000, duration)
+                Math.min(prev + (selectedSpeed * frameRate) / 1000, duration)
             );
         }, 1000 / frameRate);
         return () => clearInterval(interval);

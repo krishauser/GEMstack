@@ -3,14 +3,20 @@
 import React, { useState } from "react";
 import { VideoPanel } from "./VideoPanel";
 import { PointCloudPanel } from "./PointCloudPanel";
-import { Button, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
+import {
+    Button,
+    Menu,
+    MenuItem,
+    ListItemIcon,
+    ListItemText,
+} from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
-import HorizontalSplitIcon from '@mui/icons-material/HorizontalSplit';
-import VerticalSplitIcon from '@mui/icons-material/VerticalSplit';
-import ImageIcon from '@mui/icons-material/Image';
-import HubIcon from '@mui/icons-material/Hub';
-import CloseIcon from '@mui/icons-material/Close';
+import HorizontalSplitIcon from "@mui/icons-material/HorizontalSplit";
+import VerticalSplitIcon from "@mui/icons-material/VerticalSplit";
+import ImageIcon from "@mui/icons-material/Image";
+import HubIcon from "@mui/icons-material/Hub";
+import CloseIcon from "@mui/icons-material/Close";
 
 type PanelNode =
     | {
@@ -175,7 +181,10 @@ function changePanelType(
 
 function getNumLeaves(node: PanelNode): number {
     if ("split" in node) {
-        return node.children.reduce((sum, child) => sum + getNumLeaves(child), 0);
+        return node.children.reduce(
+            (sum, child) => sum + getNumLeaves(child),
+            0
+        );
     }
     return 1;
 }
@@ -213,9 +222,7 @@ const PanelMenu = ({
                     <ListItemIcon>
                         <HorizontalSplitIcon fontSize="small" />
                     </ListItemIcon>
-                    <ListItemText>
-                        Split Horizontally
-                    </ListItemText>
+                    <ListItemText>Split Horizontally</ListItemText>
                 </MenuItem>
                 <MenuItem
                     onClick={() => {
@@ -226,9 +233,7 @@ const PanelMenu = ({
                     <ListItemIcon>
                         <VerticalSplitIcon fontSize="small" />
                     </ListItemIcon>
-                    <ListItemText>
-                        Split Vertically
-                    </ListItemText>
+                    <ListItemText>Split Vertically</ListItemText>
                 </MenuItem>
                 <MenuItem
                     onClick={() => {
@@ -239,9 +244,7 @@ const PanelMenu = ({
                     <ListItemIcon>
                         <ImageIcon fontSize="small" />
                     </ListItemIcon>
-                    <ListItemText>
-                        Switch to Video Panel
-                    </ListItemText>
+                    <ListItemText>Switch to Video Panel</ListItemText>
                 </MenuItem>
                 <MenuItem
                     onClick={() => {
@@ -252,9 +255,7 @@ const PanelMenu = ({
                     <ListItemIcon>
                         <HubIcon fontSize="small" />
                     </ListItemIcon>
-                    <ListItemText>
-                        Switch to PointCloud Panel
-                    </ListItemText>
+                    <ListItemText>Switch to PointCloud Panel</ListItemText>
                 </MenuItem>
                 {getNumLeaves(rootPanel) > 1 && (
                     <MenuItem
@@ -266,9 +267,7 @@ const PanelMenu = ({
                         <ListItemIcon>
                             <CloseIcon fontSize="small" />
                         </ListItemIcon>
-                        <ListItemText>
-                            Close Panel
-                        </ListItemText>
+                        <ListItemText>Close Panel</ListItemText>
                     </MenuItem>
                 )}
             </Menu>

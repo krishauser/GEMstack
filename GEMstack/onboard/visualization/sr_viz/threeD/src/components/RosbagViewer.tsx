@@ -49,7 +49,7 @@ export default function RosbagViewer() {
     ) => {
         const file = event.target.files?.[0];
         if (!file) return;
-        
+
         setMessageMap({
             video: [],
             pointcloud: [],
@@ -87,7 +87,13 @@ export default function RosbagViewer() {
             if (type.includes("VelodyneScan")) velodyneScanMessages.push(entry);
         }
         setLoading(false);
-        console.log("Messages parsed:", videoMessages, pointcloudMessages, tfMessages, velodyneScanMessages);
+        console.log(
+            "Messages parsed:",
+            videoMessages,
+            pointcloudMessages,
+            tfMessages,
+            velodyneScanMessages
+        );
         setMessageMap({
             video: videoMessages,
             pointcloud: pointcloudMessages,
@@ -114,7 +120,10 @@ export default function RosbagViewer() {
         }
         const videoStart = videoMessages[0]?.timestamp || 0;
         const pointcloudStart = pointcloudMessages[0]?.timestamp || 0;
-        const start = (videoStart > 0 && pointcloudStart > 0) ? Math.min(videoStart, pointcloudStart) : Math.max(videoStart, pointcloudStart);
+        const start =
+            videoStart > 0 && pointcloudStart > 0
+                ? Math.min(videoStart, pointcloudStart)
+                : Math.max(videoStart, pointcloudStart);
         setStartTime(start);
     };
 
@@ -123,32 +132,36 @@ export default function RosbagViewer() {
             <div className="flex items-center fixed bottom-5 right-0 z-50 group w-[200px] h-[48px]">
                 <div className="w-fit transform translate-x-6/7 transition-transform duration-300 group-hover:translate-x-0">
                     <Button
-                    component="label"
-                    role={undefined}
-                    variant="contained"
-                    tabIndex={-1}
-                    startIcon={<CloudUploadIcon />}
-                    sx={{
-                        // backgroundColor: "#2196f3",
-                        "&:hover": {
-                        backgroundColor: "#2196f3",
-                        },
-                        borderRadius: "9999px",
-                    }}
+                        component="label"
+                        role={undefined}
+                        variant="contained"
+                        tabIndex={-1}
+                        startIcon={<CloudUploadIcon />}
+                        sx={{
+                            // backgroundColor: "#2196f3",
+                            "&:hover": {
+                                backgroundColor: "#2196f3",
+                            },
+                            borderRadius: "9999px",
+                        }}
                     >
-                    Upload ROS Bag
-                    <VisuallyHiddenInput
-                        type="file"
-                        onChange={handleFileUpload}
-                        accept=".bag"
-                    />
+                        Upload ROS Bag
+                        <VisuallyHiddenInput
+                            type="file"
+                            onChange={handleFileUpload}
+                            accept=".bag"
+                        />
                     </Button>
                 </div>
             </div>
 
             <ScrubberProvider>
                 <PanelManager messageMap={messageMap} />
-                <Scrubber2 duration={duration} startTime={startTime} loading={loading} />
+                <Scrubber2
+                    duration={duration}
+                    startTime={startTime}
+                    loading={loading}
+                />
             </ScrubberProvider>
         </div>
     );
