@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useScrubber } from "./ScrubberContext";
+import { Switch, FormControlLabel } from "@mui/material";
 
 export function decodeImage(msg: {
     encoding: string;
@@ -124,8 +125,9 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ messages }) => {
     const { startTime, currentTime } = useScrubber();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const imageRef = useRef<HTMLImageElement | null>(null);
+    const imageRef = useRef<ImageData | null>(null);
 
+    const [enableInteraction, setEnableInteraction] = useState(false);
     const [zoom, setZoom] = useState(1);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
@@ -138,55 +140,65 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ messages }) => {
         if (!msg || !msg.data) return;
 
         const canvas = canvasRef.current;
-        const ctx = canvas?.getContext("2d", { willReadFrequently: true });
-        if (!canvas || !ctx) return;
+        const ctx = canvas?.getContext("2d");
 
         try {
             const imageData = decodeImage(msg.data);
             imageRef.current = imageData;
-            drawImage();
+
+            if (!enableInteraction) {
+                if (canvas && ctx) {
+                    canvas.width = imageData.width;
+                    canvas.height = imageData.height;
+                    ctx.putImageData(imageData, 0, 0);
+                }
+            } else {
+                drawImage();
+            }
         } catch (e) {
             console.error("Failed to decode image:", e);
         }
-    }, [messages, currentTime]);
+    }, [messages, currentTime, enableInteraction]);
 
     const drawImage = () => {
-      requestAnimationFrame(() => {
-        const canvas = canvasRef.current;
-        const ctx = canvas?.getContext("2d", { willReadFrequently: true });
-        const imageData = imageRef.current as ImageData;
-        if (!canvas || !ctx || !imageData) return;
-    
-        const { width: cw, height: ch } = canvas;
-        ctx.clearRect(0, 0, cw, ch);
-    
-        const imgAspect = imageData.width / imageData.height;
-        const canvasAspect = cw / ch;
-    
-        let drawW = imageData.width * zoom;
-        let drawH = imageData.height * zoom;
-    
-        if (imgAspect > canvasAspect) {
-          drawW = cw * zoom;
-          drawH = drawW / imgAspect;
-        } else {
-          drawH = ch * zoom;
-          drawW = drawH * imgAspect;
-        }
-    
-        const drawX = (cw - drawW) / 2 + offset.x;
-        const drawY = (ch - drawH) / 2 + offset.y;
-    
-        const offscreen = document.createElement("canvas");
-        offscreen.width = imageData.width;
-        offscreen.height = imageData.height;
-        offscreen.getContext("2d")?.putImageData(imageData, 0, 0);
-    
-        ctx.drawImage(offscreen, drawX, drawY, drawW, drawH);
-      });
+        requestAnimationFrame(() => {
+            const canvas = canvasRef.current;
+            const ctx = canvas?.getContext("2d");
+            const imageData = imageRef.current;
+            if (!canvas || !ctx || !imageData) return;
+
+            const { width: cw, height: ch } = canvas;
+            ctx.clearRect(0, 0, cw, ch);
+
+            const imgAspect = imageData.width / imageData.height;
+            const canvasAspect = cw / ch;
+
+            let drawW = imageData.width * zoom;
+            let drawH = imageData.height * zoom;
+
+            if (imgAspect > canvasAspect) {
+                drawW = cw * zoom;
+                drawH = drawW / imgAspect;
+            } else {
+                drawH = ch * zoom;
+                drawW = drawH * imgAspect;
+            }
+
+            const drawX = (cw - drawW) / 2 + offset.x;
+            const drawY = (ch - drawH) / 2 + offset.y;
+
+            const offscreen = document.createElement("canvas");
+            offscreen.width = imageData.width;
+            offscreen.height = imageData.height;
+            offscreen.getContext("2d")?.putImageData(imageData, 0, 0);
+
+            ctx.drawImage(offscreen, drawX, drawY, drawW, drawH);
+        });
     };
 
     useEffect(() => {
+        if (!enableInteraction) return;
+
         const container = containerRef.current;
         if (!container) return;
 
@@ -198,11 +210,12 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ messages }) => {
 
         container.addEventListener("wheel", handleWheel, { passive: false });
         return () => container.removeEventListener("wheel", handleWheel);
-    }, []);
+    }, [enableInteraction]);
 
     useEffect(() => {
+        if (!enableInteraction) return;
         drawImage();
-    }, [zoom, offset]);
+    }, [zoom, offset, enableInteraction]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -211,30 +224,39 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ messages }) => {
             if (container && canvas) {
                 canvas.width = container.clientWidth;
                 canvas.height = container.clientHeight;
-                drawImage();
+                if (enableInteraction) drawImage();
             }
         };
 
         window.addEventListener("resize", handleResize);
         handleResize();
         return () => window.removeEventListener("resize", handleResize);
-    }, []);
+    }, [enableInteraction]);
+
+    useEffect(() => {
+        if (!enableInteraction) {
+            setZoom(1);
+            setOffset({ x: 0, y: 0 });
+        }
+    }, [enableInteraction]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
+        if (!enableInteraction) return;
         setIsDragging(true);
         lastMouse.current = { x: e.clientX, y: e.clientY };
     };
 
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
-
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDragging) return;
+        if (!enableInteraction || !isDragging) return;
         const dx = e.clientX - lastMouse.current.x;
         const dy = e.clientY - lastMouse.current.y;
         lastMouse.current = { x: e.clientX, y: e.clientY };
         setOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+    };
+
+    const handleMouseUp = () => {
+        if (!enableInteraction) return;
+        setIsDragging(false);
     };
 
     return (
@@ -242,13 +264,46 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ messages }) => {
             ref={containerRef}
             className="relative w-full h-full overflow-hidden"
             onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
             onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
+            <div className="absolute top-2 right-20">
+                <FormControlLabel
+                    label="Drag & Zoom"
+                    control={
+                        <Switch
+                            checked={enableInteraction}
+                            onChange={(e) =>
+                                setEnableInteraction(e.target.checked)
+                            }
+                        />
+                    }
+                    sx={{
+                        backgroundColor: "white",
+                        opacity: 0.25,
+                        borderRadius: "9999px",
+                        paddingRight: "10px",
+                        "&:hover": {
+                            opacity: 0.5,
+                        },
+                    }}
+                />
+            </div>
+
             <canvas
                 ref={canvasRef}
-                className={`w-full h-full ${messages.length > 0 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ''}`}
+                className={`w-full h-full ${
+                    enableInteraction && isDragging
+                        ? "cursor-grabbing"
+                        : enableInteraction
+                        ? "cursor-grab"
+                        : ""
+                }`}
+                style={{
+                    width: "100%",
+                    height: enableInteraction ? "100%" : "auto",
+                }}
             />
         </div>
     );
