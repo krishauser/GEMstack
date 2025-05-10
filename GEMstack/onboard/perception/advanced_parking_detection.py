@@ -5,27 +5,37 @@ from typing import Dict
 from ultralytics import YOLO
 from cv_bridge import CvBridge
 from ..component import Component
-from ...state import VehicleState, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum, ObstacleStateEnum
-from sensor_msgs.msg import Image
+from ..interface.gem import GEMInterface
+from ...state import VehicleState, Obstacle, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum
+from sensor_msgs.msg import Image, PointCloud2
+from .utils.constants import *
 from .utils.detection_utils import *
+from .utils.visualization_utils import *
 
 
 class ParkingDetectorLaneBased(Component):
-    def __init__(self):
+    def __init__(
+            self, 
+            vehicle_interface: GEMInterface,
+            reduce_reflection: bool = True,
+            visualize_2d: bool = False,
+        ):
         # Initial variables
+        self.vehicle_interface = vehicle_interface
         self.bridge = CvBridge()
         self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/parking_spot.pt'
         self.model = YOLO(self.model_path)
         self.model.to('cuda')
         self.parking_spots_corners = []
-        self.reduce_reflection = True
+        self.reduce_reflection = reduce_reflection
+        self.visualization = visualize_2d
 
         # Subscribers
         self.sub_right_cam = rospy.Subscriber("/camera_fr/arena_camera_node/image_raw", Image, self.callback, queue_size=1)
 
         # Publishers
         self.pub_detection_fr = rospy.Publisher("/parking_spot_detection/annotated_image/front_right", Image, queue_size=1)
-
+        self.pub_detection_corners_pc2 = rospy.Publisher("/parking_spot_detectio/corners/point_cloud", PointCloud2, queue_size=10)
 
     # Main sensors callback
     def callback(self, right_cam_msg):
@@ -41,6 +51,7 @@ class ParkingDetectorLaneBased(Component):
         centers = []
         corners = []
         approxes = []
+        corners_3d_vehicle_frame = []
         if masks is not None:
             h_orig, w_orig = r.orig_shape
             for m in r.masks.data:
@@ -69,8 +80,22 @@ class ParkingDetectorLaneBased(Component):
                         cy = int(M['m01'] / (M['m00'] + 1e-6))
                         centers.append((cx, cy))
 
-        self.parking_spots_corners = corners
-        self.visualize(image_annotated, centers, corners, approxes)
+        # Now transform corners to 3D vehicle frame
+        if len(corners) > 0:
+            for corners_four in corners:
+                corners_four_vehicle_frame = []
+                for c in corners_four:
+                    c_vehicle_frame = fr_cam_2d_to_vehicle_3d(c)
+                    corners_four_vehicle_frame.append(c_vehicle_frame)
+                corners_3d_vehicle_frame.append(corners_four_vehicle_frame)
+
+        print(f"corners_3d_vehicle_frame: {corners_3d_vehicle_frame}")
+        # Store the parking spots corners in vehicle frame
+        self.parking_spots_corners = corners_3d_vehicle_frame
+
+        # Visualize
+        if self.visualization:
+            self.visualize(image_annotated, centers, corners, approxes, corners_3d_vehicle_frame)
  
 
     # All local helper functions
@@ -95,7 +120,7 @@ class ParkingDetectorLaneBased(Component):
         return cv_image
     
 
-    def visualize(self, image, centers, corners, approxes):
+    def visualize(self, image, centers, corners, approxes, corners_3d_vehicle_frame):
         if len(corners) > 0:
             # Draw centers as red crosses
             for (cx, cy) in centers:
@@ -110,13 +135,14 @@ class ParkingDetectorLaneBased(Component):
             for approx in approxes:
                 cv2.polylines(image, [approx], isClosed=True, color=(0, 255, 0), thickness=5)
 
+        # Draw 3D corners
+        ros_detection_corners_pc2 = create_point_cloud(np.array(corners_3d_vehicle_frame).reshape(-1, 3), LIDAR_PC_COLOR, VEHICLE_FRAME)
+        self.pub_detection_corners_pc2.publish(ros_detection_corners_pc2)
+
         # Publish the annotated
-        right_cam_bev_annotated_ros_img = self.bridge.cv2_to_imgmsg(image, 'bgr8')
-        self.pub_detection_fr.publish(right_cam_bev_annotated_ros_img)
+        right_cam_annotated_ros_img = self.bridge.cv2_to_imgmsg(image, 'bgr8')
+        self.pub_detection_fr.publish(right_cam_annotated_ros_img)
 
-
-    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
-        pass
 
 
     def spin(self):
@@ -129,13 +155,33 @@ class ParkingDetectorLaneBased(Component):
         return ['vehicle']
 
     def state_outputs(self) -> list:
-        return ['agents']
+        return ['obstacles']
 
-    def update(self, vehicle: VehicleState) -> dict:
-        # return dictionary with one key: 'agents'
-        return {'agents': {}}  # or real AgentState dict
-
-
-if __name__ == "__main__":
-    node = ParkingDetectorLaneBased()
-    node.spin()
+    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
+        # Constructing corner obstacles
+        current_time = self.vehicle_interface.time()
+        obstacle_id = 0
+        corner_obstacles = {}
+        flattened_parking_spots_corners = np.array(self.parking_spots_corners).reshape(-1, 3).tolist()
+        for c in flattened_parking_spots_corners:
+            x, y, z = c
+            obstacle_pose = ObjectPose(
+                                t=current_time,
+                                x=x,
+                                y=y,
+                                z=z,
+                                yaw=0.0,
+                                pitch=0.0,
+                                roll=0.0,
+                                frame=ObjectFrameEnum.CURRENT
+                            )
+            new_obstacle = Obstacle(
+                                pose=obstacle_pose,
+                                dimensions=CORNER_DIM,
+                                outline=None,
+                                material=ObstacleMaterialEnum.UNKNOWN,
+                                collidable=True
+                            )
+            corner_obstacles[obstacle_id] = new_obstacle
+            obstacle_id += 1
+        return corner_obstacles

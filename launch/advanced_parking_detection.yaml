@@ -13,7 +13,11 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection: advanced_parking_detection.ParkingDetectorLaneBased
+        obstacle_detection: 
+            type: advanced_parking_detection.ParkingDetectorLaneBased
+            args:
+                reduce_reflection: True
+                visualize_2d: True
         perception_normalization : StandardPerceptionNormalizer
     planning:
         _mission_planner:
@@ -45,7 +49,11 @@ variants:
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                agent_detection: advanced_parking_detection.ParkingDetectorLaneBased
+                obstacle_detection: 
+                    type: advanced_parking_detection.ParkingDetectorLaneBased
+                    args:
+                        reduce_reflection: True
+                        visualize_2d: True
                 planning:
                     _mission_planner:
                         type: parking_component.ParkingSim

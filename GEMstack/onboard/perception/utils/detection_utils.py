@@ -62,3 +62,51 @@ def is_big_parallelogram(approx, min_area=1000, length_tolerance=0.2):
         return False
     area = cv2.contourArea(approx)
     return area >= min_area
+
+
+def cvtFootInch2Meter(ft, inch=0.0):
+    return (12 * ft + inch) * 0.0254
+
+pixelFrontRightCamListXY = np.array([
+    [87,670],  # FL
+    [1625,777],  # FR
+    [260,855],  # RL
+    [1460,966],  # RR
+])
+
+worldFrontRightCamListXY = np.array([
+    [cvtFootInch2Meter(0,  35+30    -20), cvtFootInch2Meter(0, -210-170)-1.46+0.151],  # FL
+    [cvtFootInch2Meter(0, 250+30), cvtFootInch2Meter(0, 0   -10)-1.46+0.151],  # FR
+    [cvtFootInch2Meter(0,  35+30    -10),cvtFootInch2Meter(0, -170)-1.46+0.151],  # RL
+    [cvtFootInch2Meter(0, 140+30), cvtFootInch2Meter(0, 0   -5)-1.46+0.151],  # RR
+])
+
+def cvtOriginImgPixel2DToVehicleFrameMeter3D(TransMat, pixelPointXY):
+    """
+    pixelPointXY: (u, v) in original image (pixel)
+    TransMat: 3x3 perspective transform matrix (pixel -> real world meter)
+    """
+    BASE_VEHICLE_DIST = 1.10 
+    
+    point = np.array([pixelPointXY[0], pixelPointXY[1], 1.0], dtype=np.float32).reshape(3, 1)
+    
+    transformed = TransMat @ point
+    transformed /= transformed[2, 0]  
+
+    x_real = transformed[0, 0] 
+    y_real = transformed[1, 0] 
+    z_real = 0.0 
+
+    x_pc = -y_real
+    y_pc = -x_real
+    z_pc = z_real
+
+    return np.array([x_pc + BASE_VEHICLE_DIST, y_pc, z_pc], dtype=np.float32)
+
+
+def fr_cam_2d_to_vehicle_3d(fr_2d_pt):
+    TransMat = cv2.getPerspectiveTransform( np.float32(pixelFrontRightCamListXY), 
+                                            np.float32(worldFrontRightCamListXY))
+    
+    result = cvtOriginImgPixel2DToVehicleFrameMeter3D(TransMat, fr_2d_pt)
+    return result.tolist()

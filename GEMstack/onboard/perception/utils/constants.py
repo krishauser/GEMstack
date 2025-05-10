@@ -21,6 +21,7 @@ if vehicle_geometry:
 GROUND_THRESHOLD = -0.15
 NUM_CONES_PER_PARKING_SPOT = 4
 VEHICLE_FRAME = "vehicle"
+CORNER_DIM = (0.01, 0.01, 0.01)
 
 # Visualization constants
 VEHICLE_FRAME_ORIGIN = [0.0, 0.0, 0.0, 0.0]
