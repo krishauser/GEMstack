@@ -239,7 +239,7 @@ if __name__ == '__main__':
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['line_1'] = create_lane(left_back=(22.0, 1.5, 0.0), left_forward=(8.0, 1.5, 0.0),
+    roadgraph.lanes['lane_1'] = create_lane(left_back=(22.0, 1.5, 0.0), left_forward=(8.0, 1.5, 0.0),
                                             right_back=(22.0, 4.5, 0.0), right_forward=(8.0, 4.5, 0.0),
                                             left_crossable=False,
                                             right_crossable=False,
@@ -267,7 +267,7 @@ if __name__ == '__main__':
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['line_2'] = create_lane(left_back=(22.0, 12.5, 0.0), left_forward=(8.0, 12.5, 0.0),
+    roadgraph.lanes['lane_2'] = create_lane(left_back=(22.0, 12.5, 0.0), left_forward=(8.0, 12.5, 0.0),
                                             right_back=(22.0, 15.5, 0.0), right_forward=(8.0, 15.5, 0.0),
                                             left_crossable=False,
                                             right_crossable=False,
@@ -290,8 +290,14 @@ if __name__ == '__main__':
                                            )
 
     # Parking lots
-    roadgraph.regions['highbay_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
+    roadgraph.regions['lane0_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
                                                                           outline=[(30.0, 12.5), (30.0, 15), (0.0, 15), (0.0, 12.5)])
+    roadgraph.regions['lane1_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
+                                                                          outline=[(30.0, 12.5), (30.0, 15), (0.0, 15),
+                                                                                   (0.0, 12.5)])
+    roadgraph.regions['lane2_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
+                                                                          outline=[(30.0, 12.5), (30.0, 15), (0.0, 15),
+                                                                                   (0.0, 12.5)])
   
 
     with open(filename, 'w') as f:

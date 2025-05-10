@@ -118,7 +118,7 @@ class SummoningMissionPlanner(Component):
             # Test points:
             # Key points: [0, 0], [0, 30], [38.5, 8.5], [33, 14]，[27.5, 8.5]，[15, 3], [2.5, 8.5], [15, 14], [-3, 14], [-8.5, 8.5]
             # Points not in the lane:[15, -3], [15, 6], [15, 11], [15, 17]
-            goal_location = [-8.5, 8.5]
+            goal_location = [20, -3]
             goal_frame = 'start'
             # goal_location = [-88.235828, 40.092741]  # for highbay test only [-88.2358085, 40.092819]
             # goal_frame = 'global'
