@@ -36,17 +36,17 @@ class SensorReceiverSync:
     def sync_callback(self, ouster_msg, livox_msg, image_msg):
         rospy.loginfo("Received synchronized Ouster & Livox point clouds + RGB image!")
 
-        # 解析 Ouster 点云
+        # Ouster
         ouster_points = self.pointcloud2numpy(ouster_msg)
         np.save(self.ouster_file + ".npy", ouster_points)
         np.savez(self.ouster_file + ".npz", ouster_points)
 
-        # 解析 Livox 点云
+        # Livox
         livox_points = self.pointcloud2numpy(livox_msg)
         np.save(self.livox_file + ".npy", livox_points)
         np.savez(self.livox_file + ".npz", livox_points)
 
-        # 解析 RGB 图像
+        # RGB
         image = self.bridge.imgmsg_to_cv2(image_msg, desired_encoding="bgr8")
         cv2.imwrite(self.image_file + ".jpg", image)
         np.save(self.image_file + ".npy", image)
@@ -64,4 +64,4 @@ class SensorReceiverSync:
         return np.array(points_list, dtype=np.float32)
 
 if __name__ == "__main__":
-    receiver = SensorReceiverSync("data/ouster_pointcloud", "data/livox_pointcloud", "data/oak_image")
+    receiver = SensorReceiverSync("data_new/ouster_pointcloud", "data_new/livox_pointcloud", "data_new/oak_image")

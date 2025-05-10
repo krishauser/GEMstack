@@ -8,7 +8,7 @@ from cv_bridge import CvBridge
 import sensor_msgs.point_cloud2 as pc2
 import time
 
-from DistortionRemove import *
+# from DistortionRemove import *
 
 
 # canvas shape

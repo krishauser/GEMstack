@@ -86,15 +86,15 @@ def cvtPose2CarBox(carPose):
     return carBox
 
 
-def findAllCandidateParkingLot(cornerPts, angleStepDegree=10, positionStrideMeter=0.5):
+def findAllCandidateParkingLot(cornerPts, angleStepDegree=5, positionStrideMeter=0.5):
     
     cornerPts = np.array(cornerPts, dtype=np.float32)
     
     # 先得到 bounding box 范围（缩小一些，避免跑出区域）
-    min_x = np.min(cornerPts[:, 0]) + 0.5
-    max_x = np.max(cornerPts[:, 0]) - 0.5
-    min_y = np.min(cornerPts[:, 1]) + 0.5
-    max_y = np.max(cornerPts[:, 1]) - 0.5
+    min_x = np.min(cornerPts[:, 0]) + 0.0
+    max_x = np.max(cornerPts[:, 0]) - 0.0
+    min_y = np.min(cornerPts[:, 1]) + 0.0
+    max_y = np.max(cornerPts[:, 1]) - 0.0
     
     candidates = []
     
@@ -187,29 +187,40 @@ if __name__ == "__main__":
     #     [5,9],
     # ]).astype(np.float32)  # any order
     
-    cornerPts = np.random.randint(
-        low=1,
-        high=10,
-        size=(4,2)
-    ).astype(np.float32)
+    # cornerPts = np.random.randint(
+    #     low=1,
+    #     high=10,
+    #     size=(4,2)
+    # ).astype(np.float32)
     
-    cornerPts = clickPoints(
-        imgPath = os.path.join(
-            os.path.dirname(__file__),
-            r"./Pics/FrontCam.png"
-        )
-    )/100
+    # cornerPts = clickPoints(
+    #     imgPath = os.path.join(
+    #         os.path.dirname(__file__),
+    #         r"./Pics/FrontCam.png"
+    #     )
+    # )/100
     
-    print(f"\
-        cornerPts = np.array([\n\
-            [{cornerPts[0,0]},{cornerPts[0,1]}],\n\
-            [{cornerPts[1,0]},{cornerPts[1,1]}],\n\
-            [{cornerPts[2,0]},{cornerPts[2,1]}],\n\
-            [{cornerPts[3,0]},{cornerPts[3,1]}],\n\
-        ]).astype(np.float32)  # any order \
-    ")
+    # print(f"\
+    #     cornerPts = np.array([\n\
+    #         [{cornerPts[0,0]},{cornerPts[0,1]}],\n\
+    #         [{cornerPts[1,0]},{cornerPts[1,1]}],\n\
+    #         [{cornerPts[2,0]},{cornerPts[2,1]}],\n\
+    #         [{cornerPts[3,0]},{cornerPts[3,1]}],\n\
+    #     ]).astype(np.float32)  # any order \
+    # ")
+    
+    cornerPts = np.array([
+        [14.52, -3.55],
+        [11.10, -3.39],
+        [14.56, -8.41],
+        [17.82, -8.65],
+    ])
+    
     
     candidates = findAllCandidateParkingLot(cornerPts)
+    
+    
+    
     
     print(f"find {len(candidates)} candidates")
     
@@ -230,7 +241,7 @@ if __name__ == "__main__":
         best_pose = scoredCandidates[0][0]
         visualizeCandidateCarPoses(cornerPts, candidates[:5], bestPose=best_pose)
 
-    
+
 
 
 
