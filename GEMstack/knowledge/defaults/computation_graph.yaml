@@ -43,6 +43,12 @@ components:
   - route_planning:
       inputs: [vehicle, roadgraph, mission]
       outputs: route
+  - route_planning_component:
+      inputs: all
+      outputs: [ route, mission ]
+  - save_lidar_data:
+      inputs: all
+      outputs:
   - driving_logic:
       inputs: all
       outputs: intent

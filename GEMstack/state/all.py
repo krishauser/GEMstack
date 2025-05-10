@@ -23,13 +23,13 @@ class AllState(SceneState):
     agent_intents : Dict[str,AgentIntentMixture] = field(default_factory=dict)
     relations : List[EntityRelation] = field(default_factory=list)
     predicates : PredicateValues = field(default_factory=PredicateValues)
-    
+
     # planner-output state
     mission : MissionObjective = field(default_factory=MissionObjective)
     intent : VehicleIntent = field(default_factory=VehicleIntent)
     route : Optional[Route] = None
     trajectory : Optional[Trajectory] = None
-    
+
     # update times for perception items (time.time())
     vehicle_update_time : float = 0
     roadgraph_update_time : float = 0
@@ -52,7 +52,7 @@ class AllState(SceneState):
         scene_zero = SceneState.zero()
         keys = dict((k.name,getattr(scene_zero,k.name)) for k in fields(scene_zero))
         return AllState(**keys)
-    
+
     def to_frame(self, frame : ObjectFrameEnum) -> AllState:
         spose = self.start_vehicle_pose
         scene_to_frame = SceneState.to_frame(self,frame,current_pose=self.vehicle.pose,start_pose_abs=spose)
