@@ -175,3 +175,7 @@ cuda/
 #Ignore ROS bags
 *.bag
 
+*.png
+*.npz
+/4.21
+/4.30
