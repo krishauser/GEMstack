@@ -93,7 +93,7 @@ class SummoningMissionPlanner(Component):
         return ['mission_plan']
 
     def rate(self):
-        return 1.0
+        return 0.5
 
     def update(self, state: AllState):
         start_vehicle_pose = state.start_vehicle_pose
@@ -122,19 +122,14 @@ class SummoningMissionPlanner(Component):
                     goal_frame = 'global'
                     print("Goal location:", goal_location)
                     print("Goal frame:", goal_frame)
-
-        # TODO: Test only. Comment out if using the webapp.
-        if self.flag_use_webapp is False or goal_location is not None:
-            if self.mode == 'sim':
-                # scene = settings.get('simulator.scene', None)
-                goal_location = [11, 0] # scene.get('goal_location', [0.0, 0.0])  # for simulation test only
-                goal_frame = 'start'
-            elif self.mode == 'real':
-                goal_location = [-88.235828, 40.092741]  # for highbay test only [-88.2358085, 40.092819]
-                goal_frame = 'global'
-            else:
-                raise ValueError("Invalid mode argument")
-            print("[TEST]Overrided goal location:", goal_location, goal_frame, "frame")
+        else:
+            # Test points:
+            # Key points: [0, 0], [0, 30], [38.5, 8.5], [33, 14]，[27.5, 8.5]，[15, 3], [2.5, 8.5], [15, 14], [-3, 14], [-8.5, 8.5]
+            # Points not in the lane:[15, -3], [15, 6], [15, 11], [15, 17]
+            goal_location = [5, 0]
+            goal_frame = 'start'
+            # goal_location = [-88.235828, 40.092741]  # for highbay test only [-88.2358085, 40.092819]
+            # goal_frame = 'global'
 
         if self.goal_location == goal_location:
             self.new_goal = False
@@ -178,7 +173,7 @@ class SummoningMissionPlanner(Component):
             mission_plan.goal_pose = self.goal_pose
             if state.route:
                 _, closest_index = state.route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
-                if closest_index == len(state.route.points) - 1:
+                if closest_index == len(state.route.points) - 1 or check_distance(self.goal_pose, vehicle.pose) < 2.0:
                     mission_plan.planner_type = self.state_machine.next_state()
                     print("============== Next state:", mission_plan.planner_type)
 
@@ -207,6 +202,5 @@ class SummoningMissionPlanner(Component):
                 print("Status updated successfully")
             else:
                 print("Failed to update status:", response.status_code)
-
 
         return mission_plan

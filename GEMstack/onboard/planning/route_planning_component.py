@@ -17,7 +17,8 @@ from ...state import AllState, Roadgraph, Route, PlannerEnum, ObjectFrameEnum, P
 from .RRT import BiRRT
 from ...utils import serialization
 
-
+from .reeds_shepp_parking import ReedsSheppParking
+import math
 
 def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
     """
@@ -177,6 +178,7 @@ class RoutePlanningComponent(Component):
 
         # If parking route existed, not search anymore. For simulation testing only. TODO: Delete after integration
         self.parking_route_existed = False
+        self.parking_velocity_is_zero = False
 
         # Used as route searchers' time limit as well as the update rate of the component
         self.update_rate = 0.5
@@ -280,6 +282,13 @@ class RoutePlanningComponent(Component):
         elif state.mission_plan.planner_type == PlannerEnum.PARALLEL_PARKING:
             print("I am in PARALLEL_PARKING mode")
 
+            if self.parking_velocity_is_zero == False and state.vehicle.v > 0.01:
+                print("@@@@@ Vehicle is moving, stop it first.")
+                self.route = Route(frame=ObjectFrameEnum.START, points=[[state.vehicle.pose.x, state.vehicle.pose.y],[state.vehicle.pose.x, state.vehicle.pose.y]])
+                return self.route
+
+            self.parking_velocity_is_zero = True
+
             if self.parking_route_existed is False:
 
                 vehicle_pose = [state.vehicle.pose.x, state.vehicle.pose.y, state.vehicle.pose.yaw]
@@ -313,11 +322,18 @@ class RoutePlanningComponent(Component):
 
                 # TODO: Test only. Move to roadgraph or comment out
                 # Scenario 1: Start parking from [0,0], park around [12, -2.44]
-                parking_slots = [[(0.0, 0.0), (0.0, -4.88), (24.9, -4.88), (24.9, 0.0)]]
+                # parking_slots = [[(0.0, 0.0), (0.0, -4.88), (24.9, -4.88), (24.9, 0.0)]]
+                parking_slots = [[(10.0, 0.0), (10.0, -4.88), (30, -4.88), (30, 0.0)]]
                 detected_cones = [
-                    (2.69, -2.44),
-                    (22.11, -2.44)  
+                    # (2.69, -2.44),
+                    # (22.11, -2.44)  
                 ]
+                # # Scenario 2: Start parking from [15,14], park around [0, 17]
+                # parking_slots = [[(15, 14), (15, 18.88), (-15, 18.88), (-15, 14)]]
+                # detected_cones = [
+                #     # (10, 17.5),
+                #     # (-10, 17.5)  
+                # ]
 
                 # Find the closest parking slot point to the current vehicle position
                 closest_parking_slot = None
@@ -348,11 +364,16 @@ class RoutePlanningComponent(Component):
                     searcher.add_static_vertical_curb_as_obstacle = False
                     searcher.add_static_horizontal_curb_as_obstacle = False
                     searcher.static_horizontal_curb_xy_coordinates = [curb1, curb2]
-                    searcher.find_available_parking_spots_and_search_vector(detected_cones)
-                    searcher.find_collision_free_trajectory_to_park(detected_cones)
-                    self.route = Route(frame=ObjectFrameEnum.START, points=searcher.waypoints_to_go.tolist())
-                    print("Route:", self.route)
-                    self.parking_route_existed = True
+
+                    searcher.find_available_parking_spots_and_search_vector(detected_cones, vehicle_pose)
+                    searcher.find_collision_free_trajectory_to_park(detected_cones, vehicle_pose, True)
+                    if len(searcher.waypoints_to_go) > 0:
+                        self.route = Route(frame=ObjectFrameEnum.START, points=searcher.waypoints_to_go.tolist())
+                        print("Parking point:", self.route.points[-1])
+                        self.parking_route_existed = True
+                    else:
+                        print("No parking route found.")
+                        return None
                 # If there is no parking slot, stop the vehicle
                 else:
                     print("No parking slot available. Stop the vehicle.")
