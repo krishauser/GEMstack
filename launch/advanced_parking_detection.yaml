@@ -14,10 +14,16 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         obstacle_detection: 
-            type: advanced_parking_detection.ParkingDetectorLaneBased
+            type: spot_corner_detection.CornerDetector3D
             args:
                 reduce_reflection: True
                 visualize_2d: True
+        parking_detection:
+            type: parking_detection.ParkingSpotsDetector3D
+            args:
+                camera_name: front_right
+                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                visualize_3d: True
         perception_normalization : StandardPerceptionNormalizer
     planning:
         _mission_planner:
@@ -50,10 +56,16 @@ variants:
                 perception:
                     state_estimation : OmniscientStateEstimator
                 obstacle_detection: 
-                    type: advanced_parking_detection.ParkingDetectorLaneBased
+                    type: spot_corner_detection.CornerDetector3D
                     args:
                         reduce_reflection: True
                         visualize_2d: True
+                parking_detection:
+                    type: parking_detection.ParkingSpotsDetector3D
+                    args:
+                        camera_name: front_right
+                        camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                        visualize_3d: True
                 planning:
                     _mission_planner:
                         type: parking_component.ParkingSim

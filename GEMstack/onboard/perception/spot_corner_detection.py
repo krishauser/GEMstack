@@ -13,7 +13,7 @@ from .utils.detection_utils import *
 from .utils.visualization_utils import *
 
 
-class ParkingDetectorLaneBased(Component):
+class CornerDetector3D(Component):
     def __init__(
             self, 
             vehicle_interface: GEMInterface,
