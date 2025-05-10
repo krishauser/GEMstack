@@ -89,7 +89,7 @@ class Path:
         best_dist = float('inf')
         best_point = None
         for i,p in enumerate(self.points):
-            if edges and i > 0: 
+            if edges and i > 0:
                 p1 = self.points[i-1]
                 p2 = p
                 dist,u = transforms.point_segment_distance(x,p1,p2)
@@ -118,13 +118,13 @@ class Path:
         imax = int(math.floor(param_range[1]))
         if imax == len(self.points):
             imax -= 1
-        
+
         umin = param_range[0] - imin
         umax = param_range[1] - imax
         best_point = None
         for i in range(imin,imax+1):
             p = self.points[i]
-            if edges and i > 0: 
+            if edges and i > 0:
                 p1 = self.points[i-1]
                 p2 = p
                 dist,u = transforms.point_segment_distance(x,p1,p2)
@@ -154,7 +154,7 @@ class Path:
                 raise ValueError("Invalid length of values to append")
             for p,v in zip(self.points,value):
                 p.append(v)
-    
+
     def trim(self, start : float, end : float) -> Path:
         """Returns a copy of this path but trimmed to the given parameter range."""
         sind,su = self.parameter_to_index(start)
@@ -169,6 +169,7 @@ class Path:
 class Trajectory(Path):
     """A timed, piecewise linear path."""
     times : List[float]
+    velocities : Optional[List[float]] = None
 
     def domain(self) -> Tuple[float,float]:
         """Returns the time parameter domain"""
@@ -185,12 +186,12 @@ class Trajectory(Path):
         if ind >= len(self.times): return len(self.points)-2,1.0
         u = (t - self.times[ind-1])/(self.times[ind] - self.times[ind-1])
         return ind-1,u
-    
+
     def time_to_parameter(self, t : float) -> float:
         """Converts a time to a parameter."""
         ind,u = self.time_to_index(t)
         return ind+u
-    
+
     def parameter_to_time(self, u : float) -> float:
         """Converts a parameter to a time"""
         if len(self.points) < 2:
@@ -244,7 +245,7 @@ class Trajectory(Path):
         """Returns the closest point on the path to the given point.  If
         edges=False, only computes the distances to the vertices, not the
         edges.  This is slightly faster but less accurate.
-        
+
         Returns (distance, closest_time)
         """
         distance, closest_index = Path.closest_point(self,x,edges)
@@ -254,10 +255,10 @@ class Trajectory(Path):
     def closest_point_local(self, x : List[float], time_range=Tuple[float,float], edges = True) -> Tuple[float,float]:
         """Returns the closest point on the path to the given point within
         the given time range.
-        
+
         If edges=False, only computes the distances to the vertices, not the
         edges.  This is slightly faster but less accurate.
-        
+
         Returns (distance, closest_time)
         """
         param_range = [self.time_to_parameter(time_range[0]),self.time_to_parameter(time_range[1])]
@@ -265,7 +266,7 @@ class Trajectory(Path):
         distance, closest_index = Path.closest_point_local(self,x,param_range,edges)
         closest_time = self.parameter_to_time(closest_index)
         return distance, closest_time
-    
+
     def trim(self, start : float, end : float) -> Trajectory:
         """Returns a copy of this trajectory but trimmed to the given time range."""
         sind,su = self.time_to_index(start)
@@ -279,8 +280,8 @@ class Trajectory(Path):
 
 def compute_headings(path : Path, smoothed = False) -> Path:
     """Converts a 2D (x,y) path into a 3D path (x,y,heading) or a 3D
-    (x,y,z) path into a 5D path (x,y,z,heading,pitch). 
-    
+    (x,y,z) path into a 5D path (x,y,z,heading,pitch).
+
     If smoothed=True, then the path is smoothed using a spline to better
     estimate good tangent vectors.
     """

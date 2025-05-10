@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field, field
 from ..utils.serialization import register
 from enum import Enum
+from typing import List
 
 class MissionEnum(Enum):
     IDLE = 0            # not driving, no mission
@@ -9,9 +10,10 @@ class MissionEnum(Enum):
     TELEOP = 3          # manual teleop control
     RECOVERY_STOP = 4   # abnormal condition detected, must stop now
     ESTOP = 5           # estop pressed, must stop now
+    INSPECT = 6
+    INSPECT_UPLOAD = 7
 
 @dataclass
 @register
 class MissionObjective:
     type : MissionEnum = MissionEnum.IDLE
-    
