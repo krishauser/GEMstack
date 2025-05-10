@@ -1,0 +1,34 @@
+vehicle_state: [-1.0, -2.0, 0.0, 0.0, 0.0]
+
+agents:
+  cone1:
+    type: cone
+    position: [6, 9.0]
+    nominal_velocity: 0.0
+    target: [60.0, 8.0]
+    behavior: loop
+    yaw: 0
+
+  cone2:
+    type: cone
+    position: [10, 9.0]
+    nominal_velocity: 0.0
+    target: [60.0, 8.0]
+    behavior: loop
+    yaw: 0
+
+  cone3:
+    type: cone
+    position: [3, 4.0]
+    nominal_velocity: 0.0
+    target: [60.0, 8.0]
+    behavior: loop
+    yaw: 0
+
+  cone4:
+    type: cone
+    position: [7, 4.0]
+    nominal_velocity: 0.0
+    target: [60.0, 8.0]
+    behavior: loop
+    yaw: 0

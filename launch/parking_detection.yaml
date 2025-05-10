@@ -91,7 +91,7 @@ variants:
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/parking_demo.yaml'
+                    scene: !relative_path '../scenes/parking/demo_2.yaml'
             # visualization: !include "klampt_visualization.yaml"
 
             drive: 
@@ -130,7 +130,7 @@ variants:
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/parking_demo.yaml'
+                    scene: !relative_path '../scenes/parking/demo_3.yaml'
             visualization: !include "klampt_visualization.yaml"
 
             drive: 
@@ -145,10 +145,28 @@ variants:
                         type: ParkingSim
                     route_planning_component:
                         type: RoutePlanningComponent
+                        dubins: 
+                            integrator:
+                                timestep: 1
+                                dt: .25
+                                max_velocity: 0.75
+                                max_turning_rate: 0.3
+                                tolerance: 0.25
+                        astar:
+                            iterations: 5000 # We should have some sort of max iterations/timeout
+                            heuristic: reeds_shepp
+
+
                     # route_planning:
                     #     type: StaticRoutePlanner
                     #     args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
-                    motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+                    motion_planning:
+                        type: longitudinal_planning.YieldTrajectoryPlanner
+                        largs:
+                            acceleration: 1
+                            deceleration: 2
+                            desired_speed: 1
+
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         print: False

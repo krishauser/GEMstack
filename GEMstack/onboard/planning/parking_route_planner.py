@@ -220,10 +220,12 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._vehicle = None
 
         # settings
-        self.T = settings.get("planning.dubins.integrator.time_step", 1.5)
-        self.dt = settings.get("planning.dubins.integrator.time_step", .25)
-        self.max_v = settings.get("planning.dubins.actions.max_velocity", 0.75)
-        self.max_turn_rate = settings.get("planning.dubins.actions.max_turn_rate", 0.3)
+        self.T = settings.get("run.drive.planning.route_planning_component.dubins.integrator.time_step", 1.5)
+        self.dt = settings.get("run.drive.planning.route_planning_component.dubins.integrator.dt", .25)
+        self.max_v = settings.get("run.drive.planning.route_planning_component.dubins.actions.max_velocity", 0.75)
+        self.max_turn_rate = settings.get("run.drive.planning.route_planning_component.dubins.actions.max_turn_rate", 0.3)
+        self.tolerance = settings.get("run.drive.planning.route_planning_component.dubins.tolerance", 0.5)
+        self.heuristic_string = settings.get("run.drive.planning.route_planning_component.astar.heuristic", "reeds_shepp")
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
         self.vehicle_sim = DubinsCarIntegrator(self.vehicle, self.T, self.dt)
@@ -260,19 +262,24 @@ class ParkingSolverFirstOrderDubins(AStar):
         # @TODO Currently, the threshold is just a random number, get rid of magic constants
         # print(f"Current Pose: {current}")
         # print(f"Goal Pose: {goal}")
-        # if np.abs(current[3]) > 1: return False # car must be stopped, this equality will only work in simulation  
+        # if np.abs(current[3]) > 1: return False # car must be stopped, this equality will only work in simulation np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
+        # if np.abs(current[3] - goal[3]) > .25: return False 
         return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
     
     def heuristic_cost_estimate(self, state_1, state_2):
-        """computes the 'direct' distance between two (x,y) tuples"""
-        # Extract position and orientation from states
-        (x1, y1, theta1, t) = state_1
-        (x2, y2, theta2, t) = state_2
+        """run the correct heuristic function based on the heuristic_string"""
 
-        return self.reed_shepp(state_1, state_2) # Using turning radius of 1.0
-
-        return self.approx_reeds_shepp(state_1, state_2) # Using turning radius of 1.0
-        return math.hypot(x2 - x1, y2 - y1, theta2 - theta1)
+        if self.heuristic_string == "reeds_shepp":
+            return self.reed_shepp(state_1, state_2) # Using turning radius of 1.0
+    
+        elif self.heuristic_string == "approx_reeds_shepp":
+            return self.approx_reeds_shepp(state_1, state_2) # Using turning radius of 1.0
+        
+        elif self.heuristic_string == "euclidian":
+            return self.euclidian_cost_esimate(state_1, state_2)
+        
+        else:
+            raise Exception(f"Unknown heuristic function: {self.heuristic_string}")
     
     def euclidian_cost_esimate(self, state_1, state_2):
         """computes the 'direct' distance between two (x,y) tuples"""
@@ -432,7 +439,7 @@ class ParkingPlanner():
         # self.planner = ParkingSolverSecondOrderDubins()
         self.planner = ParkingSolverFirstOrderDubins()
 
-        self.iterations = settings.get("planning.astar.iterations", 200)
+        self.iterations = settings.get("run.drive.planning.route_planning_component.astar.iterations", 50000)
 
     def state_inputs(self):
         return ['all']
@@ -479,6 +486,22 @@ class ParkingPlanner():
         t = 0
 
         return (x,y,theta,t)
+    
+    def pose_to_first_order(self, pose: ObjectPose) -> Tuple[float, float]:
+        """Takes a vehicle state and outputs the state of a second order dubins car
+
+        Args:
+            vehicle_state (VehicleState): _description_
+
+        Returns:
+            Tuple[float, float]: _description_
+        """
+        x = pose.x
+        y = pose.y
+        theta = pose.yaw # check that this is correct
+        t = 0
+
+        return (x,y,theta,t)
 
     def update(self, state : AllState) -> Route:
         """_summary_
@@ -496,34 +519,36 @@ class ParkingPlanner():
         all_obstacles = {**agents, **obstacles}
         # print(f"Obstacles {obstacles}")
         print(f"Agents {agents}")
-        # goal= state.goal
-        # print(goal.frame)
-        # assert goal.frame == ObjectFrameEnum.ABSOLUTE_CARTESIAN
-        # assert goal.v == 0
-        # print(f"Goal {goal}")
-        goal_pose = ObjectPose(frame=ObjectFrameEnum.CURRENT, t=15, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0,yaw=state.mission_plan.goal_orientation)
+        goal_pose = state.goal
+        assert goal_pose.frame == ObjectFrameEnum.CURRENT
         print("Checking VALUE: ", state.start_vehicle_pose)
-        start_pose = state.vehicle.pose.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
-        start_cur = VehicleState.zero()
-        start_cur.pose = start_pose        
-        goal = VehicleState.zero()
-        goal.pose = goal_pose
-        goal.v = 0
+        print("Checking VALUE: ", state.vehicle)
+        start_state = state.vehicle.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
+        # start_pose = state.vehicle.pose.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
+        # start_cur = VehicleState.zero()
+        # start_cur.pose = start_pose              # goal.pose = goal_pose
+        # goal.v = 0  
+        print("Checking VALUE: ", start_state)
+
+
+
 
         # # Need to parse and create second order dubin car states
         # start_state = self.vehicle_state_to_dynamics(vehicle)
         # goal_state = self.vehicle_state_to_dynamics(goal)
 
         # Need to parse and create second order dubin car states
-        start_state = self.vehicle_state_to_first_order(start_cur)
-        goal_state = self.vehicle_state_to_first_order(goal)
+        start = self.vehicle_state_to_first_order(start_state)
+        # goal = self.vehicle_state_to_first_order(goal_state)
+        goal = self.pose_to_first_order(goal_pose)
 
         # Update the planner
         self.planner.obstacles = list(all_obstacles.values())
         self.planner.vehicle = vehicle
 
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=self.iterations))
+        print(f"Iteartions ------------------------------ {self.iterations}")
+        res = list(self.planner.astar(start, goal, reversePath=False, iterations=self.iterations))
         # points = [state[:2] for state in res] # change here to return the theta as well
         points = []
         for state in res:
