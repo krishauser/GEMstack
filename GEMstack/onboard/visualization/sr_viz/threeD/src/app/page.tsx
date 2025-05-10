@@ -6,13 +6,18 @@ import CanvasWrapper from "@/components/CanvasWrapper";
 import Scrubber from "@/components/Scrubber";
 import { VehicleInfoPanel } from "@/components/VehicleInfoPanel";
 import { usePlaybackTime } from "@/hooks/usePlaybackTime";
+import { useRouter } from "next/navigation";
+import Button from "@mui/material/Button";
+import PageviewIcon from "@mui/icons-material/Pageview";
 
 export default function HomePage() {
+  const router = useRouter();
   const {
     time,
     reset,
     restart,
     play,
+    setPlay,
     togglePlay,
     speed,
     setPlaybackSpeed,
@@ -34,6 +39,11 @@ export default function HomePage() {
       setSearchParams({ folder, file });
     }
   }, []);
+
+  const handleRedirect = () => {
+    setPlay(false);
+    router.replace("/rosbagViewer");
+  };
 
   return (
     <main className="relative w-screen h-screen bg-white">

@@ -57,5 +57,5 @@ export function usePlaybackTime() {
         return () => cancelAnimationFrame(rafId);
     }, [play, speed]);
 
-    return { time, reset, restart, play, togglePlay, speed, setPlaybackSpeed, moveToTime, duration, setDuration };
+    return { time, reset, restart, play, setPlay, togglePlay, speed, setPlaybackSpeed, moveToTime, duration, setDuration };
 }
