@@ -106,10 +106,10 @@ class Path:
     def closest_point_local(self, x : List[float], param_range=Tuple[float,float], edges = True) -> Tuple[float,float]:
         """Returns the closest point on the path to the given point within
         the given parameter range.
-        
+
         If edges=False, only computes the distances to the vertices, not the
         edges.  This is slightly faster but less accurate.
-        
+
         Returns (distance, closest_parameter)
         """
         best_dist = float('inf')
@@ -169,7 +169,6 @@ class Path:
 class Trajectory(Path):
     """A timed, piecewise linear path."""
     times : List[float]
-    velocities : Optional[List[float]] = None
 
     def domain(self) -> Tuple[float,float]:
         """Returns the time parameter domain"""
