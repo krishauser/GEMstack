@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ControlPanel from "@/components/ControlPanel";
 import CanvasWrapper from "@/components/CanvasWrapper";
 import Scrubber from "@/components/Scrubber";
+import { VehicleInfoPanel } from "@/components/VehicleInfoPanel";
 import { usePlaybackTime } from "@/hooks/usePlaybackTime";
 import { useRouter } from "next/navigation";
 import Button from "@mui/material/Button";
@@ -78,6 +79,7 @@ export default function HomePage() {
                 moveToTime={moveToTime}
                 duration={duration}
             />
+            <VehicleInfoPanel time={time} />
         </main>
     );
 }

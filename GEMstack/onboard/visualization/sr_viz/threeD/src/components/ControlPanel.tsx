@@ -74,9 +74,9 @@ export default function ControlPanel({
         reset();
         setFileName(file);
 
-        console.log("[✔] Timeline loaded from Flask API:", timeline);
+        console.log("Timeline loaded from Flask API:", timeline);
       } catch (err) {
-        console.error("[✘] Failed to load remote log file:", err);
+        console.error("Failed to load remote log file:", err);
       }
     };
 
@@ -118,10 +118,6 @@ export default function ControlPanel({
               <p className="mt-2 text-xs text-gray-400 truncate">
                 {fileName ? `${fileName}` : "No file loaded"}
               </p>
-            </div>
-
-            <div className="px-4 text-xs text-gray-400 border-t border-white/10 pt-4">
-              <p>🚧 Feature toggles coming soon...</p>
             </div>
           </>
         )}
