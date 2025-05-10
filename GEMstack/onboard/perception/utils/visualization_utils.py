@@ -161,6 +161,43 @@ def create_polygon_marker(vertices_2d, ref_frame="map"):
     return marker_array
 
 
+def create_polygon_markers(grouped_vertices_2d, ref_frame="map"):
+    marker_array = MarkerArray()
+
+    for idx, vertices_2d in enumerate(grouped_vertices_2d):
+        marker = Marker()
+        marker.header.frame_id = ref_frame
+        marker.header.stamp = rospy.Time.now()
+        marker.ns = "polygon"
+        marker.id = idx  # Unique ID for each polygon
+        marker.type = Marker.LINE_STRIP
+        marker.action = Marker.ADD
+
+        # Style
+        marker.scale.x = 0.1  # Line width
+
+        # Color (green)
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        marker.pose.orientation.w = 1.0
+
+        # Convert 2D vertices into geometry_msgs/Point with z=0.0
+        for vertex in vertices_2d:
+            vx, vy = vertex[0], vertex[1]
+            marker.points.append(Point(x=vx, y=vy, z=0.0))
+
+        # Close the loop by repeating the first point
+        if vertices_2d:
+            marker.points.append(Point(x=vertices_2d[0][0], y=vertices_2d[0][1], z=0.0))
+
+        marker_array.markers.append(marker)
+
+    return marker_array
+
+
 def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_WIDTH, ref_frame="map"):
     marker_array = MarkerArray()
 

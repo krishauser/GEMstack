@@ -89,7 +89,6 @@ class CornerDetector3D(Component):
                     corners_four_vehicle_frame.append(c_vehicle_frame)
                 corners_3d_vehicle_frame.append(corners_four_vehicle_frame)
 
-        print(f"corners_3d_vehicle_frame: {corners_3d_vehicle_frame}")
         # Store the parking spots corners in vehicle frame
         self.parking_spots_corners = corners_3d_vehicle_frame
 
@@ -136,8 +135,8 @@ class CornerDetector3D(Component):
                 cv2.polylines(image, [approx], isClosed=True, color=(0, 255, 0), thickness=5)
 
         # Draw 3D corners
-        ros_detection_corners_pc2 = create_point_cloud(np.array(corners_3d_vehicle_frame).reshape(-1, 3), LIDAR_PC_COLOR, VEHICLE_FRAME)
-        self.pub_detection_corners_pc2.publish(ros_detection_corners_pc2)
+        # ros_detection_corners_pc2 = create_point_cloud(np.array(corners_3d_vehicle_frame).reshape(-1, 3), LIDAR_PC_COLOR, VEHICLE_FRAME)
+        # self.pub_detection_corners_pc2.publish(ros_detection_corners_pc2)
 
         # Publish the annotated
         right_cam_annotated_ros_img = self.bridge.cv2_to_imgmsg(image, 'bgr8')
