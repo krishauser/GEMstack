@@ -45,6 +45,7 @@ def rad_to_deg(rad):
 
 
 class SaveInspectionData(Component):
+    """The component helps in saving lidar, camera and gnss data when the vehicle is in inspection mode."""
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.current_agents = {}
@@ -87,8 +88,6 @@ class SaveInspectionData(Component):
                                                 queue_size=10, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
 
-        # Set up camera intrinsics and LiDAR-to-camera transformation.
-
     def synchronized_callback(self, fr_image_msg, rr_image_msg, lidar_msg, gnss_msg):
         """
         This callback is triggered when both an image and a LiDAR message arrive within the slop.
@@ -105,6 +104,8 @@ class SaveInspectionData(Component):
             self.latest_rr_image = None
         # Convert the LiDAR message to a numpy array
         self.latest_lidar = pc2_to_numpy(lidar_msg, want_rgb=False)
+
+        # Get gnss data
         self.latitude = rad_to_deg(gnss_msg.latitude)
         self.longitude = rad_to_deg(gnss_msg.longitude)
         self.altitude = gnss_msg.height
@@ -116,8 +117,6 @@ class SaveInspectionData(Component):
         # Process only if synchronized sensor data is available
         if self.latest_fr_image is None and self.latest_rr_image is None or self.latest_lidar is None:
             return
-
-        current_time = self.vehicle_interface.time()
 
         if state.mission.type == MissionEnum.INSPECT:
             lidar_pc = self.latest_lidar.copy()
@@ -138,4 +137,5 @@ class SaveInspectionData(Component):
 
         elif state.mission.type == MissionEnum.INSPECT_UPLOAD:
             # upload lidar and camera to s3
+            # Currently this is a sync function. Can be converted into async to avoid blocking call
             push_folder_to_s3(self.folder_path, "cs588", "inspect_results")
