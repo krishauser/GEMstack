@@ -14,7 +14,7 @@ from .map_utils import world_to_grid, grid_to_world
 from .visualization import visualize_path, animate_path
 from .kinodynamic_rrt_star import OptimizedKinodynamicRRT
 def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, metadata = None,
-                                   safety_margin=50, vehicle_width=5, step_size=1.0,
+                                   safety_margin=10, vehicle_width=5, step_size=1.0,
                                    turning_radius=3.0, max_iterations=100000, bidirectional=True):
     """
         parser.add_argument("--test", action="store_true", help="run unit tests and exit")

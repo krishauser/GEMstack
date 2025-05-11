@@ -2,7 +2,7 @@ from ...mathutils.control import PID
 from ...utils import settings
 from ...mathutils import transforms
 from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
-from ...state.vehicle import VehicleState,ObjectFrameEnum
+from ...state.vehicle import VehicleGearEnum, VehicleState,ObjectFrameEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
 from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
@@ -215,6 +215,8 @@ class PurePursuitTrajectoryTracker(Component):
         steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
         #print("Desired steering angle",steering_angle)
         print("Reached",reached)
+        print("VEHUI", vehicle.gear)
+        vehicle.gear = 1
         if reached:
             print("Reached end of path")
             vehicle.brake_pedal_position = 1.0

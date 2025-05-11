@@ -5,7 +5,7 @@ from ...state import Route,ObjectFrameEnum, AllState, PlannerEnum, MissionPlan, 
 import os
 import numpy as np
 import time
-
+import math
 class ParkingSim(Component):
     def __init__(self):
         self.start_time = time.time()
@@ -36,9 +36,9 @@ class ParkingSim(Component):
             self.goal_start_pose = ObjectPose(
                 frame=ObjectFrameEnum.START,
                 t=state.start_vehicle_pose.t,
-                x=state.vehicle.pose.x + 35,
-                y=state.vehicle.pose.y,
-                yaw=state.vehicle.pose.yaw,
+                x=state.vehicle.pose.x + 30,
+                y=state.vehicle.pose.y, # -5,
+                yaw=state.vehicle.pose.yaw  #+ math.pi,
             )
         mission_plan = MissionPlan(PlannerEnum.RRT_STAR, self.goal_start_pose, state.start_vehicle_pose)
 

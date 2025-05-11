@@ -360,7 +360,6 @@ class OccupancyGrid2:
                     #     print(f"[DEBUG-NAIVE] Cluster {i} (single point) box has zero/negative area.")
 
 
-                    rects.append((rect_pt1_x, rect_pt1_y, rect_pt2_x, rect_pt2_y))    
                     if rect_pt1_x < rect_pt2_x and rect_pt1_y < rect_pt2_y:
                         # It's a rectangle with area
                         cv2.rectangle(pub_image, (rect_pt1_x, rect_pt1_y), (rect_pt2_x, rect_pt2_y), (255, 255, 255), 6)  # White
@@ -378,6 +377,8 @@ class OccupancyGrid2:
                         # This case should ideally be caught by len(cluster_points) == 1, but as a fallback for multi-point clusters collapsing to one point:
                         cv2.circle(pub_image, (rect_pt1_x, rect_pt1_y), 6, (255,255,255), -1) # Draw a filled circle
                         # print(f"[DEBUG-NAIVE] Cluster {i} collapsed to a single point, drew circle.")
+                        # rects.append((rect_pt1_x, rect_pt1_y, rect_pt2_x, rect_pt2_y))    
+
                     else:
                         print(f"[DEBUG-NAIVE] Cluster {i} BBox has zero/negative area and is not a simple line. rect_pt1_x={rect_pt1_x}, rect_pt2_x={rect_pt2_x}, rect_pt1_y={rect_pt1_y}, rect_pt2_y={rect_pt2_y}")
         
