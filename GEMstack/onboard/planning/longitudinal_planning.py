@@ -4,6 +4,7 @@ import math
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, \
     ObjectFrameEnum
+from .yield_spline_planner import QuinticHermiteSplinePlanner
 from ...utils import serialization
 from ...mathutils import transforms
 import numpy as np
@@ -473,6 +474,10 @@ class YieldTrajectoryPlanner(Component):
         self.desired_speed = 2.0
         self.deceleration = 2.0
         self.emergency_brake = 8.0
+        self.lookahead_dist = 10.0
+        self.spline_dt = 0.02
+
+        self._spline = QuinticHermiteSplinePlanner(v_des = self.desired_speed, dt=self.spline_dt)
 
     def state_inputs(self):
         return ['all']
@@ -480,6 +485,7 @@ class YieldTrajectoryPlanner(Component):
     def state_outputs(self) -> List[str]:
         return ['trajectory']
 
+    # Technically doesn't need to be specified since base class has same implementation
     def rate(self):
         return 10.0
 
@@ -515,9 +521,19 @@ class YieldTrajectoryPlanner(Component):
         self.route_progress = closest_parameter
 
         # Extract a 10 m segment of the route for planning lookahead.
-        route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
+        # route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
+
+        route_with_lookahead = route.trim(self.route_progress, self.route_progress + self.lookahead_dist)
         if DEBUG:
             print("[DEBUG] YieldTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
+
+        raw_points = [list(p) for p in route_with_lookahead.points]
+
+        #Generate spline-smoothed path
+        spline_pts, _ = self._spline.build(raw_points)
+        spline_path = Path(frame=route_with_lookahead.frame, points=spline_pts.tolist())
+
+
 
         print("[DEBUG] state", state.relations)
         # Check whether any yield relations (e.g. due to pedestrians) require braking.
@@ -547,25 +563,25 @@ class YieldTrajectoryPlanner(Component):
             print("[DEBUG] YieldTrajectoryPlanner.update: should_decelerate =", should_decelerate)
 
         if stay_braking:
-            traj = longitudinal_brake(route_with_lookahead, 0.0, 0.0, 0.0)
+            traj = longitudinal_brake(spline_path, 0.0, 0.0, 0.0)
             if DEBUG:
                 print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake (stay braking).")
         elif should_brake:
-            traj = longitudinal_brake(route_with_lookahead, self.emergency_brake, curr_v)
+            traj = longitudinal_brake(spline_path, self.emergency_brake, curr_v)
             if DEBUG:
                 print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
         elif should_decelerate:
-            traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
+            traj = longitudinal_brake(spline_path, self.deceleration, curr_v)
             if DEBUG:
                 print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
         elif should_accelerate:
-            traj = longitudinal_plan(route_with_lookahead, self.acceleration,
+            traj = longitudinal_plan(spline_path, self.acceleration,
                                      self.deceleration, self.desired_speed, curr_v)
             if DEBUG:
                 print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan (accelerate).")
         else:
             # Maintain current speed if not accelerating or braking.
-            traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
+            traj = longitudinal_plan(spline_path, 0.0, self.deceleration, self.desired_speed, curr_v)
             if DEBUG:
                 print(
                     "[DEBUG] YieldTrajectoryPlanner.update: Maintaining current speed with longitudinal_plan (0 accel).")
