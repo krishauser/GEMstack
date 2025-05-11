@@ -12,7 +12,7 @@ from .rrt_star import RRTStar
 from .parking_route_planner import ParkingPlanner
 from .parking_scanning import StraightLineMotion
 from .longitudinal_planning import longitudinal_plan
-
+import time
 
 
 class RoutePlanningComponent(Component):
@@ -65,6 +65,8 @@ class RoutePlanningComponent(Component):
             desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
                               (state.vehicle.pose.x, state.vehicle.pose.y)]
             desired_path = Path(state.vehicle.pose.frame, desired_points)
+            
+            desired_path = desired_path.to_frame(state.vehicle.pose.frame, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
 
             self.compute_parking_route = True
 
@@ -75,9 +77,14 @@ class RoutePlanningComponent(Component):
             if not self.already_computed:
                 self.planner = ParkingPlanner()
                 self.done_computing = True
+                time_before = time.time()
                 self.route = self.planner.update(state)
+                time_after = time.time()
+                print("COMPUTE TIME:", time_after - time_before)
+                self.route = self.route.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
                 self.planner.visualize_trajectory(self.route)
                 self.already_computed = True
+
             return self.route
         elif state.mission_plan.planner_type.name == "RRT_STAR":
             print("I am in RRT mode")
@@ -93,9 +100,10 @@ class RoutePlanningComponent(Component):
             print("I am in SCANNING mode")
             desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
                               (state.vehicle.pose.x + 1, state.vehicle.pose.y)]
-            desired_path = Path(state.vehicle.pose.frame, desired_points)
+            desired_path = Path(ObjectFrameEnum.CURRENT, desired_points)
             
             # @TODO these are constants we need to get from settings
+            desired_path = desired_path.to_frame(state.vehicle.pose.frame, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
             return desired_path
             # self.planner.update_speed()
 

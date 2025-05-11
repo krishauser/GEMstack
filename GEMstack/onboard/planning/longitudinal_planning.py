@@ -4,7 +4,7 @@ import math
 from ..component import Component
 from ...state import AllState, VehicleState, EntityRelation, EntityRelationEnum, Path, Trajectory, Route, \
     ObjectFrameEnum
-from ...utils import serialization
+from ...utils import serialization, settings
 from ...mathutils import transforms
 import numpy as np
 
@@ -378,10 +378,10 @@ class YieldTrajectoryPlanner(Component):
     def __init__(self):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 5
-        self.desired_speed = 2.0
-        self.deceleration = 2.0
-        self.emergency_brake = 8.0
+        self.acceleration = settings.get("run.drive.planning.motion_planning.largs.acceleration", 5)
+        self.desired_speed = settings.get("run.drive.planning.motion_planning.largs.desired_speed",2.0)
+        self.deceleration = settings.get("run.drive.planning.motion_planning.largs.deceleration", 2.0)
+        self.emergency_brake = settings.get("run.drive.planning.motion_planning.largs.emergency_brake", 8.0)
 
     def state_inputs(self):
         return ['all']

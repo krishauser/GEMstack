@@ -3,7 +3,7 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2
 from typing import Dict
 from ..component import Component 
-from ...state import AgentState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum
+from ...state import AgentState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, VehicleState, AllState
 from ..interface.gem import GEMInterface
 from .utils.detection_utils import *
 from .utils.parking_utils import *
@@ -135,12 +135,8 @@ class ParkingSpotsDetector3D(Component):
             cone_pts_3D.append(cone_pt_3D)
 
         # Detect parking spot
-        if len(cone_pts_3D) == 4:
+        if len(cone_pts_3D) >= 4:
             goal_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D = detect_parking_spot(cone_pts_3D)
-        elif len(cone_pts_3D) > 4 and len(cone_pts_3D) % 2 == 0:
-            ordered_centroids = sorted(cone_pts_3D, key=lambda x: (x[0]))
-            ordered_centroids = [ordered_centroids[i] for i in [0, 1, 2, 4]]
-            goal_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D = detect_parking_spot(ordered_centroids)
         # Update local variables for visualization
         self.cone_pts_3D = cone_pts_3D
         self.ordered_cone_ground_centers_2D = ordered_cone_ground_centers_2D
@@ -166,7 +162,7 @@ class ParkingSpotsDetector3D(Component):
                                 yaw=yaw,
                                 pitch=0.0,
                                 roll=0.0,
-                                frame=ObjectFrameEnum.CURRENT
+                                frame=ObjectFrameEnum.START
                             )
             new_obstacle = Obstacle(
                                 pose=obstacle_pose,
@@ -192,5 +188,80 @@ class ParkingSpotsDetector3D(Component):
                         frame=ObjectFrameEnum.CURRENT
                     )
         
+        new_state = [goal_pose, parking_obstacles]
+        return new_state
+    
+
+class FakeParkingSpaceDetector(Component):
+    def __init__(self, vehicle_interface: GEMInterface):
+        self.vehicle_interface = vehicle_interface
+        
+        # Hard-coded goal position for the parking spot
+        self.goal_parking_spot = (8.0, 20.0, 0.0)  # (x, y, yaw)
+
+        # Hard-coded obstacles blocking the side paths only (not the mouth of the parking)
+        self.parking_obstacles_pose = [
+            (6.0, 18.0, 0.0, 0.0),  # Left obstacle (x, y, z, yaw)
+            (10.0, 18.0, 0.0, 0.0)  # Right obstacle (x, y, z, yaw)
+        ]
+
+        # Obstacle dimensions (width, length, height)
+        self.parking_obstacles_dim = [
+            [0.5, 0.5, 1.0],
+            [0.5, 0.5, 1.0]
+        ]
+
+    def rate(self):
+        return 4.0
+
+    def state_inputs(self):
+        return ['agents']
+
+    def state_outputs(self):
+        return ['goal', 'obstacles']
+
+    def update(self, state: AllState):
+        # Current timestamp
+        current_time = self.vehicle_interface.time()
+
+        # Constructing goal pose
+        x, y, yaw = self.goal_parking_spot
+        goal_pose = ObjectPose(
+            t=current_time,
+            x=x,
+            y=y,
+            z=0.0,
+            yaw=yaw,
+            pitch=0.0,
+            roll=0.0,
+            frame=ObjectFrameEnum.CURRENT
+        )
+
+        # Constructing obstacles for only the two side walls
+        obstacle_id = 0
+        parking_obstacles = {}
+        for o_pose, o_dim in zip(self.parking_obstacles_pose, self.parking_obstacles_dim):
+            x, y, z, yaw = o_pose
+            obstacle_pose = ObjectPose(
+                t=current_time,
+                x=x,
+                y=y,
+                z=z,
+                yaw=yaw,
+                pitch=0.0,
+                roll=0.0,
+                frame=ObjectFrameEnum.START
+            )
+            new_obstacle = Obstacle(
+                pose=obstacle_pose,
+                dimensions=o_dim,
+                outline=None,
+                material=ObstacleMaterialEnum.BARRIER,
+                collidable=True
+            )
+            parking_obstacles[f"parking_obstacle_{obstacle_id}"] = new_obstacle
+            obstacle_id += 1
+
+        # Returning the hard-coded goal and obstacles
         new_state = [goal_pose, parking_obstacles]
         return new_state
