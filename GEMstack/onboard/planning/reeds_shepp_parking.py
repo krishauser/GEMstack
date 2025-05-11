@@ -5,13 +5,15 @@ import reeds_shepp
 from shapely.geometry import Polygon
 from typing import List, Tuple
 import math
+import yaml
+
 
 Pose   = Tuple[float, float, float]         # (x, y, yaw)
 Dims   = Tuple[float, float]                # (width, length)
 Obstacle = Tuple[float, float, float, Dims] # (x, y, yaw, (width, length))
 
 class ReedsSheppParking:
-    def __init__(self, vehicle_pose = (0.0, 0.0, 0.0), vehicle_dims = (1.7, 3.2), compact_parking_spot_size = (2.44, 4.88),
+    def __init__(self, vehicle_pose = None, vehicle_dims = (1.7, 3.2), compact_parking_spot_size = None,
                  shift_from_center_to_rear_axis = 1.25, search_step_size = 0.1, closest = False, parking_lot_axis_shift_margin = 2.44,
                  search_bound_threshold = 0.5,
                  vehicle_turning_radius = 3.657,
@@ -29,35 +31,38 @@ class ReedsSheppParking:
         self.detected_cones = detected_cones
         self.parked_cars = []
         self.objects_to_avoid_collisions = []
+        
+        yaml_path = "GEMstack/knowledge/defaults/ReedsShepp_param.yaml"
+        with open(yaml_path,'r') as file:
+            params = yaml.safe_load(file)
+            
+            
 
-        self.static_horizontal_curb_xy_coordinates = static_horizontal_curb_xy_coordinates
-        self.static_horizontal_curb_size  = static_horizontal_curb_size
-        self.add_static_vertical_curb_as_obstacle = add_static_vertical_curb_as_obstacle
+        self.static_horizontal_curb_xy_coordinates = None
+        self.static_horizontal_curb_size  = params['reeds_shepp_parking']['static_horizontal_curb_size']
+        self.add_static_vertical_curb_as_obstacle = params['reeds_shepp_parking']['add_static_vertical_curb_as_obstacle']
 
-        self.static_vertical_curb_size = static_vertical_curb_size
-        self.static_vertical_curb_xy_coordinates = static_vertical_curb_xy_coordinates
-        self.add_static_horizontal_curb_as_obstacle = add_static_horizontal_curb_as_obstacle
+        self.static_vertical_curb_size = params['reeds_shepp_parking']['static_vertical_curb_size']
+        self.static_vertical_curb_xy_coordinates = []
+        self.add_static_horizontal_curb_as_obstacle = params['reeds_shepp_parking']['add_static_horizontal_curb_as_obstacle']
 
-        self.all_parking_spots_in_parking_lot_var  = all_parking_spots_in_parking_lot
+        self.all_parking_spots_in_parking_lot_var  = []
 
-        self.vehicle_pose = vehicle_pose
+        self.vehicle_pose = [0,0,0] # default
         self.x_axis_of_search = self.vehicle_pose[0]
         
 
-        self.vehicle_dims = vehicle_dims 
-        self.compact_parking_spot_size = compact_parking_spot_size   # US Compact Space for parking (2.44, 4.88)
-        self.shift_from_center_to_rear_axis = shift_from_center_to_rear_axis # TODO: Check
-        self.search_step_size = search_step_size
-        self.parking_lot_axis_shift_margin = parking_lot_axis_shift_margin  
-        self.search_bound_threshold = search_bound_threshold
+        self.vehicle_dims = params['vehicle']['vehicle_dim']
+        self.vehicle_turning_radius = params['vehicle']['vehicle_turning_radius']
+        self.compact_parking_spot_size = params['reeds_shepp_parking']['compact_parking_spot_size']
+        self.shift_from_center_to_rear_axis = params['reeds_shepp_parking']['shift_from_center_to_rear_axis'] # TODO: Check
+        self.search_step_size = params['reeds_shepp_parking']['search_step_size'] 
+        self.parking_lot_axis_shift_margin = params['reeds_shepp_parking']['parking_lot_axis_shift_margin'] 
+        self.search_bound_threshold = params['reeds_shepp_parking']['search_bound_threshold'] 
         # TODO: Add thrid option: park in the middle
-        self.closest = closest # If True, the closest parking spot will be selected, otherwise the farthest one will be selected
-        self.vehicle_turning_radius = vehicle_turning_radius
-        self.clearance_step = clearance_step
+        self.closest = params['reeds_shepp_parking']['closest']  # If True, the closest parking spot will be selected, otherwise the farthest one will be selected
+        self.clearance_step = params['reeds_shepp_parking']['clearance_step'] 
         self.search_axis_direction_var = False
-
-
-         
 
     
 
