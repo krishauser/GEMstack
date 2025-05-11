@@ -186,7 +186,7 @@ class ParkingSpotsDetector3D(Component):
         
         # Constructing parking obstacles
         current_time = self.vehicle_interface.time()
-        obstacle_id = 30
+        obstacle_id = PARKING_OBSTACLE_START_ID
         parking_obstacles = {}
         for o_pose, o_dim in zip(self.parking_obstacles_poses, self.parking_obstacles_dims):
             x, y, z, yaw = o_pose
