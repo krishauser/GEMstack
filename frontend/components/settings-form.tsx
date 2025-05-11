@@ -5,15 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import {
-  Bell,
-  Bluetooth,
-  Wifi,
-  Shield,
-  Zap,
-  ChevronRight,
-  User,
-} from "lucide-react";
+import { Bell, Wifi, Shield, Zap, ChevronRight, User } from "lucide-react";
 
 export function SettingsForm() {
   const [notifications, setNotifications] = useState(true);
