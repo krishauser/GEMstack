@@ -12,7 +12,7 @@ from .rrt_star import RRTStar
 from .parking_route_planner import ParkingPlanner
 from .parking_scanning import StraightLineMotion
 from .longitudinal_planning import longitudinal_plan
-
+import time
 
 
 class RoutePlanningComponent(Component):
@@ -77,7 +77,10 @@ class RoutePlanningComponent(Component):
             if not self.already_computed:
                 self.planner = ParkingPlanner()
                 self.done_computing = True
+                time_before = time.time()
                 self.route = self.planner.update(state)
+                time_after = time.time()
+                print("COMPUTE TIME:", time_after - time_before)
                 self.route = self.route.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
                 self.planner.visualize_trajectory(self.route)
                 self.already_computed = True

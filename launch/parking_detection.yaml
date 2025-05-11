@@ -32,11 +32,18 @@ drive: # Full pipeline on board
     planning:
         parking_component:
             type: ParkingSim
-    #     route_planning_component:
-    #         type: RoutePlanningComponent
-    # trajectory_tracking:
-    #         type: pure_pursuit.PurePursuitTrajectoryTracker
-    #         print: False
+        route_planning_component:
+            type: RoutePlanningComponent
+        motion_planning:
+            type: longitudinal_planning.YieldTrajectoryPlanner
+            # type: yield_spline_planner.SplinePlanner
+            largs:
+                acceleration: 1
+                deceleration: 2
+                desired_speed: 1
+        trajectory_tracking:
+                type: pure_pursuit.PurePursuitTrajectoryTracker
+                print: False
 #usually can keep this constant
 computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
 
@@ -153,7 +160,7 @@ variants:
                                 max_turning_rate: 0.3
                                 tolerance: 0.25
                         astar:
-                            iterations: 5000 # We should have some sort of max iterations/timeout
+                            iterations: 10000 # We should have some sort of max iterations/timeout
                             heuristic: reeds_shepp
 
 
@@ -162,6 +169,7 @@ variants:
                     #     args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
                     motion_planning:
                         type: longitudinal_planning.YieldTrajectoryPlanner
+                        # type: yield_spline_planner.SplinePlanner
                         largs:
                             acceleration: 1
                             deceleration: 2
