@@ -230,7 +230,13 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
             ratio = s / s_accel if s_accel > 0 else 1.0
             v = current_speed + (v_target - current_speed) * scurve(ratio) # applying Scurve for acceleration
 
-            t_point = (v - current_speed) / acceleration
+            #t_point = (v - current_speed) / acceleration
+            #account t_point for the nonlinear V
+            ds = s - prev_s
+            dt = ds / v
+            t += dt
+            t_point = t
+
 
             if DEBUG:
                 print(f"[DEBUG] Acceleration Phase: s = {s:.2f}, v = {v:.2f}, t = {t_point:.2f}")
