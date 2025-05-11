@@ -9,7 +9,7 @@ import math
 
 class MPCController(object):
     """Model Predictive Controller for trajectory tracking."""
-    def __init__(self, T=None, dt=None):
+    def __init__(self, T=None, dt=None, desired_speed=None):
         self.T = T if T is not None else settings.get('control.mpc.horizon', 30)
         self.dt = dt if dt is not None else settings.get('control.mpc.dt', 0.2)
         self.L = settings.get('vehicle.geometry.wheelbase')
@@ -18,7 +18,13 @@ class MPCController(object):
         self.delta_rate_bounds = [-0.4, 0.4] # Predefined front wheel rate limit to simplify computation
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         self.a_bounds = [-settings.get('vehicle.limits.max_deceleration'), settings.get('vehicle.limits.max_acceleration')]
-        self.trajectory = None 
+        
+        if desired_speed is not None:
+            self.desired_speed_source = desired_speed
+        else:
+            self.desired_speed_source = settings.get('control.pure_pursuit.desired_speed',"path") 
+        self.desired_speed = self.desired_speed_source if isinstance(self.desired_speed_source,(int,float)) else None
+        
         self.prev_x = None  # Previous state trajectory
         self.prev_u = None  # Previous control inputs
         self.path = None
@@ -32,17 +38,43 @@ class MPCController(object):
         self.iter = 0
         if len(path.points[0]) > 2:
             path = path.get_dims([0,1])
-        self.path = path.arc_length_parameterize(1.0)
-        # self.path = path.arc_length_parameterize(0.5)
         self.current_path_parameter = 0.0
         # self.prev_u = None
         # self.prev_x = None
         if not isinstance(path,Trajectory):
-            self.trajectory = None
+            if self.desired_speed_source in ['path', 'trajectory']:
+                print("rase")
+                raise ValueError("MPC: Provided path has no timing. Either provide a Trajectory or set a constant desired_speed.")
+            self.path = path.arc_length_parameterize(self.desired_speed)
             self.current_traj_parameter = 0.0
         else:
-            self.trajectory = path
-            self.current_traj_parameter = self.trajectory.domain()[0]
+            self.path = path
+            self.current_traj_parameter = self.path.domain()[0]
+    
+    def clip_reverse_path_with_times(self, points, times):
+        def angle_between(p1, p2):
+            delta = p2 - p1
+            return np.arctan2(delta[1], delta[0])
+
+        points = np.array(points)
+        times = np.array(times)
+
+        if len(points) < 3:
+            return points, times
+
+        ref_angle = angle_between(points[0], points[1])
+        clipped_points = [points[0]]
+        clipped_times = [times[0]]
+
+        for i in range(1, len(points)):
+            angle = angle_between(points[i-1], points[i])
+            angle_diff = np.abs((angle - ref_angle + np.pi) % (2 * np.pi) - np.pi)
+            if angle_diff > np.pi / 2:
+                break
+            clipped_points.append(points[i])
+            clipped_times.append(times[i])
+
+        return np.array(clipped_points), np.array(clipped_times)
 
     def compute(self, state: VehicleState, component: Component = None):
         """Compute the control commands using MPC."""
@@ -55,18 +87,11 @@ class MPCController(object):
             if self.path.frame != state.pose.frame:
                 print("Transforming trajectory from",self.path.frame.name,"to",state.pose.frame.name)
                 self.path = self.path.to_frame(state.pose.frame, current_pose=state.pose)
-
-        if self.trajectory is not None:
-            if self.trajectory.frame != state.pose.frame:
-                print("Transforming trajectory from",self.trajectory.frame.name,"to",state.pose.frame.name)
-                self.trajectory = self.trajectory.to_frame(state.pose.frame, current_pose=state.pose)
         
         x0 = np.array([state.pose.x, state.pose.y, state.pose.yaw % (2 * np.pi), state.v, state.front_wheel_angle])
-
         # print(x0)
 
-        closest_dist,closest_time = self.path.closest_point_local((x0[0], x0[1]),[self.current_traj_parameter-7.0,self.current_traj_parameter+7.0], True)
-        # Interpolate trajectory points to match MPC time horizon
+        closest_dist,closest_time = self.path.closest_point_local((x0[0], x0[1]),[self.current_traj_parameter-0.0,self.current_traj_parameter+1.0], True)
         self.current_traj_parameter = closest_time
 
         times = self.path.times
@@ -75,24 +100,28 @@ class MPCController(object):
         while j < len(times) - 1 and times[j+1] < closest_time:
             j += 1
         self.current_path_parameter = j
-        # print("closest_index: ", self.current_path_parameter)
-        # print("vehicle position: ", x0[0], x0[1])
-        # print("closest_point: ", points[int(self.current_path_parameter)])
-        # print("closest_time: ", closest_time)
-        # print("local points: ", points[j-5:j+5])
 
+        # Slice path from j
+        sliced_points = points[j:]
+        sliced_times = times[j:]
+
+        # Clip reversed part
+        new_points, new_times = self.clip_reverse_path_with_times(sliced_points, sliced_times)
+
+        # Interpolate trajectory points to match MPC time horizon
         traj_points = []
+        j = 0
         for i in range(self.T + 1):
             t_query = closest_time + i * self.dt
-            if t_query <= times[0]:
-                traj_points.append(points[0])
-            elif t_query >= times[-1]:
-                traj_points.append(points[-1])
+            if t_query <= new_times[0]:
+                traj_points.append(new_points[0])
+            elif t_query >= new_times[-1]:
+                traj_points.append(new_points[-1])
             else:
-                while j < len(times) - 2 and times[j+1] < t_query:
+                while j < len(new_times) - 2 and new_times[j+1] < t_query:
                     j += 1
-                alpha = (t_query - times[j]) / (times[j+1] - times[j])
-                pt = (1 - alpha) * np.array(points[j]) + alpha * np.array(points[j+1])
+                alpha = (t_query - new_times[j]) / (new_times[j+1] - new_times[j])
+                pt = (1 - alpha) * np.array(new_points[j]) + alpha * np.array(new_points[j+1])
                 traj_points.append(pt)
         
         # print("trajectory points: ", traj_points)
@@ -103,9 +132,10 @@ class MPCController(object):
 
         # Apply gradually decreasing offset correction
         cur_offset = np.array([state.pose.x, state.pose.y]) - np.array(traj_points[0][0:2])
+        overcorrection_guard = 5
         for i in range(len(traj_points)):
-            s = i / (len(traj_points) + 5)  # Normalized [0, 1]
-            decay_ratio = (1 - s) ** 1      # linear decay
+            s = i / (len(traj_points) + overcorrection_guard)  # Normalized [0, 1] and add some offset to prevent overcorrection
+            decay_ratio = (1 - s) ** 1      # linear decay on each iteration to perform quadratic offset correction over time
             
             # Get direction of trajectory at this point
             if i < len(traj_points) - 1:
@@ -132,7 +162,7 @@ class MPCController(object):
         # )
         # print(f"traj_corrected = [{traj_corrected_str}]")
 
-        
+        # Compute target angles
         target_angles = []
         prev_angle = x0[2]
 
@@ -191,7 +221,6 @@ class MPCController(object):
             opti.subject_to(x[t+1,:] == x_next)
             target = traj_points[t+1]
             # Cost function
-            # Apply larger cost for the first three points
             weight = 10 if t < 3 else 1  # Larger weight for the first three points
             obj += weight * casadi.sumsqr(x[t + 1, 0:2] - casadi.reshape(target[0:2], 1, 2))
             
@@ -199,9 +228,10 @@ class MPCController(object):
             obj += 0.1 * casadi.sumsqr(u[t, :])
 
             # Heading angle error
-            # theta_error = x[t + 1, 2] - target_angles[t]
-            # obj += 1 * weight * casadi.sumsqr(theta_error)
+            theta_error = x[t + 1, 2] - target_angles[t]
+            obj += 1 * weight * casadi.sumsqr(theta_error)
 
+            # Front wheel angle error
             # if t != self.T - 1:
             #     delta_error = x[t + 1, 4] - delta_desired[t]
             #     obj += 0.1 * weight * casadi.sumsqr(delta_error)
