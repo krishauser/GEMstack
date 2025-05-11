@@ -10,6 +10,7 @@ reeds_shepp_parking:
     parking_lot_axis_shift_margin: 2.44 # in meter
     search_bound_threshold: 0.5 
     clearance_step: 0.5
+    clearance: 0
     add_static_vertical_curb_as_obstacle: True
     add_static_horizontal_curb_as_obstacle: True
     static_horizontal_curb_size: [2.44, 0.5]

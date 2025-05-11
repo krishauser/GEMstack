@@ -13,30 +13,15 @@ Dims   = Tuple[float, float]                # (width, length)
 Obstacle = Tuple[float, float, float, Dims] # (x, y, yaw, (width, length))
 
 class ReedsSheppParking:
-    def __init__(self, vehicle_pose = None, vehicle_dims = (1.7, 3.2), compact_parking_spot_size = None,
-                 shift_from_center_to_rear_axis = 1.25, search_step_size = 0.1, closest = False, parking_lot_axis_shift_margin = 2.44,
-                 search_bound_threshold = 0.5,
-                 vehicle_turning_radius = 3.657,
-                 clearance_step = 0.5,
-                 static_horizontal_curb_size = (2.44, 0.5),
-                 static_horizontal_curb_xy_coordinates = [(0.0, -2.44),(24.9, -2.44)],
-                 add_static_vertical_curb_as_obstacle = True,
-                 static_vertical_curb_xy_coordinates = [(12.45, -4.88)],
-                 static_vertical_curb_size = (2.44, 24.9),
-                 add_static_horizontal_curb_as_obstacle = True,
-                 detected_cones = [],
-                 all_parking_spots_in_parking_lot = []):
-
+    def __init__(self):
         
-        self.detected_cones = detected_cones
+        self.detected_cones = []
         self.parked_cars = []
         self.objects_to_avoid_collisions = []
         
         yaml_path = "GEMstack/knowledge/defaults/ReedsShepp_param.yaml"
         with open(yaml_path,'r') as file:
             params = yaml.safe_load(file)
-            
-            
 
         self.static_horizontal_curb_xy_coordinates = None
         self.static_horizontal_curb_size  = params['reeds_shepp_parking']['static_horizontal_curb_size']
@@ -62,11 +47,12 @@ class ReedsSheppParking:
         # TODO: Add thrid option: park in the middle
         self.closest = params['reeds_shepp_parking']['closest']  # If True, the closest parking spot will be selected, otherwise the farthest one will be selected
         self.clearance_step = params['reeds_shepp_parking']['clearance_step'] 
+        self.clearance = params['reeds_shepp_parking']['clearance'] 
         self.search_axis_direction_var = False
 
     
 
-    def reeds_shepp_path(self,start_pose, final_pose, step_size=0.1, vehicle_turning_radius=3.657):# Runing 
+    def reeds_shepp_path(self,start_pose, final_pose, step_size, vehicle_turning_radius):# Runing 
         path = reeds_shepp.path_sample(start_pose, final_pose, vehicle_turning_radius, step_size)
         waypoints = [(x, y, yaw) for x, y, yaw, *_ in path]
         #waypoints = np.array(waypoints_for_obstacles_check)[:,:2]
@@ -204,7 +190,6 @@ class ReedsSheppParking:
         static_horizontal_curb: List[Tuple[float, float, float, Dims]],
         compact_parking_spot_size: Dims,
         yaw_of_parked_cars_var: float = 0.0,
-        margin: float = 0.0
     ) -> List[Pose]:
         """
         Computes uniformly spaced parking spot centers along a curb line.
@@ -237,7 +222,7 @@ class ReedsSheppParking:
         total_length = math.hypot(dx, dy)
 
         spot_length = compact_parking_spot_size[1]
-        spacing = spot_length + margin
+        spacing = spot_length 
 
         if total_length < spot_length:
             raise ValueError("Insufficient curb length to place even one spot.")
@@ -345,8 +330,7 @@ class ReedsSheppParking:
     def available_parking_spots(self,
         all_parking_spots: List[Pose],
         parked_cars: List[Obstacle],
-        spot_dims: Dims,
-        clearance: float = 0.1
+        spot_dims: Dims
     ) -> List[Pose]:
         """
         Returns unoccupied parking spots, using full geometric rectangle checks.
@@ -360,7 +344,8 @@ class ReedsSheppParking:
         Returns:
             List of available parking spot poses.
         """
-
+        clearance = self.clearance
+        
         spot_polygons = [
             self.rectangle_polygon(spot, spot_dims)
             for spot in all_parking_spots
@@ -481,7 +466,7 @@ class ReedsSheppParking:
     
 
 
-    def move_point_along_vector(self, p0, direction, step=0.1, positive_direction=True):
+    def move_point_along_vector(self, p0, direction, step, positive_direction=True):
         """
         Move the point p0 by a fixed step along the given direction vector.
 
@@ -605,7 +590,6 @@ class ReedsSheppParking:
             self.all_parking_spots_in_parking_lot_var,
             self.parked_cars,
             self.compact_parking_spot_size,
-            clearance=0.0
         )
         print("self.available_parking_spots_var", self.available_parking_spots_var)
         if not self.available_parking_spots_var:
