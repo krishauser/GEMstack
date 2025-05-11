@@ -555,14 +555,15 @@ class ReedsSheppParking:
                 self.static_horizontal_curb_size
             )
         ]
-        self.static_vertical_curb = [
-            (
-                self.static_vertical_curb_xy_coordinates[0][0],
-                self.static_vertical_curb_xy_coordinates[0][1],
-                self.yaw_of_parked_cars_var,
-                self.static_vertical_curb_size
-            )
-        ]
+        if self.add_static_vertical_curb_as_obstacle:
+            self.static_vertical_curb = [
+                (
+                    self.static_vertical_curb_xy_coordinates[0][0],
+                    self.static_vertical_curb_xy_coordinates[0][1],
+                    self.yaw_of_parked_cars_var,
+                    self.static_vertical_curb_size
+                )
+            ]
 
         # Convert cones to parked cars if any are detected
         if self.detected_cones:
