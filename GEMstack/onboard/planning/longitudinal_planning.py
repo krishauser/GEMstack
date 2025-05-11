@@ -226,7 +226,10 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
     times = []
     for s in s_vals:
         if s <= s_accel:  # Acceleration phase
-            v = math.sqrt(current_speed ** 2 + 2 * acceleration * s)
+            #v = math.sqrt(current_speed ** 2 + 2 * acceleration * s)
+            ratio = s / s_accel if s_accel > 0 else 1.0
+            v = current_speed + (v_target - current_speed) * scurve(ratio) # applying Scurve for acceleration
+
             t_point = (v - current_speed) / acceleration
 
             if DEBUG:
