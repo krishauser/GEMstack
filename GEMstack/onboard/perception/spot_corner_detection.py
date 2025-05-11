@@ -79,13 +79,12 @@ class CornerDetector3D(Component):
                         cy = int(M['m01'] / (M['m00'] + 1e-6))
                         centers.append((cx, cy))
 
-        # Now transform corners to 3D vehicle frame
+        # Now transform 2D corners to 3D vehicle frame
         if len(corners) > 0:
-            for corners_four in corners:
-                corners_four_vehicle_frame = fr_cam_2d_to_vehicle_3d(corners_four)
-                corners_3d_vehicle_frame.append(corners_four_vehicle_frame)
+            corners_flattened = np.array(corners).reshape(-1, 2)
+            corners_flattened_vehicle_frame = fr_cam_2d_to_vehicle_3d(corners_flattened)
+            corners_3d_vehicle_frame = np.array(corners_flattened_vehicle_frame).reshape(-1, NUM_CONES_PER_PARKING_SPOT, 3).tolist()
 
-        print(f"corners_3d_vehicle_frame: {corners_3d_vehicle_frame}")
         # Store the parking spots corners in vehicle frame
         self.parking_spots_corners = corners_3d_vehicle_frame
 
