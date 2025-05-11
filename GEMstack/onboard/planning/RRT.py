@@ -21,20 +21,11 @@ class Point:
         self.cost = float('inf')  # Cost to reach this node
 
 class BiRRT:
-    def __init__(self, start : list, goal : list, obstacles : list, map_boundary : list, update_rate : Optional[float] = None):
+    def __init__(self, lane_boundary : list, obstacle_list: list, map_boundary : list, update_rate : Optional[float] = None):
         
         self.path = []
         self.tree_from_start = []
-        self.tree_from_end = []
-        
-        # start position (current vehicle position)
-        self.start_point = Point(start[0],start[1],start[2])
-        self.start_point.cost = 0
-        
-        # desire position (reverse heading for building tree) 
-        # (will revert back after route found)
-        self.end_point = Point(goal[0],goal[1],self.angle_inverse(goal[2]))
-        self.end_point.cost = 0        
+        self.tree_from_end = []     
 
         yaml_path = "GEMstack/knowledge/defaults/rrt_param.yaml"
         with open(yaml_path,'r') as file:
@@ -42,7 +33,7 @@ class BiRRT:
         
         # min distace of vehicle center to obstacle
         # should be roughly 1/2 of vehicle width
-        self.OFFSET = params['vehicle']['half_width'] # meter
+        self.vehicle_half_width = params['vehicle']['half_width'] # meter
 
         # angle limit for vehicle turning per step size
         self.heading_limit = params['vehicle']['heading_limit'] # limit the heading change in route
@@ -69,26 +60,26 @@ class BiRRT:
         self.MAP_Y_LOW = map_boundary[2]
         self.MAP_Y_HIGH = map_boundary[3]
 
-        self.obstacle_radius = params['map']['obstacle_radius'] # meter
+        self.lane_boundary_radius = params['map']['lane_boundary_radius'] # meter
+        self.obstacle_radius = params['map']['obstacle_radius']
 
         # occupency grid
+        self.grid_lane = None
         self.grid = None
         self.grid_resolution = params['map']['grid_resolution'] # grids per meter
         # the coordiante in start frame where in occupency grid is (0,0)
         self.map_zero = [self.MAP_X_LOW , self.MAP_Y_LOW]
-        # initialize occupency grid
-        self.build_grid(obstacles)
-
-    # Build occupency grid from obstacle list
-    def build_grid(self, obstacles):
-
-        grid_height = (self.MAP_Y_HIGH - self.MAP_Y_LOW)*self.grid_resolution
-        grid_width = (self.MAP_X_HIGH - self.MAP_X_LOW)*self.grid_resolution
-        self.grid = np.zeros((round(grid_width),round(grid_height)))
-
-        margin_low = -round((self.obstacle_radius + self.OFFSET)*self.grid_resolution)
-        margin_high = round((self.obstacle_radius + self.OFFSET)*self.grid_resolution)
-        for obstacle in obstacles :
+        # initialize occupency grid with lane boundary
+        self.init_grid(lane_boundary)
+        # updats grid with obstacles
+        self.update_grid(obstacle_list)
+        
+    def update_grid(self, obstacle_list):
+        self.grid = self.grid_lane
+        
+        margin_low = -round((self.obstacle_radius + self.vehicle_half_width)*self.grid_resolution)
+        margin_high = round((self.obstacle_radius + self.vehicle_half_width)*self.grid_resolution)
+        for obstacle in obstacle_list :
             obstacle_center = [round((obstacle[0]-self.map_zero[0])*self.grid_resolution),
                                round((obstacle[1]-self.map_zero[1])*self.grid_resolution)]
 
@@ -96,9 +87,35 @@ class BiRRT:
             for x_margin in range(margin_low,margin_high):
                 for y_margin in range(margin_low,margin_high):
                     self.grid[obstacle_center[0] + x_margin, obstacle_center[1] + y_margin] = 1
+
+    # Build occupency grid from lane boundary
+    def init_grid(self, lane_boundary):
+        grid_height = (self.MAP_Y_HIGH - self.MAP_Y_LOW)*self.grid_resolution
+        grid_width = (self.MAP_X_HIGH - self.MAP_X_LOW)*self.grid_resolution
+        self.grid_lane = np.zeros((round(grid_width),round(grid_height)))
+
+        margin_low = -round((self.lane_boundary_radius + self.vehicle_half_width)*self.grid_resolution)
+        margin_high = round((self.lane_boundary_radius + self.vehicle_half_width)*self.grid_resolution)
+        for obstacle in lane_boundary :
+            obstacle_center = [round((obstacle[0]-self.map_zero[0])*self.grid_resolution),
+                               round((obstacle[1]-self.map_zero[1])*self.grid_resolution)]
+
+            self.grid_lane[obstacle_center[0],obstacle_center[1]] = 1
+            for x_margin in range(margin_low,margin_high):
+                for y_margin in range(margin_low,margin_high):
+                    self.grid_lane[obstacle_center[0] + x_margin, obstacle_center[1] + y_margin] = 1
         
         
-    def search(self):
+    def search(self, start : list, goal : list):
+        # start position (current vehicle position)
+        self.start_point = Point(start[0],start[1],start[2])
+        self.start_point.cost = 0
+        
+        # desire position (reverse heading for building tree) 
+        # (will revert back after route found)
+        self.end_point = Point(goal[0],goal[1],self.angle_inverse(goal[2]))
+        self.end_point.cost = 0        
+        
         # initialize two tree
         self.tree_from_start.append(self.start_point)
         self.tree_from_end.append(self.end_point)
