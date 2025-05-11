@@ -82,18 +82,16 @@ class CornerDetector3D(Component):
         # Now transform corners to 3D vehicle frame
         if len(corners) > 0:
             for corners_four in corners:
-                corners_four_vehicle_frame = []
-                for c in corners_four:
-                    c_vehicle_frame = fr_cam_2d_to_vehicle_3d(c)
-                    corners_four_vehicle_frame.append(c_vehicle_frame)
+                corners_four_vehicle_frame = fr_cam_2d_to_vehicle_3d(corners_four)
                 corners_3d_vehicle_frame.append(corners_four_vehicle_frame)
 
+        print(f"corners_3d_vehicle_frame: {corners_3d_vehicle_frame}")
         # Store the parking spots corners in vehicle frame
         self.parking_spots_corners = corners_3d_vehicle_frame
 
         # Visualize
         if self.visualization:
-            self.visualize(image_annotated, centers, corners, approxes, corners_3d_vehicle_frame)
+            self.visualize(image_annotated, centers, corners, approxes)
  
 
     # All local helper functions
@@ -118,7 +116,7 @@ class CornerDetector3D(Component):
         return cv_image
     
 
-    def visualize(self, image, centers, corners, approxes, corners_3d_vehicle_frame):
+    def visualize(self, image, centers, corners, approxes):
         if len(corners) > 0:
             # Draw centers as red crosses
             for (cx, cy) in centers:

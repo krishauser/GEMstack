@@ -81,32 +81,35 @@ worldFrontRightCamListXY = np.array([
     [cvtFootInch2Meter(0, 140+30), cvtFootInch2Meter(0, 0   -5)-1.46+0.151],  # RR
 ])
 
-def cvtOriginImgPixel2DToVehicleFrameMeter3D(TransMat, pixelPointXY):
-    """
-    pixelPointXY: (u, v) in original image (pixel)
-    TransMat: 3x3 perspective transform matrix (pixel -> real world meter)
-    """
-    BASE_VEHICLE_DIST = 1.10 
-    
-    point = np.array([pixelPointXY[0], pixelPointXY[1], 1.0], dtype=np.float32).reshape(3, 1)
-    
-    transformed = TransMat @ point
-    transformed /= transformed[2, 0]  
+def cvtOriginImgPixels2DToVehicleFrameMeter2D(TransMat, pixelPointXYs):
+    BASE_VEHICLE_DIST = 1.10  # meter
 
-    x_real = transformed[0, 0] 
-    y_real = transformed[1, 0] 
-    z_real = 0.0 
+    # Add homogeneous coordinate: [u, v, 1]
+    N = pixelPointXYs.shape[0]
+    homogeneous_points = np.hstack([pixelPointXYs, np.ones((N, 1), dtype=np.float32)])  # (N, 3)
 
+    # Apply perspective transform
+    transformed = (TransMat @ homogeneous_points.T).T  # (N, 3)
+
+    # Normalize (divide by last coordinate)
+    transformed /= transformed[:, [2]]
+
+    x_real = transformed[:, 0]
+    y_real = transformed[:, 1]
+    z_real = np.zeros_like(x_real)
+
+    # Convert to vehicle pointcloud coordinate
     x_pc = -y_real
     y_pc = -x_real
     z_pc = z_real
 
-    return np.array([x_pc + BASE_VEHICLE_DIST, y_pc, z_pc], dtype=np.float32)
+    # Return: x + front base distance offset
+    return np.stack([x_pc + BASE_VEHICLE_DIST, y_pc, z_pc], axis=1)
 
 
-def fr_cam_2d_to_vehicle_3d(fr_2d_pt):
+def fr_cam_2d_to_vehicle_3d(fr_2d_pts):
     TransMat = cv2.getPerspectiveTransform( np.float32(pixelFrontRightCamListXY), 
                                             np.float32(worldFrontRightCamListXY))
     
-    result = cvtOriginImgPixel2DToVehicleFrameMeter3D(TransMat, fr_2d_pt)
+    result = cvtOriginImgPixels2DToVehicleFrameMeter2D(TransMat, fr_2d_pts)
     return result.tolist()
