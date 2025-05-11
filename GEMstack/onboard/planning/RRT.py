@@ -21,7 +21,7 @@ class Point:
         self.cost = float('inf')  # Cost to reach this node
 
 class BiRRT:
-    def __init__(self, lane_boundary : list, obstacle_list: list, map_boundary : list, update_rate : Optional[float] = None):
+    def __init__(self, lane_boundary : list, map_boundary : list, update_rate : Optional[float] = None):
         
         self.path = []
         self.tree_from_start = []
@@ -71,11 +71,9 @@ class BiRRT:
         self.map_zero = [self.MAP_X_LOW , self.MAP_Y_LOW]
         # initialize occupency grid with lane boundary
         self.init_grid(lane_boundary)
-        # updats grid with obstacles
-        self.update_grid(obstacle_list)
         
     def update_grid(self, obstacle_list):
-        self.grid = self.grid_lane
+        self.grid = self.grid_lane.copy()
         
         margin_low = -round((self.obstacle_radius + self.vehicle_half_width)*self.grid_resolution)
         margin_high = round((self.obstacle_radius + self.vehicle_half_width)*self.grid_resolution)
@@ -106,7 +104,11 @@ class BiRRT:
                     self.grid_lane[obstacle_center[0] + x_margin, obstacle_center[1] + y_margin] = 1
         
         
-    def search(self, start : list, goal : list):
+    def search(self, start : list, goal : list, obstacle_list : list):
+        
+        # updats grid with obstacles
+        self.update_grid(obstacle_list)
+        
         # start position (current vehicle position)
         self.start_point = Point(start[0],start[1],start[2])
         self.start_point.cost = 0
@@ -116,7 +118,10 @@ class BiRRT:
         self.end_point = Point(goal[0],goal[1],self.angle_inverse(goal[2]))
         self.end_point.cost = 0        
         
+        self.path = []
         # initialize two tree
+        self.tree_from_start = []
+        self.tree_from_end = []
         self.tree_from_start.append(self.start_point)
         self.tree_from_end.append(self.end_point)
 
