@@ -27,7 +27,7 @@ class GNSSStateEstimator(Component):
 
     # Get GNSS information
     def gnss_callback(self, reading : GNSSReading):
-        print("GNSS callback",reading)
+        # print("GNSS callback",reading)
         self.gnss_pose = reading.pose
         self.gnss_speed = reading.speed
         self.status = reading.status

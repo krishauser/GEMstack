@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import yaml
 
-def load_pgm_to_occupancy_grid(pgm_path):
+def load_pgm_to_occupancy_grid(pgm_path, yaml_path):
     """
     Load a PGM file and convert it to an occupancy grid.
     
@@ -14,8 +14,8 @@ def load_pgm_to_occupancy_grid(pgm_path):
         Tuple of (occupancy_grid, metadata)
     """
     # # Load YAML metadata
-    # with open(yaml_path, 'r') as f:
-    #     metadata = yaml.safe_load(f)
+    with open(yaml_path, 'r') as f:
+        metadata = yaml.safe_load(f)
     
     # Load PGM file
     image = cv2.imread(pgm_path, cv2.IMREAD_GRAYSCALE)
@@ -31,7 +31,7 @@ def load_pgm_to_occupancy_grid(pgm_path):
     # if metadata.get('negate', 0):
     #     occupancy_grid = 1 - occupancy_grid
         
-    return occupancy_grid
+    return occupancy_grid, metadata
 
 def downsample_occupancy_grid(grid, factor):
     """

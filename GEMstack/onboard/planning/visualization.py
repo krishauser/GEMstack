@@ -1,8 +1,9 @@
 import math
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+# from map_utils import world_to_grid
 from .map_utils import world_to_grid
-
+import time
 def visualize_path(occupancy_grid, path, metadata, start_world, goal_world, show_headings=True):
     """
     Visualize the planned path.
@@ -66,11 +67,11 @@ def visualize_path(occupancy_grid, path, metadata, start_world, goal_world, show
     plt.legend()
     plt.tight_layout()
     #save the plt instead of showing it
-    plt.savefig("path_planning_result.png")
+    plt.savefig(f"path_planning_result_{time.time()}.png")
     # plt.show()
 
 def animate_path(occupancy_grid, path, metadata, interval=60, pad_cells=20,
-                save=None, vehicle_len=10):
+                save="ani.gif", vehicle_len=10):
     """
     Animate the drive and crop axes to the path region.
     

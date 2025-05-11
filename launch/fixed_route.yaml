@@ -18,19 +18,19 @@ drive:
         #     args:
         #         tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
 
-        obstacle_detection:
-            type: cone_detection.ConeDetector3D
-            args:
-                camera_name: front_right #[front, front_right]
-                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+        # obstacle_detection:
+        #     type: cone_detection.ConeDetector3D
+        #     args:
+        #         camera_name: front_right #[front, front_right]
+        #         camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
 
-                # optional overrides
-                enable_tracking: False
-                visualize_2d: False
-                use_cyl_roi: False
-                save_data: False
-                orientation: False
-                use_start_frame: False
+        #         # optional overrides
+        #         enable_tracking: False
+        #         visualize_2d: False
+        #         use_cyl_roi: False
+        #         save_data: False
+        #         orientation: False
+        #         use_start_frame: False
 
     planning:
         relations_estimation: pedestrian_yield_logic.PedestrianYielder
@@ -141,11 +141,11 @@ variants:
                     #     type: StaticRoutePlanner
                     #     args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] # Fixed path
                     
-                    # motion_planning: longitudinal_planning.YieldTrajectoryPlanner
-                    motion_planning: yield_spline_planner.SplinePlanner
+                    motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+                    # motion_planning: yield_spline_planner.SplinePlanner
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
-                        args: {desired_speed: 2.5}  #approximately 5mph
+                        args: {desired_speed: 'path'}  #approximately 5mph
                         print: True
     
             visualization: !include "mpl_visualization.yaml"

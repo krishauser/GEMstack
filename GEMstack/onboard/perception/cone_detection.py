@@ -527,9 +527,7 @@ class OmniscientObstacleDetector(Component):
         self.vehicle_interface.subscribe_sensor('cone_detector',self.cone_callback, ObstacleState)
     
     def cone_callback(self, name : str, obstacle : ObstacleState):
-        print(f"Obstacle detected: {name}")
         with self.lock:
-            print("ADDING OBSTACLE")
             self.obstacles[name] = obstacle
 
     def update(self) -> Dict[str,ObstacleState]:

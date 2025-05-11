@@ -14,7 +14,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from .planner import optimized_kinodynamic_rrt_planning
 from .collision import build_collision_lookup
-
+import math
 
 import cv2
 
@@ -77,19 +77,19 @@ class RoutePlanningComponent(Component):
         print("RECTANGLES", rects)
 
 
-        for n, a in agents.items():
-            print("==========================\nAgent:", n, a.pose, a.velocity)
-            print('==============', a.pose.frame==ObjectFrameEnum.START)
-            print('==============', a.type==AgentEnum.PEDESTRIAN)
-            if a.type == AgentEnum.PEDESTRIAN:
-                print("Pedestrian detected")
+        # for n, a in agents.items():
+        #     print("==========================\nAgent:", n, a.pose, a.velocity)
+        #     print('==============', a.pose.frame==ObjectFrameEnum.START)
+        #     print('==============', a.type==AgentEnum.PEDESTRIAN)
+        #     if a.type == AgentEnum.PEDESTRIAN:
+        #         print("Pedestrian detected")
         
-        for n, o in obstacles.items():
-            print("==========================\nAgent:", n, o.pose, o.velocity)
-            print('==============', o.pose.frame==ObjectFrameEnum.START)
-            print('==============', o.type)
-            if o.type == ObstacleMaterialEnum.TRAFFIC_CONE:
-                print("CONE detected")
+        # for n, o in obstacles.items():
+        #     print("==========================\nAgent:", n, o.pose, o.velocity)
+        #     print('==============', o.pose.frame==ObjectFrameEnum.START)
+        #     print('==============', o.type)
+        #     if o.type == ObstacleMaterialEnum.TRAFFIC_CONE:
+        #         print("CONE detected")
             
         print("Route Planner's mission:", mission_plan.planner_type.value)
         print("type of mission plan:", type(PlannerEnum.RRT_STAR))
@@ -125,7 +125,7 @@ class RoutePlanningComponent(Component):
                 vehicle_global_pose.x, vehicle_global_pose.y
             ) 
 
-            start_yaw = vehicle_global_pose.yaw
+            start_yaw = vehicle.pose.yaw + math.pi
             print("Start image coordinates", start_x, start_y, "yaw", start_yaw)
 
             # ## Step 3. Convert goal to global frame
@@ -145,7 +145,7 @@ class RoutePlanningComponent(Component):
                 goal_global_pose.x, goal_global_pose.y
             )  
 
-            goal_yaw = goal_global_pose.yaw
+            goal_yaw = start_yaw #goal_global_pose.yaw
             print("Goal image coordinates", goal_x, goal_y, "yaw", goal_yaw)
 
             script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -190,8 +190,8 @@ class RoutePlanningComponent(Component):
             
 
             # occupancy_grid = load_pgm_to_occupancy_grid(map_path)
-            start_w = [start_y, start_x, start_yaw]
-            goal_w = [goal_y, goal_x, goal_yaw]
+            start_w = [start_x, start_y, start_yaw]
+            goal_w = [goal_x, goal_y, goal_yaw]
             # occupancy_grid[start_x-5:start_x +5][start_y-5] = 1
 
             if self.route == None or len(obstacles) != self.previous_obstacles:
@@ -210,7 +210,7 @@ class RoutePlanningComponent(Component):
                     x, y, theta = path[i]
                     # Convert to car coordinates
                     waypoint_lat, waypoint_lon = self.occupancy_grid.image_to_gnss(
-                        y, x
+                        x, y
                     )  # Converts pixel to global frame. Brijesh check again what x corresponds to. Is x lat or is x lon? Change accordingly. Same as above comments
                     # Convert global to start frame
                     waypoint_global_pose = ObjectPose(
@@ -224,22 +224,22 @@ class RoutePlanningComponent(Component):
                         ObjectFrameEnum.START, start_pose_abs=mission_plan.start_vehicle_pose
                     )  # not handling yaw cuz we don't know how to
                     waypoints.append((waypoint_start_pose.x, waypoint_start_pose.y))
-                    waypoint_global_pose = ObjectPose(
-                        frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
-                        t=mission_plan.start_vehicle_pose.t,
-                        x=waypoint_lon,
-                        y=waypoint_lat,
-                        yaw=theta,
-                    )
-                    waypoint_start_pose = waypoint_global_pose.to_frame(
-                        ObjectFrameEnum.START, start_pose_abs=mission_plan.start_vehicle_pose
-                    )  # not handling yaw cuz we don't know how to
-                    waypoints.append((waypoint_start_pose.x, waypoint_start_pose.y))
+                    # waypoint_global_pose = ObjectPose(
+                    #     frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
+                    #     t=mission_plan.start_vehicle_pose.t,
+                    #     x=waypoint_lon,
+                    #     y=waypoint_lat,
+                    #     yaw=theta,
+                    # )
+                    # waypoint_start_pose = waypoint_global_pose.to_frame(
+                    #     ObjectFrameEnum.START, start_pose_abs=mission_plan.start_vehicle_pose
+                    # )  # not handling yaw cuz we don't know how to
+                    # waypoints.append((waypoint_start_pose.x, waypoint_start_pose.y))
                 
                 self.route = Route(
                     frame=ObjectFrameEnum.START, points=waypoints)
 
-            # print("Route points in start frame: ", waypoints) # Comment this out once you are done debugging
+                print("Route points in start frame: ", waypoints) # Comment this out once you are done debugging
             return self.route
 
 

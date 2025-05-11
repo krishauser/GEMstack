@@ -8,7 +8,7 @@ from ...utils import serialization
 from ...mathutils import transforms
 import numpy as np
 
-DEBUG = False  # Set to False to disable debug output
+DEBUG = True  # Set to False to disable debug output
 
 def scurve(x):
     x = np.clip(x, 0.0, 1.0)
@@ -408,6 +408,10 @@ class YieldTrajectoryPlanner(Component):
 
         if stay_braking:
             traj = longitudinal_brake(route_with_lookahead, 0.0, 0.0, 0.0)
+            # if len(traj.points) == 2:
+            #     traj = longitudinal_brake(route_with_lookahead, self.emergency_brake, curr_v)
+            #     if DEBUG:
+            #         print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
             if DEBUG:
                 print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake (stay braking).")
         elif should_brake:
