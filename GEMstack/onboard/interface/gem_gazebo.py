@@ -1,3 +1,4 @@
+from GEMstack.state.obstacle import ObstacleMaterialEnum, ObstacleState, ObstacleStateEnum
 from .gem import *
 from ...utils import settings
 import math
@@ -53,7 +54,13 @@ MODEL_PREFIX_TO_AGENT_TYPE = {
     'car': 'car',
     'vehicle': 'car',
     'truck': 'medium_truck',
-    'large_truck': 'large_truck'
+    'large_truck': 'large_truck',
+    'cone': 'traffic_cone'
+}
+
+# Map model prefixes to obstacle types
+MODEL_PREFIX_TO_OBSTACLE_TYPE = {
+    'cone': 'traffic_cone'
 }
 
 class GEMGazeboInterface(GEMInterface):
@@ -93,11 +100,15 @@ class GEMGazeboInterface(GEMInterface):
         self.model_states_sub = None
         self.tracked_model_prefixes = settings.get('simulator.agent_tracker.model_prefixes', 
                                                  ['pedestrian', 'bicycle', 'car'])
+        self.tracked_obstacle_prefixes = settings.get('simulator.obstacle_tracker.model_prefixes', 
+                                                 ['cone'])
         self.agent_detector_callback = None
+        self.obstacle_detector_callback = None
         self.last_agent_positions = {}
         self.last_agent_velocities = {}
         self.last_model_states_time = 0.0
         self.agent_detection_rate = settings.get('simulator.agent_tracker.rate', 10.0)  # Hz
+        self.obstacle_detection_rate = settings.get('simulator.obstacle_tracker.rate', 50.0)  # Hz
         
         # Frame transformation variables
         self.start_pose_abs = None  # Initial vehicle pose in GLOBAL frame
@@ -141,7 +152,7 @@ class GEMGazeboInterface(GEMInterface):
         current_time = self.time()
         
         # Check if we should process this update (rate limiting)
-        if current_time - self.last_model_states_time < 1.0/self.agent_detection_rate:
+        if ((current_time - self.last_model_states_time < 1.0/self.agent_detection_rate) and (current_time - self.last_model_states_time < 1.0/self.obstacle_detection_rate)):
             return
             
         # Calculate time delta since last update
@@ -149,7 +160,7 @@ class GEMGazeboInterface(GEMInterface):
         self.last_model_states_time = current_time
         
         # Skip if no callback is registered
-        if self.agent_detector_callback is None:
+        if self.agent_detector_callback is None and self.obstacle_detector_callback is None:
             return
         
         # Find vehicle in model states
@@ -203,16 +214,24 @@ class GEMGazeboInterface(GEMInterface):
             agent_type = None
             for prefix in self.tracked_model_prefixes:
                 if model_name.lower().startswith(prefix.lower()):
-                    # Find the appropriate agent type from the prefix
                     for key, value in MODEL_PREFIX_TO_AGENT_TYPE.items():
                         if prefix.lower().startswith(key.lower()):
                             agent_type = value
                             break
                     break
+
+            obstacle_type = None
+            for prefix in self.tracked_obstacle_prefixes:
+                if model_name.lower().startswith(prefix.lower()):
+                    for key, value in MODEL_PREFIX_TO_OBSTACLE_TYPE.items():
+                        if prefix.lower().startswith(key.lower()):
+                            obstacle_type = value
+                            break
+                    break
                     
-            if agent_type is None:
+            if agent_type is None and obstacle_type is None:
                 continue  # Not an agent we're tracking
-                
+
             # Get position and orientation from model states
             position = msg.pose[i].position
             orientation = msg.pose[i].orientation
@@ -224,7 +243,6 @@ class GEMGazeboInterface(GEMInterface):
             # Convert orientation quaternion to euler angles
             quaternion = (orientation.x, orientation.y, orientation.z, orientation.w)
             roll, pitch, yaw = euler_from_quaternion(quaternion)
-            
             # Create agent pose in ABSOLUTE_CARTESIAN frame (Gazebo's native frame)
             agent_global_pose = ObjectPose(
                 frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
@@ -269,61 +287,72 @@ class GEMGazeboInterface(GEMInterface):
                 # If transformation not initialized yet, just use the model_states pose
                 agent_pose = agent_global_pose
             
-            # Calculate velocity manually if twist data is zero or missing
-            velocity = (linear_vel.x, linear_vel.y, linear_vel.z)
-            velocity_is_zero = abs(linear_vel.x) < 1e-6 and abs(linear_vel.y) < 1e-6 and abs(linear_vel.z) < 1e-6
-            
-            if velocity_is_zero and model_name in self.last_agent_positions and dt > 0:
-                # Calculate velocity from position difference
-                prev_pos = self.last_agent_positions[model_name]
-                dx = position.x - prev_pos[0]
-                dy = position.y - prev_pos[1]
-                dz = position.z - prev_pos[2]
+            if agent_type is not None:
+                # Calculate velocity manually if twist data is zero or missing
+                velocity = (linear_vel.x, linear_vel.y, linear_vel.z)
+                velocity_is_zero = abs(linear_vel.x) < 1e-6 and abs(linear_vel.y) < 1e-6 and abs(linear_vel.z) < 1e-6
                 
-                # Calculate velocity (position change / time)
-                calculated_vel = (dx/dt, dy/dt, dz/dt)
+                if velocity_is_zero and model_name in self.last_agent_positions and dt > 0:
+                    # Calculate velocity from position difference
+                    prev_pos = self.last_agent_positions[model_name]
+                    dx = position.x - prev_pos[0]
+                    dy = position.y - prev_pos[1]
+                    dz = position.z - prev_pos[2]
+                    
+                    # Calculate velocity (position change / time)
+                    calculated_vel = (dx/dt, dy/dt, dz/dt)
+                    
+                    # Apply some smoothing with the previous velocity if available
+                    if model_name in self.last_agent_velocities:
+                        prev_vel = self.last_agent_velocities[model_name]
+                        # Apply exponential smoothing (0.7 current + 0.3 previous)
+                        velocity = (
+                            0.7 * calculated_vel[0] + 0.3 * prev_vel[0],
+                            0.7 * calculated_vel[1] + 0.3 * prev_vel[1],
+                            0.7 * calculated_vel[2] + 0.3 * prev_vel[2]
+                        )
+                    else:
+                        velocity = calculated_vel
                 
-                # Apply some smoothing with the previous velocity if available
-                if model_name in self.last_agent_velocities:
-                    prev_vel = self.last_agent_velocities[model_name]
-                    # Apply exponential smoothing (0.7 current + 0.3 previous)
-                    velocity = (
-                        0.7 * calculated_vel[0] + 0.3 * prev_vel[0],
-                        0.7 * calculated_vel[1] + 0.3 * prev_vel[1],
-                        0.7 * calculated_vel[2] + 0.3 * prev_vel[2]
-                    )
+                # Determine activity state based on velocity magnitude
+                velocity_magnitude = np.linalg.norm(velocity)
+                if velocity_magnitude < 0.1:
+                    activity = AgentActivityEnum.STOPPED
+                elif velocity_magnitude > 5.0:  # Arbitrary threshold for "fast"
+                    activity = AgentActivityEnum.FAST
                 else:
-                    velocity = calculated_vel
+                    activity = AgentActivityEnum.MOVING
+                    
+                # Get agent dimensions
+                dimensions = AGENT_DIMENSIONS.get(agent_type, (1.0, 1.0, 1.0))  # Default if unknown
             
-            # Determine activity state based on velocity magnitude
-            velocity_magnitude = np.linalg.norm(velocity)
-            if velocity_magnitude < 0.1:
-                activity = AgentActivityEnum.STOPPED
-            elif velocity_magnitude > 5.0:  # Arbitrary threshold for "fast"
-                activity = AgentActivityEnum.FAST
-            else:
-                activity = AgentActivityEnum.MOVING
+                # Create agent state
+                agent_state = AgentState(
+                    pose=agent_pose,  # Using START frame pose
+                    dimensions=dimensions,
+                    outline=None,
+                    type=getattr(AgentEnum, agent_type.upper()),
+                    activity=activity,
+                    velocity=velocity,
+                    yaw_rate=angular_vel.z
+                )
                 
-            # Get agent dimensions
-            dimensions = AGENT_DIMENSIONS.get(agent_type, (1.0, 1.0, 1.0))  # Default if unknown
-            
-            # Create agent state
-            agent_state = AgentState(
-                pose=agent_pose,  # Using START frame pose
-                dimensions=dimensions,
-                outline=None,
-                type=getattr(AgentEnum, agent_type.upper()),
-                activity=activity,
-                velocity=velocity,
-                yaw_rate=angular_vel.z
-            )
-            
-            # Store current position for next velocity calculation (using raw positions)
-            self.last_agent_positions[model_name] = (position.x, position.y, position.z)
-            self.last_agent_velocities[model_name] = velocity
-            
-            # Call the callback with the agent state
-            self.agent_detector_callback(model_name, agent_state)
+                # Store current position for next velocity calculation (using raw positions)
+                self.last_agent_positions[model_name] = (position.x, position.y, position.z)
+                self.last_agent_velocities[model_name] = velocity
+                # Call the callback with the agent state
+                self.agent_detector_callback(model_name, agent_state)
+
+            if obstacle_type is not None:
+                # Create obstacle state 
+                obstacle_state = ObstacleState(
+                    dimensions=(0,0,0),
+                    outline=None,
+                    pose=agent_pose,
+                    type=getattr(ObstacleMaterialEnum, obstacle_type.upper()),
+                    activity=ObstacleStateEnum.STANDING,
+                )
+                self.obstacle_detector_callback(model_name, obstacle_state)
 
     def subscribe_sensor(self, name, callback, type=None):
         if name == 'gnss':
@@ -424,6 +453,11 @@ class GEMGazeboInterface(GEMInterface):
                 raise ValueError("GEMGazeboInterface only supports AgentState for agent_detector")
             self.agent_detector_callback = callback
 
+        elif name == 'obstacle_detector':
+            if type is not None and type is not ObstacleState:
+                raise ValueError("GEMGazeboInterface only supports ObstacleState for obstacle_detector")
+            self.obstacle_detector_callback = callback
+
     def hardware_faults(self) -> List[str]:
         # In simulation, we don't have real hardware faults
         return self.faults
@@ -459,10 +493,12 @@ class GEMGazeboInterface(GEMInterface):
 
         # Calculate acceleration from pedal positions
         acceleration = pedal_positions_to_acceleration(accelerator_pedal_position, brake_pedal_position, v, 0, 1)
-
+        print("acceleration before", acceleration)
         # Apply reasonable limits to acceleration
         max_accel = settings.get('vehicle.limits.max_acceleration', 1.0)
-        max_decel = settings.get('vehicle.limits.max_deceleration', -2.0)
+        max_decel = -1 * settings.get('vehicle.limits.max_deceleration', 2.0) # cuz ackermann expects neg but pure pursiut wants positive decel val
+        print("max_accel", max_accel)
+        print("max_decel", max_decel)
         acceleration = np.clip(acceleration, max_decel, max_accel)
 
         # Convert wheel angle to steering angle (front wheel angle)
@@ -477,7 +513,7 @@ class GEMGazeboInterface(GEMInterface):
         # Don't use infinite speed, instead calculate a reasonable target speed
         current_speed = v
         target_speed = current_speed
-
+        print("acceleration ", acceleration)
         if acceleration > 0:
             # Accelerating - set target speed to current speed plus some increment
             # This is more realistic than infinite speed
@@ -485,6 +521,7 @@ class GEMGazeboInterface(GEMInterface):
             target_speed = min(current_speed + acceleration * 0.5, max_speed)
         elif acceleration < 0:
             # Braking - set target speed to zero if deceleration is significant
+            print("braking ", acceleration)
             if brake_pedal_position > 0.1:
                 target_speed = 0.0
 
