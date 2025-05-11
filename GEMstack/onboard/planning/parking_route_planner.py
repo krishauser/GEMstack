@@ -445,7 +445,7 @@ class ParkingPlanner():
         # Create logs directory if it doesn't exist
         self.logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'log_success')
         os.makedirs(self.logs_dir, exist_ok=True)
-        self.success_file = os.path.join(self.logs_dir, 'parking_success.txt')
+        self.success_file = os.path.join(self.logs_dir, 'parking_metrics.txt')
 
     def save_parking_message(self, success: bool, planning_time: float = None, position_error: float = None, orientation_error: float = None):
         """Save a parking status message to a text file.
@@ -694,14 +694,14 @@ class ParkingPlanner():
         # Check if final position in trajectory is within parking spot
         if len(res) > 0:
             final_state = res[-1]  # Get the last state from the trajectory
-            try:
-                with open(self.success_file, 'a') as f:
-                    f.write("Final State")
-                    f.write(str(final_state))
-                    f.write("Final State End")
-                print(f"Parking status saved to {self.success_file}")
-            except Exception as e:
-                print(f"Error saving parking status: {e}")
+            # try:
+            #     with open(self.success_file, 'a') as f:
+            #         f.write("Final State")
+            #         f.write(str(final_state))
+            #         f.write("Final State End")
+            #     print(f"Parking status saved to {self.success_file}")
+            # except Exception as e:
+            #     print(f"Error saving parking status: {e}")
             # Calculate position and orientation errors
             final_x, final_y, final_theta = final_state[0], final_state[1], final_state[2]
             position_error = math.sqrt((final_x - goal_pose.x)**2 + (final_y - goal_pose.y)**2)
