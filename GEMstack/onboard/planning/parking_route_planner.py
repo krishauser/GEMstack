@@ -444,7 +444,8 @@ class ParkingPlanner():
         # self.planner = ParkingSolverSecondOrderDubins()
         self.planner = ParkingSolverFirstOrderDubins()
 
-        self.iterations = settings.get("planning.astar.iterations", 2000)
+        # self.iterations = settings.get("planning.astar.iterations", 2000)
+        self.iterations = settings.get("run.drive.planning.route_planning_component.astar.iterations", 50000)
         self.parking_success = False
         self.velocity_threshold = 0.1  # m/s
         self.orientation_threshold = math.radians(10)  # 10 degrees
@@ -713,7 +714,7 @@ class ParkingPlanner():
         # Measure planning time
         planner_start_time = time.time()
         # Compute the new trajectory and return it 
-        res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=self.iterations))
+        res = list(self.planner.astar(start, goal, reversePath=False, iterations=self.iterations))
         planning_time = time.time() - planner_start_time
 
         points = []
