@@ -175,6 +175,14 @@ class ParkingSpotsDetector3D(Component):
         self.parking_obstacles_poses = parking_obstacles_poses
         self.parking_obstacles_dims = parking_obstacles_dims
         
+        # If no parking goal found, return
+        if len(goal_parking_spots) < 1:
+            self.goal_parking_spot = None
+            return None
+        
+        # Filter out None spots
+        goal_parking_spots = [x for x in goal_parking_spots if x is not None]
+        
         # Now select the closest parking goal, return if none is found
         if len(goal_parking_spots) > 1:
             self.goal_parking_spot = closest_point_to_origin(goal_parking_spots)
