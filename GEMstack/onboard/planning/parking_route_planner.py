@@ -447,18 +447,24 @@ class ParkingPlanner():
         os.makedirs(self.logs_dir, exist_ok=True)
         self.success_file = os.path.join(self.logs_dir, 'parking_success.txt')
 
-    def save_parking_message(self, success: bool, planning_time: float = None):
+    def save_parking_message(self, success: bool, planning_time: float = None, position_error: float = None, orientation_error: float = None):
         """Save a parking status message to a text file.
         
         Args:
             success (bool): Whether parking was successful
             planning_time (float): Time taken by A* planner in seconds
+            position_error (float): Euclidean distance between final and goal positions
+            orientation_error (float): Absolute difference between final and goal orientations in degrees
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         status = "successful" if success else "unsuccessful"
         message = f"Parking {status} at {timestamp}"
         if planning_time is not None:
             message += f" (Planning time: {planning_time:.2f} seconds)"
+        if position_error is not None:
+            message += f" (Position error: {position_error:.3f} m)"
+        if orientation_error is not None:
+            message += f" (Orientation error: {orientation_error:.1f} degrees)"
         message += "\n"
         
         try:
@@ -652,13 +658,7 @@ class ParkingPlanner():
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         agents = state.agents # type: Dict[str, AgentState]
         all_obstacles = {**agents, **obstacles}
-        # print(f"Obstacles {obstacles}")
         print(f"Agents {agents}")
-        # goal= state.goal
-        # print(goal.frame)
-        # assert goal.frame == ObjectFrameEnum.ABSOLUTE_CARTESIAN
-        # assert goal.v == 0
-        # print(f"Goal {goal}")
         goal_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=0.0, x=state.mission_plan.goal_x,y=state.mission_plan.goal_y,z=0.0,yaw=state.mission_plan.goal_orientation)
         goal = VehicleState.zero()
         goal.pose = goal_pose
@@ -694,14 +694,27 @@ class ParkingPlanner():
         # Check if final position in trajectory is within parking spot
         if len(res) > 0:
             final_state = res[-1]  # Get the last state from the trajectory
+            try:
+                with open(self.success_file, 'a') as f:
+                    f.write("Final State")
+                    f.write(str(final_state))
+                    f.write("Final State End")
+                print(f"Parking status saved to {self.success_file}")
+            except Exception as e:
+                print(f"Error saving parking status: {e}")
+            # Calculate position and orientation errors
+            final_x, final_y, final_theta = final_state[0], final_state[1], final_state[2]
+            position_error = math.sqrt((final_x - goal_pose.x)**2 + (final_y - goal_pose.y)**2)
+            orientation_error = math.degrees(abs(normalize_yaw(final_theta - goal_pose.yaw)))
+            
             self.parking_success = self.is_successfully_parked(final_state, goal_pose, agents)
             if self.parking_success:
                 print("Final position is within parking spot!")
             else:
                 print("Final position is not within parking spot")
                 
-            # Save parking status with planning time
-            self.save_parking_message(self.parking_success, planning_time)
+            # Save parking status with planning time and errors
+            self.save_parking_message(self.parking_success, planning_time, position_error, orientation_error)
         else:
             print("No trajectory generated")
 
