@@ -161,7 +161,6 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
             dt = ds / v
             t += dt
             times.append(t)
-            prev_s = s
 
         # if DEBUG:
         #     print("[DEBUG] Trajectory complete: Three phases executed")
@@ -249,16 +248,28 @@ def longitudinal_plan(path, acceleration, deceleration, max_speed, current_speed
 
         else:  # Deceleration phase
             s_decel_phase = s - s_accel - s_cruise
+
+            '''
             v_decel = math.sqrt(max(v_target ** 2 - 2 * deceleration * s_decel_phase, 0.0))
             t_point = t_accel + t_cruise + (v_target - v_decel) / deceleration
 
             if t_point < times[-1]:  # Ensure time always increases
                 t_point = times[-1] + 0.01  # Small time correction step
+            '''
+            ratio = s_decel_phase / s_decel if s_decel > 0 else 1.0
+            v = v_target * (1.0 - scurve(ratio))  # smooth deceleration using S-curve
+            v = max(1e-3, v)  # avoid divide-by-zero
 
+            ds = s - prev_s
+            dt = ds / v
+            t += dt
+            t_point = t
+            
             if DEBUG:
                 print(f"[DEBUG] Deceleration Phase: s = {s:.2f}, v = {v_decel:.2f}, t = {t_point:.2f}")
 
         times.append(t_point)
+        prev_s = s
 
     if DEBUG:
         print("[DEBUG] longitudinal_plan: Final times =", times)
