@@ -10,8 +10,7 @@ from GEMstack.state import Roadgraph, ObjectFrameEnum, RoadgraphLane, RoadgraphC
     Obstacle, ObstacleMaterialEnum, RoadgraphRegion, RoadgraphRegionEnum
 
 
-def segment_straight_line(start: Tuple, end: Tuple,
-                          resolution: float):
+def segment_straight_line(start: Tuple, end: Tuple, resolution: float):
     start = np.array(start, dtype=np.float64)
     end = np.array(end, dtype=np.float64)
     total_length = np.linalg.norm(end - start)
@@ -26,15 +25,14 @@ def segment_straight_line(start: Tuple, end: Tuple,
     ]
     return [points]
 
-def segment_arc(start : Tuple, end : Tuple, radius : float,
-                direction : str, resolution : float):
+def segment_arc(start : Tuple, end : Tuple, radius : float, direction : str, resolution : float):
     p1 = np.array(start[:2], dtype=np.float64)
     p2 = np.array(end[:2], dtype=np.float64)
     chord = p2 - p1
     chord_length = np.linalg.norm(chord)
 
-    if chord_length > 2 * radius + 1e-6:
-        raise ValueError("The distance between two points is larger than the radius.")
+    # if chord_length > 2 * radius + 1e-6:
+    #     raise ValueError("The distance between two points is larger than the radius.")
 
     # Calculate centers
     midpoint = (p1 + p2) / 2
@@ -204,99 +202,124 @@ if __name__ == '__main__':
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['arc_1_1'] = create_lane(left_back=(30.0, 1.5, 0.0), left_forward=(37.0, 8.5, 0.0),
-                                           right_back=(30.0, -1.5, 0.0), right_forward=(40.0, 8.5, 0.0),
-                                           left_crossable=False, left_type='arc', left_radius=7.0, left_direction='ccw',
-                                           right_crossable=False, right_type='arc', right_radius=10.0, right_direction='ccw',
+    roadgraph.lanes['arc_1_1'] = create_lane(left_back=(30.0, 1.5, 0.0), left_forward=(36.0, 7.5, 0.0),
+                                           right_back=(30.0, -1.5, 0.0), right_forward=(39.0, 7.5, 0.0),
+                                           left_crossable=False, left_type='arc', left_radius=6.0, left_direction='ccw',
+                                           right_crossable=False, right_type='arc', right_radius=9.0, right_direction='ccw',
                                            resolution=resolution,
                                            route_name=''
                                            )
-    roadgraph.lanes['arc_1_2'] = create_lane(left_back=(37.0, 8.5, 0.0), left_forward=(33.0, 12.5, 0.0),
-                                           right_back=(40.0, 8.5, 0.0), right_forward=(33.0, 15.5, 0.0),
-                                           left_crossable=False, left_type='arc', left_radius=4.0, left_direction='ccw',
-                                           right_crossable=False, right_type='arc', right_radius=7.0, right_direction='ccw',
+    roadgraph.lanes['arc_1_2'] = create_lane(left_back=(36.0, 7.5, 0.0), left_forward=(33.0, 10.5, 0.0),
+                                           right_back=(39.0, 7.5, 0.0), right_forward=(33.0, 13.5, 0.0),
+                                           left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
+                                           right_crossable=False, right_type='arc', right_radius=6.0, right_direction='ccw',
                                            resolution=resolution,
                                            route_name=''
                                            )
-    roadgraph.lanes['t_1_1'] = create_lane(left_back=(33.0, 12.5, 0.0), left_forward=(29.0, 8.5, 0.0),
-                                            right_back=(33.0, 15.5, 0.0), right_forward=(27.5, 15.5, 0.0),
-                                            left_crossable=False, left_type='arc', left_radius=4.0, left_direction='ccw',
+    roadgraph.lanes['t_1_1'] = create_lane(left_back=(33.0, 10.5, 0.0), left_forward=(30.0, 7.5, 0.0),
+                                            right_back=(33.0, 13.5, 0.0), right_forward=(28.5, 13.5, 0.0),
+                                            left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
                                             right_crossable=False,
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['t_1_2'] = create_lane(left_back=(26.0, 8.5, 0.0), left_forward=(22.0, 12.5, 0.0),
-                                            right_back=(27.5, 15.5, 0.0), right_forward=(22.0, 15.5, 0.0),
-                                            left_crossable=False, left_type='arc', left_radius=4.0, left_direction='ccw',
+    roadgraph.lanes['t_1_2'] = create_lane(left_back=(27.0, 7.5, 0.0), left_forward=(24.0, 10.5, 0.0),
+                                            right_back=(28.5, 13.5, 0.0), right_forward=(24.0, 13.5, 0.0),
+                                            left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
                                             right_crossable=False,
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['t_1_3'] = create_lane(left_back=(29.0, 8.5, 0.0), left_forward=(22.0, 1.5, 0.0),
-                                            right_back=(26.0, 8.5, 0.0), right_forward=(22.0, 4.5, 0.0),
-                                            left_crossable=False, left_type='arc', left_radius=7.0, left_direction='cw',
-                                            right_crossable=False, right_type='arc', right_radius=4.0, right_direction='cw',
+    roadgraph.lanes['t_1_3'] = create_lane(left_back=(30.0, 7.5, 0.0), left_forward=(24.0, 1.5, 0.0),
+                                            right_back=(27.0, 7.5, 0.0), right_forward=(24.0, 4.5, 0.0),
+                                            left_crossable=False, left_type='arc', left_radius=6.0, left_direction='cw',
+                                            right_crossable=False, right_type='arc', right_radius=3.0, right_direction='cw',
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['lane_1'] = create_lane(left_back=(22.0, 1.5, 0.0), left_forward=(8.0, 1.5, 0.0),
-                                            right_back=(22.0, 4.5, 0.0), right_forward=(8.0, 4.5, 0.0),
+    roadgraph.lanes['lane_1'] = create_lane(left_back=(24.0, 1.5, 0.0), left_forward=(6.0, 1.5, 0.0),
+                                            right_back=(24.0, 4.5, 0.0), right_forward=(6.0, 4.5, 0.0),
                                             left_crossable=False,
                                             right_crossable=False,
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['t_2_1'] = create_lane(left_back=(8.0, 1.5, 0.0), left_forward=(1.0, 8.5, 0.0),
-                                            right_back=(8.0, 4.5, 0.0), right_forward=(4.0, 8.5, 0.0),
-                                            left_crossable=False, left_type='arc', left_radius=7.0, left_direction='cw',
-                                            right_crossable=False, right_type='arc', right_radius=4.0, right_direction='cw',
+    roadgraph.lanes['t_2_1'] = create_lane(left_back=(6.0, 1.5, 0.0), left_forward=(0.0, 7.5, 0.0),
+                                            right_back=(6.0, 4.5, 0.0), right_forward=(3.0, 7.5, 0.0),
+                                            left_crossable=False, left_type='arc', left_radius=6.0, left_direction='cw',
+                                            right_crossable=False, right_type='arc', right_radius=3.0, right_direction='cw',
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['t_2_2'] = create_lane(left_back=(8.0, 12.5, 0.0), left_forward=(4.0, 8.5, 0.0),
-                                            right_back=(8.0, 15.5, 0.0), right_forward=(2.5, 15.5, 0.0),
-                                            left_crossable=False, left_type='arc', left_radius=4.0, left_direction='ccw',
+    roadgraph.lanes['t_2_2'] = create_lane(left_back=(6.0, 10.5, 0.0), left_forward=(3.0, 7.5, 0.0),
+                                            right_back=(6.0, 13.5, 0.0), right_forward=(1.5, 13.5, 0.0),
+                                            left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
                                             right_crossable=False,
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['t_2_3'] = create_lane(left_back=(1.0, 8.5, 0.0), left_forward=(-3.0, 12.5, 0.0),
-                                            right_back=(2.5, 15.5, 0.0), right_forward=(-3.0, 15.5, 0.0),
-                                            left_crossable=False, left_type='arc', left_radius=4.0, left_direction='ccw',
+    roadgraph.lanes['t_2_3'] = create_lane(left_back=(0.0, 7.5, 0.0), left_forward=(-3.0, 10.5, 0.0),
+                                            right_back=(1.5, 13.5, 0.0), right_forward=(-3.0, 13.5, 0.0),
+                                            left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
                                             right_crossable=False,
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['lane_2'] = create_lane(left_back=(22.0, 12.5, 0.0), left_forward=(8.0, 12.5, 0.0),
-                                            right_back=(22.0, 15.5, 0.0), right_forward=(8.0, 15.5, 0.0),
+    roadgraph.lanes['lane_2'] = create_lane(left_back=(24.0, 10.5, 0.0), left_forward=(6.0, 10.5, 0.0),
+                                            right_back=(24.0, 13.5, 0.0), right_forward=(6.0, 13.5, 0.0),
                                             left_crossable=False,
                                             right_crossable=False,
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['arc_2_1'] = create_lane(left_back=(-3.0, 12.5, 0.0), left_forward=(-7.0, 8.5, 0.0),
-                                           right_back=(-3.0, 15.5, 0.0), right_forward=(-10.0, 8.5, 0.0),
-                                           left_crossable=False, left_type='arc', left_radius=4.0, left_direction='ccw',
-                                           right_crossable=False, right_type='arc', right_radius=7.0, right_direction='ccw',
+    roadgraph.lanes['arc_2_1'] = create_lane(left_back=(-3.0, 10.5, 0.0), left_forward=(-6.0, 7.5, 0.0),
+                                           right_back=(-3.0, 13.5, 0.0), right_forward=(-9.0, 7.5, 0.0),
+                                           left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
+                                           right_crossable=False, right_type='arc', right_radius=6.0, right_direction='ccw',
                                            resolution=resolution,
                                            route_name=''
                                            )
-    roadgraph.lanes['arc_2_2'] = create_lane(left_back=(-7.0, 8.5, 0.0), left_forward=(0.0, 1.5, 0.0),
-                                           right_back=(-10.0, 8.5, 0.0), right_forward=(0.0, -1.5, 0.0),
-                                           left_crossable=False, left_type='arc', left_radius=7.0, left_direction='ccw',
-                                           right_crossable=False, right_type='arc', right_radius=10.0, right_direction='ccw',
+    roadgraph.lanes['arc_2_2'] = create_lane(left_back=(-6.0, 7.5, 0.0), left_forward=(0.0, 1.5, 0.0),
+                                           right_back=(-9.0, 7.5, 0.0), right_forward=(0.0, -1.5, 0.0),
+                                           left_crossable=False, left_type='arc', left_radius=6.0, left_direction='ccw',
+                                           right_crossable=False, right_type='arc', right_radius=9.0, right_direction='ccw',
                                            resolution=resolution,
                                            route_name=''
                                            )
 
     # Parking lots
-    roadgraph.regions['lane0_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
-                                                                          outline=[(30.0, 12.5), (30.0, 15), (0.0, 15), (0.0, 12.5)])
-    roadgraph.regions['lane1_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
-                                                                          outline=[(30.0, 12.5), (30.0, 15), (0.0, 15), (0.0, 12.5)])
-    roadgraph.regions['lane2_parallel_parking_lot_1'] = RoadgraphRegion(type=RoadgraphRegionEnum.PARKING_LOT,
-                                                                          outline=[(30.0, 12.5), (30.0, 15), (0.0, 15), (0.0, 12.5)])
-  
+    p_l = 5.5
+    p_w = 2.7
+
+    def create_rectangle_region(start, width, height, direction, enum_type=RoadgraphRegionEnum.PARKING_LOT):
+        if direction == 'right':
+            outline = [start, (start[0] + width, start[1]), (start[0] + width, start[1] + height), (start[0], start[1] + height)]
+        elif direction == 'up':
+            outline = [start, (start[0], start[1] + height), (start[0] - width, start[1] + height), (start[0] - width, start[1])]
+        elif direction == 'left':
+            outline = [start, (start[0] - width, start[1]), (start[0] - width, start[1] - height), (start[0], start[1] - height)]
+        elif direction == 'down':
+            outline = [start, (start[0], start[1] - height), (start[0] + width, start[1] - height), (start[0] + width, start[1])]
+        else:
+            raise ValueError("Unknown direction. Should be 'left', 'right', 'up' or 'down'.")
+        return RoadgraphRegion(type=enum_type, outline=outline)
+
+    roadgraph.regions['lane0_parallel_parking_lot_1'] = create_rectangle_region([15.0-p_l*2, -1.5], p_l, p_w, 'down')
+    roadgraph.regions['lane0_parallel_parking_lot_2'] = create_rectangle_region([15.0-p_l, -1.5], p_l, p_w, 'down')
+    roadgraph.regions['lane0_parallel_parking_lot_3'] = create_rectangle_region([15.0, -1.5], p_l, p_w, 'down')
+    roadgraph.regions['lane0_parallel_parking_lot_4'] = create_rectangle_region([15.0+p_l, -1.5], p_l, p_w, 'down')
+
+    roadgraph.regions['lane1_parallel_parking_lot_1'] = create_rectangle_region([15.0-p_l, 4.5], p_l, p_w, 'right')
+    roadgraph.regions['lane1_parallel_parking_lot_2'] = create_rectangle_region([15.0, 4.5], p_l, p_w, 'right')
+
+    roadgraph.regions['lane1_parallel_parking_lot_3'] = create_rectangle_region([15.0-p_l*3, 13.5], p_l, p_w, 'right')
+    roadgraph.regions['lane2_parallel_parking_lot_4'] = create_rectangle_region([15.0-p_l*2, 13.5], p_l, p_w, 'right')
+    roadgraph.regions['lane2_parallel_parking_lot_5'] = create_rectangle_region([15.0-p_l, 13.5], p_l, p_w, 'right')
+    roadgraph.regions['lane2_parallel_parking_lot_6'] = create_rectangle_region([15.0, 13.5], p_l, p_w, 'right')
+    roadgraph.regions['lane2_parallel_parking_lot_7'] = create_rectangle_region([15.0+p_l, 13.5], p_l, p_w, 'right')
+    roadgraph.regions['lane2_parallel_parking_lot_8'] = create_rectangle_region([15.0+p_l*2, 13.5], p_l, p_w, 'right')
+
+
 
     with open(filename, 'w') as f:
         serialization.save(roadgraph, f)
@@ -307,54 +330,123 @@ if __name__ == '__main__':
     frame = ObjectFrameEnum.GLOBAL
     roadgraph = Roadgraph(frame=frame)
 
-    lon_ratio = abs((-88.23525192774008) - (-88.23596797249934)) / 40  # 0.00071604475, lon / m 
-    lat_ratio = abs(40.09275263991526 - 40.092857270282984) / 12   #0.00010463036 lat / m
+    lon_ratio = abs((-88.23531742912073) - (-88.23590539697649)) / 40  # 0.0000147 lon/m
+    lat_ratio = abs(40.09275263991526 - 40.092857270282984) / 12   # 0.00000872 lat/m
     resolution = 0.4 * min(lon_ratio, lat_ratio)
 
     # Create lane segments
-    roadgraph.lanes['highbay_outer_lane'] = create_straight_lane(left_back=(-88.236129, 40.092741 + lat_ratio * 1.5, 0.0), left_forward=(-88.235527, 40.092741 + lat_ratio * 1.5, 0.0),
-                                                right_back=(-88.236129, 40.092741 - lat_ratio * 1.5, 0.0), right_forward=(-88.235527, 40.092741 - lat_ratio * 1.5, 0.0),
+    # roadgraph.lanes['highbay_outer_lane'] = create_straight_lane(left_back=(-88.236129, 40.092741 + lat_ratio * 1.5, 0.0), left_forward=(-88.235527, 40.092741 + lat_ratio * 1.5, 0.0),
+    #                                             right_back=(-88.236129, 40.092741 - lat_ratio * 1.5, 0.0), right_forward=(-88.235527, 40.092741 - lat_ratio * 1.5, 0.0),
+    #                                             resolution=resolution,
+    #                                             crossable=False,
+    #                                             route_name='')
+    # roadgraph.lanes['highbay_east_u_turn'] = create_arc_lane(left_back=(-88.235527, 40.092741 + lat_ratio * 1.5, 0.0), left_forward=(-88.235527, 40.092819 - lat_ratio * 1.5, 0.0),
+    #                                        left_radius=(40.092819 - 40.092741 - lat_ratio * 3) / 2,
+    #                                        right_back=(-88.235527, 40.092741 - lat_ratio * 1.5, 0.0), right_forward=(-88.235527, 40.092819 + lat_ratio * 1.5, 0.0),
+    #                                        right_radius=(40.092819 - 40.092741 + lat_ratio * 3) / 2,
+    #                                        direction='ccw',
+    #                                        resolution=resolution,
+    #                                        crossable=False,
+    #                                        route_name='')
+    # roadgraph.lanes['highbay_inner_lane'] = create_straight_lane(left_back=(-88.235527, 40.092819 - lat_ratio * 1.5, 0.0), left_forward=(-88.236129, 40.092819 - lat_ratio * 1.5, 0.0),
+    #                                             right_back=(-88.235527, 40.092819 + lat_ratio * 1.5, 0.0), right_forward=(-88.236129, 40.092819 + lat_ratio * 1.5, 0.0),
+    #                                             resolution=resolution,
+    #                                             crossable=False,
+    #                                             route_name='')
+    # roadgraph.lanes['highbay_west_u_turn'] = create_arc_lane(left_back=(-88.236129, 40.092819 - lat_ratio * 1.5, 0.0), left_forward=(-88.236129, 40.092741 + lat_ratio * 1.5, 0.0),
+    #                                        left_radius=(40.092819 - 40.092741 - lat_ratio * 3) / 2,
+    #                                        right_back=(-88.236129, 40.092819 + lat_ratio * 1.5, 0.0), right_forward=(-88.236129, 40.092741 - lat_ratio * 1.5, 0.0),
+    #                                        right_radius=(40.092819 - 40.092741 + lat_ratio * 3) / 2,
+    #                                        direction='ccw',
+    #                                        resolution=resolution,
+    #                                        crossable=False,
+    #                                        route_name='')
+    #
+    #
+    roadgraph.lanes['eastward'] = create_lane(left_back=(-88.235905*2-(-88.235968), 40.0927433+lat_ratio*1.5, 0.0),
+                                              left_forward=(-88.235317*2+88.235252, 40.0927516+lat_ratio*1.5, 0.0),
+                                              right_back=(-88.235968, 40.0927432-lat_ratio*1.5, 0.0),
+                                              right_forward=(-88.235252, 40.0927527-lat_ratio*1.5, 0.0),
+                                              left_crossable=False,
+                                              right_crossable=False,
+                                              resolution=resolution,
+                                              route_name=''
+                                              )
+    roadgraph.lanes['east_cycle_1'] = create_lane(left_back=(-88.235252, 40.0927527+lat_ratio*1.5, 0.0),
+                                                  left_forward=(-88.235252, 40.0928573-lat_ratio*1.5, 0.0),
+                                                  right_back=(-88.235252, 40.0927527-lat_ratio*1.5, 0.0),
+                                                  right_forward=(-88.235252, 40.0928573+lat_ratio*1.5, 0.0),
+                                                  left_crossable=False, left_type='arc', left_direction='ccw',
+                                                  left_radius=(40.0928573-40.0927527-lat_ratio*3)/2,
+                                                  right_crossable=False, right_type='arc', right_direction='ccw',
+                                                  right_radius=(40.0928573-40.0927527+lat_ratio*3)/2,
+                                                  resolution=resolution,
+                                                  route_name=''
+                                                  )
+    roadgraph.lanes['east_cycle_2'] = create_lane(left_back=(-88.235252, 40.0928573-lat_ratio*1.5, 0.0),
+                                                  left_forward=(-88.235317+lon_ratio*1.5, 40.0927934, 0.0),
+                                                  right_back=(-88.235252, 40.0928573+lat_ratio*1.5, 0.0),
+                                                  right_forward=(-88.235317-lon_ratio*1.5, 40.0927934, 0.0),
+                                                  left_crossable=False, left_type='arc', left_direction='ccw',
+                                                  left_radius=(40.0928573-40.0927527-lat_ratio*3)/2,
+                                                  right_crossable=False, right_type='arc', right_direction='ccw',
+                                                  right_radius=(40.0928573-40.0927527+lon_ratio*3)/2,
+                                                  resolution=resolution,
+                                                  route_name=''
+                                                  )
+    roadgraph.lanes['east_inter'] = create_lane(left_back=(-88.235317+lon_ratio*1.5, 40.0927934, 0.0),
+                                                left_forward=(-88.235252, 40.0927527+lat_ratio*1.5, 0.0),
+                                                right_back=(-88.235317-lon_ratio*1.5, 40.0927934, 0.0),
+                                                right_forward=(-88.235317*2+88.235252, 40.0927516+lat_ratio*1.5, 0.0),
+                                                left_crossable=False, left_type='arc', left_direction='ccw',
+                                                left_radius=(40.0928573-40.0927527-lat_ratio*3)/2,
+                                                right_crossable=False, right_type='arc', right_direction='cw',
+                                                right_radius=(40.0928573-40.0927527-lat_ratio*3)/2,
                                                 resolution=resolution,
-                                                crossable=False,
-                                                route_name='')
-    roadgraph.lanes['highbay_east_u_turn'] = create_arc_lane(left_back=(-88.235527, 40.092741 + lat_ratio * 1.5, 0.0), left_forward=(-88.235527, 40.092819 - lat_ratio * 1.5, 0.0),
-                                           left_radius=(40.092819 - 40.092741 - lat_ratio * 3) / 2,
-                                           right_back=(-88.235527, 40.092741 - lat_ratio * 1.5, 0.0), right_forward=(-88.235527, 40.092819 + lat_ratio * 1.5, 0.0),
-                                           right_radius=(40.092819 - 40.092741 + lat_ratio * 3) / 2,
-                                           direction='ccw',
-                                           resolution=resolution,
-                                           crossable=False,
-                                           route_name='')
-    roadgraph.lanes['highbay_inner_lane'] = create_straight_lane(left_back=(-88.235527, 40.092819 - lat_ratio * 1.5, 0.0), left_forward=(-88.236129, 40.092819 - lat_ratio * 1.5, 0.0),
-                                                right_back=(-88.235527, 40.092819 + lat_ratio * 1.5, 0.0), right_forward=(-88.236129, 40.092819 + lat_ratio * 1.5, 0.0),
+                                                route_name=''
+                                                )
+    roadgraph.lanes['westward'] = create_lane(right_forward=(-88.235905*2-(-88.235968), 40.0927433+lat_ratio*1.5, 0.0),
+                                              right_back=(-88.235317*2+88.235252, 40.0927516+lat_ratio*1.5, 0.0),
+                                              left_forward=(-88.235968, 40.0927432-lat_ratio*1.5, 0.0),
+                                              left_back=(-88.235252, 40.0927527-lat_ratio*1.5, 0.0),
+                                              left_crossable=False,
+                                              right_crossable=False,
+                                              resolution=resolution,
+                                              route_name=''
+                                              )
+    roadgraph.lanes['west_cycle_1'] = create_lane(left_back=(-88.235968, 40.0927432-lat_ratio*1.5, 0.0),
+                                                  left_forward=(-88.235968, 40.0928604+lat_ratio*1.5, 0.0),
+                                                  right_back=(-88.235968, 40.0927432+lat_ratio*1.5, 0.0),
+                                                  right_forward=(-88.235968, 40.0928604-lat_ratio*1.5, 0.0),
+                                                  left_crossable=False, left_type='arc', left_direction='cw',
+                                                  left_radius=(40.0928604-40.0927432+lat_ratio*3)/2,
+                                                  right_crossable=False, right_type='arc', right_direction='cw',
+                                                  right_radius=(40.0928604-40.0927432-lat_ratio*3)/2,
+                                                  resolution=resolution,
+                                                  route_name=''
+                                                  )
+    roadgraph.lanes['west_cycle_2'] = create_lane(left_back=(-88.235968, 40.0928604+lat_ratio*1.5, 0.0),
+                                                  left_forward=(-88.235905+lon_ratio*1.5, 40.0927917, 0.0),
+                                                  right_back=(-88.235968, 40.0928604-lat_ratio*1.5, 0.0),
+                                                  right_forward=(-88.235905-lon_ratio*1.5, 40.0927917, 0.0),
+                                                  left_crossable=False, left_type='arc', left_direction='cw',
+                                                  left_radius=(40.0928604-40.0927432+lon_ratio*3)/2,
+                                                  right_crossable=False, right_type='arc', right_direction='cw',
+                                                  right_radius=(40.0928604-40.0927432-lat_ratio*3)/2,
+                                                  resolution=resolution,
+                                                  route_name=''
+                                                  )
+    roadgraph.lanes['west_inter'] = create_lane(left_back=(-88.235905+lon_ratio*1.5, 40.0927917, 0.0),
+                                                left_forward=(-88.235905*2-(-88.235968), 40.0927433+lat_ratio*1.5, 0.0),
+                                                right_back=(-88.235905-lon_ratio*1.5, 40.0927917, 0.0),
+                                                right_forward=(-88.235968, 40.0927432+lat_ratio*1.5, 0.0),
+                                                left_crossable=False, left_type='arc', left_direction='ccw',
+                                                left_radius=(40.0928604-40.0927432-lat_ratio*3)/2,
+                                                right_crossable=False, right_type='arc', right_direction='cw',
+                                                right_radius=(40.0928604-40.0927432-lat_ratio*3)/2,
                                                 resolution=resolution,
-                                                crossable=False,
-                                                route_name='')
-    roadgraph.lanes['highbay_west_u_turn'] = create_arc_lane(left_back=(-88.236129, 40.092819 - lat_ratio * 1.5, 0.0), left_forward=(-88.236129, 40.092741 + lat_ratio * 1.5, 0.0),
-                                           left_radius=(40.092819 - 40.092741 - lat_ratio * 3) / 2,
-                                           right_back=(-88.236129, 40.092819 + lat_ratio * 1.5, 0.0), right_forward=(-88.236129, 40.092741 - lat_ratio * 1.5, 0.0),
-                                           right_radius=(40.092819 - 40.092741 + lat_ratio * 3) / 2,
-                                           direction='ccw',
-                                           resolution=resolution,
-                                           crossable=False,
-                                           route_name='')
-
-
-    roadgraph.lanes['lane_0'] = create_lane(left_back=(0.0, 1.49, 0.0), left_forward=(30, 1.49, 0.0),
-                                            right_back=(0.0, -1.5, 0.0), right_forward=(30, -1.5, 0.0),
-                                            left_crossable=False,
-                                            right_crossable=False,
-                                            resolution=resolution,
-                                            route_name=''
-                                            )
-    roadgraph.lanes['arc_1_1'] = create_lane(left_back=(30.0, 1.5, 0.0), left_forward=(37.0, 8.5, 0.0),
-                                            right_back=(30.0, -1.5, 0.0), right_forward=(40.0, 8.5, 0.0),
-                                            left_crossable=False, left_type='arc', left_radius=7.0, left_direction='ccw',
-                                            right_crossable=False, right_type='arc', right_radius=10.0, right_direction='ccw',
-                                            resolution=resolution,
-                                            route_name=''
-                                            )
-
+                                                route_name=''
+                                                )
 
     with open(filename, 'w') as f:
         serialization.save(roadgraph, f)

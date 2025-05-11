@@ -39,9 +39,9 @@ class StateMachine:
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, use_webapp, state_machine):
+    def __init__(self, use_webapp, goal_location, state_machine):
         self.state_machine = StateMachine([eval(s) for s in state_machine])
-        self.goal_location = None
+        self.goal_location = goal_location
         self.new_goal = False
         self.goal_pose = None
         self.start_pose = None

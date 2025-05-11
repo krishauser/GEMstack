@@ -197,10 +197,12 @@ class RoutePlanningComponent(Component):
         """ Read offline map of lanes """
         if map_frame == 'global':
             self.map_frame = ObjectFrameEnum.GLOBAL
+        elif map_frame == 'cartesian':
+            self.map_frame = ObjectFrameEnum.ABSOLUTE_CARTESIAN
         elif map_frame == 'start':
             self.map_frame = ObjectFrameEnum.START
         else:
-            raise ValueError("Frame argument not available. Should be 'start' or 'global'.")
+            raise ValueError("Frame argument not available. Should be 'start', 'cartesian' or 'global'.")
 
         base, ext = os.path.splitext(roadgraphfn)
         if ext in ['.json', '.yml', '.yaml']:

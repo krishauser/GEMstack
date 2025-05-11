@@ -7,10 +7,6 @@ import matplotlib.pyplot as plt
 
 
 def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
-    """
-    Get all lane points from a roadgraph.
-    Ouput: A list of [x, y, z], z = 0 for general cases.
-    """
     lane_points = []
     for lane in roadgraph.lanes.values():
         for pts in lane.left.segments:
@@ -22,12 +18,14 @@ def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
     return lane_points
 
 
-if __name__ == "__main__":
+def get_region_points_from_roadgraph(roadgraph: Roadgraph) -> List:
+    outlines = []
+    for region in roadgraph.regions.values():
+        outlines.extend(region.outline)
+    return outlines
 
-    roadgraphfn = "GEMstack/knowledge/routes/summoning_roadgraph_sim.json"
-    map_frame = 'start'
-    # roadgraphfn = "GEMstack/knowledge/routes/summoning_roadgraph_highbay.json"
-    # map_frame = 'global'
+
+def plot_roadgraph(roadgraphfn, scale) -> None:
     base, ext = os.path.splitext(roadgraphfn)
     if ext in ['.json', '.yml', '.yaml']:
         with open(roadgraphfn, 'r') as f:
@@ -36,20 +34,37 @@ if __name__ == "__main__":
     elif ext in ['.csv', '.txt']:
         roadgraph = np.loadtxt(roadgraphfn, delimiter=',', dtype=float)
         map_type = 'pointlist'
-        roadgraph = Path(frame=map_frame, points=roadgraph.tolist())
     else:
         raise ValueError("Unknown roadgraph file extension", ext)
-    
+
     if map_type == 'roadgraph':
         lane_points = get_lane_points_from_roadgraph(roadgraph)
+        outlines = np.array(get_region_points_from_roadgraph(roadgraph))
     elif map_type == 'pointlist':
         lane_points = roadgraph.points
 
     # np.savetxt('roadgraph_lane_points.txt', lane_points, delimiter=',')
 
     lane_points = np.array(lane_points)
-    x = lane_points[:, 0] #*100
-    y = lane_points[:, 1] #*100
-    plt.scatter(x,y)
+    x = lane_points[:, 0] * scale
+    y = lane_points[:, 1] * scale
+    plt.scatter(x, y)
     plt.axis('equal')
+    if map_type == 'roadgraph':
+        if len(outlines) > 0:
+            outlines = np.array(outlines)
+            p_x = outlines[:, 0]
+            p_y = outlines[:, 1]
+            plt.scatter(p_x, p_y)
     plt.show()
+
+
+if __name__ == "__main__":
+
+    roadgraphfn = "GEMstack/knowledge/routes/summoning_roadgraph_sim.json"
+    scale = 1
+    plot_roadgraph(roadgraphfn, scale)
+
+    roadgraphfn = "GEMstack/knowledge/routes/summoning_roadgraph_highbay.json"
+    scale = 1000
+    plot_roadgraph(roadgraphfn, scale)
