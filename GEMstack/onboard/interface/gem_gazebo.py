@@ -40,6 +40,7 @@ class GEMGazeboInterface(GEMInterface):
         GEMInterface.__init__(self)
         self.max_send_rate = settings.get('vehicle.max_command_rate', 10.0)
         self.ros_sensor_topics = settings.get('vehicle.sensors.ros_topics')
+        self.debug = settings.get('vehicle.debug', True)
         self.last_command_time = 0.0
         self.last_reading = GEMVehicleReading()
         self.last_reading.speed = 0.0
@@ -79,7 +80,8 @@ class GEMGazeboInterface(GEMInterface):
         self.clock_sub = rospy.Subscriber('/clock', Clock, self.clock_callback)
 
     def start(self):
-        print("Starting GEM Gazebo Interface")
+        if self.debug:
+            print("Starting GEM Gazebo Interface")
 
     def clock_callback(self, msg):
         self.sim_time = msg.clock
@@ -96,21 +98,9 @@ class GEMGazeboInterface(GEMInterface):
         if name == 'gnss':
             topic = self.ros_sensor_topics['gnss']
             def gnss_callback_wrapper(gnss_msg: INSNavGeod):
-                roll, pitch, yaw = gnss_msg.roll, gnss_msg.pitch, gnss_msg.heading
+                roll, pitch, heading = gnss_msg.roll, gnss_msg.pitch, gnss_msg.heading
                 # Convert from degrees to radians
-                roll, pitch, yaw = math.radians(roll), math.radians(pitch), math.radians(yaw)
-
-                # Transform yaw to correct frame - Gazebo typically uses ROS standard frame (x-forward)
-                # while navigation uses x-east reference frame
-                # Need to convert from Gazebo's frame to navigation heading, then to navigation yaw
-
-                # Assuming Gazebo's yaw is 0 when facing east (ROS REP 103 convention)
-                # Convert IMU's yaw to heading (CW from North), then to navigation yaw (CCW from East)
-                # This handles the coordinate frame differences between Gazebo and the navigation frame
-                # Negate yaw to convert from ROS to heading
-                heading = transforms.yaw_to_heading(-yaw - np.pi/2, degrees=False)
-                navigation_yaw = transforms.heading_to_yaw(
-                    heading, degrees=False)
+                roll, pitch, yaw = math.radians(roll), math.radians(pitch), math.radians(heading)
 
                 # Create fused pose with transformed yaw
                 pose = ObjectPose(
@@ -121,7 +111,7 @@ class GEMGazeboInterface(GEMInterface):
                     z=gnss_msg.height,
                     roll=roll,
                     pitch=pitch,
-                    yaw=navigation_yaw
+                    yaw=yaw
                 )
 
                 # Calculate speed from GNSS
@@ -133,14 +123,17 @@ class GEMGazeboInterface(GEMInterface):
                     speed=self.last_reading.speed,
                     status='error' if gnss_msg.error else 'ok'
                 )
-                # Added debug
-                print(
-                    f"[GNSS] Raw coordinates: Lat={gnss_msg.latitude:.6f}, Lon={gnss_msg.longitude:.6f}")
-                # Added debug
-                print(
-                    f"[GNSS-FUSED] Orientation: Roll={roll:.2f}, Pitch={pitch:.2f}, Yaw={yaw:.2f} rad")
-                # Added debug
-                print(f"[GNSS-FUSED] Speed: {self.last_reading.speed:.2f} m/s")
+                
+                # Only print debug info if debug flag is enabled
+                if self.debug:
+                    # Added debug
+                    print(
+                        f"[GNSS] Raw coordinates: Lat={gnss_msg.latitude:.6f}, Lon={gnss_msg.longitude:.6f}")
+                    # Added debug
+                    print(
+                        f"[GNSS-FUSED] Orientation: Roll={roll:.2f}, Pitch={pitch:.2f}, Heading={heading}°, Nav Yaw={yaw:.2f} rad")
+                    # Added debug
+                    print(f"[GNSS-FUSED] Speed: {self.last_reading.speed:.2f} m/s")
 
                 callback(reading)
 
@@ -250,8 +243,9 @@ class GEMGazeboInterface(GEMInterface):
         msg.steering_angle = phides
         msg.steering_angle_velocity = command.steering_wheel_speed  # Respect steering velocity limit
 
-        # Debug output
-        print(f"[ACKERMANN] Speed: {msg.speed:.2f}, Accel: {msg.acceleration:.2f}, Steer: {msg.steering_angle:.2f}")
+        # Debug output only if debug flag is enabled
+        if self.debug:
+            print(f"[ACKERMANN] Speed: {msg.speed:.2f}, Accel: {msg.acceleration:.2f}, Steer: {msg.steering_angle:.2f}")
 
         self.ackermann_pub.publish(msg)
         self.last_command = command
