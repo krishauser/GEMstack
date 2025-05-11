@@ -447,22 +447,23 @@ class ParkingPlanner():
         os.makedirs(self.logs_dir, exist_ok=True)
         self.success_file = os.path.join(self.logs_dir, 'parking_success.txt')
 
-    def save_parking_message(self, success: bool):
+    def save_parking_message(self, success: bool, planning_time: float = None):
         """Save a parking status message to a text file.
         
         Args:
             success (bool): Whether parking was successful
+            planning_time (float): Time taken by A* planner in seconds
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         status = "successful" if success else "unsuccessful"
-        message = f"Parking {status} at {timestamp}\n"
+        message = f"Parking {status} at {timestamp}"
+        if planning_time is not None:
+            message += f" (Planning time: {planning_time:.2f} seconds)"
+        message += "\n"
         
         try:
             with open(self.success_file, 'a') as f:
                 f.write(message)
-                f.write(success)
-                f.write("End")
-            print(f"Parking status saved to {self.success_file}")
         except Exception as e:
             print(f"Error saving parking status: {e}")
 
@@ -535,11 +536,11 @@ class ParkingPlanner():
         # Need exactly 4 cones to form a parking spot
         if len(parking_spot_vertices) != 4:
             print("Warning: Not exactly 4 cones found for parking spot")
-            try:
-                with open(self.success_file, 'a') as f:
-                    f.write("No Four Cones")
-            except Exception as e:
-                print(f"Error saving parking status: {e}")
+            # try:
+            #     with open(self.success_file, 'a') as f:
+            #         f.write("No Four Cones")
+            # except Exception as e:
+            #     print(f"Error saving parking status: {e}")
             return False
             
         # Order the vertices to form a proper polygon
@@ -560,23 +561,23 @@ class ParkingPlanner():
         for cone_object in cone_objects:
             if collisions.polygon_intersects_polygon_2d(vehicle_polygon, cone_object.polygon_parent()):
                 print("Vehicle collides with a cone")
-                try:
-                    with open(self.success_file, 'a') as f:
-                        f.write("Collides with Cone")
-                except Exception as e:
-                    print(f"Error saving parking status: {e}")
+                # try:
+                #     with open(self.success_file, 'a') as f:
+                #         f.write("Collides with Cone")
+                # except Exception as e:
+                #     print(f"Error saving parking status: {e}")
                 return False
         
         # Then check if vehicle is contained within parking spot
         if not collisions.polygon_contains_polygon_2d(ordered_vertices, vehicle_polygon):
             print("Vehicle is not contained within parking spot")
-            try:
-                with open(self.success_file, 'a') as f:
-                    f.write(f"\nOrdered Vertices{ordered_vertices}")
-                    f.write(f"\nVehicle_Polygon{vehicle_polygon}")
-                    f.write("\nNot Contained with parking spot")
-            except Exception as e:
-                print(f"Error saving parking status: {e}")
+            # try:
+            #     with open(self.success_file, 'a') as f:
+            #         f.write(f"\nOrdered Vertices{ordered_vertices}")
+            #         f.write(f"\nVehicle_Polygon{vehicle_polygon}")
+            #         f.write("\nNot Contained with parking spot")
+            # except Exception as e:
+            #     print(f"Error saving parking status: {e}")
             return False
             
         # Finally check if final orientation is close enough to goal orientation
@@ -671,9 +672,12 @@ class ParkingPlanner():
         self.planner.obstacles = list(all_obstacles.values())
         self.planner.vehicle = vehicle
 
+        # Measure planning time
+        planner_start_time = time.time()
         # Compute the new trajectory and return it 
         res = list(self.planner.astar(start_state, goal_state, reversePath=False, iterations=self.iterations))
-        # points = [state[:2] for state in res] # change here to return the theta as well
+        planning_time = time.time() - planner_start_time
+
         points = []
         for state in res:
             points.append((state[0], state[1]))
@@ -690,22 +694,14 @@ class ParkingPlanner():
         # Check if final position in trajectory is within parking spot
         if len(res) > 0:
             final_state = res[-1]  # Get the last state from the trajectory
-            try:
-                with open(self.success_file, 'a') as f:
-                    f.write("Final State")
-                    f.write(str(final_state))
-                    f.write("Final State End")
-                print(f"Parking status saved to {self.success_file}")
-            except Exception as e:
-                print(f"Error saving parking status: {e}")
             self.parking_success = self.is_successfully_parked(final_state, goal_pose, agents)
             if self.parking_success:
                 print("Final position is within parking spot!")
             else:
                 print("Final position is not within parking spot")
                 
-            # Save parking status
-            self.save_parking_message(self.parking_success)
+            # Save parking status with planning time
+            self.save_parking_message(self.parking_success, planning_time)
         else:
             print("No trajectory generated")
 
