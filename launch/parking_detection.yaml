@@ -92,7 +92,7 @@ variants:
                     # route_planning_component:
                     #     type: RoutePlanningComponent
                     
-    sim: # full pipeline
+    sim: # full pipeline, sim, real perception
         run:
             mode: simulation
             vehicle_interface:
@@ -178,6 +178,48 @@ variants:
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         print: False
+    
+    real_sim: # real on-board planning w/ fake perception
+        run:
+            mode: hardware
+            vehicle_interface:
+                type: gem_hardware.GEMHardwareInterface
+
+            drive: 
+                perception:
+                    state_estimation : GNSSStateEstimator
+                    agent_detection : OmniscientAgentDetector
+                    parking_detection: parking_detection.FakeParkingSpaceDetector
+                        
+                    
+                planning:
+                    parking_component:
+                        type: ParkingSim
+                    route_planning_component:
+                        type: RoutePlanningComponent
+                        dubins: 
+                            integrator:
+                                timestep: 1
+                                dt: .25
+                                max_velocity: 0.75
+                                max_turning_rate: 0.3
+                                tolerance: 0.25
+                        astar:
+                            iterations: 200 # We should have some sort of max iterations/timeout
+                            heuristic: reeds_shepp
+
+                    motion_planning:
+                        type: longitudinal_planning.YieldTrajectoryPlanner
+                        # type: yield_spline_planner.SplinePlanner
+                        largs:
+                            acceleration: 1
+                            deceleration: 2
+                            desired_speed: 1
+
+                    trajectory_tracking:
+                        type: pure_pursuit.PurePursuitTrajectoryTracker
+                        print: False
+
     log_ros:
         log:
             ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"
