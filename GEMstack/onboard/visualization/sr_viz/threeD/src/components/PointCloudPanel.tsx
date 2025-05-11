@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useScrubber } from "./ScrubberContext";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { Select, SelectChangeEvent, MenuItem } from "@mui/material";
 
 function parsePointCloud2(msg: any): THREE.Points {
     const { data, point_step, fields } = msg;
@@ -25,7 +26,13 @@ function parsePointCloud2(msg: any): THREE.Points {
 
         positions.push(x, y, z);
 
-        if ("rgb" in fieldMap) {
+        if ("rgba" in fieldMap) {
+            const rgba = dv.getUint32(i + fieldMap["rgba"], true);
+            const r = (rgba >> 24) & 0xff;
+            const g = (rgba >> 16) & 0xff;
+            const b = (rgba >> 8) & 0xff;
+            colors.push(r / 255, g / 255, b / 255);
+        } else if ("rgb" in fieldMap) {
             const rgb = dv.getUint32(i + fieldMap["rgb"], true);
             const r = (rgb >> 16) & 0xff;
             const g = (rgb >> 8) & 0xff;
@@ -100,9 +107,11 @@ function getTransformMatrix(
 export const PointCloudPanel = ({
     messages,
     tfMessages,
+    initialTopic,
 }: {
-    messages: any[];
+    messages: Record<string, any[]>;
     tfMessages: any[];
+    initialTopic?: string;
 }) => {
     const mountRef = useRef<HTMLDivElement>(null);
     const { startTime, currentTime } = useScrubber();
@@ -111,8 +120,18 @@ export const PointCloudPanel = ({
     const sceneRef = useRef<THREE.Scene>();
     const controlsRef = useRef<OrbitControls>();
     const pointCloudRef = useRef<THREE.Points>();
+    const [selectedTopic, setSelectedTopic] = useState(
+        initialTopic || Object.keys(messages)[0] || ""
+    );
 
     useEffect(() => {
+        if (initialTopic && messages[initialTopic]) {
+            setSelectedTopic(initialTopic);
+        }
+    }, [initialTopic]);
+
+    useEffect(() => {
+        if (!selectedTopic || !messages[selectedTopic]) return;
         if (!mountRef.current) return;
 
         const scene = new THREE.Scene();
@@ -159,10 +178,8 @@ export const PointCloudPanel = ({
         const scene = sceneRef.current;
         if (!scene) return;
 
-        const msg = messages.find(
-            (m) =>
-                m.timestamp >= startTime + currentTime &&
-                m.data.header.frame_id === "velodyne"
+        const msg = messages[selectedTopic].find(
+            (m) => m.timestamp >= startTime + currentTime
         );
         if (!msg) return;
 
@@ -208,5 +225,32 @@ export const PointCloudPanel = ({
         return () => observer.disconnect();
     }, []);
 
-    return <div ref={mountRef} className="w-full h-full" />;
+    return (
+        <div ref={mountRef} className="w-full h-full">
+            <div className="absolute top-2 right-20">
+                <Select
+                    value={selectedTopic}
+                    onChange={(e: SelectChangeEvent<string>) => {
+                        setSelectedTopic(e.target.value);
+                    }}
+                    size="small"
+                    disabled={Object.keys(messages).length === 0}
+                    sx={{
+                        backgroundColor: "white",
+                        opacity: 0.25,
+                        borderRadius: "9999px",
+                        "&:hover": {
+                            opacity: 0.5,
+                        },
+                    }}
+                >
+                    {Object.keys(messages).map((topic) => (
+                        <MenuItem key={topic} value={topic}>
+                            {topic}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </div>
+        </div>
+    );
 };

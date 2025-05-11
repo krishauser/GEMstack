@@ -36,9 +36,14 @@ export default function RosbagViewer() {
     const [topics, setTopics] = useState<string[]>([]);
     const [types, setTypes] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
-    const [messageMap, setMessageMap] = useState<Record<string, any[]>>({
-        video: [],
-        pointcloud: [],
+    const [messageMap, setMessageMap] = useState<{
+        video: Record<string, any[]>;
+        pointcloud: Record<string, any[]>;
+        tf: any[];
+    }>({
+        video: {},
+        pointcloud: {},
+        tf: [],
     });
 
     const [duration, setDuration] = useState(0);
@@ -59,7 +64,7 @@ export default function RosbagViewer() {
         const reader = fileToReader(file);
         const bag = new Bag(reader);
         await bag.open();
-        console.log("Bag opened:", bag);
+        // console.log("Bag opened:", bag);
         const topicNames = Array.from(bag.connections.values()).map(
             (conn) => conn.topic
         );
@@ -68,12 +73,11 @@ export default function RosbagViewer() {
         );
         setTopics(topicNames);
         setTypes(topicTypes);
-        console.log("Topics:", topicNames, topicTypes);
+        // console.log("Topics:", topicNames, topicTypes);
 
-        const videoMessages: any[] = [];
-        const pointcloudMessages: any[] = [];
+        const videoMessages: Record<string, any[]> = {};
+        const pointcloudMessages: Record<string, any[]> = {};
         const tfMessages: any[] = [];
-        const velodyneScanMessages: any[] = [];
         for await (const msg of bag.messageIterator()) {
             const entry = {
                 timestamp: msg.timestamp.sec + msg.timestamp.nsec * 1e-9,
@@ -81,50 +85,62 @@ export default function RosbagViewer() {
                 data: msg.message,
             };
             const type = topicTypes[topicNames.indexOf(msg.topic)];
-            if (type.includes("Image")) videoMessages.push(entry);
-            if (type.includes("PointCloud2")) pointcloudMessages.push(entry);
+            if (type.includes("Image")) {
+                if (!videoMessages[msg.topic]) videoMessages[msg.topic] = [];
+                videoMessages[msg.topic].push(entry);
+            }
+            if (type.includes("PointCloud2")) {
+                if (!pointcloudMessages[msg.topic])
+                    pointcloudMessages[msg.topic] = [];
+                pointcloudMessages[msg.topic].push(entry);
+            }
             if (type.includes("TFMessage")) tfMessages.push(entry);
-            if (type.includes("VelodyneScan")) velodyneScanMessages.push(entry);
         }
         setLoading(false);
-        console.log(
-            "Messages parsed:",
-            videoMessages,
-            pointcloudMessages,
-            tfMessages,
-            velodyneScanMessages
-        );
+        // console.log(
+        //     "Messages parsed:",
+        //     videoMessages,
+        //     pointcloudMessages,
+        //     tfMessages
+        // );
         setMessageMap({
             video: videoMessages,
             pointcloud: pointcloudMessages,
             tf: tfMessages,
         });
-        if (videoMessages.length > 0) {
-            setDuration(
-                Math.max(
-                    videoMessages[videoMessages.length - 1].timestamp -
-                        videoMessages[0].timestamp,
-                    0
-                )
-            );
-        }
-        if (pointcloudMessages.length > 0) {
-            setDuration((prev) =>
-                Math.max(
-                    prev,
-                    pointcloudMessages[pointcloudMessages.length - 1]
-                        .timestamp - pointcloudMessages[0].timestamp,
-                    0
-                )
-            );
-        }
-        const videoStart = videoMessages[0]?.timestamp || 0;
-        const pointcloudStart = pointcloudMessages[0]?.timestamp || 0;
-        const start =
+        const getDuration = (
+            messagesByTopic: Record<string, any[]>
+        ): number => {
+            const durations = Object.values(messagesByTopic)
+                .filter((msgs) => msgs.length > 1)
+                .map(
+                    (msgs) =>
+                        msgs[msgs.length - 1].timestamp - msgs[0].timestamp
+                );
+            return durations.length > 0 ? Math.max(...durations) : 0;
+        };
+
+        const getStart = (messagesByTopic: Record<string, any[]>): number => {
+            const starts = Object.values(messagesByTopic)
+                .filter((msgs) => msgs.length > 0)
+                .map((msgs) => msgs[0].timestamp);
+            return starts.length > 0 ? Math.min(...starts) : 0;
+        };
+
+        setDuration(
+            Math.max(
+                getDuration(videoMessages),
+                getDuration(pointcloudMessages),
+                0
+            )
+        );
+        const videoStart = getStart(videoMessages);
+        const pointcloudStart = getStart(pointcloudMessages);
+        setStartTime(
             videoStart > 0 && pointcloudStart > 0
                 ? Math.min(videoStart, pointcloudStart)
-                : Math.max(videoStart, pointcloudStart);
-        setStartTime(start);
+                : Math.max(videoStart, pointcloudStart)
+        );
     };
 
     return (
