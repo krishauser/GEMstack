@@ -2,7 +2,13 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { useScrubber } from "./ScrubberContext";
-import { Switch, FormControlLabel } from "@mui/material";
+import {
+    Switch,
+    FormControlLabel,
+    Select,
+    SelectChangeEvent,
+    MenuItem,
+} from "@mui/material";
 
 export function decodeImage(msg: {
     encoding: string;
@@ -118,10 +124,14 @@ export function decodeImage(msg: {
 }
 
 type VideoPanelProps = {
-    messages: any[];
+    messages: Record<string, any[]>;
+    initialTopic?: string;
 };
 
-export const VideoPanel: React.FC<VideoPanelProps> = ({ messages }) => {
+export const VideoPanel: React.FC<VideoPanelProps> = ({
+    messages,
+    initialTopic,
+}) => {
     const { startTime, currentTime } = useScrubber();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -132,9 +142,19 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ messages }) => {
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const lastMouse = useRef({ x: 0, y: 0 });
+    const [selectedTopic, setSelectedTopic] = useState(
+        initialTopic || Object.keys(messages)[0] || ""
+    );
 
     useEffect(() => {
-        const msg = messages.find(
+        if (initialTopic && messages[initialTopic]) {
+            setSelectedTopic(initialTopic);
+        }
+    }, [initialTopic]);
+
+    useEffect(() => {
+        if (!selectedTopic || !messages[selectedTopic]) return;
+        const msg = messages[selectedTopic].find(
             (m) => m.timestamp >= startTime + currentTime
         );
         if (!msg || !msg.data) return;
@@ -268,6 +288,30 @@ export const VideoPanel: React.FC<VideoPanelProps> = ({ messages }) => {
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
+            <div className="absolute top-2 right-70">
+                <Select
+                    value={selectedTopic}
+                    onChange={(e: SelectChangeEvent<string>) => {
+                        setSelectedTopic(e.target.value);
+                    }}
+                    size="small"
+                    disabled={Object.keys(messages).length === 0}
+                    sx={{
+                        backgroundColor: "white",
+                        opacity: 0.25,
+                        borderRadius: "9999px",
+                        "&:hover": {
+                            opacity: 0.5,
+                        },
+                    }}
+                >
+                    {Object.keys(messages).map((topic) => (
+                        <MenuItem key={topic} value={topic}>
+                            {topic}
+                        </MenuItem>
+                    ))}
+                </Select>
+            </div>
             <div className="absolute top-2 right-20">
                 <FormControlLabel
                     label="Drag & Zoom"

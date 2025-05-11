@@ -84,6 +84,12 @@ export const Scrubber2 = ({
         }
     }, [currentTime, duration]);
 
+    useEffect(() => {
+        if (loading) {
+            setIsPlaying(false);
+        }
+    }, [loading]);
+
     return (
         <div
             className="px-5 fixed bottom-5 left-1/6 h-20 w-2/3 bg-black/40 text-white shadow-lg rounded-full flex justify-center items-center"

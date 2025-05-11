@@ -38,7 +38,7 @@ function createPanel(type: "video" | "pointcloud" | "text"): PanelNode {
 export const PanelManager = ({
     messageMap,
 }: {
-    messageMap: Record<string, any[]>;
+    messageMap: Record<string, Record<string, any[]> | any[]>;
 }) => {
     const [rootPanel, setRootPanel] = useState<PanelNode>(createPanel("video"));
 
@@ -94,12 +94,13 @@ export const PanelManager = ({
                     rootPanel={rootPanel}
                 />
                 {node.type === "video" && (
-                    <VideoPanel messages={messageMap["video"]} />
+                    <VideoPanel messages={messageMap["video"]} initialTopic={Object.keys(messageMap["video"])[0]} />
                 )}
                 {node.type === "pointcloud" && (
                     <PointCloudPanel
                         messages={messageMap["pointcloud"]}
                         tfMessages={messageMap["tf"]}
+                        initialTopic={Object.keys(messageMap["pointcloud"])[0]}
                     />
                 )}
             </Panel>
@@ -108,9 +109,6 @@ export const PanelManager = ({
 
     return (
         <div className="fixed top-0 left-0 w-full h-full">
-            {/* <div className="fixed top-5 left-55 flex gap-5 mb-2 z-10">
-        <Button onClick={() => console.log(rootPanel)}>Print</Button>
-      </div> */}
             <PanelGroup direction="horizontal">
                 {renderPanelNode(rootPanel)}
             </PanelGroup>
