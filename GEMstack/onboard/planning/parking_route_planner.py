@@ -623,9 +623,7 @@ class ParkingPlanner():
         # Get final position from trajectory
         x, y, theta, t= final_state
         
-        final_pos_point = [
-            [x, y]
-        ]
+        final_pos_point = [x, y]
         
         # Get parking spot polygon from cones
         parking_spot_vertices = []
