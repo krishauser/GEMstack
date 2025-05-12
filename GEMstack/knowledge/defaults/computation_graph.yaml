@@ -40,8 +40,11 @@ components:
       inputs: all
   - mission_execution:
       outputs: mission
+  - mission_planning:
+      inputs: all
+      outputs: mission
   - route_planning:
-      inputs: [vehicle, roadgraph, mission]
+      inputs: all
       outputs: route
   - route_planning_component:
       inputs: all
@@ -50,7 +53,7 @@ components:
       inputs: all
       outputs:
   - driving_logic:
-      inputs: all
+      inputs: 
       outputs: intent
   - motion_planning:
       inputs: all
@@ -58,3 +61,6 @@ components:
   - trajectory_tracking:
       inputs: [vehicle, trajectory]
       outputs: 
+  - signaling:
+      inputs: [intent]
+      outputs:
