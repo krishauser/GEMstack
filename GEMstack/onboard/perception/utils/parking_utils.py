@@ -135,8 +135,7 @@ def normalize_yaw(yaw):
     """Normalize yaw to [0, π) for orientation equivalence."""
     return yaw % math.pi
 
-
-def get_parking_obstacles(vertices):
+def get_parking_obstacles(vertices): 
     vertices = np.array(vertices)
     n = len(vertices)
     segment_info = []
@@ -149,14 +148,36 @@ def get_parking_obstacles(vertices):
         length = np.linalg.norm(delta)
         yaw = math.atan2(delta[1], delta[0])
         yaw = normalize_yaw(yaw)
-        segment_info.append(((center[0], center[1], 0.0, yaw), (length, 0.05, 1.0)))
+        distance_to_origin = np.linalg.norm(center)  # Distance from center to origin
 
-    # Sort by length and remove the two shortest segments
-    sorted_indices = sorted(range(len(segment_info)), key=lambda i: segment_info[i][1][0])
-    indices_to_remove = set(sorted_indices[:2])
+        segment_info.append({
+            "position": (center[0], center[1], 0.0, yaw),
+            "dimension": (length, 0.05, 1.0),
+            "length": length,
+            "distance_to_origin": distance_to_origin
+        })
 
-    filtered_positions = [segment_info[i][0] for i in range(len(segment_info)) if i not in indices_to_remove]
-    filtered_dimensions = [segment_info[i][1] for i in range(len(segment_info)) if i not in indices_to_remove]
+    if len(segment_info) < 2:
+        # Not enough segments to remove one
+        return [seg["position"] for seg in segment_info], [seg["dimension"] for seg in segment_info]
+
+    # Find the two shortest segments
+    segment_info_sorted = sorted(segment_info, key=lambda s: s["length"])
+    shortest = segment_info_sorted[0]
+    second_shortest = segment_info_sorted[1]
+
+    # Determine which one is closer to the origin and remove that
+    if shortest["distance_to_origin"] < second_shortest["distance_to_origin"]:
+        segment_to_remove = shortest
+    else:
+        segment_to_remove = second_shortest
+
+    # Filter out the selected segment
+    filtered_segments = [seg for seg in segment_info if seg != segment_to_remove]
+
+    # Prepare final outputs
+    filtered_positions = [seg["position"] for seg in filtered_segments]
+    filtered_dimensions = [seg["dimension"] for seg in filtered_segments]
 
     return filtered_positions, filtered_dimensions
 
