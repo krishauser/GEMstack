@@ -43,8 +43,11 @@ components:
       inputs: all
   - mission_execution:
       outputs: mission
+  - mission_planning:
+      inputs: all
+      outputs: mission
   - route_planning:
-      inputs: [vehicle, roadgraph, mission]
+      inputs: all
       outputs: route
   - driving_logic:
       inputs: 
