@@ -1,3 +1,0 @@
-python-dotenv
-fastapi[standard]
-boto3
