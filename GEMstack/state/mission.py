@@ -3,6 +3,8 @@ from typing import Optional
 from . import ObjectPose
 from ..utils.serialization import register
 from enum import Enum
+from .route import PlannerEnum
+
 
 class MissionEnum(Enum):
     IDLE = 0            # not driving, no mission

@@ -31,5 +31,4 @@ class ObstacleStateEnum(Enum):
 class Obstacle(PhysicalObject):
     material : ObstacleMaterialEnum
     collidable : bool
-    state: ObstacleStateEnum
-
+    state: ObstacleStateEnum = ObstacleStateEnum.UNKNOWN
