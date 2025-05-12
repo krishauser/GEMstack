@@ -97,7 +97,7 @@ class MPLVisualization(Component):
         # Print debugging info about the vehicle's position and frame
         if self.num_updates % 10 == 0:
             print(f"Vehicle position: ({state.vehicle.pose.x:.2f}, {state.vehicle.pose.y:.2f}), frame: {state.vehicle.pose.frame}")
-            print("Obstacle state:", state.obstacles)
+            # print("Obstacle state:", state.obstacles)
         
         # Pedestrian metrics and position debugging
         ped_positions = []

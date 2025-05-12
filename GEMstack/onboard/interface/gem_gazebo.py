@@ -207,11 +207,12 @@ class GEMGazeboInterface(GEMInterface):
             self.t_start = current_time
             self.transform_initialized = True
             
-            print("STABLE TRANSFORMATION INITIALIZED:")
-            print(f"  GPS position: ({self.start_pose_abs.x:.4f}, {self.start_pose_abs.y:.4f}, {self.start_pose_abs.z:.4f})")
-            print(f"  Model position: ({self.initial_vehicle_model_pose.x:.4f}, {self.initial_vehicle_model_pose.y:.4f}, {self.initial_vehicle_model_pose.z:.4f})")
-            print(f"  GPS orientation: {self.start_pose_abs.yaw:.4f} radians")
-            print(f"  Model orientation: {self.initial_vehicle_model_pose.yaw:.4f} radians")
+            if self.debug:
+                print("STABLE TRANSFORMATION INITIALIZED:")
+                print(f"  GPS position: ({self.start_pose_abs.x:.4f}, {self.start_pose_abs.y:.4f}, {self.start_pose_abs.z:.4f})")
+                print(f"  Model position: ({self.initial_vehicle_model_pose.x:.4f}, {self.initial_vehicle_model_pose.y:.4f}, {self.initial_vehicle_model_pose.z:.4f})")
+                print(f"  GPS orientation: {self.start_pose_abs.yaw:.4f} radians")
+                print(f"  Model orientation: {self.initial_vehicle_model_pose.yaw:.4f} radians")
             
         # Process all models except the vehicle itself
         for i, model_name in enumerate(msg.name):
@@ -541,12 +542,15 @@ class GEMGazeboInterface(GEMInterface):
 
         # Calculate acceleration from pedal positions
         acceleration = pedal_positions_to_acceleration(accelerator_pedal_position, brake_pedal_position, v, 0, 1)
-        print("acceleration before", acceleration)
+        if self.debug:
+            print("acceleration before", acceleration)
+        
         # Apply reasonable limits to acceleration
         max_accel = settings.get('vehicle.limits.max_acceleration', 1.0)
         max_decel = -1 * settings.get('vehicle.limits.max_deceleration', 2.0) # cuz ackermann expects neg but pure pursiut wants positive decel val
-        print("max_accel", max_accel)
-        print("max_decel", max_decel)
+        if self.debug:
+            print("max_accel", max_accel)
+            print("max_decel", max_decel)
         acceleration = np.clip(acceleration, max_decel, max_accel)
 
         # Convert wheel angle to steering angle (front wheel angle)
@@ -561,7 +565,9 @@ class GEMGazeboInterface(GEMInterface):
         # Don't use infinite speed, instead calculate a reasonable target speed
         current_speed = v
         target_speed = current_speed
-        print("acceleration ", acceleration)
+        if self.debug:
+            print("acceleration ", acceleration)
+        
         if acceleration > 0:
             # Accelerating - set target speed to current speed plus some increment
             # This is more realistic than infinite speed
@@ -569,7 +575,9 @@ class GEMGazeboInterface(GEMInterface):
             target_speed = min(current_speed + acceleration * 0.5, max_speed)
         elif acceleration < 0:
             # Braking - set target speed to zero if deceleration is significant
-            print("braking ", acceleration)
+            if self.debug:
+                print("braking ", acceleration)
+            
             if brake_pedal_position > 0.1:
                 target_speed = 0.0
 
