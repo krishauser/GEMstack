@@ -348,7 +348,7 @@ class SummoningRoutePlanner(Component):
                 print("Vehicle is moving, stop it first.")
                 self.route = Route(frame=ObjectFrameEnum.START, points=[[vehicle.pose.x, vehicle.pose.y],[vehicle.pose.x, vehicle.pose.y]])
 
-            if self.map_type == 'roadgraph':
+            elif self.map_type == 'roadgraph':
                 parking_lots, parking_area_start_end = find_parallel_parking_lots(self.roadgraph, vehicle.pose)
                 self.reedssheppparking.static_horizontal_curb_xy_coordinates = parking_area_start_end
 
@@ -356,11 +356,15 @@ class SummoningRoutePlanner(Component):
 
                 # TODO: Test only. Remove it later.
                 # self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0, -3),(30, -3)]
-                self.obstacle_list= [(4, -3),(24, -3)]
+                # self.obstacle_list= [(4, -3),(24, -3)]
                 print("Parking area start and end:", self.reedssheppparking.static_horizontal_curb_xy_coordinates)
                 print("Obstacle list:", self.obstacle_list)
 
-                if not self.parking_route_existed:
+                if not self.reedssheppparking.add_static_horizontal_curb_as_obstacle:
+                    print("No parking area found, start parking here.")
+                    self.route = None
+
+                elif not self.parking_route_existed:
                     self.current_pose = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw]
                     self.reedssheppparking.find_available_parking_spots_and_search_vector(self.obstacle_list,
                                                                                           self.current_pose)
@@ -371,6 +375,9 @@ class SummoningRoutePlanner(Component):
                     self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
                     self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
                     # print("Route:", self.route)
+            else:
+                print("No map for parking, start parking here.")
+                self.route = None
 
         else:
             print("Unknown mode")
