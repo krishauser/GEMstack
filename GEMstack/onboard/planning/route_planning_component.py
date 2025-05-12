@@ -2,18 +2,11 @@ import os
 from typing import Dict, List
 
 import numpy as np
-from numpy import ndarray
 
-# from GEMstack.onboard.component import Component
-# from GEMstack.state.agent import AgentState
-# from GEMstack.state.all import AllState,
-# from GEMstack.state.physical_object import ObjectFrameEnum
-# from GEMstack.state.route import PlannerEnum, Route
 from .rrt_star import RRTStar
-from ..interface.gem import GEMInterface
 from ..component import Component
 from ...state import AllState, Roadgraph, Route, PlannerEnum, ObjectFrameEnum, Path, \
-    VehicleState, AgentState, AgentEnum, RoadgraphRegion, RoadgraphRegionEnum
+    VehicleState, AgentState, AgentEnum, RoadgraphRegion, RoadgraphRegionEnum, ObjectPose
 from .RRT import BiRRT
 from ...utils import serialization
 
@@ -83,6 +76,7 @@ def find_available_pose_in_lane(position, roadgraph, pose_yaw=None, map_type='ro
             return [goal_x, goal_y, pose_yaw]
         else:
             return [goal_x, goal_y, goal_yaw]
+
     elif map_type == 'pointlist':
         pts = np.array(roadgraph)
         dists = np.linalg.norm(pts[:, :2] - goal, axis=1)
@@ -103,12 +97,17 @@ def find_available_pose_in_lane(position, roadgraph, pose_yaw=None, map_type='ro
         raise ValueError('map_type must be one of "roadgraph", "pointlist"')
 
 
-def find_closest_lane(position, roadgraph : Roadgraph):
+def find_closest_lane(position: list, roadgraph : Roadgraph, traffic_rule='right'):
     position = np.array(position)
     closest_lane = None
     min_dist = np.inf
+
     for lane in roadgraph.lanes.values():
-        for pts in lane.right.segments:
+        if traffic_rule == 'right':
+            segments = lane.right.segments
+        else:
+            segments = lane.left.segments
+        for pts in segments:
             pts = np.array(pts)
             dists = np.linalg.norm(pts[:, :2] - position, axis=1)
             min_idx = np.argmin(dists)
@@ -120,25 +119,62 @@ def find_closest_lane(position, roadgraph : Roadgraph):
     return closest_lane
 
 
-def find_parking_lots(roadgraph, goal_pose, max_lane_to_parking_lot_gap=1.0):
-    # TODO: incomplete, finish goal_parking_area_central_axis
+def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, max_lane_to_parking_lot_gap=1.0):
+    # Find the lane where the goal position is.
+    goal_lane = find_closest_lane([goal_pose.x, goal_pose.y], roadgraph)
+    goal_lane_points = np.array(goal_lane.right.segments)
+
+    # Find the parking lots that attached to the lane
     parking_lots = []
     for region in roadgraph.regions.values():
         if region.type == RoadgraphRegionEnum.PARKING_LOT:
-            parking_lots.append(region.outline)
+            for pt in region.outline:
+                if min(np.linalg.norm(goal_lane_points - np.array(pt[:2]), axis=1)) < max_lane_to_parking_lot_gap:
+                    parking_lots.append(region.outline)
+                    break
 
-    goal_lane = find_closest_lane(goal_pose, roadgraph)
+    # Find the closest and farthest parking lots and the middle points of the start and end curves as the parking area
+    # Assume that the closest lot is close to the start of the lane, and the farthest lot is close to the end.
+    closest_lot = None
+    farthest_lot = None
+    closest_start_point = None
+    closest_start_index = None
+    closest_end_point = None
+    closest_end_index = None
+    min_start_dist = np.inf
+    min_end_dist = np.inf
+    parking_area_start_end = None
 
-    goal_parking_lots = []
-    for lane_points in goal_lane.right.segments:
+    def next_point(index, outline, direction='ccw'):
+        if direction == 'ccw':
+            next_index = index + 1
+        else:
+            next_index = index - 1
+        if next_index == len(outline):
+            next_index = 0
+        return outline[next_index]
+
+    if len(parking_lots) > 0:
         for outline in parking_lots:
-            for pt in outline:
-                if np.linalg.norm(np.array(lane_points) - np.array(pt[:, :2]), axis=1) < max_lane_to_parking_lot_gap:
-                    goal_parking_lots.append(outline)
+            for idx, pt in enumerate(outline):
+                start_dist = np.linalg.norm(goal_lane_points[0] - np.array(pt[:2]))
+                end_dist = np.linalg.norm(goal_lane_points[-1] - np.array(pt[:2]))
+                if start_dist < min_start_dist:
+                    min_start_dist = start_dist
+                    closest_start_point = pt
+                    closest_start_index = idx
+                    closest_lot = outline
+                if end_dist < min_end_dist:
+                    min_end_dist = end_dist
+                    closest_end_point = pt
+                    closest_end_index = idx
+                    farthest_lot = outline
+        # Find the middle point of the start curve and the end curve of the parking area
+        parking_area_start = (np.array(closest_start_point) + np.array(next_point(closest_start_index, closest_lot, direction='ccw'))) / 2
+        parking_area_end = (np.array(closest_end_point) + np.array(next_point(closest_end_index, farthest_lot, direction='cw'))) / 2
+        parking_area_start_end = [parking_area_start, parking_area_end]
 
-    goal_parking_area_central_axis = None
-
-    return goal_parking_area_central_axis
+    return parking_lots, parking_area_start_end
 
 
 class RoutePlanningComponent(Component):
@@ -155,10 +191,12 @@ class RoutePlanningComponent(Component):
         """ Read offline map of lanes """
         if map_frame == 'global':
             self.map_frame = ObjectFrameEnum.GLOBAL
+        elif map_frame == 'cartesian':
+            self.map_frame = ObjectFrameEnum.ABSOLUTE_CARTESIAN
         elif map_frame == 'start':
             self.map_frame = ObjectFrameEnum.START
         else:
-            raise ValueError("Frame argument not available. Should be 'start' or 'global'.")
+            raise ValueError("Frame argument not available. Should be 'start', 'cartesian' or 'global'.")
 
         base, ext = os.path.splitext(roadgraphfn)
         if ext in ['.json', '.yml', '.yaml']:
@@ -282,10 +320,10 @@ class RoutePlanningComponent(Component):
         elif state.mission_plan.planner_type == PlannerEnum.PARALLEL_PARKING:
             print("I am in PARALLEL_PARKING mode")
 
-            if self.parking_velocity_is_zero == False and state.vehicle.v > 0.01:
-                print("@@@@@ Vehicle is moving, stop it first.")
-                self.route = Route(frame=ObjectFrameEnum.START, points=[[state.vehicle.pose.x, state.vehicle.pose.y],[state.vehicle.pose.x, state.vehicle.pose.y]])
-                return self.route
+            if self.map_type == 'roadgraph':
+                # self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0.0, -2.44), (24.9, -2.44)]
+                parking_lots, parking_area_start_end = find_parallel_parking_lots(self.roadgraph, state.vehicle.pose)
+                self.reedssheppparking.static_horizontal_curb_xy_coordinates = parking_area_start_end
 
             self.parking_velocity_is_zero = True
 
