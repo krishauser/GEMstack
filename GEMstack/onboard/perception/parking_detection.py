@@ -185,7 +185,7 @@ class ParkingSpotsDetector3D(Component):
                                 material=ObstacleMaterialEnum.BARRIER,
                                 collidable=True
                             )
-            parking_obstacles[obstacle_id] = new_obstacle
+            parking_obstacles[f"parking_obstacle_{obstacle_id}"] = new_obstacle
             obstacle_id += 1
         
         # Constructing goal pose
