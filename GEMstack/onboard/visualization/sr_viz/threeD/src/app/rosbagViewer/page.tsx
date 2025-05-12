@@ -12,7 +12,7 @@ export default function RosbagViewerPage() {
     };
     return (
         <div className="w-screen h-screen">
-            <div className="flex items-center fixed top-5 left-0 z-50 group w-[240px] h-[48px]">
+            <div className="flex items-center fixed bottom-5 left-0 z-50 group w-[240px] h-[48px]">
                 <div className="w-fit transform -translate-x-4/5 transition-transform duration-300 group-hover:translate-x-[20px]">
                     <Button
                         variant="contained"

@@ -47,7 +47,7 @@ export default function HomePage() {
 
   return (
     <main className="relative w-screen h-screen bg-white">
-      <div className="flex items-center fixed top-5 right-0 z-50 group w-[200px] h-[48px]">
+      <div className="flex items-center fixed bottom-5 right-0 z-50 group w-[200px] h-[48px]">
         <div className="w-fit transform translate-x-34/35 transition-transform duration-300 group-hover:translate-x-0">
           <Button
             variant="contained"
@@ -79,6 +79,7 @@ export default function HomePage() {
         moveToTime={moveToTime}
         duration={duration}
       />
+      <VehicleInfoPanel time={time} />
     </main>
   );
 }
