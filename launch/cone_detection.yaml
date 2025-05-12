@@ -26,23 +26,6 @@ drive:
 
         perception_normalization : StandardPerceptionNormalizer
     planning:
-        relations_estimation: 
-            type: pedestrian_yield_logic.PedestrianYielder
-            args:
-                mode: 'real'
-                params: {
-                    'yielder':       'expert', # 'expert', 'analytic', or 'simulation'
-                    'planner':       'milestone', # 'milestone', 'dt', or 'dx'
-                    'desired_speed': 1.0,  # m/s, 1.5 m/s seems max speed? Feb24
-                    'acceleration':  0.75  # m/s2, 0.5 is not enough to start moving. Feb24
-                    }
-        route_planning:
-            type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
-        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
-        trajectory_tracking:
-            type: pure_pursuit.PurePursuitTrajectoryTracker
-            print: False
 
 
 log:
