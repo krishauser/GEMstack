@@ -1,3 +1,4 @@
+###supports purely forward routes###
 import numpy as np
 from math import sin, cos, atan2
 
