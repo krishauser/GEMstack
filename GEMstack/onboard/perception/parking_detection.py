@@ -4,7 +4,7 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2
 from typing import Dict
 from ..component import Component 
-from ...state import ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleState
+from ...state import ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleStateEnum
 from ..interface.gem import GEMInterface
 from .utils.constants import *
 from .utils.detection_utils import *
@@ -134,7 +134,7 @@ class ParkingSpotsDetector3D(Component):
             self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
 
-    def update(self, cone_obstacles: Dict[str, ObstacleState]):
+    def update(self, cone_obstacles: Dict[str, Obstacle]):
         # Initial variables
         goal_parking_spot = None
         parking_obstacles_pose = []
@@ -183,7 +183,7 @@ class ParkingSpotsDetector3D(Component):
                                 dimensions=o_dim,
                                 outline=None,
                                 material=ObstacleMaterialEnum.BARRIER,
-                                collidable=True
+                                collidable=True, activity=ObstacleStateEnum.STANDING
                             )
             parking_obstacles[f"parking_obstacle_{obstacle_id}"] = new_obstacle
             obstacle_id += 1

@@ -1,5 +1,5 @@
-from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum, \
-    ObstacleStateEnum
+from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, ObstacleMaterialEnum, \
+    ObstacleStateEnum, Obstacle
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .perception_utils import *
@@ -146,7 +146,7 @@ class ConeDetector3D(Component):
         # print('--------undistort', end-start)
         return undistorted, newK
 
-    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
+    def update(self, vehicle: VehicleState) -> Dict[str, Obstacle]:
         downsample = False
         # Gate guards against data not being present for both sensors:
         if self.latest_image is None or self.latest_lidar is None:
@@ -355,12 +355,13 @@ class ConeDetector3D(Component):
                             roll=avg_roll,
                             frame=new_pose.frame
                         )
-                        updated_obstacle = ObstacleState(
+                        updated_obstacle = Obstacle(
                             pose=updated_pose,
                             dimensions=dims,
                             outline=None,
-                            type=ObstacleMaterialEnum.TRAFFIC_CONE,
+                            material=ObstacleMaterialEnum.TRAFFIC_CONE,
                             activity=activity,
+                            collidable=True
                         )
                     else:
                         updated_obstacle = old_state
@@ -369,24 +370,26 @@ class ConeDetector3D(Component):
                 else:
                     obstacle_id = f"Cone{self.cone_counter}"
                     self.cone_counter += 1
-                    new_obstacle = ObstacleState(
+                    new_obstacle = Obstacle(
                         pose=new_pose,
                         dimensions=dims,
                         outline=None,
-                        type=ObstacleMaterialEnum.TRAFFIC_CONE,
+                        material=ObstacleMaterialEnum.TRAFFIC_CONE,
                         activity=activity,
+                        collidable=True
                     )
                     obstacles[obstacle_id] = new_obstacle
                     self.tracked_obstacles[obstacle_id] = new_obstacle
             else:
                 obstacle_id = f"Cone{self.cone_counter}"
                 self.cone_counter += 1
-                new_obstacle = ObstacleState(
+                new_obstacle = Obstacle(
                     pose=new_pose,
                     dimensions=dims,
                     outline=None,
-                    type=ObstacleMaterialEnum.TRAFFIC_CONE,
+                    material=ObstacleMaterialEnum.TRAFFIC_CONE,
                     activity=activity,
+                    collidable=True
                 )
                 obstacles[obstacle_id] = new_obstacle
 
@@ -482,7 +485,7 @@ class FakConeDetector(Component):
     def state_outputs(self):
         return ['obstacles']
 
-    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
+    def update(self, vehicle: VehicleState) -> Dict[str, Obstacle]:
         if self.t_start is None:
             self.t_start = self.vehicle_interface.time()
         t = self.vehicle_interface.time() - self.t_start
@@ -498,8 +501,8 @@ def box_to_fake_obstacle(box):
     x, y, w, h = box
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
-    return ObstacleState(pose=pose, dimensions=dims, outline=None,
-                         type=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING)
+    return Obstacle(pose=pose, dimensions=dims, outline=None,
+                         material=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING, collidable=True)
 
 
 if __name__ == '__main__':
