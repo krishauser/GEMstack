@@ -116,7 +116,7 @@ class GEMGazeboInterface(GEMInterface):
         self.last_agent_velocities = {}
         self.last_model_states_time = 0.0
         self.agent_detection_rate = settings.get('simulator.agent_tracker.rate', 10.0)  # Hz
-        self.obstacle_detection_rate = settings.get('simulator.obstacle_tracker.rate', 50.0)  # Hz
+        self.obstacle_detection_rate = settings.get('simulator.obstacle_tracker.rate', 10.0)  # Hz
         
         # Frame transformation variables
         self.start_pose_abs = None  # Initial vehicle pose in GLOBAL frame

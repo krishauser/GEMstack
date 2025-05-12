@@ -45,7 +45,7 @@ class GazeboObstacleDetector(OmniscientObstacleDetector):
             # Check if our interface has the tracked_model_prefixes attribute (is a GazeboInterface)
             if hasattr(vehicle_interface, 'tracked_obstacle_prefixes'):
                 vehicle_interface.tracked_obstacle_prefixes = tracked_obstacle_prefixes
-                print(f"Configured GazeboConeDetector to track obstacles with prefixes: {tracked_obstacle_prefixes}")
+                print(f"Configured GazeboObstacleDetector to track obstacles with prefixes: {tracked_obstacle_prefixes}")
             else:
                 print("Warning: vehicle_interface doesn't support tracked_obstacle_prefixes configuration")
 
@@ -53,4 +53,4 @@ class GazeboObstacleDetector(OmniscientObstacleDetector):
         # Use the same agent_detector sensor as OmniscientAgentDetector
         # The GazeboInterface implements this with model_states subscription
         super().initialize()
-        print("GazeboConeDetector initialized and subscribed to model_states")
+        print("GazeboObstacleDetector initialized and subscribed to model_states")
