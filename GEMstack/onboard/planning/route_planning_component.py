@@ -2,15 +2,8 @@ import os
 from typing import Dict, List
 
 import numpy as np
-from numpy import ndarray
 
-# from GEMstack.onboard.component import Component
-# from GEMstack.state.agent import AgentState
-# from GEMstack.state.all import AllState,
-# from GEMstack.state.physical_object import ObjectFrameEnum
-# from GEMstack.state.route import PlannerEnum, Route
 from .rrt_star import RRTStar
-from ..interface.gem import GEMInterface
 from ..component import Component
 from ...state import AllState, Roadgraph, Route, PlannerEnum, ObjectFrameEnum, Path, \
     VehicleState, AgentState, AgentEnum, RoadgraphRegion, RoadgraphRegionEnum, ObjectPose
@@ -83,6 +76,7 @@ def find_available_pose_in_lane(position, roadgraph, pose_yaw=None, map_type='ro
             return [goal_x, goal_y, pose_yaw]
         else:
             return [goal_x, goal_y, goal_yaw]
+
     elif map_type == 'pointlist':
         pts = np.array(roadgraph)
         dists = np.linalg.norm(pts[:, :2] - goal, axis=1)

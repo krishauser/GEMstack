@@ -16,20 +16,26 @@ drive:
         perception_normalization : StandardPerceptionNormalizer
     planning:
 #        relations_estimation: pedestrian_yield_logic.PedestrianYielder
-        summoning_mission_planning:
+        mission_planning:
             type: SummoningMissionPlanner
             args:
-                use_webapp: false
-                goal: [[20, -3], 'start']   # [goal_location([x, y] or [lon, lat]), goal_frame('start', 'global' or 'cartesian')]
-                state_machine: [PlannerEnum.IDLE, PlannerEnum.SUMMON_DRIVING, PlannerEnum.PARALLEL_PARKING]
-        route_planning_component:
-            type: RoutePlanningComponent
+                use_webapp: false   # goal should be defined when use_webapp is false
+                # Goal test points for summoning_roadgraph_sim.json, frame is 'start' or 'cartesian'.
+                    # Key points:[0, 0], [0, 30], [37.5, 7.5], [33, 12]，[28.5, 7.5]，[15, 3], [1.5, 7.5], [15, 12], [-3, 12], [-7.5, 7.5]
+                    # Points not in the lane:[15, -3], [15, 6], [15, 9], [15, 15]
+                # Goal test points for summoning_roadgraph_highbay.json, frame is 'global'.
+                    # Key points: [-88.235317, 40.0927934], [-88.235252, 40.0927527], [-88.235164, 40.0927934], [-88.235211, 40.0928573],
+                    # [-88.235527, 40.0927436], [-88.235968, 40.0927432], [-88.236046, 40.0927917], [-88.236008, 40.0928604], [-88.235905, 40.0927917]
+                goal: {'location':[5, -3], 'frame':'cartesian'}
+                state_machine: [MissionEnum.IDLE, MissionEnum.SUMMONING_DRIVE, MissionEnum.PARALLEL_PARKING]
+        route_planning:
+            type: SummoningRoutePlanner
             # Arguments: [path/to/roadgraph, map_type, map_frame]
-                # Roadgraph file's extension must be ".json", ".yml", ".yaml", ".csv", ".txt".
+                # Roadgraph file extension must be ".json", ".yml", ".yaml", ".csv", ".txt".
                 # Map_type is 'roadgraph' for ".json", ".yml", ".yaml", and 'pointlist' for ".csv", ".txt".
-                # Make sure 'roadgraph' map_type match the structure of Roadgraph object in GEMstack.
-                # 'pointlist' is just a list of points, carefully choose the start pose and goal pose to make sure they are in the lanes.
-                # Map_frame should be either 'global' for or 'start'.
+                # Make sure 'roadgraph' map_type match the structure of Roadgraph object.
+                # 'pointlist' is a list of points, carefully define the goal to make sure it is in the lanes.
+                # Map_frame should be 'global', 'cartesian, or 'start'.
             args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json', 'roadgraph', 'cartesian']
             # args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json', 'roadgraph', 'global']
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
@@ -66,35 +72,7 @@ replay:  # Add items here to set certain topics / inputs to be replayed from log
 computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
 
 variants:
-    detector_only:
-        run:
-            description: "Run the pedestrian detection code"
-        drive:
-            planning:
-                trajectory_tracking:
-    real_sim:
-        run:
-            description: "Run the pedestrian detection code with real detection and fake simulation"
-            mode: hardware
-            vehicle_interface:
-                type: gem_mixed.GEMRealSensorsWithSimMotionInterface
-                args:
-                    scene: !relative_path '../scenes/summoning_demo.yaml'
-            mission_execution: StandardExecutor
-            require_engaged: False
-            visualization: !include "klampt_visualization.yaml"
-            drive:
-                perception:
-                    state_estimation : OmniscientStateEstimator
-
-    fake_real:
-        run:
-            description: "Run the yielding trajectory planner on the real vehicle with faked perception"
-            drive:
-                perception:
-                    agent_detection : pedestrian_detection.FakePedestrianDetector2D
-
-    fake_sim:
+    sim:
         run:
             description: "Run the yielding trajectory planner in simulation with faked perception"
             mode: simulation
@@ -105,6 +83,5 @@ variants:
             visualization: !include "klampt_visualization.yaml"
             drive:
                 perception:
-#                    agent_detection : pedestrian_detection.FakePedestrianDetector2D
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
