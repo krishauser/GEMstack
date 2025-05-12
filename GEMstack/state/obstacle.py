@@ -44,14 +44,3 @@ class ObstacleState(PhysicalObject):
         newpose = self.pose.to_frame(frame, current_pose, start_pose_abs)
         # newvelocity = convert_vector(self.velocity, self.pose.frame, frame, current_pose, start_pose_abs)
         return replace(self, pose=newpose) #, velocity=newvelocity)
-
-@dataclass
-@register
-class ObstacleState(PhysicalObject):
-    type: ObstacleMaterialEnum
-    activity: ObstacleStateEnum
-
-    def to_frame(self, frame: ObjectFrameEnum, current_pose=None, start_pose_abs=None) -> ObstacleState:
-        newpose = self.pose.to_frame(frame, current_pose, start_pose_abs)
-        # newvelocity = convert_vector(self.velocity, self.pose.frame, frame, current_pose, start_pose_abs)
-        return replace(self, pose=newpose) #, velocity=newvelocity)
