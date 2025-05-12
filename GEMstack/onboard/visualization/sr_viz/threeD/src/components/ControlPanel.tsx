@@ -46,7 +46,7 @@ export default function ControlPanel({
     } else {
       setIsOpen(true);
     }
-  }
+  };
 
   useEffect(() => {
     if (!folder || !file) return;
@@ -86,7 +86,7 @@ export default function ControlPanel({
   return (
     <>
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-black/80 text-white shadow-lg transform transition-transform duration-500 ease-in-out z-40 ${
+        className={`fixed top-0 left-0 h-full w-48 max-w-[90vw] bg-black/80 text-white shadow-lg transform transition-transform duration-300 ease-in-out z-40 overflow-y-auto flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         onContextMenu={handleContextMenu}
@@ -94,7 +94,7 @@ export default function ControlPanel({
         {isOpen && (
           <>
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-              <h2 className="text-lg font-semibold">Control Panel</h2>
+              <h2 className="text-base font-semibold whitespace-nowrap">Control Panel</h2>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-white p-1 rounded hover:bg-white/10"

@@ -5,7 +5,7 @@ import React, { useEffect } from "react";
 import { Environment } from "@react-three/drei";
 import { useTimelineStore } from "@/hooks/useTimelineStore";
 import Vehicle from "./Vehicle";
-import Agent from "./Agent";
+import Pedestrian from "./Pedestrian";
 import TrafficLight from "./TrafficLight";
 import OtherVehicle from "./OtherVehicle";
 import Ground from "./Ground";
@@ -18,7 +18,7 @@ export default function CanvasWrapper({
   time: number;
   setDuration: (duration: number) => void;
 }) {
-  const { vehicle, agents, trafficLights, trafficCones, otherVehicles } =
+  const { vehicle, pedestrians, trafficLights, trafficCones, otherVehicles } =
     useTimelineStore();
 
   useEffect(() => {
@@ -33,6 +33,8 @@ export default function CanvasWrapper({
   return (
     <Canvas
       shadows
+      dpr={[1, 2]}
+      gl={{ antialias: true }}
       camera={{ position: [0, 5, 15], fov: 55, near: 0.1, far: 100000 }}
       style={{
         background: "#fdfdfd",
@@ -46,8 +48,8 @@ export default function CanvasWrapper({
       <directionalLight position={[10, 10, 5]} intensity={1.5} castShadow />
       <Vehicle timeline={vehicle} time={syncedTime} />
 
-      {Object.entries(agents).map(([id, timeline]) => (
-        <Agent key={id} id={id} timeline={timeline} time={syncedTime} />
+      {Object.entries(pedestrians).map(([id, timeline]) => (
+        <Pedestrian key={id} id={id} timeline={timeline} time={syncedTime} />
       ))}
 
       {Object.entries(trafficLights).map(([id, timeline]) => (

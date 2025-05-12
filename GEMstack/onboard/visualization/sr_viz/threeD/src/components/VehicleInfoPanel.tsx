@@ -1,10 +1,11 @@
 "use client";
+
 import React, { useState } from "react";
 import { useTimelineStore } from "@/hooks/useTimelineStore";
 import { RxCross2 } from "react-icons/rx";
 
 export function VehicleInfoPanel({ time }: { time: number }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const frames = useTimelineStore((s) => s.vehicle);
 
   const toggleOpen = (e?: React.MouseEvent) => {
@@ -19,55 +20,66 @@ export function VehicleInfoPanel({ time }: { time: number }) {
   const current = frames.filter((f) => f.time <= currentTimestamp).pop();
 
   return (
-    <React.Fragment>
+    <>
       <div
-        className={`fixed top-0 right-0 w-64 bg-black/80 text-white shadow-lg transform transition-transform duration-500 ease-in-out z-40 p-4 ${
+        className={`fixed top-0 right-0 w-76 max-h-screen bg-black/80 text-white shadow-lg transform transition-transform duration-300 ease-in-out z-40 p-4 overflow-y-auto text-sm ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
         onContextMenu={toggleOpen}
       >
-        {isOpen && (
-          <>
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-semibold">Current Vehicle State</h2>
-              <button
-                onClick={toggleOpen}
-                className="text-white p-1 rounded hover:bg-white/10"
-                title="Close Panel"
-              >
-                <RxCross2 className="w-4 h-4" />
-              </button>
-            </div>
-            {current ? (
-              <ul className="space-y-1 text-sm">
-                <li>
-                  <span className="font-medium">Timestamp:</span> {current.time}
+        <div className="flex justify-between items-center mb-2">
+          <h2 className="text-base font-semibold whitespace-nowrap">Vehicle State</h2>
+          <button
+            onClick={toggleOpen}
+            className="text-white p-1 rounded hover:bg-white/10"
+            title="Close Panel"
+          >
+            <RxCross2 className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="overflow-x-auto pr-2">
+          {current ? (
+            <ul className="space-y-1 divide-y divide-white/10 min-w-[16rem]">
+              {[
+                ["Timestamp", current.time],
+                ["X", current.x],
+                ["Y", current.y],
+                ["Z", current.z],
+                ["Yaw", current.yaw],
+                ["Pitch", current.pitch],
+                ["Roll", current.roll],
+              ].map(([label, value]) => (
+                <li key={label} className="flex justify-between py-0.5 gap-4">
+                  <span className="text-white/80 whitespace-nowrap">{label}:</span>
+                  <span className="font-mono text-white text-right">{value}</span>
                 </li>
-                <li>
-                  <span className="font-medium">X:</span> {current.x}
-                </li>
-                <li>
-                  <span className="font-medium">Y:</span> {current.y}
-                </li>
-                <li>
-                  <span className="font-medium">Z:</span> {current.z}
-                </li>
-                <li>
-                  <span className="font-medium">Yaw:</span> {current.yaw}
-                </li>
-                <li>
-                  <span className="font-medium">Pitch:</span> {current.pitch}
-                </li>
-                <li>
-                  <span className="font-medium">Roll:</span> {current.roll}
-                </li>
-              </ul>
-            ) : (
-              <p className="text-sm italic">No vehicle data at this time</p>
-            )}
-          </>
-        )}
+              ))}
+
+              {current.metadata &&
+                Object.entries(current.metadata).map(([key, value]) => {
+                  if (typeof value === "object") return null;
+                  return (
+                    <li key={key} className="flex justify-between py-0.5 gap-4">
+                      <span className="text-white/70 whitespace-nowrap">
+                        {key.replace(/_/g, " ")}:
+                      </span>
+                      <span className="font-mono text-white text-right">
+                        {String(value)}
+                      </span>
+                    </li>
+                  );
+                })}
+            </ul>
+          ) : (
+            <p className="text-sm italic text-white/70">
+              No vehicle data at this time
+            </p>
+          )}
+        </div>
       </div>
+
       {!isOpen && (
         <button
           onClick={toggleOpen}
@@ -78,6 +90,6 @@ export function VehicleInfoPanel({ time }: { time: number }) {
           <span className="text-xs">⟨</span>
         </button>
       )}
-    </React.Fragment>
+    </>
   );
 }

@@ -33,8 +33,10 @@ export default function Vehicle({ timeline, time }: VehicleProps) {
         robot.position.set(offset[0], offset[1], offset[2]);
 
         robot.traverse((child) => {
-          if (child instanceof THREE.Mesh &&
-              child.material instanceof THREE.MeshStandardMaterial) {
+          if (
+            child instanceof THREE.Mesh &&
+            child.material instanceof THREE.MeshStandardMaterial
+          ) {
             child.material = child.material.clone();
             child.material.color.set(bodyColor);
           }
