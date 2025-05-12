@@ -178,11 +178,13 @@ def scoreAndSortCandidates(candidates, cornerPts):
     return scoredCandidates
 
 
+BASE_VEHICLE_DIST = 1.10
+
 def cvtCenter2VehiclePos(center, cornerPts):
     pt1, pt2 = findMaxLenEdgePoints(cornerPts)
     near, far = (pt1, pt2) if np.linalg.norm(pt1) < np.linalg.norm(pt2) else (pt2, pt1)
     directionNorm = (near - far) / np.linalg.norm(near - far)
-    vehicle = center + directionNorm * (GEM_E4_LENGTH / 2)
+    vehicle = center + directionNorm * BASE_VEHICLE_DIST
     return vehicle
 
 
