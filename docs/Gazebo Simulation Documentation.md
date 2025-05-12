@@ -65,46 +65,49 @@ In one terminal, run the Gazebo simulator (using the instructions provided in th
 
 ### 2. Launch the GEM Stack
 
-Open a second terminal and launch GEMStack with your configured launch file.
+Open a second terminal and launch GEMStack with your configured launch file. Make sure to set the variant to `gazebo`.
 
-```bash
-python3 main.py --variant=gazebo --settings={your_file}.yaml launch/{your_file}.yaml
-
-```
-- Make sure to set the variant to `gazebo`.
-- You can specify the settings file to  GEMstack/knowledge/defaults/e4_gazebo.yaml or e2_gazebo.yaml till we work on closing the sim to real gap.
-
-Example command launching the fixed route with e4 vehicle:
+#### For GEM e2 Vehicle:
 
 ```bash
 python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e2.yaml launch/fixed_route.yaml
-or
+```
+
+#### For GEM e4 Vehicle:
+
+```bash
 python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/current.yaml launch/fixed_route.yaml
 ```
+
+You can replace `fixed_route.yaml` with your specific launch file.
+
+**Note:** By default, the system uses `GEMstack/knowledge/defaults/current.yaml` which contains GEM e4 vehicle configuration settings.
+
+## Available Variants and Vehicle Types
+
 **Variants:**
- - sim
- - gazebo
+- `sim` - Simple simulation mode
+- `gazebo` - 3D Gazebo simulation mode
 
-**Vehicle types:**
-- e2
-- e4
+**Vehicle Types:**
+- `e2` - GEM e2 vehicle (uses Novatel GNSS)
+- `e4` - GEM e4 vehicle (uses Septentrio GNSS)
 
-**Setting:**
-
-By default it takes GEMstack/knowledge/defaults/current.yaml which is GEM E4 Vehicle configuration settings.
-
-Other available configuration files:
+## Available Configuration Files
 
 GEMstack/knowledge/defaults/
-- e2.yaml
+- `current.yaml` - Default configuration (GEM e4)
+- `e2.yaml` - GEM e2 configuration
 
-## Agent Detection in Gazebo
+## Entity Detection in Gazebo
 
-The Gazebo simulation environment supports detection of various types of agents (pedestrians, vehicles, etc.) that can be spawned in the simulation world. You can configure GEMstack to detect and track these agents.
+The Gazebo simulation environment supports detection of various types of entities - both agents (pedestrians, vehicles, etc.) and obstacles (traffic cones, barriers, etc.) that can be spawned in the simulation world.
 
-### Configuring Agent Detection in Launch File
+For detailed information about entity detection, including configuration options, usage examples, and implementation details, see the [Entity Detection Documentation](gazebo_entity_detection.md).
 
-To enable agent detection in your Gazebo simulation, add the following to your launch file's `gazebo` variant:
+### Quick Start for Entity Detection
+
+To enable entity detection in your Gazebo simulation, add the following to your launch file's `gazebo` variant:
 
 ```yaml
 drive:
@@ -114,35 +117,36 @@ drive:
             type: agent_detection.GazeboAgentDetector
             args:
                 tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
+        obstacle_detection:
+            type: obstacle_detection.GazeboObstacleDetector
+            args:
+                tracked_obstacle_prefixes: ['cone']
 ```
 
-The `tracked_model_prefixes` parameter specifies which types of models will be tracked as agents. The prefixes listed will match against the model names in Gazebo. For example, a model named `pedestrian1` will be tracked if `pedestrian` is in the list.
+#### Configuration Options
 
-### Spawning Agents in Gazebo
+- **Agent Detection**:
+  - `type`: Specify the detector class (`agent_detection.GazeboAgentDetector`)
+  - `args`: Additional arguments:
+    - `tracked_model_prefixes`: Array of prefixes for models to track as agents
+  
+- **Obstacle Detection**:
+  - `type`: Specify the detector class (`obstacle_detection.GazeboObstacleDetector`)
+  - `args`: Additional arguments:
+    - `tracked_obstacle_prefixes`: Array of prefixes for models to track as obstacles
 
-You can spawn agents in Gazebo using a YAML configuration file.
+The prefixes in the configuration arrays define which entities will be tracked. For example:
+- A model named `pedestrian1` will be detected as a pedestrian agent
+- A model named `cone5` will be detected as a traffic cone obstacle
 
-Follow the instructions in the [POLARIS GEM Simulator](https://github.com/harishkumarbalaji/POLARIS_GEM_Simulator/tree/main) repository to spawn agents in Gazebo.
+You can customize these arrays based on the entities present in your simulation environment.
 
-### Important Naming Considerations
+### Spawning Entities in Gazebo
 
-The `name` field in your agent configuration is crucial as it determines how models are identified in Gazebo's `model_states` topic. For agent detection to work:
+You can spawn both agents and obstacles in Gazebo using a YAML configuration file.
 
-1. The model name prefix must match one of the prefixes in your `tracked_model_prefixes` configuration
-2. For example, a model named `pedestrian1` will be detected as a pedestrian if `pedestrian` is in your tracked prefixes
-3. The model type is derived from the prefix, so naming conventions are important
+Follow the instructions in the [POLARIS GEM Simulator](https://github.com/harishkumarbalaji/POLARIS_GEM_Simulator/tree/main) repository to spawn entities in Gazebo.
 
-When spawning models in Gazebo, ensure that their names have appropriate prefixes that match your GEMstack configuration.
-
-### How Agent Detection Works
-
-The `GazeboAgentDetector` component:
-1. Subscribes to Gazebo's `model_states` topic to get positions of all models
-2. Filters models based on the configured `tracked_model_prefixes`
-3. Transforms model positions from Gazebo's coordinate frame to GEMstack's START frame
-4. Creates `AgentState` objects for each detected agent
-5. Makes these agents available to other GEMstack components for planning and visualization
-
-The models in your simulation will appear in your GEMstack visualization and be available for planning and decision-making components to interact with.
+The naming conventions for entities are important as they determine how models are detected and classified. Refer to the [Entity Detection Documentation](gazebo_entity_detection.md) for details on model naming and the detection process.
 
 ---
