@@ -183,7 +183,7 @@ class ParkingSpotsDetector3D(Component):
                                 dimensions=o_dim,
                                 outline=None,
                                 material=ObstacleMaterialEnum.BARRIER,
-                                collidable=True, activity=ObstacleStateEnum.STANDING
+                                collidable=True, state=ObstacleStateEnum.STANDING
                             )
             parking_obstacles[f"parking_obstacle_{obstacle_id}"] = new_obstacle
             obstacle_id += 1
