@@ -7,7 +7,7 @@ from .intent import VehicleIntent
 from .agent_intent import AgentIntent,AgentIntentMixture
 from .relations import EntityRelation
 from .mission import MissionObjective
-from .mission import MissionPlan
+from .mission import MissionObjective
 from .route import Route
 from .trajectory import Trajectory
 from .predicates import PredicateValues
@@ -28,7 +28,7 @@ class AllState(SceneState):
     
     # planner-output state
     mission : MissionObjective = field(default_factory=MissionObjective)
-    mission_plan: MissionPlan = None
+    mission_plan: MissionObjective = None
     intent : VehicleIntent = field(default_factory=VehicleIntent)
     # planner_type : Optional[PlannerEnum] = None
     route : Optional[Route] = None
