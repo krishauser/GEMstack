@@ -8,8 +8,8 @@ import struct
 import math
 import tf.transformations as tf_trans
 
-GEM_E4_LENGTH = 3.6  # m
-GEM_E4_WIDTH  = 1.5  # m
+GEM_E4_LENGTH = 3.2  # m
+GEM_E4_WIDTH  = 1.7  # m
 
 def vis_2d_bbox(image, xywh, box):
     # Setup
