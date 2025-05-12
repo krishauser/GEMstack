@@ -9,24 +9,41 @@ recovery:
         trajectory_tracking : recovery.StopTrajectoryTracker
 
 # Driving behavior for the GEM vehicle.  Runs real pedestrian perception, yield planner, but does not send commands to real vehicle.
-drive: 
-    perception:
-        state_estimation : GNSSStateEstimator
-        perception_normalization : StandardPerceptionNormalizer
+drive:
+  perception:
+    state_estimation: GNSSStateEstimator
+    perception_normalization: StandardPerceptionNormalizer
+    agent_detection:
+      type: agent_detection.OmniscientAgentDetector
+      # args:
+      #     tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
+
+    obstacle_detection:
+      type: cone_detection.ConeDetector3D
+      args:
+        camera_name: front #[front, front_right]
+        camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+
+        # optional overrides
+        enable_tracking: False
+        visualize_2d: True
+        use_cyl_roi: False
+        save_data: False
+        orientation: False
+        use_start_frame: False
     planning:
         route_planning_component:
             type: InspectRoutePlanner
             args: 
                 state_machine: ['IDLE', 'NAV', 'INSPECT', 'FINISH', 'IDLE']
         # save_lidar_data : capture_lidar_camera_data.SaveInspectionData
-        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+        motion_planning: yield_spline_planner.SplinePlanner
             # type: RouteToTrajectoryPlanner
             # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
-            type: pure_pursuit.PurePursuitTrajectoryTracker
-            # args: [null]
-            # args: {desired_speed: 2.5}  #approximately 5mph
-            print: False
+          type: pure_pursuit.PurePursuitTrajectoryTracker
+          args: { desired_speed: "path" }  #approximately 5mph
+          print: True
         
 
 
