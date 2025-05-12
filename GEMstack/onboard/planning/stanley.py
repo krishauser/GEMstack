@@ -354,21 +354,12 @@ class StanleyTrajectoryTracker(Component):
           3) Convert front wheel angle to steering wheel angle (if necessary)
           4) Send command to the vehicle
         """
-<<<<<<< HEAD
-        # path to trajectory if racing enabled
-        # if self.desired_speed_source in ['racing']: ## conditional needed for no racing
-        #     self.stanley.set_racing_path(trajectory)
-        # else:
-        #     self.stanley.set_path(trajectory)
-        self.stanley.set_path(trajectory)
-=======
         # path to trajectory if racing enabled and using route instead of planner
         if self.desired_speed_source in ['racing'] and not isinstance(trajectory, Trajectory): ## conditional needed for no racing
             self.stanley.set_racing_path(trajectory)
         else:
             self.stanley.set_path(trajectory)
         
->>>>>>> 5f587a2... fixed route to trajectory with velocity to  work
         accel, f_delta = self.stanley.compute(vehicle, self)
 
         # If your low-level interface expects steering wheel angle:
