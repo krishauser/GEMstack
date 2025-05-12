@@ -2,7 +2,7 @@ from ...mathutils.control import PID
 from ...utils import settings
 from ...mathutils import transforms
 from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
-from ...state.vehicle import VehicleState,ObjectFrameEnum
+from ...state.vehicle import VehicleState,ObjectFrameEnum, VehicleGearEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
 from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
@@ -221,6 +221,7 @@ class PurePursuitTrajectoryTracker(Component):
         return []
 
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
+        vehicle.gear = 1
         self.pure_pursuit.set_path(trajectory)
         accel,wheel_angle = self.pure_pursuit.compute(vehicle, self)
         #print("Desired wheel angle",wheel_angle)
