@@ -35,7 +35,7 @@ class StateMachine:
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, use_webapp, goal, state_machine):
+    def __init__(self, use_webapp, webapp_url, goal, state_machine):
         self.state_machine = StateMachine([eval(s) for s in state_machine])
         self.goal_location = goal['location']
         self.goal_frame = goal['frame']
@@ -45,24 +45,24 @@ class SummoningMissionPlanner(Component):
         self.start_time = time.time()
 
         self.flag_use_webapp = use_webapp
+        self.url_status = f"{webapp_url}/api/status"
+        self.url_summon = f"{webapp_url}/api/summon"
 
         if self.flag_use_webapp:
             # Initialize the state in the server
-            url = "http://localhost:8000/api/status"
             data = {
                 "status": "IDLE"
             }
-            response = requests.post(url=url, json=data)
+            response = requests.post(url=self.url_status, json=data)
             if response.status_code == 200:
                 print("Status updated successfully")
             else:
                 print("Failed to update status:", response.status_code)
-            url = "http://localhost:8000/api/summon"
             data = {
                 "lat": 0,
                 "lon": 0
             }
-            response = requests.post(url=url, json=data)
+            response = requests.post(url=self.url_summon, json=data)
             if response.status_code == 200:
                 print("Initialize goal location successfully")
             else:
@@ -85,8 +85,7 @@ class SummoningMissionPlanner(Component):
         if self.flag_use_webapp:
             goal_location = None
             goal_frame = None
-            url = "http://localhost:8000/api/summon"
-            response = requests.get(url)
+            response = requests.get(self.url_summon)
             print("GET:", response)
             if response.status_code == 200:
                 data = response.json()
@@ -164,12 +163,11 @@ class SummoningMissionPlanner(Component):
 
 
         if self.flag_use_webapp:
-            url = "http://localhost:8000/api/status"
             data = {
-                "status": mission.type.name
+                "status": mission.planner_type.name
             }
             print("POST:", data)
-            response = requests.post(url=url, json=data)
+            response = requests.post(url=self.url_status, json=data)
             if response.status_code == 200:
                 print("Status updated successfully")
             else:

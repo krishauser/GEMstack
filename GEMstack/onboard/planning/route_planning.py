@@ -253,13 +253,14 @@ class SummoningRoutePlanner(Component):
         # Used as route searchers' time limit as well as the update rate of the component
         self.update_rate = 0.5
 
-        self.parked_cars = [
-            (2.69, -2.44),
-            (22.11, -2.44)
-        ]
+        self.parked_cars = []
         self.reedssheppparking = ReedsSheppParking()
         self.reedssheppparking.static_horizontal_curb_xy_coordinates = None
+        self.reedssheppparking.add_static_horizontal_curb_as_obstacle = False
+        self.reedssheppparking.add_static_vertical_curb_as_obstacle = False
         self.parking_route_existed = False
+        self.parking_velocity_is_zero = False
+
 
     def state_inputs(self):
         return ["all"]
@@ -342,15 +343,24 @@ class SummoningRoutePlanner(Component):
         elif mission.type == MissionEnum.PARALLEL_PARKING:
             print("I am in PARALLEL_PARKING mode")
 
+            if self.parking_velocity_is_zero == False and state.vehicle.v > 0.01:
+                print("Vehicle is moving, stop it first.")
+                return None
+
             if self.map_type == 'roadgraph':
-                # self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0.0, -2.44), (24.9, -2.44)]
                 parking_lots, parking_area_start_end = find_parallel_parking_lots(self.roadgraph, vehicle.pose)
                 self.reedssheppparking.static_horizontal_curb_xy_coordinates = parking_area_start_end
 
                 self.parking_velocity_is_zero = True
 
+                print("Parking lots:", parking_lots)
+                print("Parking area start and end:", parking_area_start_end)
+
                 if not self.parking_route_existed:
                     self.current_pose = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw]
+                    print("Current pose:", self.current_pose)
+                    print("Obstacle list:", self.obstacle_list)
+
                     self.reedssheppparking.find_available_parking_spots_and_search_vector(self.obstacle_list,
                                                                                           self.current_pose)
                     self.reedssheppparking.find_collision_free_trajectory_to_park(self.obstacle_list, self.current_pose, True)
@@ -359,7 +369,7 @@ class SummoningRoutePlanner(Component):
                 else:
                     self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
                     self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
-                    # print("Route:", self.route)
+                    print("Route:", self.route)
 
         else:
             print("Unknown mode")

@@ -271,7 +271,7 @@ class ReedsSheppParking:
         """
 
         # Helper: distance to current pose
-        def dist_to_vehicle(self, spot):
+        def dist_to_vehicle(spot):
             dx = spot[0] - vehicle_pose[0]
             dy = spot[1] - vehicle_pose[1]
             return math.hypot(dx, dy)

@@ -20,6 +20,7 @@ drive:
             type: SummoningMissionPlanner
             args:
                 use_webapp: false   # goal should be defined when use_webapp is false
+                webapp_url: 'https://summon-app-production.up.railway.app/'
                 # Goal test points for summoning_roadgraph_sim.json, frame is 'start' or 'cartesian'.
                     # Key points:[0, 0], [0, 30], [37.5, 7.5], [33, 12]，[28.5, 7.5]，[15, 3], [1.5, 7.5], [15, 12], [-3, 12], [-7.5, 7.5]
                     # Points not in the lane:[15, -3], [15, 6], [15, 9], [15, 15]
