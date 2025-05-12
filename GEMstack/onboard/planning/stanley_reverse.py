@@ -1,3 +1,4 @@
+### supports both forward and reverse but works better with more reverse focused routes like parallel parking and reverse in S shape###
 import numpy as np
 from math import sin, cos, atan2
 
