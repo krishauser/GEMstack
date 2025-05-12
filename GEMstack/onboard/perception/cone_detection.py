@@ -1,5 +1,5 @@
-from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, ObstacleMaterialEnum, \
-    ObstacleStateEnum, Obstacle
+from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, \
+    ObstacleStateEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .perception_utils import *
@@ -221,18 +221,18 @@ class ConeDetector3D(Component):
         # Visualize the received images in 2D with their corresponding labels
         # It draws rectangles and labels on the images:
         if getattr(self, 'visualize_2d', False):
-            for (cx, cy, w, h, activity) in combined_boxes:
+            for (cx, cy, w, h, state) in combined_boxes:
                 left = int(cx - w / 2)
                 right = int(cx + w / 2)
                 top = int(cy - h / 2)
                 bottom = int(cy + h / 2)
-                if activity == ObstacleStateEnum.STANDING:
+                if state == ObstacleStateEnum.STANDING:
                     color = (255, 0, 0)
                     label = "STANDING"
-                elif activity == ObstacleStateEnum.RIGHT:
+                elif state == ObstacleStateEnum.RIGHT:
                     color = (0, 255, 0)
                     label = "RIGHT"
-                elif activity == ObstacleStateEnum.LEFT:
+                elif state == ObstacleStateEnum.LEFT:
                     color = (0, 0, 255)
                     label = "LEFT"
                 else:
@@ -259,7 +259,7 @@ class ConeDetector3D(Component):
         obstacles = {}
 
         for i, box_info in enumerate(combined_boxes):
-            cx, cy, w, h, activity = box_info
+            cx, cy, w, h, state = box_info
             # print(cx, cy, w, h)
             left = int(cx - w / 1.6)
             right = int(cx + w / 1.6)
@@ -360,7 +360,7 @@ class ConeDetector3D(Component):
                             dimensions=dims,
                             outline=None,
                             material=ObstacleMaterialEnum.TRAFFIC_CONE,
-                            activity=activity,
+                            state=state,
                             collidable=True
                         )
                     else:
@@ -375,7 +375,7 @@ class ConeDetector3D(Component):
                         dimensions=dims,
                         outline=None,
                         material=ObstacleMaterialEnum.TRAFFIC_CONE,
-                        activity=activity,
+                        state=state,
                         collidable=True
                     )
                     obstacles[obstacle_id] = new_obstacle
@@ -388,8 +388,8 @@ class ConeDetector3D(Component):
                     dimensions=dims,
                     outline=None,
                     material=ObstacleMaterialEnum.TRAFFIC_CONE,
-                    activity=activity,
-                    collidable=True
+                    state=state,
+                    collidable = True
                 )
                 obstacles[obstacle_id] = new_obstacle
 
@@ -403,7 +403,7 @@ class ConeDetector3D(Component):
                     f"Cone ID: {obstacle_id}\n"
                     f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                     f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                    f"type:{obstacle.activity}"
+                    f"state:{obstacle.state}"
                 )
             end = time.time()
             # print('-------processing time', end -start)
@@ -421,7 +421,7 @@ class ConeDetector3D(Component):
                     f"Cone ID: {obstacle_id}\n"
                     f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                     f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                    f"type:{obstacle.activity}"
+                    f"state:{obstacle.state}"
                 )
         end = time.time()
         # print('-------processing time', end -start)
@@ -502,7 +502,7 @@ def box_to_fake_obstacle(box):
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
     return Obstacle(pose=pose, dimensions=dims, outline=None,
-                         material=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING, collidable=True)
+                         material=ObstacleMaterialEnum.TRAFFIC_CONE, state=ObstacleStateEnum.STANDING, collidable=True)
 
 
 if __name__ == '__main__':
