@@ -11,25 +11,116 @@
 GEMstack uses Python 3.7+ and ROS Noetic.  (It is possible to do some offline and simulation work without ROS, but it is highly recommended to install it if you are working on any onboard behavior or training for rosbag files.)  
 
 You should also have the following Python dependencies installed, which you can install from this folder using `pip install -r requirements.txt`:
-
-- numpy
-- scipy
-- matplotlib
-- opencv-python
-- torch
-- klampt
-- shapely
-- dacite
-- pyyaml
-
+- GEMstack Dependencies
+  - numpy
+  - scipy
+  - matplotlib
+  - opencv-python
+  - torch
+  - klampt==0.9.2
+  - shapely
+  - dacite
+  - pyyaml
+- Perception Dependencies
+  - ultralytics
+- Gazebo Simulation Dependencies (only needed for Gazebo simulation)
+  - ros-noetic-ackermann-msgs
 
 In order to interface with the actual GEM e2 vehicle, you will need [PACMOD2](https://github.com/astuff/pacmod2) - Autonomoustuff's low level interface to vehicle. You will also need Autonomoustuff's [sensor message packages](https://github.com/astuff/astuff_sensor_msgs).  The onboard computer uses Ubuntu 20.04 with Python 3.8, CUDA 11.6, and NVIDIA driver 515, so to minimize compatibility issues you should ensure that these are installed on your development system.
 
-From a fresh Ubuntu 20.04 with ROS Noetic and [CUDA 11.6 installed](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5), you can install these dependencies by running `setup/setup_this_machine.sh` from the top-level GEMstack folder.
+## Running the stack on Ubuntu 20.04 without Docker
+### Checking CUDA Version
 
-To build a Docker container with all these prerequisites, you can use the provided Dockerfile by running `docker build -t gem_stack setup/`.  For GPU support you will need the NVidia Container Runtime (run `setup/get_nvidia_container.sh` from this directory to install, or see [this tutorial](https://collabnix.com/introducing-new-docker-cli-api-support-for-nvidia-gpus-under-docker-engine-19-03-0-beta-release/) to install) and run `docker run -it --gpus all gem_stack /bin/bash`.
+Before proceeding, check your Nvidia Driver and supported CUDA version:
+```bash
+nvidia-smi
+```
+This will show your NVIDIA driver version and the maximum supported CUDA version. Make sure you have CUDA 11.8 or 12+ installed.
 
+From Ubuntu 20.04 install [CUDA 11.6](https://gist.github.com/ksopyla/bf74e8ce2683460d8de6e0dc389fc7f5) or [CUDA 12+](https://gist.github.com/ksopyla/ee744bf013c83e4aa3fc525634d893c9) based on your current Nvidia Driver versio.
 
+To check the currently installed CUDA version:
+```bash
+nvcc --version
+```
+you can install the dependencies or GEMstack by running `setup/setup_this_machine.sh` from the top-level GEMstack folder.
+
+## Running the stack on Ubuntu 20.04 or 22.04 with Docker
+> [!NOTE]
+> Make sure to check the Nvidia Driver and supported CUDA version before proceeding by following the steps in the previous section.
+
+## Prerequisites
+- Docker (In Linux - Make sure to follow the post-installation steps from [here](https://docs.docker.com/engine/install/linux-postinstall/))
+- Nvidia Container Toolkit
+
+Try running the sample workload from the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/sample-workload.html) to check if your system is compatible.
+
+```bash
+sudo docker run --rm --runtime=nvidia --gpus all ubuntu nvidia-smi
+```
+You should see the nvidia-smi output similar to [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/sample-workload.html#:~:text=all%20ubuntu%20nvidia%2Dsmi-,Your%20output%20should%20resemble%20the%20following%20output%3A,-%2B%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2D%2B%0A%7C%20NVIDIA%2DSMI%20535.86.10).
+
+If you see the output, you are good to go. Otherwise, you will need to install the Docker and NVidia Container Toolkit by following the instructions. 
+- For **Docker**, follow the instructions [here](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository).
+  
+- For **Nvidia Container Toolkit**, run `setup/get_nvidia_container.sh` from this directory to install, or see [this](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more details.
+
+## Building the Docker image
+
+To build a Docker image with all these prerequisites, you can use the provided Dockerfile by running.
+
+```bash
+bash setup/build_docker_image.sh
+```
+
+## Running the Docker container
+
+To run the container, you can use the provided Docker Compose file by running.
+> [!NOTE]
+> If you want to open multiple terminals to run the container, you can use the same command. It will automatically start a new terminal inside the same container.
+```bash
+bash run_docker_container.sh
+```
+## Usage Tips and Instructions
+
+### Using Host Volume
+
+You can use the host volume under the container's home directory inside the `<username>` folder. This allows you to build and run files that are on the host machine. For example, if you have a file on the host machine at `/home/<username>/project`, you can access it inside the container at `/home/<username>/host/project`.
+
+### Using Dev Containers Extension in VSCode
+
+To have a good developer environment inside the Docker container, you can use the Dev Containers extension in VSCode. Follow these steps:
+
+1. Install the Dev Containers extension in VSCode.
+2. Open the cloned repository in VSCode.
+3. Press `ctrl+shift+p`(or select the remote explorer icon from the left bar) and select `Dev-Containers: Attach to Running Container...`.
+4. Select the container name `gem_stack-container`.
+5. Once attached, Select `File->Open Folder...`.
+6. Select the folder/workspace you want to open in the container.
+
+This will set up the development environment inside the Docker container, allowing you to use VSCode features seamlessly.
+
+## Stopping the Docker container
+
+To stop the container, you can use the provided stop script by running.
+
+```bash
+bash stop_docker_container.sh
+```
+
+## Installing for Mac
+
+For detailed step-by-step instructions on setting up GEMstack on Mac systems using UTM (virtual machine):
+
+- See the [Mac Setup Instructions](docs/Mac%20Setup%20Instructions.md) document for comprehensive guidance
+- Follow along with the recommended [YouTube tutorial](https://www.youtube.com/watch?v=MVLbb1aMk24) for visual reference
+
+This guide covers:
+- Setting up UTM virtual machine
+- Installing Ubuntu 20.04
+- Configuring the environment 
+- Installing ROS Noetic
+- Setting up GEMstack
 
 ## In this folder
 
@@ -161,13 +252,14 @@ Legend:
     - 🟨 `multiprocess_execution`: Component executors that work in separate process.  (Stdout logging not done yet. Still hangs on exception.)
   
   - `visualization/`: Visualization components on-board the vehicle
-    - 🟨 `mpl_visualization`: Matplotlib visualization
+    - 🟩 `mpl_visualization`: Matplotlib visualization
     - 🟩 `klampt_visualization`: Klampt visualization
 
   - `interface/`: Defines interfaces to vehicle hardware and simulators.
     - 🟩 `gem`: Base class for the Polaris GEM e2 vehicle.
     - 🟩 `gem_hardware`: Interface to the real GEM vehicle.
     - 🟩 `gem_simulator`: Interfaces to simulated GEM vehicles.
+    - 🟩 `gem_gazebo`: Interface to the GEM vehicle in Gazebo simulation.
     - 🟩 `gem_mixed`: Interfaces to the real GEM e2 vehicle's sensors but simulated motion.
 
 
@@ -176,6 +268,16 @@ Legend:
 You will launch a simulation using:
 
 - `python3 main.py --variant=sim launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred launch file.  Try `python3 main.py --variant=sim launch/fixed_route.yaml`.  Inspect the simulator classes in `GEMstack/onboard/interface/gem_simulator.py` for more information about configuring the simulator.
+
+### Gazebo Simulation
+
+For a more realistic 3D simulation environment, you can use the Gazebo simulator:
+
+- `python3 main.py --variant=gazebo launch/LAUNCH_FILE.yaml` to launch with Gazebo integration.
+
+For detailed setup instructions, sensor configuration, and usage guidelines, see the [Gazebo Simulation Documentation](docs/Gazebo%20Simulation%20Documentation.md).
+
+### Launching the Onboard Stack
 
 To launch onboard behavior you will open Terminator / tmux and split it into three terminal windows. In each of them run:
 
@@ -314,6 +416,11 @@ drive:
 
 A launch file can contain a `variants` key that may specify certain changes to the launch stack that may be named via `--variant=X` on the command line.  As an example, see `launch/fixed_route.yaml`.  This specifies two variants, `sim` and `log_ros` which would run a simulation or log ROS topics.  You can specify multiple variants on the command line using the format `--variant=X,Y`.
 
+Common variants include:
+- `sim`: Uses the simplified Python simulator
+- `gazebo`: Uses the Gazebo 3D simulator (requires additional setup, see [documentation](docs/Gazebo%20Simulation%20Documentation.md))
+- `log_ros`: Logs ROS topics
+
 ### Managing and modifying state
 
 When implementing your computation graph, you should think of `AllState` as a strictly typed blackboard architecture in which items can be read from and written to.  If you need to pass data between components, you should add it to the state rather than use alternative techniques, e.g., global variables.  This will allow the logging / replay to save and restore system state.  Over a long development period, it would be best to be disciplined at versioning.
@@ -330,8 +437,8 @@ If you wish to override the executor to add more pipelines, you will need to cre
 To count as a contribution to the team, you will need to check in your code via pull requests (PRs).  PRs should be reviewed by at least one other approver.
 
 - `main`: will contain content that persists between years.  Approver: Kris Hauser.
-- `s2024`: is the "official class vehicle" for this semester's class.  Approver: instructor, TAs.
-- `s2024_groupX`: will be your group's branch. Approver: instructor, TAs, team members.  
+- `s2025`: is the "official class vehicle" for this semester's class.  Approver: instructor, TAs.
+- `s2025_groupX`: will be your group's branch. Approver: instructor, TAs, team members.  
 
 Guidelines:
 - DO NOT check in large datasets.  Instead, keep these around on SSDs.

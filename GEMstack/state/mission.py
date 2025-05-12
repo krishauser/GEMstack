@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from typing import Optional
+from . import ObjectPose
 from ..utils.serialization import register
 from enum import Enum
 from .route import PlannerEnum
@@ -12,19 +14,12 @@ class MissionEnum(Enum):
     RECOVERY_STOP = 4   # abnormal condition detected, must stop now
     ESTOP = 5           # estop pressed, must stop now
 
+    SUMMONING_DRIVE = 6
+    PARALLEL_PARKING = 7
+
 @dataclass
 @register
 class MissionObjective:
     type : MissionEnum = MissionEnum.IDLE
-    
-@dataclass
-@register
-class MissionPlan:
-    goal_x: float
-    goal_y: float
-    goal_orientation: float
-    planner_type : PlannerEnum = PlannerEnum.RRT_STAR
-    # other mission-specific parameters can be added here
-
-
+    goal_pose: Optional[ObjectPose] = None
     
