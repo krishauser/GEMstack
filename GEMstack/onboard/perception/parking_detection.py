@@ -176,7 +176,7 @@ class ParkingSpotsDetector3D(Component):
                                 yaw=yaw,
                                 pitch=0.0,
                                 roll=0.0,
-                                frame=ObjectFrameEnum.CURRENT
+                                frame=ObjectFrameEnum.START
                             )
             new_obstacle = Obstacle(
                                 pose=obstacle_pose,
