@@ -223,6 +223,40 @@ def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_
     return marker_array
 
 
+def create_parking_goal_marker(x, y, radius=1.0, ref_frame="map", color=(0.0, 1.0, 0.0, 1.0)):
+    marker_array = MarkerArray()
+
+    marker = Marker()
+    marker.header.frame_id = ref_frame
+    marker.header.stamp = rospy.Time.now()
+    marker.ns = "parking_goal"
+    marker.id = 0
+    marker.type = Marker.CYLINDER
+    marker.action = Marker.ADD
+
+    # Position at (x, y), ignore yaw
+    marker.pose.position.x = x
+    marker.pose.position.y = y
+    marker.pose.position.z = 0.0  # Flat on ground
+    marker.pose.orientation.w = 1.0  # No rotation
+
+    # Scale (diameter in x and y, small height in z to make it flat)
+    marker.scale.x = 2 * radius
+    marker.scale.y = 2 * radius
+    marker.scale.z = 0.05  # Thin circle
+
+    # Color (RGBA)
+    marker.color.r = color[0]
+    marker.color.g = color[1]
+    marker.color.b = color[2]
+    marker.color.a = color[3]
+
+    marker.lifetime = rospy.Duration(0)  # 0 means forever
+
+    marker_array.markers.append(marker)
+    return marker_array
+
+
 def delete_markers(ns="markers", max_markers=15):
     marker_array = MarkerArray()
     for i in range(max_markers):
