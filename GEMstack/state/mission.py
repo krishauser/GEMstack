@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field, field
+from typing import Optional
+from . import ObjectPose
 from ..utils.serialization import register
 from enum import Enum
 from typing import List
@@ -10,10 +12,13 @@ class MissionEnum(Enum):
     TELEOP = 3          # manual teleop control
     RECOVERY_STOP = 4   # abnormal condition detected, must stop now
     ESTOP = 5           # estop pressed, must stop now
-    INSPECT = 6
-    INSPECT_UPLOAD = 7
+    SUMMONING_DRIVE = 6
+    PARALLEL_PARKING = 7
+    INSPECT = 8
+    INSPECT_UPLOAD = 9
 
 @dataclass
 @register
 class MissionObjective:
     type : MissionEnum = MissionEnum.IDLE
+    goal_pose: Optional[ObjectPose] = None
