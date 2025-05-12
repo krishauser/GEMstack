@@ -361,6 +361,7 @@ class ConeDetector3D(Component):
                             outline=None,
                             material=ObstacleMaterialEnum.TRAFFIC_CONE,
                             state=state,
+                            collidable=True
                         )
                     else:
                         updated_obstacle = old_state
@@ -375,6 +376,7 @@ class ConeDetector3D(Component):
                         outline=None,
                         material=ObstacleMaterialEnum.TRAFFIC_CONE,
                         state=state,
+                        collidable=True
                     )
                     obstacles[obstacle_id] = new_obstacle
                     self.tracked_obstacles[obstacle_id] = new_obstacle
@@ -387,6 +389,7 @@ class ConeDetector3D(Component):
                     outline=None,
                     material=ObstacleMaterialEnum.TRAFFIC_CONE,
                     state=state,
+                    collidable = True
                 )
                 obstacles[obstacle_id] = new_obstacle
 
@@ -499,7 +502,7 @@ def box_to_fake_obstacle(box):
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
     return Obstacle(pose=pose, dimensions=dims, outline=None,
-                         material=ObstacleMaterialEnum.TRAFFIC_CONE, state=ObstacleStateEnum.STANDING)
+                         material=ObstacleMaterialEnum.TRAFFIC_CONE, state=ObstacleStateEnum.STANDING, collidable=True)
 
 
 if __name__ == '__main__':
