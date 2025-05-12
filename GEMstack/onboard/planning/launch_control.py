@@ -5,15 +5,17 @@ class LaunchControl:
         self.enable_launch_control = True
         self.stage_duration = stage_duration
         self.stop_threshold = stop_threshold
-        self._launch_start_time = rospy.get_time()
+        self._launch_start_time = None
 
     def reset(self):
         self.enable_launch_control = True
-        self._launch_start_time = None
+        self._launch_start_time = -1
 
 
     def apply_launch_control(self, cmd, vehicle_velocity):
 
+        if self._launch_start_time == None:
+            self._launch_start_time = rospy.get_time()
         elapsed = rospy.get_time() - self._launch_start_time
         if self.enable_launch_control:
             print("launch control active")

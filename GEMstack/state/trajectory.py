@@ -273,6 +273,7 @@ class Path:
 class Trajectory(Path):
     """A timed, piecewise linear path."""
     times : List[float]
+    velocities : Optional[List[float]] = None 
 
     def domain(self) -> Tuple[float,float]:
         """Returns the time parameter domain"""
@@ -413,6 +414,24 @@ def compute_headings(path : Path, smoothed = False) -> Path:
 
         path.points = np.vstack((x_smooth, y_smooth)).T
 
+        # raise NotImplementedError("Smoothing not done yet")
+        points = np.array(path.points)
+        x = points[:, 0]
+        y = points[:, 1]
+       
+        dx = np.diff(x)
+        dy = np.diff(y)
+        ds = np.hypot(dx, dy)
+        s = np.insert(np.cumsum(ds), 0, 0)
+
+        tck_x = splrep(s, x, s=0.5)
+        tck_y = splrep(s, y, s=0.5)
+
+        s_fine = np.linspace(0, s[-1], 200)
+        x_smooth = splev(s_fine, tck_x)
+        y_smooth = splev(s_fine, tck_y)
+
+        path.points = np.vstack((x_smooth, y_smooth)).T
     if len(path.points) < 2:
         raise ValueError("Path must have at least 2 points")
     derivs = []
