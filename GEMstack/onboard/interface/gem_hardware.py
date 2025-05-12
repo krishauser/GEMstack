@@ -294,7 +294,6 @@ class GEMHardwareInterface(GEMInterface):
         if command.brake_pedal_position > 0.0:
             self.accel_cmd.f64_cmd = 0.0
         self.brake_cmd.f64_cmd = command.brake_pedal_position
-
         self.steer_cmd.angular_position = command.steering_wheel_angle
         self.steer_cmd.angular_velocity_limit = command.steering_wheel_speed
         print("**************************")
@@ -306,7 +305,7 @@ class GEMHardwareInterface(GEMInterface):
             print("Warning: commanded acceleration exceeded accel pedal limit")
             self.accel_cmd.f64_cmd = maxacc
         if self.brake_cmd.f64_cmd > maxbrake:
-            print("Warning: commanded braking exceed   0   # to ed brake pedal limit")
+            print("Warning: commanded braking exceeded brake pedal limit")
             self.brake_cmd.f64_cmd = maxbrake
         print("**************************")
 
@@ -317,7 +316,6 @@ class GEMHardwareInterface(GEMInterface):
         self.accel_cmd.enable  = True
         self.accel_cmd.clear   = False
         self.accel_cmd.ignore  = False
-        
         
         self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_FORWARD
         self.gear_cmd.enable = True
