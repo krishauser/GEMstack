@@ -16,12 +16,12 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/yamada.csv']
+            # args: [!relative_path '../GEMstack/knowledge/routes/yamada.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/reverse_15m.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/offset.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/backward_15m.csv']
+            args: [!relative_path '../GEMstack/knowledge/routes/backward_15m.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/forward_curve.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/backward_curve.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/yamada.csv']
@@ -32,9 +32,10 @@ drive:
             args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
             # type: pure_pursuit.PurePursuitTrajectoryTracker
-            # type: stanley.StanleyTrajectoryTracker
-            type: mpc.MPCTrajectoryTracker
-            args: {desired_speed: 0.5}  #approximately 5mph
+            type: stanley.StanleyTrajectoryTracker
+            # type: stanley_forward.StanleyTrajectoryTracker
+            # type: mpc.MPCTrajectoryTracker
+            args: {desired_speed: 2.5}  #approximately 5mph
             print: True
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
