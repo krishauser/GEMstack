@@ -19,7 +19,7 @@ drive:
         mission_planning:
             type: SummoningMissionPlanner
             args:
-                use_webapp: false   # goal should be defined when use_webapp is false
+                use_webapp: True   # goal should be defined when use_webapp is false
                 webapp_url: 'https://summon-app-production.up.railway.app/'
                 # Goal test points for summoning_roadgraph_sim.json, frame is 'start' or 'cartesian'.
                     # Key points:[0, 0], [0, 30], [37.5, 7.5], [33, 12]，[28.5, 7.5]，[15, 3], [1.5, 7.5], [15, 12], [-3, 12], [-7.5, 7.5]
@@ -29,7 +29,8 @@ drive:
                     # [-88.235527, 40.0927436], [-88.235968, 40.0927432], [-88.236046, 40.0927917], [-88.236008, 40.0928604], [-88.235905, 40.0927917]
                 goal: {'location':[1, 0], 'frame':'start'}
                 # goal: {'location':[5, -3], 'frame':'cartesian'}
-                state_machine: [MissionEnum.IDLE, MissionEnum.SUMMONING_DRIVE, MissionEnum.PARALLEL_PARKING]
+                # state_machine: [MissionEnum.IDLE, MissionEnum.SUMMONING_DRIVE, MissionEnum.PARALLEL_PARKING]
+                state_machine: [MissionEnum.IDLE, MissionEnum.SUMMON_DRIVING, MissionEnum.PARALLEL_PARKING]
         route_planning:
             type: SummoningRoutePlanner
             # Arguments: [path/to/roadgraph, map_type, map_frame]

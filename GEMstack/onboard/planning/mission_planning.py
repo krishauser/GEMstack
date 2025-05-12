@@ -35,10 +35,12 @@ class StateMachine:
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, use_webapp, webapp_url, goal, state_machine):
+    def __init__(self, use_webapp, webapp_url, goal=None, state_machine=None):
         self.state_machine = StateMachine([eval(s) for s in state_machine])
-        self.goal_location = goal['location']
-        self.goal_frame = goal['frame']
+        
+        # if use_webapp is True, goal should be None
+        self.goal_location = goal['location'] if not use_webapp else None
+        self.goal_frame = goal['frame'] if not use_webapp else None
         self.new_goal = False
         self.goal_pose = None
         self.start_pose = None
@@ -140,7 +142,8 @@ class SummoningMissionPlanner(Component):
                 print("============== Next state:", mission.type)
 
         # Reach the end of the route, begin to search for parking
-        elif mission.type == MissionEnum.SUMMONING_DRIVE:
+        # elif mission.type == MissionEnum.SUMMONING_DRIVE:
+        elif mission.type == MissionEnum.SUMMON_DRIVING:
             mission.goal_pose = self.goal_pose
             if route:
                 _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
@@ -164,7 +167,7 @@ class SummoningMissionPlanner(Component):
 
         if self.flag_use_webapp:
             data = {
-                "status": mission.planner_type.name
+                "status": mission.type.name
             }
             print("POST:", data)
             response = requests.post(url=self.url_status, json=data)

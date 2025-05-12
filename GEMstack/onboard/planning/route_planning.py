@@ -311,7 +311,8 @@ class SummoningRoutePlanner(Component):
                 self.route = None
 
         # Summoning driving mode.
-        elif mission.type == MissionEnum.SUMMONING_DRIVE:
+        # elif mission.type == MissionEnum.SUMMONING_DRIVE:
+        elif mission.type == MissionEnum.SUMMON_DRIVING:
             print("I am in SUMMON_DRIVING mode")
             if self.route is None:
                 # Find appropri ate start and goal points that are on the lanes and fix for searching
