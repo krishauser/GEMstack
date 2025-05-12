@@ -17,7 +17,7 @@ drive:
         route_planning_component:
             type: InspectRoutePlanner
             args: 
-                state_machine: ['IDLE', 'NAV', 'INSPECT', 'FINISH', 'IDLE']
+                state_machine: ['IDLE', 'NAV', 'INSPECT', 'FINISH']
         # save_lidar_data : capture_lidar_camera_data.SaveInspectionData
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
             # type: RouteToTrajectoryPlanner

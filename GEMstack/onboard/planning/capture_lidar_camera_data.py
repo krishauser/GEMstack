@@ -1,6 +1,7 @@
 from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum, MissionEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
+from ...state.intent import VehicleIntentEnum
 import cv2
 from typing import Dict
 import numpy as np
@@ -122,8 +123,16 @@ class SaveInspectionData(Component):
             lidar_pc = self.latest_lidar.copy()
             camera_fr = self.latest_fr_image.copy()
             camera_rr = self.latest_rr_image.copy()
-            cv2.imwrite(os.path.join(self.folder_path, f'fr_{self.index}.png'), camera_fr)
-            cv2.imwrite(os.path.join(self.folder_path, f'rr_{self.index}.png'), camera_rr)
+
+            ## Image saving logic to avoid storing huge amount of data
+            if state.intent.type == VehicleIntentEnum.CAMERA_FR:
+                cv2.imwrite(os.path.join(self.folder_path, f'fr_{self.index}.png'), camera_fr)
+            elif state.intent.type == VehicleIntentEnum.CAMERA_RR:
+                cv2.imwrite(os.path.join(self.folder_path, f'rr_{self.index}.png'), camera_rr)
+
+            ## Store all images
+            # cv2.imwrite(os.path.join(self.folder_path, f'fr_{self.index}.png'), camera_fr)
+            # cv2.imwrite(os.path.join(self.folder_path, f'rr_{self.index}.png'), camera_rr)
 
             # Save GNSS data
             with open(os.path.join(self.folder_path, 'gnss.txt'), 'a') as fh:

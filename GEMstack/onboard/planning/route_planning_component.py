@@ -456,7 +456,7 @@ class InspectRoutePlanner(Component):
                 state.intent = VehicleIntentEnum.CAMERA_RR
 
         elif self.mission == "FINISH":
-            state.mission.type = MissionEnum.HOME
+            state.mission.type = MissionEnum.INSPECT_UPLOAD
             goal = ObjectPose(
                 frame=ObjectFrameEnum.START,
                 t=state.start_vehicle_pose.t,
@@ -471,13 +471,6 @@ class InspectRoutePlanner(Component):
                 self.x = self.rrt_route(state, goal)
                 self.planned_path_already = True
             self.route = self.x
-
-            ## GOAL condition
-            if (abs(state.vehicle.pose.x - goal.x) <= 3 and abs(state.vehicle.pose.y - goal.y) <= 3):
-                print(self.state_list[self.index + 1])
-                self.mission = self.state_list[self.index + 1]
-                self.index += 1
-                print("CHANGING STATES", self.mission)
 
         print("-------------------------------------------------")
         return [self.route, state.mission]
