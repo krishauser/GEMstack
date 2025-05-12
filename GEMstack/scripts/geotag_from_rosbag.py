@@ -7,6 +7,12 @@ import numpy as np
 import math
 import os
 from datetime import datetime
+import argparse
+
+"""
+This script geotags images based on vehicle GNSS data and images collected from any of the four corner cameras.
+Functionality is limited to data that is extacted from a rosbag file.
+"""
 
 def rad_to_deg(rad):
     """Convert radians to degrees"""
@@ -63,12 +69,21 @@ def convert_gps_to_exif_format(latitude, longitude, altitude):
     
     return lat_dms, lon_dms, lat_ref, lon_ref, alt_ratio, alt_ref
 
+# Open the bag file
+parser = argparse.ArgumentParser(
+        description='A script to geotag images from a rosbag file using GNSS data.'
+    )
+
+parser.add_argument(
+        'bag_name', type = str,
+        help = 'The name of the rosbag file to process.'
+    )
+args = parser.parse_args()
+bag = rosbag.Bag(args.bag_name, 'r')
+bridge = CvBridge()
+
 # Create images directory if it doesn't exist
 os.makedirs('images', exist_ok=True)
-
-# Open the bag file
-bag = rosbag.Bag('fr+gnss+lidar.bag')
-bridge = CvBridge()
 
 # First pass: collect and sort GNSS data
 print("Collecting GNSS data...")
@@ -111,11 +126,11 @@ for topic, msg, t in bag.read_messages(topics=['/camera_fl/arena_camera_node/ima
     
     exif_dict = {
     "0th": {
-        piexif.ImageIFD.Make: "FLIR".encode(),
-        piexif.ImageIFD.Model: "Blackfly S BFS-U3-16S2C".encode(),
+        piexif.ImageIFD.Make: "Lucid".encode(),
+        piexif.ImageIFD.Model: "Triton 2.3 MP".encode(),
         piexif.ImageIFD.Software: "ROS".encode(),
         piexif.ImageIFD.DateTime: timestamp.strftime("%Y:%m:%d %H:%M:%S").encode(),
-        piexif.ImageIFD.ImageDescription: "Captured with ROS and FLIR Blackfly S".encode(),
+        piexif.ImageIFD.ImageDescription: "Captured with ROS and Lucid Triton 2.3 MP".encode(),
         piexif.ImageIFD.XResolution: (msg.width, 1),
         piexif.ImageIFD.YResolution: (msg.height, 1),
         piexif.ImageIFD.ResolutionUnit: 2,  # inches
