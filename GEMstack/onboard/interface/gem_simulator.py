@@ -3,7 +3,7 @@ from .gem import *
 from ...mathutils.dubins import SecondOrderDubinsCar
 from ...mathutils.dynamics import simulate
 from ...mathutils import transforms
-from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,Sign,AllState
+from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,ObstacleState,AgentActivityEnum,Obstacle,ObstacleStateEnum,Sign,AllState, ObstacleMaterialEnum
 from ...knowledge.vehicle.geometry import front2steer,steer2front,heading_rate
 from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration, acceleration_to_pedal_positions
 from ...utils.loops import TimedLooper
@@ -45,6 +45,27 @@ AGENT_NOMINAL_ACCELERATION = {
     'medium_truck': 3.0,
     'large_truck': 2.0
 }
+
+OBSTACLE_TYPE_TO_ENUM = {
+    'TRAFFIC_CONE': ObstacleMaterialEnum.TRAFFIC_CONE
+}
+
+OBSTACLE_DIMENSIONS = {
+    'TRAFFIC_CONE': (0.5,0.5,1.0)
+}
+
+class ObstacleSimulation:
+    def __init__(self, config):
+        self.type = config['type']
+        self.position = config['position'][:]
+        self.yaw = config.get('yaw',0)
+        print("Obstacle position",self.position)
+
+    def to_obstacle_state(self) -> ObstacleStateEnum:
+        pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,t=time.time(),x=self.position[0],y=self.position[1],yaw=self.yaw)
+        dimensions = OBSTACLE_DIMENSIONS[self.type]
+        return ObstacleState(type=OBSTACLE_TYPE_TO_ENUM[self.type], activity=ObstacleStateEnum.STOPPED, pose=pose, dimensions=dimensions, outline=None)
+
 
 class AgentSimulation:
     def __init__(self, config):
@@ -131,6 +152,7 @@ class GEMDoubleIntegratorSimulation:
             print("Loading simulator from scene",scene)
             scene = config.load_config_recursive(scene)
         self.agents = {}
+        self.obstacles = {}
         if scene is None:
             self.simulation_time = time.time()
             self.start_state = (0.0,0.0,0.0)
@@ -141,6 +163,8 @@ class GEMDoubleIntegratorSimulation:
                 start_state.append(0.0)
             for k,a in scene.get('agents',{}).items():
                 self.agents[k] = AgentSimulation(a)
+            for k,o in scene.get('obstacles',{}).items():
+                self.obstacles[k] = ObstacleSimulation(o)
         self.cur_vehicle_state = np.array(start_state,dtype=float)
 
         self.last_reading = GEMVehicleReading()
@@ -268,14 +292,17 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
         self.gnss_dt = self.gnss_emulator_settings.get('dt',0.1)
         self.imu_dt = self.imu_emulator_settings.get('dt',0.05)
         self.agent_dt = self.agent_emulator_settings.get('dt',0.1)
+        self.obstacle_dt = 0.1
         self.last_reading = self.simulator.last_reading
         self.last_command = self.simulator.last_command
         self.last_gnss_time = 0
         self.last_imu_time = 0
         self.last_agent_time = 0
+        self.last_obstacle_time = 0
         self.gnss_callback = None
         self.imu_callback = None
         self.agent_detector_callback = None
+        self.obstacle_callback = None
         self.thread_lock = Lock()
         self.thread_data = dict()
         self.thread = None 
@@ -302,7 +329,7 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
     
     def sensors(self):
         #TODO: simulate other sensors?
-        return ['gnss','imu','agent_detector']
+        return ['gnss','imu','agent_detector', 'obstacle_detector']
 
     def subscribe_sensor(self, name, callback, type = None):
         if name == 'gnss':
@@ -317,6 +344,10 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
             if type is not None and type is not AgentState:
                 raise ValueError("GEMDoubleIntegratorSimulationInterface only supports AgentState for agent_detector")
             self.agent_detector_callback = callback
+        elif name == 'obstacle_detector':
+            if type is not None and type is not ObstacleState:
+                raise ValueError("GEMDoubleIntegratorSimulationInterface only supports ObstacleState for obstacle_detector")
+            self.obstacle_callback = callback
         else:
             print("Warning, GEM simulator doesn't provide sensor",name)
         
@@ -347,6 +378,10 @@ class GEMDoubleIntegratorSimulationInterface(GEMInterface):
                     for k,a in self.simulator.agents.items():
                         self.agent_detector_callback(k,a.to_agent_state())
                     self.last_agent_time = self.simulator.simulation_time
+                if self.obstacle_callback is not None and self.simulator.simulation_time - self.last_obstacle_time > self.obstacle_dt:
+                    for k,o in self.simulator.obstacles.items():
+                        self.obstacle_callback(k,o.to_obstacle_state())
+                    self.last_obstacle_time = self.simulator.simulation_time
 
     def gnss_emulator(self, vehicle_state: VehicleState):
         position_noise = self.gnss_emulator_settings.get('position_noise',0.0)
