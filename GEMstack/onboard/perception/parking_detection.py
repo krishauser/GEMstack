@@ -112,7 +112,9 @@ class ParkingSpotsDetector3D(Component):
 
         # Create parking goal marker
         if parking_goal:
-            ros_parking_goal_marker = create_parking_goal_marker(parking_goal, ref_frame="vehicle")
+            ros_parking_goal_marker = create_parking_goal_marker(x = parking_goal[0],
+                                                                y = parking_goal[1],
+                                                                ref_frame="vehicle")
             self.pub_parking_goal_marker.publish(ros_parking_goal_marker)
 
         # Create parking obstacles marker

@@ -176,7 +176,7 @@ def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_
     # Transparency and color (green)
     marker.color.r = 0.0
     marker.color.g = 1.0
-    marker.color.b = 0.0
+    marker.color.b = 1.0
     marker.color.a = 0.5
 
     marker.pose.orientation.w = 1.0
@@ -223,7 +223,7 @@ def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_
     return marker_array
 
 
-def create_parking_goal_marker(x, y, radius=1.0, ref_frame="map", color=(0.0, 1.0, 0.0, 1.0)):
+def create_parking_goal_marker(x, y, radius=0.3, ref_frame="map", color=(0.7, 1.0, 0.5, 1.0)):
     marker_array = MarkerArray()
 
     marker = Marker()
