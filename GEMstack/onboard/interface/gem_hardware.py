@@ -20,7 +20,7 @@ from radar_msgs.msg import RadarTracks
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 # GEM PACMod Headers
-from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt, GlobalRpt
+from pacmod_msgs.msg import PositionWithSpeed, PacmodCmd, SystemRptFloat, VehicleSpeedRpt, GlobalRpt, SystemRptInt
 
 # OpenCV and cv2 bridge
 import cv2
@@ -49,6 +49,7 @@ class GEMHardwareInterface(GEMInterface):
         self.speed_sub  = rospy.Subscriber("/pacmod/parsed_tx/vehicle_speed_rpt", VehicleSpeedRpt, self.speed_callback)
         self.steer_sub = rospy.Subscriber("/pacmod/parsed_tx/steer_rpt", SystemRptFloat, self.steer_callback)
         self.global_sub = rospy.Subscriber("/pacmod/parsed_tx/global_rpt", GlobalRpt, self.global_callback)
+        self.gear_sub = rospy.Subscriber("/pacmod/parsed_tx/shift_rpt", SystemRptInt, self.geer_callback)
         self.gnss_sub = None
         self.imu_sub = None
         self.front_radar_sub = None
@@ -125,6 +126,18 @@ class GEMHardwareInterface(GEMInterface):
 
     def steer_callback(self, msg):
         self.last_reading.steering_wheel_angle = msg.output
+
+    def geer_callback(self, msg):
+        # map pacmod gear to gear in vehicle state
+        if msg.output == 2:
+            # Neutral
+            self.last_reading.gear = 0
+        elif msg.output == 1:
+            # Reverse
+            self.last_reading.gear = -1
+        else:
+            #Forward
+            self.last_reading.gear = 1
     
     def global_callback(self, msg):
         self.faults = []
@@ -317,7 +330,14 @@ class GEMHardwareInterface(GEMInterface):
         self.accel_cmd.clear   = False
         self.accel_cmd.ignore  = False
         
-        self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_FORWARD
+        #switch gear
+        if command.gear == -1:
+            self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_REVERSE
+        elif command.gear == 1:
+            self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_FORWARD
+        else:
+            self.gear_cmd.ui16_cmd = PacmodCmd.SHIFT_NEUTRAL
+
         self.gear_cmd.enable = True
         self.gear_pub.publish(self.gear_cmd)
         self.accel_pub.publish(self.accel_cmd)
