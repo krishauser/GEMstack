@@ -1,0 +1,7 @@
+vehicle_state: [15.0, 14.0, 3.14, 0.0, 0.0]
+agents:
+  car1:
+    type: car
+    position: [30.0, 14.0]
+    nominal_velocity: 0.0
+    behavior: stationary
