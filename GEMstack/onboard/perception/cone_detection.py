@@ -1,4 +1,4 @@
-from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
+from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum, ObstacleState, Obstacle, ObstacleStateEnum, ObstacleMaterialEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
 from ultralytics import YOLO
@@ -707,9 +707,12 @@ class ConeDetector3D(Component):
 
 class FakConeDetector(Component):
     def __init__(self, vehicle_interface: GEMInterface):
+        """
+        Initializes the FakeConeDetector with two parking spots:
+        - One standard 2x2 rectangular spot
+        - One wider mouth for easier entry
+        """
         self.vehicle_interface = vehicle_interface
-        self.times = [(5.0, 20.0), (30.0, 35.0)]
-        self.t_start = None
 
     def rate(self):
         return 4.0
@@ -718,27 +721,71 @@ class FakConeDetector(Component):
         return ['vehicle']
 
     def state_outputs(self):
-        return ['agents']
+        return ['obstacles']
 
-    def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
-        if self.t_start is None:
-            self.t_start = self.vehicle_interface.time()
-        t = self.vehicle_interface.time() - self.t_start
+    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
+        """
+        Called every simulation step, updates the timestamp and publishes the obstacle states.
+        """
+
+        current_time = self.vehicle_interface.time()
+        
+        # === Standard Parking Spot ===
+        # cones_standard = {
+        #     'cone0': (5.0, 5.0, 0.5, 0.5),   # Front Left
+        #     'cone1': (5.0, 7.0, 0.5, 0.5),   # Back Left
+        #     'cone2': (7.0, 5.0, 0.5, 0.5),   # Front Right
+        #     'cone3': (7.0, 7.0, 0.5, 0.5)    # Back Right
+        # }
+
+        # === Wider Mouth Parking Spot ===
+        cones_wide = {
+            'cone4': (6.0, 9.0, 0.5, 0.5),  # Front Left (wide)
+            'cone5': (10.0, 9.0, 0.5, 0.5),  # Back Left
+            'cone6': (3.0, 4.0, 0.5, 0.5),  # Front Right (wide)
+            'cone7': (7.0, 4.0, 0.5, 0.5)   # Back Right
+        }
+
+        # Populate the obstacle states
         res = {}
-        for time_range in self.times:
-            if t >= time_range[0] and t <= time_range[1]:
-                res['cone0'] = box_to_fake_agent((0, 0, 0, 0))
-                rospy.loginfo("Detected a Cone (simulated)")
+        for name, box in {**cones_wide}.items():
+            res[name] = box_to_fake_obstacle(box, current_time)
+
+        # Update timestamp
+        for obstacle in res.values():
+            obstacle.pose.t = current_time
+
+        rospy.loginfo(f"[FakeConeDetector] Simulated Two Parking Spots Detected")
         return res
 
-
-def box_to_fake_agent(box):
+def box_to_fake_obstacle(box, current_time):
+    """
+    Helper function to create a fake obstacle (cone) from bounding box coordinates.
+    """
     x, y, w, h = box
-    pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
-    dims = (w, h, 0)
-    return AgentState(pose=pose, dimensions=dims, outline=None,
-                      type=AgentEnum.CONE, activity=AgentActivityEnum.MOVING,
-                      velocity=(0, 0, 0), yaw_rate=0)
+    pose = ObjectPose(
+        t=current_time,
+        x=x,
+        y=y,
+        z=0.0,
+        yaw=0.0,
+        pitch=0.0,
+        roll=0.0,
+        frame=ObjectFrameEnum.START
+    )
+
+    dims = (w, h, 1.0)
+
+    new_obstacle = Obstacle(
+                                pose=pose,
+                                dimensions=dims,
+                                outline=None,
+                                material=ObstacleMaterialEnum.TRAFFIC_CONE,
+                                collidable=True
+                            )
+    print("Obstacles made")
+    return new_obstacle
+
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2
 from typing import Dict
 from ..component import Component 
-from ...state import AgentState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, VehicleState, AllState
+from ...state import AgentState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, VehicleState, AllState, ObstacleState
 from ..interface.gem import GEMInterface
 from .utils.detection_utils import *
 from .utils.parking_utils import *
@@ -60,7 +60,7 @@ class ParkingSpotsDetector3D(Component):
         return 10.0  # Hz
 
     def state_inputs(self) -> list:
-        return ['agents']
+        return ['obstacles']
 
     def state_outputs(self) -> list:
         return ['goal', 'obstacles']
@@ -121,7 +121,7 @@ class ParkingSpotsDetector3D(Component):
             self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
 
-    def update(self, agents: Dict[str, AgentState]):
+    def update(self, agents: Dict[str, ObstacleState]):
         # Initial variables
         goal_parking_spot = None
         parking_obstacles_pose = []
@@ -154,6 +154,7 @@ class ParkingSpotsDetector3D(Component):
         parking_obstacles = {}
         for o_pose, o_dim in zip(parking_obstacles_pose, parking_obstacles_dim):
             x, y, z, yaw = o_pose
+            print("CONSTRUCTING OBSTACLE POSE")
             obstacle_pose = ObjectPose(
                                 t=current_time,
                                 x=x,

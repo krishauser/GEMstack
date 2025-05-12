@@ -22,7 +22,7 @@ components:
       inputs: [vehicle, roadgraph]
       outputs: vehicle_lane
   - parking_detection:
-      inputs: agents
+      inputs: obstacles
       outputs: [goal, obstacles]
   - sign_detection: 
       inputs: [vehicle, roadgraph]
@@ -49,13 +49,10 @@ components:
   - driving_logic:
       inputs: 
       outputs: intent
-  - parking_component: # one way
+  - _mission_planner: # one way
       inputs: all
       outputs: mission_plan
-  - summon_component: # one way
-      inputs: all
-      outputs: route
-  - route_planning_component: # one way
+  - _route_planner: # one way
       inputs: all
       outputs: route
   - motion_planning:
