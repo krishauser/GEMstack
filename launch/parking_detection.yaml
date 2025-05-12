@@ -38,9 +38,9 @@ drive: # Full pipeline on board
             type: longitudinal_planning.YieldTrajectoryPlanner
             # type: yield_spline_planner.SplinePlanner
             largs:
-                acceleration: 1
+                acceleration: 5
                 deceleration: 2
-                desired_speed: 1
+                desired_speed: 2
         trajectory_tracking:
                 type: pure_pursuit.PurePursuitTrajectoryTracker
                 print: False
