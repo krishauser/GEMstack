@@ -220,7 +220,7 @@ class GEMGazeboInterface(GEMInterface):
             if i == vehicle_idx:
                 continue
                 
-            # Check if this model should be tracked as an agent
+            # Check if this model should be tracked as an agent or obstacle
             agent_type = None
             for prefix in self.tracked_model_prefixes:
                 if model_name.lower().startswith(prefix.lower()):
@@ -240,7 +240,7 @@ class GEMGazeboInterface(GEMInterface):
                     break
                     
             if agent_type is None and obstacle_type is None:
-                continue  # Not an agent we're tracking
+                continue  # Not an entity we're tracking
 
             # Get position and orientation from model states
             position = msg.pose[i].position
@@ -253,6 +253,7 @@ class GEMGazeboInterface(GEMInterface):
             # Convert orientation quaternion to euler angles
             quaternion = (orientation.x, orientation.y, orientation.z, orientation.w)
             roll, pitch, yaw = euler_from_quaternion(quaternion)
+            
             # Create agent pose in ABSOLUTE_CARTESIAN frame (Gazebo's native frame)
             agent_global_pose = ObjectPose(
                 frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
@@ -266,103 +267,152 @@ class GEMGazeboInterface(GEMInterface):
             )
             
             # Transform agent pose to START frame using stable transformation
-            agent_pose = None
-            if self.transform_initialized:
-                # Calculate agent position relative to the *initial* vehicle position (from when START frame was established)
-                rel_x = position.x - self.initial_vehicle_model_pose.x
-                rel_y = position.y - self.initial_vehicle_model_pose.y
-                rel_z = position.z - self.initial_vehicle_model_pose.z
-                
-                # Rotate by the *initial* vehicle orientation
-                cos_yaw = math.cos(-self.initial_vehicle_model_pose.yaw)
-                sin_yaw = math.sin(-self.initial_vehicle_model_pose.yaw)
-                rot_x = rel_x * cos_yaw - rel_y * sin_yaw
-                rot_y = rel_x * sin_yaw + rel_y * cos_yaw
-                
-                # Adjust yaw relative to *initial* vehicle orientation
-                rel_yaw = yaw - self.initial_vehicle_model_pose.yaw
-                
-                # Create the pose in START frame using the stable transformation
-                agent_pose = ObjectPose(
-                    frame=ObjectFrameEnum.START,
-                    t=current_time - self.t_start if self.t_start is not None else 0,
-                    x=rot_x,
-                    y=rot_y,
-                    z=rel_z,
-                    roll=roll,
-                    pitch=pitch,
-                    yaw=rel_yaw
+            agent_pose = self._transform_to_start_frame(current_time, position, roll, pitch, yaw)
+            
+            # Process agent if applicable
+            if agent_type is not None and self.agent_detector_callback is not None:
+                self._process_agent(model_name, agent_type, agent_pose, position, linear_vel, angular_vel, dt)
+            
+            # Process obstacle if applicable
+            if obstacle_type is not None and self.obstacle_detector_callback is not None:
+                self._process_obstacle(model_name, obstacle_type, agent_pose, roll, pitch)
+
+    def _transform_to_start_frame(self, current_time, position, roll, pitch, yaw):
+        """Transform a pose from ABSOLUTE_CARTESIAN to START frame."""
+        if self.transform_initialized:
+            # Calculate position relative to the *initial* vehicle position (from when START frame was established)
+            rel_x = position.x - self.initial_vehicle_model_pose.x
+            rel_y = position.y - self.initial_vehicle_model_pose.y
+            rel_z = position.z - self.initial_vehicle_model_pose.z
+            
+            # Rotate by the *initial* vehicle orientation
+            cos_yaw = math.cos(-self.initial_vehicle_model_pose.yaw)
+            sin_yaw = math.sin(-self.initial_vehicle_model_pose.yaw)
+            rot_x = rel_x * cos_yaw - rel_y * sin_yaw
+            rot_y = rel_x * sin_yaw + rel_y * cos_yaw
+            
+            # Adjust yaw relative to *initial* vehicle orientation
+            rel_yaw = yaw - self.initial_vehicle_model_pose.yaw
+            
+            # Create the pose in START frame using the stable transformation
+            return ObjectPose(
+                frame=ObjectFrameEnum.START,
+                t=current_time - self.t_start if self.t_start is not None else 0,
+                x=rot_x,
+                y=rot_y,
+                z=rel_z,
+                roll=roll,
+                pitch=pitch,
+                yaw=rel_yaw
+            )
+        else:
+            # If transformation not initialized yet, just use the global pose in ABSOLUTE_CARTESIAN frame
+            return ObjectPose(
+                frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
+                t=current_time,
+                x=position.x,
+                y=position.y,
+                z=position.z,
+                roll=roll,
+                pitch=pitch,
+                yaw=yaw
+            )
+
+    def _process_agent(self, model_name, agent_type, agent_pose, position, linear_vel, angular_vel, dt):
+        """Process an agent detected in the simulation."""
+        # Calculate velocity manually if twist data is zero or missing
+        velocity = (linear_vel.x, linear_vel.y, linear_vel.z)
+        velocity_is_zero = abs(linear_vel.x) < 1e-6 and abs(linear_vel.y) < 1e-6 and abs(linear_vel.z) < 1e-6
+        
+        if velocity_is_zero and model_name in self.last_agent_positions and dt > 0:
+            # Calculate velocity from position difference
+            prev_pos = self.last_agent_positions[model_name]
+            dx = position.x - prev_pos[0]
+            dy = position.y - prev_pos[1]
+            dz = position.z - prev_pos[2]
+            
+            # Calculate velocity (position change / time)
+            calculated_vel = (dx/dt, dy/dt, dz/dt)
+            
+            # Apply some smoothing with the previous velocity if available
+            if model_name in self.last_agent_velocities:
+                prev_vel = self.last_agent_velocities[model_name]
+                # Apply exponential smoothing (0.7 current + 0.3 previous)
+                velocity = (
+                    0.7 * calculated_vel[0] + 0.3 * prev_vel[0],
+                    0.7 * calculated_vel[1] + 0.3 * prev_vel[1],
+                    0.7 * calculated_vel[2] + 0.3 * prev_vel[2]
                 )
             else:
-                # If transformation not initialized yet, just use the model_states pose
-                agent_pose = agent_global_pose
+                velocity = calculated_vel
+        
+        # Determine activity state based on velocity magnitude
+        velocity_magnitude = np.linalg.norm(velocity)
+        if velocity_magnitude < 0.1:
+            activity = AgentActivityEnum.STOPPED
+        elif velocity_magnitude > 5.0:  # Arbitrary threshold for "fast"
+            activity = AgentActivityEnum.FAST
+        else:
+            activity = AgentActivityEnum.MOVING
             
-            if agent_type is not None:
-                # Calculate velocity manually if twist data is zero or missing
-                velocity = (linear_vel.x, linear_vel.y, linear_vel.z)
-                velocity_is_zero = abs(linear_vel.x) < 1e-6 and abs(linear_vel.y) < 1e-6 and abs(linear_vel.z) < 1e-6
-                
-                if velocity_is_zero and model_name in self.last_agent_positions and dt > 0:
-                    # Calculate velocity from position difference
-                    prev_pos = self.last_agent_positions[model_name]
-                    dx = position.x - prev_pos[0]
-                    dy = position.y - prev_pos[1]
-                    dz = position.z - prev_pos[2]
-                    
-                    # Calculate velocity (position change / time)
-                    calculated_vel = (dx/dt, dy/dt, dz/dt)
-                    
-                    # Apply some smoothing with the previous velocity if available
-                    if model_name in self.last_agent_velocities:
-                        prev_vel = self.last_agent_velocities[model_name]
-                        # Apply exponential smoothing (0.7 current + 0.3 previous)
-                        velocity = (
-                            0.7 * calculated_vel[0] + 0.3 * prev_vel[0],
-                            0.7 * calculated_vel[1] + 0.3 * prev_vel[1],
-                            0.7 * calculated_vel[2] + 0.3 * prev_vel[2]
-                        )
-                    else:
-                        velocity = calculated_vel
-                
-                # Determine activity state based on velocity magnitude
-                velocity_magnitude = np.linalg.norm(velocity)
-                if velocity_magnitude < 0.1:
-                    activity = AgentActivityEnum.STOPPED
-                elif velocity_magnitude > 5.0:  # Arbitrary threshold for "fast"
-                    activity = AgentActivityEnum.FAST
-                else:
-                    activity = AgentActivityEnum.MOVING
-                    
-                # Get agent dimensions
-                dimensions = AGENT_DIMENSIONS.get(agent_type, (1.0, 1.0, 1.0))  # Default if unknown
-            
-                # Create agent state
-                agent_state = AgentState(
-                    pose=agent_pose,  # Using START frame pose
-                    dimensions=dimensions,
-                    outline=None,
-                    type=getattr(AgentEnum, agent_type.upper()),
-                    activity=activity,
-                    velocity=velocity,
-                    yaw_rate=angular_vel.z
-                )
-                
-                # Store current position for next velocity calculation (using raw positions)
-                self.last_agent_positions[model_name] = (position.x, position.y, position.z)
-                self.last_agent_velocities[model_name] = velocity
-                # Call the callback with the agent state
-                self.agent_detector_callback(model_name, agent_state)
+        # Get agent dimensions
+        dimensions = AGENT_DIMENSIONS.get(agent_type, (1.0, 1.0, 1.0))  # Default if unknown
+    
+        # Create agent state
+        agent_state = AgentState(
+            pose=agent_pose,  # Using START frame pose
+            dimensions=dimensions,
+            outline=None,
+            type=getattr(AgentEnum, agent_type.upper()),
+            activity=activity,
+            velocity=velocity,
+            yaw_rate=angular_vel.z
+        )
+        
+        # Store current position for next velocity calculation (using raw positions)
+        self.last_agent_positions[model_name] = (position.x, position.y, position.z)
+        self.last_agent_velocities[model_name] = velocity
+        
+        # Call the callback with the agent state
+        self.agent_detector_callback(model_name, agent_state)
 
-            if obstacle_type is not None:
-                # Create obstacle state 
-                obstacle_state = ObstacleState(
-                    dimensions=(0,0,0),
-                    outline=None,
-                    pose=agent_pose,
-                    type=getattr(ObstacleMaterialEnum, obstacle_type.upper()),
-                    activity=ObstacleStateEnum.STANDING,
-                )
-                self.obstacle_detector_callback(model_name, obstacle_state)
+    def _process_obstacle(self, model_name, obstacle_type, agent_pose, roll, pitch):
+        """Process an obstacle detected in the simulation."""
+        # Determine obstacle state based on orientation
+        # For traffic cones, we want to check if they are standing up or tipped over
+        obstacle_activity = ObstacleStateEnum.STANDING  # Default state
+        
+        # Check roll and pitch to determine if the obstacle is tipped over
+        # Thresholds in radians - approx 20 degrees
+        roll_threshold = 0.35
+        pitch_threshold = 0.35
+        
+        # For a traffic cone, analyze orientation
+        if obstacle_type == 'traffic_cone':
+            if abs(roll) > roll_threshold:
+                # Check which direction it's tipped
+                if roll > 0:
+                    obstacle_activity = ObstacleStateEnum.RIGHT
+                else:
+                    obstacle_activity = ObstacleStateEnum.LEFT
+            elif abs(pitch) > pitch_threshold:
+                # If tipped forward/backward, we'll use LEFT/RIGHT based on pitch sign
+                if pitch > 0:
+                    obstacle_activity = ObstacleStateEnum.RIGHT
+                else:
+                    obstacle_activity = ObstacleStateEnum.LEFT
+        
+        # Create obstacle state with the determined activity
+        obstacle_state = ObstacleState(
+            dimensions=(0,0,0),
+            outline=None,
+            pose=agent_pose,
+            type=getattr(ObstacleMaterialEnum, obstacle_type.upper()),
+            activity=obstacle_activity,
+        )
+        
+        # Call the callback with the obstacle state
+        self.obstacle_detector_callback(model_name, obstacle_state)
 
     def subscribe_sensor(self, name, callback, type=None):
         if name == 'gnss':
@@ -395,6 +445,9 @@ class GEMGazeboInterface(GEMInterface):
                         # Calculate speed from velocity components
                         speed = np.linalg.norm([inspva_msg.east_velocity, inspva_msg.north_velocity])
                         self.last_reading.speed = speed
+
+                        # Save the vehicle's GPS pose for coordinate transformation
+                        self.vehicle_gps_pose = pose
 
                         # Create GNSS reading with fused data
                         reading = GNSSReading(
