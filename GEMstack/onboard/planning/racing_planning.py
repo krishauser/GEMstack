@@ -62,7 +62,7 @@ def waypoint_generate(vehicle_state, cones, cone_idx):
     target_heading = car_heading
 
     # ===== Parameters =====
-    u_turn_radius = 11.5      # Radius for U-turn
+    u_turn_radius = 8      # Radius for U-turn
     offset = 2.0                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
@@ -538,7 +538,7 @@ def to_gemstack_trajectory(x_all, y_all, v_all, T=0.1):
     t_vals = np.arange(len(x_all)) * T
     combined_xy = [[x, y] for x, y in zip(x_all, y_all)]
     curr_path = Path(ObjectFrameEnum.START,combined_xy)
-    path = compute_headings(curr_path)
+    path = compute_headings(curr_path, smoothed=True)
     path_normalized = path.arc_length_parameterize()
     points = [p for p in path_normalized.points]
     return Trajectory(points=points, times=t_vals, frame=ObjectFrameEnum.START)
@@ -894,28 +894,28 @@ class SlalomTrajectoryPlanner(Component):
                     y_full = np.concatenate([old_y, y_new])
                     v_full = np.concatenate([old_v, v_new])
 
-                    if current_cone_idx == 6:
-                        # Plot overall trajectory
-                        plt.figure()
-                        plt.plot(x_full, y_full, label='Overall Trajectory')
+                    # if current_cone_idx == 6:
+                    #     # Plot overall trajectory
+                    #     plt.figure()
+                    #     plt.plot(x_full, y_full, label='Overall Trajectory')
 
-                        # Plot cones
-                        for i, cone in enumerate(self.cones):
-                            plt.scatter(cone['x'], cone['y'], color='orange', s=10, label='Cone' if i == 0 else "")
-                            plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
+                    #     # Plot cones
+                    #     for i, cone in enumerate(self.cones):
+                    #         plt.scatter(cone['x'], cone['y'], color='orange', s=10, label='Cone' if i == 0 else "")
+                    #         plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
 
-                        # Plot fixed waypoint
-                        if fixed_wp is not None:
-                            plt.plot(fixed_wp[0], fixed_wp[1], 'ro', label='Fixed Waypoint')
-                            plt.text(fixed_wp[0], fixed_wp[1] + 0.5, 'Fixed', fontsize=9, color='red')
+                    #     # Plot fixed waypoint
+                    #     if fixed_wp is not None:
+                    #         plt.plot(fixed_wp[0], fixed_wp[1], 'ro', label='Fixed Waypoint')
+                    #         plt.text(fixed_wp[0], fixed_wp[1] + 0.5, 'Fixed', fontsize=9, color='red')
 
-                        plt.title('4-Cone Full Course Trajectory')
-                        plt.xlabel('X')
-                        plt.ylabel('Y')
-                        plt.legend()
-                        plt.axis('equal')
-                        plt.grid(True)
-                        plt.show()
+                    #     plt.title('4-Cone Full Course Trajectory')
+                    #     plt.xlabel('X')
+                    #     plt.ylabel('Y')
+                    #     plt.legend()
+                    #     plt.axis('equal')
+                    #     plt.grid(True)
+                    #     plt.show()
 
                     # 4. Create trajectory
                     self.trajectory = to_gemstack_trajectory(x_full, y_full, v_full)
