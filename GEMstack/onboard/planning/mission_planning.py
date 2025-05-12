@@ -144,7 +144,7 @@ class SummoningMissionPlanner(Component):
             mission.goal_pose = self.goal_pose
             if route:
                 _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
-                if closest_index == len(route.points) - 1 or check_distance(mission.goal_pose, vehicle.pose) < 1:
+                if closest_index == len(route.points) - 1 or check_distance(mission.goal_pose, vehicle.pose) < 2:
                     mission.type = self.state_machine.next_state()
                     print("============== Next state:", mission.type)
 

@@ -345,7 +345,7 @@ class SummoningRoutePlanner(Component):
 
             if self.parking_velocity_is_zero == False and state.vehicle.v > 0.01:
                 print("Vehicle is moving, stop it first.")
-                return None
+                self.route = Route(frame=ObjectFrameEnum.START, points=[[vehicle.pose.x, vehicle.pose.y],[vehicle.pose.x, vehicle.pose.y]])
 
             if self.map_type == 'roadgraph':
                 parking_lots, parking_area_start_end = find_parallel_parking_lots(self.roadgraph, vehicle.pose)
@@ -353,14 +353,14 @@ class SummoningRoutePlanner(Component):
 
                 self.parking_velocity_is_zero = True
 
-                print("Parking lots:", parking_lots)
-                print("Parking area start and end:", parking_area_start_end)
+                # TODO: Test only. Remove it later.
+                # self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0, -3),(30, -3)]
+                self.obstacle_list= [(4, -3),(24, -3)]
+                print("Parking area start and end:", self.reedssheppparking.static_horizontal_curb_xy_coordinates)
+                print("Obstacle list:", self.obstacle_list)
 
                 if not self.parking_route_existed:
                     self.current_pose = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw]
-                    print("Current pose:", self.current_pose)
-                    print("Obstacle list:", self.obstacle_list)
-
                     self.reedssheppparking.find_available_parking_spots_and_search_vector(self.obstacle_list,
                                                                                           self.current_pose)
                     self.reedssheppparking.find_collision_free_trajectory_to_park(self.obstacle_list, self.current_pose, True)
@@ -369,7 +369,7 @@ class SummoningRoutePlanner(Component):
                 else:
                     self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
                     self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
-                    print("Route:", self.route)
+                    # print("Route:", self.route)
 
         else:
             print("Unknown mode")
