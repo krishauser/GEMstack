@@ -23,6 +23,8 @@ You should also have the following Python dependencies installed, which you can 
   - pyyaml
 - Perception Dependencies
   - ultralytics
+- Gazebo Simulation Dependencies (only needed for Gazebo simulation)
+  - ros-noetic-ackermann-msgs
 
 
 In order to interface with the actual GEM e2 vehicle, you will need [PACMOD2](https://github.com/astuff/pacmod2) - Autonomoustuff's low level interface to vehicle. You will also need Autonomoustuff's [sensor message packages](https://github.com/astuff/astuff_sensor_msgs).  The onboard computer uses Ubuntu 20.04 with Python 3.8, CUDA 11.6, and NVIDIA driver 515, so to minimize compatibility issues you should ensure that these are installed on your development system.
@@ -131,7 +133,18 @@ bash stop_docker_container.sh
 ```
 
 ## Installing for Mac
-To install Ubuntu and setup ROS for Mac, follow this [link](https://doc.clickup.com/9011960452/d/h/8cjf6m4-11191/e694fcfb47a015e) for in-depth instructions and troubleshooting.
+
+For detailed step-by-step instructions on setting up GEMstack on Mac systems using UTM (virtual machine):
+
+- See the [Mac Setup Instructions](docs/Mac%20Setup%20Instructions.md) document for comprehensive guidance
+- Follow along with the recommended [YouTube tutorial](https://www.youtube.com/watch?v=MVLbb1aMk24) for visual reference
+
+This guide covers:
+- Setting up UTM virtual machine
+- Installing Ubuntu 20.04
+- Configuring the environment 
+- Installing ROS Noetic
+- Setting up GEMstack
 
 ## In this folder
 
@@ -263,13 +276,14 @@ Legend:
     - 🟨 `multiprocess_execution`: Component executors that work in separate process.  (Stdout logging not done yet. Still hangs on exception.)
   
   - `visualization/`: Visualization components on-board the vehicle
-    - 🟨 `mpl_visualization`: Matplotlib visualization
+    - 🟩 `mpl_visualization`: Matplotlib visualization
     - 🟩 `klampt_visualization`: Klampt visualization
 
   - `interface/`: Defines interfaces to vehicle hardware and simulators.
     - 🟩 `gem`: Base class for the Polaris GEM e2 vehicle.
     - 🟩 `gem_hardware`: Interface to the real GEM vehicle.
     - 🟩 `gem_simulator`: Interfaces to simulated GEM vehicles.
+    - 🟩 `gem_gazebo`: Interface to the GEM vehicle in Gazebo simulation.
     - 🟩 `gem_mixed`: Interfaces to the real GEM e2 vehicle's sensors but simulated motion.
 
 
@@ -278,6 +292,16 @@ Legend:
 You will launch a simulation using:
 
 - `python3 main.py --variant=sim launch/LAUNCH_FILE.yaml` where `LAUNCH_FILE.yaml` is your preferred launch file.  Try `python3 main.py --variant=sim launch/fixed_route.yaml`.  Inspect the simulator classes in `GEMstack/onboard/interface/gem_simulator.py` for more information about configuring the simulator.
+
+### Gazebo Simulation
+
+For a more realistic 3D simulation environment, you can use the Gazebo simulator:
+
+- `python3 main.py --variant=gazebo launch/LAUNCH_FILE.yaml` to launch with Gazebo integration.
+
+For detailed setup instructions, sensor configuration, and usage guidelines, see the [Gazebo Simulation Documentation](docs/Gazebo%20Simulation%20Documentation.md).
+
+### Launching the Onboard Stack
 
 To launch onboard behavior you will open Terminator / tmux and split it into three terminal windows. In each of them run:
 
@@ -416,6 +440,11 @@ drive:
 
 A launch file can contain a `variants` key that may specify certain changes to the launch stack that may be named via `--variant=X` on the command line.  As an example, see `launch/fixed_route.yaml`.  This specifies two variants, `sim` and `log_ros` which would run a simulation or log ROS topics.  You can specify multiple variants on the command line using the format `--variant=X,Y`.
 
+Common variants include:
+- `sim`: Uses the simplified Python simulator
+- `gazebo`: Uses the Gazebo 3D simulator (requires additional setup, see [documentation](docs/Gazebo%20Simulation%20Documentation.md))
+- `log_ros`: Logs ROS topics
+
 ### Managing and modifying state
 
 When implementing your computation graph, you should think of `AllState` as a strictly typed blackboard architecture in which items can be read from and written to.  If you need to pass data between components, you should add it to the state rather than use alternative techniques, e.g., global variables.  This will allow the logging / replay to save and restore system state.  Over a long development period, it would be best to be disciplined at versioning.
@@ -432,8 +461,8 @@ If you wish to override the executor to add more pipelines, you will need to cre
 To count as a contribution to the team, you will need to check in your code via pull requests (PRs).  PRs should be reviewed by at least one other approver.
 
 - `main`: will contain content that persists between years.  Approver: Kris Hauser.
-- `s2024`: is the "official class vehicle" for this semester's class.  Approver: instructor, TAs.
-- `s2024_groupX`: will be your group's branch. Approver: instructor, TAs, team members.  
+- `s2025`: is the "official class vehicle" for this semester's class.  Approver: instructor, TAs.
+- `s2025_groupX`: will be your group's branch. Approver: instructor, TAs, team members.  
 
 Guidelines:
 - DO NOT check in large datasets.  Instead, keep these around on SSDs.

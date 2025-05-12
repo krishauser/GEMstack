@@ -88,4 +88,4 @@ pip3 install -r $temp_requirements
 rm $temp_requirements
 
 #install other dependencies
-sudo apt-get install -y ros-noetic-septentrio-gnss-driver
+sudo apt-get install -y ros-noetic-septentrio-gnss-driver ros-noetic-ackermann-msgs ros-noetic-novatel-gps-msgs

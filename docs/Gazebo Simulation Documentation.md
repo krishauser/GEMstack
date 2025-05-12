@@ -65,26 +65,38 @@ In one terminal, run the Gazebo simulator (using the instructions provided in th
 
 ### 2. Launch the GEM Stack
 
-Open a second terminal and launch GEMStack with your configured launch file.
+Open a second terminal and launch GEMStack with your configured launch file. Make sure to set the variant to `gazebo`.
+
+#### For GEM e2 Vehicle:
 
 ```bash
-python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/{your_file}.yaml
+python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e2.yaml launch/fixed_route.yaml
 ```
-- Make sure to set the variant to `gazebo`.
-- You can specify the vehicle type to be `e2_gazebo` or `e4_gazebo`.
 
-Example command launching the fixed route with e4 vehicle:
+#### For GEM e4 Vehicle:
 
 ```bash
-python3 main.py --variant=gazebo --vehicle=e4_gazebo launch/fixed_route.yaml
+python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/current.yaml launch/fixed_route.yaml
 ```
+
+You can replace `fixed_route.yaml` with your specific launch file.
+
+**Note:** By default, the system uses `GEMstack/knowledge/defaults/current.yaml` which contains GEM e4 vehicle configuration settings.
+
+## Available Variants and Vehicle Types
+
 **Variants:**
- - sim
- - gazebo
+- `sim` - Simple simulation mode
+- `gazebo` - 3D Gazebo simulation mode
 
-**Vehicle types:**
-- e2
-- e4
-- e2_gazebo
-- e4_gazebo
+**Vehicle Types:**
+- `e2` - GEM e2 vehicle (uses Novatel GNSS)
+- `e4` - GEM e4 vehicle (uses Septentrio GNSS)
+
+## Available Configuration Files
+
+GEMstack/knowledge/defaults/
+- `current.yaml` - Default configuration (GEM e4)
+- `e2.yaml` - GEM e2 configuration
+
 ---

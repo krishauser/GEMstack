@@ -167,7 +167,7 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+.idea/
 
 # ZED run files
 **/*.run
@@ -178,8 +178,6 @@ setup/zed_sdk.run
 *.bag
 
 cuda/
-homework/yolov8n.pt
-homework/yolo11n.pt
 GEMstack/knowledge/detection/yolov8n.pt
 GEMstack/knowledge/detection/yolo11n.pt
 yolov8n.pt

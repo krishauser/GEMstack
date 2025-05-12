@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import cv2
 from scipy.ndimage import distance_transform_edt
 
-
 class RRTStar:
     def __init__(self, start, goal, x_bounds, y_bounds, step_size, max_iter, 
                  radius_multiplier=2.0, occupancy_grid=None, safety_margin=2, vehicle_width=1.0):
