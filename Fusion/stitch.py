@@ -392,6 +392,12 @@ def cvtOriginImgPixels2DToVehicleFrameMeter2D(TransMat, pixelPointXYs):
     return np.stack([x_pc + BASE_VEHICLE_DIST, y_pc], axis=1)
 
 
+
+
+
+
+
+
 if __name__ == "__main__":
     pixel_points = np.array([
         [48, 672],

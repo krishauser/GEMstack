@@ -178,22 +178,27 @@ def scoreAndSortCandidates(candidates, cornerPts):
     return scoredCandidates
 
 
+def cvtCenter2VehiclePos(center, cornerPts):
+    pt1, pt2 = findMaxLenEdgePoints(cornerPts)
+    near, far = (pt1, pt2) if np.linalg.norm(pt1) < np.linalg.norm(pt2) else (pt2, pt1)
+    directionNorm = (near - far) / np.linalg.norm(near - far)
+    vehicle = center + directionNorm * (GEM_E4_LENGTH / 2)
+    return vehicle
+
+
 
 
 if __name__ == "__main__":
     
     cornerPts = np.array([
-        [14.52-10, -3.55+10],
-        [11.10-10, -3.39+10],
-        [14.56-10, -8.41+10],
-        [17.82-10, -8.65+10],
+        [14.52, -3.55],
+        [11.10, -3.39],
+        [14.56, -8.41],
+        [17.82, -8.65],
     ])
     
     
     candidates = findAllCandidateParkingLot(cornerPts)
-    
-    
-    
     
     
     
@@ -203,18 +208,28 @@ if __name__ == "__main__":
     
     candidates = [scored[0] for scored in scoredCandidates]
     
-    for idx, pose in enumerate(candidates[:5:]):
-        thetaDegree = -(90 - (-pose[2])) if abs(- (90 - (-pose[2]))) < 90 else 180 + (-(90 - (-pose[2])))
-        print(f"Candidate {idx}, Pose: centerXY:({pose[0]}, {pose[1]}), thetaDegree:{thetaDegree}")
-        # OpenCV (rotation is from the lowest point, range [-90, 0])
-        # counter-clock-wise is negative
-        # clock-wise is positive
+    print("candidates after score and sort:")
+    print(candidates)
+    
+    
+    centerWithScore = candidates[0]
+    
+    vehiclePos = cvtCenter2VehiclePos(centerWithScore[0:2], cornerPts)
+    print(f"Vehicle Position: {vehiclePos}")
+    
+    
+    # for idx, pose in enumerate(candidates[:5:]):
+    #     thetaDegree = -(90 - (-pose[2])) if abs(- (90 - (-pose[2]))) < 90 else 180 + (-(90 - (-pose[2])))
+    #     print(f"Candidate {idx}, Pose: centerXY:({pose[0]}, {pose[1]}), thetaDegree:{thetaDegree}")
+    #     # OpenCV (rotation is from the lowest point, range [-90, 0])
+    #     # counter-clock-wise is negative
+    #     # clock-wise is positive
 
 
-    if len(candidates) != 0:
-        print(cvtPose2CarBox(candidates[0]))
-        best_pose = scoredCandidates[0][0]
-        visualizeCandidateCarPoses(cornerPts, candidates[:5], bestPose=best_pose)
+    # if len(candidates) != 0:
+    #     print(cvtPose2CarBox(candidates[0]))
+    #     best_pose = scoredCandidates[0][0]
+    #     visualizeCandidateCarPoses(cornerPts, candidates[:5], bestPose=best_pose)
 
 
 
