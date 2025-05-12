@@ -86,6 +86,10 @@ variants:
                         type: agent_detection.GazeboAgentDetector
                         args:
                             tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
+                    obstacle_detection:
+                        type: obstacle_detection.GazeboObstacleDetector
+                        args:
+                            tracked_obstacle_prefixes: ['cone']
             visualization: !include "mpl_visualization.yaml"
     log_ros:
         log:

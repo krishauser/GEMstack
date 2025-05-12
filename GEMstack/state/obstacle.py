@@ -1,6 +1,7 @@
-from dataclasses import dataclass
+from __future__ import annotations
+from dataclasses import dataclass, replace
 from ..utils.serialization import register
-from .physical_object import PhysicalObject
+from .physical_object import ObjectFrameEnum,PhysicalObject #,convert_vector
 from enum import Enum
 
 class ObstacleMaterialEnum(Enum):
@@ -16,6 +17,14 @@ class ObstacleMaterialEnum(Enum):
     SMALL_ANIMAL = 9
     ROADKILL = 10
 
+class ObstacleStateEnum(Enum):
+    STOPPED = 0         # standing pedestrians, parked cars, etc. No need to predict motion.
+    MOVING = 1          # standard motion.  Predictions will be used here
+    FAST = 2            # indicates faster than usual motion
+    UNDETERMINED = 3    # unknown activity
+    STANDING = 4        # standing cone
+    LEFT = 5            # flipped cone facing left
+    RIGHT = 6           # flipped cone facing right
 
 @dataclass
 @register
@@ -23,3 +32,14 @@ class Obstacle(PhysicalObject):
     material : ObstacleMaterialEnum
     collidable : bool
 
+
+@dataclass
+@register
+class ObstacleState(PhysicalObject):
+    type: ObstacleMaterialEnum
+    activity: ObstacleStateEnum
+
+    def to_frame(self, frame: ObjectFrameEnum, current_pose=None, start_pose_abs=None) -> ObstacleState:
+        newpose = self.pose.to_frame(frame, current_pose, start_pose_abs)
+        # newvelocity = convert_vector(self.velocity, self.pose.frame, frame, current_pose, start_pose_abs)
+        return replace(self, pose=newpose) #, velocity=newvelocity)

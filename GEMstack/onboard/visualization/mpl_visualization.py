@@ -97,6 +97,7 @@ class MPLVisualization(Component):
         # Print debugging info about the vehicle's position and frame
         if self.num_updates % 10 == 0:
             print(f"Vehicle position: ({state.vehicle.pose.x:.2f}, {state.vehicle.pose.y:.2f}), frame: {state.vehicle.pose.frame}")
+            print("Obstacle state:", state.obstacles)
         
         # Pedestrian metrics and position debugging
         ped_positions = []
@@ -245,6 +246,18 @@ class MPLVisualization(Component):
             self.axs[2].set_xlabel('Time (s)')
         except Exception as e:
             print(f"Error in pedestrian plot: {str(e)}")
+
+        try:
+            # ---- plot static obstacles in orange ----
+            for obs in state.obstacles.values():
+                x_obs, y_obs = obs.pose.x, obs.pose.y
+                self.axs[0].plot(x_obs, y_obs, 'o',
+                                markersize=8,
+                                markerfacecolor='orange',
+                                markeredgecolor='darkorange',
+                                label='_nolegend_')
+        except Exception as e:
+            print(f"Error plotting obstacles: {str(e)}")
 
         # Update canvas
         try:
