@@ -291,7 +291,7 @@ class SummoningRoutePlanner(Component):
         # self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
 
         # For global map test in simulation only
-        start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), x=-88.235968, y=40.0927432, yaw=1.507)
+        start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), x=-88.235968, y=40.0927432, yaw=1.57079633)
         self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose_global)
 
         # Get all the points of lanes
