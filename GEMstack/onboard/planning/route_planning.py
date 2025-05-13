@@ -6,6 +6,7 @@ import os
 import numpy as np
 from .RRT import BiRRT
 from .reeds_shepp_parking import ReedsSheppParking
+import time
 
 
 class StaticRoutePlanner(Component):
@@ -156,6 +157,8 @@ def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, max_
     goal_lane = find_closest_lane([goal_pose.x, goal_pose.y], roadgraph)
     goal_lane_points = np.array(goal_lane.right.segments[0])
 
+    print("Goal lane>>>>>>>>>>>>>>>>>>>>>", goal_lane)
+
     # Find the parking lots that attached to the lane
     parking_lots = []
     for region in roadgraph.regions.values():
@@ -208,6 +211,8 @@ def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, max_
         parking_area_end = (np.array(closest_end_point) + np.array(
             next_point(closest_end_index, farthest_lot, direction='cw'))) / 2
         parking_area_start_end = [parking_area_start, parking_area_end]
+    
+    print("Parking area>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", parking_area_start_end)
 
     return parking_lots, parking_area_start_end
 
@@ -283,7 +288,12 @@ class SummoningRoutePlanner(Component):
         """ Transform offline map to start frame """
         # if self.roadgraph.frame is not ObjectFrameEnum.START:
         print("=+++++++++++++++++++++++++",state.start_vehicle_pose)
-        self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+        # self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+
+        # For global map test in simulation only
+        start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), x=-88.235968, y=40.0927432, yaw=1.507)
+        self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose_global)
+
         # Get all the points of lanes
         if self.map_type == 'roadgraph':
             self.lane_points = get_lane_points_from_roadgraph(self.roadgraph)
@@ -360,7 +370,7 @@ class SummoningRoutePlanner(Component):
                 print("Parking area start and end:", self.reedssheppparking.static_horizontal_curb_xy_coordinates)
                 print("Obstacle list:", self.obstacle_list)
 
-                if not self.reedssheppparking.add_static_horizontal_curb_as_obstacle:
+                if not self.reedssheppparking.static_horizontal_curb_xy_coordinates:
                     print("No parking area found, start parking here.")
                     self.route = None
 

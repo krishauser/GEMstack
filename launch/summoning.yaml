@@ -27,7 +27,7 @@ drive:
                 # Goal test points for summoning_roadgraph_highbay.json, frame is 'global'.
                     # Key points: [-88.235317, 40.0927934], [-88.235252, 40.0927527], [-88.235164, 40.0927934], [-88.235211, 40.0928573],
                     # [-88.235527, 40.0927436], [-88.235968, 40.0927432], [-88.236046, 40.0927917], [-88.236008, 40.0928604], [-88.235905, 40.0927917]
-                goal: {'location':[1, 0], 'frame':'start'}
+                goal: {'location':[32.5, 12], 'frame':'cartesian'}
                 # goal: {'location':[5, -3], 'frame':'cartesian'}
                 # state_machine: [MissionEnum.IDLE, MissionEnum.SUMMONING_DRIVE, MissionEnum.PARALLEL_PARKING]
                 state_machine: [MissionEnum.IDLE, MissionEnum.SUMMON_DRIVING, MissionEnum.PARALLEL_PARKING]
@@ -39,8 +39,8 @@ drive:
                 # Make sure 'roadgraph' map_type match the structure of Roadgraph object.
                 # 'pointlist' is a list of points, carefully define the goal to make sure it is in the lanes.
                 # Map_frame should be 'global', 'cartesian, or 'start'.
-            args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json', 'roadgraph', 'cartesian']
-            # args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json', 'roadgraph', 'global']
+            # args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_sim.json', 'roadgraph', 'cartesian']
+            args: [!relative_path '../GEMstack/knowledge/routes/summoning_roadgraph_highbay.json', 'roadgraph', 'global']
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker

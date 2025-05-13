@@ -127,7 +127,11 @@ class SummoningMissionPlanner(Component):
             raise ValueError("Invalid frame argument")
 
         if self.goal_pose:
-            self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+            # self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+
+            # For global map test in simulation only
+            start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), x=-88.235968, y=40.0927432, yaw=1.507)
+            self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose_global)
 
         # Initiate state
         if mission is None:
@@ -139,6 +143,7 @@ class SummoningMissionPlanner(Component):
             if self.new_goal:
                 mission.goal_pose = self.goal_pose
                 mission.type = self.state_machine.next_state()
+                self.new_goal = False
                 print("============== Next state:", mission.type)
 
         # Reach the end of the route, begin to search for parking
@@ -157,6 +162,7 @@ class SummoningMissionPlanner(Component):
                 _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
                 if closest_index == len(route.points) - 1 or check_distance(route.points[-1], vehicle.pose) < 0.1:
                     mission.type = self.state_machine.next_state()
+                    self.new_goal = False
                     self.goal_pose = None
                     mission.goal_pose = self.goal_pose
                     print("============== Next state:", mission.type)
