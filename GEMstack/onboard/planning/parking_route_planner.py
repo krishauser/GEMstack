@@ -350,12 +350,12 @@ class ParkingPlanner():
         # Create a polygon from the parking spot vertices
         # The vertices should be ordered in a way that forms a proper rectangle
         # [bottom-left, top-left, top-right, bottom-right]
-        ordered_vertices = [
-            parking_spot_vertices[0],  # bottom-left
-            parking_spot_vertices[2],  # top-left
-            parking_spot_vertices[3],  # top-right
-            parking_spot_vertices[1],  # bottom-right
-        ]
+        # ordered_vertices = [
+        #     parking_spot_vertices[0],  # bottom-left
+        #     parking_spot_vertices[2],  # top-left
+        #     parking_spot_vertices[3],  # top-right
+        #     parking_spot_vertices[1],  # bottom-right
+        # ]
         
         # First check if vehicle collides with any cone
         for cone_object in cone_objects:
@@ -416,12 +416,12 @@ class ParkingPlanner():
         # Create a polygon from the parking spot vertices
         # The vertices should be ordered in a way that forms a proper rectangle
         # [bottom-left, top-left, top-right, bottom-right]
-        ordered_vertices = [
-            parking_spot_vertices[0],  # bottom-left
-            parking_spot_vertices[2],  # top-left
-            parking_spot_vertices[3],  # top-right
-            parking_spot_vertices[1],  # bottom-right
-        ]
+        # ordered_vertices = [
+        #     parking_spot_vertices[0],  # bottom-left
+        #     parking_spot_vertices[2],  # top-left
+        #     parking_spot_vertices[3],  # top-right
+        #     parking_spot_vertices[1],  # bottom-right
+        # ]
         
         # Check if final position is within parking spot
         if collisions.point_in_polygon_2d(final_pos_point, cone_vertices):
