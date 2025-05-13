@@ -36,12 +36,12 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._vehicle = None
 
         # settings
-        self.T = settings.get("run.drive.planning.route_planning_component.dubins.integrator.time_step", 1.5)
-        self.dt = settings.get("run.drive.planning.route_planning_component.dubins.integrator.dt", .25)
-        self.max_v = settings.get("run.drive.planning.route_planning_component.dubins.actions.max_velocity", 0.75)
-        self.max_turn_rate = settings.get("run.drive.planning.route_planning_component.dubins.actions.max_turn_rate", 0.3)
-        self.tolerance = settings.get("run.drive.planning.route_planning_component.dubins.tolerance", 0.5)
-        self.heuristic_string = settings.get("run.drive.planning.route_planning_component.astar.heuristic", "reeds_shepp")
+        self.T = settings.get("run.drive.planning._route_planner.dubins.integrator.time_step", 1.5)
+        self.dt = settings.get("run.drive.planning._route_planner.dubins.integrator.dt", .25)
+        self.max_v = settings.get("run.drive.planning._route_planner.dubins.actions.max_velocity", 0.75)
+        self.max_turn_rate = settings.get("run.drive.planning._route_planner.dubins.actions.max_turn_rate", 0.3)
+        self.tolerance = settings.get("run.drive.planning._route_planner.dubins.tolerance", 0.5)
+        self.heuristic_string = settings.get("run.drive.planning._route_planner.astar.heuristic", "reeds_shepp")
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
         self.vehicle_sim = DubinsCarIntegrator(self.vehicle, self.T, self.dt)
@@ -255,7 +255,7 @@ class ParkingPlanner():
         # self.planner = ParkingSolverSecondOrderDubins()
         self.planner = ParkingSolverFirstOrderDubins()
 
-        self.iterations = settings.get("run.drive.planning.route_planning_component.astar.iterations", 200)
+        self.iterations = settings.get("run.drive.planning._route_planner.astar.iterations", 200)
 
     def state_inputs(self):
         return ['all']
@@ -335,7 +335,7 @@ class ParkingPlanner():
         all_obstacles = {**agents, **obstacles}
         # print(f"Obstacles {obstacles}")
         print(f"Agents {agents}")
-        goal_pose = state.goal
+        goal_pose = state.parking_goal
         assert goal_pose.frame == ObjectFrameEnum.CURRENT
         print("Checking VALUE: ", state.start_vehicle_pose)
         print("Checking VALUE: ", state.vehicle)

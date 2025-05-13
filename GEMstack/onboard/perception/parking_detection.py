@@ -76,7 +76,7 @@ class ParkingSpotsDetector3D(Component):
         return ['obstacles']
 
     def state_outputs(self) -> list:
-        return ['goal', 'obstacles']
+        return ['parking_goal', 'obstacles']
 
 
     def visualize(self, 

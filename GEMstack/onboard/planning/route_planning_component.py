@@ -35,7 +35,7 @@ class RoutePlanningComponent(Component):
     def update(self, state: AllState):
         
         if state.mission_plan.type.name == "PARKING" and not self.compute_parking_route:
-            print("I am in BRAKING mode")
+            # print("I am in BRAKING mode")
 
             desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
                               (state.vehicle.pose.x, state.vehicle.pose.y)]
@@ -48,7 +48,7 @@ class RoutePlanningComponent(Component):
             return desired_path
            
         elif state.mission_plan.type.name == "PARKING" and self.compute_parking_route and not self.done_computing:
-            print("I am in PARKING mode")
+            # print("I am in PARKING mode")
             state.vehicle.pose.yaw = 0 # needed this to avoid a weird error in the parking planner
             
             if not self.already_computed:
@@ -58,11 +58,11 @@ class RoutePlanningComponent(Component):
                 self.route = self.route.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
                 self.planner.visualize_trajectory(self.route)
                 self.already_computed = True
-
+                self.route.points = self.route.points[:-2] # temporary fix to avoid going too far into the parking space, next perception PR will resolve
             return self.route
         
         elif state.mission_plan.type.name == "SCANNING":
-            print("I am in SCANNING mode")
+            # print("I am in SCANNING mode")
             desired_points = [(state.vehicle.pose.x, state.vehicle.pose.y),
                               (state.vehicle.pose.x + 1, state.vehicle.pose.y)]
             desired_path = Path(ObjectFrameEnum.START, desired_points)
