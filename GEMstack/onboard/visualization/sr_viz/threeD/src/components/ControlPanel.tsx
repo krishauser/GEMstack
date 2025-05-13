@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { TiUpload } from "react-icons/ti";
 import { RxCross2 } from "react-icons/rx";
 import { buildTimeline } from "@/utils/buildTimeline";
@@ -21,16 +21,19 @@ export default function ControlPanel({
   const [fileName, setFileName] = useState<string | null>(null);
   const setTimeline = useTimelineStore((state) => state.setTimeline);
 
+  // ref so we can clear input.value after upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const uploaded = event.target.files?.[0];
+    if (!uploaded) return;
 
-    setFileName(file.name);
+    setFileName(uploaded.name);
 
     try {
-      const entries = await parseLogFile(file);
+      const entries = await parseLogFile(uploaded);
       const timeline: TimelineData = buildTimeline(entries);
       setTimeline(timeline);
       reset();
@@ -38,16 +41,19 @@ export default function ControlPanel({
     } catch (err) {
       console.error("Failed to parse log file:", err);
     }
-  };
-  const handleContextMenu = (event: React.MouseEvent) => {
-    event.preventDefault();
-    if (isOpen) {
-      setIsOpen(false);
-    } else {
-      setIsOpen(true);
+
+    // reset the input so same filename can be re‐picked
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
+  const handleContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+    setIsOpen((o) => !o);
+  };
+
+  // auto‐load from Flask if folder+file props provided
   useEffect(() => {
     if (!folder || !file) return;
 
@@ -59,21 +65,15 @@ export default function ControlPanel({
       try {
         const res = await fetch(url);
         if (!res.ok) {
-          throw new Error(
-            `Failed to fetch ${file} from ${url} (status ${res.status})`
-          );
+          throw new Error(`Failed to fetch ${file} (status ${res.status})`);
         }
-
         const text = await res.text();
         const fakeFile = new File([text], file, { type: "text/plain" });
-
         const entries = await parseLogFile(fakeFile);
         const timeline = buildTimeline(entries);
-
         setTimeline(timeline);
         reset();
         setFileName(file);
-
         console.log("Timeline loaded from Flask API:", timeline);
       } catch (err) {
         console.error("Failed to load remote log file:", err);
@@ -81,7 +81,7 @@ export default function ControlPanel({
     };
 
     fetchLog();
-  }, [folder, file]);
+  }, [folder, file, reset, setTimeline]);
 
   return (
     <>
@@ -94,7 +94,9 @@ export default function ControlPanel({
         {isOpen && (
           <>
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/20">
-              <h2 className="text-base font-semibold whitespace-nowrap">Control Panel</h2>
+              <h2 className="text-base font-semibold whitespace-nowrap">
+                Control Panel
+              </h2>
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-white p-1 rounded hover:bg-white/10"
@@ -109,6 +111,7 @@ export default function ControlPanel({
                 <TiUpload className="w-4 h-4" />
                 <span>Choose file</span>
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept=".json,.txt,.log"
                   className="hidden"
@@ -116,7 +119,7 @@ export default function ControlPanel({
                 />
               </label>
               <p className="mt-2 text-xs text-gray-400 truncate">
-                {fileName ? `${fileName}` : "No file loaded"}
+                {fileName ?? "No file loaded"}
               </p>
             </div>
           </>
