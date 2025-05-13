@@ -45,7 +45,6 @@ class ParkingSolverFirstOrderDubins(AStar):
         
         self.vehicle = DubinsCar() #x = (tx,ty,theta) and u = (fwd_velocity,turnRate).
         self.vehicle_sim = DubinsCarIntegrator(self.vehicle, self.T, self.dt)
-        #@TODO create a more standardized way to define the actions
         self._actions = generate_action_set(self.max_v, self.max_turn_rate)
 
 
@@ -75,11 +74,6 @@ class ParkingSolverFirstOrderDubins(AStar):
         self._actions = actions
 
     def is_goal_reached(self, current: List[float], goal: List[float]):
-        # @TODO Currently, the threshold is just a random number, get rid of magic constants
-        # print(f"Current Pose: {current}")
-        # print(f"Goal Pose: {goal}")
-        # if np.abs(current[3]) > 1: return False # car must be stopped, this equality will only work in simulation np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
-        # if np.abs(current[3] - goal[3]) > .25: return False 
         return np.linalg.norm(np.array([current[0], current[1]]) - np.array([goal[0], goal[1]])) < 0.5
     
     def heuristic_cost_estimate(self, state_1, state_2):
@@ -186,25 +180,8 @@ class ParkingSolverFirstOrderDubins(AStar):
             # print(f"Obstacle: {obstacle}")
             for point in path:
                 vehicle_object = self.state_to_object(point)
-                # vehicle_polygon = vehicle_object.polygon_parent()
-                # print(f"Vehicle Polygon: {vehicle_polygon}")
-                # print(point)
-                # print(obstacle.polygon_parent())
-                # print("====================================")
-                # print(f"Vehicle Object: {vehicle_object}")
-                # print(f"Vehicle Polygon: {vehicle_polygon}")
-                # print(f"Obstacle Polygon: {obstacle.polygon_parent()}")
-                # print(f"Obstacle: {obstacle}")
-                # print(f"Point: {point}")
-                # print(f"Obstacle Applied at current point: {obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose)}")
-                # print(f"Obstacle Polygon at current point: {obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose).polygon_parent()}")
-                #!!!!! the obstacle is in the world frame!
                 if collisions.polygon_intersects_polygon_2d(vehicle_object.polygon_parent(), obstacle.polygon_parent()):
-                # if collisions.polygon_intersects_polygon_2d(vehicle_object.polygon_parent(), 
-                #     obstacle.to_frame(frame=ObjectFrameEnum.CURRENT, current_pose=vehicle_object.pose).polygon_parent()):
-                    #polygon_intersects_polygon_2d when we have the acutal car geometry
-                    # raise Exception("Collision detected")
-                    print("Collision detected")
+                    # print("Collision detected")
                     return False
         return True
 
@@ -238,21 +215,7 @@ class ParkingPlanner():
         Component (_type_): _description_
     """
     def __init__(self):
-        # self.route_progress = None
-        # self.t_last = None
 
-        # self.mode = settings.get("planning.longitudinal_plan.mode")
-        # self.planner = settings.get("planning.longitudinal_plan.planner")
-        # self.acceleration = settings.get("planning.longitudinal_plan.acceleration")
-        # self.deceleration = settings.get("planning.longitudinal_plan.deceleration")
-        # self.desired_speed = settings.get("planning.longitudinal_plan.desired_speed")
-        # self.yield_deceleration = settings.get("planning.longitudinal_plan.yield_deceleration")
-
-        # Get the model of the car we are going to be using 
-        # Get the obstacles 
-        # Define the functions we need 
-        # Create the Astar object 
-        # self.planner = ParkingSolverSecondOrderDubins()
         self.planner = ParkingSolverFirstOrderDubins()
 
         self.iterations = settings.get("run.drive.planning._route_planner.astar.iterations", 200)
@@ -329,33 +292,16 @@ class ParkingPlanner():
             Trajectory: _description_
         """
         vehicle = state.vehicle # type: VehicleState
-        print(f"Vehicle {vehicle}")
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         agents = state.agents # type: Dict[str, AgentState]
         all_obstacles = {**agents, **obstacles}
-        # print(f"Obstacles {obstacles}")
-        print(f"Agents {agents}")
         goal_pose = state.parking_goal
         assert goal_pose.frame == ObjectFrameEnum.CURRENT
-        print("Checking VALUE: ", state.start_vehicle_pose)
-        print("Checking VALUE: ", state.vehicle)
+
         start_state = state.vehicle.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
-        # start_pose = state.vehicle.pose.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
-        # start_cur = VehicleState.zero()
-        # start_cur.pose = start_pose              # goal.pose = goal_pose
-        # goal.v = 0  
-        print("Checking VALUE: ", start_state)
 
 
-
-
-        # # Need to parse and create second order dubin car states
-        # start_state = self.vehicle_state_to_dynamics(vehicle)
-        # goal_state = self.vehicle_state_to_dynamics(goal)
-
-        # Need to parse and create second order dubin car states
         start = self.vehicle_state_to_first_order(start_state)
-        # goal = self.vehicle_state_to_first_order(goal_state)
         goal = self.pose_to_first_order(goal_pose)
 
         # Update the planner
@@ -371,13 +317,8 @@ class ParkingPlanner():
             points.append((state[0], state[1]))
         times = [state[3] for state in res]
         path = Path(frame=vehicle.pose.frame, points=points)
-        traj = Trajectory(path.frame,points,times)
-        # print("===========================")
-        # print(f"Points: {points}")
-        # print(f"Times: {times}")
+
         route = Path(frame=vehicle.pose.frame, points=points)
-        # traj = longitudinal_plan(route, 2, -2, 10, vehicle.v, "milestone")
-        print(traj)
         return route 
     
 
@@ -416,49 +357,3 @@ class ParkingPlanner():
         line_marker = self.create_trajectory_line_marker(traj, frame_id=frame_id)
         self.marker_pub.publish(line_marker)
 
-    def visualize_trajectory_animated(self, traj: Trajectory, frame_id="vehicle"):
-        """Animates a moving marker along the trajectory in RViz."""
-        marker_pub = rospy.Publisher("animated_trajectory_marker", Marker, queue_size=1)
-        rate = rospy.Rate(20)  # 20 Hz for smooth animation
-
-        # Create a red sphere marker
-        marker = Marker()
-        marker.header.frame_id = frame_id
-        marker.ns = "animated_trajectory"
-        marker.id = 100
-        marker.type = Marker.SPHERE
-        marker.action = Marker.ADD
-        marker.scale.x = 0.4
-        marker.scale.y = 0.4
-        marker.scale.z = 0.4
-        marker.color.r = 1.0
-        marker.color.g = 0.0
-        marker.color.b = 0.0
-        marker.color.a = 1.0
-
-        try:
-            start_ros_time = rospy.Time.now().to_sec()
-        except rospy.ROSInitException:
-            print("[WARN] Cannot animate trajectory — ROS node not initialized.")
-            return
-
-        t_start = traj.times[0]
-        t_end = traj.times[-1]
-
-        while not rospy.is_shutdown():
-            t_now = rospy.Time.now().to_sec()
-            t = t_now - start_ros_time + t_start
-
-            if t > t_end:
-                break
-
-            pos = traj.eval(t)
-            marker.header.stamp = rospy.Time.now()
-            marker.pose.position.x = pos[0]
-            marker.pose.position.y = pos[1]
-            marker.pose.position.z = pos[2] if len(pos) > 2 else 0.0
-
-            marker_pub.publish(marker)
-            rate.sleep()
-
-        print("[INFO] Animated trajectory complete.")
