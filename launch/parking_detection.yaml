@@ -160,7 +160,7 @@ variants:
                                 max_turning_rate: 0.3
                                 tolerance: 0.25
                         astar:
-                            iterations: 10000 # We should have some sort of max iterations/timeout
+                            iterations: 200 # We should have some sort of max iterations/timeout
                             heuristic: reeds_shepp
 
 
