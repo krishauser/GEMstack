@@ -16,13 +16,13 @@ drive:
     planning:
         route_planning:
             type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/turn_right2.csv']
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_50m.csv']
         motion_planning:
             type: racing_planning.SlalomTrajectoryPlanner
         trajectory_tracking:
             #type: pure_pursuit.PurePursuitTrajectoryTracker # to use pure pursuit comment below
             type: stanley.StanleyTrajectoryTracker # to use stanley comment above 
-            args: {desired_speed: 10}  #approximately 5mph
+            # args: {desired_speed: 10}  #approximately 5mph
             print: True
 
 log:

@@ -20,14 +20,14 @@
          stage_duration: 0.5
      # Stanley controller parameters (fine tune this)
      stanley:
-         control_gain: 0.1
+         control_gain: 0.12
          softening_gain: 0.2
          desired_speed: racing        # Speed reference source: can be "trajectory", "path", "racing" or a constant value
     
      longitudinal_control:
-         pid_p: 0.8
-         pid_i: 0.03
-         pid_d: 0.0
+         pid_p: 1.0
+         pid_i: 0.7
+         pid_d: 0.1
  planning:
      longitudinal_plan:
          mode:               'real' # 'real' or 'sim'
