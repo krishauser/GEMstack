@@ -108,6 +108,10 @@ class MPCController(object):
         # Clip reversed part
         new_points, new_times = self.clip_reverse_path_with_times(sliced_points, sliced_times)
 
+        #New points and times is needed only when running on trajectory that includes both forward and reverse driving that requires gear shifting
+        new_points = points
+        new_times = times
+
         # Interpolate trajectory points to match MPC time horizon
         traj_points = []
         j = 0
