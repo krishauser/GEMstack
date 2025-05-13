@@ -6,4 +6,5 @@ export interface FrameData {
     yaw: number;
     pitch: number;
     roll: number;
+    metadata?: Record<string, any>;
 }

@@ -3,7 +3,7 @@ import { create } from 'zustand';
 
 export const useTimelineStore = create<TimelineStore>((set) => ({
     vehicle: [],
-    agents: {},
+    pedestrians: {},
     trafficLights: {},
     trafficCones: {},
     otherVehicles: {},

@@ -1,4 +1,4 @@
-const agentConfig = {
+const pedestrianConfig = {
     pedestrian: {
         name: "Pedestrian",
         modelPath: "/models/pedestrian.glb",
@@ -9,6 +9,6 @@ const agentConfig = {
     }
 };
 
-const currentAgent = agentConfig.pedestrian;
+const currentPedestrian = pedestrianConfig.pedestrian;
 
-export { agentConfig, currentAgent };
+export { pedestrianConfig, currentPedestrian };
