@@ -1,4 +1,5 @@
 from pedestrian_utils import *
+from combined_detection_utils import add_bounding_box
 from ultralytics import YOLO
 import cv2
 from scipy.spatial.transform import Rotation as R
@@ -9,8 +10,8 @@ from cv_bridge import CvBridge
 import time
 
 # Publisher imports:
-from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
-from geometry_msgs.msg import Pose, Vector3
+from jsk_recognition_msgs.msg import BoundingBoxArray
+# from geometry_msgs.msg import Pose, Vector3
 
 
 class YoloNode():
@@ -220,49 +221,20 @@ class YoloNode():
             yaw = np.arctan2(R_vehicle[1, 0], R_vehicle[0, 0])
 
             refined_center = refined_center_vehicle
-            
-            # Create a ROS BoundingBox message
-            box_msg = BoundingBox()
-            box_msg.header.frame_id = 'currentVehicleFrame'
-            box_msg.header.stamp = lidar_msg.header.stamp
-            
-            # Set the pose
-            box_msg.pose.position.x = float(refined_center_vehicle[0])
-            box_msg.pose.position.y = float(refined_center_vehicle[1])
-            box_msg.pose.position.z = float(refined_center_vehicle[2])
-            
-            # Convert yaw to quaternion
-            quat = R.from_euler('z', yaw).as_quat()
-            box_msg.pose.orientation.x = float(quat[0])
-            box_msg.pose.orientation.y = float(quat[1])
-            box_msg.pose.orientation.z = float(quat[2])
-            box_msg.pose.orientation.w = float(quat[3])
-            
-            # Set the dimensions
-            # Swapped dims[2] and dims[0]
-            box_msg.dimensions.x = float(dims[2])  # length
-            box_msg.dimensions.y = float(dims[1])  # width
-            box_msg.dimensions.z = float(dims[0])  # height
 
-            # if self.debug:
-            #     print("X")
-            #     print(refined_center_vehicle[0])
-            #     print("L")
-            #     print(dims[0])
-            #     print("Y")
-            #     print(refined_center_vehicle[1])
-            #     print("W")
-            #     print(dims[1])
-            #     print("Z")
-            #     print(refined_center_vehicle[2])
-            #     print("H")
-            #     print(dims[2])
-            
-            # Add confidence score and label
-            box_msg.value = float(conf_scores[i])
-            box_msg.label = 0  # person/pedestrian class
-            
-            boxes.boxes.append(box_msg)
+            boxes = add_bounding_box(boxes=boxes, 
+                frame_id='currentVehicleFrame', 
+                stamp=lidar_msg.header.stamp, 
+                x=refined_center_vehicle[0], 
+                y=refined_center_vehicle[1], 
+                z=refined_center_vehicle[2], 
+                l=dims[2], # length 
+                w=dims[1], # width 
+                h=dims[0], # height 
+                yaw=yaw,
+                conf_score=float(conf_scores[i]),
+                label=0 # person/pedestrian class
+            )
             
             rospy.loginfo(f"Person detected at ({refined_center_vehicle[0]:.2f}, {refined_center_vehicle[1]:.2f}, {refined_center_vehicle[2]:.2f}) with score {conf_scores[i]:.2f}")
         

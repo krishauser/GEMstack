@@ -195,6 +195,8 @@ class CombinedDetector3D(Component):
 
         for i, box in enumerate(fused_boxes_list):
             try:
+                fuxed_bb_array.boxes.append(box)
+
                  # Cur vehicle frame
                 pos_x = box.pose.position.x; pos_y = box.pose.position.y; pos_z = box.pose.position.z
                 quat_x = box.pose.orientation.x; quat_y = box.pose.orientation.y; quat_z = box.pose.orientation.z; quat_w = box.pose.orientation.w
