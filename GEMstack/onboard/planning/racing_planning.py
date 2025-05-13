@@ -687,7 +687,7 @@ class SlalomTrajectoryPlanner(Component):
             # Get all current detected cones
             cones = []
             n = 0
-            for id, cone in cone_obstacles.items():
+            for id, detected_cone in cone_obstacles.items():
                 if n > 3:
                     break
                 if n % 4 == 0:
@@ -700,8 +700,8 @@ class SlalomTrajectoryPlanner(Component):
                     curr_activity = 'STANDING'
                 c = {
                     'id': id,
-                    'x': cone.pose.x,
-                    'y': cone.pose.y,
+                    'x': detected_cone.pose.x,
+                    'y': detected_cone.pose.y,
                     'orientation': curr_activity
                 }
                 n = n + 1

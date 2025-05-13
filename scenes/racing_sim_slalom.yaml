@@ -1,33 +1,33 @@
 vehicle_state: [0.0, 0.0, 0.0, 0.0, 0.0]  # [x, y, yaw, v, front_wheel_angle]
-agents:
-  cone1:
-    type: cone
-    position: [10.0, 0.0]
-    nominal_velocity: 0.0
-    target: [10.0, 0.0]
-    # target: [10.0,10.0]
-    behavior: stationary
+# agents:
+#   cone1:
+#     type: cone
+#     position: [10.0, 0.0]
+#     nominal_velocity: 0.0
+#     target: [10.0, 0.0]
+#     # target: [10.0,10.0]
+#     behavior: stationary
 
-  cone2:
-    type: cone
-    position: [30.0, 1.0]
-    nominal_velocity: 0.0
-    target: [30.0, 1.0]
-    # target: [10.0,10.0]
-    behavior: stationary
+#   cone2:
+#     type: cone
+#     position: [30.0, 1.0]
+#     nominal_velocity: 0.0
+#     target: [30.0, 1.0]
+#     # target: [10.0,10.0]
+#     behavior: stationary
 
-  cone3:
-    type: cone
-    position: [50.0, 0.0]
-    nominal_velocity: 0.0
-    target: [50.0, 0.0]
-    # target: [10.0,10.0]
-    behavior: stationary
+#   cone3:
+#     type: cone
+#     position: [50.0, 0.0]
+#     nominal_velocity: 0.0
+#     target: [50.0, 0.0]
+#     # target: [10.0,10.0]
+#     behavior: stationary
 
-  cone4:
-    type: cone
-    position: [70.0, 1.0]
-    nominal_velocity: 0.0
-    target: [70.0, 1.0]
-    # target: [10.0,10.0]
-    behavior: stationary
+#   cone4:
+#     type: cone
+#     position: [70.0, 1.0]
+#     nominal_velocity: 0.0
+#     target: [70.0, 1.0]
+#     # target: [10.0,10.0]
+#     behavior: stationary
