@@ -5,7 +5,7 @@ from typing import Dict
 from ..component import Component
 
 from ..interface.gem import GEMInterface
-from ...state.obstacle import ObstacleState
+from ...state.obstacle import Obstacle
 
 class OmniscientObstacleDetector(Component):
     """Obtains agent detections from a simulator"""
@@ -24,13 +24,13 @@ class OmniscientObstacleDetector(Component):
         return ['obstacles']
 
     def initialize(self):
-        self.vehicle_interface.subscribe_sensor('obstacle_detector',self.obstacle_callback, ObstacleState)
+        self.vehicle_interface.subscribe_sensor('obstacle_detector',self.obstacle_callback, Obstacle)
 
-    def obstacle_callback(self, name : str, obstacle : ObstacleState):
+    def obstacle_callback(self, name : str, obstacle : Obstacle):
         with self.lock:
             self.obstacles[name] = obstacle
 
-    def update(self) -> Dict[str,ObstacleState]:
+    def update(self) -> Dict[str,Obstacle]:
         with self.lock:
             return copy.deepcopy(self.obstacles)
 
