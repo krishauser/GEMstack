@@ -69,3 +69,13 @@ $ pip install 'ultralytics==8.1.5'
 2. If you run into communication issues with ROS, please make sure you have sourced EVERY terminal window (except for docker window there's no need to): 
 $ source /opt/ros/noetic/setup.bash
 $ source ~/catkin_ws/devel/setup.bash
+
+### Visualization Steps:
+Please make sure you source each new terminal window after creating it (local source commands are below):
+$ source /opt/ros/noetic/setup.bash
+$ source ~/catkin_ws/devel/setup.bash
+
+1. Start rviz:
+$ rviz
+2. Publish a static transform from the map to visualize the published bounding box data:
+$ rosrun tf2_ros static_transform_publisher 0 0 0 0 0 0 map currentVehicleFrame

@@ -25,18 +25,6 @@ import sensor_msgs.point_cloud2 as pc2
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from geometry_msgs.msg import Pose, Vector3
 
-def cylindrical_roi(points, center, radius, height):
-    horizontal_dist = np.linalg.norm(points[:, :2] - center[:2], axis=1)
-    vertical_diff = np.abs(points[:, 2] - center[2])
-    mask = (horizontal_dist <= radius) & (vertical_diff <= height / 2)
-    return points[mask]
-
-
-def filter_points_within_threshold(points, threshold=15.0):
-    distances = np.linalg.norm(points, axis=1)
-    mask = distances <= threshold
-    return points[mask]
-
 
 def extract_roi_box(lidar_pc, center, half_extents):
     """
@@ -47,7 +35,6 @@ def extract_roi_box(lidar_pc, center, half_extents):
     mask = np.all((lidar_pc >= lower) & (lidar_pc <= upper), axis=1)
     return lidar_pc[mask]
 
-
 def pc2_to_numpy(pc2_msg, want_rgb=False):
     """
     Convert a ROS PointCloud2 message into a numpy array quickly using ros_numpy.
@@ -55,12 +42,12 @@ def pc2_to_numpy(pc2_msg, want_rgb=False):
     """
     # Convert the ROS message to a numpy structured array
     pc = ros_numpy.point_cloud2.pointcloud2_to_array(pc2_msg)
-    # Stack x,y,z fields to a (N,3) array
+    # Convert each field to a 1D array and stack along axis 1 to get (N, 3)
     pts = np.stack((np.array(pc['x']).ravel(),
                     np.array(pc['y']).ravel(),
                     np.array(pc['z']).ravel()), axis=1)
-    # Apply filtering (for example, x > 0 and z in a specified range)
-    mask = (pts[:, 0] > -0.5) & (pts[:, 2] < -1) & (pts[:, 2] > -2.7)
+    # Apply filtering (for example, x > 0 and z < 2.5)
+    mask = (pts[:, 0] > 0) & (pts[:, 2] < 2.5)
     return pts[mask]
 
 
@@ -146,28 +133,21 @@ def create_ray_line_set(start, end):
     line_set.colors = o3d.utility.Vector3dVector([[1, 1, 0]])
     return line_set
 
-
 def downsample_points(lidar_points, voxel_size=0.15):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(lidar_points)
     down_pcd = pcd.voxel_down_sample(voxel_size=voxel_size)
     return np.asarray(down_pcd.points)
 
+def filter_depth_points(lidar_points, max_human_depth=0.9):
 
-def filter_depth_points(lidar_points, max_depth_diff=0.9, use_norm=True):
     if lidar_points.shape[0] == 0:
         return lidar_points
-
-    if use_norm:
-        depths = np.linalg.norm(lidar_points, axis=1)
-    else:
-        depths = lidar_points[:, 0]
-
-    min_depth = np.min(depths)
-    max_possible_depth = min_depth + max_depth_diff
-    mask = depths < max_possible_depth
-    return lidar_points[mask]
-
+    lidar_points_dist = lidar_points[:, 0]
+    min_dist = np.min(lidar_points_dist)
+    max_possible_dist = min_dist + max_human_depth
+    filtered_array = lidar_points[lidar_points_dist < max_possible_dist]
+    return filtered_array
 
 def visualize_geometries(geometries, window_name="Open3D", width=800, height=600, point_size=5.0):
     """
@@ -182,20 +162,20 @@ def visualize_geometries(geometries, window_name="Open3D", width=800, height=600
     vis.run()
     vis.destroy_window()
 
-
 def pose_to_matrix(pose):
     """
     Compose a 4x4 transformation matrix from a pose state.
     Assumes pose has attributes: x, y, z, yaw, pitch, roll,
     where the angles are given in degrees.
     """
+    # Use default values if any are None (e.g. if the car is not moving)
     x = pose.x if pose.x is not None else 0.0
     y = pose.y if pose.y is not None else 0.0
     z = pose.z if pose.z is not None else 0.0
     if pose.yaw is not None and pose.pitch is not None and pose.roll is not None:
-        yaw = pose.yaw
-        pitch = pose.pitch
-        roll = pose.roll
+        yaw = math.radians(pose.yaw)
+        pitch = math.radians(pose.pitch)
+        roll = math.radians(pose.roll)
     else:
         yaw = 0.0
         pitch = 0.0
@@ -212,7 +192,6 @@ def transform_points_l2c(lidar_points, T_l2c):
     pts_hom = np.hstack((lidar_points, np.ones((N, 1))))  # (N,4)
     pts_cam = (T_l2c @ pts_hom.T).T  # (N,4)
     return pts_cam[:, :3]
-
 
 # ----- New: Vectorized projection function -----
 def project_points(pts_cam, K, original_lidar_points):
@@ -319,7 +298,7 @@ class YoloNode():
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([
             self.rgb_sub, self.lidar_sub
-        ], queue_size=500, slop=0.05)
+        ], queue_size=10, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
 
     def synchronized_callback(self, image_msg, lidar_msg):
@@ -334,9 +313,6 @@ class YoloNode():
         # Gate guards against data not being present for both sensors:
         if self.latest_image is None or self.latest_lidar is None:
             return {}
-        else:
-            print(type(self.latest_image))
-            print(type(self.latest_lidar))
         lastest_image = self.latest_image.copy()
 
         downsample = False
@@ -364,7 +340,7 @@ class YoloNode():
             undistorted_img = lastest_image.copy()
             orig_H, orig_W = lastest_image.shape[:2]
             self.current_K = self.K
-        results_normal = self.detector(img_normal, conf=0.35, classes=[0])
+        results_normal = self.detector(img_normal, conf=0.4, classes=[0])
         combined_boxes = []
 
         boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
@@ -384,11 +360,10 @@ class YoloNode():
 
         # Create empty list of bounding boxes to fill and publish later
         boxes = BoundingBoxArray()
-        boxes.header.frame_id = 'velodyne'
+        boxes.header.frame_id = 'currentVehicleFrame'
         boxes.header.stamp = lidar_msg.header.stamp
 
         # Process YOLO detections
-        yolo_detections = []
         boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
         conf_scores = np.array(results_normal[0].boxes.conf.cpu()) if len(results_normal) > 0 else []
     
@@ -415,57 +390,46 @@ class YoloNode():
 
             # Get the 3D points corresponding to the box
             points_3d = roi_pts[:, 2:5]
-            
-            # Filter points to get a cleaner cluster
-            points_3d = filter_points_within_threshold(points_3d, 40)
-            points_3d = remove_ground_by_min_range(points_3d, z_range=0.08)
-            points_3d = filter_depth_points(points_3d, max_depth_diff=0.5)
-            
-            if points_3d.shape[0] < 4:
+            points_3d = filter_depth_points(points_3d, max_human_depth=0.8)
+            refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=10)
+            refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.03)
+
+            if refined_cluster.shape[0] < 5:
                 continue
                 
             # Create a point cloud from the filtered points
             pcd = o3d.geometry.PointCloud()
-            pcd.points = o3d.utility.Vector3dVector(points_3d)
+            pcd.points = o3d.utility.Vector3dVector(refined_cluster)
             
             # Get an oriented bounding box
             obb = pcd.get_oriented_bounding_box()
-            center = obb.center
+            refined_center = obb.center
             dims = tuple(obb.extent)
             R_lidar = obb.R.copy()
-
-            if self.debug:
-                print("X")
-                print(center[0])
-                print("L")
-                print(dims[0])
-                print("Y")
-                print(center[1])
-                print("W")
-                print(dims[1])
-                print("Z")
-                print(center[2])
-                print("H")
-                print(dims[2])
             
+            # We are assuming that dims[0] is height and dims[2] is length of obb.extent
+
             # Transform from LiDAR to vehicle coordinates
-            center_hom = np.append(center, 1)
-            center_vehicle_hom = self.T_l2v @ center_hom
-            center_vehicle = center_vehicle_hom[:3]
+            refined_center_hom = np.append(refined_center, 1)
+            refined_center_vehicle_hom = self.T_l2v @ refined_center_hom
+            refined_center_vehicle = refined_center_vehicle_hom[:3]
             
             # Calculate rotation in vehicle frame
             R_vehicle = self.T_l2v[:3, :3] @ R_lidar
-            yaw, pitch, roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
+            # yaw, pitch, roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
+            yaw = np.arctan2(R_vehicle[1, 0], R_vehicle[0, 0])
+
+            refined_center = refined_center_vehicle
             
             # Create a ROS BoundingBox message
             box_msg = BoundingBox()
-            box_msg.header.frame_id = 'velodyne'
+            box_msg.header.frame_id = 'currentVehicleFrame'
             box_msg.header.stamp = lidar_msg.header.stamp
             
             # Set the pose
-            box_msg.pose.position.x = float(center_vehicle[0])
-            box_msg.pose.position.y = float(center_vehicle[1])
-            box_msg.pose.position.z = float(center_vehicle[2])
+            box_msg.pose.position.x = float(refined_center_vehicle[0])
+            box_msg.pose.position.y = float(refined_center_vehicle[1])
+            box_msg.pose.position.z = float(refined_center_vehicle[2])
             
             # Convert yaw to quaternion
             quat = R.from_euler('z', yaw).as_quat()
@@ -475,21 +439,22 @@ class YoloNode():
             box_msg.pose.orientation.w = float(quat[3])
             
             # Set the dimensions
-            box_msg.dimensions.x = float(dims[0])  # length
+            # Swapped dims[2] and dims[0]
+            box_msg.dimensions.x = float(dims[2])  # length
             box_msg.dimensions.y = float(dims[1])  # width
-            box_msg.dimensions.z = float(dims[2])  # height
+            box_msg.dimensions.z = float(dims[0])  # height
 
             # if self.debug:
             #     print("X")
-            #     print(center_vehicle[0])
+            #     print(refined_center_vehicle[0])
             #     print("L")
             #     print(dims[0])
             #     print("Y")
-            #     print(center_vehicle[1])
+            #     print(refined_center_vehicle[1])
             #     print("W")
             #     print(dims[1])
             #     print("Z")
-            #     print(center_vehicle[2])
+            #     print(refined_center_vehicle[2])
             #     print("H")
             #     print(dims[2])
             
@@ -499,17 +464,7 @@ class YoloNode():
             
             boxes.boxes.append(box_msg)
             
-            # Store detection info
-            yolo_detections.append({
-                'pose': {
-                    'position': center_vehicle,
-                    'orientation': [quat[0], quat[1], quat[2], quat[3]]
-                },
-                'dimensions': dims,
-                'score': float(conf_scores[i])
-            })
-            
-            rospy.loginfo(f"Person detected at ({center_vehicle[0]:.2f}, {center_vehicle[1]:.2f}, {center_vehicle[2]:.2f}) with score {conf_scores[i]:.2f}")
+            rospy.loginfo(f"Person detected at ({refined_center_vehicle[0]:.2f}, {refined_center_vehicle[1]:.2f}, {refined_center_vehicle[2]:.2f}) with score {conf_scores[i]:.2f}")
         
         # Publish the bounding boxes
         rospy.loginfo(f"Publishing {len(boxes.boxes)} person bounding boxes")

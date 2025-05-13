@@ -150,7 +150,7 @@ class PointPillarsNode():
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([
             self.rgb_sub, self.lidar_sub
-        ], queue_size=500, slop=0.05)
+        ], queue_size=10, slop=0.1)
         self.sync.registerCallback(self.synchronized_callback)
 
     def synchronized_callback(self, image_msg, lidar_msg):
@@ -165,10 +165,9 @@ class PointPillarsNode():
             lidar_down = self.latest_lidar.copy()
 
         boxes = BoundingBoxArray()
-        boxes.header.frame_id = 'velodyne'
+        boxes.header.frame_id = 'currentVehicleFrame'
         boxes.header.stamp = lidar_msg.header.stamp
 
-        pointpillars_detections = []
         with torch.no_grad():
             # Convert to tensor and format for PointPillars
             lidar_tensor = torch.from_numpy(lidar_down).float()
@@ -195,20 +194,6 @@ class PointPillarsNode():
                     # Extract center position and dimensions
                     x, y, z, l, w, h, yaw = bbox
 
-                    if self.debug:
-                        print("X LIDAR")
-                        print(x)
-                        print("L")
-                        print(l)
-                        print("Y LIDAR")
-                        print(y)
-                        print("W")
-                        print(w)
-                        print("Z LIDAR")
-                        print(z)
-                        print("H")
-                        print(h)
-
                     # Transform from LiDAR to vehicle coordinates
                     center_lidar = np.array([x, y, z, 1.0])
                     center_vehicle = self.T_l2v @ center_lidar
@@ -221,7 +206,7 @@ class PointPillarsNode():
                     
                     # Create a ROS BoundingBox message
                     box = BoundingBox()
-                    box.header.frame_id = 'velodyne'
+                    box.header.frame_id = 'currentVehicleFrame'
                     box.header.stamp = lidar_msg.header.stamp
                     
                     # if self.debug:
@@ -261,19 +246,7 @@ class PointPillarsNode():
 
                     boxes.boxes.append(box)
                     
-                    # Also store detection info in the list if needed for other processing
-                    pointpillars_detections.append({
-                        'pose': {
-                            'position': [x, y, z],
-                            'orientation': [quat[0], quat[1], quat[2], quat[3]]
-                        },
-                        'dimensions': [l, w, h],
-                        'score': float(score)
-                    })
-                    
                     rospy.loginfo(f"Pedestrian detected at ({x:.2f}, {y:.2f}, {z:.2f}) with score {score:.2f}")
-            
-            # Save point_pillars_detections here for later if needed
 
             # Publish the bounding boxes
             rospy.loginfo(f"Publishing {len(boxes.boxes)} pedestrian bounding boxes")

@@ -153,6 +153,7 @@ class CombinedDetector3D(Component):
         matched_pp_indices = set()
         fused_boxes_list: List[BoundingBox] = [] 
 
+        # Match the boxes
         # Can optimize from NxM loop
         for i, yolo_box in enumerate(yolo_boxes):
             best_match_j = -1
@@ -175,12 +176,13 @@ class CombinedDetector3D(Component):
                 merged = merge_boxes(yolo_box, pp_boxes[best_match_j])
                 fused_boxes_list.append(merged)
 
-        ## Unmatched Bboxes
+        ## UAdd the unmatched YOLO boxes
         for i, yolo_box in enumerate(yolo_boxes):
             if i not in matched_yolo_indices:
                 fused_boxes_list.append(yolo_box)
                 rospy.logdebug(f"Kept unmatched YOLO box {i}")
 
+        # Add the unmatched PointPillars boxes
         for j, pp_box in enumerate(pp_boxes):
             if j not in matched_pp_indices:
                 fused_boxes_list.append(pp_box)
