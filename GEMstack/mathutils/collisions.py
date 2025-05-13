@@ -159,6 +159,18 @@ def polygon_intersects_polygon_2d(poly1 : List[Tuple[float,float]], poly2 : List
     """
     return shapely.Polygon(poly1).intersects(shapely.Polygon(poly2))
 
+def polygon_contains_polygon_2d(poly1 : List[Tuple[float,float]], poly2 : List[Tuple[float,float]]) -> bool:
+    """Returns whether one polygon contains another polygon.
+
+    Args:
+        poly1 (List[Tuple[float,float]]): The containing polygon
+        poly2 (List[Tuple[float,float]]): The polygon to check if it's contained
+
+    Returns:
+        bool: True if poly1 contains poly2, False otherwise
+    """
+    return shapely.Polygon(poly1).contains_properly(shapely.Polygon(poly2))
+
 def polygon_polygon_distance_2d(poly1 : List[Tuple[float,float]], poly2 : List[Tuple[float,float]]) -> float:
     """Returns the distance between two polygons.
 
