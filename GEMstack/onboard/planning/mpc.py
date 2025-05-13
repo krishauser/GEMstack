@@ -267,7 +267,16 @@ class MPCController(object):
             delta = float(sol.value(x[1,4]))
             self.prev_x = sol.value(x)
             self.prev_u = sol.value(u)
-
+            if component is not None:
+                component.debug("mpc/accel", acc)
+                component.debug("mpc/delta", delta)
+                component.debug("mpc/closest_time", closest_time)
+                component.debug("mpc/state_x", state.pose.x)
+                component.debug("mpc/state_y", state.pose.y)
+                component.debug("mpc/state_yaw", state.pose.yaw)
+                component.debug("mpc/target_x", traj_points[1][0])
+                component.debug("mpc/target_y", traj_points[1][1])
+                component.debug("mpc/target_theta", target_angles[0])
             # xy_array = [f"np.array([{round(self.prev_x[t,0],8)}, {round(self.prev_x[t,1],8)}])" for t in range(self.prev_x.shape[0])]
             # print("mpc = [", ", ".join(xy_array), "]")
 
