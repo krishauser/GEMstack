@@ -104,47 +104,13 @@ class PointPillarsNode():
         checkpoint = torch.load(model_path) #, map_location='cuda' if torch.cuda.is_available() else 'cpu')
         self.pointpillars.load_state_dict(checkpoint)
 
-        # if torch.cuda.is_available():
-        #     self.pointpillars = self.pointpillars.cuda()
-
         self.pointpillars.eval()
         rospy.loginfo("PointPillars model loaded successfully")
-
-        if self.camera_front:
-            self.K = np.array([[684.83331299, 0., 573.37109375],
-                               [0., 684.60968018, 363.70092773],
-                               [0., 0., 1.]])
-        else:
-            self.K = np.array([[1.17625545e+03, 0.00000000e+00, 9.66432645e+02],
-                               [0.00000000e+00, 1.17514569e+03, 6.08580326e+02],
-                               [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
-
-        if self.camera_front:
-            self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-        else:
-            self.D = np.array([-2.70136325e-01, 1.64393255e-01, -1.60720782e-03, -7.41246708e-05,
-                               -6.19939758e-02])
 
         self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
                                [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
                                [-0.02379784, 0.00689664, 0.999693, 1.95320223],
                                [0., 0., 0., 1.]])
-        if self.camera_front:
-            self.T_l2c = np.array([
-                [0.001090, -0.999489, -0.031941, 0.149698],
-                [-0.007664, 0.031932, -0.999461, -0.397813],
-                [0.999970, 0.001334, -0.007625, -0.691405],
-                [0., 0., 0., 1.000000]
-            ])
-        else:
-            self.T_l2c = np.array([[-0.71836368, -0.69527204, -0.02346088, 0.05718003],
-                                   [-0.09720448, 0.13371206, -0.98624154, -0.1598301],
-                                   [0.68884317, -0.7061996, -0.16363744, -1.04767285],
-                                   [0., 0., 0., 1.]]
-                                  )
-        self.T_c2l = np.linalg.inv(self.T_l2c)
-        self.R_c2l = self.T_c2l[:3, :3]
-        self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
         # Subscribe to the RGB and LiDAR streams
         self.rgb_sub = Subscriber(rgb_topic, Image)
