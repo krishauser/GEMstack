@@ -9,10 +9,21 @@ recovery:
         trajectory_tracking : recovery.StopTrajectoryTracker
 
 # Driving behavior for the GEM vehicle.  Runs real pedestrian perception, yield planner, but does not send commands to real vehicle.
-drive: 
+drive:
     perception:
         state_estimation : GNSSStateEstimator
-        agent_detection : cone_detection.ConeDetector3D
+        obstacle_detection :
+            type: cone_detection.ConeDetector3D
+            args:
+                camera_name: front #[front, front_right]
+                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                enable_tracking:  True   # True if you want to enable tracking
+                visualize_2d:     False  # True to see 2D detection visualization
+                use_cyl_roi:      False  # True to use a cylinder ROI
+                save_data:        False  # True to save sensor input data
+                orientation:      True   # True to detect flipped cones
+                use_start_frame:  True   # True to output in START frame
+
         perception_normalization : StandardPerceptionNormalizer
     planning:
         relations_estimation: 
@@ -48,7 +59,7 @@ log:
     # If True, then record all readings / commands of the vehicle interface. Default False
     vehicle_interface : True
     # Specify which components to record to behavior.json. Default records nothing
-    components : ['state_estimation','agent_detection','motion_planning']
+    components : ['state_estimation','obstacle_detection','motion_planning']
     # Specify which components of state to record to state.json. Default records nothing 
     #state: ['all']
     # Specify the rate in Hz at which to record state to state.json. Default records at the pipeline's rate
@@ -96,7 +107,7 @@ variants:
             description: "Run the yielding trajectory planner on the real vehicle with faked perception"
             drive:
                 perception:
-                    agent_detection : cone_detection.FakeConeDetector2D
+                    obstacle_detection : cone_detection.FakeConeDetector2D
 
     fake_sim:
         run:
