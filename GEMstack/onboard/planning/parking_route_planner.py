@@ -450,7 +450,7 @@ class ParkingPlanner():
         self.final_pos_inside = False
         self.velocity_threshold = 0.1  # m/s
         self.orientation_threshold = math.radians(10)  # 10 degrees
-        self.distance_function = settings.get("run.drive.planning._route_planner.astar.heuristic", "reeds_shepp")
+        self.distance_function = settings.get("run.drive.planning.route_planning_component.astar.heuristic", "reeds_shepp")
         
         # Create logs directory if it doesn't exist
         self.logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'log_success')
