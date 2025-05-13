@@ -450,6 +450,7 @@ class ParkingPlanner():
         self.final_pos_inside = False
         self.velocity_threshold = 0.1  # m/s
         self.orientation_threshold = math.radians(10)  # 10 degrees
+        self.distance_function = settings.get("run.drive.planning._route_planner.astar.heuristic", "reeds_shepp")
         
         # Create logs directory if it doesn't exist
         self.logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'log_success')
@@ -470,11 +471,11 @@ class ParkingPlanner():
         final_pos_status = "Final Pos Inside" if final_pos_inside else "Final Pos Not Inside"
         message = f"{timestamp} Parking {status} {final_pos_status}"
         if planning_time is not None:
-            message += f" (Planning time: {planning_time:.2f} seconds)"
+            message += self.distance_function + f" (Planning time: {planning_time:.2f} seconds)"
         if position_error is not None:
-            message += f" (Position error: {position_error:.3f} m)"
+            message += self.distance_function + f" (Position error: {position_error:.3f} m)"
         if orientation_error is not None:
-            message += f" (Orientation error: {orientation_error:.1f} degrees)"
+            message += self.distance_function + f" (Orientation error: {orientation_error:.1f} degrees)"
         message += "\n"
         
         try:
