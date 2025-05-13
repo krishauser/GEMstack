@@ -16,8 +16,12 @@ control:
         lookahead_scale: 3.0
         crosstrack_gain: 1.0
         desired_speed: trajectory
+    stanley:
+        control_gain: 1.5
+        softening_gain: 0.2
+        desired_speed: trajectory
     longitudinal_control:
-        pid_p: 1.0
+        pid_p: 10.0
         pid_i: 0.1
         pid_d: 0.0
 
