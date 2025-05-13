@@ -50,7 +50,9 @@ export default function Scrubber({
   const formatDuration = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
-    return `${minutes < 10 ? "0" : ""}${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+    return `${minutes < 10 ? "0" : ""}${minutes}:${
+      seconds < 10 ? "0" : ""
+    }${seconds}`;
   };
   const handleContextMenu = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -66,7 +68,11 @@ export default function Scrubber({
         onClick={togglePlay}
         sx={{ color: "white", mr: 1 }}
       >
-        {play ? <PauseIcon fontSize="small" /> : <PlayArrowIcon fontSize="small" />}
+        {play ? (
+          <PauseIcon fontSize="small" />
+        ) : (
+          <PlayArrowIcon fontSize="small" />
+        )}
       </IconButton>
 
       <div className="w-full flex items-center mx-2 text-sm">
@@ -85,7 +91,9 @@ export default function Scrubber({
           onMouseDown={() => setIsDragging(true)}
           onChangeCommitted={handleSliderChangeCommitted}
         />
-        <span className="min-w-[36px] text-center">{formatDuration(duration)}</span>
+        <span className="min-w-[36px] text-center">
+          {formatDuration(duration)}
+        </span>
       </div>
 
       <div className="flex items-center">

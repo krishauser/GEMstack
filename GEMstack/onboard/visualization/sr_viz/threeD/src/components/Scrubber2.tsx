@@ -92,48 +92,48 @@ export const Scrubber2 = ({
 
     return (
         <div
-            className="px-5 fixed bottom-5 left-1/6 h-20 w-2/3 bg-black/40 text-white shadow-lg rounded-full flex justify-center items-center"
+            className="px-4 py-2 fixed bottom-4 left-1/6 w-2/3 bg-black/80 text-white shadow-md rounded-full flex items-center justify-between"
             onContextMenu={handleContextMenu}
         >
             <IconButton
-                size="large"
+                size="small"
                 onClick={togglePlay}
-                sx={{ marginRight: "20px", color: "white" }}
+                sx={{ color: "white", mr: 1 }}
                 loading={loading}
             >
                 {isPlaying ? (
-                    <PauseIcon fontSize="inherit" />
+                    <PauseIcon fontSize="small" />
                 ) : (
-                    <PlayArrowIcon fontSize="inherit" />
+                    <PlayArrowIcon fontSize="small" />
                 )}
             </IconButton>
-            <div className="w-2/3 flex items-center select-none text-xl">
-                <div>
+            <div className="w-full flex items-center mx-2 text-sm">
+                <span className="min-w-[36px] text-center">
                     {currentTime < duration
                         ? formatDuration(currentTime)
                         : formatDuration(duration)}
-                </div>
+                </span>
                 <Slider
                     key={isDragging ? undefined : Math.floor(currentTime * 100)}
                     min={0}
                     max={duration}
                     step={0.02}
-                    className="mx-8"
+                    className="mx-3"
                     disabled={duration === 0}
                     onChange={handleSliderChange}
                     onMouseDown={() => setIsDragging(true)}
                     onChangeCommitted={handleSliderChangeCommitted}
                     value={currentTime}
                 />
-                <div>{formatDuration(duration)}</div>
+                <span className="min-w-[36px] text-center">{formatDuration(duration)}</span>
             </div>
-            <div className="ml-5 flex flex-nowrap">
+            <div className="flex items-center">
                 <IconButton
-                    size="large"
+                    size="small"
                     onClick={handleClick}
                     sx={{ color: "white" }}
                 >
-                    <SpeedIcon fontSize="inherit" />
+                    <SpeedIcon fontSize="small" />
                 </IconButton>
                 <Menu
                     anchorEl={anchorEl}
@@ -159,10 +159,10 @@ export const Scrubber2 = ({
                     ))}
                 </Menu>
                 <IconButton
-                    size="large"
-                    sx={{ marginLeft: "20px", color: "white" }}
+                    size="small"
+                    sx={{ color: "white", ml: 1 }}
                 >
-                    <RefreshIcon fontSize="inherit" onClick={restart} />
+                    <RefreshIcon fontSize="small" onClick={restart} />
                 </IconButton>
             </div>
         </div>
