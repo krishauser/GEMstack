@@ -19,6 +19,7 @@ drive:
             args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_oval.csv']
             # args: [!relative_path '../GEMstack/knowledge/routes/reverse2.csv']
+            # args: [!relative_path '../GEMstack/knowledge/routes/figure_8_route.csv']
         motion_planning:
             type: RouteToTrajectoryPlanner
             args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
