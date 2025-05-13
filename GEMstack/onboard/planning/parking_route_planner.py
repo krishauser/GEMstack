@@ -1,6 +1,6 @@
 from typing import List, Tuple, Union, Dict
 from ..component import Component
-from ...state import AllState, VehicleState, Path, Trajectory, Route, ObjectFrameEnum, AgentState, Obstacle, ObjectPose, PhysicalObject
+from ...state import AllState, VehicleState, Path, Trajectory, Route, ObjectFrameEnum, AgentState, Obstacle, ObjectPose, PhysicalObject, ObstacleMaterialEnum
 from ...utils import serialization, settings
 from ...mathutils.transforms import vector_madd
 from GEMstack.mathutils.dubins import DubinsCar, SecondOrderDubinsCar, DubinsCarIntegrator
