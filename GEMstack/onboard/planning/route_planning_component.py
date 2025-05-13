@@ -58,6 +58,8 @@ class RoutePlanningComponent(Component):
                 self.route = self.route.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
                 self.planner.visualize_trajectory(self.route)
                 self.already_computed = True
+            
+            print(self.route)
             return self.route
         
         elif state.mission_plan.type.name == "SCANNING":

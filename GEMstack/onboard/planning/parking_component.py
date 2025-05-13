@@ -27,6 +27,7 @@ class ParkingSim(Component):
         # After a goal is detected, change the mission plan to use PARKING.
         if state.parking_goal:
             print("\n Parking goal available. Entering PARKING mode......")
+            print("Trying to Route to ", state.parking_goal)
             mission_plan = MissionObjective(PlannerEnum.PARKING, state.parking_goal)
         else:
             print("\n Entering SCANNING mode......")
