@@ -9,7 +9,7 @@ class LaunchControl:
 
     def reset(self):
         self.enable_launch_control = True
-        self._launch_start_time = -1
+        self._launch_start_time = 0
 
 
     def apply_launch_control(self, cmd, vehicle_velocity):
@@ -33,6 +33,7 @@ class LaunchControl:
                 self.enable_launch_control = False
 
         if vehicle_velocity < self.stop_threshold and elapsed > 3 * self.stage_duration:
-            self.reset()
+            # self.reset()
+            self.enable_launch_control = False
 
         return cmd
