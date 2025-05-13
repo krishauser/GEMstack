@@ -879,7 +879,7 @@ class SlalomTrajectoryPlanner(Component):
                 return self.trajectory
 
             self.visited_cone_ids.add(self.cones[current_cone_idx]['id'])                
-            scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, self.cones, current_cone_idx, next_cone_idx, prev_cone_idx)
+            scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, self.cones, current_cone_idx, next_cone_idx, self.prev_cone_idx)
             self.prev_cone_idx = current_cone_idx
 
             if flex_wps and fixed_wp is not None:
