@@ -5,19 +5,19 @@ import { useFrame } from "@react-three/fiber";
 import { Mesh, Object3D, MeshStandardMaterial } from "three";
 import { useGLTF } from "@react-three/drei";
 import { FrameData } from "@/types/FrameData";
-import { currentAgent } from "@/config/agentConfig";
+import { currentPedestrian } from "@/config/pedestrianConfig";
 
-interface AgentProps {
+interface PedestrianProps {
   id: string;
   timeline: FrameData[];
   time: number;
 }
 
-export default function Agent({ id, timeline, time }: AgentProps) {
+export default function Pedestrian({ id, timeline, time }: PedestrianProps) {
   const [mounted, setMounted] = useState(false);
 
   const ref = useRef<Mesh>(null);
-  const { modelPath, scale, rotation, offset, bodyColor } = currentAgent;
+  const { modelPath, scale, rotation, offset, bodyColor } = currentPedestrian;
   const { scene } = useGLTF(modelPath);
   const clonedScene = useMemo(() => scene.clone(true), [scene]);
 
