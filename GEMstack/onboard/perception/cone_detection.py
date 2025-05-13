@@ -505,10 +505,10 @@ class FakConeDetector(Component):
 
         # === Wider Mouth Parking Spot ===
         cones_wide = {
-            'cone4': (6.0, 9.0, 0.5, 0.5),  # Front Left (wide)
-            'cone5': (10.0, 9.0, 0.5, 0.5),  # Back Left
-            'cone6': (3.0, 4.0, 0.5, 0.5),  # Front Right (wide)
-            'cone7': (7.0, 4.0, 0.5, 0.5)   # Back Right
+            'cone4': (12.0, 13.0, 0.5, 0.5),  # Front Left (wide)
+            'cone5': (16.0, 13.0, 0.5, 0.5),  # Back Left
+            'cone6': (9.0, 8.0, 0.5, 0.5),  # Front Right (wide)
+            'cone7': (13.0, 8.0, 0.5, 0.5)   # Back Right
         }
 
         # Populate the obstacle states
