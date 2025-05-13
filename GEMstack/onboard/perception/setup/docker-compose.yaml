@@ -14,8 +14,9 @@ services:
     stdin_open: true
     tty: true
     volumes:
-      # Mount the point_pillars_node.py file and model weights
+      # Mount the point_pillars_node.py file, shared helper functions, and model weights
       - "../point_pillars_node.py:/home/ppuser/pointpillars_ws/point_pillars_node.py:ro"
+      - "../point_pillars_node.py:/home/ppuser/pointpillars_ws/combined_detection_utils.py:ro"
       - "../epoch_160.pth:/home/ppuser/pointpillars_ws/epoch_160.pth:ro"
       # Mount host home directory (optional)
       - "~:/home/ppuser/host:ro"

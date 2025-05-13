@@ -1,9 +1,15 @@
 #!/bin/bash
 
-# Check if the point_pillars_node.py and model weights exist
+# Check if the point_pillars_node.py, the helper functions file, and model weights exist
 if [ ! -f "point_pillars_node.py" ]; then
     echo "ERROR: point_pillars_node.py not found in the current directory!"
     echo "Please place your point_pillars_node.py file in the same directory as this script."
+    exit 1
+fi
+
+if [ ! -f "combined_detection_utils.py" ]; then
+    echo "ERROR: combined_detection_utils.py not found in the current directory!"
+    echo "Please place your combined_detection_utils.py file in the same directory as this script."
     exit 1
 fi
 

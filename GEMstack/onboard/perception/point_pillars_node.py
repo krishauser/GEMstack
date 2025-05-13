@@ -2,6 +2,7 @@
 # from ..interface.gem import GEMInterface
 # from ..component import Component
 # from perception_utils import *
+from combined_detection_utils import *
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import rospy
@@ -204,47 +205,19 @@ class PointPillarsNode():
                     R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                     vehicle_yaw, vehicle_pitch, vehicle_roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
                     
-                    # Create a ROS BoundingBox message
-                    box = BoundingBox()
-                    box.header.frame_id = 'currentVehicleFrame'
-                    box.header.stamp = lidar_msg.header.stamp
-                    
-                    # if self.debug:
-                    #     print("X VEHICLE")
-                    #     print(x_vehicle)
-                    #     print("L")
-                    #     print(l)
-                    #     print("Y VEHICLE")
-                    #     print(y_vehicle)
-                    #     print("W")
-                    #     print(w)
-                    #     print("Z VEHICLE")
-                    #     print(z_vehicle)
-                    #     print("H")
-                    #     print(h)
-
-                    # Set the pose (position and orientation)
-                    box.pose.position.x = float(x_vehicle)
-                    box.pose.position.y = float(y_vehicle)
-                    box.pose.position.z = float(z_vehicle)
-                    
-                    # Convert yaw to quaternion
-                    quat = R.from_euler('z', vehicle_yaw).as_quat()
-                    box.pose.orientation.x = float(quat[0])
-                    box.pose.orientation.y = float(quat[1])
-                    box.pose.orientation.z = float(quat[2])
-                    box.pose.orientation.w = float(quat[3])
-                    
-                    # Set the dimensions
-                    box.dimensions.x = float(l)  # length
-                    box.dimensions.y = float(w)  # width
-                    box.dimensions.z = float(h)  # height
-
-                    # Add class label and confidence score:
-                    box.value = float(score)
-                    box.label = int(label)
-
-                    boxes.boxes.append(box)
+                    boxes = add_bounding_box(boxes=boxes, 
+                        frame_id='currentVehicleFrame', 
+                        stamp=lidar_msg.header.stamp, 
+                        x=x_vehicle, 
+                        y=y_vehicle, 
+                        z=z_vehicle, 
+                        l=l, # length 
+                        w=w, # width 
+                        h=h, # height 
+                        yaw=vehicle_yaw,
+                        conf_score=score,
+                        label=label # person/pedestrian class
+                    )
                     
                     rospy.loginfo(f"Pedestrian detected at ({x:.2f}, {y:.2f}, {z:.2f}) with score {score:.2f}")
 
