@@ -1,6 +1,6 @@
 from ...state.trajectory import Trajectory
 from ...state.vehicle import VehicleState
-from ...state import ObstacleState, AgentState, AgentEnum
+from ...state import Obstacle, AgentState, AgentEnum
 from ..component import Component
 
 from ...state.trajectory import Trajectory, compute_headings, Path
@@ -806,7 +806,7 @@ class SlalomTrajectoryPlanner(Component):
         with self.plan_lock:
             return self.trajectory
     
-    def update(self, cone_obstacles: Dict[str, ObstacleState], vehicle: VehicleState):
+    def update(self, cone_obstacles: Dict[str, Obstacle], vehicle: VehicleState):
         # Running on real vehicle
         if self.onboard:
             # Get all current detected cones

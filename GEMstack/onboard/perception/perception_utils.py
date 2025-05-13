@@ -199,31 +199,6 @@ def visualize_geometries(geometries, window_name="Open3D", width=800, height=600
     vis.run()
     vis.destroy_window()
 
-
-def pose_to_matrix(pose):
-    """
-    Compose a 4x4 transformation matrix from a pose state.
-    Assumes pose has attributes: x, y, z, yaw, pitch, roll,
-    where the angles are given in degrees.
-    """
-    x = pose.x if pose.x is not None else 0.0
-    y = pose.y if pose.y is not None else 0.0
-    z = pose.z if pose.z is not None else 0.0
-    if pose.yaw is not None and pose.pitch is not None and pose.roll is not None:
-        yaw = pose.yaw
-        pitch = pose.pitch
-        roll = pose.roll
-    else:
-        yaw = 0.0
-        pitch = 0.0
-        roll = 0.0
-    R_mat = R.from_euler('zyx', [yaw, pitch, roll]).as_matrix()
-    T = np.eye(4)
-    T[:3, :3] = R_mat
-    T[:3, 3] = np.array([x, y, z])
-    return T
-
-
 def transform_points_l2c(lidar_points, T_l2c):
     N = lidar_points.shape[0]
     pts_hom = np.hstack((lidar_points, np.ones((N, 1))))  # (N,4)
