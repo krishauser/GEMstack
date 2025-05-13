@@ -12,7 +12,7 @@ drive:
     perception:
         state_estimation :
             type: MapBasedStateEstimator
-            args: [!relative_path '../GEMstack/knowledge/calibration/highbay_map_with_errors.ply']
+            args: [!relative_path '../GEMstack/knowledge/calibration/highbay_map.ply']
             module: map_based_estimation
         perception_normalization : StandardPerceptionNormalizer
     planning:
