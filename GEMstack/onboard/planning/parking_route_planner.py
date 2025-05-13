@@ -13,12 +13,16 @@ from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
 import rospy
 import time
-
+import os
+from datetime import datetime
 
 
 import numpy as np
 import math
 
+def normalize_yaw(yaw):
+    """Normalize yaw angle to [-pi, pi]"""
+    return math.atan2(math.sin(yaw), math.cos(yaw))
 
 def generate_action_set(max_vel, max_turn_rate):
             return [
@@ -219,6 +223,223 @@ class ParkingPlanner():
         self.planner = ParkingSolverFirstOrderDubins()
 
         self.iterations = settings.get("run.drive.planning._route_planner.astar.iterations", 200)
+        self.parking_success = False
+        self.final_pos_inside = False
+        self.velocity_threshold = 0.1  # m/s
+        self.orientation_threshold = math.radians(10)  # 10 degrees
+        
+        # Create logs directory if it doesn't exist
+        self.logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'log_success')
+        os.makedirs(self.logs_dir, exist_ok=True)
+        self.success_file = os.path.join(self.logs_dir, 'parking_metrics.txt')
+
+
+    def save_parking_message(self, success: bool, final_pos_inside: bool, planning_time: float = None, position_error: float = None, orientation_error: float = None):
+        """Save a parking status message to a text file.
+        
+        Args:
+            success (bool): Whether parking was successful
+            planning_time (float): Time taken by A* planner in seconds
+            position_error (float): Euclidean distance between final and goal positions
+            orientation_error (float): Absolute difference between final and goal orientations in degrees
+        """
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        status = "successful" if success else "unsuccessful"
+        final_pos_status = "Final Pos Inside" if final_pos_inside else "Final Pos Not Inside"
+        message = f"{timestamp} Parking {status} {final_pos_status}"
+        if planning_time is not None:
+            message += f" (Planning time: {planning_time:.2f} seconds)"
+        if position_error is not None:
+            message += f" (Position error: {position_error:.3f} m)"
+        if orientation_error is not None:
+            message += f" (Orientation error: {orientation_error:.1f} degrees)"
+        message += "\n"
+        
+        try:
+            with open(self.success_file, 'a') as f:
+                f.write(message)
+        except Exception as e:
+            print(f"Error saving parking status: {e}")
+
+    def is_successfully_parked(self, final_state: List[float], goal_pose: ObjectPose, obstacles: Dict[str, Obstacle]) -> bool:
+        """Check if the final position in the trajectory is within the parking spot.
+        
+        Args:
+            final_state (List[float]): Final state from trajectory (x, y, theta, t)
+            goal_pose (ObjectPose): Goal parking pose
+            obstacles (Dict[str, Obstacle]): Dictionary of obstacles including parking cones
+            
+        Returns:
+            bool: True if final position is within parking spot, False otherwise
+        """
+        # Get final position from trajectory
+        x, y, theta, t = final_state
+        
+        # Calculate the offset from rear to centroid
+        # The vehicle's length is in the x direction of the vehicle frame
+        vehicle_length = self.planner.vehicle.to_object().dimensions[0]  # Length of vehicle
+        centroid_offset = vehicle_length / 2.0  # Distance from rear to centroid
+        
+        # Calculate the centroid position by moving forward from the rear position
+        # Using basic trigonometry to move in the direction the vehicle is facing
+        centroid_x = x + centroid_offset * math.cos(theta)
+        centroid_y = y + centroid_offset * math.sin(theta)
+        
+        # Create vehicle object at centroid position
+        final_pose = ObjectPose(
+            frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
+            t=t,
+            x=centroid_x,
+            y=centroid_y,
+            z=0.0,
+            yaw=theta
+        )
+        
+        vehicle_object = PhysicalObject(
+            pose=final_pose,
+            dimensions=self.planner.vehicle.to_object().dimensions,
+            outline=self.planner.vehicle.to_object().outline
+        )
+        vehicle_polygon = vehicle_object.polygon_parent()
+        
+        # Get parking spot polygon from cones
+        parking_spot_vertices = []
+        cone_objects = []
+        for obstacle in obstacles.values():
+            if isinstance(obstacle, AgentState):
+                # Get cone position
+                x, y = obstacle.pose.x, obstacle.pose.y
+                parking_spot_vertices.append((x, y))
+                
+                # Create cone object for collision checking
+                cone_pose = ObjectPose(
+                    frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
+                    t=0.0,
+                    x=x,
+                    y=y,
+                    z=0.0,
+                    yaw=0.0
+                )
+                cone_object = PhysicalObject(
+                    pose=cone_pose,
+                    dimensions=[0.1, 0.1, 1.0],  # Small dimensions for cone
+                    outline=[(-0.05, -0.05), (0.05, -0.05), (0.05, 0.05), (-0.05, 0.05)]
+                )
+                cone_objects.append(cone_object)
+        
+        # Need exactly 4 cones to form a parking spot
+        if len(parking_spot_vertices) != 4:
+            print("Warning: Not exactly 4 cones found for parking spot")
+            # try:
+            #     with open(self.success_file, 'a') as f:
+            #         f.write("No Four Cones")
+            # except Exception as e:
+            #     print(f"Error saving parking status: {e}")
+            return False
+            
+        # Order the vertices to form a proper polygon
+        # Sort by x coordinate first, then by y coordinate
+        parking_spot_vertices.sort(key=lambda p: (p[0], p[1]))
+        
+        # Create a polygon from the parking spot vertices
+        # The vertices should be ordered in a way that forms a proper rectangle
+        # [bottom-left, top-left, top-right, bottom-right]
+        ordered_vertices = [
+            parking_spot_vertices[0],  # bottom-left
+            parking_spot_vertices[2],  # top-left
+            parking_spot_vertices[3],  # top-right
+            parking_spot_vertices[1],  # bottom-right
+        ]
+        
+        # First check if vehicle collides with any cone
+        for cone_object in cone_objects:
+            if collisions.polygon_intersects_polygon_2d(vehicle_polygon, cone_object.polygon_parent()):
+                print("Vehicle collides with a cone")
+                # try:
+                #     with open(self.success_file, 'a') as f:
+                #         f.write("Collides with Cone")
+                # except Exception as e:
+                #     print(f"Error saving parking status: {e}")
+                return False
+        
+        # Then check if vehicle is contained within parking spot
+        if not collisions.polygon_contains_polygon_2d(ordered_vertices, vehicle_polygon):
+            print("Vehicle is not contained within parking spot")
+            # try:
+            #     with open(self.success_file, 'a') as f:
+            #         f.write(f"\nOrdered Vertices{ordered_vertices}")
+            #         f.write(f"\nVehicle_Polygon{vehicle_polygon}")
+            #         f.write("\nNot Contained with parking spot")
+            # except Exception as e:
+            #     print(f"Error saving parking status: {e}")
+            return False
+            
+        return True
+    
+    def is_final_pose_inside(self, final_state: List[float], obstacles: Dict[str, Obstacle]) -> bool:
+        """Check if the final position in the trajectory is within the parking spot.
+        
+        Args:
+            final_state (List[float]): Final state from trajectory (x, y, theta, t)
+            goal_pose (ObjectPose): Goal parking pose
+            obstacles (Dict[str, Obstacle]): Dictionary of obstacles including parking cones
+            
+        Returns:
+            bool: True if final position is within parking spot, False otherwise
+        """
+        # Get final position from trajectory
+        x, y, theta, t= final_state
+        
+        final_pos_point = [x, y]
+        
+        # Get parking spot polygon from cones
+        parking_spot_vertices = []
+        cone_objects = []
+        for obstacle in obstacles.values():
+            if isinstance(obstacle, AgentState):
+                # Get cone position
+                x, y = obstacle.pose.x, obstacle.pose.y
+                parking_spot_vertices.append((x, y))
+                
+                # Create cone object for collision checking
+                cone_pose = ObjectPose(
+                    frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
+                    t=0.0,
+                    x=x,
+                    y=y,
+                    z=0.0,
+                    yaw=0.0
+                )
+                cone_object = PhysicalObject(
+                    pose=cone_pose,
+                    dimensions=[0.1, 0.1, 1.0],  # Small dimensions for cone
+                    outline=[(-0.05, -0.05), (0.05, -0.05), (0.05, 0.05), (-0.05, 0.05)]
+                )
+                cone_objects.append(cone_object)
+        
+        # Order the vertices to form a proper polygon
+        # Sort by x coordinate first, then by y coordinate
+        parking_spot_vertices.sort(key=lambda p: (p[0], p[1]))
+        
+        # Create a polygon from the parking spot vertices
+        # The vertices should be ordered in a way that forms a proper rectangle
+        # [bottom-left, top-left, top-right, bottom-right]
+        ordered_vertices = [
+            parking_spot_vertices[0],  # bottom-left
+            parking_spot_vertices[2],  # top-left
+            parking_spot_vertices[3],  # top-right
+            parking_spot_vertices[1],  # bottom-right
+        ]
+        
+        
+        # Then check if vehicle is contained within parking spot
+        if collisions.point_in_polygon_2d(final_pos_point, ordered_vertices):
+            print("Vehicle is not contained within parking spot")
+            return True
+            
+        return False
+
+
 
     def state_inputs(self):
         return ['all']
@@ -310,7 +531,9 @@ class ParkingPlanner():
 
         # Compute the new trajectory and return it 
         print(f"Iteartions ------------------------------ {self.iterations}")
+        planner_start_time = time.time()
         res = list(self.planner.astar(start, goal, reversePath=False, iterations=self.iterations))
+        planning_time = time.time() - planner_start_time
         # points = [state[:2] for state in res] # change here to return the theta as well
         points = []
         for state in res:
@@ -319,6 +542,27 @@ class ParkingPlanner():
         path = Path(frame=vehicle.pose.frame, points=points)
 
         route = Path(frame=vehicle.pose.frame, points=points)
+
+        if len(res) > 0:
+            final_state = res[-1]  # Get the last state from the trajectory
+
+            # Calculate position and orientation errors
+            final_x, final_y, final_theta = final_state[0], final_state[1], final_state[2]
+            position_error = math.sqrt((final_x - goal_pose.x)**2 + (final_y - goal_pose.y)**2)
+            orientation_error = math.degrees(abs(normalize_yaw(final_theta - goal_pose.yaw)))
+            
+            self.parking_success = self.is_successfully_parked(final_state, goal_pose, agents)
+            self.final_pos_inside = self.is_final_pose_inside(final_state, agents)
+            if self.parking_success:
+                print("Final position is within parking spot!")
+            else:
+                print("Final position is not within parking spot")
+                
+            # Save parking status with planning time and errors
+            self.save_parking_message(self.parking_success, self.final_pos_inside, planning_time, position_error, orientation_error)
+        else:
+            print("No trajectory generated")
+
         return route 
     
 
