@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useScrubber } from "./ScrubberContext";
 import * as THREE from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import { OrbitControls } from "three-stdlib";
 import { Select, SelectChangeEvent, MenuItem } from "@mui/material";
 
 function parsePointCloud2(msg: any): THREE.Points {
@@ -116,10 +116,10 @@ export const PointCloudPanel = ({
     const mountRef = useRef<HTMLDivElement>(null);
     const { startTime, currentTime } = useScrubber();
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-    const cameraRef = useRef<THREE.PerspectiveCamera>();
-    const sceneRef = useRef<THREE.Scene>();
-    const controlsRef = useRef<OrbitControls>();
-    const pointCloudRef = useRef<THREE.Points>();
+    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+    const sceneRef = useRef<THREE.Scene | null>(null);
+    const controlsRef = useRef<OrbitControls | null>(null);
+    const pointCloudRef = useRef<THREE.Points | null>(null);
     const [selectedTopic, setSelectedTopic] = useState(
         initialTopic || Object.keys(messages)[0] || ""
     );
