@@ -7,7 +7,6 @@ from typing import List, Tuple, Optional
 
 from enum import Enum
 
-
 class PlannerEnum(Enum):
     RRT_STAR = 0                #position / yaw in m / radians relative to starting pose of vehicle
     HYBRID_A_STAR = 1           #position / yaw in m / radians relative to current pose of vehicle
@@ -17,6 +16,7 @@ class PlannerEnum(Enum):
     IDLE = 4                    # no mission, no driving
     SUMMON_DRIVING = 5          # route planning with lanes
     PARALLEL_PARKING = 6        # route planning for parallel parking
+    SCANNING = 7
 
 @dataclass
 @register
@@ -27,6 +27,5 @@ class Route(Path):
     Unlike a Path, for the planner's convenience, the route should also extract
     out the wait lines (stop lines, crossings) from the roadgraph.
     """
-
     lanes: List[str] = field(default_factory=list)
     wait_lines: List[str] = field(default_factory=list)
