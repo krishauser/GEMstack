@@ -56,8 +56,8 @@ export default function RosbagViewer() {
         if (!file) return;
 
         setMessageMap({
-            video: [],
-            pointcloud: [],
+            video: {},
+            pointcloud: {},
             tf: [],
         });
         setLoading(true);
@@ -72,7 +72,7 @@ export default function RosbagViewer() {
             (conn) => conn.type
         );
         setTopics(topicNames);
-        setTypes(topicTypes);
+        setTypes(topicTypes as string[]);
         // console.log("Topics:", topicNames, topicTypes);
 
         const videoMessages: Record<string, any[]> = {};
@@ -84,7 +84,7 @@ export default function RosbagViewer() {
                 topic: msg.topic,
                 data: msg.message,
             };
-            const type = topicTypes[topicNames.indexOf(msg.topic)];
+            const type = topicTypes[topicNames.indexOf(msg.topic)] as string;
             if (type.includes("Image")) {
                 if (!videoMessages[msg.topic]) videoMessages[msg.topic] = [];
                 videoMessages[msg.topic].push(entry);

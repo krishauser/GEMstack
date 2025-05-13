@@ -21,6 +21,7 @@ app = Flask(__name__)
 CORS(app)
 CORS(app, origins=["http://localhost:3000"])
 
+
 # Configure cache
 cache = SimpleCache(threshold=500, default_timeout=300)  # 5 minutes cache timeout
 
@@ -51,6 +52,7 @@ def generate_behavior_plots(log_folder, behavior_file, target_frame=3):
     if os.path.exists(cache_file):
         with open(cache_file, "r") as f:
             return json.load(f)
+
 
     # Initialize data collections
     vehicle_data = []
@@ -178,6 +180,7 @@ def generate_behavior_plots(log_folder, behavior_file, target_frame=3):
 
 
 @app.route("/view_log/<path:log_folder>/render")
+
 def render_vis_html(log_folder):
     print(f"Rendering visualization HTML for log folder: {log_folder}")
     return render_template("render.html", log_folder=log_folder)
@@ -187,6 +190,7 @@ def render_vis_html(log_folder):
 def render_behavior_visualization(log_folder):
     """
     Render behavior visualization for a specific log folder
+
 
     Returns:
         JSON response with plot file paths
@@ -220,11 +224,13 @@ def render_behavior_visualization(log_folder):
 
 # Add a route to serve plot files
 @app.route("/plots/<path:log_folder>/viz/<path:filename>")
+
 def serve_plot(log_folder, filename):
     """
     Serve plot files from the plots directory
     """
     plot_dir = os.path.join("./plots", log_folder, "viz")
+
     return send_file(os.path.join(plot_dir, filename))
 
 
@@ -236,6 +242,7 @@ def get_cache_key(prefix, *args):
 def parse_behavior_data(file_path):
     """
     Parse behavior.json file and extract vehicle and agent positions
+
 
     Returns:
     {
@@ -286,6 +293,7 @@ def parse_behavior_data(file_path):
                     # Skip invalid JSON lines
                     continue
 
+
             return positions
     except Exception as e:
         print(f"Error parsing behavior data: {e}")
@@ -304,6 +312,7 @@ def load_log_data():
     start_time = time.time()
     logs = []
 
+
     for log_folder in sorted(os.listdir(LOG_DIR), reverse=True):
         log_path = os.path.join(LOG_DIR, log_folder)
         if not os.path.isdir(log_path):
@@ -317,6 +326,7 @@ def load_log_data():
                 meta_data = yaml.safe_load(meta_file)
             with open(settings_path, "r") as settings_file:
                 settings_data = yaml.safe_load(settings_file).get("run", {})
+
         except Exception as e:
             print(f"Error loading log data: {e}")
             continue
@@ -334,6 +344,7 @@ def load_log_data():
             }
         )
 
+
     # Store results in cache
     cache.set(cache_key, logs)
     end_time = time.time()
@@ -350,6 +361,7 @@ def filter_logs_by_date(logs, start_date=None, end_date=None):
     if cached_result is not None:
         return cached_result
 
+
     if start_date:
         start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d")
     if end_date:
@@ -362,6 +374,7 @@ def filter_logs_by_date(logs, start_date=None, end_date=None):
             if (not start_date or log_date >= start_date) and (
                 not end_date or log_date <= end_date
             ):
+
                 filtered_logs.append(log)
         except ValueError:
             # Skip logs with invalid date format
@@ -418,6 +431,7 @@ def index():
 
 
 @app.route("/filter_logs", methods=["POST"])
+
 def filter_logs():
     start_time = time.time()
     logs = load_log_data()
@@ -433,6 +447,7 @@ def filter_logs():
 
 
 @app.route("/view_log/<path:log_folder>")
+
 def view_log(log_folder):
     log_folder_path = os.path.join(LOG_DIR, log_folder)
     if not os.path.exists(log_folder_path):
@@ -498,6 +513,7 @@ def view_file(log_folder, filename):
             for _ in range((page - 1) * CHUNK_SIZE):
                 f.readline()
 
+
             # Read next chunk of lines
             lines = [f.readline() for _ in range(CHUNK_SIZE)]
             # Check if there are more lines
@@ -540,6 +556,7 @@ def stream_raw_log(log_folder, filename):
 
 
 @app.route("/parse_behavior/<path:log_folder>/<path:filename>")
+
 def parse_behavior(log_folder, filename):
     """
     Parse behavior.json and return structured position data
@@ -556,6 +573,7 @@ def parse_behavior(log_folder, filename):
         return jsonify({"error": "Could not parse behavior data"}), 500
 
     return jsonify(behavior_data)
+
 
 
 # Clear cache after certain time period
@@ -577,3 +595,4 @@ def add_header(response):
 
 if __name__ == "__main__":
     app.run(debug=True)
+

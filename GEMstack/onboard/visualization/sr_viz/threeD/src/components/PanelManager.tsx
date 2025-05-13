@@ -42,7 +42,7 @@ export const PanelManager = ({
 }) => {
     const [rootPanel, setRootPanel] = useState<PanelNode>(createPanel("video"));
 
-    const renderPanelNode = (node: PanelNode): JSX.Element => {
+    const renderPanelNode = (node: PanelNode) => {
         if ("split" in node) {
             return (
                 <Panel>
@@ -94,12 +94,12 @@ export const PanelManager = ({
                     rootPanel={rootPanel}
                 />
                 {node.type === "video" && (
-                    <VideoPanel messages={messageMap["video"]} initialTopic={Object.keys(messageMap["video"])[0]} />
+                    <VideoPanel messages={messageMap["video"] as Record<string, any[]>} initialTopic={Object.keys(messageMap["video"])[0]} />
                 )}
                 {node.type === "pointcloud" && (
                     <PointCloudPanel
-                        messages={messageMap["pointcloud"]}
-                        tfMessages={messageMap["tf"]}
+                        messages={messageMap["pointcloud"] as Record<string, any[]>}
+                        tfMessages={messageMap["tf"] as any[]}
                         initialTopic={Object.keys(messageMap["pointcloud"])[0]}
                     />
                 )}
@@ -152,7 +152,7 @@ function closePanel(
         return node;
     }
     const newRoot = helper(root);
-    setRoot(newRoot);
+    if (newRoot) setRoot(newRoot);
 }
 
 function changePanelType(
@@ -218,7 +218,7 @@ const PanelMenu = ({
                     }}
                 >
                     <ListItemIcon>
-                        <HorizontalSplitIcon fontSize="small" />
+                        <VerticalSplitIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>Split Horizontally</ListItemText>
                 </MenuItem>
@@ -229,7 +229,7 @@ const PanelMenu = ({
                     }}
                 >
                     <ListItemIcon>
-                        <VerticalSplitIcon fontSize="small" />
+                        <HorizontalSplitIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>Split Vertically</ListItemText>
                 </MenuItem>

@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <title>GEMstack Log Dashboard</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
-
 <body>
     <div class="container">
         <h1 class="my-4">GEMstack Log Dashboard</h1>
@@ -43,6 +41,7 @@
                                 Details</a>
                             <button onclick="openFolder('{{ log.date }}')" class="btn btn-secondary btn-sm">Open
                                 Folder</button>
+
                         </div>
                     </td>
                 </tr>
@@ -53,7 +52,6 @@
     <script>
         // Store the base URL for view_log
         const viewLogBaseUrl = "{{ url_for('view_log', log_folder='PLACEHOLDER') }}".replace('PLACEHOLDER', '');
-
         $(document).ready(function () {
             $("#filter-form").submit(function (e) {
                 e.preventDefault();
@@ -68,6 +66,7 @@
                     success: function (data) {
                         let tableBody = $("#log-table-body").empty();
 
+
                         data.forEach(log => {
                             tableBody.append(`
                                 <tr>
@@ -80,6 +79,7 @@
                                          <div class="btn-group">
                                             <a href="${viewLogBaseUrl}${log.date}" class="btn btn-info btn-sm">View Details</a>
                                             <button onclick="openFolder('${log.date}')" class="btn btn-secondary btn-sm">Open Folder</button>
+
                                          </div>
                                     </td>
                                 </tr>
@@ -87,6 +87,7 @@
                         });
                     },
                     error: function (error) {
+
                         console.error("Error filtering logs:", error);
                     }
                 });
@@ -98,5 +99,6 @@
         }
     </script>
 </body>
+
 
 </html>

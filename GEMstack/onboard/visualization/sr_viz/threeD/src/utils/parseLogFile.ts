@@ -12,7 +12,13 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
       for (const [key, value] of Object.entries(parsed)) {
         if (key === 'time' || typeof value !== 'object' || value === null) continue;
 
-        if (key === 'vehicle' && 'type' in value && 'data' in value && (value as any).data?.pose?.frame === 3) {
+        // Main vehicle (frame 2)
+        if (
+          key === 'vehicle' &&
+          'type' in value &&
+          'data' in value &&
+          (value as any).data?.pose?.frame === 2
+        ) {
           entries.push({
             key,
             type: (value as any).type,
@@ -22,20 +28,21 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
           continue;
         }
 
-        if (key === 'agents' || key === 'traffic_lights' || key === 'traffic_cones' || key === 'other_vehicles') {
-          for (const [itemId, itemValue] of Object.entries(value)) {
-            if (typeof itemValue === 'object' && itemValue !== null && 'data' in itemValue) {
-              const frame = (itemValue as any).data?.pose?.frame;
-
-              if (key === 'agents' && frame !== 1) {
-                continue;
-              }
-
+        // Unified agents (pedestrians, lights, cones, others) — frame 0 only
+        if (key === 'agents') {
+          for (const [agentId, agentValue] of Object.entries(value)) {
+            if (
+              typeof agentValue === 'object' &&
+              agentValue !== null &&
+              'data' in agentValue &&
+              (agentValue as any).data?.pose?.frame === 0
+            ) {
+              const inferredType = getTypeFromKey(agentId);
               entries.push({
-                key: itemId,
-                type: (itemValue as any).type ?? guessTypeFromKey(key),
+                key: agentId,
+                type: inferredType,
                 time,
-                data: (itemValue as any).data,
+                data: (agentValue as any).data,
               });
             }
           }
@@ -49,10 +56,11 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
   return entries;
 }
 
-function guessTypeFromKey(key: string): string {
-  if (key === 'agents') return 'AgentState';
-  if (key === 'traffic_lights') return 'TrafficLightState';
-  if (key === 'traffic_cones') return 'TrafficConeState';
-  if (key === 'other_vehicles') return 'OtherVehicleState';
-  return 'Unknown';
+function getTypeFromKey(key: string): string {
+  const lowerKey = key.toLowerCase();
+  if (lowerKey.startsWith('pedestrian')) return 'PedestrianState';
+  if (lowerKey.startsWith('vehicle')) return 'OtherVehicleState';
+  if (lowerKey.startsWith('light')) return 'TrafficLightState';
+  if (lowerKey.startsWith('cone')) return 'TrafficConeState';
+  return 'UnknownState';
 }
