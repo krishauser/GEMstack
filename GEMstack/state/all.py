@@ -7,6 +7,7 @@ from .intent import VehicleIntent
 from .agent_intent import AgentIntent,AgentIntentMixture
 from .relations import EntityRelation
 from .mission import MissionObjective
+from .mission import MissionObjective
 from .route import Route
 from .trajectory import Trajectory
 from .predicates import PredicateValues
@@ -23,10 +24,13 @@ class AllState(SceneState):
     agent_intents : Dict[str,AgentIntentMixture] = field(default_factory=dict)
     relations : List[EntityRelation] = field(default_factory=list)
     predicates : PredicateValues = field(default_factory=PredicateValues)
+    goal: ObjectPose = None
     
     # planner-output state
     mission : MissionObjective = field(default_factory=MissionObjective)
+    mission_plan: MissionObjective = None
     intent : VehicleIntent = field(default_factory=VehicleIntent)
+    # planner_type : Optional[PlannerEnum] = None
     route : Optional[Route] = None
     trajectory : Optional[Trajectory] = None
     
