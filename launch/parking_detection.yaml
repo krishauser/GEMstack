@@ -46,7 +46,7 @@ drive:
                     max_turning_rate: 0.3
                     tolerance: 0.25
             astar:
-                iterations: 20000
+                iterations: 200
                 heuristic: reeds_shepp
         motion_planning:
             type: longitudinal_planning.YieldTrajectoryPlanner
@@ -149,10 +149,10 @@ variants:
                             iterations: 300
                             heuristic: reeds_shepp
                     motion_planning:
-                        type: longitudinal_planning.YieldTrajectoryPlanner
+                        type: creep_planning.CreepTrajectoryPlanner
                         # type: yield_spline_planner.SplinePlanner
                         largs:
-                            acceleration: 1
+                            acceleration: 5
                             deceleration: 2
                             desired_speed: 2
                     trajectory_tracking:
