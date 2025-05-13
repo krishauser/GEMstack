@@ -40,7 +40,8 @@ def load_lidar_scan(points):
     try:
         # Create point cloud from numpy array
         scan_pcd = o3d.geometry.PointCloud()
-        scan_pcd.points = o3d.utility.Vector3dVector(points[:, :3])
+        points = np.ascontiguousarray(points[:, :3], dtype=np.float64)
+        scan_pcd.points = o3d.utility.Vector3dVector(points)
 
         
         # # Add intensity as colors if available (4th column)
