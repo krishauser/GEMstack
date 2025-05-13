@@ -58,7 +58,6 @@ class RoutePlanningComponent(Component):
                 self.route = self.route.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
                 self.planner.visualize_trajectory(self.route)
                 self.already_computed = True
-                self.route.points = self.route.points[:-2] # temporary fix to avoid going too far into the parking space, next perception PR will resolve
             return self.route
         
         elif state.mission_plan.type.name == "SCANNING":

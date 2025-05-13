@@ -1,7 +1,6 @@
 from sensor_msgs.msg import PointField
 from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
-from .constants import *
 import sensor_msgs.point_cloud2 as pc2
 import cv2
 import rospy
@@ -9,6 +8,8 @@ import struct
 import math
 import tf.transformations as tf_trans
 
+GEM_E4_LENGTH = 3.2  # m
+GEM_E4_WIDTH  = 1.7  # m
 
 def vis_2d_bbox(image, xywh, box):
     # Setup
@@ -175,7 +176,7 @@ def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_
     # Transparency and color (green)
     marker.color.r = 0.0
     marker.color.g = 1.0
-    marker.color.b = 0.0
+    marker.color.b = 1.0
     marker.color.a = 0.5
 
     marker.pose.orientation.w = 1.0
@@ -217,6 +218,40 @@ def create_parking_spot_marker(closest_spot, length=GEM_E4_LENGTH, width=GEM_E4_
     marker.points.append(global_corners[0])
     marker.points.append(global_corners[3])
     marker.points.append(global_corners[2])
+
+    marker_array.markers.append(marker)
+    return marker_array
+
+
+def create_parking_goal_marker(x, y, radius=0.3, ref_frame="map", color=(0.7, 1.0, 0.5, 1.0)):
+    marker_array = MarkerArray()
+
+    marker = Marker()
+    marker.header.frame_id = ref_frame
+    marker.header.stamp = rospy.Time.now()
+    marker.ns = "parking_goal"
+    marker.id = 0
+    marker.type = Marker.CYLINDER
+    marker.action = Marker.ADD
+
+    # Position at (x, y), ignore yaw
+    marker.pose.position.x = x
+    marker.pose.position.y = y
+    marker.pose.position.z = 0.0  # Flat on ground
+    marker.pose.orientation.w = 1.0  # No rotation
+
+    # Scale (diameter in x and y, small height in z to make it flat)
+    marker.scale.x = 2 * radius
+    marker.scale.y = 2 * radius
+    marker.scale.z = 0.05  # Thin circle
+
+    # Color (RGBA)
+    marker.color.r = color[0]
+    marker.color.g = color[1]
+    marker.color.b = color[2]
+    marker.color.a = color[3]
+
+    marker.lifetime = rospy.Duration(0)  # 0 means forever
 
     marker_array.markers.append(marker)
     return marker_array

@@ -25,6 +25,7 @@ class ParkingSpotsDetector3D(Component):
         self.cone_pts_3D = []
         self.ordered_cone_ground_centers_2D = []
         self.goal_parking_spot = None
+        self.best_parking_spot = None
         self.parking_obstacles_pose = []
         self.parking_obstacles_dim = []
         self.ground_threshold = GROUND_THRESHOLD 
@@ -48,6 +49,7 @@ class ParkingSpotsDetector3D(Component):
         self.pub_vehicle_marker = rospy.Publisher("vehicle/marker", MarkerArray, queue_size=10)
         self.pub_cones_centers_pc2 = rospy.Publisher("cones_detection/centers/point_cloud", PointCloud2, queue_size=10)
         self.pub_parking_spot_marker = rospy.Publisher("parking_spot_detection/marker", MarkerArray, queue_size=10)
+        self.pub_parking_goal_marker = rospy.Publisher("parking_spot_detection/goal/marker", MarkerArray, queue_size=10)
         self.pub_polygon_marker = rospy.Publisher("polygon_detection/marker", MarkerArray, queue_size=10)
         self.pub_obstacles_marker = rospy.Publisher("obstacle_detection/marker", MarkerArray, queue_size=10)
 
@@ -61,6 +63,7 @@ class ParkingSpotsDetector3D(Component):
                 self.cone_pts_3D,
                 self.ordered_cone_ground_centers_2D,
                 self.goal_parking_spot,
+                self.best_parking_spot,
                 self.parking_obstacles_pose,
                 self.parking_obstacles_dim,
                 lidar_ouster_frame
@@ -82,14 +85,15 @@ class ParkingSpotsDetector3D(Component):
     def visualize(self, 
                 cone_pts_3D,
                 ordered_cone_ground_centers_2D,
-                goal_parking_spot,
+                parking_goal,
+                best_parking_spot,
                 parking_obstacles_pose,
                 parking_obstacles_dim,
                 lidar_ouster_frame):
         # Transform top lidar pointclouds to vehicle frame for visualization
         latest_lidar_vehicle = transform_points(lidar_ouster_frame, self.T_l2v)
         latest_lidar_vehicle = filter_ground_points(latest_lidar_vehicle, self.ground_threshold)
-        ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, LIDAR_PC_COLOR, VEHICLE_FRAME)
+        ros_lidar_top_vehicle_pc2 = create_point_cloud(latest_lidar_vehicle, (255, 0, 0), "vehicle")
         self.pub_lidar_top_vehicle_pc2.publish(ros_lidar_top_vehicle_pc2)
 
         # Create vehicle marker
@@ -100,29 +104,38 @@ class ParkingSpotsDetector3D(Component):
         self.pub_vehicle_marker.publish(ros_vehicle_marker)
 
         # Delete previous markers
-        ros_delete_polygon_marker = delete_markers("polygon", MAX_POLYGON_MARKERS)
+        ros_delete_polygon_marker = delete_markers("polygon", 1)
         self.pub_polygon_marker.publish(ros_delete_polygon_marker)
-        ros_delete_parking_spot_markers = delete_markers("parking_spot", MAX_PARKING_SPOT_MARKERS)
+        ros_delete_parking_spot_markers = delete_markers("parking_spot", 1)
         self.pub_parking_spot_marker.publish(ros_delete_parking_spot_markers)
-        ros_delete_obstacles_markers = delete_markers("obstacles", MAX_OBSTACLE_MARKERS)
+        ros_delete_parking_goal_markers = delete_markers("parking_goal", 1)
+        self.pub_parking_goal_marker.publish(ros_delete_parking_goal_markers)
+        ros_delete_obstacles_markers = delete_markers("obstacles", 5)
         self.pub_obstacles_marker.publish(ros_delete_obstacles_markers)
 
         # Draw polygon first
         if len(ordered_cone_ground_centers_2D) > 0:
-            ros_polygon_marker = create_polygon_marker(ordered_cone_ground_centers_2D, ref_frame=VEHICLE_FRAME)
+            ros_polygon_marker = create_polygon_marker(ordered_cone_ground_centers_2D, ref_frame="vehicle")
             self.pub_polygon_marker.publish(ros_polygon_marker)
 
         # Create parking spot marker
-        if goal_parking_spot:
-            ros_parking_spot_marker = create_parking_spot_marker(goal_parking_spot, ref_frame=VEHICLE_FRAME)
+        if best_parking_spot:
+            ros_parking_spot_marker = create_parking_spot_marker(best_parking_spot, ref_frame="vehicle")
             self.pub_parking_spot_marker.publish(ros_parking_spot_marker)
+
+        # Create parking goal marker
+        if parking_goal:
+            ros_parking_goal_marker = create_parking_goal_marker(x = parking_goal[0],
+                                                                y = parking_goal[1],
+                                                                ref_frame="vehicle")
+            self.pub_parking_goal_marker.publish(ros_parking_goal_marker)
 
         # Create parking obstacles marker
         if parking_obstacles_pose and parking_obstacles_dim:
             ros_obstacles_marker =  create_markers(parking_obstacles_pose, 
                                                       parking_obstacles_dim, 
-                                                      OBSTACLE_MARKER_COLOR, 
-                                                      "obstacles", VEHICLE_FRAME)
+                                                      (1.0, 0.0, 0.0, 0.4), 
+                                                      "obstacles", "vehicle")
             self.pub_obstacles_marker.publish(ros_obstacles_marker)
 
         # Draw 3D cone centers
@@ -130,36 +143,37 @@ class ParkingSpotsDetector3D(Component):
             cone_ground_centers = np.array(cone_pts_3D)
             cone_ground_centers[:, 2] = 0.0
             cone_ground_centers = [tuple(point) for point in cone_ground_centers]
-            ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=CONE_CENTER_PC_COLOR)
+            ros_cones_centers_pc2 = create_point_cloud(cone_ground_centers, color=(255, 0, 255))
             self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
 
-    def update(self, cone_obstacles: Dict[str, Obstacle]):
+    def update(self, agents: Dict[str, Obstacle]):
         # Initial variables
-        goal_parking_spot = None
+        parking_goal = None
+        best_parking_spot = None
         parking_obstacles_pose = []
         parking_obstacles_dim = []
         ordered_cone_ground_centers_2D = []
 
         # Populate cone points
         cone_pts_3D = []
-        for cone in cone_obstacles.values():
+        for cone in agents.values():
             cone_pt_3D = (cone.pose.x, cone.pose.y, 0.0)
             cone_pts_3D.append(cone_pt_3D)
 
         # Detect parking spot
-        if len(cone_pts_3D) == NUM_CONES_PER_PARKING_SPOT:
-            goal_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D = detect_parking_spot(cone_pts_3D)
-
+        if len(cone_pts_3D) >= 4:
+            parking_goal, best_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D = detect_parking_spot(cone_pts_3D)
         # Update local variables for visualization
         self.cone_pts_3D = cone_pts_3D
         self.ordered_cone_ground_centers_2D = ordered_cone_ground_centers_2D
-        self.goal_parking_spot = goal_parking_spot
+        self.parking_goal = parking_goal
+        self.best_parking_spot = best_parking_spot
         self.parking_obstacles_pose = parking_obstacles_pose
         self.parking_obstacles_dim = parking_obstacles_dim
 
         # Return if no goal parking spot is found
-        if not goal_parking_spot:
+        if not parking_goal:
             return None
         
         # Constructing parking obstacles
@@ -183,13 +197,15 @@ class ParkingSpotsDetector3D(Component):
                                 dimensions=o_dim,
                                 outline=None,
                                 material=ObstacleMaterialEnum.BARRIER,
-                                collidable=True, state=ObstacleStateEnum.STANDING
+                                collidable=True, 
+                                state=ObstacleStateEnum.STANDING,
                             )
             parking_obstacles[f"parking_obstacle_{obstacle_id}"] = new_obstacle
             obstacle_id += 1
         
         # Constructing goal pose
-        x, y, yaw = goal_parking_spot
+        print(f"-----GOAL: {parking_goal}")
+        x, y, yaw = parking_goal
         goal_pose = ObjectPose(
                         t=current_time,
                         x=x,

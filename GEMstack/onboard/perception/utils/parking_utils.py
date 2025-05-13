@@ -2,7 +2,48 @@ import cv2
 import math
 import numpy as np
 from scipy.spatial import ConvexHull
-from .constants import *
+
+
+GEM_E4_LENGTH = 3.2  # m
+GEM_E4_WIDTH  = 1.7  # m
+BASE_VEHICLE_DIST = 1.10  # m
+
+
+def clickPoints(imgPath=None, numPoints=4):
+    clicked_pts = []
+
+    def mouse_callback(event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN and len(param) < numPoints:
+            param.append((x, y))
+            print(f"Point {len(param)}: ({x}, {y})")
+
+    if imgPath:
+        img = cv2.imread(imgPath, flags=cv2.IMREAD_COLOR)
+    else:
+        img = np.ones((600, 800, 3), dtype=np.uint8) * 255
+
+    cv2.namedWindow("Click Points")
+    cv2.setMouseCallback("Click Points", mouse_callback, clicked_pts)
+
+    while True:
+        img_copy = img.copy()
+
+        for pt in clicked_pts:
+            cv2.circle(img_copy, pt, 5, (0, 0, 255), -1)
+
+        if len(clicked_pts) == numPoints:
+            cv2.polylines(img_copy, [np.array(clicked_pts)], isClosed=True, color=(0, 255, 0), thickness=2)
+
+        cv2.imshow("Click Points", img_copy)
+
+        key = cv2.waitKey(10)
+        if key == 27 or key == ord("q"):  # ESC
+            break
+        elif key == ord('r'):
+            clicked_pts.clear()
+        
+    cv2.destroyAllWindows()
+    return np.array(clicked_pts, dtype=np.float32)
 
 
 def distPoint2LineAB(p, a, b):
@@ -42,6 +83,14 @@ def cvtPose2CarBox(carPose):
     return carBox
 
 
+def cvtCenter2VehiclePos(center, cornerPts):
+    pt1, pt2 = findMaxLenEdgePoints(cornerPts)
+    near, far = (pt1, pt2) if np.linalg.norm(pt1) < np.linalg.norm(pt2) else (pt2, pt1)
+    directionNorm = (near - far) / np.linalg.norm(near - far)
+    vehicle = center + directionNorm * BASE_VEHICLE_DIST
+    return vehicle
+
+
 def find_all_candidate_parking_spots(cornerPts, angleStepDegree=10, positionStrideMeter=0.5):
     cornerPts = np.array(cornerPts, dtype=np.float32)
     min_x = np.min(cornerPts[:, 0]) + 0.5
@@ -52,9 +101,6 @@ def find_all_candidate_parking_spots(cornerPts, angleStepDegree=10, positionStri
     candidates = []
     
     refAngleDegree = getMaxLenEdgeAngleDegree(cornerPts)
-    
-    for angleDegree in np.arange(-90, 90, angleStepDegree):
-        rect = ((0, 0), (GEM_E4_LENGTH, GEM_E4_WIDTH), float(angleDegree))
     
     for angleDegree in np.arange(refAngleDegree, refAngleDegree+1):
         rect = ((0, 0), (GEM_E4_LENGTH, GEM_E4_WIDTH), float(angleDegree))
@@ -78,7 +124,7 @@ def findMaxLenEdgePoints(cornerPts):
         
         if tempLen > maxLen:
             maxPt1, maxPt2 = pt1, pt2
-            maxLen = tempLen
+            tempLen = maxLen
     return maxPt1, maxPt2
 
 
@@ -128,7 +174,7 @@ def normalize_yaw(yaw):
     return yaw % math.pi
 
 
-def get_parking_obstacles(vertices):
+def get_parking_obstacles(vertices): 
     vertices = np.array(vertices)
     n = len(vertices)
     segment_info = []
@@ -141,16 +187,39 @@ def get_parking_obstacles(vertices):
         length = np.linalg.norm(delta)
         yaw = math.atan2(delta[1], delta[0])
         yaw = normalize_yaw(yaw)
-        segment_info.append(((center[0], center[1], 0.0, yaw), (length, 0.05, 1.0)))
+        distance_to_origin = np.linalg.norm(center)  # Distance from center to origin
 
-    # Sort by length and remove the two shortest segments
-    sorted_indices = sorted(range(len(segment_info)), key=lambda i: segment_info[i][1][0])
-    indices_to_remove = set(sorted_indices[:2])
+        segment_info.append({
+            "position": (center[0], center[1], 0.0, yaw),
+            "dimension": (length, 0.05, 1.0),
+            "length": length,
+            "distance_to_origin": distance_to_origin
+        })
 
-    filtered_positions = [segment_info[i][0] for i in range(len(segment_info)) if i not in indices_to_remove]
-    filtered_dimensions = [segment_info[i][1] for i in range(len(segment_info)) if i not in indices_to_remove]
+    if len(segment_info) < 2:
+        # Not enough segments to remove one
+        return [seg["position"] for seg in segment_info], [seg["dimension"] for seg in segment_info]
+
+    # Find the two shortest segments
+    segment_info_sorted = sorted(segment_info, key=lambda s: s["length"])
+    shortest = segment_info_sorted[0]
+    second_shortest = segment_info_sorted[1]
+
+    # Determine which one is closer to the origin and remove that
+    if shortest["distance_to_origin"] < second_shortest["distance_to_origin"]:
+        segment_to_remove = shortest
+    else:
+        segment_to_remove = second_shortest
+
+    # Filter out the selected segment
+    filtered_segments = [seg for seg in segment_info if seg != segment_to_remove]
+
+    # Prepare final outputs
+    filtered_positions = [seg["position"] for seg in filtered_segments]
+    filtered_dimensions = [seg["dimension"] for seg in filtered_segments]
 
     return filtered_positions, filtered_dimensions
+
 
 def order_points_all(points_2d):
     points_np = np.array(points_2d)
@@ -160,7 +229,8 @@ def order_points_all(points_2d):
 
 def detect_parking_spot(cone_3d_centers):
     # Initial variables
-    goal_parking_spot = None
+    parking_goal = None
+    best_parking_spot = None
     parking_obstacles_pose = []
     parking_obstacles_dim = []
 
@@ -182,6 +252,10 @@ def detect_parking_spot(cone_3d_centers):
     if len(candidates) > 0:
         parking_obstacles_pose, parking_obstacles_dim = get_parking_obstacles(ordered_cone_ground_centers_2D)
         # print(f"-----parking_obstacles: {self.parking_obstacles_pose}")
-        goal_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
-        # print(f"-----goal_parking_spot: {self.goal_parking_spot}")
-    return goal_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D
+        best_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
+        # print(f"-----best_parking_spot: {best_candidate}")
+        goal_xy = cvtCenter2VehiclePos(best_parking_spot[0:2], ordered_cone_ground_centers_2D)
+        goal_yaw = best_parking_spot[2]
+        parking_goal = (goal_xy[0], goal_xy[1], goal_yaw)
+        # print(f"-----parking_goal: {parking_goal}")
+    return parking_goal, best_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D
