@@ -131,27 +131,31 @@ variants:
                     type: pure_pursuit.PurePursuitTrajectoryTracker
                     print: True
 
-    fake_sim: # full pipeline w/ fake perception
+    fake_sim:
         run:
             mode: simulation
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/parking/demo_3.yaml'
+                    scene: !relative_path '../scenes/xyhead_demo.yaml'
             visualization: !include "klampt_visualization.yaml"
-
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection : OmniscientAgentDetector
-                    parking_detection: parking_detection.ParkingSpotsDetector3D
-                        
-                    
+                    obstacle_detection : 
+                        type: cone_detection.FakConeDetector
+                    # agent_detection : cone_detection_simple.ConeDetectorSimple3D
+                    parking_detection:
+                        type: parking_detection.ParkingSpotsDetector3D
+                        args:
+                            camera_name: front_right #[front, front_right]
+                            camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                            visualize_3d: True
                 planning:
-                    parking_component:
-                        type: ParkingSim
-                    route_planning_component:
-                        type: RoutePlanningComponent
+                    _mission_planner:
+                        type: parking_component.ParkingSim
+                    _route_planner:
+                        type: route_planning_component.RoutePlanningComponent
                         dubins: 
                             integrator:
                                 timestep: 1
@@ -160,25 +164,19 @@ variants:
                                 max_turning_rate: 0.3
                                 tolerance: 0.25
                         astar:
-                            iterations: 10000 # We should have some sort of max iterations/timeout
+                            iterations: 300
                             heuristic: reeds_shepp
-
-
-                    # route_planning:
-                    #     type: StaticRoutePlanner
-                    #     args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
                     motion_planning:
-                        type: longitudinal_planning.YieldTrajectoryPlanner
+                        type: creep_planning.CreepTrajectoryPlanner
                         # type: yield_spline_planner.SplinePlanner
                         largs:
-                            acceleration: 1
+                            acceleration: 5
                             deceleration: 2
-                            desired_speed: 1
-
+                            desired_speed: 2
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         print: False
-    
+
     real_sim: # real on-board planning w/ fake perception
         run:
             mode: hardware
@@ -219,27 +217,31 @@ variants:
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         print: False
-    reeds_shepp: # full pipeline w/ fake perception
+    reeds_shepp:
         run:
             mode: simulation
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '${SCENE_PATH}'
+                    scene: !relative_path ${SCENE_PATH}
             visualization: !include "klampt_visualization.yaml"
-
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection : OmniscientAgentDetector
-                    parking_detection: parking_detection.ParkingSpotsDetector3D
-                        
-                    
+                    obstacle_detection : 
+                        type: cone_detection.FakConeDetector
+                    # agent_detection : cone_detection_simple.ConeDetectorSimple3D
+                    parking_detection:
+                        type: parking_detection.ParkingSpotsDetector3D
+                        args:
+                            camera_name: front_right #[front, front_right]
+                            camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                            visualize_3d: True
                 planning:
-                    parking_component:
-                        type: ParkingSim
-                    route_planning_component:
-                        type: RoutePlanningComponent
+                    _mission_planner:
+                        type: parking_component.ParkingSim
+                    _route_planner:
+                        type: route_planning_component.RoutePlanningComponent
                         dubins: 
                             integrator:
                                 timestep: 1
@@ -248,46 +250,44 @@ variants:
                                 max_turning_rate: 0.3
                                 tolerance: 0.25
                         astar:
-                            iterations: 10000 # We should have some sort of max iterations/timeout
+                            iterations: 300
                             heuristic: reeds_shepp
-
-
-                    # route_planning:
-                    #     type: StaticRoutePlanner
-                    #     args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
                     motion_planning:
-                        type: longitudinal_planning.YieldTrajectoryPlanner
+                        type: creep_planning.CreepTrajectoryPlanner
                         # type: yield_spline_planner.SplinePlanner
                         largs:
-                            acceleration: 1
+                            acceleration: 5
                             deceleration: 2
-                            desired_speed: 1
-
+                            desired_speed: 2
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         print: False
     
-    approx_reeds_shepp: # full pipeline w/ fake perception
+    approx_reeds_shepp:
         run:
             mode: simulation
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '${SCENE_PATH}'
+                    scene: !relative_path ${SCENE_PATH}
             visualization: !include "klampt_visualization.yaml"
-
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection : OmniscientAgentDetector
-                    parking_detection: parking_detection.ParkingSpotsDetector3D
-                        
-                    
+                    obstacle_detection : 
+                        type: cone_detection.FakConeDetector
+                    # agent_detection : cone_detection_simple.ConeDetectorSimple3D
+                    parking_detection:
+                        type: parking_detection.ParkingSpotsDetector3D
+                        args:
+                            camera_name: front_right #[front, front_right]
+                            camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                            visualize_3d: True
                 planning:
-                    parking_component:
-                        type: ParkingSim
-                    route_planning_component:
-                        type: RoutePlanningComponent
+                    _mission_planner:
+                        type: parking_component.ParkingSim
+                    _route_planner:
+                        type: route_planning_component.RoutePlanningComponent
                         dubins: 
                             integrator:
                                 timestep: 1
@@ -296,46 +296,43 @@ variants:
                                 max_turning_rate: 0.3
                                 tolerance: 0.25
                         astar:
-                            iterations: 10000 # We should have some sort of max iterations/timeout
+                            iterations: 300
                             heuristic: approx_reeds_shepp
-
-
-                    # route_planning:
-                    #     type: StaticRoutePlanner
-                    #     args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
                     motion_planning:
-                        type: longitudinal_planning.YieldTrajectoryPlanner
+                        type: creep_planning.CreepTrajectoryPlanner
                         # type: yield_spline_planner.SplinePlanner
                         largs:
-                            acceleration: 1
+                            acceleration: 5
                             deceleration: 2
-                            desired_speed: 1
-
+                            desired_speed: 2
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         print: False
-    
-    euclidian: # full pipeline w/ fake perception
+    euclidian:
         run:
             mode: simulation
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '${SCENE_PATH}'
+                    scene: !relative_path ${SCENE_PATH}
             visualization: !include "klampt_visualization.yaml"
-
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection : OmniscientAgentDetector
-                    parking_detection: parking_detection.ParkingSpotsDetector3D
-                        
-                    
+                    obstacle_detection : 
+                        type: cone_detection.FakConeDetector
+                    # agent_detection : cone_detection_simple.ConeDetectorSimple3D
+                    parking_detection:
+                        type: parking_detection.ParkingSpotsDetector3D
+                        args:
+                            camera_name: front_right #[front, front_right]
+                            camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                            visualize_3d: True
                 planning:
-                    parking_component:
-                        type: ParkingSim
-                    route_planning_component:
-                        type: RoutePlanningComponent
+                    _mission_planner:
+                        type: parking_component.ParkingSim
+                    _route_planner:
+                        type: route_planning_component.RoutePlanningComponent
                         dubins: 
                             integrator:
                                 timestep: 1
@@ -344,25 +341,18 @@ variants:
                                 max_turning_rate: 0.3
                                 tolerance: 0.25
                         astar:
-                            iterations: 10000 # We should have some sort of max iterations/timeout
+                            iterations: 300
                             heuristic: euclidian
-
-
-                    # route_planning:
-                    #     type: StaticRoutePlanner
-                    #     args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
                     motion_planning:
-                        type: longitudinal_planning.YieldTrajectoryPlanner
+                        type: creep_planning.CreepTrajectoryPlanner
                         # type: yield_spline_planner.SplinePlanner
                         largs:
-                            acceleration: 1
+                            acceleration: 5
                             deceleration: 2
-                            desired_speed: 1
-
+                            desired_speed: 2
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         print: False
-
     log_ros:
         log:
             ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"
