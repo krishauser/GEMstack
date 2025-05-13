@@ -19,68 +19,41 @@ export default function ControlPanel({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const setTimeline = useTimelineStore((state) => state.setTimeline);
-
-  // ref so we can clear input.value after upload
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const prevKeyRef = useRef<string | null>(null);
+  const setTimeline = useTimelineStore((state) => state.setTimeline);
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const uploaded = event.target.files?.[0];
     if (!uploaded) return;
-
     setFileName(uploaded.name);
-
-    try {
-      const entries = await parseLogFile(uploaded);
-      const timeline: TimelineData = buildTimeline(entries);
-      setTimeline(timeline);
-      reset();
-      console.log("timeline loaded:", timeline);
-    } catch (err) {
-      console.error("Failed to parse log file:", err);
-    }
-
-    // reset the input so same filename can be re‐picked
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    const entries = await parseLogFile(uploaded);
+    const timeline: TimelineData = buildTimeline(entries);
+    setTimeline(timeline);
+    reset();
+    fileInputRef.current!.value = "";
   };
 
-  const handleContextMenu = (event: React.MouseEvent) => {
-    event.preventDefault();
-    setIsOpen((o) => !o);
-  };
-
-  // auto‐load from Flask if folder+file props provided
   useEffect(() => {
     if (!folder || !file) return;
-
-    const fetchLog = async () => {
+    const key = `${folder}/${file}`;
+    if (prevKeyRef.current === key) return;
+    prevKeyRef.current = key;
+    (async () => {
       const url = `http://localhost:5000/raw_logs/${encodeURIComponent(
         folder
       )}/${encodeURIComponent(file)}`;
-
-      try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`Failed to fetch ${file} (status ${res.status})`);
-        }
-        const text = await res.text();
-        const fakeFile = new File([text], file, { type: "text/plain" });
-        const entries = await parseLogFile(fakeFile);
-        const timeline = buildTimeline(entries);
-        setTimeline(timeline);
-        reset();
-        setFileName(file);
-        console.log("Timeline loaded from Flask API:", timeline);
-      } catch (err) {
-        console.error("Failed to load remote log file:", err);
-      }
-    };
-
-    fetchLog();
+      const res = await fetch(url);
+      const text = await res.text();
+      const fakeFile = new File([text], file, { type: "text/plain" });
+      const entries = await parseLogFile(fakeFile);
+      const timeline = buildTimeline(entries);
+      setTimeline(timeline);
+      reset();
+      setFileName(file);
+    })();
   }, [folder, file, reset, setTimeline]);
 
   return (
@@ -89,7 +62,10 @@ export default function ControlPanel({
         className={`fixed top-0 left-0 h-full w-48 max-w-[90vw] bg-black/80 text-white shadow-lg transform transition-transform duration-300 ease-in-out z-40 overflow-y-auto flex flex-col ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
-        onContextMenu={handleContextMenu}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setIsOpen((o) => !o);
+        }}
       >
         {isOpen && (
           <>
@@ -100,12 +76,10 @@ export default function ControlPanel({
               <button
                 onClick={() => setIsOpen(false)}
                 className="text-white p-1 rounded hover:bg-white/10"
-                title="Close Panel"
               >
                 <RxCross2 className="w-4 h-4" />
               </button>
             </div>
-
             <div className="p-4">
               <label className="inline-flex items-center gap-2 cursor-pointer text-gray-300 text-sm px-4 py-2 border border-gray-500 rounded hover:bg-white/10 transition">
                 <TiUpload className="w-4 h-4" />
@@ -125,13 +99,10 @@ export default function ControlPanel({
           </>
         )}
       </div>
-
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
           className="fixed top-1/2 left-0 -translate-y-1/2 z-50 bg-black/80 text-white w-3 h-8 flex items-center justify-center rounded-r hover:bg-black border-l border-white/20"
-          title="Open Panel"
-          onContextMenu={(e) => e.preventDefault()}
         >
           <span className="text-xs">⟩</span>
         </button>
