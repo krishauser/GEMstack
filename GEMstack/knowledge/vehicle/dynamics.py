@@ -31,11 +31,12 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
             if acceleration < -dry_decel*0.5 or (acceleration <= 0 and velocity < 0.1):  # a little deadband to avoid oscillation
                 throttle_percent = 0.0  #drift to stop
             else:
-                throttle_percent = accel_active_range[0] + (acceleration+dry_decel)/max_accel * (accel_active_range[1]-accel_active_range[0])
+                throttle_percent = accel_active_range[0] + ((acceleration+dry_decel)/max_accel * (accel_active_range[1]-accel_active_range[0]))
             brake_percent = 0
         else:
-            brake_percent = brake_active_range[0] + -(acceleration+dry_decel)/max_brake * (brake_active_range[1]-brake_active_range[0])
+            brake_percent = brake_active_range[0] + (-(acceleration+dry_decel)/max_brake * (brake_active_range[1]-brake_active_range[0]))
             throttle_percent = 0
+        print(acceleration, (max(throttle_percent,0.0),max(brake_percent,0.0),1))
         return (max(throttle_percent,0.0),max(brake_percent,0.0),1)
     
     elif model == 'kris_v1':
