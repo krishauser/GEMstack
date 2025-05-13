@@ -23,7 +23,11 @@ This produces:
 
 -> out/fixed_route_base_vis.png
 
+![Fixed Route Base Visualization](examples/fixed_route_base_vis.png)
+
 -> out/fixed_route_sim_vis.png
+
+![Fixed Route Simulation Visualization](examples/fixed_route_sim_vis.png)
 
 
 
