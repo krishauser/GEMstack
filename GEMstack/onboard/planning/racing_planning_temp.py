@@ -1,6 +1,6 @@
 from ...state.trajectory import Trajectory
 from ...state.vehicle import VehicleState
-from ...state import AgentState, AgentEnum
+from ...state import Obstacle
 from ..component import Component
 
 from ...state.trajectory import Trajectory, compute_headings, Path
@@ -673,7 +673,7 @@ class SlalomTrajectoryPlanner(Component):
         self.DEBUG_MODE = True
 
     def state_inputs(self):
-        return ['agents', 'vehicle']  # Receive VehicleState & AgentState input
+        return ['obstacles', 'vehicle']  # Receive VehicleState & AgentState input
 
     def state_outputs(self):
         return ['trajectory']         # Return trajectory output
@@ -681,41 +681,32 @@ class SlalomTrajectoryPlanner(Component):
     def rate(self):                   # Setup the update rate
         return 1.0 
 
-    def update(self, agents: Dict[str, AgentState], vehicle: VehicleState):
+    def update(self, cone_obstacles: Dict[str, Obstacle], vehicle: VehicleState):
         # Running on real vehicle
         if self.onboard:
             # Get all current detected cones
             cones = []
             n = 0
-            for id, agent in agents.items():
-                if agent.type == AgentEnum.CONE:
-                    # ===== RUNNING ONBOARD =====
-                    # cones.append({
-                    #     'id': id,
-                    #     'x': agent.pose.x,
-                    #     'y': agent.pose.y,
-                    #     'orientation': agent.activity
-                    # })
-                    # ===== TESTING ONBOARD in BASIC SIM =====
-                    if n > 3:
-                        break
-                    if n % 4 == 0:
-                        curr_activity = 'LEFT'
-                    elif n % 4 == 1:
-                        curr_activity = 'RIGHT'
-                    elif n % 4 == 2:
-                        curr_activity = 'LEFT'
-                    else:
-                        curr_activity = 'STANDING'
-                    c = {
-                        'id': id,
-                        'x': agent.pose.x,
-                        'y': agent.pose.y,
-                        'orientation': curr_activity
-                    }
-                    n = n + 1
-                    if c['id'] not in {cone['id'] for cone in self.cones}:
-                        self.cones.append(c)
+            for id, cone in cone_obstacles.items():
+                if n > 3:
+                    break
+                if n % 4 == 0:
+                    curr_activity = 'LEFT'
+                elif n % 4 == 1:
+                    curr_activity = 'RIGHT'
+                elif n % 4 == 2:
+                    curr_activity = 'LEFT'
+                else:
+                    curr_activity = 'STANDING'
+                c = {
+                    'id': id,
+                    'x': cone.pose.x,
+                    'y': cone.pose.y,
+                    'orientation': curr_activity
+                }
+                n = n + 1
+                if c['id'] not in {cone['id'] for cone in self.cones}:
+                    self.cones.append(c)
             
             curr_pos = np.array([vehicle.pose.x, vehicle.pose.y])
             if self.prev_vehicle_position is None:
