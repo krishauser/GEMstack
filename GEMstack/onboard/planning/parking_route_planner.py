@@ -306,9 +306,20 @@ class ParkingPlanner():
         parking_spot_vertices = []
         cone_objects = []
         for obstacle in obstacles.values():
-            if isinstance(obstacle, AgentState):
-                # Get cone position
+            if obstacle.material == ObstacleMaterialEnum.TRAFFIC_CONE:
+                # Get cone position and dimensions
                 x, y = obstacle.pose.x, obstacle.pose.y
+                w, h = obstacle.dimensions[0], obstacle.dimensions[1]
+                
+                # Create a rectangle for the cone's base
+                half_w = w / 2
+                half_h = h / 2
+                cone_vertices = [
+                    (x - half_w, y - half_h),  # bottom-left
+                    (x + half_w, y - half_h),  # bottom-right
+                    (x + half_w, y + half_h),  # top-right
+                    (x - half_w, y + half_h)   # top-left
+                ]
                 parking_spot_vertices.append((x, y))
                 
                 # Create cone object for collision checking
@@ -322,19 +333,14 @@ class ParkingPlanner():
                 )
                 cone_object = PhysicalObject(
                     pose=cone_pose,
-                    dimensions=[0.1, 0.1, 1.0],  # Small dimensions for cone
-                    outline=[(-0.05, -0.05), (0.05, -0.05), (0.05, 0.05), (-0.05, 0.05)]
+                    dimensions=[w, h, 1.0],  # Use actual cone dimensions
+                    outline=cone_vertices
                 )
                 cone_objects.append(cone_object)
         
         # Need exactly 4 cones to form a parking spot
         if len(parking_spot_vertices) != 4:
             print("Warning: Not exactly 4 cones found for parking spot")
-            # try:
-            #     with open(self.success_file, 'a') as f:
-            #         f.write("No Four Cones")
-            # except Exception as e:
-            #     print(f"Error saving parking status: {e}")
             return False
             
         # Order the vertices to form a proper polygon
@@ -355,23 +361,11 @@ class ParkingPlanner():
         for cone_object in cone_objects:
             if collisions.polygon_intersects_polygon_2d(vehicle_polygon, cone_object.polygon_parent()):
                 print("Vehicle collides with a cone")
-                # try:
-                #     with open(self.success_file, 'a') as f:
-                #         f.write("Collides with Cone")
-                # except Exception as e:
-                #     print(f"Error saving parking status: {e}")
                 return False
         
         # Then check if vehicle is contained within parking spot
         if not collisions.polygon_contains_polygon_2d(ordered_vertices, vehicle_polygon):
             print("Vehicle is not contained within parking spot")
-            # try:
-            #     with open(self.success_file, 'a') as f:
-            #         f.write(f"\nOrdered Vertices{ordered_vertices}")
-            #         f.write(f"\nVehicle_Polygon{vehicle_polygon}")
-            #         f.write("\nNot Contained with parking spot")
-            # except Exception as e:
-            #     print(f"Error saving parking status: {e}")
             return False
             
         return True
@@ -551,7 +545,7 @@ class ParkingPlanner():
             position_error = math.sqrt((final_x - goal_pose.x)**2 + (final_y - goal_pose.y)**2)
             orientation_error = math.degrees(abs(normalize_yaw(final_theta - goal_pose.yaw)))
             
-            self.parking_success = self.is_successfully_parked(final_state, goal_pose, agents)
+            self.parking_success = self.is_successfully_parked(final_state, goal_pose, obstacles)
             self.final_pos_inside = self.is_final_pose_inside(final_state, agents)
             if self.parking_success:
                 print("Final position is within parking spot!")
