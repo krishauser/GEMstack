@@ -45,6 +45,7 @@ class SummoningMissionPlanner(Component):
         self.goal_pose = None
         self.start_pose = None
         self.start_time = time.time()
+        self.end_of_driving_route =  None
 
         self.flag_use_webapp = use_webapp
         self.url_status = f"{webapp_url}/api/status"
@@ -130,7 +131,7 @@ class SummoningMissionPlanner(Component):
             # self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
 
             # For global map test in simulation only
-            start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), x=-88.235968, y=40.0927432, yaw=1.57079633)
+            start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), x=-88.235252, y=40.0927516, yaw=-1.57079633)
             self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose_global)
             print("Goal pose:", self.goal_pose)
 
@@ -153,20 +154,25 @@ class SummoningMissionPlanner(Component):
             mission.goal_pose = self.goal_pose
             if route:
                 _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
-                if closest_index == len(route.points) - 1 or check_distance(mission.goal_pose, vehicle.pose) < 2:
-                    mission.type = self.state_machine.next_state()
-                    print("============== Next state:", mission.type)
+                if closest_index == len(route.points) - 1 or check_distance(mission.goal_pose, vehicle.pose) < 5:
+                    if vehicle.v < 0.1:
+                        mission.type = self.state_machine.next_state()
+                        print("============== Next state:", mission.type)
+                self.end_of_driving_route = route.points[-1]
 
         # Finish parking, back to idle and wait for the next goal location
         elif mission.type == MissionEnum.PARALLEL_PARKING:
             if route:
-                _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
-                if closest_index == len(route.points) - 1 or check_distance(route.points[-1], vehicle.pose) < 0.1:
-                    mission.type = self.state_machine.next_state()
-                    self.new_goal = False
-                    self.goal_pose = None
-                    mission.goal_pose = self.goal_pose
-                    print("============== Next state:", mission.type)
+                if route.points[-1] != self.end_of_driving_route:
+                    _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
+                    if vehicle.v < 0.01 and (closest_index == len(route.points) - 1 or check_distance(route.points[-1], vehicle.pose) < 0.5):
+                        print("Distance to the end to the route.", check_distance(route.points[-1], vehicle.pose))
+                        # Set everything to idle
+                        mission.type = self.state_machine.next_state()
+                        self.new_goal = False
+                        self.goal_pose = None
+                        mission.goal_pose = self.goal_pose
+                        print("============== Next state:", mission.type)
 
         else:
             raise ValueError("Invalid mission type")

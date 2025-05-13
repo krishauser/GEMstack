@@ -19,15 +19,16 @@ drive:
         mission_planning:
             type: SummoningMissionPlanner
             args:
-                use_webapp: False   # goal should be defined when use_webapp is false
-                webapp_url: 'https://summon-app-production.up.railway.app/'
+                use_webapp: True   # goal should be defined when use_webapp is false
+                webapp_url: 'https://cs588-prod.up.railway.app/'    # https://summon-app.vercel.app/map for the webapp UI
                 # Goal test points for summoning_roadgraph_sim.json, frame is 'start' or 'cartesian'.
                     # Key points:[0, 0], [0, 30], [37.5, 7.5], [33, 12]，[28.5, 7.5]，[15, 3], [1.5, 7.5], [15, 12], [-3, 12], [-7.5, 7.5]
                     # Points not in the lane:[15, -3], [15, 6], [15, 9], [15, 15]
                 # Goal test points for summoning_roadgraph_highbay.json, frame is 'global'.
                     # Key points: [-88.235317, 40.0927934], [-88.235252, 40.0927527], [-88.235164, 40.0927934], [-88.235211, 40.0928573],
                     # [-88.235527, 40.0927436], [-88.235968, 40.0927432], [-88.236046, 40.0927917], [-88.236008, 40.0928604], [-88.235905, 40.0927917]
-                goal: {'location':[-88.235527, 40.0927436], 'frame':'global'}
+                # goal: {'location':[-88.235527, 40.0927436], 'frame':'global'}
+                goal: {'location':[-88.235317, 40.0928516], 'frame':'global'}
                 # goal: {'location':[32.5, 12], 'frame':'cartesian'}
                 # goal: {'location':[5, -3], 'frame':'cartesian'}
                 # state_machine: [MissionEnum.IDLE, MissionEnum.SUMMONING_DRIVE, MissionEnum.PARALLEL_PARKING]

@@ -11,7 +11,7 @@ map:
 # vehicle info 
 vehicle:
     heading_limit: 0.5235987756  # vehicle heading difference limit per rrt step_size (pi/6 in radians)
-    half_width: 0.8 # vehicle half width in meter
+    half_width: 0.3 # vehicle half width in meter
 # algorithm parameters
 rrt:
     time_limit: 10 # in sec
