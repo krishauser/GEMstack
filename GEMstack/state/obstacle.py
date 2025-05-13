@@ -2,7 +2,9 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from ..utils.serialization import register
 from .physical_object import ObjectFrameEnum,PhysicalObject #,convert_vector
+
 from enum import Enum
+from typing import Tuple
 
 class ObstacleMaterialEnum(Enum):
     UNKNOWN = 0
@@ -31,7 +33,6 @@ class ObstacleStateEnum(Enum):
 class Obstacle(PhysicalObject):
     material : ObstacleMaterialEnum
     collidable : bool
-
 
 @dataclass
 @register
