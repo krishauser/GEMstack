@@ -218,7 +218,7 @@ const PanelMenu = ({
                     }}
                 >
                     <ListItemIcon>
-                        <HorizontalSplitIcon fontSize="small" />
+                        <VerticalSplitIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>Split Horizontally</ListItemText>
                 </MenuItem>
@@ -229,7 +229,7 @@ const PanelMenu = ({
                     }}
                 >
                     <ListItemIcon>
-                        <VerticalSplitIcon fontSize="small" />
+                        <HorizontalSplitIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText>Split Vertically</ListItemText>
                 </MenuItem>
