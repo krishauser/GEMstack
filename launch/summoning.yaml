@@ -12,7 +12,17 @@ recovery:
 drive:
     perception:
         state_estimation : GNSSStateEstimator
-#        agent_detection : cone_detection.ConeDetector3D
+        obstacle_detection :
+            type: cone_detection.ConeDetector3D
+            args:
+                camera_name: front #[front, front_right]
+                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                enable_tracking:  True   # True if you want to enable tracking
+                visualize_2d:     False  # True to see 2D detection visualization
+                use_cyl_roi:      False  # True to use a cylinder ROI
+                save_data:        False  # True to save sensor input data
+                orientation:      True   # True to detect flipped cones
+                use_start_frame:  True   # True to output in START frame
         perception_normalization : StandardPerceptionNormalizer
     planning:
 #        relations_estimation: pedestrian_yield_logic.PedestrianYielder
