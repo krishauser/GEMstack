@@ -35,10 +35,12 @@ class StateMachine:
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, use_webapp, webapp_url, goal, state_machine):
+    def __init__(self, use_webapp, webapp_url, goal=None, state_machine=None):
         self.state_machine = StateMachine([eval(s) for s in state_machine])
-        self.goal_location = goal['location']
-        self.goal_frame = goal['frame']
+        
+        # if use_webapp is True, goal should be None
+        self.goal_location = goal['location'] if not use_webapp else None
+        self.goal_frame = goal['frame'] if not use_webapp else None
         self.new_goal = False
         self.goal_pose = None
         self.start_pose = None
@@ -94,7 +96,7 @@ class SummoningMissionPlanner(Component):
                     goal_location = None
                     goal_frame = None
                 else:
-                    goal_location = [data['lat'] , data['lon']]
+                    goal_location = [data['lon'] , data['lat']]
                     goal_frame = 'global'
                     print("Goal location:", goal_location)
                     print("Goal frame:", goal_frame)
@@ -125,7 +127,12 @@ class SummoningMissionPlanner(Component):
             raise ValueError("Invalid frame argument")
 
         if self.goal_pose:
-            self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+            # self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+
+            # For global map test in simulation only
+            start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), x=-88.235968, y=40.0927432, yaw=1.57079633)
+            self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose_global)
+            print("Goal pose:", self.goal_pose)
 
         # Initiate state
         if mission is None:
@@ -137,14 +144,16 @@ class SummoningMissionPlanner(Component):
             if self.new_goal:
                 mission.goal_pose = self.goal_pose
                 mission.type = self.state_machine.next_state()
+                self.new_goal = False
                 print("============== Next state:", mission.type)
 
         # Reach the end of the route, begin to search for parking
-        elif mission.type == MissionEnum.SUMMONING_DRIVE:
+        # elif mission.type == MissionEnum.SUMMONING_DRIVE:
+        elif mission.type == MissionEnum.SUMMON_DRIVING:
             mission.goal_pose = self.goal_pose
             if route:
                 _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
-                if closest_index == len(route.points) - 1 or check_distance(mission.goal_pose, vehicle.pose) < 1:
+                if closest_index == len(route.points) - 1 or check_distance(mission.goal_pose, vehicle.pose) < 2:
                     mission.type = self.state_machine.next_state()
                     print("============== Next state:", mission.type)
 
@@ -154,6 +163,7 @@ class SummoningMissionPlanner(Component):
                 _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
                 if closest_index == len(route.points) - 1 or check_distance(route.points[-1], vehicle.pose) < 0.1:
                     mission.type = self.state_machine.next_state()
+                    self.new_goal = False
                     self.goal_pose = None
                     mission.goal_pose = self.goal_pose
                     print("============== Next state:", mission.type)
@@ -164,7 +174,7 @@ class SummoningMissionPlanner(Component):
 
         if self.flag_use_webapp:
             data = {
-                "status": mission.planner_type.name
+                "status": mission.type.name
             }
             print("POST:", data)
             response = requests.post(url=self.url_status, json=data)

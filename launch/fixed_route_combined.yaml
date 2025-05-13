@@ -14,6 +14,7 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
+        agent_detection : pedestrian_detection.PedestrianDetector2D
     planning:
         route_planning:
             type: StaticRoutePlanner
@@ -24,7 +25,7 @@ drive:
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
             # args: [null]
-            # args: {desired_speed: 2.5}  #approximately 5mph
+            args: {desired_speed: 2.5}  #approximately 5mph
             print: False
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
@@ -73,18 +74,8 @@ variants:
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
-                    agent_detection : OmniscientAgentDetector
-            visualization: !include "klampt_visualization.yaml"
-            #visualization: !include "mpl_visualization.yaml"
-    gazebo:
-        run:
-            mode: simulation
-            vehicle_interface:
-                type: gem_gazebo.GEMGazeboInterface
-            drive:
-                perception:
-                    state_estimation: GNSSStateEstimator  # Matches your Gazebo GNSS implementation
-            # visualization: !include "mpl_visualization.yaml"
+                    agent_detection : pedestrian_detection.PedestrianDetector2D
+            visualization: [!include "klampt_visualization.yaml", !include "mpl_visualization.yaml"]
     log_ros:
         log:
             ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"

@@ -29,7 +29,7 @@ class VehicleState:
     steering_wheel_angle : float            #angle of the steering wheel, in radians
     front_wheel_angle : float               #angle of the front wheels, in radians.   Related to steering_wheel_angle by a fixed transform
     heading_rate : float                    #the rate at which the vehicle is turning, in radians/s.  Related to v and front_wheel_angle by a fixed transform
-    gear : VehicleGearEnum                  #the current gear
+    gear : int                  #the current gear
     left_turn_indicator : bool = False      #whether left turn indicator is on
     right_turn_indicator : bool = False     #whether right turn indicator is on
     headlights_on : bool = False            #whether headlights are on

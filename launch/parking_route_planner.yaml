@@ -15,9 +15,10 @@ drive:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
     planning:
-        route_planning:
-            type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv'] #forward_15m
+        parking_component:
+            type: ParkingSim
+        route_planning_component:
+            type: RoutePlanningComponent
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
             # type: RouteToTrajectoryPlanner
             # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
@@ -26,6 +27,7 @@ drive:
             # args: [null]
             # args: {desired_speed: 2.5}  #approximately 5mph
             print: False
+        
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 
@@ -74,17 +76,7 @@ variants:
                 perception:
                     state_estimation : OmniscientStateEstimator
                     agent_detection : OmniscientAgentDetector
-            visualization: !include "klampt_visualization.yaml"
-            #visualization: !include "mpl_visualization.yaml"
-    gazebo:
-        run:
-            mode: simulation
-            vehicle_interface:
-                type: gem_gazebo.GEMGazeboInterface
-            drive:
-                perception:
-                    state_estimation: GNSSStateEstimator  # Matches your Gazebo GNSS implementation
-            # visualization: !include "mpl_visualization.yaml"
+            visualization: [!include "klampt_visualization.yaml", !include "mpl_visualization.yaml"]
     log_ros:
         log:
             ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"

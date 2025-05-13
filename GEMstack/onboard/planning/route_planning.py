@@ -6,6 +6,7 @@ import os
 import numpy as np
 from .RRT import BiRRT
 from .reeds_shepp_parking import ReedsSheppParking
+import time
 
 
 class StaticRoutePlanner(Component):
@@ -156,6 +157,8 @@ def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, max_
     goal_lane = find_closest_lane([goal_pose.x, goal_pose.y], roadgraph)
     goal_lane_points = np.array(goal_lane.right.segments[0])
 
+    print("Goal lane>>>>>>>>>>>>>>>>>>>>>", goal_lane)
+
     # Find the parking lots that attached to the lane
     parking_lots = []
     for region in roadgraph.regions.values():
@@ -208,6 +211,8 @@ def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, max_
         parking_area_end = (np.array(closest_end_point) + np.array(
             next_point(closest_end_index, farthest_lot, direction='cw'))) / 2
         parking_area_start_end = [parking_area_start, parking_area_end]
+    
+    print("Parking area>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", parking_area_start_end)
 
     return parking_lots, parking_area_start_end
 
@@ -283,7 +288,12 @@ class SummoningRoutePlanner(Component):
         """ Transform offline map to start frame """
         # if self.roadgraph.frame is not ObjectFrameEnum.START:
         print("=+++++++++++++++++++++++++",state.start_vehicle_pose)
-        self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+        # self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+
+        # For global map test in simulation only
+        start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), x=-88.235968, y=40.0927432, yaw=1.57079633)
+        self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose_global)
+
         # Get all the points of lanes
         if self.map_type == 'roadgraph':
             self.lane_points = get_lane_points_from_roadgraph(self.roadgraph)
@@ -311,7 +321,8 @@ class SummoningRoutePlanner(Component):
                 self.route = None
 
         # Summoning driving mode.
-        elif mission.type == MissionEnum.SUMMONING_DRIVE:
+        # elif mission.type == MissionEnum.SUMMONING_DRIVE:
+        elif mission.type == MissionEnum.SUMMON_DRIVING:
             print("I am in SUMMON_DRIVING mode")
             if self.route is None:
                 # Find appropri ate start and goal points that are on the lanes and fix for searching
@@ -345,22 +356,26 @@ class SummoningRoutePlanner(Component):
 
             if self.parking_velocity_is_zero == False and state.vehicle.v > 0.01:
                 print("Vehicle is moving, stop it first.")
-                return None
+                self.route = Route(frame=ObjectFrameEnum.START, points=[[vehicle.pose.x, vehicle.pose.y],[vehicle.pose.x, vehicle.pose.y]])
 
-            if self.map_type == 'roadgraph':
+            elif self.map_type == 'roadgraph':
                 parking_lots, parking_area_start_end = find_parallel_parking_lots(self.roadgraph, vehicle.pose)
                 self.reedssheppparking.static_horizontal_curb_xy_coordinates = parking_area_start_end
 
                 self.parking_velocity_is_zero = True
 
-                print("Parking lots:", parking_lots)
-                print("Parking area start and end:", parking_area_start_end)
+                # TODO: Test only. Remove it later.
+                # self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(0, -3),(30, -3)]
+                # self.obstacle_list= [(4, -3),(24, -3)]
+                print("Parking area start and end:", self.reedssheppparking.static_horizontal_curb_xy_coordinates)
+                print("Obstacle list:", self.obstacle_list)
 
-                if not self.parking_route_existed:
+                if not self.reedssheppparking.static_horizontal_curb_xy_coordinates:
+                    print("No parking area found, start parking here.")
+                    self.route = None
+
+                elif not self.parking_route_existed:
                     self.current_pose = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw]
-                    print("Current pose:", self.current_pose)
-                    print("Obstacle list:", self.obstacle_list)
-
                     self.reedssheppparking.find_available_parking_spots_and_search_vector(self.obstacle_list,
                                                                                           self.current_pose)
                     self.reedssheppparking.find_collision_free_trajectory_to_park(self.obstacle_list, self.current_pose, True)
@@ -369,7 +384,10 @@ class SummoningRoutePlanner(Component):
                 else:
                     self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
                     self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
-                    print("Route:", self.route)
+                    # print("Route:", self.route)
+            else:
+                print("No map for parking, start parking here.")
+                self.route = None
 
         else:
             print("Unknown mode")
