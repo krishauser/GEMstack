@@ -144,7 +144,7 @@ def create_path_around_inspection(inspection_area, geofence, margin=1.0):
     return full_path
 
 
-def check_point_exists(vehicle, start_pose, server_url="https://summon-app-production.up.railway.app"):
+def check_point_exists(vehicle, start_pose, server_url="https://cs588-prod.up.railway.app"):
     """Querying the frontend to get the inspection area."""
     print("Vehicle pose frame", vehicle.pose.frame)
     try:
