@@ -1,7 +1,8 @@
 from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
-from .perception_utils import *
+# from .perception_utils import *
+from .pedestrian_utils_gem import *
 from typing import Dict
 import rospy
 from message_filters import Subscriber, ApproximateTimeSynchronizer
@@ -14,7 +15,6 @@ from scipy.spatial.transform import Rotation as R
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 
 from .sensorFusion.eval_3d_bbox_performance import calculate_3d_iou
-
 
 def merge_boxes(box1: BoundingBox, box2: BoundingBox) -> BoundingBox:
      # TODO:  merging 
@@ -188,12 +188,10 @@ class CombinedDetector3D(Component):
                 fused_boxes_list.append(pp_box)
                 rospy.logdebug(f"Kept unmatched PP box {j}")
 
-        if self.debug:
-            # Work in progress to visualize combined results
-            fused_array = BoundingBoxArray()
-            fused_array.header = yolo_bbx_array.header
-            fused_array.boxes = fused_boxes_list
-            self.pub_fused.publish(fused_array)
+        # Work in progress to visualize combined results
+        fused_bb_array = BoundingBoxArray()
+        fused_bb_array.header = original_header
+        fused_bb_array.boxes = fused_boxes_list
 
         for i, box in enumerate(fused_boxes_list):
             try:
@@ -225,7 +223,7 @@ class CombinedDetector3D(Component):
 
                 # temp id 
                 # _update_tracking assign persistent IDs
-                temp_agent_id = f"FrameDet_{i}"
+                temp_agent_id = f"pedestrian{i}"
 
                 current_agents_in_frame[temp_agent_id] = AgentState(
                     pose=final_pose, dimensions=dims, outline=None, type=agent_type,
@@ -236,6 +234,7 @@ class CombinedDetector3D(Component):
                 rospy.logwarn(f"Failed to convert final BoundingBox {i} to AgentState: {e}")
                 continue
 
+        self.pub_fused.publish(fused_bb_array)
         return current_agents_in_frame
 
 

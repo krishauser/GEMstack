@@ -79,3 +79,5 @@ $ source ~/catkin_ws/devel/setup.bash
 $ rviz
 2. Publish a static transform from the map to visualize the published bounding box data:
 $ rosrun tf2_ros static_transform_publisher 0 0 0 0 0 0 map currentVehicleFrame
+3. In Rviz, click "add" in the bottom left corner. In "By display type", under "jsk_rviz_plugins" select BoundingBoxArray.
+4. Expand BoundingBoxArray on the left. Under it you will see "Topic" with a blank space to the right of it. Click the blank space (it's a hidden drop down box) and select the BoundingBoxArray topic to visualize

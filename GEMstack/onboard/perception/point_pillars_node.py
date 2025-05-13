@@ -229,7 +229,7 @@ class PointPillarsNode():
                     box.pose.position.z = float(z_vehicle)
                     
                     # Convert yaw to quaternion
-                    quat = R.from_euler('z', yaw).as_quat()
+                    quat = R.from_euler('z', vehicle_yaw).as_quat()
                     box.pose.orientation.x = float(quat[0])
                     box.pose.orientation.y = float(quat[1])
                     box.pose.orientation.z = float(quat[2])
