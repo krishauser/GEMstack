@@ -364,7 +364,7 @@ class ParkingPlanner():
                 return False
         
         # Then check if vehicle is contained within parking spot
-        if not collisions.polygon_contains_polygon_2d(ordered_vertices, vehicle_polygon):
+        if not collisions.polygon_contains_polygon_2d(cone_vertices, vehicle_polygon):
             print("Vehicle is not contained within parking spot")
             return False
             
@@ -375,42 +375,40 @@ class ParkingPlanner():
         
         Args:
             final_state (List[float]): Final state from trajectory (x, y, theta, t)
-            goal_pose (ObjectPose): Goal parking pose
             obstacles (Dict[str, Obstacle]): Dictionary of obstacles including parking cones
             
         Returns:
             bool: True if final position is within parking spot, False otherwise
         """
         # Get final position from trajectory
-        x, y, theta, t= final_state
+        x, y, theta, t = final_state
         
         final_pos_point = [x, y]
         
         # Get parking spot polygon from cones
         parking_spot_vertices = []
-        cone_objects = []
         for obstacle in obstacles.values():
-            if isinstance(obstacle, AgentState):
-                # Get cone position
+            if obstacle.material == ObstacleMaterialEnum.TRAFFIC_CONE:
+                # Get cone position and dimensions
                 x, y = obstacle.pose.x, obstacle.pose.y
-                parking_spot_vertices.append((x, y))
+                w, h = obstacle.dimensions[0], obstacle.dimensions[1]
                 
-                # Create cone object for collision checking
-                cone_pose = ObjectPose(
-                    frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN,
-                    t=0.0,
-                    x=x,
-                    y=y,
-                    z=0.0,
-                    yaw=0.0
-                )
-                cone_object = PhysicalObject(
-                    pose=cone_pose,
-                    dimensions=[0.1, 0.1, 1.0],  # Small dimensions for cone
-                    outline=[(-0.05, -0.05), (0.05, -0.05), (0.05, 0.05), (-0.05, 0.05)]
-                )
-                cone_objects.append(cone_object)
+                # Create a rectangle for the cone's base
+                half_w = w / 2
+                half_h = h / 2
+                cone_vertices = [
+                    (x - half_w, y - half_h),  # bottom-left
+                    (x + half_w, y - half_h),  # bottom-right
+                    (x + half_w, y + half_h),  # top-right
+                    (x - half_w, y + half_h)   # top-left
+                ]
+                parking_spot_vertices.append((x, y))
         
+        # Need exactly 4 cones to form a parking spot
+        if len(parking_spot_vertices) != 4:
+            print("Warning: Not exactly 4 cones found for parking spot")
+            return False
+            
         # Order the vertices to form a proper polygon
         # Sort by x coordinate first, then by y coordinate
         parking_spot_vertices.sort(key=lambda p: (p[0], p[1]))
@@ -425,10 +423,9 @@ class ParkingPlanner():
             parking_spot_vertices[1],  # bottom-right
         ]
         
-        
-        # Then check if vehicle is contained within parking spot
-        if collisions.point_in_polygon_2d(final_pos_point, ordered_vertices):
-            print("Vehicle is not contained within parking spot")
+        # Check if final position is within parking spot
+        if collisions.point_in_polygon_2d(final_pos_point, cone_vertices):
+            print("Final position is within parking spot")
             return True
             
         return False
@@ -546,7 +543,7 @@ class ParkingPlanner():
             orientation_error = math.degrees(abs(normalize_yaw(final_theta - goal_pose.yaw)))
             
             self.parking_success = self.is_successfully_parked(final_state, goal_pose, obstacles)
-            self.final_pos_inside = self.is_final_pose_inside(final_state, agents)
+            self.final_pos_inside = self.is_final_pose_inside(final_state, obstacles)
             if self.parking_success:
                 print("Final position is within parking spot!")
             else:
