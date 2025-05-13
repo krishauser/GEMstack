@@ -278,8 +278,8 @@ class MPCController(object):
                 component.debug("mpc/state_x", state.pose.x)
                 component.debug("mpc/state_y", state.pose.y)
                 component.debug("mpc/state_yaw", state.pose.yaw)
-                component.debug("mpc/target_x", traj_points[1][0])
-                component.debug("mpc/target_y", traj_points[1][1])
+                component.debug("mpc/target_x", self.path.points[self.current_path_parameter][0])
+                component.debug("mpc/target_y", self.path.points[self.current_path_parameter][1])
                 component.debug("mpc/target_theta", target_angles[0])
             # xy_array = [f"np.array([{round(self.prev_x[t,0],8)}, {round(self.prev_x[t,1],8)}])" for t in range(self.prev_x.shape[0])]
             # print("mpc = [", ", ".join(xy_array), "]")
