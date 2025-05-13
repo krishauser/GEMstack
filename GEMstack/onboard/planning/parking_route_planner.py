@@ -297,7 +297,7 @@ class ParkingPlanner():
         all_obstacles = {**agents, **obstacles}
         goal_pose = state.parking_goal
         assert goal_pose.frame == ObjectFrameEnum.CURRENT
-
+        print("Routing to goal", goal_pose)
         start_state = state.vehicle.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
 
 
