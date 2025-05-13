@@ -468,14 +468,14 @@ class ParkingPlanner():
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         status = "successful" if success else "unsuccessful"
-        final_pos_status = "Final Pos Inside" if final_pos_inside else "Final Pos Not Inside"
+        final_pos_status = self.distance_function + " Final Pos Inside" if final_pos_inside else "Final Pos Not Inside"
         message = f"{timestamp} Parking {status} {final_pos_status}"
         if planning_time is not None:
-            message += self.distance_function + f" (Planning time: {planning_time:.2f} seconds)"
+            message +=  f" (Planning time: {planning_time:.2f} seconds)"
         if position_error is not None:
-            message += self.distance_function + f" (Position error: {position_error:.3f} m)"
+            message +=  f" (Position error: {position_error:.3f} m)"
         if orientation_error is not None:
-            message += self.distance_function + f" (Orientation error: {orientation_error:.1f} degrees)"
+            message +=  f" (Orientation error: {orientation_error:.1f} degrees)"
         message += "\n"
         
         try:
