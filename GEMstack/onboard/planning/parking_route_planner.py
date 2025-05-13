@@ -470,11 +470,11 @@ class ParkingPlanner():
         final_pos_status = "Final Pos Inside" if final_pos_inside else "Final Pos Not Inside"
         message = f"{timestamp} Parking {status} {final_pos_status}"
         if planning_time is not None:
-            message += f" (Planning time: {planning_time:.2f} seconds)"
+            message += self.heuristic_string + f" (Planning time: {planning_time:.2f} seconds)"
         if position_error is not None:
-            message += f" (Position error: {position_error:.3f} m)"
+            message += self.heuristic_string + f" (Position error: {position_error:.3f} m)"
         if orientation_error is not None:
-            message += f" (Orientation error: {orientation_error:.1f} degrees)"
+            message += self.heuristic_string + f" (Orientation error: {orientation_error:.1f} degrees)"
         message += "\n"
         
         try:
