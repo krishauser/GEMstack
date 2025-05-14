@@ -178,3 +178,7 @@ cuda/
 *.png
 *.npz
 /4.21
+/4.30
+/5.9
+/parking_data
+/perception_4.9
