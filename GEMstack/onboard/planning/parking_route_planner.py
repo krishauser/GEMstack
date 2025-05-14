@@ -305,6 +305,8 @@ class ParkingPlanner():
         # Get parking spot polygon from cones
         parking_spot_vertices = []
         cone_objects = []
+        all_cone_vertices = []
+        
         for obstacle in obstacles.values():
             if obstacle.material == ObstacleMaterialEnum.TRAFFIC_CONE:
                 # Get cone position and dimensions
@@ -321,6 +323,7 @@ class ParkingPlanner():
                     (x - half_w, y + half_h)   # top-left
                 ]
                 parking_spot_vertices.append((x, y))
+                all_cone_vertices.extend(cone_vertices)
                 
                 # Create cone object for collision checking
                 cone_pose = ObjectPose(
@@ -338,30 +341,6 @@ class ParkingPlanner():
                 )
                 cone_objects.append(cone_object)
         
-        # Need exactly 4 cones to form a parking spot
-        # if len(parking_spot_vertices) != 4:
-        #     print("Warning: Not exactly 4 cones found for parking spot")
-        #     try:
-        #         with open(self.success_file, 'a') as f:
-        #             f.write("No Four Cones")
-        #     except Exception as e:
-        #         print(f"Error saving parking status: {e}")
-        #     return False
-            
-        # Order the vertices to form a proper polygon
-        # Sort by x coordinate first, then by y coordinate
-        parking_spot_vertices.sort(key=lambda p: (p[0], p[1]))
-        
-        # Create a polygon from the parking spot vertices
-        # The vertices should be ordered in a way that forms a proper rectangle
-        # [bottom-left, top-left, top-right, bottom-right]
-        # ordered_vertices = [
-        #     parking_spot_vertices[0],  # bottom-left
-        #     parking_spot_vertices[2],  # top-left
-        #     parking_spot_vertices[3],  # top-right
-        #     parking_spot_vertices[1],  # bottom-right
-        # ]
-        
         # First check if vehicle collides with any cone
         for cone_object in cone_objects:
             if collisions.polygon_intersects_polygon_2d(vehicle_polygon, cone_object.polygon_parent()):
@@ -374,10 +353,10 @@ class ParkingPlanner():
                 return False
         
         # Then check if vehicle is contained within parking spot
-        if not collisions.polygon_contains_polygon_2d(cone_vertices, vehicle_polygon):
+        if not collisions.polygon_contains_polygon_2d(all_cone_vertices, vehicle_polygon):
             try:
                 with open(self.success_file, 'a') as f:
-                    f.write(f"\nOrdered Vertices{cone_vertices}")
+                    f.write(f"\nCone Vertices{all_cone_vertices}")
                     f.write(f"\nVehicle_Polygon{vehicle_polygon}")
                     f.write("\nNot Contained with parking spot")
             except Exception as e:
@@ -404,6 +383,8 @@ class ParkingPlanner():
         
         # Get parking spot polygon from cones
         parking_spot_vertices = []
+        all_cone_vertices = []
+        
         for obstacle in obstacles.values():
             if obstacle.material == ObstacleMaterialEnum.TRAFFIC_CONE:
                 # Get cone position and dimensions
@@ -420,28 +401,10 @@ class ParkingPlanner():
                     (x - half_w, y + half_h)   # top-left
                 ]
                 parking_spot_vertices.append((x, y))
-        
-        # Need exactly 4 cones to form a parking spot
-        # if len(parking_spot_vertices) != 4:
-        #     print("Warning: Not exactly 4 cones found for parking spot")
-        #     return False
-            
-        # Order the vertices to form a proper polygon
-        # Sort by x coordinate first, then by y coordinate
-        parking_spot_vertices.sort(key=lambda p: (p[0], p[1]))
-        
-        # Create a polygon from the parking spot vertices
-        # The vertices should be ordered in a way that forms a proper rectangle
-        # [bottom-left, top-left, top-right, bottom-right]
-        # ordered_vertices = [
-        #     parking_spot_vertices[0],  # bottom-left
-        #     parking_spot_vertices[2],  # top-left
-        #     parking_spot_vertices[3],  # top-right
-        #     parking_spot_vertices[1],  # bottom-right
-        # ]
+                all_cone_vertices.extend(cone_vertices)
         
         # Check if final position is within parking spot
-        if collisions.point_in_polygon_2d(final_pos_point, cone_vertices):
+        if collisions.point_in_polygon_2d(final_pos_point, all_cone_vertices):
             print("Final position is within parking spot")
             return True
             
