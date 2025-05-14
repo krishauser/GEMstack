@@ -507,3 +507,93 @@ def box_to_fake_obstacle(box):
 
 if __name__ == '__main__':
     pass
+
+
+class FakConeDetector(Component):
+    def __init__(self, vehicle_interface: GEMInterface):
+        self.vehicle_interface = vehicle_interface
+        self.times = [(5.0, 20.0), (30.0, 35.0)]
+        self.t_start = None
+
+    def rate(self):
+        return 4.0
+
+    def state_inputs(self):
+        return ['vehicle']
+
+    def state_outputs(self):
+        return ['obstacles']
+
+    def update(self, vehicle: VehicleState) -> Dict[str, Obstacle]:
+        if self.t_start is None:
+            self.t_start = self.vehicle_interface.time()
+        t = self.vehicle_interface.time() - self.t_start
+        res = {}
+        for time_range in self.times:
+            if t >= time_range[0] and t <= time_range[1]:
+                res['cone0'] = box_to_fake_obstacle((0, 0, 0, 0))
+                rospy.loginfo("Detected a Cone (simulated)")
+        return res
+
+
+def box_to_fake_obstacle(box):
+    x, y, w, h = box
+    pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
+    dims = (w, h, 0)
+    return Obstacle(pose=pose, dimensions=dims, outline=None,
+                         type=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING,
+                         velocity=(0, 0, 0), yaw_rate=0)
+
+
+if __name__ == '__main__':
+    pass
+
+import threading
+import copy
+class OmniscientObstacleDetector(Component):
+    """Obtains agent detections from a simulator"""
+    def __init__(self,vehicle_interface : GEMInterface):
+        self.vehicle_interface = vehicle_interface
+        self.obstacles = {}
+        self.lock = threading.Lock()
+
+    def rate(self):
+        return 15.0
+    
+    def state_inputs(self):
+        return []
+    
+    def state_outputs(self):
+        return ['obstacles']
+
+    def initialize(self):
+        self.vehicle_interface.subscribe_sensor('cone_detector',self.cone_callback, Obstacle)
+    
+    def cone_callback(self, name : str, obstacle : Obstacle):
+        with self.lock:
+            self.obstacles[name] = obstacle
+
+    def update(self) -> Dict[str,Obstacle]:
+        with self.lock:
+            return copy.deepcopy(self.obstacles)
+
+
+class GazeboConeDetector(OmniscientObstacleDetector):
+    """Obtains agent detections from the Gazebo simulator using model_states topic"""
+    def __init__(self, vehicle_interface : GEMInterface, tracked_model_prefixes=None):
+        super().__init__(vehicle_interface)
+        
+        # If specific model prefixes are provided, configure the interface to track them
+        if tracked_model_prefixes is not None:
+            # Check if our interface has the tracked_model_prefixes attribute (is a GazeboInterface)
+            if hasattr(vehicle_interface, 'tracked_model_prefixes'):
+                vehicle_interface.tracked_model_prefixes = tracked_model_prefixes
+                print(f"Configured GazeboConeDetector to track models with prefixes: {tracked_model_prefixes}")
+            else:
+                print("Warning: vehicle_interface doesn't support tracked_model_prefixes configuration")
+                
+    def initialize(self):
+        # Use the same agent_detector sensor as OmniscientAgentDetector
+        # The GazeboInterface implements this with model_states subscription
+        super().initialize()
+        print("GazeboConeDetector initialized and subscribed to model_states")
