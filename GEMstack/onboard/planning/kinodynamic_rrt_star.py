@@ -90,7 +90,6 @@ class OptimizedKinodynamicRRT:
         self.recorded_samples_local_viz = [] # For samples from _sample_position_randomly
         self.recorded_centers = []
 
-
     def _inverse_angle(self, theta):
         angle = normalize_angle(theta)
         if angle < 0:

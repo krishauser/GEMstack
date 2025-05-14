@@ -47,8 +47,14 @@ drive:
         #     type: StaticRoutePlanner
         #     args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] # Fixed path
         
+        motion_planning: trajectory_planning_component.LongitudinalPlanner
+        largs:
+            acceleration: 5.0
+            desired_speed: 2.0
+            deceleration: 2.0
+            emergency_brake: 8.0
         # motion_planning: longitudinal_planning.YieldTrajectoryPlanner
-        motion_planning: yield_spline_planner.SplinePlanner
+        # motion_planning: yield_spline_planner.SplinePlanner
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 
@@ -112,7 +118,7 @@ variants:
                         args:
                             tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
 
-                    bstacle_detection:
+                    obstacle_detection:
                         type: obstacle_detection.GazeboObstacleDetector
                         args:
                             tracked_obstacle_prefixes: ['cone']
@@ -130,19 +136,25 @@ variants:
                     #         use_start_frame:  True   # True to output in START frame
 
                 planning:
-                    # Adding your custom relation estimation
                     relations_estimation: pedestrian_yield_logic.PedestrianYielder
-                    # Fixed route with pure pursuit
+                        args:
+                            vehicle_name: 'e4' #'e2'
+
                     planning_component_example:
                         type: PlanningComponentExample
+                        
                     route_planning_component:
                         type: RoutePlanningComponentExample
-                    # route_planning:
-                    #     type: StaticRoutePlanner
-                    #     args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] # Fixed path
-                    
-                    motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+  
+                    motion_planning: trajectory_planning_component.LongitudinalPlanner
+                    largs:
+                        acceleration: 5.0
+                        desired_speed: 2.0
+                        deceleration: 2.0
+                        emergency_brake: 8.0
+                    # motion_planning: longitudinal_planning.YieldTrajectoryPlanner
                     # motion_planning: yield_spline_planner.SplinePlanner
+
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         args: {desired_speed: 'path'}  #approximately 5mph

@@ -4,9 +4,9 @@ import time
 import matplotlib
 
 from .collision import build_collision_lookup
-from .map_utils import load_pgm_to_occupancy_grid
-from .visualization import visualize_path, animate_path
 from .kinodynamic_rrt_star import OptimizedKinodynamicRRT
+
+DEBUG = False
 
 def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, safety_margin=10, 
                                        vehicle_width=20, vehicle_length=45.0, step_size=1.0, max_iterations=100000):
@@ -30,8 +30,9 @@ def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, 
     # === STEP 1: Convert world coordinates to grid coordinates ===
     start_grid = start_world
     goal_grid = goal_world
-    print(f"Start grid: {start_grid}")
-    print(f"Goal grid: {goal_grid}")
+    if DEBUG:
+        print(f"Start grid: {start_grid}")
+        print(f"Goal grid: {goal_grid}")
     
     # === STEP 2: Build collision lookup ===
     t_lookup = time.time()
@@ -45,13 +46,9 @@ def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, 
     plt.title("Collision Lookup Table")
     plt.xlabel("Grid X")
     plt.ylabel("Grid Y")
-    # plt.colorbar(label="Collision Status")
-    # plt.show()
     plt.savefig("collision_lookup.png")
-    print(f"Built collision lookup in {time.time() - t_lookup:.2f}s")
-    
-    # === STEP 3: Run Optimized Kinodynamic RRT ===
-    t_rrt_start = time.time()
+    if DEBUG:
+        print(f"Built collision lookup in {time.time() - t_lookup:.2f}s")
     
     # Initialize planner with optimized parameters
     planner = OptimizedKinodynamicRRT(
@@ -62,84 +59,21 @@ def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, 
         max_iterations=max_iterations,
         local_sampling_step_size=step_size,
         vehicle_width=vehicle_width,
-        vehicle_length=vehicle_length
-        # bidirectional=bidirectional
+        vehicle_length=vehicle_length,
     )
 
-    ## Testing Summoning RRT implementation
-    # planner = BiRRT(start_grid, goal_grid, 1-occupancy_grid, [0,4384,0,4667])
-    # grid_path = planner.search()
     t_rrt = time.time()
     grid_path = planner.plan(visualize_planning_output=True)
-    # anim = planner.animate_sampling()   
     t_rrt_final = time.time() - t_rrt
-    print(f"RRT planning completed in {t_rrt_final:.2f}s")
+    if DEBUG:
+        print(f"RRT planning completed in {t_rrt_final:.2f}s")
     
     if grid_path is None:
         print("Failed to find path")
         return None
     
-    # print(f"Conversion completed in {time.time() - t_convert:.2f}s")
-    print(f"Final path has {len(grid_path)} points")
-    print(f"Total planning time: {time.time() - t_start:.2f}s")
+    if DEBUG:
+        print(f"Final path has {len(grid_path)} points")
+        print(f"Total planning time: {time.time() - t_start:.2f}s")
     
     return grid_path
-
-# Used for local testing
-def main():
-    """Main function for running the planner."""
-    parser = argparse.ArgumentParser(description="Optimized Kinodynamic RRT planner")
-    parser.add_argument("--vis", default=True, action="store_true", help="show visualizations for tests or planning result")
-    parser.add_argument("--animate", "-a", action="store_true", help="animate planned path")
-    parser.add_argument("--max-iter", type=int, default=10000, help="maximum RRT iterations")
-    parser.add_argument("--pad", type=int, default=100, help="crop padding (cells)")
-    parser.add_argument("--safety", type=int, default=2, help="safety margin (cells)")
-    parser.add_argument("--map-pgm", type=str, default="occupancy_grid_after_>0.pgm", help="path to PGM map file")
-    parser.add_argument("--step-size", type=float, default=100.0, help="step size for path sampling")
-    parser.add_argument("--vehicle-width", type=float, default=20, help="vehicle width in meters")
-    parser.add_argument("--vehicle-length", type=float, default=45, help="vehicle length in meters")
-    
-    if "--vis" not in os.sys.argv and "--animate" not in os.sys.argv and "-a" not in os.sys.argv:
-        matplotlib.use("Agg")
-    
-    args = parser.parse_args()
-    
-    if not (os.path.exists(args.map_pgm)):
-        print(f"Map files not found: {args.map_pgm}")
-        print("Use --test for CI runs or provide map files with --map-pgm")
-        return
-    
-    occupancy_grid = load_pgm_to_occupancy_grid(args.map_pgm)
-    
-    # start_w = (-200.0, -137.0, 0 * math.pi / 2)
-    # goal_w = (-100.0, -137.0, 3*math.pi/2)
-    start_w = (1200, 1025, 5.977692900114106)
-    goal_w = (420, 1071, 4.713123114093702)
-    # start_w = (-200.0, -137.0, 0 * math.pi / 2)
-    # goal_w = (-200.0, -110.0, 2*math.pi/2)
-
-    # start_w = (15.0, 2.0, 0*math.pi/2)
-    # goal_w = (15.0, 11.0, 2*math.pi/2)
-    # goal_w = (.0, 5.0, 1*math.pi/2)
-
-    visualize_path(occupancy_grid, [], start_w, goal_w)
-    
-    path = optimized_kinodynamic_rrt_planning(
-        start_w, goal_w, occupancy_grid,
-        safety_margin=args.safety,
-        vehicle_width=args.vehicle_width,
-        step_size=args.step_size,
-        max_iterations=args.max_iter,
-    )
-    
-    if path:
-        print(f"Planned path with {len(path)} poses")
-        if args.vis:
-            visualize_path(occupancy_grid, path, start_w, goal_w)
-        if args.animate:
-            animate_path(occupancy_grid, path, pad_cells=args.pad)
-    else:
-        print("Failed to find path")
-
-if __name__ == "__main__":
-    main()

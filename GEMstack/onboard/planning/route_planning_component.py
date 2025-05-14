@@ -26,6 +26,187 @@ from .occupancy_grid import OccupancyGrid
 import cv2
 
 
+######################################################################
+#################### PLANNING HORIZONTAL #############################
+######################################################################
+class RoutePlanningComponentExample(Component):
+    """Reads a route from disk and returns it as the desired route."""
+    def __init__(self):
+        print("Route Planning Component init")
+        self.planner = None
+        self.route = None
+        self.bridge = CvBridge()
+        self.occupancy_grid = OccupancyGrid()
+        self.img_pub = rospy.Publisher("/occupancy_grid", Image, queue_size=1)
+        self.previous_obstacles = None
+        self.frame = None
+
+    def state_inputs(self):
+        return ["vehicle", "mission_plan", "obstacles"]
+
+    def state_outputs(self) -> List[str]:
+        return ['route']
+
+    def rate(self):
+        return 10.0
+    
+
+    def update(self, vehicle: VehicleState, mission_plan: MissionPlan, obstacles: Obstacle) -> Route:
+
+        if self.frame is None:
+            if mission_plan.mode == ModeEnum.HARDWARE:
+                self.frame = ObjectFrameEnum.GLOBAL
+            else: #simulation
+                self.frame = ObjectFrameEnum.ABSOLUTE_CARTESIAN
+
+        if self.previous_obstacles is None:
+            self.previous_obstacles = len(obstacles)
+
+        # Convert vehicle pose to global frame
+        vehicle_global_pos = vehicle.pose.to_frame(self.frame, start_pose_abs=mission_plan.start_vehicle_pose)
+
+        # Convert vehicle pose to image coordinates
+        self.occupancy_grid.gnss_to_image(vehicle_global_pos.x, vehicle_global_pos.y)
+
+        obstacles_global_poses = []
+        if DEBUG:
+            print("Number of Detected Obstacles: ", len(obstacles))
+        for n, o in obstacles.items():
+            if o.type == ObstacleMaterialEnum.TRAFFIC_CONE:
+                obstacle_global_pose = o.pose.to_frame(self.frame, start_pose_abs=mission_plan.start_vehicle_pose)
+                obstacles_global_poses.append((obstacle_global_pose.y, obstacle_global_pose.x))
+            
+
+        rects = self.occupancy_grid.draw_obstacle_cones(obstacles_global_poses)
+
+        if DEBUG:
+            print("Route Planner's mission:", mission_plan.planner_type.value)
+            print("type of mission plan:", type(PlannerEnum.RRT_STAR))
+            print("Vehicle x:", vehicle.pose.x)
+            print("Vehicle y:", vehicle.pose.y)
+            print("Vehicle yaw:", vehicle.pose.yaw)
+
+        if mission_plan.planner_type.value == PlannerEnum.PARKING.value:
+            if DEBUG:
+                print("Route Planning in PARKING mode")
+            base_path = os.path.dirname(__file__)
+            file_path = os.path.join(base_path, "../../knowledge/routes/forward_15m_extra.csv")
+            waypoints = np.loadtxt(file_path, delimiter=',', dtype=float)
+            if waypoints.shape[1] == 3:
+                    waypoints = waypoints[:,:2]
+            self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
+        elif mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value:
+            if DEBUG:
+                print("Route Planning in RRT mode")
+
+            ## Step 1: Convert vehicle pose to global frame
+            vehicle_global_pose = vehicle.pose.to_frame(
+                self.frame, start_pose_abs=mission_plan.start_vehicle_pose
+            )
+
+            # Plot motion image
+            self.occupancy_grid.gnss_to_image_with_heading(
+                vehicle_global_pose.x, vehicle_global_pose.y, vehicle_global_pose.yaw
+            )  
+            ## Step 2: Get start image coordinates aka position of vehicle in image
+            start_x, start_y = self.occupancy_grid.gnss_to_image_coords(
+                vehicle_global_pose.x, vehicle_global_pose.y
+            ) 
+
+            start_yaw = vehicle.pose.yaw + math.pi
+            if DEBUG:
+                print("Start image coordinates", start_x, start_y, "yaw", start_yaw)
+
+            ## Step 3. Convert goal to global frame
+            goal_global_pose = mission_plan.goal_vehicle_pose.to_frame(
+                self.frame, start_pose_abs=mission_plan.start_vehicle_pose
+            )
+            
+            goal_x, goal_y = self.occupancy_grid.gnss_to_image_coords(
+                goal_global_pose.x, goal_global_pose.y
+            )  
+
+            goal_yaw = start_yaw
+            if DEBUG:
+                print("Goal image coordinates", goal_x, goal_y, "yaw", goal_yaw)
+
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            map_path = os.path.join(script_dir, "highbay_image.pgm")
+            map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
+
+            for i, (rect_pt1_x, rect_pt1_y, rect_pt2_x, rect_pt2_y) in enumerate(rects):
+                if rect_pt1_x < rect_pt2_x and rect_pt1_y < rect_pt2_y:
+                    # It's a rectangle with areaf
+                    cv2.rectangle(map_img, (rect_pt1_x, rect_pt1_y), (rect_pt2_x, rect_pt2_y), (255, 255, 255), 6)  # White
+                    if DEBUG:
+                        print(f"[DEBUG-ME] Drew WHITE rectangle for cluster {i}")
+                elif rect_pt1_x == rect_pt2_x and rect_pt1_y < rect_pt2_y:
+                    # It's a vertical line
+                    cv2.line(map_img, (rect_pt1_x, rect_pt1_y), (rect_pt2_x, rect_pt2_y), (255, 255, 255), 6) # White line
+                    if DEBUG:
+                        print(f"[DEBUG-ME] Drew WHITE vertical line for cluster {i}")
+                elif rect_pt1_y == rect_pt2_y and rect_pt1_x < rect_pt2_x:
+                    # It's a horizontal line
+                    cv2.line(map_img, (rect_pt1_x, rect_pt1_y), (rect_pt2_x, rect_pt2_y), (255, 255, 255), 6) # White line
+                    if DEBUG:
+                        print(f"[DEBUG-ME] Drew WHITE horizontal line for cluster {i}")
+                else:
+                    if DEBUG:
+                        print(f"[DEBUG-ME] Cluster {i} BBox has zero/negative area and is not a simple line. rect_pt1_x={rect_pt1_x}, rect_pt2_x={rect_pt2_x}, rect_pt1_y={rect_pt1_y}, rect_pt2_y={rect_pt2_y}")
+
+            cv2.imwrite("highbay_image_with_cones.pgm", map_img)
+            occupancy_grid = (map_img > 0).astype(
+                np.uint8
+            ) 
+            cv2.imwrite("occupancy_grid_after_>0.pgm", occupancy_grid * 255)
+            self.t_last = None
+            self.bounds = (0, occupancy_grid.shape[1])
+            start_w = [start_x, start_y, start_yaw]
+            goal_w = [goal_x, goal_y, goal_yaw]
+
+            if self.route == None or len(obstacles) != self.previous_obstacles:
+                    
+                self.previous_obstacles = len(obstacles)
+                path = optimized_kinodynamic_rrt_planning(start_w, goal_w, occupancy_grid)
+                waypoints = []
+                for i in range(len(path)):
+                    x, y, theta = path[i]
+                waypoints = []
+                for i in range(0, len(path), 10):
+                    x, y, theta = path[i]
+                    # Converts pixel to global frame.
+                    waypoint_lat, waypoint_lon = self.occupancy_grid.image_to_gnss(x, y)  
+
+                    # Convert global to start frame
+                    waypoint_global_pose = ObjectPose(
+                        frame=self.frame,
+                        t=mission_plan.start_vehicle_pose.t,
+                        x=waypoint_lon,
+                        y=waypoint_lat,
+                        yaw=theta,
+                    )
+                    waypoint_start_pose = waypoint_global_pose.to_frame(
+                        ObjectFrameEnum.START, start_pose_abs=mission_plan.start_vehicle_pose
+                    )
+                    waypoints.append((waypoint_start_pose.y, waypoint_start_pose.x))
+                
+                self.route = Route(
+                    frame=ObjectFrameEnum.START, points=waypoints)
+                if DEBUG:
+                    print("Route points in start frame: ", waypoints)
+            return self.route
+
+        else:
+            print("Unknown mode")
+        
+        return self.route
+
+
+
+######################################################################
+#################### INSPECTION VERTICAL #############################
+######################################################################
+
 # Constants for planning
 ORIGIN_PX = (190, 80)
 SCALE_PX_PER_M = 6.5
@@ -174,43 +355,6 @@ def check_point_exists(vehicle, start_pose, server_url="https://cs588-prod.up.ra
         return False, []
 
 
-
-class RoutePlanningComponent(Component):
-    """Reads a route from disk and returns it as the desired route."""
-    def __init__(self):
-        print("Route Planning Component init")
-        self.planner = None
-        self.route = None
-        
-    def state_inputs(self):
-        return ["all"]
-
-    def state_outputs(self) -> List[str]:
-        return ['route']
-
-    def rate(self):
-        return 10.0
-
-    def update(self, state: AllState):
-        # print("Route Planner's mission:", state.mission_plan.planner_type.value)
-        # print("type of mission plan:", type(PlannerEnum.RRT_STAR))
-        # print("Route Planner's mission:", state.mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value)
-        # print("Route Planner's mission:", state.mission_plan.planner_type.value == PlannerEnum.PARKING.value)
-        # print("Mission plan:", state.mission_plan)
-        # print("Vehicle x:", state.vehicle.pose.x)
-        # print("Vehicle y:", state.vehicle.pose.y)
-        # print("Vehicle yaw:", state.vehicle.pose.yaw)
-        if state.mission_plan.type.name == "PARKING":
-            print("I am in PARKING mode")
-            # Return a route after doing some processing based on mission plan REMOVE ONCE OTHER PLANNERS ARE IMPLEMENTED
-           
-        elif state.mission_plan.type.name == "SCANNING":
-            print("I am in SCANNING mode")
-        else:
-            print("Unknown mode")
-        
-        return self.route
-      
 
 class InspectRoutePlanner(Component):
     """Inspection route planner that controls the state transition logic for the vertical behavior of the vehicle
@@ -513,177 +657,3 @@ class InspectRoutePlanner(Component):
         print("-------------------------------------------------")
         return [self.route, state.mission]
     
-
-
-class RoutePlanningComponentExample(Component):
-    """Reads a route from disk and returns it as the desired route."""
-    def __init__(self):
-        print("Route Planning Component init")
-        self.planner = None
-        self.route = None
-        self.bridge = CvBridge()
-        self.occupancy_grid = OccupancyGrid()
-        self.img_pub = rospy.Publisher("/occupancy_grid", Image, queue_size=1)
-        self.previous_obstacles = None
-        self.frame = None
-
-    def state_inputs(self):
-        return ["vehicle", "mission_plan", "obstacles"]
-
-    def state_outputs(self) -> List[str]:
-        return ['route']
-
-    def rate(self):
-        return 10.0
-    
-
-    def update(self, vehicle: VehicleState, mission_plan: MissionPlan, obstacles: Obstacle) -> Route:
-
-        if self.frame is None:
-            if mission_plan.mode == ModeEnum.HARDWARE:
-                self.frame = ObjectFrameEnum.GLOBAL
-            else: #simulation
-                self.frame = ObjectFrameEnum.ABSOLUTE_CARTESIAN
-
-        if self.previous_obstacles is None:
-            self.previous_obstacles = len(obstacles)
-
-        # Convert vehicle pose to global frame
-        vehicle_global_pos = vehicle.pose.to_frame(self.frame, start_pose_abs=mission_plan.start_vehicle_pose)
-
-        # Convert vehicle pose to image coordinates
-        self.occupancy_grid.gnss_to_image(vehicle_global_pos.x, vehicle_global_pos.y)
-
-        obstacles_global_poses = []
-        if DEBUG:
-            print("Number of Detected Obstacles: ", len(obstacles))
-        for n, o in obstacles.items():
-            if o.type == ObstacleMaterialEnum.TRAFFIC_CONE:
-                obstacle_global_pose = o.pose.to_frame(self.frame, start_pose_abs=mission_plan.start_vehicle_pose)
-                obstacles_global_poses.append((obstacle_global_pose.y, obstacle_global_pose.x))
-            
-
-        rects = self.occupancy_grid.draw_obstacle_cones(obstacles_global_poses)
-
-        if DEBUG:
-            print("Route Planner's mission:", mission_plan.planner_type.value)
-            print("type of mission plan:", type(PlannerEnum.RRT_STAR))
-            print("Vehicle x:", vehicle.pose.x)
-            print("Vehicle y:", vehicle.pose.y)
-            print("Vehicle yaw:", vehicle.pose.yaw)
-
-        if mission_plan.planner_type.value == PlannerEnum.PARKING.value:
-            if DEBUG:
-                print("Route Planning in PARKING mode")
-            base_path = os.path.dirname(__file__)
-            file_path = os.path.join(base_path, "../../knowledge/routes/forward_15m_extra.csv")
-            waypoints = np.loadtxt(file_path, delimiter=',', dtype=float)
-            if waypoints.shape[1] == 3:
-                    waypoints = waypoints[:,:2]
-            self.route = Route(frame=ObjectFrameEnum.START,points=waypoints.tolist())
-        elif mission_plan.planner_type.value == PlannerEnum.RRT_STAR.value:
-            if DEBUG:
-                print("Route Planning in RRT mode")
-
-            ## Step 1: Convert vehicle pose to global frame
-            vehicle_global_pose = vehicle.pose.to_frame(
-                self.frame, start_pose_abs=mission_plan.start_vehicle_pose
-            )
-
-            # Plot motion image
-            self.occupancy_grid.gnss_to_image_with_heading(
-                vehicle_global_pose.x, vehicle_global_pose.y, vehicle_global_pose.yaw
-            )  
-            ## Step 2: Get start image coordinates aka position of vehicle in image
-            start_x, start_y = self.occupancy_grid.gnss_to_image_coords(
-                vehicle_global_pose.x, vehicle_global_pose.y
-            ) 
-
-            start_yaw = vehicle.pose.yaw + math.pi
-            if DEBUG:
-                print("Start image coordinates", start_x, start_y, "yaw", start_yaw)
-
-            # ## Step 3. Convert goal to global frame
-
-            goal_global_pose = mission_plan.goal_vehicle_pose.to_frame(
-                self.frame, start_pose_abs=mission_plan.start_vehicle_pose
-            )
-            
-            goal_x, goal_y = self.occupancy_grid.gnss_to_image_coords(
-                goal_global_pose.x, goal_global_pose.y
-            )  
-
-            goal_yaw = start_yaw
-            if DEBUG:
-                print("Goal image coordinates", goal_x, goal_y, "yaw", goal_yaw)
-
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            map_path = os.path.join(script_dir, "highbay_image.pgm")
-            map_img = cv2.imread(map_path, cv2.IMREAD_UNCHANGED)
-
-            for i, (rect_pt1_x, rect_pt1_y, rect_pt2_x, rect_pt2_y) in enumerate(rects):
-                if rect_pt1_x < rect_pt2_x and rect_pt1_y < rect_pt2_y:
-                    # It's a rectangle with areaf
-                    cv2.rectangle(map_img, (rect_pt1_x, rect_pt1_y), (rect_pt2_x, rect_pt2_y), (255, 255, 255), 6)  # White
-                    if DEBUG:
-                        print(f"[DEBUG-ME] Drew WHITE rectangle for cluster {i}")
-                elif rect_pt1_x == rect_pt2_x and rect_pt1_y < rect_pt2_y:
-                    # It's a vertical line
-                    cv2.line(map_img, (rect_pt1_x, rect_pt1_y), (rect_pt2_x, rect_pt2_y), (255, 255, 255), 6) # White line
-                    if DEBUG:
-                        print(f"[DEBUG-ME] Drew WHITE vertical line for cluster {i}")
-                elif rect_pt1_y == rect_pt2_y and rect_pt1_x < rect_pt2_x:
-                    # It's a horizontal line
-                    cv2.line(map_img, (rect_pt1_x, rect_pt1_y), (rect_pt2_x, rect_pt2_y), (255, 255, 255), 6) # White line
-                    if DEBUG:
-                        print(f"[DEBUG-ME] Drew WHITE horizontal line for cluster {i}")
-                else:
-                    if DEBUG:
-                        print(f"[DEBUG-ME] Cluster {i} BBox has zero/negative area and is not a simple line. rect_pt1_x={rect_pt1_x}, rect_pt2_x={rect_pt2_x}, rect_pt1_y={rect_pt1_y}, rect_pt2_y={rect_pt2_y}")
-
-            cv2.imwrite("highbay_image_with_cones.pgm", map_img)
-            occupancy_grid = (map_img > 0).astype(
-                np.uint8
-            ) 
-            cv2.imwrite("occupancy_grid_after_>0.pgm", occupancy_grid * 255)
-            self.t_last = None
-            self.bounds = (0, occupancy_grid.shape[1])
-            start_w = [start_x, start_y, start_yaw]
-            goal_w = [goal_x, goal_y, goal_yaw]
-
-            if self.route == None or len(obstacles) != self.previous_obstacles:
-                    
-                self.previous_obstacles = len(obstacles)
-                path = optimized_kinodynamic_rrt_planning(start_w, goal_w, occupancy_grid)
-                waypoints = []
-                for i in range(len(path)):
-                    x, y, theta = path[i]
-                waypoints = []
-                for i in range(0, len(path), 10):
-                    x, y, theta = path[i]
-                    # Converts pixel to global frame.
-                    waypoint_lat, waypoint_lon = self.occupancy_grid.image_to_gnss(x, y)  
-
-                    # Convert global to start frame
-                    waypoint_global_pose = ObjectPose(
-                        frame=self.frame,
-                        t=mission_plan.start_vehicle_pose.t,
-                        x=waypoint_lon,
-                        y=waypoint_lat,
-                        yaw=theta,
-                    )
-                    waypoint_start_pose = waypoint_global_pose.to_frame(
-                        ObjectFrameEnum.START, start_pose_abs=mission_plan.start_vehicle_pose
-                    )
-                    waypoints.append((waypoint_start_pose.y, waypoint_start_pose.x))
-                
-                self.route = Route(
-                    frame=ObjectFrameEnum.START, points=waypoints)
-                if DEBUG:
-                    print("Route points in start frame: ", waypoints)
-            return self.route
-
-        else:
-            print("Unknown mode")
-        
-        return self.route
