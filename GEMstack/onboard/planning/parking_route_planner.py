@@ -422,9 +422,9 @@ class ParkingPlanner():
                 parking_spot_vertices.append((x, y))
         
         # Need exactly 4 cones to form a parking spot
-        if len(parking_spot_vertices) != 4:
-            print("Warning: Not exactly 4 cones found for parking spot")
-            return False
+        # if len(parking_spot_vertices) != 4:
+        #     print("Warning: Not exactly 4 cones found for parking spot")
+        #     return False
             
         # Order the vertices to form a proper polygon
         # Sort by x coordinate first, then by y coordinate
