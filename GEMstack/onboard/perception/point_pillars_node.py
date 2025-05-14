@@ -1,4 +1,4 @@
-from combined_detection_utils import *
+from combined_detection_utils import add_bounding_box
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 import rospy
@@ -50,25 +50,24 @@ def pc2_to_numpy_with_intensity(pc2_msg, want_rgb=False):
     return pts[mask]
 
 
-class PointPillarsNode():
+class PointPillarsNode:
     """
     Detects Pedestrians with PointPillars and publishes the results in vehicle frame.
     """
 
-    def __init__(
-        self,
-    ):
-        self.latest_image        = None
-        self.latest_lidar        = None
-        self.bridge              = CvBridge()
+    def __init__(self):
+        self.latest_image = None
+        self.latest_lidar = None
+        self.bridge = CvBridge()
         self.camera_name = 'front'
-        self.camera_front = (self.camera_name=='front')
+        self.camera_front = (self.camera_name == 'front')
         self.score_threshold = 0.4
         self.debug = True
         self.initialize()
 
     def initialize(self):
-        # --- Determine the correct RGB topic for this camera ---
+        """Initialize the PointPillars node with model and ROS connections."""
+        # Determine the correct RGB topic for this camera
         rgb_topic_map = {
             'front': '/oak/rgb/image_raw',
             'front_right': '/camera_fr/arena_camera_node/image_raw',
@@ -81,6 +80,7 @@ class PointPillarsNode():
 
         # Initialize PointPillars node
         rospy.init_node('pointpillars_box_publisher')
+        
         # Create bounding box publisher
         self.pub = rospy.Publisher('/pointpillars_boxes', BoundingBoxArray, queue_size=1)
         rospy.loginfo("PointPillars node initialized and waiting for messages.")
@@ -88,45 +88,53 @@ class PointPillarsNode():
         # Initialize PointPillars
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.pointpillars = PointPillars(
-                nclasses=3,
-                voxel_size=[0.16, 0.16, 4],
-                point_cloud_range=[0, -39.68, -3, 69.12, 39.68, 1],
-                max_num_points=32,
-                max_voxels=(16000, 40000)
-            )
+            nclasses=3,
+            voxel_size=[0.16, 0.16, 4],
+            point_cloud_range=[0, -39.68, -3, 69.12, 39.68, 1],
+            max_num_points=32,
+            max_voxels=(16000, 40000)
+        )
         self.pointpillars.to(device)
 
+        # Load model weights
         model_path = 'epoch_160.pth'
-        checkpoint = torch.load(model_path) #, map_location='cuda' if torch.cuda.is_available() else 'cpu')
+        checkpoint = torch.load(model_path)
         self.pointpillars.load_state_dict(checkpoint)
-
         self.pointpillars.eval()
         rospy.loginfo("PointPillars model loaded successfully")
 
-        self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
-                               [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
-                               [-0.02379784, 0.00689664, 0.999693, 1.95320223],
-                               [0., 0., 0., 1.]])
+        # Transformation matrix from LiDAR to vehicle frame
+        self.T_l2v = np.array([
+            [0.99939639, 0.02547917, 0.023615, 1.1],
+            [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
+            [-0.02379784, 0.00689664, 0.999693, 1.95320223],
+            [0., 0., 0., 1.]
+        ])
 
         # Subscribe to the RGB and LiDAR streams
         self.rgb_sub = Subscriber(rgb_topic, Image)
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
-        self.sync = ApproximateTimeSynchronizer([
-            self.rgb_sub, self.lidar_sub
-        ], queue_size=10, slop=0.1)
+        self.sync = ApproximateTimeSynchronizer(
+            [self.rgb_sub, self.lidar_sub],
+            queue_size=10, 
+            slop=0.1
+        )
         self.sync.registerCallback(self.synchronized_callback)
 
     def synchronized_callback(self, image_msg, lidar_msg):
+        """Process synchronized RGB and LiDAR messages to detect pedestrians."""
         rospy.loginfo("Received synchronized RGB and LiDAR messages")
+        
+        # Convert LiDAR message to numpy array
         self.latest_lidar = pc2_to_numpy_with_intensity(lidar_msg, want_rgb=False)
 
         downsample = False
-
         if downsample:
             lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
         else:
             lidar_down = self.latest_lidar.copy()
 
+        # Create empty list of bounding boxes to fill
         boxes = BoundingBoxArray()
         boxes.header.frame_id = 'currentVehicleFrame'
         boxes.header.stamp = lidar_msg.header.stamp
@@ -167,24 +175,27 @@ class PointPillarsNode():
                     R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                     vehicle_yaw, vehicle_pitch, vehicle_roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
                     
-                    print("printing")
-                    print(z_vehicle)
-                    print(h)
+                    # print("printing")
+                    # print(z_vehicle)
+                    # print(h)
+                    # Ensure the box doesn't go below ground level
                     if (z_vehicle - h/2) < 0.0:
                         z_vehicle = h/2
 
-                    boxes = add_bounding_box(boxes=boxes, 
+                    # Add the bounding box
+                    boxes = add_bounding_box(
+                        boxes=boxes, 
                         frame_id='currentVehicleFrame', 
                         stamp=lidar_msg.header.stamp, 
                         x=x_vehicle, 
                         y=y_vehicle, 
                         z=z_vehicle, 
-                        l=l, # length 
-                        w=w, # width 
-                        h=h, # height 
+                        l=l,  # length 
+                        w=w,  # width 
+                        h=h,  # height 
                         yaw=vehicle_yaw,
                         conf_score=score,
-                        label=label # person/pedestrian class
+                        label=label  # person/pedestrian class
                     )
                     
                     rospy.loginfo(f"Pedestrian detected at ({x:.2f}, {y:.2f}, {z:.2f}) with score {score:.2f}")
@@ -192,6 +203,7 @@ class PointPillarsNode():
             # Publish the bounding boxes
             rospy.loginfo(f"Publishing {len(boxes.boxes)} pedestrian bounding boxes")
             self.pub.publish(boxes)
+
 
 if __name__ == '__main__':
     try:
