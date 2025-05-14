@@ -1,4 +1,4 @@
-from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum, \
+from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, \
     ObstacleStateEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
@@ -110,7 +110,7 @@ class ConeDetector3D(Component):
         self.lidar_sub = Subscriber('/ouster/points', PointCloud2)
         self.sync = ApproximateTimeSynchronizer([
             self.rgb_sub, self.lidar_sub
-        ], queue_size=500, slop=0.05)
+        ], queue_size=500, slop=0.03)
         self.sync.registerCallback(self.synchronized_callback)
 
         # Initialize the YOLO detector
@@ -146,7 +146,7 @@ class ConeDetector3D(Component):
         # print('--------undistort', end-start)
         return undistorted, newK
 
-    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
+    def update(self, vehicle: VehicleState) -> Dict[str, Obstacle]:
         downsample = False
         # Gate guards against data not being present for both sensors:
         if self.latest_image is None or self.latest_lidar is None:
@@ -185,6 +185,8 @@ class ConeDetector3D(Component):
             undistorted_img = latest_image.copy()
             orig_H, orig_W = latest_image.shape[:2]
             self.current_K = self.K
+            # print(self.K)
+            # print(self.T_l2c)
         results_normal = self.detector(img_normal, conf=0.35, classes=[0])
         combined_boxes = []
         if not self.enable_tracking:
@@ -198,14 +200,18 @@ class ConeDetector3D(Component):
             boxes_right = np.array(results_right[0].boxes.xywh.cpu()) if len(results_right) > 0 else []
             for box in boxes_left:
                 cx, cy, w, h = box
-                new_cx = cy
-                new_cy = orig_W - 1 - cx
-                combined_boxes.append((new_cx, new_cy, h, w, ObstacleStateEnum.RIGHT))
+                new_cx = orig_W - 1 - cy
+                new_cy = cx
+                new_w = h  # Swap width and height.
+                new_h = w
+                combined_boxes.append((new_cx, new_cy, new_w, new_h, ObstacleStateEnum.RIGHT))
             for box in boxes_right:
                 cx, cy, w, h = box
-                new_cx = orig_H - 1 - cy
-                new_cy = cx
-                combined_boxes.append((new_cx, new_cy, h, w, ObstacleStateEnum.LEFT))
+                new_cx = cy
+                new_cy = orig_H - 1 - cx
+                new_w = h  # Swap width and height.
+                new_h = w
+                combined_boxes.append((new_cx, new_cy, new_w, new_h, ObstacleStateEnum.LEFT))
 
         boxes_normal = np.array(results_normal[0].boxes.xywh.cpu()) if len(results_normal) > 0 else []
         for box in boxes_normal:
@@ -215,18 +221,18 @@ class ConeDetector3D(Component):
         # Visualize the received images in 2D with their corresponding labels
         # It draws rectangles and labels on the images:
         if getattr(self, 'visualize_2d', False):
-            for (cx, cy, w, h, activity) in combined_boxes:
+            for (cx, cy, w, h, state) in combined_boxes:
                 left = int(cx - w / 2)
                 right = int(cx + w / 2)
                 top = int(cy - h / 2)
                 bottom = int(cy + h / 2)
-                if activity == ObstacleStateEnum.STANDING:
+                if state == ObstacleStateEnum.STANDING:
                     color = (255, 0, 0)
                     label = "STANDING"
-                elif activity == ObstacleStateEnum.RIGHT:
+                elif state == ObstacleStateEnum.RIGHT:
                     color = (0, 255, 0)
                     label = "RIGHT"
-                elif activity == ObstacleStateEnum.LEFT:
+                elif state == ObstacleStateEnum.LEFT:
                     color = (0, 0, 255)
                     label = "LEFT"
                 else:
@@ -253,7 +259,8 @@ class ConeDetector3D(Component):
         obstacles = {}
 
         for i, box_info in enumerate(combined_boxes):
-            cx, cy, w, h, activity = box_info
+            cx, cy, w, h, state = box_info
+            # print(cx, cy, w, h)
             left = int(cx - w / 1.6)
             right = int(cx + w / 1.6)
             top = int(cy - h / 2)
@@ -261,10 +268,12 @@ class ConeDetector3D(Component):
             mask = (projected_pts[:, 0] >= left) & (projected_pts[:, 0] <= right) & \
                    (projected_pts[:, 1] >= top) & (projected_pts[:, 1] <= bottom)
             roi_pts = projected_pts[mask]
+            # print(roi_pts)
             if roi_pts.shape[0] < 5:
                 continue
 
             points_3d = roi_pts[:, 2:5]
+
             points_3d = filter_points_within_threshold(points_3d, 40)
             points_3d = remove_ground_by_min_range(points_3d, z_range=0.08)
             points_3d = filter_depth_points(points_3d, max_depth_diff=0.5)
@@ -303,7 +312,7 @@ class ConeDetector3D(Component):
                     vehicle.pose,
                     self.start_pose_abs
                 )
-                T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
+                T_vehicle_to_start = vehicle_start_pose.transform()
                 xp, yp, zp = (T_vehicle_to_start @ np.append(refined_center, 1))[:3]
                 out_frame = ObjectFrameEnum.START
             else:
@@ -346,14 +355,13 @@ class ConeDetector3D(Component):
                             roll=avg_roll,
                             frame=new_pose.frame
                         )
-                        updated_obstacle = ObstacleState(
+                        updated_obstacle = Obstacle(
                             pose=updated_pose,
                             dimensions=dims,
                             outline=None,
-                            type=ObstacleMaterialEnum.TRAFFIC_CONE,
-                            activity=activity,
-                            velocity=(0, 0, 0),
-                            yaw_rate=0
+                            material=ObstacleMaterialEnum.TRAFFIC_CONE,
+                            state=state,
+                            collidable=True
                         )
                     else:
                         updated_obstacle = old_state
@@ -362,28 +370,26 @@ class ConeDetector3D(Component):
                 else:
                     obstacle_id = f"Cone{self.cone_counter}"
                     self.cone_counter += 1
-                    new_obstacle = ObstacleState(
+                    new_obstacle = Obstacle(
                         pose=new_pose,
                         dimensions=dims,
                         outline=None,
-                        type=ObstacleMaterialEnum.TRAFFIC_CONE,
-                        activity=activity,
-                        velocity=(0, 0, 0),
-                        yaw_rate=0
+                        material=ObstacleMaterialEnum.TRAFFIC_CONE,
+                        state=state,
+                        collidable=True
                     )
                     obstacles[obstacle_id] = new_obstacle
                     self.tracked_obstacles[obstacle_id] = new_obstacle
             else:
                 obstacle_id = f"Cone{self.cone_counter}"
                 self.cone_counter += 1
-                new_obstacle = ObstacleState(
+                new_obstacle = Obstacle(
                     pose=new_pose,
                     dimensions=dims,
                     outline=None,
-                    type=ObstacleMaterialEnum.TRAFFIC_CONE,
-                    activity=activity,
-                    velocity=(0, 0, 0),
-                    yaw_rate=0
+                    material=ObstacleMaterialEnum.TRAFFIC_CONE,
+                    state=state,
+                    collidable = True
                 )
                 obstacles[obstacle_id] = new_obstacle
 
@@ -394,11 +400,10 @@ class ConeDetector3D(Component):
             for obstacle_id, obstacle in self.current_obstacles.items():
                 p = obstacle.pose
                 rospy.loginfo(
-                    f"Agent ID: {obstacle_id}\n"
+                    f"Cone ID: {obstacle_id}\n"
                     f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                     f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                    f"Velocity: (vx: {obstacle.velocity[0]:.3f}, vy: {obstacle.velocity[1]:.3f}, vz: {obstacle.velocity[2]:.3f})\n"
-                    f"type:{obstacle.activity}"
+                    f"state:{obstacle.state}"
                 )
             end = time.time()
             # print('-------processing time', end -start)
@@ -413,11 +418,10 @@ class ConeDetector3D(Component):
             for obstacle_id, obstacle in self.tracked_obstacles.items():
                 p = obstacle.pose
                 rospy.loginfo(
-                    f"Agent ID: {obstacle_id}\n"
+                    f"Cone ID: {obstacle_id}\n"
                     f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
                     f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                    f"Velocity: (vx: {obstacle.velocity[0]:.3f}, vy: {obstacle.velocity[1]:.3f}, vz: {obstacle.velocity[2]:.3f})\n"
-                    f"type:{obstacle.activity}"
+                    f"state:{obstacle.state}"
                 )
         end = time.time()
         # print('-------processing time', end -start)
@@ -481,7 +485,7 @@ class FakConeDetector(Component):
     def state_outputs(self):
         return ['obstacles']
 
-    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
+    def update(self, vehicle: VehicleState) -> Dict[str, Obstacle]:
         if self.t_start is None:
             self.t_start = self.vehicle_interface.time()
         t = self.vehicle_interface.time() - self.t_start
@@ -497,60 +501,9 @@ def box_to_fake_obstacle(box):
     x, y, w, h = box
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
-    return ObstacleState(pose=pose, dimensions=dims, outline=None,
-                         type=ObstacleMaterialEnum.TRAFFIC_CONE, activity=ObstacleStateEnum.STANDING,
-                         velocity=(0, 0, 0), yaw_rate=0)
+    return Obstacle(pose=pose, dimensions=dims, outline=None,
+                         material=ObstacleMaterialEnum.TRAFFIC_CONE, state=ObstacleStateEnum.STANDING, collidable=True)
 
 
 if __name__ == '__main__':
     pass
-
-import threading
-import copy
-class OmniscientObstacleDetector(Component):
-    """Obtains agent detections from a simulator"""
-    def __init__(self,vehicle_interface : GEMInterface):
-        self.vehicle_interface = vehicle_interface
-        self.obstacles = {}
-        self.lock = threading.Lock()
-
-    def rate(self):
-        return 15.0
-    
-    def state_inputs(self):
-        return []
-    
-    def state_outputs(self):
-        return ['obstacles']
-
-    def initialize(self):
-        self.vehicle_interface.subscribe_sensor('cone_detector',self.cone_callback, ObstacleState)
-    
-    def cone_callback(self, name : str, obstacle : ObstacleState):
-        with self.lock:
-            self.obstacles[name] = obstacle
-
-    def update(self) -> Dict[str,ObstacleState]:
-        with self.lock:
-            return copy.deepcopy(self.obstacles)
-
-
-class GazeboConeDetector(OmniscientObstacleDetector):
-    """Obtains agent detections from the Gazebo simulator using model_states topic"""
-    def __init__(self, vehicle_interface : GEMInterface, tracked_model_prefixes=None):
-        super().__init__(vehicle_interface)
-        
-        # If specific model prefixes are provided, configure the interface to track them
-        if tracked_model_prefixes is not None:
-            # Check if our interface has the tracked_model_prefixes attribute (is a GazeboInterface)
-            if hasattr(vehicle_interface, 'tracked_model_prefixes'):
-                vehicle_interface.tracked_model_prefixes = tracked_model_prefixes
-                print(f"Configured GazeboConeDetector to track models with prefixes: {tracked_model_prefixes}")
-            else:
-                print("Warning: vehicle_interface doesn't support tracked_model_prefixes configuration")
-                
-    def initialize(self):
-        # Use the same agent_detector sensor as OmniscientAgentDetector
-        # The GazeboInterface implements this with model_states subscription
-        super().initialize()
-        print("GazeboConeDetector initialized and subscribed to model_states")

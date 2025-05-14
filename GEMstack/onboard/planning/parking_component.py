@@ -1,15 +1,14 @@
 from typing import List
 from ..component import Component
 from ...utils import serialization
-from ...state import Route,ObjectFrameEnum, AllState, PlannerEnum, MissionPlan, ObjectPose
+from ...state import Route, ObjectFrameEnum, AllState, PlannerEnum, MissionObjective
 import os
 import numpy as np
 import time
-import math
+
 class ParkingSim(Component):
     def __init__(self):
         self.start_time = time.time()
-        self.goal_start_pose = None
         pass
 
     def state_inputs(self):
@@ -24,23 +23,18 @@ class ParkingSim(Component):
     def update(self, state: AllState):
         # Calculate elapsed time since initialization.
         elapsed_time = time.time() - self.start_time
-        
-        # After 4 seconds, change the mission plan to use PARKING.
-        # if elapsed_time >= 4.0:
-        #     print("Entering parking mode")
-        #     mission_plan = MissionPlan(1, 6, 0, PlannerEnum.PARKING, state.start_vehicle_pose)
-        # else:
-        print("Entering RRT mode")
-        print(f"=========================Deez NUts: {state.start_vehicle_pose}")
-        if self.goal_start_pose == None:
-            self.goal_start_pose = ObjectPose(
-                frame=ObjectFrameEnum.START,
-                t=state.start_vehicle_pose.t,
-                x=state.vehicle.pose.x + 30,
-                y=state.vehicle.pose.y, # -5,
-                yaw=state.vehicle.pose.yaw  #+ math.pi,
-            )
-        mission_plan = MissionPlan(PlannerEnum.RRT_STAR, self.goal_start_pose, state.start_vehicle_pose)
 
-        print("ParkingSim update with state:",mission_plan)
+        # Reading goal from state
+        # print(f"\n AllState (parking goal): {state.goal} \n")
+        # print(f"AllState (parking obstacles): {state.obstacles} \n")
+
+        # After a goal is detected, change the mission plan to use PARKING.
+        if state.goal:
+            print("\n Parking goal available. Entering PARKING mode......")
+            mission_plan = MissionObjective(PlannerEnum.PARKING, state.goal)
+        else:
+            print("\n Entering SCANNING mode......")
+            mission_plan = MissionObjective(PlannerEnum.SCANNING)
+
+        print(f"\n ParkingSim update with state: {mission_plan} \n")
         return mission_plan

@@ -1,5 +1,4 @@
-from GEMstack.state.obstacle import ObstacleMaterialEnum, ObstacleState, ObstacleStateEnum
-from GEMstack.state.obstacle import ObstacleMaterialEnum, ObstacleState, ObstacleStateEnum
+from GEMstack.state.obstacle import Obstacle, ObstacleMaterialEnum, ObstacleStateEnum
 from .gem import *
 from ...utils import settings
 import math
@@ -405,12 +404,13 @@ class GEMGazeboInterface(GEMInterface):
                     obstacle_activity = ObstacleStateEnum.LEFT
         
         # Create obstacle state with the determined activity
-        obstacle_state = ObstacleState(
+        obstacle_state = Obstacle(
             dimensions=(0,0,0),
             outline=None,
             pose=agent_pose,
-            type=getattr(ObstacleMaterialEnum, obstacle_type.upper()),
-            activity=obstacle_activity,
+            material=getattr(ObstacleMaterialEnum, obstacle_type.upper()),
+            state=obstacle_activity,
+            collidable=True
         )
         
         # Call the callback with the obstacle state
@@ -558,8 +558,8 @@ class GEMGazeboInterface(GEMInterface):
             self.agent_detector_callback = callback
 
         elif name == 'obstacle_detector':
-            if type is not None and type is not ObstacleState:
-                raise ValueError("GEMGazeboInterface only supports ObstacleState for obstacle_detector")
+            if type is not None and type is not Obstacle:
+                raise ValueError("GEMGazeboInterface only supports Obstacle for obstacle_detector")
             self.obstacle_detector_callback = callback
 
     def hardware_faults(self) -> List[str]:

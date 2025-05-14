@@ -70,7 +70,7 @@ Agent detectors provide `AgentState` objects with the following properties:
 
 ### GazeboObstacleDetector
 
-The `GazeboObstacleDetector` works with the Gazebo simulator to detect obstacles such as traffic cones. It subscribes to the model states topic and converts Gazebo models into `ObstacleState` objects based on specific model prefixes.
+The `GazeboObstacleDetector` works with the Gazebo simulator to detect obstacles such as traffic cones. It subscribes to the model states topic and converts Gazebo models into `Obstacle` objects based on specific model prefixes.
 
 Example usage:
 
@@ -97,12 +97,12 @@ obstacle_states = obstacle_detector.update()
 
 ### Obstacle State Format
 
-Obstacle detectors provide `ObstacleState` objects with the following properties:
+Obstacle detectors provide `Obstacle` objects with the following properties:
 
 - `pose`: The position and orientation of the obstacle
 - `dimensions`: The physical dimensions of the obstacle
-- `type`: The material type of obstacle (traffic cone, barrier, etc.)
-- `activity`: The state of the obstacle (standing, left, right)
+- `material`: The material type of obstacle (traffic cone, barrier, etc.)
+- `state`: The state of the obstacle (standing, left, right)
 
 For traffic cones in particular, the orientation is analyzed to determine if the cone is:
 - `STANDING`: Upright within normal thresholds
