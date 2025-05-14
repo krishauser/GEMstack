@@ -7,6 +7,10 @@ import numpy as np
 import casadi
 import math
 
+###########################
+#    Bo-Hao Wu's code     #
+###########################
+
 class MPCController(object):
     """Model Predictive Controller for trajectory tracking."""
     def __init__(self, T=None, dt=None, desired_speed=None):
