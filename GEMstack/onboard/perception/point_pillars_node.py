@@ -175,11 +175,17 @@ class PointPillarsNode:
                     R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                     vehicle_yaw, vehicle_pitch, vehicle_roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
                     
-                    # Ensure the box doesn't go below ground level
                     bottom = z_vehicle - h / 2.0
                     if bottom < 0.0:
-                        bottom = 0.0 # Can modify this later if we want a small seperation between the bounding box and ground
+                        # Cut the box at ground level:
+                        # bottom = 0.0 # Can modify this later if we want a small seperation between the bounding box and ground
+                        # top = z_vehicle + h / 2.0
+
+                        # Or Shift the box vertically to make it sit at ground level:
                         top = z_vehicle + h / 2.0
+                        top = top + abs(bottom)
+                        bottom = 0.0
+
                         z_vehicle = (top - bottom) / 2.0
                         h = abs(top - z_vehicle)
 
