@@ -23,7 +23,7 @@ class OccupancyGrid:
 
         # Create the cv_bridge object
         self.bridge = CvBridge()
-        self.map_image_pub = rospy.Publisher("/motion_image2", Image, queue_size=1)
+        self.map_image_pub = rospy.Publisher("/motion_image", Image, queue_size=1)
         self.obs_image_pub = rospy.Publisher("/obstacles", Image, queue_size=1)
         # Subscribe information from sensors
         self.lat = 0
