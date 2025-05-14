@@ -68,6 +68,7 @@ variants:
                 type: gem_gazebo.GEMGazeboInterface
                 # args:
                 #     scene: !relative_path '../scenes/gazebo.yaml'
+            collision_logging: True  # Enable collision logging for gazebo simulation
 
             drive: 
                 perception:

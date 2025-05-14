@@ -118,6 +118,16 @@ def main():
             if v is None: continue
             other_components[k] = mission_executor.make_component(v,k,'GEMstack.onboard.other', {'vehicle_interface':vehicle_interface})
         
+        # Add collision logger to other_components if in gazebo simulation and collision logging is enabled
+        if mode == 'simulation' and settings.get('run.collision_logging', False) and name == 'drive':
+            from ..other.gazebo_collision_logger import GazeboCollisionLogger
+            other_components['collision_logger'] = mission_executor.make_component(
+                {'type': 'GazeboCollisionLogger', 'module': 'gazebo_collision_logger'},
+                'collision_logger',
+                'GEMstack.onboard.other',
+                {'vehicle_interface': vehicle_interface}
+            )
+        
         mission_executor.add_pipeline(name,perception_components,planning_components,other_components)
 
     #configure logging

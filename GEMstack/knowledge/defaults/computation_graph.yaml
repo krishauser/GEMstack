@@ -69,7 +69,10 @@ components:
       outputs: trajectory
   - trajectory_tracking:
       inputs: [vehicle, trajectory]
-      outputs: 
+      outputs:
   - signaling:
       inputs: [intent]
+      outputs:
+  - collision_logger:
+      inputs: []
       outputs:
