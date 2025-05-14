@@ -25,9 +25,9 @@ class ParkingSim(Component):
         elapsed_time = time.time() - self.start_time
 
         # After a goal is detected, change the mission plan to use PARKING.
-        if state.parking_goal:
+        if state.goal:
             print("\n Parking goal available. Entering PARKING mode......")
-            mission_plan = MissionObjective(PlannerEnum.PARKING, state.parking_goal)
+            mission_plan = MissionObjective(PlannerEnum.PARKING, state.goal)
         else:
             print("\n Entering SCANNING mode......")
             mission_plan = MissionObjective(PlannerEnum.SCANNING)

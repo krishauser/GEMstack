@@ -24,7 +24,7 @@ class AllState(SceneState):
     agent_intents : Dict[str,AgentIntentMixture] = field(default_factory=dict)
     relations : List[EntityRelation] = field(default_factory=list)
     predicates : PredicateValues = field(default_factory=PredicateValues)
-    parking_goal: ObjectPose = None
+    goal: ObjectPose = None
     
     # planner-output state
     mission : MissionObjective = field(default_factory=MissionObjective)

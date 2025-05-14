@@ -295,7 +295,7 @@ class ParkingPlanner():
         obstacles = state.obstacles # type: Dict[str, Obstacle]
         agents = state.agents # type: Dict[str, AgentState]
         all_obstacles = {**agents, **obstacles}
-        goal_pose = state.parking_goal
+        goal_pose = state.goal
         assert goal_pose.frame == ObjectFrameEnum.CURRENT
 
         start_state = state.vehicle.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
