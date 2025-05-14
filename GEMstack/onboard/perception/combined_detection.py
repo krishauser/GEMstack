@@ -114,6 +114,24 @@ def merge_boxes(box1: BoundingBox, box2: BoundingBox, mode: str = "Average") -> 
         
         # For label, use the one from the higher-score box
         merged_box.label = box1.label if score1 >= score2 else box2.label
+
+    elif mode == "BEV":
+        # Merge the bounding boxes from Bird's Eye View (BEV)
+        # Average the x and y centers and dimensions
+        # Average the yaw orientation
+        # Use YOLO bounding box (box1) for z dimension and z center
+        merged_box.pose.position.x = (box1.pose.position.x + box2.pose.position.x) / 2.0
+        merged_box.pose.position.y = (box1.pose.position.y + box2.pose.position.y) / 2.0
+        merged_box.pose.position.z = copy.deepcopy(box1.pose.orientation)
+
+        # Avg orientations (quaternions)
+        merged_box.pose.orientation = avg_orientations(box1.pose.orientation, box2.pose.orientation) 
+
+        merged_box.dimensions.x = (box1.dimensions.x + box2.dimensions.x) / 2.0
+        merged_box.dimensions.y = (box1.dimensions.y + box2.dimensions.y) / 2.0
+        merged_box.dimensions.z = copy.deepcopy(box1.dimensions.z)
+
+        merged_box.label = box1.label # Label from first box
         
     else:  # Default to "Average" mode
         # Original averaging logic
@@ -156,6 +174,45 @@ def get_volume(box):
     return box.dimensions.x * box.dimensions.y * box.dimensions.z
 
 
+def get_bev_aabb_corners(box: BoundingBox):
+    """
+    Get axis-aligned bounding box corners for 2D Bird's Eye View IoU calculation.
+    Returns:
+        min_x, max_x, min_y, max_y
+    """
+    cx, cy = box.pose.position.x, box.pose.position.y
+    l, w = box.dimensions.x, box.dimensions.y
+
+    return cx, cx + l, cy, cy + w
+
+
+def calculate_bev_iou(box1: BoundingBox, box2: BoundingBox):
+    """
+    Calculates the 2D Bird's Eye View IoU between two bounding boxes.
+    Ignores z-axis and yaw (assumes axis aligned bounding boxes).
+    """
+    min_x1, max_x1, min_y1, max_y1 = get_bev_aabb_corners(box1)
+    min_x2, max_x2, min_y2, max_y2 = get_bev_aabb_corners(box2)
+
+    # Calculate intersection in BEV
+    inter_min_x = max(min_x1, min_x2)
+    inter_max_x = min(max_x1, max_x2)
+    inter_min_y = max(min_y1, min_y2)
+    inter_max_y = min(max_y1, max_y2)
+
+    inter_w = max(0, inter_max_x - inter_min_x)
+    inter_h = max(0, inter_max_y - inter_min_y)
+    intersection_area = inter_w * inter_h
+
+    # Calculate union area
+    area1 = max(box1.dimensions.x * box1.dimensions.y, 1e-6)
+    area2 = max(box2.dimensions.x * box2.dimensions.y, 1e-6)
+    union_area = max(area1 + area2 - intersection_area, 1e-6)
+
+    iou = intersection_area / union_area
+    return max(0.0, min(iou, 1.0))  # Clamp to [0, 1]
+
+
 class CombinedDetector3D(Component):
     """
     Combines detections from multiple 3D object detectors (YOLO and PointPillars).
@@ -185,6 +242,7 @@ class CombinedDetector3D(Component):
         self.use_start_frame = use_start_frame
         self.iou_threshold = iou_threshold
         self.merge_mode = merge_mode
+        self.merge_in_bev = (merge_mode == "BEV")
 
         self.yolo_topic = '/yolo_boxes'
         self.pp_topic = '/pointpillars_boxes'
@@ -227,6 +285,13 @@ class CombinedDetector3D(Component):
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         """Update function called by the GEMstack pipeline."""
         current_time = self.vehicle_interface.time()
+        agents: Dict[str, AgentState] = {}
+
+        if self.start_time is None:
+            self.start_time = current_time
+        if self.start_pose_abs is None:
+            self.start_pose_abs = vehicle.pose
+            rospy.loginfo("CombinedDetector3D latched start pose.")
 
         yolo_bbx_array = copy.deepcopy(self.latest_yolo_bbxs)
         pp_bbx_array = copy.deepcopy(self.latest_pp_bbxs)
@@ -234,39 +299,116 @@ class CombinedDetector3D(Component):
         if yolo_bbx_array is None or pp_bbx_array is None:
             return {} 
 
-        if self.start_time is None:
-            self.start_time = current_time
-        if self.use_start_frame and self.start_pose_abs is None:
-            self.start_pose_abs = vehicle.pose
-            rospy.loginfo("CombinedDetector3D latched start pose.")
+        original_header = yolo_bbx_array.header
+        fused_boxes_list = self._fuse_bounding_boxes(yolo_bbx_array, pp_bbx_array)
 
-        return self._fuse_bounding_boxes(yolo_bbx_array, pp_bbx_array, vehicle, current_time)
+        # Used to visualize the combined results in the current frame
+        fused_bb_array = BoundingBoxArray()
+        fused_bb_array.header = original_header
+
+        for i, box in enumerate(fused_boxes_list):
+            fused_bb_array.boxes.append(box)
+            rospy.loginfo(len(fused_boxes_list))
+            
+            # Get position and orientation in current vehicle frame
+            pos_x = box.pose.position.x
+            pos_y = box.pose.position.y
+            pos_z = box.pose.position.z
+            quat_x = box.pose.orientation.x
+            quat_y = box.pose.orientation.y
+            quat_z = box.pose.orientation.z
+            quat_w = box.pose.orientation.w
+            yaw, pitch, roll = R.from_quat([quat_x, quat_y, quat_z, quat_w]).as_euler('zyx', degrees=False)
+
+            # Convert to start frame
+            vehicle_start_pose = vehicle.pose.to_frame(
+                ObjectFrameEnum.START, vehicle.pose, self.start_pose_abs
+            )
+            T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
+            object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
+            object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
+            final_x, final_y, final_z = object_pose_start_h[:3, 0]
+
+            new_pose = ObjectPose(
+                t=current_time, x=final_x, y=final_y, z=final_z,
+                yaw=yaw, pitch=pitch, roll=roll, frame=ObjectFrameEnum.START
+            )
+            dims = (box.dimensions.x, box.dimensions.y, box.dimensions.z * 2.0) # AgentState has z center on the floor and height is full height.
+
+            new_pose = ObjectPose(
+                t=current_time, x=final_x, y=final_y, z=final_z - box.dimensions.z / 2.0,
+                yaw=yaw, pitch=pitch, roll=roll, frame=ObjectFrameEnum.START
+            )
+
+            existing_id = match_existing_pedestrian(
+                new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
+                new_dims=dims,
+                existing_agents=self.tracked_agents,
+                distance_threshold=2.0
+            )
+
+            if existing_id is not None:
+                old_state = self.tracked_agents[existing_id]
+                dt = new_pose.t - old_state.pose.t
+                vx, vy, vz = compute_velocity(old_state.pose, new_pose, dt)
+                updated_agent = AgentState(
+                    pose=new_pose,
+                    dimensions=dims,
+                    outline=None,
+                    type=AgentEnum.PEDESTRIAN,
+                    activity=AgentActivityEnum.MOVING,
+                    velocity=(vx, vy, vz),
+                    yaw_rate=0
+                )
+                agents[existing_id] = updated_agent
+                self.tracked_agents[existing_id] = updated_agent
+            else:
+                agent_id = f"pedestrian{self.ped_counter}"
+                self.ped_counter += 1
+                new_agent = AgentState(
+                    pose=new_pose,
+                    dimensions=dims,
+                    outline=None,
+                    type=AgentEnum.PEDESTRIAN,
+                    activity=AgentActivityEnum.MOVING,
+                    velocity=(0, 0, 0),
+                    yaw_rate=0
+                )
+                agents[agent_id] = new_agent
+                self.tracked_agents[agent_id] = new_agent
+
+        self.pub_fused.publish(fused_bb_array)
+
+        stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
+                    if current_time - agent.pose.t > 5.0]
+        for agent_id in stale_ids:
+            rospy.loginfo(f"Removing stale agent: {agent_id}\n")
+        for agent_id, agent in agents.items():
+            p = agent.pose
+            # Format pose and velocity with 3 decimals (or as needed)
+            rospy.loginfo(
+                f"Agent ID: {agent_id}\n"
+                f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
+                f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
+                f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
+        )
+        
+        return agents
 
 
     def _fuse_bounding_boxes(self,
                              yolo_bbx_array: BoundingBoxArray,
                              pp_bbx_array: BoundingBoxArray,
-                             vehicle_state: VehicleState,
-                             current_time: float
-                            ) -> Dict[str, AgentState]:
+                            ):
         """
         Fuse bounding boxes from multiple detectors.
         
         Args:
             yolo_bbx_array: Bounding boxes from YOLO detector
             pp_bbx_array: Bounding boxes from PointPillars detector
-            vehicle_state: Current vehicle state
-            current_time: Current timestamp
-            
-        Returns:
-            Dictionary of agent states
         """
-        original_header = yolo_bbx_array.header
-        agents: Dict[str, AgentState] = {}
         yolo_boxes: List[BoundingBox] = yolo_bbx_array.boxes
         pp_boxes: List[BoundingBox] = pp_bbx_array.boxes
-
-        output_frame_enum = ObjectFrameEnum.START if self.use_start_frame else ObjectFrameEnum.CURRENT
 
         matched_yolo_indices = set()
         matched_pp_indices = set()
@@ -282,7 +424,10 @@ class CombinedDetector3D(Component):
                     continue
 
                 ## IoU
-                iou = calculate_3d_iou(yolo_box, pp_box, get_aabb_corners, get_volume)
+                if self.merge_in_bev:
+                    iou = calculate_bev_iou(yolo_box, pp_box)
+                else:
+                    iou = calculate_3d_iou(yolo_box, pp_box, get_aabb_corners, get_volume)
 
                 if iou > self.iou_threshold and iou > best_iou:
                     best_iou = iou
@@ -308,104 +453,7 @@ class CombinedDetector3D(Component):
                 fused_boxes_list.append(pp_box)
                 rospy.logdebug(f"Kept unmatched PP box {j}")
 
-        # Work in progress to visualize combined results
-        fused_bb_array = BoundingBoxArray()
-        fused_bb_array.header = original_header
-
-        for i, box in enumerate(fused_boxes_list):
-            fused_bb_array.boxes.append(box)
-            rospy.loginfo(len(fused_boxes_list))
-            
-            try:
-                # Get position and orientation in current vehicle frame
-                pos_x = box.pose.position.x
-                pos_y = box.pose.position.y
-                pos_z = box.pose.position.z
-                quat_x = box.pose.orientation.x
-                quat_y = box.pose.orientation.y
-                quat_z = box.pose.orientation.z
-                quat_w = box.pose.orientation.w
-                yaw, pitch, roll = R.from_quat([quat_x, quat_y, quat_z, quat_w]).as_euler('zyx', degrees=False)
-
-                # Convert to start frame
-                vehicle_pose_in_start_frame = vehicle_state.pose.to_frame(
-                    ObjectFrameEnum.START, vehicle_state.pose, self.start_pose_abs
-                )
-                T_vehicle_to_start = pose_to_matrix(vehicle_pose_in_start_frame)
-                object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
-                object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
-                final_x, final_y, final_z = object_pose_start_h[:3, 0]
-
-                new_pose = ObjectPose(
-                    t=current_time, x=final_x, y=final_y, z=final_z,
-                    yaw=yaw, pitch=pitch, roll=roll, frame=output_frame_enum
-                )
-                dims = (box.dimensions.x, box.dimensions.y, box.dimensions.z)
-
-                new_pose = ObjectPose(
-                    t=current_time, x=final_x, y=final_y, z=final_z - box.dimensions.z / 2.0,
-                    yaw=yaw, pitch=pitch, roll=roll, frame=output_frame_enum
-                )
-                dims[2] = dims[2] * 2.0 # AgentState has z center on the floor and height is full height.
-
-                existing_id = match_existing_pedestrian(
-                    new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
-                    new_dims=dims,
-                    existing_agents=self.tracked_agents,
-                    distance_threshold=2.0
-                )
-
-                if existing_id is not None:
-                    old_state = self.tracked_agents[existing_id]
-                    dt = new_pose.t - old_state.pose.t
-                    vx, vy, vz = compute_velocity(old_state.pose, new_pose, dt)
-                    updated_agent = AgentState(
-                        pose=new_pose,
-                        dimensions=dims,
-                        outline=None,
-                        type=AgentEnum.PEDESTRIAN,
-                        activity=AgentActivityEnum.MOVING,
-                        velocity=(vx, vy, vz),
-                        yaw_rate=0
-                    )
-                    agents[existing_id] = updated_agent
-                    self.tracked_agents[existing_id] = updated_agent
-                else:
-                    agent_id = f"pedestrian{self.ped_counter}"
-                    self.ped_counter += 1
-                    new_agent = AgentState(
-                        pose=new_pose,
-                        dimensions=dims,
-                        outline=None,
-                        type=AgentEnum.PEDESTRIAN,
-                        activity=AgentActivityEnum.MOVING,
-                        velocity=(0, 0, 0),
-                        yaw_rate=0
-                    )
-                    agents[agent_id] = new_agent
-                    self.tracked_agents[agent_id] = new_agent
-
-            except Exception as e:
-                rospy.logwarn(f"Failed to convert final BoundingBox {i} to AgentState: {e}")
-                continue
-
-        self.pub_fused.publish(fused_bb_array)
-
-        stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
-                    if current_time - agent.pose.t > 5.0]
-        for agent_id in stale_ids:
-            rospy.loginfo(f"Removing stale agent: {agent_id}\n")
-        for agent_id, agent in agents.items():
-            p = agent.pose
-            # Format pose and velocity with 3 decimals (or as needed)
-            rospy.loginfo(
-                f"Agent ID: {agent_id}\n"
-                f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
-                f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
-        )
-        
-        return agents
+        return fused_boxes_list
 
 
 # Fake 2D Combined Detector for testing purposes
