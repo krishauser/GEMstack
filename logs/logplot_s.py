@@ -1,3 +1,4 @@
+###Jugal's Code###
 ####Following code can be used to visualize performance of Stanley after using it.###
 ###How to use?- After running the simulation or on actual vehicle you get logs in log folder###
 ### You can run the command-   python3 logplot_s.py "logfilename".###
