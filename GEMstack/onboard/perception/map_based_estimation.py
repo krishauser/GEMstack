@@ -218,9 +218,7 @@ def multi_scale_icp(source, target, voxel_sizes=[2.0, 1.0, 0.5], max_iterations=
     
     return current_transform
 
-
-
-def transform_to_pose(transformation_matrix,origin):
+def transform_to_pose(transformation_matrix):
     """Convert transformation matrix to position and orientation (RPY)."""
     # Extract translation
     x, y, z = transformation_matrix[:3, 3]

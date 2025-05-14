@@ -21,12 +21,15 @@ class GNSSKalmanFilter:
         self.Q = np.eye(12) * 0.1
         self.R = np.eye(6) * 0.1
 
-    def update(self, time: float, state: ObjectPose = None, th = 0) -> ObjectPose:
+        
+        self.speed = None #TODO
+
+    def update(self, time: float, state: ObjectPose = None, speed = None, th = 0) -> ObjectPose:
         if not self.is_initialized:
             if state is None:
                 return None
             else:
-                self._initialize(state, time)
+                self._initialize(state, speed, time)
                 return self._current_pose()
 
         dt = time - self.last_time
@@ -59,7 +62,7 @@ class GNSSKalmanFilter:
         self.last_time = time
         return self._current_pose()
 
-    def _initialize(self, state: ObjectPose, time: float):
+    def _initialize(self, state: ObjectPose, speed: float, time: float):
         self.state = np.zeros(12)
         self.state[0] = state.x
         self.state[2] = state.y
@@ -67,6 +70,8 @@ class GNSSKalmanFilter:
         self.state[6] = state.yaw
         self.state[8] = state.roll
         self.state[10] = state.pitch
+
+        self.speed = speed #TODO
 
         self.covariance = np.eye(12) * 0.1
         for i in [1, 3, 5, 7, 9, 11]:
@@ -92,7 +97,7 @@ class GNSSKalmanFilter:
             yaw=self.state[6],
             roll=self.state[8],
             pitch=self.state[10]
-        )
+        ),self.speed
 
 def test0():
     th = 0.95  # 95% confidence threshold
@@ -109,7 +114,7 @@ def test0():
     print("-- Initialization --")
     print("Update 0:", kf.update(0, ObjectPose(ObjectFrameEnum.GLOBAL,
         0, -0.118092, 51.509865, 35.0, 0, 0, 0
-    ), th))
+    ), 0.00017,th=th))
 
     # Straight movement north at 60 km/h (~16.67 m/s)
     print("\n-- Straight movement --")
@@ -125,7 +130,7 @@ def test0():
         5.0,   # Slight right turn
         1.5,    # Small roll from turning
         0.5     # Small pitch from acceleration
-    ), th))
+    ), 0.00017,th=th))
 
     # Turning right sequence with realistic coordinate changes
     print("\n-- Right turn sequence --")
@@ -138,7 +143,7 @@ def test0():
             5.0 + 15*(t-3),  # Increasing yaw
             1.5 + 0.5*(t-3),  # Roll increasing
             0.5 - 0.2*(t-3)   # Pitch decreasing
-        ), th))
+        ), 0.00017,th=th))
 
     # Hill climb with pitch changes
     print("\n-- Hill climb --")
@@ -151,7 +156,7 @@ def test0():
         35.0,   # Completed turn
         2.0,    # Reduced roll
         4.0     # Significant pitch from hill
-    ), th))
+    ), 0.00017,th=th))
 
     # Test outlier rejection (sudden jump to China coordinates)
     print("\n-- Outlier test --")
@@ -164,7 +169,7 @@ def test0():
         35.0,        # Same yaw
         2.0,
         4.0
-    ), th))  # Should be rejected by threshold
+    ), 0.00017,th=th))
 
     # Continue normal operation
     print("\n-- Post-outlier recovery --")
@@ -177,7 +182,7 @@ def test0():
             35.0 + 2*(t-9),
             2.0 - 0.3*(t-9),
             4.0 - 0.5*(t-9)
-        ), th))
+        ), 0.00017,th=th))
 
 if __name__ == "__main__":
     import sys
