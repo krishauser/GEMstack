@@ -122,7 +122,7 @@ def merge_boxes(box1: BoundingBox, box2: BoundingBox, mode: str = "Average") -> 
         # Use YOLO bounding box (box1) for z dimension and z center
         merged_box.pose.position.x = (box1.pose.position.x + box2.pose.position.x) / 2.0
         merged_box.pose.position.y = (box1.pose.position.y + box2.pose.position.y) / 2.0
-        merged_box.pose.position.z = copy.deepcopy(box1.pose.orientation)
+        merged_box.pose.position.z = copy.deepcopy(box1.pose.position.z)
 
         # Avg orientations (quaternions)
         merged_box.pose.orientation = avg_orientations(box1.pose.orientation, box2.pose.orientation) 
@@ -289,9 +289,6 @@ class CombinedDetector3D(Component):
 
         if self.start_time is None:
             self.start_time = current_time
-        if self.start_pose_abs is None:
-            self.start_pose_abs = vehicle.pose
-            rospy.loginfo("CombinedDetector3D latched start pose.")
 
         yolo_bbx_array = copy.deepcopy(self.latest_yolo_bbxs)
         pp_bbx_array = copy.deepcopy(self.latest_pp_bbxs)
@@ -311,6 +308,7 @@ class CombinedDetector3D(Component):
             rospy.loginfo(len(fused_boxes_list))
             
             # Get position and orientation in current vehicle frame
+            # pos_x - z are returned as Quaternions.
             pos_x = box.pose.position.x
             pos_y = box.pose.position.y
             pos_z = box.pose.position.z
@@ -320,6 +318,10 @@ class CombinedDetector3D(Component):
             quat_w = box.pose.orientation.w
             yaw, pitch, roll = R.from_quat([quat_x, quat_y, quat_z, quat_w]).as_euler('zyx', degrees=False)
 
+            # Get the starting vehicle pose
+            if self.start_pose_abs is None:
+                self.start_pose_abs = vehicle.pose
+            
             # Convert to start frame
             vehicle_start_pose = vehicle.pose.to_frame(
                 ObjectFrameEnum.START, vehicle.pose, self.start_pose_abs
@@ -424,6 +426,7 @@ class CombinedDetector3D(Component):
                     continue
 
                 ## IoU
+                iou = None
                 if self.merge_in_bev:
                     iou = calculate_bev_iou(yolo_box, pp_box)
                 else:
