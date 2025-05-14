@@ -55,7 +55,7 @@ def waypoint_generate(vehicle_state, cones, cone_idx):
     target_heading = car_heading
 
     # ===== Parameters =====
-    u_turn_radius = 11.5      # Radius for U-turn
+    u_turn_radius = 8.0      # Radius for U-turn
     offset = 2.0                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
@@ -785,7 +785,7 @@ def to_gemstack_trajectory(x_all, y_all, v_all, T=0.1):
     t_vals = np.arange(len(x_all)) * T
     combined_xy = [[x, y] for x, y in zip(x_all, y_all)]
     curr_path = Path(ObjectFrameEnum.START,combined_xy)
-    path = compute_headings(curr_path)
+    path = compute_headings(curr_path, smoothed=True)
     path_normalized = path.arc_length_parameterize()
     points = [p for p in path_normalized.points]
     return Trajectory(points=points, times=t_vals, frame=ObjectFrameEnum.START)
@@ -846,7 +846,7 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
 
     combined_xy = [[x, y] for x, y in zip(x_all, y_all)]
     path = Path(ObjectFrameEnum.START,combined_xy)
-    path = compute_headings(path)
+    path = compute_headings(path, smoothed=True)
     path = path.arc_length_parameterize()
     return path.racing_velocity_profile()
 
