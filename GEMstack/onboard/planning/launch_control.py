@@ -1,5 +1,7 @@
 import rospy
 
+# To use launch control, enable as an arg for stanley or pure_pursuit controller in the launch file. 
+
 class LaunchControl:
     def __init__(self, stage_duration, stop_threshold):
         self.enable_launch_control = True
@@ -9,7 +11,7 @@ class LaunchControl:
 
     def reset(self):
         self.enable_launch_control = True
-        self._launch_start_time = 0
+        self._launch_start_time = None
 
 
     def apply_launch_control(self, cmd, vehicle_velocity):
@@ -32,8 +34,9 @@ class LaunchControl:
             else:
                 self.enable_launch_control = False
 
+        # if we stop, re-enable launch control
         if vehicle_velocity < self.stop_threshold and elapsed > 3 * self.stage_duration:
-            # self.reset()
+            self.reset()
             self.enable_launch_control = False
 
         return cmd
