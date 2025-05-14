@@ -175,8 +175,8 @@ class Stanley(object):
 
         # 1) Closest point
         fx, fy = self._find_front_axle_position(curr_x, curr_y, curr_yaw)
-        search_start = self.current_path_parameter - 5.0
-        search_end   = self.current_path_parameter + 5.0
+        search_start = self.current_path_parameter - 10
+        search_end   = self.current_path_parameter + 10
         closest_dist, closest_parameter = self.path.closest_point_local((fx, fy), [search_start, search_end])
         self.current_path_parameter = closest_parameter        
 
