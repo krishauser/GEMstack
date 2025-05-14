@@ -56,7 +56,7 @@ def waypoint_generate(vehicle_state, cones, cone_idx):
 
     # ===== Parameters =====
     u_turn_radius = 8.0      # Radius for U-turn
-    offset = 2.0                # Offset for left/right pass
+    offset = 1.8                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
 
@@ -845,10 +845,11 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
     # plt.show()
 
     combined_xy = [[x, y] for x, y in zip(x_all, y_all)]
-    path = Path(ObjectFrameEnum.START,combined_xy)
-    path = compute_headings(path, smoothed=True)
-    path = path.arc_length_parameterize()
-    return path.racing_velocity_profile()
+    # path = Path(ObjectFrameEnum.START,combined_xy)
+    # path = compute_headings(path, smoothed=True)
+    # path = path.arc_length_parameterize()
+    # return path.racing_velocity_profile()
+    return to_gemstack_trajectory(x_all, y_all, v_all)
 
     # return to_gemstack_trajectory(x_all, y_all, v_all)
 
@@ -870,12 +871,10 @@ class SlalomTrajectoryPlanner(Component):
         if not self.planned:
             # Example Test - Slalom
             cones = [
-                {'x': 10, 'y': 0.0, 'orientation': 'left'},
-                {'x': 30, 'y': 1.0, 'orientation': 'right'},
-                {'x': 50, 'y': 0.0, 'orientation': 'left'},
-                {'x': 70, 'y': 1.0, 'orientation': 'standing'},
-                {'x': 50, 'y': 0.0, 'orientation': 'right'},
-                {'x': 30, 'y': 1.0, 'orientation': 'left'},
+                {'x': 10, 'y': 0.0, 'orientation': 'right'},
+                {'x': 30, 'y': 0.0, 'orientation': 'left'},
+                {'x': 50, 'y': 0.0, 'orientation': 'standing'},
+                {'x': 30, 'y': 0.0, 'orientation': 'left'},
                 {'x': 10, 'y': 0.0, 'orientation': 'right'}
             ]
             vehicle_dict = {
