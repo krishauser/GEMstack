@@ -18,7 +18,8 @@ class MPCController(object):
         self.delta_rate_bounds = [-0.4, 0.4] # Predefined front wheel rate limit to simplify computation
         self.steering_angle_range = [settings.get('vehicle.geometry.min_steering_angle'),settings.get('vehicle.geometry.max_steering_angle')]
         self.a_bounds = [-settings.get('vehicle.limits.max_deceleration'), settings.get('vehicle.limits.max_acceleration')]
-        
+        self.switch_gear = settings.get('control.mpc.switch_gear', False)
+
         if desired_speed is not None:
             self.desired_speed_source = desired_speed
         else:
@@ -91,7 +92,10 @@ class MPCController(object):
         x0 = np.array([state.pose.x, state.pose.y, state.pose.yaw % (2 * np.pi), state.v, state.front_wheel_angle])
         # print(x0)
 
-        closest_dist,closest_time = self.path.closest_point_local((x0[0], x0[1]),[self.current_traj_parameter-0.0,self.current_traj_parameter+1.0], True)
+        if self.switch_gear:
+            closest_dist,closest_time = self.path.closest_point_local((x0[0], x0[1]),[self.current_traj_parameter-0.0,self.current_traj_parameter+1.0], True)
+        else:
+            closest_dist,closest_time = self.path.closest_point_local((x0[0], x0[1]),[self.current_traj_parameter-0.0,self.current_traj_parameter+5.0], True)
         self.current_traj_parameter = closest_time
 
         times = self.path.times
@@ -101,12 +105,16 @@ class MPCController(object):
             j += 1
         self.current_path_parameter = j
 
-        # Slice path from j
-        sliced_points = points[j:]
-        sliced_times = times[j:]
+        if self.switch_gear:
+            # Slice path from j
+            sliced_points = points[j:]
+            sliced_times = times[j:]
 
-        # Clip reversed part
-        new_points, new_times = self.clip_reverse_path_with_times(sliced_points, sliced_times)
+            # Clip reversed part
+            new_points, new_times = self.clip_reverse_path_with_times(sliced_points, sliced_times)
+        else:
+            new_points = points
+            new_times = times
 
         # Interpolate trajectory points to match MPC time horizon
         traj_points = []
@@ -274,12 +282,14 @@ class MPCController(object):
                 component.debug("mpc/state_x", state.pose.x)
                 component.debug("mpc/state_y", state.pose.y)
                 component.debug("mpc/state_yaw", state.pose.yaw)
-                component.debug("mpc/target_x", traj_points[1][0])
-                component.debug("mpc/target_y", traj_points[1][1])
+                component.debug("mpc/target_x", self.path.points[self.current_path_parameter][0])
+                component.debug("mpc/target_y", self.path.points[self.current_path_parameter][1])
                 component.debug("mpc/target_theta", target_angles[0])
+
             # xy_array = [f"np.array([{round(self.prev_x[t,0],8)}, {round(self.prev_x[t,1],8)}])" for t in range(self.prev_x.shape[0])]
             # print("mpc = [", ", ".join(xy_array), "]")
 
+            print(self.current_path_parameter)
             print(acc, delta)
             # print(self.prev_u[0])
             # print(self.prev_x[0])
