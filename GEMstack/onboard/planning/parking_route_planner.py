@@ -339,14 +339,14 @@ class ParkingPlanner():
                 cone_objects.append(cone_object)
         
         # Need exactly 4 cones to form a parking spot
-        if len(parking_spot_vertices) != 4:
-            print("Warning: Not exactly 4 cones found for parking spot")
-            try:
-                with open(self.success_file, 'a') as f:
-                    f.write("No Four Cones")
-            except Exception as e:
-                print(f"Error saving parking status: {e}")
-            return False
+        # if len(parking_spot_vertices) != 4:
+        #     print("Warning: Not exactly 4 cones found for parking spot")
+        #     try:
+        #         with open(self.success_file, 'a') as f:
+        #             f.write("No Four Cones")
+        #     except Exception as e:
+        #         print(f"Error saving parking status: {e}")
+        #     return False
             
         # Order the vertices to form a proper polygon
         # Sort by x coordinate first, then by y coordinate
