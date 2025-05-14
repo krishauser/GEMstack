@@ -1,7 +1,7 @@
 from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
-from .peerception_utils import pose_to_matrix
+from .perception_utils import pose_to_matrix
 from .perception_utils_gem import *
 from typing import Dict, List, Optional, Tuple
 import rospy
@@ -318,31 +318,39 @@ class CombinedDetector3D(Component):
             quat_w = box.pose.orientation.w
             yaw, pitch, roll = R.from_quat([quat_x, quat_y, quat_z, quat_w]).as_euler('zyx', degrees=False)
 
-            # Get the starting vehicle pose
-            if self.start_pose_abs is None:
-                self.start_pose_abs = vehicle.pose
-            
-            # Convert to start frame
-            vehicle_start_pose = vehicle.pose.to_frame(
-                ObjectFrameEnum.START, vehicle.pose, self.start_pose_abs
-            )
-            T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
-            object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
-            object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
-            final_x, final_y, final_z = object_pose_start_h[:3, 0]
+            if self.use_start_frame:
+                out_frame = ObjectFrameEnum.START
+                # Get the starting vehicle pose
+                if self.start_pose_abs is None:
+                    self.start_pose_abs = vehicle.pose
+                
+                # Convert to start frame
+                vehicle_start_pose = vehicle.pose.to_frame(
+                    ObjectFrameEnum.START, vehicle.pose, self.start_pose_abs
+                )
+                # T_vehicle_to_start = pose_to_matrix(vehicle_start_pose)
+                T_vehicle_to_start = vehicle_start_pose.transform()
+                object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
+                object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
+                final_x, final_y, final_z = object_pose_start_h[:3, 0]
+            else:
+                out_frame = ObjectFrameEnum.CURRENT
+                final_x = pos_x
+                final_y = pos_y
+                final_z = pos_z
 
             new_pose = ObjectPose(
                 t=current_time, x=final_x, y=final_y, z=final_z,
-                yaw=yaw, pitch=pitch, roll=roll, frame=ObjectFrameEnum.START
+                yaw=yaw, pitch=pitch, roll=roll, frame=out_frame
             )
             dims = (box.dimensions.x, box.dimensions.y, box.dimensions.z * 2.0) # AgentState has z center on the floor and height is full height.
 
             new_pose = ObjectPose(
                 t=current_time, x=final_x, y=final_y, z=final_z - box.dimensions.z / 2.0,
-                yaw=yaw, pitch=pitch, roll=roll, frame=ObjectFrameEnum.START
+                yaw=yaw, pitch=pitch, roll=roll, frame=out_frame
             )
 
-            existing_id = match_existing_pedestrian(
+            existing_id = match_existing_cone(
                 new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
                 new_dims=dims,
                 existing_agents=self.tracked_agents,
@@ -365,7 +373,7 @@ class CombinedDetector3D(Component):
                 agents[existing_id] = updated_agent
                 self.tracked_agents[existing_id] = updated_agent
             else:
-                agent_id = f"pedestrian{self.ped_counter}"
+                agent_id = f"Pedestrian{self.ped_counter}"
                 self.ped_counter += 1
                 new_agent = AgentState(
                     pose=new_pose,

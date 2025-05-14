@@ -17,7 +17,7 @@ drive:
             args:
                 # optional overrides
                 enable_tracking: True # True if you want to enable tracking function
-                use_start_frame: True # True if you need output in START frame, otherwise in CURRENT frame
+                use_start_frame: False # True if you need output in START frame, otherwise in CURRENT frame
                 iou_threshold: 0.01 # Set to the IOU threshold used to compare bounding boxes
                 merge_mode: "BEV" # Merging strategy to use: "Average", "Score", "Max", or "BEV"
 
