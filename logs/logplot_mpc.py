@@ -1,3 +1,5 @@
+###Jugal's Code###
+###Following file gives the plots for MPC logs. Go inside logs folder where the logs are saved and run- python3 logplot_mpc.py "filename" to get the plots.
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
