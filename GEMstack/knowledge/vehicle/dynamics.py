@@ -8,9 +8,27 @@ TODO: add functions defining steering friction limits at different speeds and on
 from ...utils import settings
 from typing import Tuple
 import math
+import numpy as np
 
 def sign(x):
     return 1 if x > 0 else -1 if x < 0 else 0
+
+def brake_pedal_from_decel(a, d=0.346, b_max=8.0, n=3.7):
+    """
+    Compute brake pedal position p from desired deceleration a,
+    using fitted model parameters.
+    
+    Returns 0 if a is not strong enough to require braking (a > -d).
+    """
+    a = np.asarray(a)
+    p = np.zeros_like(a)
+
+    valid = a < -d  # Only apply braking if decel > dry decel
+
+    p[valid] = ((- (a[valid] + d)) / b_max)**(1 / n)
+
+    # Clamp between 0 and 1
+    return np.clip(p, 0.0, 1.0)
 
 def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitch : float, gear : int) -> Tuple[float,float,int]:
     """Converts acceleration in m/s^2 to pedal positions in % of pedal travel.
@@ -34,8 +52,9 @@ def acceleration_to_pedal_positions(acceleration : float, velocity : float, pitc
                 throttle_percent = accel_active_range[0] + ((acceleration+dry_decel)/max_accel * (accel_active_range[1]-accel_active_range[0]))
             brake_percent = 0
         else:
-            brake_percent = brake_active_range[0] + (-(acceleration+dry_decel)/max_brake * (brake_active_range[1]-brake_active_range[0]))
+            # brake_percent = brake_active_range[0] + (-(acceleration+dry_decel)/max_brake * (brake_active_range[1]-brake_active_range[0]))
             throttle_percent = 0
+            brake_percent = brake_pedal_from_decel(acceleration)
         print(acceleration, (max(throttle_percent,0.0),max(brake_percent,0.0),1))
         return (max(throttle_percent,0.0),max(brake_percent,0.0),1)
     

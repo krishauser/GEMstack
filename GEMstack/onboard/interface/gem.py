@@ -145,7 +145,10 @@ class GEMInterface:
         pitch = state.pose.pitch if state is not None and state.pose.pitch is not None else 0.0
         v = state.v if state is not None else 0.0
         gear = state.gear if state is not None else 1
-        acc_pos,brake_pos,gear = acceleration_to_pedal_positions(acceleration_mps2, v, pitch, gear)
+        if acceleration_mps2 == 100:
+            acc_pos,brake_pos,gear = 0, steering_wheel_angle, 1
+        else:
+            acc_pos,brake_pos,gear = acceleration_to_pedal_positions(acceleration_mps2, v, pitch, gear)
         
         cmd = GEMVehicleCommand(gear=gear,
                                 accelerator_pedal_position=acc_pos,

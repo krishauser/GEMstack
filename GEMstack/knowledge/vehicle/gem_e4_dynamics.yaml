@@ -16,7 +16,11 @@ acceleration_model : hang_v1
 accelerator_active_range : [0.2, 1.0]   #range of accelerator pedal where output acceleration is not flat
 brake_active_range : [0.5,1]             #range of brake pedal where output deceleration is not flat
 
-internal_dry_deceleration: 0.2      #m/s^2: deceleration due to internal dry friction (non-speed dependent)
+internal_dry_deceleration: 0.346      #m/s^2: deceleration due to internal dry friction (non-speed dependent)
 internal_viscous_deceleration: 0.05  #1/s: scales the current velocity to get deceleration due to internal viscous friction (speed dependent)
 aerodynamic_drag_coefficient: 0.01  #units in s, scaled by velocity^2 to get deceleration due to aerodynamic drag
 acceleration_deadband: 0.1          #m/s^2: minimum acceleration to be considered non-zero
+
+  # dry decel = 0.346
+  # max brake = 7.547
+  # exponent = 3.700
