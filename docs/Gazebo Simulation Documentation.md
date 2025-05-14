@@ -25,7 +25,7 @@ Follow the instructions in the linked repo to build and run the Docker container
 Install the required ROS packages:
 
 ```bash
-sudo apt-get install -y ros-noetic-ackermann-msgs
+sudo apt-get install -y ros-noetic-ackermann-msgs ros-noetic-gazebo-msgs
 ```
 
 ---
@@ -65,37 +65,88 @@ In one terminal, run the Gazebo simulator (using the instructions provided in th
 
 ### 2. Launch the GEM Stack
 
-Open a second terminal and launch GEMStack with your configured launch file.
+Open a second terminal and launch GEMStack with your configured launch file. Make sure to set the variant to `gazebo`.
 
-```bash
-python3 main.py --variant=gazebo --settings={your_file}.yaml launch/{your_file}.yaml
-
-```
-- Make sure to set the variant to `gazebo`.
-- You can specify the settings file to  GEMstack/knowledge/defaults/e4_gazebo.yaml or e2_gazebo.yaml till we work on closing the sim to real gap.
-
-Example command launching the fixed route with e4 vehicle:
+#### For GEM e2 Vehicle:
 
 ```bash
 python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/e2.yaml launch/fixed_route.yaml
-or
+```
+
+#### For GEM e4 Vehicle:
+
+```bash
 python3 main.py --variant=gazebo --settings=GEMstack/knowledge/defaults/current.yaml launch/fixed_route.yaml
 ```
+
+You can replace `fixed_route.yaml` with your specific launch file.
+
+**Note:** By default, the system uses `GEMstack/knowledge/defaults/current.yaml` which contains GEM e4 vehicle configuration settings.
+
+## Available Variants and Vehicle Types
+
 **Variants:**
- - sim
- - gazebo
+- `sim` - Simple simulation mode
+- `gazebo` - 3D Gazebo simulation mode
 
-**Vehicle types:**
-- e2
-- e4
+**Vehicle Types:**
+- `e2` - GEM e2 vehicle (uses Novatel GNSS)
+- `e4` - GEM e4 vehicle (uses Septentrio GNSS)
 
-**Setting:**
-
-By default it takes GEMstack/knowledge/defaults/current.yaml which is GEM E4 Vehicle configuration settings.
-
-Other available configuration files:
+## Available Configuration Files
 
 GEMstack/knowledge/defaults/
-- e2.yaml
+- `current.yaml` - Default configuration (GEM e4)
+- `e2.yaml` - GEM e2 configuration
+
+## Entity Detection in Gazebo
+
+The Gazebo simulation environment supports detection of various types of entities - both agents (pedestrians, vehicles, etc.) and obstacles (traffic cones, barriers, etc.) that can be spawned in the simulation world.
+
+For detailed information about entity detection, including configuration options, usage examples, and implementation details, see the [Entity Detection Documentation](gazebo_entity_detection.md).
+
+### Quick Start for Entity Detection
+
+To enable entity detection in your Gazebo simulation, add the following to your launch file's `gazebo` variant:
+
+```yaml
+drive:
+    perception:
+        state_estimation: GNSSStateEstimator  # Matches your Gazebo GNSS implementation
+        agent_detection:
+            type: agent_detection.GazeboAgentDetector
+            args:
+                tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
+        obstacle_detection:
+            type: obstacle_detection.GazeboObstacleDetector
+            args:
+                tracked_obstacle_prefixes: ['cone']
+```
+
+#### Configuration Options
+
+- **Agent Detection**:
+  - `type`: Specify the detector class (`agent_detection.GazeboAgentDetector`)
+  - `args`: Additional arguments:
+    - `tracked_model_prefixes`: Array of prefixes for models to track as agents
+  
+- **Obstacle Detection**:
+  - `type`: Specify the detector class (`obstacle_detection.GazeboObstacleDetector`)
+  - `args`: Additional arguments:
+    - `tracked_obstacle_prefixes`: Array of prefixes for models to track as obstacles
+
+The prefixes in the configuration arrays define which entities will be tracked. For example:
+- A model named `pedestrian1` will be detected as a pedestrian agent
+- A model named `cone5` will be detected as a traffic cone obstacle
+
+You can customize these arrays based on the entities present in your simulation environment.
+
+### Spawning Entities in Gazebo
+
+You can spawn both agents and obstacles in Gazebo using a YAML configuration file.
+
+Follow the instructions in the [POLARIS GEM Simulator](https://github.com/harishkumarbalaji/POLARIS_GEM_Simulator/tree/main) repository to spawn entities in Gazebo.
+
+The naming conventions for entities are important as they determine how models are detected and classified. Refer to the [Entity Detection Documentation](gazebo_entity_detection.md) for details on model naming and the detection process.
 
 ---
