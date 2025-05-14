@@ -21,6 +21,9 @@ components:
   - lane_detection:
       inputs: [vehicle, roadgraph]
       outputs: vehicle_lane
+  - parking_detection:
+      inputs: obstacles
+      outputs: [goal, obstacles]
   - sign_detection: 
       inputs: [vehicle, roadgraph]
       outputs: roadgraph.signs
@@ -40,15 +43,33 @@ components:
       inputs: all
   - mission_execution:
       outputs: mission
-  - route_planning:
-      inputs: [vehicle, roadgraph, mission]
-      outputs: route
-  - driving_logic:
+  - mission_planning:
       inputs: all
+      outputs: mission
+  - route_planning:
+      inputs: all
+      outputs: route
+  - route_planning_component:
+      inputs: all
+      outputs: [ route, mission ]
+  - save_lidar_data:
+      inputs: all
+      outputs:
+  - driving_logic:
+      inputs: 
       outputs: intent
+  - _mission_planner: # one way
+      inputs: all
+      outputs: mission_plan
+  - _route_planner: # one way
+      inputs: all
+      outputs: route
   - motion_planning:
       inputs: all
       outputs: trajectory
   - trajectory_tracking:
       inputs: [vehicle, trajectory]
       outputs: 
+  - signaling:
+      inputs: [intent]
+      outputs:
