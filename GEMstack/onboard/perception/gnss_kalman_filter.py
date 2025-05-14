@@ -180,9 +180,9 @@ def test0():
         ), th))
 
 if __name__ == "__main__":
+    import sys
     if len(sys.argv) > 3:
         print("usage: python3 -m GEMstack.onboard.perception.gnss_kalman_filter [topic [threshold]]")
-    import sys
     kf = GNSSKalmanFilter()
     th = 1
     
