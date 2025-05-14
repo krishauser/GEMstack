@@ -4,7 +4,7 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2
 from typing import Dict
 from ..component import Component 
-from ...state import ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleStateEnum
+from ...state import ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleStateEnum, AllState
 from ..interface.gem import GEMInterface
 from .utils.constants import *
 from .utils.detection_utils import *
@@ -73,7 +73,7 @@ class ParkingSpotsDetector3D(Component):
         return 10.0  # Hz
 
     def state_inputs(self) -> list:
-        return ['obstacles']
+        return ['all']
 
     def state_outputs(self) -> list:
         return ['goal', 'obstacles']
@@ -134,13 +134,13 @@ class ParkingSpotsDetector3D(Component):
             self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
 
-    def update(self, cone_obstacles: Dict[str, Obstacle]):
+    def update(self, state: AllState):
         # Initial variables
         goal_parking_spot = None
         parking_obstacles_pose = []
         parking_obstacles_dim = []
         ordered_cone_ground_centers_2D = []
-
+        cone_obstacles = state.obstacles
         # Populate cone points
         cone_pts_3D = []
         for cone in cone_obstacles.values():
@@ -198,8 +198,19 @@ class ParkingSpotsDetector3D(Component):
                         yaw=yaw,
                         pitch=0.0,
                         roll=0.0,
-                        frame=ObjectFrameEnum.CURRENT
+                        frame=ObjectFrameEnum.START
                     )
         
+        DISTANCE_THRESHOLD = 12.0
+        if self.euclidean_distance((x,y), state) > DISTANCE_THRESHOLD: # we are not close enough to the parking spot
+            return None
+
         new_state = [goal_pose, parking_obstacles]
         return new_state
+    
+    def euclidean_distance(self, point, state):
+        x, y = point
+        vehicle_x = state.vehicle.pose.x
+        vehicle_y = state.vehicle.pose.y
+        distance = np.sqrt((x - vehicle_x) ** 2 + (y - vehicle_y) ** 2)
+        return distance
