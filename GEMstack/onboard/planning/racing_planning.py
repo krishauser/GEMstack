@@ -7,16 +7,191 @@ from ...state.trajectory import Trajectory, compute_headings, Path
 from ...state.physical_object import ObjectFrameEnum
 
 import numpy as np
+# import matplotlib.pyplot as plt
+import matplotlib                
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
+from scipy.interpolate import CubicSpline
+import signal
 import threading
 
 from typing import Dict
+import atexit, os, numpy as np, matplotlib.pyplot as plt
+from datetime import datetime
+
 
 # --------------------------
 # This is the main code for the racing trajectory planner.
 # Contributors: Hua-Ta, Shilan
 # --------------------------
+
+_TRAJ_BUF = []
+
+def make_reference_slalom(cones, amp=2.0, tail=10.0, pts_per_seg=50):
+    """
+    Quick centre-line generator that weaves around a cone list.
+
+    orientation keywords may be lower/upper case.
+
+    LEFT  → pass on +amp   |  RIGHT → amp   |  STANDING → back to 0
+    """
+    xk, yk = [0.0], [0.0]                     # start at (0,0)
+    for c in cones:
+        o = c['orientation'].lower()
+        y = +amp if o == 'left' else -amp if o == 'right' else 0.0
+        xk.append(c['x']); yk.append(y)
+    xk.append(cones[-1]['x'] + tail); yk.append(0.0)   # little exit tail
+
+    # monotone in x ⇒ cubic spline works well
+    spline = CubicSpline(xk, yk, bc_type="natural")
+    x_ref = np.linspace(xk[0], xk[-1], pts_per_seg*len(cones))
+    y_ref = spline(x_ref)
+    return x_ref, y_ref
+
+def buffer_slalom_trajectory(
+        x, y, c,
+        waypoints=None,
+        cones=None,
+        ref=None,              
+        tag=None):
+    """Cache a trajectory segment for end-of-run plots."""
+    _TRAJ_BUF.append(dict(
+        x=np.asarray(x),
+        y=np.asarray(y),
+        c=np.asarray(c),
+        waypoints=waypoints or [],
+        cones=cones or [],
+        x_ref=np.asarray(ref['x']) if ref else None,
+        y_ref=np.asarray(ref['y']) if ref else None,
+        tag=tag or f"seg{len(_TRAJ_BUF)}",
+    ))
+
+
+def _render_slalom_buffer(
+    save_dir="/home/hbst/RACING/GEMstack/GEMstack/onboard/planning/test_slalom",
+):
+    if not _TRAJ_BUF:
+        print("[slalom-plot] nothing buffered – no figure created")
+        return
+
+    os.makedirs(save_dir, exist_ok=True)
+    fname = os.path.join(save_dir, f"slalom_{datetime.now():%Y%m%d_%H%M%S}.png")
+
+    fig, axs  = plt.subplots(2, 2, figsize=(14, 10))
+    ax_path, ax_rad = axs[0, 0], axs[0, 1]
+    ax_cmp,  ax_err = axs[1, 0], axs[1, 1]
+    R_MAX_PLOT   = 50.0 
+    R_SCALE      = 5.0
+    step_offset = 0
+    plotted_cones = False 
+    plotted_gen   = False   
+
+    for d in _TRAJ_BUF:
+        x, y = d["x"], d["y"]
+        s  = np.concatenate(([0.0], np.cumsum(np.hypot(np.diff(x), np.diff(y)))))
+        dx = np.gradient(x, s)
+        dy = np.gradient(y, s)
+        ddx = np.gradient(dx, s)
+        ddy = np.gradient(dy, s)
+        kappa = np.abs(dx*ddy - dy*ddx) / np.power(dx*dx + dy*dy, 1.5)
+        r = 1.0 / np.where(kappa < 1e-9, np.inf, kappa)
+
+        # s = np.concatenate(([0.0], np.cumsum(np.hypot(np.diff(x), np.diff(y)))))
+        # dx  = np.gradient(x, s)
+        # dy  = np.gradient(y, s)
+        # ddx = np.gradient(dx, s)
+        # ddy = np.gradient(dy, s)
+        # kappa = np.abs(dx*ddy - dy*ddx) / np.power(dx*dx + dy*dy, 1.5)
+        # r = 1.0 / np.clip(kappa, 1e-3, None)
+
+        # path panel
+        ax_path.plot(x, y, label=d["tag"])
+        if d["cones"] and not plotted_cones:
+            for cone in d["cones"]:
+                ax_path.plot(cone['x'], cone['y'],
+                marker='^', ms=6, mfc='gold', mec='black')
+            plotted_cones = True
+        # for wp in d["waypoints"]:
+            # ax_path.plot(*wp, "rx")
+
+        # radius panel
+        # ax_rad.plot(r, label=d["tag"])
+        r_plot = r.copy()
+        r_plot[r_plot > R_MAX_PLOT] = np.nan
+        r_plot = r_plot / R_SCALE                  
+        steps   = np.arange(len(r_plot)) + step_offset
+        ax_rad.plot(steps, r_plot, label=d["tag"])
+        step_offset += len(r_plot)
+
+        if d["x_ref"] is not None:
+            # resample reference to same length as generated path
+            # t_gen = np.linspace(0, 1, len(x))
+            # t_ref = np.linspace(0, 1, len(d["x_ref"]))
+            # x_ref = np.interp(t_gen, t_ref, d["x_ref"])
+            # y_ref = np.interp(t_gen, t_ref, d["y_ref"])
+
+            ax_cmp.plot(d["x_ref"], d["y_ref"],
+                        lw=2, ls="--", color="black",
+                        label=None if plotted_gen else "expected")
+
+            # generated (always blue)
+            ax_cmp.plot(x, y,
+                        color="tab:blue",
+                        label=None if plotted_gen else "generated")
+            plotted_gen = True
+
+
+            if d["cones"]:
+                for cone in d["cones"]:
+                    ax_cmp.plot(cone['x'], cone['y'],
+                                marker='^', ms=6, mfc='gold', mec='black')
+
+            # ax_cmp.plot(x_ref, y_ref, lw=2, ls='--', label=f'{d["tag"]} ref')
+            # ax_cmp.plot(x,     y,     label=f'{d["tag"]} gen')
+
+            # err = np.hypot(x_ref - x, y_ref - y)
+            # err = np.hypot(d["x_ref"] - x, d["y_ref"] - y)
+            # ax_err.plot(err, label=d["tag"])
+
+            t_gen = np.linspace(0.0, 1.0, len(x))
+            t_ref = np.linspace(0.0, 1.0, len(d["x_ref"]))
+            x_ref_rs = np.interp(t_gen, t_ref, d["x_ref"])
+            y_ref_rs = np.interp(t_gen, t_ref, d["y_ref"])
+
+            err = np.hypot(x_ref_rs - x, y_ref_rs - y)
+            ax_err.plot(err, label=d["tag"])
+
+
+            if d["cones"]:
+                cum_s   = np.cumsum(np.hypot(np.diff(x), np.diff(y)))
+                cum_s   = np.insert(cum_s, 0, 0.0)
+                for cone in d["cones"]:
+                    idx = np.argmin(np.hypot(x - cone['x'], y - cone['y']))
+                    ax_err.plot(idx, err[idx], marker='^',
+                                ms=5, mfc='gold', mec='black')
+
+    # styling  –  keep it tidy
+    ax_path.set(title="generated paths", xlabel="x", ylabel="y");       ax_path.grid(); ax_path.legend(); ax_path.axhline(0, ls="--", c="gray")
+    ax_rad.set(title="turn-radius profile", xlabel="step", ylabel="radius (m)"); ax_rad.grid(); ax_rad.legend(); ax_rad.axhline(11.0, ls="--", c="red", label="min safe R")
+    ax_cmp.set(title="expected vs generated path", xlabel="x", ylabel="y");       ax_cmp.grid();  ax_cmp.legend()
+    ax_err.set(title="absolute lateral error",    xlabel="step", ylabel="error (m)"); ax_err.grid(); ax_err.legend()
+
+    fig.tight_layout()
+    fig.savefig(fname)
+    print(f"[slalom-plot] saved → {fname}")
+    plt.close(fig)
+
+atexit.register(_render_slalom_buffer)
+
+def _sig_flush_then_exit(signum, frame):
+    _render_slalom_buffer()
+    # re-raise the signal’s default behaviour so the program still terminates
+    signal.signal(signum, signal.SIG_DFL)
+    os.kill(os.getpid(), signum)
+
+signal.signal(signal.SIGINT,  _sig_flush_then_exit)   # Ctrl-C
+signal.signal(signal.SIGTERM, _sig_flush_then_exit)   # docker / kill
 
 def scenario_check(vehicle_state, cone_state):
     """
@@ -195,7 +370,8 @@ def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
                           w_c=10.0, w_eps=0.0, w_vvar=4.0,
                           w_terminal=10.0,
                           v_min=3.0, v_max=11.0,
-                          waypoints=None, waypoint_penalty_weight=100.0):
+                          waypoints=None, waypoint_penalty_weight=100.0, 
+                          enable_debug_viz=True):
     """
     Generate a dynamically feasible trajectory between init_state and final_state
     using curvature-based vehicle dynamics and nonlinear optimization.
@@ -315,6 +491,19 @@ def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
         'c_error': abs(c_full[-1] - final_state['c']),
     }
 
+    cones = [
+        {'x': 10, 'y': 0.0, 'orientation': 'left'},
+        {'x': 30, 'y': 1.0, 'orientation': 'right'},
+        {'x': 50, 'y': 0.0, 'orientation': 'left'},
+        {'x': 70, 'y': 1.0, 'orientation': 'standing'},
+    ]
+    x_ref, y_ref = make_reference_slalom(cones, amp=2.0, tail=10.0, pts_per_seg=80)
+    buffer_slalom_trajectory(x_full, y_full, c_full,
+                         waypoints=waypoints,
+                         ref={'x': x_ref, 'y': y_ref},
+                         cones=cones)  
+
+
     return x_full, y_full, psi_full, c_full, v_full, eps_, final_error
 
 ######## more dynamics version
@@ -324,6 +513,7 @@ def trajectory_generation_dynamics(init_state, final_state, N=30, Lr=1.5,
                           v_min=2.0, v_max=11.0,
                           T_min = 0.5, T_max = 1000.0,
                           waypoints=None, waypoint_penalty_weight=10, waypoint_headings=None):
+    
     """
     Generate a dynamically feasible trajectory between init_state and final_state
     using curvature-based vehicle dynamics and nonlinear optimization.
@@ -1433,16 +1623,11 @@ if __name__ == "__main__":
             scenario, wpt_flexes, wpt_fixed  = waypoint_generate(vehicle_state, cones)
             plot_results(vehicle_state, cones, wpt_flexes, wpt_fixed, scenario_label)
             # Trajectory
-            init_state = {'y': wpt_flexes[0][1], 'psi': 0.0, 'c': 0.0}
-            final_state = {'y': wpt_fixed[1], 'psi': 0.0, 'c': 0.0}
-
-            y_traj, psi_traj, c_traj, eps_traj = trajectory_generation(init_state, final_state)
             # plot_trajectory(y_traj, psi_traj, c_traj, label="Generated trajectory")
             # plot_dynamics(psi_traj, c_traj, eps_traj)
 
             # Iterate
-            vehicle_state = drive(vehicle_state)
-            if case == 'slalom':
-                cones.pop(0)
+        vehicle_state = drive(vehicle_state)
+        if case == 'slalom':
+            cones.pop(0)
     # test_planning(case='slalom', test_loop=2)
-# ------------ Test Code END --------------
