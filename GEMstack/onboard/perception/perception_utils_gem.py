@@ -1,15 +1,17 @@
 from ...state import ObjectPose, AgentState
 from typing import Dict
 import numpy as np
+# Had to move these functions to a seperate file because they use relative imports
 
-def match_existing_pedestrian(
+
+def match_existing_cone(
         new_center: np.ndarray,
         new_dims: tuple,
         existing_agents: Dict[str, AgentState],
         distance_threshold: float = 1.0
 ) -> str:
     """
-    Find the closest existing pedestrian agent within a specified distance threshold.
+    Find the closest existing Cone agent within a specified distance threshold.
     """
     best_agent_id = None
     best_dist = float('inf')
@@ -20,7 +22,6 @@ def match_existing_pedestrian(
             best_dist = dist
             best_agent_id = agent_id
     return best_agent_id
-
 
 def compute_velocity(old_pose: ObjectPose, new_pose: ObjectPose, dt: float) -> tuple:
     """

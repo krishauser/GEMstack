@@ -3,6 +3,7 @@ from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, Obstac
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .perception_utils import *
+from .perception_utils_gem import *
 from ultralytics import YOLO
 import cv2
 from typing import Dict
@@ -366,6 +367,7 @@ class ConeDetector3D(Component):
                             outline=None,
                             material=ObstacleMaterialEnum.TRAFFIC_CONE,
                             state=state,
+                            collidable=False
                         )
                     else:
                         updated_obstacle = old_state
@@ -380,6 +382,7 @@ class ConeDetector3D(Component):
                         outline=None,
                         material=ObstacleMaterialEnum.TRAFFIC_CONE,
                         state=state,
+                        collidable=False
                     )
                     obstacles[obstacle_id] = new_obstacle
                     self.tracked_obstacles[obstacle_id] = new_obstacle
@@ -392,6 +395,7 @@ class ConeDetector3D(Component):
                     outline=None,
                     material=ObstacleMaterialEnum.TRAFFIC_CONE,
                     state=state,
+                    collidable=False
                 )
                 obstacles[obstacle_id] = new_obstacle
 

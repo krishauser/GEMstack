@@ -2,7 +2,7 @@ from jsk_recognition_msgs.msg import BoundingBox
 from scipy.spatial.transform import Rotation as R
 
 # Seperated Sensor Fusion specific utilities into it's own file because package imports are required 
-# (to minimize integration problems)
+# (to minimize integration problems for groups who aren't using sensor fusion)
 
 # Adds a new bounding box to a BoundingBoxArray
 def add_bounding_box(boxes, frame_id, stamp, x, y, z, l, w, h, yaw, conf_score, label):
