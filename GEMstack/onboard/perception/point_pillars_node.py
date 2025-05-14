@@ -175,12 +175,13 @@ class PointPillarsNode:
                     R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                     vehicle_yaw, vehicle_pitch, vehicle_roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
                     
-                    # print("printing")
-                    # print(z_vehicle)
-                    # print(h)
                     # Ensure the box doesn't go below ground level
-                    if (z_vehicle - h/2) < 0.0:
-                        z_vehicle = h/2
+                    bottom = z_vehicle - h / 2.0
+                    if bottom < 0.0:
+                        bottom = 0.0 # Can modify this later if we want a small seperation between the bounding box and ground
+                        top = z_vehicle + h / 2.0
+                        z_vehicle = (top - bottom) / 2.0
+                        h = abs(top - center)
 
                     # Add the bounding box
                     boxes = add_bounding_box(
