@@ -8,6 +8,8 @@ from sensor_msgs.msg import PointCloud2, Image
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 from cv_bridge import CvBridge
 import time
+import os
+import yaml
 
 # Publisher imports:
 from jsk_recognition_msgs.msg import BoundingBoxArray
@@ -24,7 +26,7 @@ class YoloNode():
     and return only detections from the current frame.
     """
 
-    def __init__(self):
+    def __init__(self, camera_calib_file: str):
         self.latest_image = None
         self.latest_lidar = None
         self.bridge = CvBridge()
@@ -32,8 +34,35 @@ class YoloNode():
         self.camera_front = (self.camera_name == 'front')
         self.score_threshold = 0.4
         self.debug = True
-        # self.undistort_map1 = None
-        # self.undistort_map2 = None
+
+        # # 1) Load LiDAR-to-vehicle transform
+        # self.T_l2v = np.array(T_l2v) if T_l2v is not None else np.array([
+        #     [0.99939639, 0.02547917, 0.023615, 1.1],
+        #     [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
+        #     [-0.02379784, 0.00689664, 0.999693, 1.95320223],
+        #     [0.0, 0.0, 0.0, 1.0]
+        # ])
+
+        # 2) Load camera intrinsics/extrinsics from YAML
+        with open(camera_calib_file, 'r') as f:
+            calib = yaml.safe_load(f)
+
+        # Expect structure:
+        # cameras:
+        #   front:
+        #     K:   [[...], [...], [...]]
+        #     D:   [...]
+        #     T_l2c: [[...], ..., [...]]
+        cam_cfg = calib['cameras'][self.camera_name]
+        self.K = np.array(cam_cfg['K'])
+        self.D = np.array(cam_cfg['D'])
+        self.T_l2c = np.array(cam_cfg['T_l2c'])
+        self.T_l2v = np.array(cam_cfg['T_l2v'])
+
+        self.undistort_map1 = None
+        self.undistort_map2 = None
+        self.camera_front = (self.camera_name == 'front')
+
         self.initialize()
 
     def initialize(self):
@@ -55,45 +84,6 @@ class YoloNode():
         # Create bounding box publisher
         self.pub = rospy.Publisher('/yolo_boxes', BoundingBoxArray, queue_size=1)
         rospy.loginfo("YOLO node initialized and waiting for messages.")
-
-        # Set camera intrinsic parameters based on camera
-        if self.camera_front:
-            self.K = np.array([[684.83331299, 0., 573.37109375],
-                               [0., 684.60968018, 363.70092773],
-                               [0., 0., 1.]])
-            self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-        else:
-            self.K = np.array([[1.17625545e+03, 0.00000000e+00, 9.66432645e+02],
-                               [0.00000000e+00, 1.17514569e+03, 6.08580326e+02],
-                               [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
-            self.D = np.array([-2.70136325e-01, 1.64393255e-01, -1.60720782e-03, 
-                              -7.41246708e-05, -6.19939758e-02])
-
-        # Transformation matrix from LiDAR to vehicle frame 
-        self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
-                               [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
-                               [-0.02379784, 0.00689664, 0.999693, 1.95320223],
-                               [0., 0., 0., 1.]])
-                               
-        # Transformation matrix from LiDAR to camera frame
-        if self.camera_front:
-            self.T_l2c = np.array([
-                [0.001090, -0.999489, -0.031941, 0.149698],
-                [-0.007664, 0.031932, -0.999461, -0.397813],
-                [0.999970, 0.001334, -0.007625, -0.691405],
-                [0., 0., 0., 1.000000]
-            ])
-        else:
-            self.T_l2c = np.array([[-0.71836368, -0.69527204, -0.02346088, 0.05718003],
-                                   [-0.09720448, 0.13371206, -0.98624154, -0.1598301],
-                                   [0.68884317, -0.7061996, -0.16363744, -1.04767285],
-                                   [0., 0., 0., 1.]]
-                                  )
-                                  
-        # Compute inverse transformation (camera to LiDAR)
-        self.T_c2l = np.linalg.inv(self.T_l2c)
-        self.R_c2l = self.T_c2l[:3, :3]
-        self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
         # Initialize the YOLO detector and move to GPU if available
         self.detector = YOLO('yolov8n.pt')
@@ -202,7 +192,7 @@ class YoloNode():
 
             # Get the 3D points corresponding to the box
             points_3d = roi_pts[:, 2:5]
-            points_3d = filter_depth_points(points_3d, max_human_depth=0.8)
+            points_3d = filter_depth_points(points_3d, max_depth_diff=0.8)
             refined_cluster = refine_cluster(points_3d, np.mean(points_3d, axis=0), eps=0.15, min_samples=10)
             refined_cluster = remove_ground_by_min_range(refined_cluster, z_range=0.1)
 
@@ -275,7 +265,9 @@ class YoloNode():
 
 if __name__ == '__main__':
     try:
-        node = YoloNode()
+        current_dir = os.path.dirname(__file__)
+        yaml_path = os.path.join(current_dir, '..', '..', 'knowledge', 'calibration', 'cameras.yaml')
+        node = YoloNode(yaml_path)
         rospy.spin()
     except rospy.ROSInterruptException:
         pass
