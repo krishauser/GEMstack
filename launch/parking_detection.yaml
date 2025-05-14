@@ -15,17 +15,17 @@ drive:
         state_estimation : GNSSStateEstimator
         obstacle_detection :
             type: cone_detection.ConeDetector3D
-            args:
-                camera_name: front_right #[front, front_right]
-                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+            # args:
+            #     camera_name: front_right #[front, front_right]
+            #     camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
 
-                # optional overrides
-                enable_tracking: False
-                visualize_2d: False
-                use_cyl_roi: False
-                save_data: False
-                orientation: False
-                use_start_frame: False
+            #     # optional overrides
+            #     enable_tracking: False
+            #     visualize_2d: False
+            #     use_cyl_roi: False
+            #     save_data: False
+            #     orientation: False
+            #     use_start_frame: True
         parking_detection:
             type: parking_detection.ParkingSpotsDetector3D
             args:
@@ -150,7 +150,8 @@ variants:
                             iterations: 300
                             heuristic: reeds_shepp
                     motion_planning:
-                        type: creep_planning.CreepTrajectoryPlanner
+                        type: longitudinal_planning.YieldTrajectoryPlanner
+                        # type: creep_planning.CreepTrajectoryPlanner
                         # type: yield_spline_planner.SplinePlanner
                         largs:
                             acceleration: 5
