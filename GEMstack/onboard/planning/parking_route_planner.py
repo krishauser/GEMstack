@@ -451,6 +451,11 @@ class ParkingPlanner():
         self.velocity_threshold = 0.1  # m/s
         self.orientation_threshold = math.radians(10)  # 10 degrees
         self.distance_function = settings.get("run.drive.planning.route_planning_component.astar.heuristic", "reeds_shepp")
+        self.T = settings.get("run.drive.planning.route_planning_component.dubins.integrator.time_step", 1.5)
+        self.dt = settings.get("run.drive.planning.route_planning_component.dubins.integrator.dt", .25)
+        self.max_v = settings.get("run.drive.planning.route_planning_component.dubins.actions.max_velocity", 0.75)
+        self.max_turn_rate = settings.get("run.drive.planning.route_planning_component.dubins.actions.max_turn_rate", 0.3)
+        self.tolerance = settings.get("run.drive.planning.route_planning_component.dubins.tolerance", 0.5)
         
         # Create logs directory if it doesn't exist
         self.logs_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'log_success')
@@ -466,10 +471,13 @@ class ParkingPlanner():
             position_error (float): Euclidean distance between final and goal positions
             orientation_error (float): Absolute difference between final and goal orientations in degrees
         """
+        
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         status = "successful" if success else "unsuccessful"
         final_pos_status = " Final Pos Inside" if  final_pos_inside else " Final Pos Not Inside"
-        message = f"{timestamp} {self.distance_function} Parking {status} {final_pos_status}"
+        message = f"{timestamp} Heuristic Function: {self.distance_function} Parking {status}; {final_pos_status}"
+        message += f"Timestep: {self.T}; dt: {self.dt}; max_v: {self.max_v}; max_turn_rate: {self.max_turn_rate};"
+        message += f"Tolerance: {self.tolerance} Iterations: {self.iterations}"
         if planning_time is not None:
             message +=  f" (Planning time: {planning_time:.2f} seconds)"
         if position_error is not None:
