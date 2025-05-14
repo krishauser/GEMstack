@@ -181,7 +181,7 @@ class PointPillarsNode:
                         bottom = 0.0 # Can modify this later if we want a small seperation between the bounding box and ground
                         top = z_vehicle + h / 2.0
                         z_vehicle = (top - bottom) / 2.0
-                        h = abs(top - center)
+                        h = abs(top - z_vehicle)
 
                     # Add the bounding box
                     boxes = add_bounding_box(
