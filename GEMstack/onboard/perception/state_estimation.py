@@ -15,7 +15,6 @@ class GNSSStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
     def __init__(self, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
-        print("GNSSStateEstimator", vehicle_interface.sensors())
         if 'gnss' not in vehicle_interface.sensors():
             raise RuntimeError("GNSS sensor not available")
         vehicle_interface.subscribe_sensor('gnss',self.gnss_callback,GNSSReading)
@@ -27,7 +26,6 @@ class GNSSStateEstimator(Component):
 
     # Get GNSS information
     def gnss_callback(self, reading : GNSSReading):
-        # print("GNSS callback",reading)
         self.gnss_pose = reading.pose
         self.gnss_speed = reading.speed
         self.status = reading.status

@@ -13,7 +13,7 @@ class OmniscientAgentDetector(Component):
         self.lock = threading.Lock()
 
     def rate(self):
-        return 10.0
+        return 4.0
     
     def state_inputs(self):
         return []
