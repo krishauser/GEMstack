@@ -61,9 +61,6 @@ export default function OtherVehicle({ id, timeline, time }: OtherVehicleProps) 
     ref.current.quaternion.slerp(targetQuaternion, 0.2);
   });
 
-  const hasSpawned = timeline.length > 0 && timeline[0].time <= time;
-  if (!isLoaded || !hasSpawned) return null;
-
   return (
     <group ref={ref}>
       <group ref={vehicleGroup} />

@@ -58,9 +58,6 @@ export default function Pedestrian({ id, timeline, time }: PedestrianProps) {
     ref.current.quaternion.slerp(targetQuaternion, 0.2);
   });
 
-  const hasSpawned = timeline.length > 0 && timeline[0].time <= time;
-  if (!mounted || !hasSpawned) return null;
-
   return (
     <primitive
       ref={ref as React.RefObject<Object3D>}
