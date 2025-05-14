@@ -53,7 +53,7 @@ components:
       inputs: all
       outputs: route
   - route_planning_component: # one way
-      inputs: [vehicle,agents,mission_plan, obstacles]
+      inputs: [vehicle,mission_plan, obstacles]
       outputs: route
   - save_lidar_data:
       inputs: all

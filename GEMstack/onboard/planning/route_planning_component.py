@@ -1,10 +1,9 @@
 import os
-from typing import Dict, List
+from typing import List
 
 import numpy as np
 
 from GEMstack.onboard.component import Component
-from GEMstack.state.agent import AgentState
 from GEMstack.state.mission import MissionEnum
 from GEMstack.state.all import AllState
 from GEMstack.state.physical_object import ObjectFrameEnum, ObjectPose
@@ -14,11 +13,8 @@ from GEMstack.state.intent import VehicleIntentEnum
 from GEMstack.state.mission_plan import MissionPlan, ModeEnum
 from GEMstack.state.obstacle import Obstacle, ObstacleMaterialEnum
 from .planner import optimized_kinodynamic_rrt_planning
-from .map_utils import load_pgm_to_occupancy_grid
-from .rrt_star import RRTStar
 from typing import List
 from ..component import Component
-from ...utils import serialization
 from ...state import Route, ObjectFrameEnum
 import math
 import requests
@@ -532,7 +528,7 @@ class RoutePlanningComponentExample(Component):
         self.frame = None
 
     def state_inputs(self):
-        return ["vehicle", "agents", "mission_plan", "obstacles"]
+        return ["vehicle", "mission_plan", "obstacles"]
 
     def state_outputs(self) -> List[str]:
         return ['route']
@@ -541,7 +537,7 @@ class RoutePlanningComponentExample(Component):
         return 10.0
     
 
-    def update(self, vehicle: VehicleState, agents: Dict[str, AgentState], mission_plan: MissionPlan, obstacles: Obstacle) -> Route:
+    def update(self, vehicle: VehicleState, mission_plan: MissionPlan, obstacles: Obstacle) -> Route:
 
         if self.frame is None:
             if mission_plan.mode == ModeEnum.HARDWARE:
