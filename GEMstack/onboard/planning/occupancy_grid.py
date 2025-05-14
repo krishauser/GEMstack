@@ -12,7 +12,7 @@ from sensor_msgs.msg import Image
 image_path = os.path.join(os.path.dirname(__file__), "highbay_image.pgm")
 DEBUG = True
 
-class OccupancyGrid2:
+class OccupancyGrid:
 
     global image_path
 

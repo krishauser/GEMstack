@@ -26,7 +26,7 @@ import requests
 import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from .occupancy_grid2 import OccupancyGrid2
+from .occupancy_grid import OccupancyGrid
 import cv2
 
 
@@ -230,7 +230,7 @@ class InspectRoutePlanner(Component):
         self.start = [0, 0]
         self.bridge = CvBridge()
         self.img_pub = rospy.Publisher("/image_with_car_xy", Image, queue_size=1)
-        self.occupancy_grid = OccupancyGrid2()
+        self.occupancy_grid = OccupancyGrid()
         self.planned_path_already = False
         self.x = None
     
@@ -526,7 +526,7 @@ class RoutePlanningComponentExample(Component):
         self.planner = None
         self.route = None
         self.bridge = CvBridge()
-        self.occupancy_grid = OccupancyGrid2()
+        self.occupancy_grid = OccupancyGrid()
         self.img_pub = rospy.Publisher("/occupancy_grid", Image, queue_size=1)
         self.previous_obstacles = None
         self.frame = None
