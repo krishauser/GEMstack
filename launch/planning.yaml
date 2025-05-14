@@ -53,8 +53,7 @@ drive:
             desired_speed: 2.0
             deceleration: 2.0
             emergency_brake: 8.0
-        # motion_planning: longitudinal_planning.YieldTrajectoryPlanner
-        # motion_planning: yield_spline_planner.SplinePlanner
+        # motion_planning: trajectory_planning_component.QuinticSplineScurveTrajectoryPlanner
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 
@@ -142,7 +141,7 @@ variants:
 
                     planning_component_example:
                         type: PlanningComponentExample
-                        
+
                     route_planning_component:
                         type: RoutePlanningComponentExample
   
@@ -152,8 +151,8 @@ variants:
                         desired_speed: 2.0
                         deceleration: 2.0
                         emergency_brake: 8.0
-                    # motion_planning: longitudinal_planning.YieldTrajectoryPlanner
-                    # motion_planning: yield_spline_planner.SplinePlanner
+
+                    # motion_planning: trajectory_planning_component.QuinticSplineScurveTrajectoryPlanner
 
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker

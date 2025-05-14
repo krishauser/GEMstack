@@ -21,6 +21,8 @@ drive:
         route_planning_component:
             type: RoutePlanningComponent
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+        # motion_planning: trajectory_planning_component.LongitudinalPlanner
+        # motion_planning: trajectory_planning_component.QuinticSplineScurveTrajectoryPlanner
             # type: RouteToTrajectoryPlanner
             # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:
@@ -104,6 +106,8 @@ variants:
                     route_planning_component:
                         type: RoutePlanningComponent
                     motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+                    # motion_planning: trajectory_planning_component.LongitudinalPlanner
+                    # motion_planning: trajectory_planning_component.QuinticSplineScurveTrajectoryPlanner
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         args: {desired_speed: 2.5}  #approximately 5mph
