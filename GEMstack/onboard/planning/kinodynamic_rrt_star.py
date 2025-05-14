@@ -57,7 +57,7 @@ class OptimizedKinodynamicRRT:
         )
 
         self.max_iterations = max_iterations
-        self.visualization_sampling_step_size = local_sampling_step_size
+        self.sampling_step_size = local_sampling_step_size
         self.vehicle_length = vehicle_length  # Vehicle wheelbase
         self.vehicle_width = vehicle_width  # Vehicle width
         self.time_step_simulation = 0.1 # dt for simulation
@@ -295,7 +295,7 @@ class OptimizedKinodynamicRRT:
 
         # Scale velocity based on distance, similar to original step_size logic
         # This PFF generates segments of length comparable to one visualization sampling step
-        velocity_scale_factor = min(1.0, distance_to_target_xy / (2.0 * self.visualization_sampling_step_size))
+        velocity_scale_factor = min(1.0, distance_to_target_xy / (2.0 * self.sampling_step_size))
         applied_velocity = self.max_velocity * velocity_scale_factor
 
         # Adjust velocity based on alignment with target direction
@@ -313,7 +313,7 @@ class OptimizedKinodynamicRRT:
         # Determine number of simulation steps for this segment
         # Aim for segment length related to visualization_sampling_step_size or distance to target
         effective_step_length = applied_velocity * self.time_step_simulation
-        target_segment_length = min(distance_to_target_xy, self.visualization_sampling_step_size)
+        target_segment_length = min(distance_to_target_xy, self.sampling_step_size)
         num_simulation_steps = max(5, min(int(target_segment_length / (effective_step_length + 1e-6)), 25))
 
 
