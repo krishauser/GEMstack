@@ -51,7 +51,7 @@ class YoloNode():
         # Initialize YOLO node
         rospy.init_node('yolo_box_publisher')
         # Create bounding box publisher
-        self.pub = rospy.Publisher('/yolo_boxes', BoundingBoxArray, queue_size=10)
+        self.pub = rospy.Publisher('/yolo_boxes', BoundingBoxArray, queue_size=1)
         rospy.loginfo("YOLO node initialized and waiting for messages.")
 
         if self.camera_front:

@@ -13,8 +13,42 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
+from geometry_msgs.msg import Quaternion
 
 from .sensorFusion.eval_3d_bbox_performance import calculate_3d_iou
+import copy
+
+
+def average_yaw(yaw1, yaw2):
+    v1 = np.array([np.cos(yaw1), np.sin(yaw1)])
+    v2 = np.array([np.cos(yaw2), np.sin(yaw2)])
+    v_avg = (v1 + v2) / 2.0
+    return np.arctan2(v_avg[1], v_avg[0])
+
+def quaternion_to_yaw(quaternion_arr):
+    return R.from_quat(quaternion_arr).as_euler('zyx', degrees=False)[0]
+
+def avg_orientations(orientation1, orientation2):
+    # This function assumes both quaternions are 2D planar rotations around the z axis
+
+    quat1 = [orientation1.x, orientation1.y, orientation1.z, orientation1.w]
+    quat2 = [orientation2.x, orientation2.y, orientation2.z, orientation2.w]
+    
+    yaw1 = quaternion_to_yaw(quaternion_arr=quat1)
+    yaw2 = quaternion_to_yaw(quaternion_arr=quat2)
+
+    # Compute the average yaw and then convert back into quaternions
+    # (averaging quaternions directly causes problems)
+    avg_yaw = average_yaw(yaw1=yaw1, yaw2=yaw2)
+    avg_quat = R.from_euler('z', avg_yaw).as_quat()
+
+    orientation = Quaternion()
+    orientation.x = float(avg_quat[0])
+    orientation.y = float(avg_quat[1])
+    orientation.z = float(avg_quat[2])
+    orientation.w = float(avg_quat[3])
+
+    return orientation
 
 def merge_boxes(box1: BoundingBox, box2: BoundingBox) -> BoundingBox:
      # TODO:  merging 
@@ -29,8 +63,10 @@ def merge_boxes(box1: BoundingBox, box2: BoundingBox) -> BoundingBox:
      merged_box.pose.position.x = (box1.pose.position.x + box2.pose.position.x) / 2.0
      merged_box.pose.position.y = (box1.pose.position.y + box2.pose.position.y) / 2.0
      merged_box.pose.position.z = (box1.pose.position.z + box2.pose.position.z) / 2.0
-     # Avg orientation (quaternions)
-     merged_box.pose.orientation = box1.pose.orientation 
+     
+     # Avg orientations (quaternions)
+     merged_box.pose.orientation = avg_orientations(box1.pose.orientation, box2.pose.orientation) 
+
      merged_box.dimensions.x = (box1.dimensions.x + box2.dimensions.x) / 2.0
      merged_box.dimensions.y = (box1.dimensions.y + box2.dimensions.y) / 2.0
      merged_box.dimensions.z = (box1.dimensions.z + box2.dimensions.z) / 2.0
@@ -76,8 +112,8 @@ class CombinedDetector3D(Component):
         self.use_start_frame = use_start_frame
         self.iou_threshold = iou_threshold
 
-        self.yolo_topic = "/yolo_boxes"
-        self.pp_topic = "/pointpillars_boxes"
+        self.yolo_topic = '/yolo_boxes'
+        self.pp_topic = '/pointpillars_boxes'
         self.debug = False
 
         rospy.loginfo(f"CombinedDetector3D Initialized. Subscribing to '{self.yolo_topic}' and '{self.pp_topic}'.")
@@ -114,8 +150,8 @@ class CombinedDetector3D(Component):
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         current_time = self.vehicle_interface.time()
 
-        yolo_bbx_array = self.latest_yolo_bbxs
-        pp_bbx_array = self.latest_pp_bbxs
+        yolo_bbx_array = copy.deepcopy(self.latest_yolo_bbxs)
+        pp_bbx_array = copy.deepcopy(self.latest_pp_bbxs)
 
         if yolo_bbx_array is None or pp_bbx_array is None:
             return {} 
@@ -128,12 +164,13 @@ class CombinedDetector3D(Component):
 
         current_frame_agents = self._fuse_bounding_boxes(yolo_bbx_array, pp_bbx_array, vehicle, current_time)
 
-        if self.enable_tracking:
-            self._update_tracking(current_frame_agents)
-        else:
-            self.tracked_agents = current_frame_agents # NOTE: No deepcopy
+        return {}
+        # if self.enable_tracking:
+        #     self._update_tracking(current_frame_agents)
+        # else:
+        #     self.tracked_agents = current_frame_agents # NOTE: No deepcopy
 
-        return self.tracked_agents
+        # return self.tracked_agents
 
 
     def _fuse_bounding_boxes(self,
@@ -191,12 +228,12 @@ class CombinedDetector3D(Component):
         # Work in progress to visualize combined results
         fused_bb_array = BoundingBoxArray()
         fused_bb_array.header = original_header
-        fused_bb_array.boxes = fused_boxes_list
 
         for i, box in enumerate(fused_boxes_list):
+            fused_bb_array.boxes.append(box)
+            rospy.loginfo(len(fused_boxes_list))
+            
             try:
-                fuxed_bb_array.boxes.append(box)
-
                  # Cur vehicle frame
                 pos_x = box.pose.position.x; pos_y = box.pose.position.y; pos_z = box.pose.position.z
                 quat_x = box.pose.orientation.x; quat_y = box.pose.orientation.y; quat_z = box.pose.orientation.z; quat_w = box.pose.orientation.w

@@ -1,7 +1,3 @@
-# from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
-# from ..interface.gem import GEMInterface
-# from ..component import Component
-# from perception_utils import *
 from combined_detection_utils import *
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -86,7 +82,7 @@ class PointPillarsNode():
         # Initialize PointPillars node
         rospy.init_node('pointpillars_box_publisher')
         # Create bounding box publisher
-        self.pub = rospy.Publisher('/pointpillars_boxes', BoundingBoxArray, queue_size=10)
+        self.pub = rospy.Publisher('/pointpillars_boxes', BoundingBoxArray, queue_size=1)
         rospy.loginfo("PointPillars node initialized and waiting for messages.")
 
         # Initialize PointPillars
@@ -171,6 +167,12 @@ class PointPillarsNode():
                     R_vehicle = self.T_l2v[:3, :3] @ R_lidar
                     vehicle_yaw, vehicle_pitch, vehicle_roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
                     
+                    print("printing")
+                    print(z_vehicle)
+                    print(h)
+                    if (z_vehicle - h/2) < 0.0:
+                        z_vehicle = h/2
+
                     boxes = add_bounding_box(boxes=boxes, 
                         frame_id='currentVehicleFrame', 
                         stamp=lidar_msg.header.stamp, 
