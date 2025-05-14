@@ -348,10 +348,10 @@ class OccupancyGrid2:
                 if len(cluster_points) == 1:
                     x, y = cluster_points[0]
                     buffer = 10
-                    pt1_x = max(0, x - buffer)
-                    pt1_y = max(0, y - buffer)
-                    pt2_x = min(self.img_width - 1, x + buffer)
-                    pt2_y = min(self.img_height - 1, y + buffer)
+                    rect_pt1_x = max(0, x - buffer)
+                    rect_pt1_y = max(0, y - buffer)
+                    rect_pt2_x = min(self.img_width - 1, x + buffer)
+                    rect_pt2_y = min(self.img_height - 1, y + buffer)
                     # print(f"[DEBUG-NAIVE] Cluster {i} (single point) box: pt1=({pt1_x},{pt1_y}), pt2=({pt2_x},{pt2_y})")
                     # if pt1_x < pt2_x and pt1_y < pt2_y:
                     #     cv2.rectangle(pub_image, (pt1_x, pt1_y), (pt2_x, pt2_y), (255, 100, 100), 2)  # Light Blue
