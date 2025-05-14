@@ -1,5 +1,13 @@
 # ********* Main settings entry point for behavior stack ***********
- 
+##### ONLY FOR BRAKE MAPPING
+# in brake branch:
+# change stanley speed to path
+# use racing_pedal_mapping launch file
+# run brake_pedal_func.py to get dry decel, max brake, exponent params
+# in main branch:
+# update  params in gem_e4_dynamics.yaml
+# add brake_from_pedal  to  dynamics.py, replace current brake percent
+
  # Configure settings for the vehicle / vehicle model
  vehicle:  !include ../vehicle/gem_e4.yaml
  
