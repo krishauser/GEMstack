@@ -1,4 +1,4 @@
-description: "Drive the GEM vehicle along a fixed route (currently xyhead_highbay_backlot_p.csv)"
+description: "Use the sensors to detect cones and drive a slalom route around them."
 mode: hardware
 vehicle_interface: gem_hardware.GEMHardwareInterface
 mission_execution: StandardExecutor
