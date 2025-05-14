@@ -7,6 +7,9 @@
 # The actual implementation of each component must use a subset of the specified inputs
 # and must generate a superset of the specified outputs.
 components:   
+  - gnss_estimation:
+      inputs:
+      outputs:
   - state_estimation: 
       outputs: vehicle
   - roadgraph_update:
