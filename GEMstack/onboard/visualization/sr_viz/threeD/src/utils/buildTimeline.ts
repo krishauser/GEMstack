@@ -21,10 +21,10 @@ export function buildTimeline(entries: LogEntry[]): TimelineData {
             yaw: pose.yaw ?? 0,
             pitch: pose.pitch ?? 0,
             roll: pose.roll ?? 0,
-            metadata: entry.key === "vehicle" ? { ...entry.data } : undefined,
+            metadata: entry.type === "VehicleState" ? { ...entry.data } : undefined,
         };
 
-        if (entry.key === "vehicle") {
+        if (entry.type === "VehicleState") {
             vehicle.push(frame);
         } else if (entry.type === "PedestrianState") {
             const key = entry.key.trim();

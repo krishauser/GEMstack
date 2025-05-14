@@ -17,7 +17,7 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
           key === 'vehicle' &&
           'type' in value &&
           'data' in value &&
-          (value as any).data?.pose?.frame === 2
+          (value as any).type === "VehicleState"
         ) {
           entries.push({
             key,
@@ -35,7 +35,7 @@ export async function parseLogFile(file: File): Promise<LogEntry[]> {
               typeof agentValue === 'object' &&
               agentValue !== null &&
               'data' in agentValue &&
-              (agentValue as any).data?.pose?.frame === 0
+              (agentValue as any).type === 'AgentState'
             ) {
               const inferredType = getTypeFromKey(agentId);
               entries.push({
