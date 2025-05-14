@@ -68,7 +68,7 @@ log:
     #auto_plot : True
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
-    log: /Users/aavideora/Documents/GitHub/GEMstack/logs/l1
+    log: !relative_path '../logs/l1'
     ros_topics : [camera_fl_arena_camera_node_image_raw]
     components : []
 
