@@ -20,8 +20,6 @@ drive:
                 state_machine: ['IDLE', 'NAV', 'INSPECT', 'FINISH']
         # save_lidar_data : capture_lidar_camera_data.SaveInspectionData
         motion_planning: longitudinal_planning.YieldTrajectoryPlanner
-        # motion_planning: trajectory_planning_component.LongitudinalPlanner
-        # motion_planning: trajectory_planning_component.QuinticSplineScurveTrajectoryPlanner
             # type: RouteToTrajectoryPlanner
             # args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
         trajectory_tracking:

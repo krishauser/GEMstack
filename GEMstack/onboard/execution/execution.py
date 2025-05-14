@@ -609,6 +609,7 @@ class ExecutorBase:
 
             #check for vehicle faults
             self.check_for_hardware_faults()
+
             self.update_components(perception_components,self.state)
             sensors_working = all([c.healthy() for c in perception_components.values()])
 

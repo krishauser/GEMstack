@@ -2,11 +2,74 @@ import os
 import argparse
 import time
 import matplotlib
+import matplotlib.pyplot as plt
 
 from .collision import build_collision_lookup
-from .map_utils import load_pgm_to_occupancy_grid
-from .visualization import visualize_path
 from .kinodynamic_rrt_star import OptimizedKinodynamicRRT
+
+
+
+def visualize_path(occupancy_grid, path, start_world, goal_world, show_headings=True):
+    """
+    Visualize the planned path.
+    
+    Args:
+        occupancy_grid: Binary occupancy grid (1=obstacle, 0=free)
+        path: List of (x, y, theta) world coordinates
+        start_world: (x, y, theta) start position in world coordinates
+        goal_world: (x, y, theta) goal position in world coordinates
+        show_headings: Whether to show heading arrows along the path
+    """
+    plt.figure(figsize=(12, 12))
+    
+    # Show occupancy grid
+    plt.imshow(occupancy_grid, cmap='gray' )
+    
+    # Extract path points
+    if path:
+            
+        xs = [p[0] for p in path]
+        ys = [p[1] for p in path]
+        
+        # Plot path
+        plt.plot(xs, ys, 'g-', linewidth=2)
+        
+        # Show heading arrows
+        if show_headings:
+            arrow_interval = max(1, len(path) // 20)  # Show ~20 arrows along path
+            arrow_length = 10
+            
+            for i in range(0, len(path), arrow_interval):
+                x, y, theta = path[i]
+                dx = arrow_length * math.cos(theta)
+                dy = arrow_length * math.sin(theta)
+                plt.arrow(x, y, dx, dy, head_width=3, head_length=6, fc='blue', ec='blue')
+    
+    # Show start and goal
+    start_grid = start_world
+    goal_grid = goal_world
+    
+    plt.scatter(start_grid[0], start_grid[1], color='green', s=100, marker='o', label='Start')
+    plt.scatter(goal_grid[0], goal_grid[1], color='red', s=100, marker='x', label='Goal')
+    
+    # Draw start and goal heading arrows
+    dx_start = 15 * math.cos(start_grid[2])
+    dy_start = 15 * math.sin(start_grid[2])
+    plt.arrow(start_grid[0], start_grid[1], dx_start, dy_start, 
+            head_width=5, head_length=10, fc='green', ec='green')
+    
+    dx_goal = 15 * math.cos(goal_grid[2])
+    dy_goal = 15 * math.sin(goal_grid[2])
+    plt.arrow(goal_grid[0], goal_grid[1], dx_goal, dy_goal, 
+            head_width=5, head_length=10, fc='red', ec='red')
+    
+    plt.title('Path Planning Result')
+    plt.legend()
+    plt.tight_layout()
+    #save the plt instead of showing it
+    plt.savefig(f"path_planning_result_{time.time()}.png")
+    # plt.show()
+
 
 def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, safety_margin=10, 
                                        vehicle_width=20, vehicle_length=45.0, step_size=1.0, max_iterations=100000):
@@ -84,50 +147,3 @@ def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, 
     print(f"Total planning time: {time.time() - t_start:.2f}s")
     
     return grid_path
-
-# Used for local testing
-def main():
-    """Main function for running the planner."""
-    parser = argparse.ArgumentParser(description="Optimized Kinodynamic RRT planner")
-    parser.add_argument("--vis", default=True, action="store_true", help="show visualizations for tests or planning result")
-    parser.add_argument("--animate", "-a", action="store_true", help="animate planned path")
-    parser.add_argument("--max-iter", type=int, default=10000, help="maximum RRT iterations")
-    parser.add_argument("--pad", type=int, default=100, help="crop padding (cells)")
-    parser.add_argument("--safety", type=int, default=2, help="safety margin (cells)")
-    parser.add_argument("--map-pgm", type=str, default="occupancy_grid_after_>0.pgm", help="path to PGM map file")
-    parser.add_argument("--step-size", type=float, default=100.0, help="step size for path sampling")
-    parser.add_argument("--vehicle-width", type=float, default=20, help="vehicle width in meters")
-    parser.add_argument("--vehicle-length", type=float, default=45, help="vehicle length in meters")
-    
-    if "--vis" not in os.sys.argv and "--animate" not in os.sys.argv and "-a" not in os.sys.argv:
-        matplotlib.use("Agg")
-    
-    args = parser.parse_args()
-    
-    if not (os.path.exists(args.map_pgm)):
-        print(f"Map files not found: {args.map_pgm}")
-        print("Use --test for CI runs or provide map files with --map-pgm")
-        return
-    
-    occupancy_grid = load_pgm_to_occupancy_grid(args.map_pgm)
-    
-    # start_w = (-200.0, -137.0, 0 * math.pi / 2)
-    # goal_w = (-100.0, -137.0, 3*math.pi/2)
-    start_w = (1200, 1025, 5.977692900114106)
-    goal_w = (420, 1071, 4.713123114093702)
-    # start_w = (-200.0, -137.0, 0 * math.pi / 2)
-    # goal_w = (-200.0, -110.0, 2*math.pi/2)
-
-    # start_w = (15.0, 2.0, 0*math.pi/2)
-    # goal_w = (15.0, 11.0, 2*math.pi/2)
-    # goal_w = (.0, 5.0, 1*math.pi/2)
-
-    visualize_path(occupancy_grid, [], start_w, goal_w)
-    
-    path = optimized_kinodynamic_rrt_planning(
-        start_w, goal_w, occupancy_grid,
-        safety_margin=args.safety,
-        vehicle_width=args.vehicle_width,
-        step_size=args.step_size,
-        max_iterations=args.max_iter,
-    )
