@@ -225,10 +225,6 @@ def multi_scale_icp(source, target, voxel_sizes=[2.0, 1.0, 0.5], max_iterations=
     return current_transform
 
 
-def utm16n_to_wgs84(easting: float, northing: float):
-    """Convert UTM coordinates to WGS84 (latitude, longitude)"""
-    lat, lon = utm.to_latlon(easting, northing, 16, True)
-    return (lat, lon)
 
 def transform_to_pose(transformation_matrix,origin):
     """Convert transformation matrix to position and orientation (RPY)."""
@@ -249,7 +245,7 @@ def transform_to_pose(transformation_matrix,origin):
     northing = y + origin[1]
     height = z + origin[2]
      
-    lon_deg,lat_deg = utm16_to_wgs84(easting,northing)
+    lon_deg,lat_deg = utm.to_latlon(easting, northing, 16, "N")
     
     return lon_deg,lat_deg,height,roll,pitch,yaw
 
@@ -360,9 +356,9 @@ class MapBasedStateEstimator(Component):
         print("ICP", self.vehicle_interface.time() - scan_time)
         
         # Extract position and orientation
-        lat,lon, *_ = utm.from_latlon(0,90,16,'N')
-        origin90w0s = [lat,lon,0]
-        x, y, z, roll, pitch, yaw = transform_to_pose(final_transformation,origin90w0s)
+        lat,lon, *_ = utm.from_latlon(0,-90,16,'N')
+        origin90w0n = [lat,lon,0]
+        x, y, z, roll, pitch, yaw = transform_to_pose(final_transformation,origin90w0n)
         # TODO: Estimate speed
         if self.map_based_pose != None:
             translation = np.array([x - self.map_based_pose.x, y - self.map_based_pose.y, z - self.map_based_pose.z])
