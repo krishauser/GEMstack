@@ -1,4 +1,3 @@
-import numpy as np
 from scipy.ndimage import distance_transform_edt
 
 def build_collision_lookup(grid, safety_margin=2, vehicle_width=1.0):
