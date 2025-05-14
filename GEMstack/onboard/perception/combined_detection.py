@@ -3,13 +3,12 @@ from ..interface.gem import GEMInterface
 from ..component import Component
 # from .perception_utils import *
 from .pedestrian_utils_gem import *
-from typing import Dict
+from typing import Dict, List, Optional, Tuple
 import rospy
 from message_filters import Subscriber, ApproximateTimeSynchronizer
 import time
 import os
 import yaml
-from typing import Dict, List, Optional, Tuple
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
@@ -25,12 +24,14 @@ def average_yaw(yaw1, yaw2):
     v_avg = (v1 + v2) / 2.0
     return np.arctan2(v_avg[1], v_avg[0])
 
+
 def quaternion_to_yaw(quaternion_arr):
     return R.from_quat(quaternion_arr).as_euler('zyx', degrees=False)[0]
 
-def avg_orientations(orientation1, orientation2):
-    # This function assumes both quaternions are 2D planar rotations around the z axis
 
+def avg_orientations(orientation1, orientation2):
+    """Average two quaternion orientations by converting to yaw and back."""
+    # This function assumes both quaternions are 2D planar rotations around the z axis
     quat1 = [orientation1.x, orientation1.y, orientation1.z, orientation1.w]
     quat2 = [orientation2.x, orientation2.y, orientation2.z, orientation2.w]
     
@@ -49,6 +50,7 @@ def avg_orientations(orientation1, orientation2):
     orientation.w = float(avg_quat[3])
 
     return orientation
+
 
 def merge_boxes(box1: BoundingBox, box2: BoundingBox, mode: str = "Average") -> BoundingBox:
     """
@@ -107,7 +109,7 @@ def merge_boxes(box1: BoundingBox, box2: BoundingBox, mode: str = "Average") -> 
         merged_box.dimensions.z = (weight1 * box1.dimensions.z) + (weight2 * box2.dimensions.z)
         
         # For orientation, we still use the average_orientations function
-        # A more advanced approach would be to implement weighted quaternion averaging
+        # More advanced: implement weighted quaternion averaging
         merged_box.pose.orientation = avg_orientations(box1.pose.orientation, box2.pose.orientation)
         
         # For label, use the one from the higher-score box
@@ -132,12 +134,15 @@ def merge_boxes(box1: BoundingBox, box2: BoundingBox, mode: str = "Average") -> 
 
     return merged_box
 
+
 def get_aabb_corners(box: BoundingBox):
     """
-    Calculates the 3D Intersection over Union (IoU) between two bounding boxes.
-    This implementation uses axis-aligned bounding boxes so it does not consider rotation.
+    Get axis-aligned bounding box corners for IoU calculation.
+    Use axis-aligned bounding boxes so it does not consider rotation.
+    
+    Returns:
+        min_x, max_x, min_y, max_y, min_z, max_z coordinates
     """
-
     # Extract position and dimensions from each box
     cx, cy, cz = box.pose.position.x, box.pose.position.y, box.pose.position.z
     l, w, h = box.dimensions.x, box.dimensions.y, box.dimensions.z
@@ -145,10 +150,20 @@ def get_aabb_corners(box: BoundingBox):
     # min_x, max_x, min_y, max_y, min_z, max_z    
     return cx, cx + l, cy, cy + w, cz, cz + h
 
+
 def get_volume(box):
+    """Calculate the volume of a bounding box."""
     return box.dimensions.x * box.dimensions.y * box.dimensions.z
 
+
 class CombinedDetector3D(Component):
+    """
+    Combines detections from multiple 3D object detectors (YOLO and PointPillars).
+    
+    This component subscribes to bounding box outputs from YOLO and PointPillars,
+    fuses overlapping detections, and outputs a unified set of 3D bounding boxes.
+    """
+    
     def __init__(
         self,
         vehicle_interface: GEMInterface,
@@ -158,13 +173,13 @@ class CombinedDetector3D(Component):
         merge_mode: str = "Average",
         **kwargs 
     ):
-        self.vehicle_interface   = vehicle_interface
+        self.vehicle_interface = vehicle_interface
         self.tracked_agents: Dict[str, AgentState] = {}
-        self.ped_counter         = 0
+        self.ped_counter = 0
         self.latest_yolo_bbxs: Optional[BoundingBoxArray] = None
         self.latest_pp_bbxs: Optional[BoundingBoxArray] = None
-        self.start_pose_abs: Optional[ObjectPose]      = None
-        self.start_time: Optional[float]          = None
+        self.start_pose_abs: Optional[ObjectPose] = None
+        self.start_time: Optional[float] = None
 
         self.enable_tracking = enable_tracking
         self.use_start_frame = use_start_frame
@@ -188,6 +203,7 @@ class CombinedDetector3D(Component):
         return ['agents']
 
     def initialize(self):
+        """Initialize subscribers and publishers."""
         self.yolo_sub = Subscriber(self.yolo_topic, BoundingBoxArray)
         self.pp_sub = Subscriber(self.pp_topic, BoundingBoxArray)
         self.pub_fused = rospy.Publisher("/fused_boxes", BoundingBoxArray, queue_size=1)
@@ -204,10 +220,12 @@ class CombinedDetector3D(Component):
         rospy.loginfo("CombinedDetector3D Subscribers Initialized.")
 
     def synchronized_callback(self, yolo_bbxs_msg: BoundingBoxArray, pp_bbxs_msg: BoundingBoxArray):
+        """Callback for synchronized YOLO and PointPillars messages."""
         self.latest_yolo_bbxs = yolo_bbxs_msg
         self.latest_pp_bbxs = pp_bbxs_msg
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
+        """Update function called by the GEMstack pipeline."""
         current_time = self.vehicle_interface.time()
 
         yolo_bbx_array = copy.deepcopy(self.latest_yolo_bbxs)
@@ -225,11 +243,11 @@ class CombinedDetector3D(Component):
         current_frame_agents = self._fuse_bounding_boxes(yolo_bbx_array, pp_bbx_array, vehicle, current_time)
 
         return {}
+        # Tracking disabled for now
         # if self.enable_tracking:
         #     self._update_tracking(current_frame_agents)
         # else:
         #     self.tracked_agents = current_frame_agents # NOTE: No deepcopy
-
         # return self.tracked_agents
 
 
@@ -239,6 +257,18 @@ class CombinedDetector3D(Component):
                              vehicle_state: VehicleState,
                              current_time: float
                             ) -> Dict[str, AgentState]:
+        """
+        Fuse bounding boxes from multiple detectors.
+        
+        Args:
+            yolo_bbx_array: Bounding boxes from YOLO detector
+            pp_bbx_array: Bounding boxes from PointPillars detector
+            vehicle_state: Current vehicle state
+            current_time: Current timestamp
+            
+        Returns:
+            Dictionary of agent states
+        """
         original_header = yolo_bbx_array.header
         current_agents_in_frame: Dict[str, AgentState] = {}
         yolo_boxes: List[BoundingBox] = yolo_bbx_array.boxes
@@ -270,11 +300,11 @@ class CombinedDetector3D(Component):
                 rospy.logdebug(f"Matched YOLO box {i} with PP box {best_match_j} (IoU: {best_iou:.3f})")
                 matched_yolo_indices.add(i)
                 matched_pp_indices.add(best_match_j)
-                rospy.logdebug(f"Using bbox merge mode: {self.merge_mode} for boxes with scores {yolo_box.value:.2f} and {pp_boxes[best_match_j].value:.2f}")
+                rospy.logdebug(f"Using merge mode: {self.merge_mode} for boxes with scores {yolo_box.value:.2f} and {pp_boxes[best_match_j].value:.2f}")
                 merged = merge_boxes(yolo_box, pp_boxes[best_match_j], mode=self.merge_mode)
                 fused_boxes_list.append(merged)
 
-        ## UAdd the unmatched YOLO boxes
+        ##  Add the unmatched YOLO boxes
         for i, yolo_box in enumerate(yolo_boxes):
             if i not in matched_yolo_indices:
                 fused_boxes_list.append(yolo_box)
@@ -295,22 +325,27 @@ class CombinedDetector3D(Component):
             rospy.loginfo(len(fused_boxes_list))
             
             try:
-                 # Cur vehicle frame
-                pos_x = box.pose.position.x; pos_y = box.pose.position.y; pos_z = box.pose.position.z
-                quat_x = box.pose.orientation.x; quat_y = box.pose.orientation.y; quat_z = box.pose.orientation.z; quat_w = box.pose.orientation.w
+                # Get position and orientation in current vehicle frame
+                pos_x = box.pose.position.x
+                pos_y = box.pose.position.y
+                pos_z = box.pose.position.z
+                quat_x = box.pose.orientation.x
+                quat_y = box.pose.orientation.y
+                quat_z = box.pose.orientation.z
+                quat_w = box.pose.orientation.w
                 yaw, pitch, roll = R.from_quat([quat_x, quat_y, quat_z, quat_w]).as_euler('zyx', degrees=False)
 
-                # Start frame
+                # Transform to start frame if needed
                 if self.use_start_frame and self.start_pose_abs is not None:
-                     vehicle_pose_in_start_frame = vehicle_state.pose.to_frame(
-                         ObjectFrameEnum.START, vehicle_state.pose, self.start_pose_abs
-                     )
-                     T_vehicle_to_start = pose_to_matrix(vehicle_pose_in_start_frame)
-                     object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
-                     object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
-                     final_x, final_y, final_z = object_pose_start_h[:3, 0]
+                    vehicle_pose_in_start_frame = vehicle_state.pose.to_frame(
+                        ObjectFrameEnum.START, vehicle_state.pose, self.start_pose_abs
+                    )
+                    T_vehicle_to_start = pose_to_matrix(vehicle_pose_in_start_frame)
+                    object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
+                    object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
+                    final_x, final_y, final_z = object_pose_start_h[:3, 0]
                 else:
-                      final_x, final_y, final_z = pos_x, pos_y, pos_z
+                    final_x, final_y, final_z = pos_x, pos_y, pos_z
 
                 final_pose = ObjectPose(
                     t=current_time, x=final_x, y=final_y, z=final_z,
@@ -318,8 +353,9 @@ class CombinedDetector3D(Component):
                 )
                 dims = (box.dimensions.x, box.dimensions.y, box.dimensions.z)
                 ######### Mapping based on label (integer) from BoundingBox msg
-                agent_type = AgentEnum.PEDESTRIAN if box.label == 0 else AgentEnum.UNKNOWN # Needs refinement
-                activity = AgentActivityEnum.UNKNOWN # Placeholder
+                # Set agent type based on label
+                agent_type = AgentEnum.PEDESTRIAN if box.label == 0 else AgentEnum.UNKNOWN
+                activity = AgentActivityEnum.UNKNOWN  # Placeholder
 
                 # temp id 
                 # _update_tracking assign persistent IDs
@@ -360,8 +396,9 @@ class CombinedDetector3D(Component):
 
 
 # Fake 2D Combined Detector for testing purposes
-# TODO FIX THIS
 class FakeCombinedDetector2D(Component):
+    """Test detector that simulates cone detections at fixed time intervals."""
+    
     def __init__(self, vehicle_interface: GEMInterface):
         self.vehicle_interface = vehicle_interface
         self.times = [(5.0, 20.0), (30.0, 35.0)]
@@ -389,6 +426,7 @@ class FakeCombinedDetector2D(Component):
 
 
 def box_to_fake_agent(box):
+    """Convert 2D bounding box to a fake agent state."""
     x, y, w, h = box
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
