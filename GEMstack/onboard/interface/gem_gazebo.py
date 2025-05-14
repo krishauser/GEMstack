@@ -223,6 +223,7 @@ class GEMGazeboInterface(GEMInterface):
             # Check if this model should be tracked as an agent or obstacle
             agent_type = None
             for prefix in self.tracked_model_prefixes:
+
                 if model_name.lower().startswith(prefix.lower()):
                     for key, value in MODEL_PREFIX_TO_AGENT_TYPE.items():
                         if prefix.lower().startswith(key.lower()):

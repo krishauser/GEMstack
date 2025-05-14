@@ -118,36 +118,37 @@ class ObjectDetection(Component):
 
         boxes = track_result[0].boxes
         for box in boxes:
-
+            # print("BOXES: ", box)   
             
             class_id = int(box.cls.item())
             label_text = class_names[class_id]
             xywh = box.xywh[0].tolist()
             x, y, w, h = xywh
-            id = box.id.item()
+            if box.id!=None:
+                id = box.id.item()
 
-            # Draw bounding box
-            cv2.rectangle(image, (int(x - w / 2), int(y - h / 2)), (int(x + w / 2), int(y + h / 2)), (255, 0, 255), 3)
+                # Draw bounding box
+                cv2.rectangle(image, (int(x - w / 2), int(y - h / 2)), (int(x + w / 2), int(y + h / 2)), (255, 0, 255), 3)
 
-            # Define text label
-            x = int(x - w / 2)
-            y = int(y - h / 2)
-            label = label_text + str(id) + " : " + str(round(box.conf.item(), 2))
+                # Define text label
+                x = int(x - w / 2)
+                y = int(y - h / 2)
+                label = label_text + str(id) + " : " + str(round(box.conf.item(), 2))
 
-            # Get text size
-            text_size, baseline = cv2.getTextSize(label, font, font_scale, line_type)
-            text_w, text_h = text_size
+                # Get text size
+                text_size, baseline = cv2.getTextSize(label, font, font_scale, line_type)
+                text_w, text_h = text_size
 
-            # Position text above the bounding box
-            text_x = x
-            text_y = y - 10 if y - 10 > 10 else y + h + text_h
+                # Position text above the bounding box
+                text_x = x
+                text_y = y - 10 if y - 10 > 10 else y + h + text_h
 
-            # Draw text outline for better visibility
-            for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:  
-                cv2.putText(image, label, (text_x + dx, text_y - baseline + dy), font, font_scale, outline_color, outline_thickness)
+                # Draw text outline for better visibility
+                for dx, dy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:  
+                    cv2.putText(image, label, (text_x + dx, text_y - baseline + dy), font, font_scale, outline_color, outline_thickness)
 
-            # Draw main text on top of the outline
-            cv2.putText(image, label, (text_x, text_y - baseline), font, font_scale, font_color, text_thickness)
+                # Draw main text on top of the outline
+                cv2.putText(image, label, (text_x, text_y - baseline), font, font_scale, font_color, text_thickness)
 
 
             

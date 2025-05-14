@@ -1,0 +1,9 @@
+free_thresh: 0.196
+image: rrt_occupancy_map.pgm
+negate: 0
+occupied_thresh: 0.65
+origin:
+- -216.01645512959212
+- -237.24164234400672
+- 0.0
+resolution: 0.1

@@ -61,12 +61,24 @@ components:
   - driving_logic:
       inputs: 
       outputs: intent
+<<<<<<< HEAD
+  - parking_component: # one way
+      inputs: all
+      outputs: mission_plan
+  - summon_component: # one way
+      inputs: all
+      outputs: route
+  - route_planning_component: # one way
+      inputs: [vehicle,agents,mission_plan, obstacles]
+      outputs: route
+=======
   - _mission_planner: # one way
       inputs: all
       outputs: mission_plan
   - _route_planner: # one way
       inputs: all
       outputs: route
+>>>>>>> c2672669e19024ddf6f0ec39238970f2bbca80ed
   - motion_planning:
       inputs: all
       outputs: trajectory
@@ -75,4 +87,8 @@ components:
       outputs: 
   - signaling:
       inputs: [intent]
+<<<<<<< HEAD
       outputs:
+=======
+      outputs:
+>>>>>>> c2672669e19024ddf6f0ec39238970f2bbca80ed
