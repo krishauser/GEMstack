@@ -219,7 +219,7 @@ class ParkingSpotsDetector3D(Component):
                     )
         
         dist = self.euclidean_distance((x,y), state)
-        if dist > 15:
+        if dist > 8:
             return None
 
         new_state = [goal_pose, parking_obstacles]
