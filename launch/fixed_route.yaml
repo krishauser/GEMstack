@@ -32,7 +32,6 @@ drive:
         trajectory_tracking:
             # type: pure_pursuit.PurePursuitTrajectoryTracker
             type: stanley.StanleyTrajectoryTracker
-            # type: stanley_forward.StanleyTrajectoryTracker
             # type: mpc.MPCTrajectoryTracker
             args: {desired_speed: 2.5}  #approximately 5mph
             print: False
