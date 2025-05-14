@@ -3,7 +3,6 @@ from ..interface.gem import GEMInterface
 from ..component import Component
 # from .perception_utils import *
 from .pedestrian_utils_gem import *
-from .pedestrian_utils import pose_to_matrix
 from typing import Dict
 import rospy
 from message_filters import Subscriber, ApproximateTimeSynchronizer
@@ -51,30 +50,87 @@ def avg_orientations(orientation1, orientation2):
 
     return orientation
 
-def merge_boxes(box1: BoundingBox, box2: BoundingBox) -> BoundingBox:
-     # TODO:  merging 
-     # Heuristics-  Average pose
-     #         Average dimensions
-     #         Use highest score
-     #         Label specific logic
-     merged_box = BoundingBox()
-     merged_box.header = box1.header # Use header from one input
-
-     ## Avg position, average dimensions, max score, box1 label
-     merged_box.pose.position.x = (box1.pose.position.x + box2.pose.position.x) / 2.0
-     merged_box.pose.position.y = (box1.pose.position.y + box2.pose.position.y) / 2.0
-     merged_box.pose.position.z = (box1.pose.position.z + box2.pose.position.z) / 2.0
+def merge_boxes(box1: BoundingBox, box2: BoundingBox, mode: str = "Average") -> BoundingBox:
+    """
+    Merge two bounding boxes using the specified mode.
+    
+    Args:
+        box1: First bounding box
+        box2: Second bounding box
+        mode: Merging strategy to use. Options include:
+              - "Average": Simple average of position, dimensions, and orientation (default)
+              - "Score": Weight average by confidence scores (box.value)
+              - "Max": Use the entire box with the highest confidence score
+              
+    Notes:
+        - The 'value' field in BoundingBox is used for the confidence score
+        - The label from the box with higher confidence is used when using Score mode
+        - In Average mode, the label from the first box is used
+        - Max mode returns a copy of the box with the highest confidence score
+        
+    Returns:
+        A merged bounding box
+    """
      
-     # Avg orientations (quaternions)
-     merged_box.pose.orientation = avg_orientations(box1.pose.orientation, box2.pose.orientation) 
+    merged_box = BoundingBox()
+    merged_box.header = box1.header # Use header from one input
+    
+    # Get confidence scores
+    score1 = box1.value if hasattr(box1, 'value') else 0.0
+    score2 = box2.value if hasattr(box2, 'value') else 0.0
+    
+    if mode == "Max":
+        # Use the box with the higher confidence score entirely
+        if score1 >= score2:
+            return copy.deepcopy(box1)
+        else:
+            return copy.deepcopy(box2)
+    
+    elif mode == "Score":
+        # If both scores are 0, fall back to average
+        if score1 == 0.0 and score2 == 0.0:
+            weight1, weight2 = 0.5, 0.5
+        else:
+            # Calculate normalized weights based on scores
+            total_score = score1 + score2
+            weight1 = score1 / total_score
+            weight2 = score2 / total_score
+            
+        # Weighted average of position
+        merged_box.pose.position.x = (weight1 * box1.pose.position.x) + (weight2 * box2.pose.position.x)
+        merged_box.pose.position.y = (weight1 * box1.pose.position.y) + (weight2 * box2.pose.position.y)
+        merged_box.pose.position.z = (weight1 * box1.pose.position.z) + (weight2 * box2.pose.position.z)
+        
+        # Weighted average of dimensions
+        merged_box.dimensions.x = (weight1 * box1.dimensions.x) + (weight2 * box2.dimensions.x)
+        merged_box.dimensions.y = (weight1 * box1.dimensions.y) + (weight2 * box2.dimensions.y)
+        merged_box.dimensions.z = (weight1 * box1.dimensions.z) + (weight2 * box2.dimensions.z)
+        
+        # For orientation, we still use the average_orientations function
+        # A more advanced approach would be to implement weighted quaternion averaging
+        merged_box.pose.orientation = avg_orientations(box1.pose.orientation, box2.pose.orientation)
+        
+        # For label, use the one from the higher-score box
+        merged_box.label = box1.label if score1 >= score2 else box2.label
+        
+    else:  # Default to "Average" mode
+        # Original averaging logic
+        merged_box.pose.position.x = (box1.pose.position.x + box2.pose.position.x) / 2.0
+        merged_box.pose.position.y = (box1.pose.position.y + box2.pose.position.y) / 2.0
+        merged_box.pose.position.z = (box1.pose.position.z + box2.pose.position.z) / 2.0
+        
+        # Avg orientations (quaternions)
+        merged_box.pose.orientation = avg_orientations(box1.pose.orientation, box2.pose.orientation) 
 
-     merged_box.dimensions.x = (box1.dimensions.x + box2.dimensions.x) / 2.0
-     merged_box.dimensions.y = (box1.dimensions.y + box2.dimensions.y) / 2.0
-     merged_box.dimensions.z = (box1.dimensions.z + box2.dimensions.z) / 2.0
-     merged_box.value = max(box1.value, box2.value) # Max score
-     merged_box.label = box1.label # Label from first box
+        merged_box.dimensions.x = (box1.dimensions.x + box2.dimensions.x) / 2.0
+        merged_box.dimensions.y = (box1.dimensions.y + box2.dimensions.y) / 2.0
+        merged_box.dimensions.z = (box1.dimensions.z + box2.dimensions.z) / 2.0
+        merged_box.label = box1.label # Label from first box
+    
+    # Always use max score for the merged box confidence value
+    merged_box.value = max(score1, score2)
 
-     return merged_box
+    return merged_box
 
 def get_aabb_corners(box: BoundingBox):
     """
@@ -98,28 +154,29 @@ class CombinedDetector3D(Component):
         vehicle_interface: GEMInterface,
         enable_tracking: bool = True,
         use_start_frame: bool = True,
-        iou_threshold: float = 0.001, 
+        iou_threshold: float = 0.1,
+        merge_mode: str = "Average",
         **kwargs 
     ):
         self.vehicle_interface   = vehicle_interface
         self.tracked_agents: Dict[str, AgentState] = {}
-        self.pedestrian_counter = 0
+        self.ped_counter         = 0
         self.latest_yolo_bbxs: Optional[BoundingBoxArray] = None
         self.latest_pp_bbxs: Optional[BoundingBoxArray] = None
         self.start_pose_abs: Optional[ObjectPose]      = None
         self.start_time: Optional[float]          = None
-        self.current_agents = {}
-        self.tracked_agents = {}
 
         self.enable_tracking = enable_tracking
         self.use_start_frame = use_start_frame
         self.iou_threshold = iou_threshold
+        self.merge_mode = merge_mode
 
         self.yolo_topic = '/yolo_boxes'
         self.pp_topic = '/pointpillars_boxes'
         self.debug = False
 
         rospy.loginfo(f"CombinedDetector3D Initialized. Subscribing to '{self.yolo_topic}' and '{self.pp_topic}'.")
+        rospy.loginfo(f"Using merge mode: {self.merge_mode}")
 
     def rate(self) -> float:
         return 8.0
@@ -165,7 +222,16 @@ class CombinedDetector3D(Component):
             self.start_pose_abs = vehicle.pose
             rospy.loginfo("CombinedDetector3D latched start pose.")
 
-        return self._fuse_bounding_boxes(yolo_bbx_array, pp_bbx_array, vehicle, current_time)
+        current_frame_agents = self._fuse_bounding_boxes(yolo_bbx_array, pp_bbx_array, vehicle, current_time)
+
+        return {}
+        # if self.enable_tracking:
+        #     self._update_tracking(current_frame_agents)
+        # else:
+        #     self.tracked_agents = current_frame_agents # NOTE: No deepcopy
+
+        # return self.tracked_agents
+
 
     def _fuse_bounding_boxes(self,
                              yolo_bbx_array: BoundingBoxArray,
@@ -174,7 +240,7 @@ class CombinedDetector3D(Component):
                              current_time: float
                             ) -> Dict[str, AgentState]:
         original_header = yolo_bbx_array.header
-        agents: Dict[str, AgentState] = {}
+        current_agents_in_frame: Dict[str, AgentState] = {}
         yolo_boxes: List[BoundingBox] = yolo_bbx_array.boxes
         pp_boxes: List[BoundingBox] = pp_bbx_array.boxes
 
@@ -204,7 +270,8 @@ class CombinedDetector3D(Component):
                 rospy.logdebug(f"Matched YOLO box {i} with PP box {best_match_j} (IoU: {best_iou:.3f})")
                 matched_yolo_indices.add(i)
                 matched_pp_indices.add(best_match_j)
-                merged = merge_boxes(yolo_box, pp_boxes[best_match_j])
+                rospy.logdebug(f"Using bbox merge mode: {self.merge_mode} for boxes with scores {yolo_box.value:.2f} and {pp_boxes[best_match_j].value:.2f}")
+                merged = merge_boxes(yolo_box, pp_boxes[best_match_j], mode=self.merge_mode)
                 fused_boxes_list.append(merged)
 
         ## UAdd the unmatched YOLO boxes
@@ -233,85 +300,63 @@ class CombinedDetector3D(Component):
                 quat_x = box.pose.orientation.x; quat_y = box.pose.orientation.y; quat_z = box.pose.orientation.z; quat_w = box.pose.orientation.w
                 yaw, pitch, roll = R.from_quat([quat_x, quat_y, quat_z, quat_w]).as_euler('zyx', degrees=False)
 
-                # Convert to start frame
-                vehicle_pose_in_start_frame = vehicle_state.pose.to_frame(
-                    ObjectFrameEnum.START, vehicle_state.pose, self.start_pose_abs
-                )
-                T_vehicle_to_start = pose_to_matrix(vehicle_pose_in_start_frame)
-                object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
-                object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
-                final_x, final_y, final_z = object_pose_start_h[:3, 0]
+                # Start frame
+                if self.use_start_frame and self.start_pose_abs is not None:
+                     vehicle_pose_in_start_frame = vehicle_state.pose.to_frame(
+                         ObjectFrameEnum.START, vehicle_state.pose, self.start_pose_abs
+                     )
+                     T_vehicle_to_start = pose_to_matrix(vehicle_pose_in_start_frame)
+                     object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
+                     object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
+                     final_x, final_y, final_z = object_pose_start_h[:3, 0]
+                else:
+                      final_x, final_y, final_z = pos_x, pos_y, pos_z
 
-                new_pose = ObjectPose(
+                final_pose = ObjectPose(
                     t=current_time, x=final_x, y=final_y, z=final_z,
                     yaw=yaw, pitch=pitch, roll=roll, frame=output_frame_enum
                 )
                 dims = (box.dimensions.x, box.dimensions.y, box.dimensions.z)
+                ######### Mapping based on label (integer) from BoundingBox msg
+                agent_type = AgentEnum.PEDESTRIAN if box.label == 0 else AgentEnum.UNKNOWN # Needs refinement
+                activity = AgentActivityEnum.UNKNOWN # Placeholder
 
-                new_pose = ObjectPose(
-                    t=current_time, x=final_x, y=final_y, z=final_z - box.dimensions.z / 2.0,
-                    yaw=yaw, pitch=pitch, roll=roll, frame=output_frame_enum
+                # temp id 
+                # _update_tracking assign persistent IDs
+                temp_agent_id = f"pedestrian{i}"
+
+                current_agents_in_frame[temp_agent_id] = AgentState(
+                    pose=final_pose, dimensions=dims, outline=None, type=agent_type,
+                    activity=activity, velocity=(0.0,0.0,0.0), yaw_rate=0.0
+                    #  score=box.value  # score
                 )
-                dims[2] = dims[2] * 2.0 # AgentState has z center on the floor and height is full height.
-
-                existing_id = match_existing_pedestrian(
-                    new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
-                    new_dims=dims,
-                    existing_agents=self.tracked_agents,
-                    distance_threshold=2.0
-                )
-
-                if existing_id is not None:
-                    old_state = self.tracked_agents[existing_id]
-                    dt = new_pose.t - old_state.pose.t
-                    vx, vy, vz = compute_velocity(old_state.pose, new_pose, dt)
-                    updated_agent = AgentState(
-                        pose=new_pose,
-                        dimensions=dims,
-                        outline=None,
-                        type=AgentEnum.PEDESTRIAN,
-                        activity=AgentActivityEnum.MOVING,
-                        velocity=(vx, vy, vz),
-                        yaw_rate=0
-                    )
-                    agents[existing_id] = updated_agent
-                    self.tracked_agents[existing_id] = updated_agent
-                else:
-                    agent_id = f"pedestrian{self.pedestrian_counter}"
-                    self.pedestrian_counter += 1
-                    new_agent = AgentState(
-                        pose=new_pose,
-                        dimensions=dims,
-                        outline=None,
-                        type=AgentEnum.PEDESTRIAN,
-                        activity=AgentActivityEnum.MOVING,
-                        velocity=(0, 0, 0),
-                        yaw_rate=0
-                    )
-                    agents[agent_id] = new_agent
-                    self.tracked_agents[agent_id] = new_agent
-
             except Exception as e:
                 rospy.logwarn(f"Failed to convert final BoundingBox {i} to AgentState: {e}")
                 continue
 
         self.pub_fused.publish(fused_bb_array)
+        return current_agents_in_frame
 
-        stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
-                    if current_time - agent.pose.t > 5.0]
-        for agent_id in stale_ids:
-            rospy.loginfo(f"Removing stale agent: {agent_id}\n")
-        for agent_id, agent in agents.items():
-            p = agent.pose
-            # Format pose and velocity with 3 decimals (or as needed)
-            rospy.loginfo(
-                f"Agent ID: {agent_id}\n"
-                f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
-                f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
-                f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
-        )
-        
-        return agents
+
+    def _update_tracking(self, current_frame_agents: Dict[str, AgentState]):
+
+        #   Todo tracking
+        ## Match 'current_frame_agents' to 'self.tracked_agents'.
+        ##    - Use position (already in correct START or CURRENT frame), maybe size/type.
+        ##    - Need a matching algorithm (e.g., nearest neighbor within radius, Hungarian).
+        ## For matched pairs:
+        ##    - Update the existing agent in 'self.tracked_agents' (e.g., smooth pose, update timestamp).
+        ## For unmatched 'current_frame_agents':
+        ##    - These are new detections. Assign a persistent ID (e.g., f"Ped_{self.ped_counter}").
+        ##    - Increment self.ped_counter.
+        ##    - Add them to 'self.tracked_agents'.
+        ## For unmatched 'self.tracked_agents' (agents not seen this frame):
+        ##    - Increment a 'missed frames' counter or check timestamp.
+        ##    - If missed for too long (e.g., > 1 second), remove from 'self.tracked_agents'.
+
+        # return without tracking
+        self.tracked_agents = current_frame_agents
+
 
 
 # Fake 2D Combined Detector for testing purposes
