@@ -31,12 +31,10 @@ class KFStateEstimator(Component):
         #TODO create subscription on mapbased estimation with self.map_based_estimation_callback
     # Get GNSS information
     def gnss_callback(self, reading : GNSSReading):
-        self.filter.update(rospy.get_time(),reading.pose,0.98)
-        self.speed = reading.speed
+        self.filter.update(rospy.get_time(),reading.pose,reading.speed,0.98)
 
     def map_based_estimation_callback(self, reading : GNSSReading):
-        self.filter.update(rospy.get_time(),reading.pose,0.93)
-        self.speed = reading.speed
+        self.filter.update(rospy.get_time(),reading.pose,reading.speed,0.93)
 
     def rate(self):
         return 1.0
@@ -50,8 +48,7 @@ class KFStateEstimator(Component):
     def update(self) -> VehicleState:
 
         return GNSSReading(
-            self.filter.update(rospy.get_time()),
-            self.speed,
+            *(self.filter.update(rospy.get_time())),
             "ok",#or error but when
         )
             
