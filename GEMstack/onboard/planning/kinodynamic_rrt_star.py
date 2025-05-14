@@ -4,504 +4,754 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.spatial
-from matplotlib import animation
-# from utils import normalize_angle # Assuming provided
-from .collision import fast_collision_check # Assuming provided
-#from collision import fast_collision_check # Assuming provided
-# Placeholder for normalize_angle if not imported
-def normalize_angle(angle):
-    while angle > math.pi: angle -= 2.0 * math.pi
-    while angle < -math.pi: angle += 2.0 * math.pi
-    return angle
+
+from scipy.interpolate import splprep, splev
+from .collision import fast_collision_check
+from .utils import normalize_angle
 
 class RRTNode:
-    def __init__(self, x, y, theta, v=0.0, phi=0.0, cost=0.0, parent=None):
-        self.x, self.y, self.theta = x, y, theta
-        self.v, self.phi = v, phi
-        self.cost = cost
-        self.parent = parent
-        self.path_from_parent = []
+    """Represents a node in the RRT tree."""
+    def __init__(self, x, y, theta, velocity=0.0, phi_steering=0.0, cost=0.0, parent=None):
+        self.x = x
+        self.y = y
+        self.theta = theta  # Orientation in radians
+        self.velocity = velocity
+        self.phi_steering = phi_steering # Steering angle
+        self.cost = cost  # Cost from the start node to this node
+        self.parent = parent  # Parent node
+        self.path_from_parent = []  # List of states (x, y, theta, v, phi) forming the path from the parent
 
-    def get_state(self): return (self.x, self.y, self.theta, self.v, self.phi)
-    def get_position(self): return (self.x, self.y)
+    def get_state(self):
+        """Returns the full state of the node."""
+        return (self.x, self.y, self.theta, self.velocity, self.phi_steering)
+
+    def get_position(self):
+        """Returns the (x, y) position of the node."""
+        return (self.x, self.y)
 
 class OptimizedKinodynamicRRT:
-    def __init__(self, occupancy_grid, collision_lookup,
-                 start_pose, goal_pose,
-                 max_iter=100000, # Increased iterations
-                 step_size_local_viz=1000000.0, # For _sample_position_randomly's local step (visualization driving)
-                 goal_sample_rate=0.5): # Adjusted goal_sample_rate
-        
-        self.grid = occupancy_grid
-        self.collision_lookup = collision_lookup
-        self.start_node = RRTNode(*start_pose, cost=0.0)
-        self.true_goal_node_spec = RRTNode(*goal_pose)
-        self.goal_node_for_tree = RRTNode(
-            goal_pose[0], goal_pose[1],
-            self._inverse_angle(goal_pose[2]), cost=0.0)
+    """
+    Implements an optimized Bidirectional Kinodynamic RRT* algorithm
+    for path planning with vehicle dynamics.
+    """
+    def __init__(self,
+                 occupancy_grid,
+                 collision_lookup_table,
+                 start_pose_tuple, # (x, y, theta)
+                 goal_pose_tuple,  # (x, y, theta)
+                 max_iterations=100000,
+                 local_sampling_step_size=1.0,
+                 vehicle_width=20.0,
+                 vehicle_length=45.0,
+                 goal_biasing_rate=0.5):
 
-        self.max_iter = max_iter
-        self.local_viz_step_size = step_size_local_viz # Renamed from self.step_size for clarity
-        self.vehicle_length = 45.0
-        self.dt = 0.1
-        self.goal_sample_rate = goal_sample_rate
+        self.occupancy_grid = occupancy_grid
+        self.collision_lookup = collision_lookup_table
 
-        self.nodes_start_tree = [self.start_node]
-        self.nodes_goal_tree = [self.goal_node_for_tree]
-        self.kdtree_start, self.kdtree_goal = None, None
-        self.kdtree_rebuild_freq = 50
+        self.start_node = RRTNode(*start_pose_tuple, cost=0.0)
+        self.true_goal_configuration = RRTNode(*goal_pose_tuple) # Goal in world frame
+        # Goal node for the goal tree (reversed orientation for backward expansion)
+        self.goal_tree_root_node = RRTNode(
+            goal_pose_tuple[0], goal_pose_tuple[1],
+            self._calculate_inverse_angle(goal_pose_tuple[2]), cost=0.0
+        )
 
-        self.path_found = False
-        self.connection_details = None
-        # Tuned thresholds for difficult maps
-        self.goal_position_threshold = 500.0
-        self.goal_angle_threshold = math.radians(60.0)
-        self.max_steering_angle = math.pi/4
+        self.max_iterations = max_iterations
+        self.visualization_sampling_step_size = local_sampling_step_size
+        self.vehicle_length = vehicle_length  # Vehicle wheelbase
+        self.vehicle_width = vehicle_width  # Vehicle width
+        self.time_step_simulation = 0.1 # dt for simulation
+        self.goal_biasing_rate = goal_biasing_rate # Chance to sample goal directly
+
+        self.nodes_in_start_tree = [self.start_node]
+        self.nodes_in_goal_tree = [self.goal_tree_root_node]
+        self.kdtree_for_start_tree = None
+        self.kdtree_for_goal_tree = None
+        self.kdtree_rebuild_frequency = 50 # Rebuild KD-tree every N nodes added
+
+        self.is_path_found = False
+        self.tree_connection_nodes = None # (node_from_start_tree, node_from_goal_tree)
+
+        # Thresholds for considering a connection or goal reached
+        self.goal_position_tolerance = 20.0
+        self.goal_angle_tolerance_rad = math.radians(60.0)
+
+        # Vehicle motion constraints
+        self.max_steering_angle_rad = math.pi / 3
         self.max_velocity = 10.0
-        self.min_velocity = 1.0
+        self.min_velocity = 1.0 # Minimum velocity for PFF fallback
 
-        self.grid_dims = self.collision_lookup["collision_mask"].shape
-        self.time_budget = 20.0 # Increased time budget
+        self.grid_dimensions = self.collision_lookup["collision_mask"].shape # (height, width)
+        self.planning_time_budget_sec = 10.0
 
-        self.primitives = self._initialize_motion_primitives()
+        self.motion_primitives = self._initialize_motion_primitives()
 
-        self.steering_gain = 0.7
-        self.smoothness_weight = 0.1
-        self.goal_heading_weight = 250.0 # Kept very high
+        # Control and cost parameters
+        self.proportional_steering_gain = 0.7 # For PFF fallback controller
+        self.steering_smoothness_weight = 0.1 # Penalty for steering in primitive selection
+        self.goal_heading_alignment_weight = 250.0 # Strong weight for aligning with target heading
 
-        # Visualization parameters from user's original code
-        self.sample_wave_idx = 0
-        diag = math.hypot(*self.grid_dims)
-        self.max_wave_rings = 3
-        
-        self.nominal_connect_attempt_distance = 15.0
-        self.connect_max_dist_factor = 1.5
+        # Parameters
+        self.nominal_connection_attempt_distance = 15.0 # Used in _try_connect_trees
+        self.connection_max_distance_factor = 1.5 # Multiplier for nominal_connection_attempt_distance
+        self.endpoint_weight = 1e4
+        self.base_max_s = 1e4
 
-        self.num_arcs = 3
-        self.sample_arc_idx = 0
-        self.min_radius = 30.0
-        self.max_radius = 300.0
-
-        self.last_start_node = self.start_node
-        self.last_goal_node = self.goal_node_for_tree
-        self.half_cone = math.pi/6
-
-        self.recorded_samples = [] # Will store (x,y) of global samples for _extend_tree
-        self.recorded_samples_local_viz = [] # For samples from _sample_position_randomly
-        self.recorded_centers = []
-
-
-    def _inverse_angle(self, theta):
-        angle = normalize_angle(theta)
+    def _calculate_inverse_angle(self, theta_rad):
+        """Calculates an angle roughly opposite to the input, for backward expansion."""
+        angle = normalize_angle(theta_rad)
         if angle < 0:
             return angle + math.pi
         return angle-math.pi
 
     def _initialize_motion_primitives(self):
-        primitives = []
-        vs = [0.5*self.max_velocity, 0.8*self.max_velocity, self.max_velocity]
-        sr = 0.9*self.max_steering_angle
-        phis = np.array([0.0, 0.25*sr, -0.25*sr, 0.6*sr, -0.6*sr, sr, -sr])
-        for v_val in vs:
-            for phi_val in phis:
-                steps = 15
-                if abs(phi_val) > 0.5 * sr: steps = 20
-                elif phi_val == 0.0: steps = 20 if v_val == self.max_velocity else 15
-                prim = self._generate_primitive(v_val, phi_val, steps=steps)
-                if prim: primitives.append(prim)
-        # Ensure at least one straight primitive if not generated by linspace variations
-        if not any(p[0][4] == 0.0 for p in primitives if p[0][3] == self.max_velocity and len(p)>15 ): # check if long straight exists
-             primitives.append(self._generate_primitive(self.max_velocity, 0.0, steps=20))
-        print(f"Initialized {len(primitives)} motion primitives.")
-        return primitives
+        """Generates a discrete set of motion primitives."""
+        primitives_list = []
+        velocities_to_try = [0.5 * self.max_velocity, 0.8 * self.max_velocity, self.max_velocity]
+        steering_range_limit = 0.9 * self.max_steering_angle_rad
+        steering_angles_to_try_rad = np.array([
+            0.0,
+            0.25 * steering_range_limit, -0.25 * steering_range_limit,
+            0.6 * steering_range_limit, -0.6 * steering_range_limit,
+            steering_range_limit, -steering_range_limit
+        ])
 
-    def _generate_primitive(self, velocity, steering_angle, steps=15):
-        path = [(0,0,0,velocity,steering_angle)]
-        x,y,theta_val = 0.0,0.0,0.0
+        for velocity in velocities_to_try:
+            for steering_angle in steering_angles_to_try_rad:
+                num_steps = 15
+                if abs(steering_angle) > 0.5 * steering_range_limit:
+                    num_steps = 20
+                elif steering_angle == 0.0:
+                    num_steps = 20 if velocity == self.max_velocity else 15
+
+                primitive_path = self._generate_single_primitive_path(velocity, steering_angle, num_steps)
+                if primitive_path:
+                    primitives_list.append(primitive_path)
+
+        # Ensure at least one long straight primitive exists
+        has_long_straight_primitive = any(
+            p[0][4] == 0.0 and p[0][3] == self.max_velocity and len(p) > 15
+            for p in primitives_list
+        )
+        if not has_long_straight_primitive:
+            primitives_list.append(self._generate_single_primitive_path(self.max_velocity, 0.0, steps=20))
+
+        print(f"Initialized {len(primitives_list)} motion primitives.")
+        return primitives_list
+
+    def _generate_single_primitive_path(self, velocity, steering_angle_rad, steps=15):
+        """Simulates a vehicle path for a given velocity and steering angle."""
+        path_states = [(0.0, 0.0, 0.0, velocity, steering_angle_rad)] # Relative initial state
+        current_x, current_y, current_theta = 0.0, 0.0, 0.0
+
         for _ in range(steps):
-            x += velocity * math.cos(theta_val) * self.dt
-            y += velocity * math.sin(theta_val) * self.dt
-            theta_val = normalize_angle(theta_val + (velocity * math.tan(steering_angle) / self.vehicle_length) * self.dt)
-            path.append((x, y, theta_val, velocity, steering_angle))
-        return path
+            current_x += velocity * math.cos(current_theta) * self.time_step_simulation
+            current_y += velocity * math.sin(current_theta) * self.time_step_simulation
+            current_theta = normalize_angle(
+                current_theta + (velocity * math.tan(steering_angle_rad) / self.vehicle_length) * self.time_step_simulation
+            )
+            path_states.append((current_x, current_y, current_theta, velocity, steering_angle_rad))
+        return path_states
 
-    def _build_kdtree(self, tree_type='start'):
-        nodes = self.nodes_start_tree if tree_type == 'start' else self.nodes_goal_tree
-        if not nodes: return
-        points = np.array([(n.x, n.y) for n in nodes])
-        if points.ndim == 1: points = points.reshape(1, -1)
-        if not points.size: return
-        kdtree = scipy.spatial.cKDTree(points)
-        if tree_type == 'start': self.kdtree_start = kdtree
-        else: self.kdtree_goal = kdtree
+    def _build_kdtree(self, tree_identifier='start'):
+        """Builds or rebuilds the KD-tree for the specified tree."""
+        node_list = self.nodes_in_start_tree if tree_identifier == 'start' else self.nodes_in_goal_tree
+        if not node_list:
+            return
 
-    def _get_nearest_node(self, pos_xy, tree_type='start'):
-        nodes_list = self.nodes_start_tree if tree_type == 'start' else self.nodes_goal_tree
-        kdtree = self.kdtree_start if tree_type == 'start' else self.kdtree_goal
-        if not nodes_list: return None
-        if kdtree is None or len(nodes_list) % self.kdtree_rebuild_freq == 0:
-            self._build_kdtree(tree_type)
-            kdtree = self.kdtree_start if tree_type == 'start' else self.kdtree_goal
-        if kdtree is None:
-            return min(nodes_list, key=lambda n: math.hypot(n.x - pos_xy[0], n.y - pos_xy[1]), default=None)
-        _, indices = kdtree.query(pos_xy)
-        idx = indices[0] if isinstance(indices, (np.ndarray, list)) else indices
-        idx = int(idx)
-        if 0 <= idx < len(nodes_list): return nodes_list[idx]
-        return None
+        positions = np.array([(node.x, node.y) for node in node_list])
+        if positions.ndim == 1: # Single point
+            positions = positions.reshape(1, -1)
+        if not positions.size: # Empty array
+            return
 
-    def _get_global_target_sample(self, current_tree_type):
-        rand_x = random.uniform(0, self.grid_dims[1] - 1) # width
-        rand_y = random.uniform(0, self.grid_dims[0] - 1) # height
-        return (rand_x, rand_y)
-
-    def _sample_position_randomly(self, iteration_index, overall_target_pos_xy):
-        # This function is the user's original, now primarily for visualization data.
-        # It uses self.last_start_node/last_goal_node as center.
-        # Its output (x,y) is NOT directly used for _extend_tree's main target anymore.
-        is_start_tree_turn = (iteration_index % 2 == 0)
-        center_node = self.last_start_node if is_start_tree_turn else self.last_goal_node
-        cx, cy, theta0 = center_node.x, center_node.y, center_node.theta
-
-        self.recorded_centers.append((cx, cy, theta0))
-
-        rels_ordered = [0.0, math.pi / 4, -math.pi / 4]
-        candidate_local_points_viz = []
-        for rel_angle in rels_ordered:
-            target_theta = normalize_angle(theta0 + rel_angle)
-            # Use self.local_viz_step_size for the cone visualization steps
-            cand_x = cx + self.local_viz_step_size * math.cos(target_theta)
-            cand_y = cy + self.local_viz_step_size * math.sin(target_theta)
-            cand_x = min(max(cand_x, 0), self.grid_dims[1] - 1)
-            cand_y = min(max(cand_y, 0), self.grid_dims[0] - 1)
-            if not fast_collision_check(cand_y, cand_x, self.collision_lookup):
-                candidate_local_points_viz.append({'point': (cand_x, cand_y, target_theta), 'rel_angle': rel_angle})
-        if candidate_local_points_viz:
-            best_candidate_viz = None; highest_score_viz = -float('inf')
-            for cand_info in candidate_local_points_viz:
-                (px, py, p_theta), rel_angle_orig = cand_info['point'], cand_info['rel_angle']
-                dist_to_overall_target = math.hypot(px - overall_target_pos_xy[0], py - overall_target_pos_xy[1])
-                score_prox = 1.0 / (1.0 + dist_to_overall_target)
-                score_straight = 1.0 if rel_angle_orig == 0.0 else 0.5
-                vec_cand_x, vec_cand_y = px - cx, py - cy; norm_cand = math.hypot(vec_cand_x, vec_cand_y)
-                vec_overall_x, vec_overall_y = overall_target_pos_xy[0]-cx, overall_target_pos_xy[1]-cy; norm_overall = math.hypot(vec_overall_x, vec_overall_y)
-                score_dir = 0.0
-                if norm_cand > 1e-6 and norm_overall > 1e-6:
-                    score_dir = (vec_cand_x*vec_overall_x + vec_cand_y*vec_overall_y) / (norm_cand*norm_overall)
-                    score_dir = (score_dir + 1) / 2
-                total_score = (0.2*score_prox) + (0.4*score_straight) + (0.4*score_dir)
-                if total_score > highest_score_viz: highest_score_viz=total_score; best_candidate_viz=cand_info['point']
-            
-            if not best_candidate_viz and candidate_local_points_viz: # Fallback if scoring somehow fails
-                 best_candidate_viz = candidate_local_points_viz[0]['point']
-            
-            if best_candidate_viz:
-                final_x, final_y, final_theta = best_candidate_viz
-                self.recorded_samples_local_viz.append((final_x, final_y)) # Use separate list for these
-                # Update last_..._node for visualization continuity
-                temp_viz_node = RRTNode(final_x, final_y, final_theta, parent=center_node, cost=center_node.cost + self.local_viz_step_size)
-                if is_start_tree_turn: self.last_start_node = temp_viz_node
-                else: self.last_goal_node = temp_viz_node
-                return # This function now primarily updates viz data
-
-        # Fallback jitter for visualization if no local preferred direction is free
-        jx = min(max(cx + random.uniform(-self.local_viz_step_size, self.local_viz_step_size), 0), self.grid_dims[1]-1)
-        jy = min(max(cy + random.uniform(-self.local_viz_step_size, self.local_viz_step_size), 0), self.grid_dims[0]-1)
-        self.recorded_samples_local_viz.append((jx, jy))
-        # No RRTNode update for jitter for simplicity, might cause small viz jump if jitter is frequent.
-        return
-
-
-    def _generate_node_kinodynamic(self, from_node, target_pos_xy, target_theta_opt=None, tree_type='start',
-                                   is_connection_attempt=False, force_heading_for_local_exploration=False):
-        target_state_for_scoring = (target_pos_xy[0], target_pos_xy[1], target_theta_opt)
-        best_score, best_end_node_from_primitive = float('inf'), None
-        use_heading_cost_primitive = (target_theta_opt is not None) and (is_connection_attempt or force_heading_for_local_exploration)
-
-        for primitive_model in self.primitives:
-            if not primitive_model: continue
-            transformed_path = self._transform_primitive(primitive_model, from_node)
-            if not transformed_path or len(transformed_path) < 2: continue
-            end_state = transformed_path[-1]
-            if math.hypot(end_state[0]-from_node.x, end_state[1]-from_node.y) < 0.01 : continue
-            dist_xy_cost = math.hypot(end_state[0] - target_state_for_scoring[0], end_state[1] - target_state_for_scoring[1])
-            score = dist_xy_cost + abs(primitive_model[0][4]) * self.smoothness_weight
-            if use_heading_cost_primitive:
-                angle_diff = abs(normalize_angle(end_state[2] - target_state_for_scoring[2]))
-                score += angle_diff * self.goal_heading_weight
-            if score < best_score:
-                collision_free = True
-                for point_state in transformed_path[1:]:
-                    if fast_collision_check(point_state[1], point_state[0], self.collision_lookup):
-                        collision_free = False; break
-                if collision_free:
-                    best_score = score
-                    seg_cost = (len(primitive_model)-1) * self.dt
-                    best_end_node_from_primitive = RRTNode(*end_state, cost=from_node.cost + seg_cost, parent=from_node)
-                    best_end_node_from_primitive.path_from_parent = transformed_path
-        if best_end_node_from_primitive: return best_end_node_from_primitive
-        return self._apply_controls(from_node, target_state_for_scoring, is_connection_attempt)
-
-    def _apply_controls(self, from_node, target_state, is_connection_attempt=False):
-        x_c, y_c, th_c, v_c, phi_c = from_node.get_state()
-        t_x, t_y, t_th_opt = target_state
-        dx, dy = t_x - x_c, t_y - y_c
-        dist_xy = math.hypot(dx, dy)
-        if dist_xy < 0.1: return None
-        path_seg = [from_node.get_state()]
-        # Use local_viz_step_size (original self.step_size) for PFF scaling and num_steps
-        # This makes PFF generate segments of comparable length to one local viz step
-        vel_scale = min(1.0, dist_xy / (2.0 * self.local_viz_step_size))
-        vel = self.max_velocity * vel_scale
-        align = max(0.1, math.cos(normalize_angle(math.atan2(dy,dx) - th_c)))
-        vel = max(self.min_velocity, vel * align); vel = min(vel, self.max_velocity)
-        head_err = normalize_angle(math.atan2(dy, dx) - th_c)
-        steer = max(-self.max_steering_angle*0.9, min(self.steering_gain * head_err, self.max_steering_angle*0.9))
-        num_steps = max(5, min(int(min(dist_xy, self.local_viz_step_size) / (vel * self.dt + 1e-6)), 25))
-
-        tmp_x, tmp_y, tmp_th = x_c,y_c,th_c
-        for _ in range(num_steps):
-            nx = tmp_x + vel * math.cos(tmp_th) * self.dt
-            ny = tmp_y + vel * math.sin(tmp_th) * self.dt
-            nth = normalize_angle(tmp_th + (vel * math.tan(steer) / self.vehicle_length) * self.dt)
-            if fast_collision_check(ny, nx, self.collision_lookup): return None
-            tmp_x,tmp_y,tmp_th = nx,ny,nth
-            path_seg.append((tmp_x,tmp_y,tmp_th,vel,steer))
-        if len(path_seg)<=1: return None
-        final_s = path_seg[-1]
-        new_node = RRTNode(*final_s, cost=from_node.cost + (len(path_seg)-1)*self.dt, parent=from_node)
-        new_node.path_from_parent = path_seg
-        return new_node
-
-    def _extend_tree(self, tree_nodes, tree_type, global_target_xy):
-        nearest_node = self._get_nearest_node(global_target_xy, tree_type)
-        if not nearest_node: return None
-
-        target_theta_for_expansion = None
-        is_direct_goal_attempt = False
-        if global_target_xy == (self.true_goal_node_spec.x, self.true_goal_node_spec.y) and tree_type == 'start':
-            target_theta_for_expansion = self.true_goal_node_spec.theta
-            is_direct_goal_attempt = True
-        elif global_target_xy == (self.start_node.x, self.start_node.y) and tree_type == 'goal':
-            target_theta_for_expansion = self.start_node.theta # True world theta for start
-            is_direct_goal_attempt = True
-
-        new_node = self._generate_node_kinodynamic(nearest_node, global_target_xy,
-                                                   target_theta_opt=target_theta_for_expansion, tree_type=tree_type,
-                                                   is_connection_attempt=is_direct_goal_attempt,
-                                                   force_heading_for_local_exploration=False)
-        if new_node:
-            tree_nodes.append(new_node)
-            return new_node
-        return None
-
-    def _try_connect_trees(self, new_node_a, tree_a_type):
-        other_type = 'goal' if tree_a_type == 'start' else 'start'
-        # print("Other type", other_type)
-        near_other = self._get_nearest_node((new_node_a.x, new_node_a.y), other_type)
-        if not near_other: return False
-        dist = math.hypot(new_node_a.x - near_other.x, new_node_a.y - near_other.y)
-        if dist > self.connect_max_dist_factor * self.nominal_connect_attempt_distance : return False
-        t_x, t_y = near_other.x, near_other.y
-        t_th = self._inverse_angle(near_other.theta) if other_type == 'goal' else near_other.theta
-        a_x, a_y = new_node_a.x, new_node_a.y
-        a_th = self._inverse_angle(new_node_a.theta) if other_type == 'start' else new_node_a.theta
-        conn_node = self._generate_node_kinodynamic(new_node_a, (t_x, t_y), t_th, tree_a_type, True, False)
-        if conn_node:
-            conn_node.theta = self._inverse_angle(conn_node.theta if other_type == 'start' else conn_node.theta)
-            # print(f"new_node_a: {a_x, a_y, a_th}, conn_node: {conn_node.get_state()}")
-            # print(f"near_other: {t_x, t_y, t_th}")
-            pos_ok = math.hypot(conn_node.x-t_x, conn_node.y-t_y) <= self.goal_position_threshold
-            ang_ok = abs(normalize_angle(conn_node.theta - t_th)) <= self.goal_angle_threshold
-            ang_ok_second = abs(normalize_angle(conn_node.theta - a_th)) <= self.goal_angle_threshold
-            # print("checked angle: ", abs(normalize_angle(conn_node.theta - t_th)), conn_node.theta - t_th)
-            # print("checked angle second: ", abs(normalize_angle(conn_node.theta - a_th)), conn_node.theta - a_th)
-            # print("checked with angle:", self.goal_angle_threshold)
-            # ang_ok = abs(normalize_angle((conn_node.theta - t_th)*180 <= self.goal_angle_threshold))
-            if pos_ok and ang_ok and ang_ok_second:
-                self.connection_details = (conn_node, near_other) if tree_a_type == 'start' else (near_other, conn_node)
-                self.path_found = True; return True
-        return False
-
-    def plan(self, visualize_final=True):
-        print("Starting optimized kinodynamic RRT planning...")
-        self.start_time = time.time()
-        self.recorded_samples = [] # Clear for this planning run
-        self.recorded_samples_local_viz = [] # Clear for this planning run
-        self.recorded_centers = [] # Clear for this planning run
-
-        for i in range(self.max_iter):
-            if time.time() - self.start_time > self.time_budget: print("Time budget exceeded."); break
-            if (i+1)%200==0: print(f"Iter {i+1}, Start Tree: {len(self.nodes_start_tree)}, Goal Tree: {len(self.nodes_goal_tree)}")
-
-            is_start_tree_turn = len(self.nodes_start_tree) <= len(self.nodes_goal_tree) # Prioritize smaller tree
-            if abs(len(self.nodes_start_tree) - len(self.nodes_goal_tree)) <= 5 : # If balanced, alternate
-                 is_start_tree_turn = (i % 2 == 0)
-            
-            current_nodes, current_type = (self.nodes_start_tree, 'start') if is_start_tree_turn else (self.nodes_goal_tree, 'goal')
-            overall_target_for_bias = (self.true_goal_node_spec.x, self.true_goal_node_spec.y) if current_type == 'start' \
-                                 else (self.start_node.x, self.start_node.y)
-
-            # Get the main global target for _extend_tree
-            global_target_xy_for_extension = self._get_global_target_sample(current_type)
-            self.recorded_samples.append(global_target_xy_for_extension) # Record global sample
-
-            # Run the user's original sampling logic primarily for visualization updates
-            # It will use self.last_..._node and bias its choice towards global_target_xy_for_extension
-            self._sample_position_randomly(i, global_target_xy_for_extension) # This updates viz lists and last_..._nodes
-            if i < 10:
-                print(f"Sampled local viz point: {self.recorded_samples_local_viz[-1]} from center {self.recorded_centers[-1]}")
-                print(f"Sampled global point: {global_target_xy_for_extension} from center {self.recorded_centers[-1]}")
-            # Extend the tree using the global target
-            added_node = self._extend_tree(current_nodes, current_type, global_target_xy_for_extension)
-            
-            if added_node:
-                if self._try_connect_trees(added_node, current_type):
-                    print(f"Path found and connected at iteration {i+1}!"); break
-        
-        if not self.path_found: print(f"Final global samples: {len(self.recorded_samples)}, local viz samples: {len(self.recorded_samples_local_viz)}")
-        if self.path_found:
-            final_path = self._extract_path()
-            if visualize_final: self._visualize_bidirectional_result(final_path)
-            return final_path
+        kdtree_instance = scipy.spatial.cKDTree(positions)
+        if tree_identifier == 'start':
+            self.kdtree_for_start_tree = kdtree_instance
         else:
-            print("No path found within iterations/time.")
-            if visualize_final: self._visualize_bidirectional_result(None)
+            self.kdtree_for_goal_tree = kdtree_instance
+
+    def _get_nearest_node_in_tree(self, query_position_xy, tree_identifier='start'):
+        """Finds the nearest node in the specified tree to the query_position_xy."""
+        target_node_list = self.nodes_in_start_tree if tree_identifier == 'start' else self.nodes_in_goal_tree
+        target_kdtree = self.kdtree_for_start_tree if tree_identifier == 'start' else self.kdtree_for_goal_tree
+
+        if not target_node_list:
             return None
 
-    def _extract_path(self): # Same as before
-        if not self.path_found or not self.connection_details: return None
-        node_s, node_g = self.connection_details
-        path_s_to_conn = []
-        curr = node_s
-        while curr:
-            if curr.path_from_parent: path_s_to_conn = [(p[0],p[1],p[2]) for p in curr.path_from_parent] + path_s_to_conn
-            elif curr == self.start_node: path_s_to_conn.insert(0, (curr.x, curr.y, curr.theta))
-            curr = curr.parent
-        def deduplicate_path_tuples(path_tuples):
-            if not path_tuples: return []
-            deduped = [path_tuples[0]]
-            for i in range(1, len(path_tuples)):
-                p1,p2 = deduped[-1],path_tuples[i]
-                if not(abs(p1[0]-p2[0])<1e-3 and abs(p1[1]-p2[1])<1e-3 and abs(normalize_angle(p1[2]-p2[2]))<1e-3):
-                    deduped.append(p2)
-            return deduped
-        path_s_to_conn = deduplicate_path_tuples(path_s_to_conn)
-        path_g_to_conn_rev = []
-        curr = node_g
-        while curr:
-            if curr.path_from_parent: path_g_to_conn_rev = [(p[0],p[1],self._inverse_angle(p[2])) for p in curr.path_from_parent] + path_g_to_conn_rev
-            elif curr == self.goal_node_for_tree: path_g_to_conn_rev.insert(0, (curr.x, curr.y, self._inverse_angle(curr.theta)))
-            curr = curr.parent
-        path_g_to_conn_rev = deduplicate_path_tuples(path_g_to_conn_rev)
-        path_conn_to_g = list(reversed(path_g_to_conn_rev))
-        final_path_tuples = path_s_to_conn
-        if path_s_to_conn and path_conn_to_g:
-            if abs(final_path_tuples[-1][0]-path_conn_to_g[0][0])<0.1 and \
-               abs(final_path_tuples[-1][1]-path_conn_to_g[0][1])<0.1 and \
-               abs(normalize_angle(final_path_tuples[-1][2]-path_conn_to_g[0][2]))<math.radians(5):
-                final_path_tuples.extend(path_conn_to_g[1:])
-            else: final_path_tuples.extend(path_conn_to_g)
-        elif path_conn_to_g: final_path_tuples.extend(path_conn_to_g)
+        if target_kdtree is None or len(target_node_list) % self.kdtree_rebuild_frequency == 0:
+            self._build_kdtree(tree_identifier)
+            target_kdtree = self.kdtree_for_start_tree if tree_identifier == 'start' else self.kdtree_for_goal_tree
+
+        if target_kdtree is None: # Fallback if KD-tree build failed or list is too small
+            return min(
+                target_node_list,
+                key=lambda node: math.hypot(node.x - query_position_xy[0], node.y - query_position_xy[1]),
+                default=None
+            )
+
+        _, nearest_indices = target_kdtree.query(query_position_xy)
+        nearest_index = nearest_indices[0] if isinstance(nearest_indices, (np.ndarray, list)) else nearest_indices
+        nearest_index = int(nearest_index)
+
+        if 0 <= nearest_index < len(target_node_list):
+            return target_node_list[nearest_index]
+        return None
+
+    def _get_random_global_target_sample(self):
+        """Samples a random (x, y) position within the grid boundaries."""
+        random_x = random.uniform(0, self.grid_dimensions[1] - 1)  # Grid width
+        random_y = random.uniform(0, self.grid_dimensions[0] - 1)  # Grid height
+        return (random_x, random_y)
+
+    def _generate_new_node_kinodynamically(self,
+                                        source_node,
+                                        target_position_xy,
+                                        optional_target_theta_rad=None,
+                                        tree_identifier='start', # Unused in this version, kept for signature consistency
+                                        is_direct_connection_attempt=False,
+                                        force_heading_guidance_for_local_exploration=False): # Unused in this version
+        """
+        Generates a new node by applying motion primitives or a fallback controller
+        from source_node towards target_position_xy.
+        """
+        target_state_for_scoring = (target_position_xy[0], target_position_xy[1], optional_target_theta_rad)
+        best_score_for_primitive = float('inf')
+        best_resulting_node_from_primitive = None
+
+        # Determine if heading cost should be applied for primitive selection
+        apply_heading_cost = (optional_target_theta_rad is not None) and \
+                             (is_direct_connection_attempt or force_heading_guidance_for_local_exploration)
+
+        # Try motion primitives first
+        for primitive_path_model in self.motion_primitives:
+            if not primitive_path_model:
+                continue
+
+            transformed_primitive_path = self._transform_primitive_to_global_frame(primitive_path_model, source_node)
+            if not transformed_primitive_path or len(transformed_primitive_path) < 2:
+                continue
+
+            end_state_of_primitive = transformed_primitive_path[-1]
+            # Avoid trivial primitives that don't move
+            if math.hypot(end_state_of_primitive[0] - source_node.x, end_state_of_primitive[1] - source_node.y) < 0.01:
+                continue
+
+            # Calculate cost for this primitive
+            position_distance_cost = math.hypot(
+                end_state_of_primitive[0] - target_state_for_scoring[0],
+                end_state_of_primitive[1] - target_state_for_scoring[1]
+            )
+            current_primitive_score = position_distance_cost + \
+                                      abs(primitive_path_model[0][4]) * self.steering_smoothness_weight # Penalty for steering
+
+            if apply_heading_cost:
+                angle_difference_rad = abs(normalize_angle(end_state_of_primitive[2] - target_state_for_scoring[2]))
+                current_primitive_score += angle_difference_rad * self.goal_heading_alignment_weight
+
+            if current_primitive_score < best_score_for_primitive:
+                is_collision_free = True
+                # Check collision for all waypoints in the transformed primitive, skipping the first (source_node)
+                for point_state in transformed_primitive_path[1:]:
+                    if fast_collision_check(point_state[1], point_state[0], self.collision_lookup):
+                        is_collision_free = False
+                        break
+                
+                if is_collision_free:
+                    best_score_for_primitive = current_primitive_score
+                    segment_time_cost = (len(primitive_path_model) - 1) * self.time_step_simulation
+                    best_resulting_node_from_primitive = RRTNode(
+                        *end_state_of_primitive, # x, y, theta, v, phi
+                        cost=source_node.cost + segment_time_cost,
+                        parent=source_node
+                    )
+                    best_resulting_node_from_primitive.path_from_parent = transformed_primitive_path
+
+        if best_resulting_node_from_primitive:
+            return best_resulting_node_from_primitive
+
+        # Fallback: If no primitive was suitable, try Proportional Feedback Controller (PFF) / "apply_controls"
+        return self._apply_proportional_feedback_control(source_node, target_state_for_scoring, is_direct_connection_attempt)
+
+
+    def _apply_proportional_feedback_control(self,
+                                             source_node,
+                                             target_state_tuple, # (x, y, optional_theta)
+                                             is_direct_connection_attempt=False): # Unused in this version
+        """
+        Fallback controller: Steers the vehicle from source_node towards target_state_tuple.
+        This is a simplified Proportional Feedback Controller (PFF).
+        """
+        current_x, current_y, current_theta, _, _ = source_node.get_state()
+        target_x, target_y, _ = target_state_tuple # Target theta not directly used by this PFF for steering cmd
+
+        delta_x, delta_y = target_x - current_x, target_y - current_y
+        distance_to_target_xy = math.hypot(delta_x, delta_y)
+
+        if distance_to_target_xy < 0.1: # Already close enough
+            return None
+
+        path_segment_states = [source_node.get_state()]
+
+        # Scale velocity based on distance, similar to original step_size logic
+        # This PFF generates segments of length comparable to one visualization sampling step
+        velocity_scale_factor = min(1.0, distance_to_target_xy / (2.0 * self.visualization_sampling_step_size))
+        applied_velocity = self.max_velocity * velocity_scale_factor
+
+        # Adjust velocity based on alignment with target direction
+        alignment_with_target_direction = max(0.1, math.cos(normalize_angle(math.atan2(delta_y, delta_x) - current_theta)))
+        applied_velocity = max(self.min_velocity, applied_velocity * alignment_with_target_direction)
+        applied_velocity = min(applied_velocity, self.max_velocity)
+
+        # Proportional steering control
+        heading_error_rad = normalize_angle(math.atan2(delta_y, delta_x) - current_theta)
+        applied_steering_angle = max(
+            -self.max_steering_angle_rad * 0.9,
+            min(self.proportional_steering_gain * heading_error_rad, self.max_steering_angle_rad * 0.9)
+        )
+
+        # Determine number of simulation steps for this segment
+        # Aim for segment length related to visualization_sampling_step_size or distance to target
+        effective_step_length = applied_velocity * self.time_step_simulation
+        target_segment_length = min(distance_to_target_xy, self.visualization_sampling_step_size)
+        num_simulation_steps = max(5, min(int(target_segment_length / (effective_step_length + 1e-6)), 25))
+
+
+        sim_x, sim_y, sim_theta = current_x, current_y, current_theta
+        for _ in range(num_simulation_steps):
+            next_x = sim_x + applied_velocity * math.cos(sim_theta) * self.time_step_simulation
+            next_y = sim_y + applied_velocity * math.sin(sim_theta) * self.time_step_simulation
+            next_theta = normalize_angle(
+                sim_theta + (applied_velocity * math.tan(applied_steering_angle) / self.vehicle_length) * self.time_step_simulation
+            )
+
+            if fast_collision_check(next_y, next_x, self.collision_lookup):
+                return None # Collision detected
+
+            sim_x, sim_y, sim_theta = next_x, next_y, next_theta
+            path_segment_states.append((sim_x, sim_y, sim_theta, applied_velocity, applied_steering_angle))
+
+        if len(path_segment_states) <= 1: # No valid step taken
+            return None
+
+        final_state_in_segment = path_segment_states[-1]
+        new_node_from_pff = RRTNode(
+            *final_state_in_segment, # x, y, theta, v, phi
+            cost=source_node.cost + (len(path_segment_states) - 1) * self.time_step_simulation,
+            parent=source_node
+        )
+        new_node_from_pff.path_from_parent = path_segment_states
+        return new_node_from_pff
+
+
+    def _extend_tree(self,
+                     tree_node_list,
+                     tree_identifier, # 'start' or 'goal'
+                     global_target_position_xy):
+        """Extends the specified tree towards the global_target_position_xy."""
+        nearest_node_in_tree = self._get_nearest_node_in_tree(global_target_position_xy, tree_identifier)
+        if not nearest_node_in_tree:
+            return None
+
+        optional_target_theta_for_expansion = None
+        is_attempting_direct_connection_to_overall_goal = False
+
+        # If sampling the actual start/goal, provide its orientation for guidance
+        if tree_identifier == 'start' and \
+           global_target_position_xy == (self.true_goal_configuration.x, self.true_goal_configuration.y):
+            optional_target_theta_for_expansion = self.true_goal_configuration.theta
+            is_attempting_direct_connection_to_overall_goal = True
+        elif tree_identifier == 'goal' and \
+             global_target_position_xy == (self.start_node.x, self.start_node.y):
+            # For goal tree expanding towards start, use start_node's true world theta (not inverse)
+            optional_target_theta_for_expansion = self.start_node.theta
+            is_attempting_direct_connection_to_overall_goal = True
+
+        newly_generated_node = self._generate_new_node_kinodynamically(
+            source_node=nearest_node_in_tree,
+            target_position_xy=global_target_position_xy,
+            optional_target_theta_rad=optional_target_theta_for_expansion,
+            tree_identifier=tree_identifier, # Passed along, though _generate_new_node doesn't currently use it directly
+            is_direct_connection_attempt=is_attempting_direct_connection_to_overall_goal,
+            force_heading_guidance_for_local_exploration=False # Typically false for general extension
+        )
+
+        if newly_generated_node:
+            tree_node_list.append(newly_generated_node)
+            return newly_generated_node
+        return None
+
+
+    def _try_connect_trees(self,
+                           node_from_active_tree, # The newly added node
+                           active_tree_identifier): # 'start' or 'goal'
+        """Attempts to connect node_from_active_tree to the other tree."""
+        other_tree_identifier = 'goal' if active_tree_identifier == 'start' else 'start'
+
+        nearest_node_in_other_tree = self._get_nearest_node_in_tree(
+            (node_from_active_tree.x, node_from_active_tree.y), other_tree_identifier
+        )
+        if not nearest_node_in_other_tree:
+            return False
+
+        distance_between_nodes = math.hypot(
+            node_from_active_tree.x - nearest_node_in_other_tree.x,
+            node_from_active_tree.y - nearest_node_in_other_tree.y
+        )
+
+        # Check if nodes are too far apart for a connection attempt
+        max_allowed_connection_distance = self.connection_max_distance_factor * self.nominal_connection_attempt_distance
+        if distance_between_nodes > max_allowed_connection_distance:
+            return False
+
+        # Define connection target based on the 'other' tree's node
+        target_connection_x = nearest_node_in_other_tree.x
+        target_connection_y = nearest_node_in_other_tree.y
+        # Target theta must match the frame of the 'other' tree's node
+        # If 'other' is goal tree, its nodes have inverse angles. We need to aim for that inverse angle.
+        # If 'other' is start tree, its nodes have world angles. Aim for that.
+        target_connection_theta_rad = nearest_node_in_other_tree.theta # This is correct because nodes store their 'effective' forward theta
+
+        # Attempt to generate a path segment from node_from_active_tree to nearest_node_in_other_tree
+        connection_candidate_node = self._generate_new_node_kinodynamically(
+            source_node=node_from_active_tree,
+            target_position_xy=(target_connection_x, target_connection_y),
+            optional_target_theta_rad=target_connection_theta_rad,
+            tree_identifier=active_tree_identifier,
+            is_direct_connection_attempt=True, # This is a focused connection
+            force_heading_guidance_for_local_exploration=True # Strongly guide heading
+        )
+
+        if connection_candidate_node:
+            # The connection_candidate_node is an extension of node_from_active_tree.
+            # Its theta is in the 'forward' frame of the active_tree.
+            # We need to check if this new node (connection_candidate_node) is close enough
+            # in pose to the nearest_node_in_other_tree.
+
+            final_connection_node_theta = connection_candidate_node.theta
+
+            position_criteria_met = math.hypot(
+                connection_candidate_node.x - target_connection_x,
+                connection_candidate_node.y - target_connection_y
+            ) <= self.goal_position_tolerance # Using goal_position_tolerance for connection tightness
+
+            # Angle check: connection_candidate_node's theta should align with target_connection_theta_rad
+            angle_diff_to_target_node = abs(normalize_angle(final_connection_node_theta - target_connection_theta_rad))
+            angle_criteria_to_target_met = angle_diff_to_target_node <= self.goal_angle_tolerance_rad
+            
+            # Sanity check: the connection segment itself should be somewhat aligned with the source node's direction
+            # This helps prevent awkward, immediate reverse connections.
+            # node_from_active_tree.theta is already in its correct forward frame.
+            angle_diff_from_source_node = abs(normalize_angle(final_connection_node_theta - node_from_active_tree.theta))
+            angle_criteria_from_source_met = angle_diff_from_source_node <= self.goal_angle_tolerance_rad * 1.5 # Slightly more lenient
+
+            if position_criteria_met and angle_criteria_to_target_met and angle_criteria_from_source_met:
+                if active_tree_identifier == 'start':
+                    self.tree_connection_nodes = (connection_candidate_node, nearest_node_in_other_tree)
+                else: # active_tree was 'goal'
+                    self.tree_connection_nodes = (nearest_node_in_other_tree, connection_candidate_node)
+                self.is_path_found = True
+                return True
+        return False
+
+
+    def plan(self, visualize_planning_output=True):
+        """Main planning loop for the Bidirectional Kinodynamic RRT."""
+        print("Starting optimized Kinodynamic RRT* (bidirectional) planning...")
+        self.planning_start_time = time.time()
+
+        for iteration in range(self.max_iterations):
+            if time.time() - self.planning_start_time > self.planning_time_budget_sec:
+                print("Planning time budget exceeded.")
+                break
+
+            if (iteration + 1) % 200 == 0:
+                print(f"Iteration {iteration + 1}, "
+                      f"Start Tree Size: {len(self.nodes_in_start_tree)}, "
+                      f"Goal Tree Size: {len(self.nodes_in_goal_tree)}")
+
+            # Determine which tree to extend: prioritize smaller tree, otherwise alternate
+            extend_start_tree_this_iteration = len(self.nodes_in_start_tree) <= len(self.nodes_in_goal_tree)
+            if abs(len(self.nodes_in_start_tree) - len(self.nodes_in_goal_tree)) <= 5 : # If balanced
+                 extend_start_tree_this_iteration = (iteration % 2 == 0)
+
+
+            active_tree_nodes, active_tree_identifier = \
+                (self.nodes_in_start_tree, 'start') if extend_start_tree_this_iteration \
+                else (self.nodes_in_goal_tree, 'goal')
+
+            # Determine the overall bias target (actual goal for start tree, actual start for goal tree)
+            # This is used by the _sample_position_for_visualization for its internal scoring
+            overall_bias_target_position_xy = \
+                (self.true_goal_configuration.x, self.true_goal_configuration.y) if active_tree_identifier == 'start' \
+                else (self.start_node.x, self.start_node.y)
+
+            # 1. Get a global random sample (or biased sample towards goal/start)
+            if random.random() < self.goal_biasing_rate:
+                 sampled_global_target_position = overall_bias_target_position_xy
+            else:
+                sampled_global_target_position = self._get_random_global_target_sample()
+
+            # Debug prints for early iterations
+            if iteration < 10:
+                print(f"Iter {iteration}: Global RRT Target: {sampled_global_target_position}")
+
+
+            # 3. Extend the chosen RRT tree using the sampled_global_target_position
+            newly_added_node_to_tree = self._extend_tree(
+                active_tree_nodes,
+                active_tree_identifier,
+                sampled_global_target_position
+            )
+
+            if newly_added_node_to_tree:
+                # 4. Try to connect the new node to the other tree
+                if self._try_connect_trees(newly_added_node_to_tree, active_tree_identifier):
+                    print(f"Path found and connected at iteration {iteration + 1}!")
+                    break # Exit main planning loop
+
+        if not self.is_path_found:
+             print(f"Path planning finished. No path found within {self.max_iterations} iterations or time budget.")
+
+        final_path_tuples = None
+        if self.is_path_found:
+            final_path_tuples = self._extract_final_path()
+
+        if visualize_planning_output:
+            self._visualize_bidirectional_rrt_result(final_path_tuples)
+
         return final_path_tuples
 
-    def _transform_primitive(self, primitive_relative_path, from_node): # Same as user's
-        if not primitive_relative_path: return []
-        transformed_path_segment = []
-        base_x, base_y, base_theta = from_node.x, from_node.y, from_node.theta
-        for i, (rel_x, rel_y, rel_theta, p_v, p_phi) in enumerate(primitive_relative_path):
-            rotated_x = rel_x * math.cos(base_theta) - rel_y * math.sin(base_theta)
-            rotated_y = rel_x * math.sin(base_theta) + rel_y * math.cos(base_theta)
-            global_x = rotated_x + base_x; global_y = rotated_y + base_y
-            global_theta = normalize_angle(rel_theta + base_theta)
-            transformed_path_segment.append((global_x, global_y, global_theta, p_v, p_phi))
-        return transformed_path_segment
+    def _extract_final_path(self):
+        """Reconstructs the path from start to goal once trees are connected."""
+        if not self.is_path_found or not self.tree_connection_nodes:
+            return None
 
-    def _visualize_bidirectional_result(self, path_tuples): # Same as user's
+        # node_at_start_tree_conn_point is the node in the start-tree part of the connection
+        # node_at_goal_tree_conn_point is the node in the goal-tree part of the connection
+        node_at_start_tree_conn_point, node_at_goal_tree_conn_point = self.tree_connection_nodes
+
+        # Part 1: Path from actual start to the connection point on the start tree side
+        path_start_to_connection_tuples = []
+        current_node = node_at_start_tree_conn_point
+        while current_node:
+            if current_node.path_from_parent:
+                # path_from_parent is (x,y,theta,v,phi), we need (x,y,theta)
+                segment = [(p[0], p[1], p[2]) for p in current_node.path_from_parent]
+                path_start_to_connection_tuples = segment + path_start_to_connection_tuples
+            elif current_node == self.start_node: # Ensure start node itself is included if no path_from_parent
+                 path_start_to_connection_tuples.insert(0, (current_node.x, current_node.y, current_node.theta))
+            current_node = current_node.parent
+        path_start_to_connection_tuples = self._deduplicate_path_waypoints(path_start_to_connection_tuples)
+
+
+        # Part 2: Path from actual goal to the connection point on the goal tree side (then reverse it)
+        path_goal_to_connection_reversed_tuples = []
+        current_node = node_at_goal_tree_conn_point # This node is part of the GOAL tree
+        while current_node:
+            if current_node.path_from_parent:
+                 # Path from parent in goal tree is kinematically forward, but angle is inverse.
+                 # So, when reconstructing, convert angles back to world frame.
+                segment = [(p[0], p[1], self._calculate_inverse_angle(p[2])) for p in current_node.path_from_parent]
+                path_goal_to_connection_reversed_tuples = segment + path_goal_to_connection_reversed_tuples
+            elif current_node == self.goal_tree_root_node:
+                path_goal_to_connection_reversed_tuples.insert(0, (current_node.x, current_node.y,
+                                                                self._calculate_inverse_angle(current_node.theta)))
+            current_node = current_node.parent
+        path_goal_to_connection_reversed_tuples = self._deduplicate_path_waypoints(path_goal_to_connection_reversed_tuples)
+
+        # Reverse the goal-to-connection path to get connection-to-goal path
+        path_connection_to_goal_tuples = list(reversed(path_goal_to_connection_reversed_tuples))
+
+        # Combine the two path segments
+        final_path_tuples = path_start_to_connection_tuples
+        if path_start_to_connection_tuples and path_connection_to_goal_tuples:
+            # Check if the last point of start_path and first of goal_path are too close (likely duplicates)
+            last_of_start = final_path_tuples[-1]
+            first_of_goal = path_connection_to_goal_tuples[0]
+            if (abs(last_of_start[0] - first_of_goal[0]) < 0.1 and
+                abs(last_of_start[1] - first_of_goal[1]) < 0.1 and
+                abs(normalize_angle(last_of_start[2] - first_of_goal[2])) < math.radians(5)):
+                final_path_tuples.extend(path_connection_to_goal_tuples[1:]) # Skip duplicate
+            else:
+                final_path_tuples.extend(path_connection_to_goal_tuples)
+        elif path_connection_to_goal_tuples: # If start path was empty (e.g. start IS connection)
+            final_path_tuples.extend(path_connection_to_goal_tuples)
+
+        return self._smooth_path(final_path_tuples)
+
+    def _smooth_path(self, path):
+        """
+        Fits a cubic smoothing spline through (x,y) that
+        *always* passes exactly through the first and last points,
+        while still smoothing the interior subject to your max-curvature constraint.
+        """
+        if len(path) < 3:
+            return path
+
+        # 1) extract raw waypoints
+        xs = np.array([p[0] for p in path])
+        ys = np.array([p[1] for p in path])
+
+        # Build a weight vector so that endpoints are “hard” constraints
+        w = np.ones(len(xs))
+        w[0] = w[-1] = self.endpoint_weight
+
+        # 2) compute curvature limit
+        L = self.vehicle_length
+        phi_max = self.max_steering_angle_rad
+        kappa_max = math.tan(phi_max) / L
+
+        # 3) fit with increasing smoothness until curvature is OK
+        s_val = 0.0
+        while True:
+            # pass our custom weights into splprep
+            tck, u = splprep([xs, ys], s=s_val, w=w)
+            u_fine = np.linspace(0, 1, len(path))
+            xs_s, ys_s = splev(u_fine, tck)
+
+            # curvature check
+            dx  = np.gradient(xs_s, u_fine)
+            dy  = np.gradient(ys_s, u_fine)
+            ddx = np.gradient(dx,    u_fine)
+            ddy = np.gradient(dy,    u_fine)
+            curvature = np.abs(dx*ddy - dy*ddx) / (dx*dx + dy*dy)**1.5
+
+            if np.nanmax(curvature) <= kappa_max or s_val >= self.base_max_s:
+                break
+            s_val = max(1e-3, s_val * 2 if s_val>0 else 1.0)
+
+        # Just to be *absolutely* sure, re-enforce exact endpoints:
+        xs_s[0], ys_s[0] = xs[0], ys[0]
+        xs_s[-1], ys_s[-1] = xs[-1], ys[-1]
+
+        # 4) reconstruct headings from smoothed trajectory
+        thetas = np.arctan2(
+            np.gradient(ys_s, u_fine),
+            np.gradient(xs_s, u_fine)
+        )
+
+        return list(zip(xs_s, ys_s, thetas))
+
+    def _deduplicate_path_waypoints(self, path_tuples_list):
+        """Removes consecutive duplicate or very close waypoints from a path list."""
+        if not path_tuples_list:
+            return []
+        
+        deduplicated_path = [path_tuples_list[0]]
+        for i in range(1, len(path_tuples_list)):
+            p1_x, p1_y, p1_theta = deduplicated_path[-1]
+            p2_x, p2_y, p2_theta = path_tuples_list[i]
+
+            position_differs = abs(p1_x - p2_x) >= 1e-3 or abs(p1_y - p2_y) >= 1e-3
+            angle_differs = abs(normalize_angle(p1_theta - p2_theta)) >= 1e-3
+
+            if position_differs or angle_differs:
+                deduplicated_path.append(path_tuples_list[i])
+        return deduplicated_path
+
+
+    def _transform_primitive_to_global_frame(self, relative_primitive_path, source_node_global_frame):
+        """Transforms a relative motion primitive path to the global coordinate frame of source_node."""
+        if not relative_primitive_path:
+            return []
+
+        transformed_path_segment_states = []
+        base_x, base_y, base_theta_rad = source_node_global_frame.x, source_node_global_frame.y, source_node_global_frame.theta
+
+        for i, (rel_x, rel_y, rel_theta, prim_v, prim_phi) in enumerate(relative_primitive_path):
+            # Rotate
+            rotated_relative_x = rel_x * math.cos(base_theta_rad) - rel_y * math.sin(base_theta_rad)
+            rotated_relative_y = rel_x * math.sin(base_theta_rad) + rel_y * math.cos(base_theta_rad)
+            # Translate
+            global_x = rotated_relative_x + base_x
+            global_y = rotated_relative_y + base_y
+            # Combine angles
+            global_theta_rad = normalize_angle(rel_theta + base_theta_rad)
+
+            transformed_path_segment_states.append((global_x, global_y, global_theta_rad, prim_v, prim_phi))
+        return transformed_path_segment_states
+
+
+    def _visualize_bidirectional_rrt_result(self, final_path_tuples):
+        """Visualizes the RRT trees and the final path."""
         plt.figure(figsize=(13, 13))
-        plt.imshow(self.collision_lookup["collision_mask"], origin='lower', cmap='Greys', extent=[0, self.grid_dims[1], 0, self.grid_dims[0]])
-        for node_list, color_str in [(self.nodes_start_tree, 'deepskyblue'), (self.nodes_goal_tree, 'lightcoral')]:
+        # Plot occupancy grid
+        plt.imshow(
+            self.occupancy_grid, cmap='gray',
+            extent=[0, self.grid_dimensions[1], 0, self.grid_dimensions[0]]
+        )
+
+        # Plot tree edges
+        tree_configs = [
+            (self.nodes_in_start_tree, 'deepskyblue', 'Start Tree Edge'),
+            (self.nodes_in_goal_tree, 'lightcoral', 'Goal Tree Edge')
+        ]
+        for node_list, color_str, label_str in tree_configs:
+            plotted_label = False
             for node in node_list:
                 if node.parent and node.path_from_parent and len(node.path_from_parent) > 0:
-                    xs = [p[0] for p in node.path_from_parent]; ys = [p[1] for p in node.path_from_parent]
-                    plt.plot(xs, ys, color=color_str, alpha=0.5, linewidth=1.5)
-        plt.scatter(self.start_node.x, self.start_node.y, color='lime', s=120, marker='o', edgecolor='black', label='Start', zorder=5)
-        plt.arrow(self.start_node.x, self.start_node.y, 2.0*math.cos(self.start_node.theta), 2.0*math.sin(self.start_node.theta), color='lime', head_width=0.7, head_length=0.9, edgecolor='black', linewidth=1.5, zorder=5)
-        plt.scatter(self.true_goal_node_spec.x, self.true_goal_node_spec.y, color='red', s=120, marker='X', edgecolor='black', label='Goal', zorder=5)
-        plt.arrow(self.true_goal_node_spec.x, self.true_goal_node_spec.y, 2.0*math.cos(self.true_goal_node_spec.theta), 2.0*math.sin(self.true_goal_node_spec.theta), color='red', head_width=0.7, head_length=0.9, edgecolor='black', linewidth=1.5, zorder=5)
-        if self.connection_details:
-            node_s, node_g = self.connection_details
-            plt.scatter(node_s.x, node_s.y, color='gold', s=150, marker='*', edgecolor='black', label='Connection Pt (Start Tree Side)', zorder=6)
-            plt.scatter(node_g.x, node_g.y, color='orange', s=150, marker='*', edgecolor='black', label='Connection Pt (Goal Tree Side)', zorder=6)
-        if path_tuples and len(path_tuples) > 1:
-            xs = [p[0] for p in path_tuples]; ys = [p[1] for p in path_tuples]
-            plt.plot(xs, ys, color='green', linestyle='-', linewidth=2.0, label='Final Path', zorder=4)
-            for i in range(0, len(path_tuples), max(1, len(path_tuples)//25)):
-                plt.arrow(path_tuples[i][0], path_tuples[i][1], 1.2*math.cos(path_tuples[i][2]), 1.2*math.sin(path_tuples[i][2]), color='darkgreen', head_width=0.3, head_length=0.5, alpha=0.8, zorder=4)
-        plt.title("Bidirectional Kinodynamic RRT Path Planning"); plt.xlabel("X-position (m)"); plt.ylabel("Y-position (m)")
-        plt.legend(fontsize='small'); plt.axis('equal'); plt.grid(True, linestyle=':', alpha=0.6); plt.tight_layout(); 
-        #save image below
-        # plt.show()
-        plt.savefig(f"bidirectional_kinodynamic_rrt_path{time.time()}.png", dpi=300)
-        # plt.show()
-   
-    def visualize_sampling(self):
-        if not self.recorded_samples and not self.recorded_samples_local_viz:
-            print("No samples recorded."); return
-        fig, ax = plt.subplots(figsize=(8,8))
-        ax.imshow(self.collision_lookup["collision_mask"], origin='lower', cmap='gray', extent=[0, self.grid_dims[1], 0, self.grid_dims[0]])
-        ax.set_aspect('equal'); ax.set_title("Sampling Visualization")
-        
-        if self.recorded_centers: # From _sample_position_randomly (local viz)
-             centers_x = [c[0] for c in self.recorded_centers]; centers_y = [c[1] for c in self.recorded_centers]
-             ax.scatter(centers_x, centers_y, c='blue', s=15, label="Local Viz Centers (last_node)", alpha=0.3)
-        if self.recorded_samples_local_viz: # From _sample_position_randomly
-            xs_local, ys_local = zip(*self.recorded_samples_local_viz)
-            ax.scatter(xs_local, ys_local, c='cyan', s=20, label="Local Viz Choices", alpha=0.6, marker='x')
-        if self.recorded_samples: # Global samples for _extend_tree
-            xs_global, ys_global = zip(*self.recorded_samples)
-            ax.scatter(xs_global, ys_global, c='tab:orange', s=20, label="Global Targets for Extend", alpha=0.7)
-        ax.legend(); 
-        plt.savefig(f"sampling_visualization{time.time()}.png", dpi=300)
-        # plt.show()
-        # plt.show()
+                    path_xs = [p[0] for p in node.path_from_parent]
+                    path_ys = [p[1] for p in node.path_from_parent]
+                    if not plotted_label:
+                        plt.plot(path_xs, path_ys, color=color_str, alpha=0.5, linewidth=1.5, label=label_str)
+                        plotted_label = True
+                    else:
+                        plt.plot(path_xs, path_ys, color=color_str, alpha=0.5, linewidth=1.5)
 
-    def animate_sampling(self, num_frames=200, interval=100):
-        if not self.recorded_centers or not self.recorded_samples_local_viz: print("Not enough data for animation."); return
-        fig, ax = plt.subplots(figsize=(8,8))
-        ax.imshow(self.collision_lookup["collision_mask"], origin='lower', cmap='gray', extent=[0, self.grid_dims[1], 0, self.grid_dims[0]])
-        ax.set_aspect('equal'); ax.set_title("Local Cone-Sampling Animation")
-        scat = ax.scatter([], [], c='tab:orange', s=30) # Will show recorded_samples_local_viz
-        all_rays = [ax.plot([], [], color='gray', linestyle='--', linewidth=1)[0] for _ in range(self.num_arcs)]
-        highlight_ray, = ax.plot([], [], color='red', linewidth=2)
-        def init_anim():
-            scat.set_offsets(np.empty((0,2)));
-            for r_line in all_rays: r_line.set_data([],[])
-            highlight_ray.set_data([],[]); return [scat, highlight_ray] + all_rays
-        
-        actual_frames = min(len(self.recorded_centers), len(self.recorded_samples_local_viz), num_frames)
-        if actual_frames == 0: print("Cannot animate, no frames."); return None
 
-        def update_anim(frame):
-            cx, cy, theta0 = self.recorded_centers[frame]
-            if self.num_arcs > 1: rels_an = [-self.half_cone + j*(2*self.half_cone)/(self.num_arcs-1) for j in range(self.num_arcs)]
-            else: rels_an = [0.0] if self.num_arcs == 1 else []
-            for j, r_line in enumerate(all_rays):
-                if j < len(rels_an):
-                    ang = normalize_angle(theta0+rels_an[j]); x0,y0=cx+self.min_radius*math.cos(ang),cy+self.min_radius*math.sin(ang)
-                    x1,y1=cx+self.max_radius*math.cos(ang),cy+self.max_radius*math.sin(ang); r_line.set_data([x0,x1],[y0,y1])
-                else: r_line.set_data([],[])
-            idx_an = frame % self.num_arcs
-            if idx_an < len(rels_an):
-                angh=normalize_angle(theta0+rels_an[idx_an]); hx0,hy0=cx+self.min_radius*math.cos(angh),cy+self.min_radius*math.sin(angh)
-                hx1,hy1=cx+self.max_radius*math.cos(angh),cy+self.max_radius*math.sin(angh); highlight_ray.set_data([hx0,hx1],[hy0,hy1])
-            else: highlight_ray.set_data([],[])
-            # Animate using recorded_samples_local_viz
-            pts = np.array(self.recorded_samples_local_viz[:frame+1])
-            if pts.size > 0 : scat.set_offsets(pts)
-            else: scat.set_offsets(np.empty((0,2)))
-            return [scat, highlight_ray] + all_rays
-        anim_obj = animation.FuncAnimation(fig,update_anim,frames=actual_frames,init_func=init_anim,blit=True,interval=interval)
-        plt.savefig(f"sampling_animation{time.time()}.png", dpi=300)
-        # plt.show(); 
-        return anim_obj
+        # Plot Start and Goal nodes
+        plt.scatter(
+            self.start_node.x, self.start_node.y, color='lime', s=120, marker='o',
+            edgecolor='black', label='Start Pose', zorder=5
+        )
+        plt.arrow(
+            self.start_node.x, self.start_node.y,
+            20.0 * math.cos(self.start_node.theta), 20.0 * math.sin(self.start_node.theta), # Increased arrow length
+            color='lime', head_width=7.0, head_length=9.0, edgecolor='black', linewidth=1.5, zorder=5 # Increased arrow size
+        )
+        plt.scatter(
+            self.true_goal_configuration.x, self.true_goal_configuration.y, color='red', s=120, marker='X',
+            edgecolor='black', label='Goal Pose', zorder=5
+        )
+        plt.arrow(
+            self.true_goal_configuration.x, self.true_goal_configuration.y,
+            20.0 * math.cos(self.true_goal_configuration.theta), 20.0 * math.sin(self.true_goal_configuration.theta), # Increased arrow length
+            color='red', head_width=7.0, head_length=9.0, edgecolor='black', linewidth=1.5, zorder=5 # Increased arrow size
+        )
+
+        # Plot connection points if path found
+        if self.tree_connection_nodes:
+            node_s_conn, node_g_conn = self.tree_connection_nodes
+            plt.scatter(
+                node_s_conn.x, node_s_conn.y, color='gold', s=150, marker='*',
+                edgecolor='black', label='Connection Pt (Start Tree Side)', zorder=6
+            )
+            plt.scatter(
+                node_g_conn.x, node_g_conn.y, color='darkorange', s=150, marker='*', # Changed color for distinctness
+                edgecolor='black', label='Connection Pt (Goal Tree Side)', zorder=6
+            )
+
+        # Plot the final path
+        if final_path_tuples and len(final_path_tuples) > 1:
+            path_xs = [p[0] for p in final_path_tuples]
+            path_ys = [p[1] for p in final_path_tuples]
+            plt.plot(path_xs, path_ys, color='green', linestyle='-', linewidth=2.0, label='Final Path')
+            # Plot orientation arrows along the path
+            for i in range(0, len(final_path_tuples), max(1, len(final_path_tuples) // 25)): # ~25 arrows
+                plt.arrow(
+                    final_path_tuples[i][0], final_path_tuples[i][1],
+                    12.0 * math.cos(final_path_tuples[i][2]), 12.0 * math.sin(final_path_tuples[i][2]), # Increased arrow length
+                    color='darkgreen', head_width=3.0, head_length=5.0, alpha=0.8, zorder=4 # Increased arrow size
+                )
+
+        plt.title("Bidirectional Kinodynamic RRT* Path Planning Result")
+        plt.xlabel("X-position (grid units)")
+        plt.ylabel("Y-position (grid units)")
+        plt.legend(fontsize='small')
+        plt.axis('equal')
+        plt.tight_layout()
+        
+        # Save the figure
+        plt.savefig(f"bidirectional_kinodynamic_rrt_path_{time.time()}.png", dpi=300)
+        # plt.show() # Uncomment to display plot interactively

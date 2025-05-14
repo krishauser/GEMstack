@@ -1,17 +1,15 @@
 import math
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-# from map_utils import world_to_grid
-from .map_utils import world_to_grid
 import time
-def visualize_path(occupancy_grid, path, metadata, start_world, goal_world, show_headings=True):
+
+def visualize_path(occupancy_grid, path, start_world, goal_world, show_headings=True):
     """
     Visualize the planned path.
     
     Args:
         occupancy_grid: Binary occupancy grid (1=obstacle, 0=free)
         path: List of (x, y, theta) world coordinates
-        metadata: Map metadata
         start_world: (x, y, theta) start position in world coordinates
         goal_world: (x, y, theta) goal position in world coordinates
         show_headings: Whether to show heading arrows along the path
@@ -23,13 +21,9 @@ def visualize_path(occupancy_grid, path, metadata, start_world, goal_world, show
     
     # Extract path points
     if path:
-        grid_path = []
-        for world_pt in path:
-            grid_pt = world_to_grid(*world_pt, metadata)
-            grid_path.append(grid_pt)
             
-        xs = [p[0] for p in grid_path]
-        ys = [p[1] for p in grid_path]
+        xs = [p[0] for p in path]
+        ys = [p[1] for p in path]
         
         # Plot path
         plt.plot(xs, ys, 'g-', linewidth=2)
@@ -39,15 +33,15 @@ def visualize_path(occupancy_grid, path, metadata, start_world, goal_world, show
             arrow_interval = max(1, len(path) // 20)  # Show ~20 arrows along path
             arrow_length = 10
             
-            for i in range(0, len(grid_path), arrow_interval):
-                x, y, theta = grid_path[i]
+            for i in range(0, len(path), arrow_interval):
+                x, y, theta = path[i]
                 dx = arrow_length * math.cos(theta)
                 dy = arrow_length * math.sin(theta)
                 plt.arrow(x, y, dx, dy, head_width=3, head_length=6, fc='blue', ec='blue')
     
     # Show start and goal
-    start_grid = world_to_grid(*start_world, metadata)
-    goal_grid = world_to_grid(*goal_world, metadata)
+    start_grid = start_world
+    goal_grid = goal_world
     
     plt.scatter(start_grid[0], start_grid[1], color='green', s=100, marker='o', label='Start')
     plt.scatter(goal_grid[0], goal_grid[1], color='red', s=100, marker='x', label='Goal')
@@ -70,7 +64,7 @@ def visualize_path(occupancy_grid, path, metadata, start_world, goal_world, show
     plt.savefig(f"path_planning_result_{time.time()}.png")
     # plt.show()
 
-def animate_path(occupancy_grid, path, metadata, interval=60, pad_cells=20,
+def animate_path(occupancy_grid, path, interval=60, pad_cells=20,
                 save="ani.gif", vehicle_len=10):
     """
     Animate the drive and crop axes to the path region.
@@ -78,7 +72,6 @@ def animate_path(occupancy_grid, path, metadata, interval=60, pad_cells=20,
     Args:
         occupancy_grid: Binary occupancy grid (1=obstacle, 0=free)
         path: List of (x, y, theta) world coordinates
-        metadata: Map metadata
         interval: Animation interval in milliseconds
         pad_cells: Extra cells to pad around trajectory bbox
         save: If provided, save animation to this file
@@ -87,11 +80,8 @@ def animate_path(occupancy_grid, path, metadata, interval=60, pad_cells=20,
     Returns:
         Animation object
     """
-    def world_to_grid(x, y, th, meta):
-        ox, oy, _ = meta['origin']; res = meta['resolution']
-        return ((x-ox)/res, (y-oy)/res, th)
 
-    gpath = [world_to_grid(*pt, metadata) for pt in path]
+    gpath = [pt for pt in path]
     xs = [p[0] for p in gpath]; ys = [p[1] for p in gpath]
 
     xmin, xmax = min(xs)-pad_cells, max(xs)+pad_cells
