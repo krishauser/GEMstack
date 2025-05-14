@@ -30,6 +30,7 @@ control:
     mpc:
         dt: 0.2                          # Time step for the MPC controller (seconds)
         horizon: 30                      # Prediction horizon for the MPC controller (number of time steps)
+        switch_gear: False                # Whether to switch gears during runtime
         desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
 
     # Shared longitudinal control parameters
