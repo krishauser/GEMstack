@@ -118,7 +118,6 @@ class ObjectDetection(Component):
 
         boxes = track_result[0].boxes
         for box in boxes:
-            
             class_id = int(box.cls.item())
             label_text = class_names[class_id]
             xywh = box.xywh[0].tolist()

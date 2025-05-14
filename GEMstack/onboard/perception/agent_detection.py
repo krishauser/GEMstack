@@ -25,7 +25,6 @@ class OmniscientAgentDetector(Component):
         self.vehicle_interface.subscribe_sensor('agent_detector',self.agent_callback, AgentState)
     
     def agent_callback(self, name : str, agent : AgentState):
-        print(f"AGENT detected: {name}")
         with self.lock:
             self.agents[name] = agent
 

@@ -609,12 +609,6 @@ class ExecutorBase:
 
             #check for vehicle faults
             self.check_for_hardware_faults()
-            for name,c in perception_components.items():
-                if not c.healthy():
-                    if c.essential:
-                        executor_debug_print(1,"Sensor {} not working, entering recovery mode",name)
-                    else:
-                        executor_debug_print(1,"Warning, sensor {} not working, ignoring",name)
             self.update_components(perception_components,self.state)
             sensors_working = all([c.healthy() for c in perception_components.values()])
 

@@ -5,7 +5,7 @@ import matplotlib
 
 from .collision import build_collision_lookup
 from .map_utils import load_pgm_to_occupancy_grid
-from .visualization import visualize_path, animate_path
+from .visualization import visualize_path
 from .kinodynamic_rrt_star import OptimizedKinodynamicRRT
 
 def optimized_kinodynamic_rrt_planning(start_world, goal_world, occupancy_grid, safety_margin=10, 
@@ -131,15 +131,3 @@ def main():
         step_size=args.step_size,
         max_iterations=args.max_iter,
     )
-    
-    if path:
-        print(f"Planned path with {len(path)} poses")
-        if args.vis:
-            visualize_path(occupancy_grid, path, start_w, goal_w)
-        if args.animate:
-            animate_path(occupancy_grid, path, pad_cells=args.pad)
-    else:
-        print("Failed to find path")
-
-if __name__ == "__main__":
-    main()

@@ -7,7 +7,13 @@ import scipy.spatial
 
 from scipy.interpolate import splprep, splev
 from .collision import fast_collision_check
-from .utils import normalize_angle
+import math
+
+def normalize_angle(angle):
+    while angle > math.pi: angle -= 2.0 * math.pi
+    while angle < -math.pi: angle += 2.0 * math.pi
+    return angle
+
 
 class RRTNode:
     """Represents a node in the RRT tree."""
