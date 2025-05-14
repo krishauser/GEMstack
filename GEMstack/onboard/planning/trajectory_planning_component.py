@@ -468,18 +468,19 @@ class QuinticHermiteSplinePlanner:
         return np.array(pts_out), np.array(t_out)
 
 
-class LogitudinalPlanner(Component):
+class LongitudinalPlanner(Component):
     """Follows the given route. Brakes if the ego-vehicle must yield
     (e.g. to a pedestrian) or if the end of the route is near; otherwise,
     it accelerates (or cruises) toward a desired speed.
     """
-    def __init__(self):
+
+    def __init__(self, accelaration, desired_speed, deceleration, emergency_brake):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = settings.get("run.drive.planning.motion_planning.largs.acceleration", 5)
-        self.desired_speed = settings.get("run.drive.planning.motion_planning.largs.desired_speed", 2.0)
-        self.deceleration = settings.get("run.drive.planning.motion_planning.largs.deceleration", 2.0)
-        self.emergency_brake = settings.get("run.drive.planning.motion_planning.largs.emergency_brake", 8.0)
+        self.acceleration = accelaration
+        self.desired_speed = desired_speed
+        self.deceleration = deceleration
+        self.emergency_brake = emergency_brake
     
     def state_inputs(self):
         return ['all']
@@ -577,13 +578,13 @@ class QuinticSplineScurveTrajectoryPlanner(Component):
     (e.g. to a pedestrian) or if the end of the route is near; otherwise,
     it accelerates (or cruises) toward a desired speed.
     """
-    def __init__(self):
+    def __init__(self, accelaration, desired_speed, deceleration, emergency_brake):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = settings.get("run.drive.planning.motion_planning.largs.acceleration", 5)
-        self.desired_speed = settings.get("run.drive.planning.motion_planning.largs.desired_speed", 2.0)
-        self.deceleration = settings.get("run.drive.planning.motion_planning.largs.deceleration", 2.0)
-        self.emergency_brake = settings.get("run.drive.planning.motion_planning.largs.emergency_brake", 8.0)
+        self.acceleration = accelaration
+        self.desired_speed = desired_speed
+        self.deceleration = deceleration
+        self.emergency_brake = emergency_brake
         self.lookahead_dist = 10.0
         self.spline_dt = 0.02
         self._spline = QuinticHermiteSplinePlanner(v_des=self.desired_speed, dt=self.spline_dt)
@@ -604,9 +605,11 @@ class QuinticSplineScurveTrajectoryPlanner(Component):
         t = state.t
         if DEBUG:
             print("[DEBUG] YieldTrajectoryPlanner.update: t =", t)
+
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
+
         if DEBUG:
             print("[DEBUG] YieldTrajectoryPlanner.update: dt =", dt)
         curr_x = vehicle.pose.x
@@ -614,6 +617,7 @@ class QuinticSplineScurveTrajectoryPlanner(Component):
         curr_v = vehicle.v
         if DEBUG:
             print(f"[DEBUG] YieldTrajectoryPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}, ")
+            
         # Determine progress along the route.
         if self.route_progress is None:
             self.route_progress = 0.0

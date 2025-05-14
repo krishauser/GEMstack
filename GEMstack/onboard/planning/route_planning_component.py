@@ -9,6 +9,7 @@ from GEMstack.state.all import AllState
 from GEMstack.state.physical_object import ObjectFrameEnum, ObjectPose
 from GEMstack.state.route import PlannerEnum, Route
 from GEMstack.state.vehicle import VehicleState
+from GEMstack.state.agent import AgentState
 from GEMstack.state.intent import VehicleIntentEnum
 from GEMstack.state.mission_plan import MissionPlan, ModeEnum
 from GEMstack.state.obstacle import Obstacle, ObstacleMaterialEnum
@@ -72,9 +73,10 @@ class RoutePlanningComponentExample(Component):
         if DEBUG:
             print("Number of Detected Obstacles: ", len(obstacles))
         for n, o in obstacles.items():
-            if o.type == ObstacleMaterialEnum.TRAFFIC_CONE:
+            print("Obstacle: ", o)
+            if o.material == ObstacleMaterialEnum.TRAFFIC_CONE:
                 obstacle_global_pose = o.pose.to_frame(self.frame, start_pose_abs=mission_plan.start_vehicle_pose)
-                obstacles_global_poses.append((obstacle_global_pose.y, obstacle_global_pose.x))
+                obstacles_global_poses.append((obstacle_global_pose.x, obstacle_global_pose.y))
             
 
         rects = self.occupancy_grid.draw_obstacle_cones(obstacles_global_poses)
@@ -188,7 +190,7 @@ class RoutePlanningComponentExample(Component):
                     waypoint_start_pose = waypoint_global_pose.to_frame(
                         ObjectFrameEnum.START, start_pose_abs=mission_plan.start_vehicle_pose
                     )
-                    waypoints.append((waypoint_start_pose.y, waypoint_start_pose.x))
+                    waypoints.append((waypoint_start_pose.x, waypoint_start_pose.y))
                 
                 self.route = Route(
                     frame=ObjectFrameEnum.START, points=waypoints)

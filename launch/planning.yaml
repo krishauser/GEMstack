@@ -20,25 +20,25 @@ drive:
 
         # obstacle_detection:
         #     type: cone_detection.ConeDetector3D
-        #     args:
-        #         camera_name: front_right #[front, front_right]
-        #         camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+        #     # args:
+            #     camera_name: front_right #[front, front_right]
+            #     camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
 
-        #         # optional overrides
-        #         enable_tracking: False
-        #         visualize_2d: False
-        #         use_cyl_roi: False
-        #         save_data: False
-        #         orientation: False
-        #         use_start_frame: False
+            #     # optional overrides
+            #     enable_tracking: False
+            #     visualize_2d: False
+            #     use_cyl_roi: False
+            #     save_data: False
+            #     orientation: False
+            #     use_start_frame: False
 
     planning:
-        relations_estimation: pedestrian_yield_logic.PedestrianYielder
+        # relations_estimation: pedestrian_yield_logic.PedestrianYielder
                     # Fixed route with pure pursuit
         planning_component_example:
             type: PlanningComponentExample
         route_planning_component:
-                        type: RoutePlanningComponentExample
+            type: RoutePlanningComponentExample
         trajectory_tracking:
             type: pure_pursuit.PurePursuitTrajectoryTracker
             args: {desired_speed: 2.5}  #approximately 5mph
@@ -47,13 +47,14 @@ drive:
         #     type: StaticRoutePlanner
         #     args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] # Fixed path
         
-        motion_planning: trajectory_planning_component.LongitudinalPlanner
-        largs:
-            acceleration: 5.0
-            desired_speed: 2.0
-            deceleration: 2.0
-            emergency_brake: 8.0
-        # motion_planning: trajectory_planning_component.QuinticSplineScurveTrajectoryPlanner
+        motion_planning: 
+            type: trajectory_planning_component.QuinticSplineScurveTrajectoryPlanner
+            args: 
+                accelaration: 5.0
+                desired_speed: 2.0 
+                deceleration: 2.0 
+                emergency_brake: 8.0
+        # motion_planning: yield_spline_planner.SplinePlanner
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 
@@ -116,45 +117,34 @@ variants:
                         type: agent_detection.GazeboAgentDetector
                         args:
                             tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
-
                     obstacle_detection:
                         type: obstacle_detection.GazeboObstacleDetector
                         args:
                             tracked_obstacle_prefixes: ['cone']
-                    # perception_normalization : StandardPerceptionNormalizer
-                    # obstacle_detection :
-                    #     type: cone_detection.ConeDetector3D
-                    #     args:
-                    #         camera_name: front #[front, front_right]
-                    #         camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
-                    #         enable_tracking:  True   # True if you want to enable tracking
-                    #         visualize_2d:     False  # True to see 2D detection visualization
-                    #         use_cyl_roi:      False  # True to use a cylinder ROI
-                    #         save_data:        False  # True to save sensor input data
-                    #         orientation:      True   # True to detect flipped cones
-                    #         use_start_frame:  True   # True to output in START frame
+
 
                 planning:
-                    relations_estimation: pedestrian_yield_logic.PedestrianYielder
-                        args:
-                            vehicle_name: 'e4' #'e2'
-
+                    # Adding your custom relation estimation
+                    # relations_estimation: pedestrian_yield_logic.PedestrianYielder
+                    # Fixed route with pure pursuit
                     planning_component_example:
                         type: PlanningComponentExample
-
                     route_planning_component:
                         type: RoutePlanningComponentExample
-  
-                    motion_planning: trajectory_planning_component.LongitudinalPlanner
-                    largs:
-                        acceleration: 5.0
-                        desired_speed: 2.0
-                        deceleration: 2.0
-                        emergency_brake: 8.0
-
-                    # motion_planning: trajectory_planning_component.QuinticSplineScurveTrajectoryPlanner
-
-                    trajectory_tracking:
+                    # route_planning:
+                    #     type: StaticRoutePlanner
+                    #     args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] # Fixed path
+                    
+                    # motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+                    # motion_planning: yield_spline_planner.SplinePlanner
+                    motion_planning: 
+                        type: trajectory_planning_component.QuinticSplineScurveTrajectoryPlanner
+                        args: 
+                            accelaration: 5.0
+                            desired_speed: 2.0 
+                            deceleration: 2.0 
+                            emergency_brake: 8.0                    
+                trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         args: {desired_speed: 'path'}  #approximately 5mph
                         print: True

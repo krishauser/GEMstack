@@ -34,13 +34,14 @@ class PlanningComponentExample(Component):
             self.goal_start_pose = ObjectPose(
                 frame=ObjectFrameEnum.START,
                 t=state.start_vehicle_pose.t,
-                x=state.vehicle.pose.x,
-                y=state.vehicle.pose.y+ 35,
+                x=state.vehicle.pose.x + 35,
+                y=state.vehicle.pose.y,
                 yaw=state.vehicle.pose.yaw + math.pi,
             )
+
         mission_plan = MissionPlan(PlannerEnum.RRT_STAR, self.goal_start_pose, state.start_vehicle_pose, self.mode)
 
         if DEBUG:
-            print("ParkingSim update with state:",mission_plan)
+            print("Planning component update with state:",mission_plan)
 
         return mission_plan
