@@ -73,6 +73,6 @@ components:
   - signaling:
       inputs: [intent]
       outputs:
-  - collision_logger:
+  - gazebo_collision_logger:
       inputs: []
-      outputs:
+      outputs: 
