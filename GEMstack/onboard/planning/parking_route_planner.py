@@ -475,7 +475,7 @@ class ParkingPlanner():
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         status = "successful" if success else "unsuccessful"
         final_pos_status = " Final Pos Inside" if  final_pos_inside else " Final Pos Not Inside"
-        message = f"{timestamp} Heuristic Function: {self.distance_function} Parking {status}; {final_pos_status}"
+        message = f"{timestamp} Heuristic Function: {self.distance_function} Parking {status}; {final_pos_status} "
         message += f"Timestep: {self.T}; dt: {self.dt}; max_v: {self.max_v}; max_turn_rate: {self.max_turn_rate};"
         message += f"Tolerance: {self.tolerance} Iterations: {self.iterations}"
         if planning_time is not None:
