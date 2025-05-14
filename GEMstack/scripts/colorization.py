@@ -241,28 +241,7 @@ def main():
             if u_f.shape[0] == 0 or v_f.shape[0] == 0:
                 print(f"❌ No visible points for {camera_type}")
                 continue
-            # # Step 5: Interpolate RGB
-            # # map_x = u_f.reshape(-1, 1)
-            # # map_y = v_f.reshape(-1, 1)
-            # map_x = u_f.reshape(1, -1).astype(np.float32)
-            # map_y = v_f.reshape(1, -1).astype(np.float32)
-
-            # print(f"map_x shape: {map_x.shape}, map_y shape: {map_y.shape}")
-            # print(f"image shape: {image_undistorted.shape}")
-            # # Per-channel remap
-            # colors_interpolated = []
-            # for c in range(3):
-            #     remapped = cv2.remap(
-            #         image_undistorted[:, :, c],
-            #         map_x,
-            #         map_y,
-            #         interpolation=cv2.INTER_LINEAR,
-            #         borderMode=cv2.BORDER_CONSTANT,
-            #         borderValue=0
-            #     )
-            #     # Result will be shape (1, N) → reshape to (N, 1)
-            #     colors_interpolated.append(remapped.reshape(-1, 1))
-
+            # Step 5: Interpolate RGB
             colors_interpolated = sample_rgb_colors(image_undistorted, u_f, v_f)
             # Step 6: Assign to full color array
             # colors_interpolated = np.concatenate(colors_interpolated, axis=1)  # shape: (N, 3)
