@@ -266,7 +266,7 @@ class MapBasedStateEstimator(Component):
         self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
         self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
         self.status = None
-        self.transformation = None
+        self.transformation = np.identity(4)
 
     # Get GNSS information
     def gnss_callback(self, reading : GNSSReading):
@@ -312,38 +312,37 @@ class MapBasedStateEstimator(Component):
             scaled_scan_pcd, self.scan_voxel_size, self.normal_radius_factor, self.feature_radius_factor)
 
         print("Process scan", self.vehicle_interface.time() - scan_time)
-        
+
         # Global registration
-        transformation = np.identity(4)
-        
-        # RANSAC
-        ransac_result = execute_global_registration(
-            scan_down, self.map_down, scan_fpfh, self.map_fpfh, self.voxel_size)
-        
-        transformation = ransac_result.transformation
-        print("RANSAC", self.vehicle_interface.time() - scan_time)
-        
-        # Fast Global Registration
-        fgr_result = execute_fast_global_registration(
-            scan_down, self.map_down, scan_fpfh, self.map_fpfh, self.voxel_size)
-        
-        # Use the better result based on fitness
-        if fgr_result.fitness > ransac_result.fitness:
-            transformation = fgr_result.transformation
-        print("Fast", self.vehicle_interface.time() - scan_time)
+        if self.transformation == np.identity(4):
+            # RANSAC
+            ransac_result = execute_global_registration(
+                scan_down, self.map_down, scan_fpfh, self.map_fpfh, self.voxel_size)
+            
+            self.transformation = ransac_result.transformation
+            print("RANSAC", self.vehicle_interface.time() - scan_time)
+            
+            # Fast Global Registration
+            fgr_result = execute_fast_global_registration(
+                scan_down, self.map_down, scan_fpfh, self.map_fpfh, self.voxel_size)
+            
+            # Use the better result based on fitness
+            if fgr_result.fitness > ransac_result.fitness:
+                self.transformation = fgr_result.transformation
+            print("Fast", self.vehicle_interface.time() - scan_time)
         
         # Refine with ICP
         icp_transformation = multi_scale_icp(
             scan_down, self.map_down, 
             voxel_sizes=[2.0, 1.0, 0.5], 
             max_iterations=[100, 50, 25],
-            initial_transform=transformation)
+            initial_transform=self.transformation)
         
-        final_transformation = icp_transformation
         print("ICP", self.vehicle_interface.time() - scan_time)
+        self.transformation = icp_transformation
         
         # Extract position and orientation
-        x, y, z, roll, pitch, yaw = transform_to_pose(final_transformation)
+        x, y, z, roll, pitch, yaw = transform_to_pose(icp_transformation)
         # TODO: Estimate speed
         if self.map_based_pose != None:
             translation = np.array([x - self.map_based_pose.x, y - self.map_based_pose.y, z - self.map_based_pose.z])
