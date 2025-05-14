@@ -3,7 +3,7 @@ from .gem import *
 from ...mathutils.dubins import SecondOrderDubinsCar
 from ...mathutils.dynamics import simulate
 from ...mathutils import transforms
-from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,Sign,AllState,VehicleGearEnum
+from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,Sign,AllState
 from ...knowledge.vehicle.geometry import front2steer,steer2front,heading_rate
 from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration, acceleration_to_pedal_positions
 from ...utils.loops import TimedLooper
@@ -176,7 +176,7 @@ class GEMDoubleIntegratorSimulation:
         #simulate actuators
         accelerator_pedal_position = np.clip(self.last_command.accelerator_pedal_position,0.0,1.0)
         brake_pedal_position = np.clip(self.last_command.brake_pedal_position,0.0,1.0)
-        acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,self.last_command.gear)
+        acceleration = pedal_positions_to_acceleration(accelerator_pedal_position,brake_pedal_position,v,0,1)
         acceleration = np.clip(acceleration,*self.dubins.accelRange)
         phides = steer2front(self.last_command.steering_wheel_angle)
         phides = np.clip(phides,*self.dubins.wheelAngleRange)
@@ -211,7 +211,7 @@ class GEMDoubleIntegratorSimulation:
             reading.brake_pedal_position = brake_pedal_position
             reading.accelerator_pedal_position = 0
         reading.speed = v
-        if v > 0:
+        if v >= 0:
             reading.gear = 1
         else:
             reading.gear = -1
