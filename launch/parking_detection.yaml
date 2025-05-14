@@ -100,7 +100,7 @@ variants:
                             use_cyl_roi: False
                             save_data: False
                             orientation: False
-                            use_start_frame: False
+                            use_start_frame: True
                     # agent_detection : cone_detection_simple.ConeDetectorSimple3D
                     parking_detection:
                         type: parking_detection.ParkingSpotsDetector3D
@@ -108,9 +108,9 @@ variants:
                             camera_name: front_right #[front, front_right]
                             camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
                             visualize_3d: True
-                planning:
-                    _mission_planner:
-                        type: parking_component.ParkingSim
+                # planning:
+                #     _mission_planner:
+                #         type: parking_component.ParkingSim
                     # _route_planner:
                     #     type: route_planning_component.RoutePlanningComponent
 
