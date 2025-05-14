@@ -28,6 +28,10 @@ The backend server will be running at: [http://localhost:5000](http://localhost:
 
 ### 2. Start Frontend (Development or Production)
 
+#### Prerequisites
+
+- Node.js (v18.17+) and npm. If you already have a different version of Node.js installed, you can manage multiple versions using [nvm](https://github.com/nvm-sh/nvm) (for Unix-based systems) or [nvm-windows](https://github.com/coreybutler/nvm-windows) (for Windows).
+
 Navigate to the frontend directory:
 
 ```
@@ -124,3 +128,14 @@ Clicking it redirects you to the 3D visualizer at: [http://localhost:3000](http:
   "time": <float>
 }
 ```
+
+# SR Rosbag Viewer
+## How to Use
+In the bottom-right corner of the 3D Visualizer, there's a redirect button. Clicking it will take you to the Rosbag Viewer. Currently, it supports viewing uncompressed images and point clouds by topic.
+
+To view both images and point clouds simultaneously:
+  1. After uploading the rosbag file and confirming that the upload is complete (as indicated by the loading status in the scrubber), click the menu in the top-right corner.
+
+  2. Choose to split the current panel vertically or horizontally.
+
+  3. In one of the panels, select `Switch to PointCloud Panel`.
