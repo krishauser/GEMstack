@@ -1,7 +1,7 @@
 from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
-# from .perception_utils import *
+from .pedestrian_utils import pose_to_matrix
 from .pedestrian_utils_gem import *
 from typing import Dict, List, Optional, Tuple
 import rospy
@@ -240,15 +240,7 @@ class CombinedDetector3D(Component):
             self.start_pose_abs = vehicle.pose
             rospy.loginfo("CombinedDetector3D latched start pose.")
 
-        current_frame_agents = self._fuse_bounding_boxes(yolo_bbx_array, pp_bbx_array, vehicle, current_time)
-
-        return {}
-        # Tracking disabled for now
-        # if self.enable_tracking:
-        #     self._update_tracking(current_frame_agents)
-        # else:
-        #     self.tracked_agents = current_frame_agents # NOTE: No deepcopy
-        # return self.tracked_agents
+        return self._fuse_bounding_boxes(yolo_bbx_array, pp_bbx_array, vehicle, current_time)
 
 
     def _fuse_bounding_boxes(self,
@@ -270,7 +262,7 @@ class CombinedDetector3D(Component):
             Dictionary of agent states
         """
         original_header = yolo_bbx_array.header
-        current_agents_in_frame: Dict[str, AgentState] = {}
+        agents: Dict[str, AgentState] = {}
         yolo_boxes: List[BoundingBox] = yolo_bbx_array.boxes
         pp_boxes: List[BoundingBox] = pp_bbx_array.boxes
 
@@ -335,64 +327,85 @@ class CombinedDetector3D(Component):
                 quat_w = box.pose.orientation.w
                 yaw, pitch, roll = R.from_quat([quat_x, quat_y, quat_z, quat_w]).as_euler('zyx', degrees=False)
 
-                # Transform to start frame if needed
-                if self.use_start_frame and self.start_pose_abs is not None:
-                    vehicle_pose_in_start_frame = vehicle_state.pose.to_frame(
-                        ObjectFrameEnum.START, vehicle_state.pose, self.start_pose_abs
-                    )
-                    T_vehicle_to_start = pose_to_matrix(vehicle_pose_in_start_frame)
-                    object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
-                    object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
-                    final_x, final_y, final_z = object_pose_start_h[:3, 0]
-                else:
-                    final_x, final_y, final_z = pos_x, pos_y, pos_z
+                # Convert to start frame
+                vehicle_pose_in_start_frame = vehicle_state.pose.to_frame(
+                    ObjectFrameEnum.START, vehicle_state.pose, self.start_pose_abs
+                )
+                T_vehicle_to_start = pose_to_matrix(vehicle_pose_in_start_frame)
+                object_pose_current_h = np.array([[pos_x],[pos_y],[pos_z],[1.0]])
+                object_pose_start_h = T_vehicle_to_start @ object_pose_current_h
+                final_x, final_y, final_z = object_pose_start_h[:3, 0]
 
-                final_pose = ObjectPose(
+                new_pose = ObjectPose(
                     t=current_time, x=final_x, y=final_y, z=final_z,
                     yaw=yaw, pitch=pitch, roll=roll, frame=output_frame_enum
                 )
                 dims = (box.dimensions.x, box.dimensions.y, box.dimensions.z)
-                ######### Mapping based on label (integer) from BoundingBox msg
-                # Set agent type based on label
-                agent_type = AgentEnum.PEDESTRIAN if box.label == 0 else AgentEnum.UNKNOWN
-                activity = AgentActivityEnum.UNKNOWN  # Placeholder
 
-                # temp id 
-                # _update_tracking assign persistent IDs
-                temp_agent_id = f"pedestrian{i}"
-
-                current_agents_in_frame[temp_agent_id] = AgentState(
-                    pose=final_pose, dimensions=dims, outline=None, type=agent_type,
-                    activity=activity, velocity=(0.0,0.0,0.0), yaw_rate=0.0
-                    #  score=box.value  # score
+                new_pose = ObjectPose(
+                    t=current_time, x=final_x, y=final_y, z=final_z - box.dimensions.z / 2.0,
+                    yaw=yaw, pitch=pitch, roll=roll, frame=output_frame_enum
                 )
+                dims[2] = dims[2] * 2.0 # AgentState has z center on the floor and height is full height.
+
+                existing_id = match_existing_pedestrian(
+                    new_center=np.array([new_pose.x, new_pose.y, new_pose.z]),
+                    new_dims=dims,
+                    existing_agents=self.tracked_agents,
+                    distance_threshold=2.0
+                )
+
+                if existing_id is not None:
+                    old_state = self.tracked_agents[existing_id]
+                    dt = new_pose.t - old_state.pose.t
+                    vx, vy, vz = compute_velocity(old_state.pose, new_pose, dt)
+                    updated_agent = AgentState(
+                        pose=new_pose,
+                        dimensions=dims,
+                        outline=None,
+                        type=AgentEnum.PEDESTRIAN,
+                        activity=AgentActivityEnum.MOVING,
+                        velocity=(vx, vy, vz),
+                        yaw_rate=0
+                    )
+                    agents[existing_id] = updated_agent
+                    self.tracked_agents[existing_id] = updated_agent
+                else:
+                    agent_id = f"pedestrian{self.ped_counter}"
+                    self.ped_counter += 1
+                    new_agent = AgentState(
+                        pose=new_pose,
+                        dimensions=dims,
+                        outline=None,
+                        type=AgentEnum.PEDESTRIAN,
+                        activity=AgentActivityEnum.MOVING,
+                        velocity=(0, 0, 0),
+                        yaw_rate=0
+                    )
+                    agents[agent_id] = new_agent
+                    self.tracked_agents[agent_id] = new_agent
+
             except Exception as e:
                 rospy.logwarn(f"Failed to convert final BoundingBox {i} to AgentState: {e}")
                 continue
 
         self.pub_fused.publish(fused_bb_array)
-        return current_agents_in_frame
 
-
-    def _update_tracking(self, current_frame_agents: Dict[str, AgentState]):
-
-        #   Todo tracking
-        ## Match 'current_frame_agents' to 'self.tracked_agents'.
-        ##    - Use position (already in correct START or CURRENT frame), maybe size/type.
-        ##    - Need a matching algorithm (e.g., nearest neighbor within radius, Hungarian).
-        ## For matched pairs:
-        ##    - Update the existing agent in 'self.tracked_agents' (e.g., smooth pose, update timestamp).
-        ## For unmatched 'current_frame_agents':
-        ##    - These are new detections. Assign a persistent ID (e.g., f"Ped_{self.ped_counter}").
-        ##    - Increment self.ped_counter.
-        ##    - Add them to 'self.tracked_agents'.
-        ## For unmatched 'self.tracked_agents' (agents not seen this frame):
-        ##    - Increment a 'missed frames' counter or check timestamp.
-        ##    - If missed for too long (e.g., > 1 second), remove from 'self.tracked_agents'.
-
-        # return without tracking
-        self.tracked_agents = current_frame_agents
-
+        stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
+                    if current_time - agent.pose.t > 5.0]
+        for agent_id in stale_ids:
+            rospy.loginfo(f"Removing stale agent: {agent_id}\n")
+        for agent_id, agent in agents.items():
+            p = agent.pose
+            # Format pose and velocity with 3 decimals (or as needed)
+            rospy.loginfo(
+                f"Agent ID: {agent_id}\n"
+                f"Pose: (x: {p.x:.3f}, y: {p.y:.3f}, z: {p.z:.3f}, "
+                f"yaw: {p.yaw:.3f}, pitch: {p.pitch:.3f}, roll: {p.roll:.3f})\n"
+                f"Velocity: (vx: {agent.velocity[0]:.3f}, vy: {agent.velocity[1]:.3f}, vz: {agent.velocity[2]:.3f})\n"
+        )
+        
+        return agents
 
 
 # Fake 2D Combined Detector for testing purposes
