@@ -564,11 +564,7 @@ class RoutePlanningComponentExample(Component):
             
 
         rects = self.occupancy_grid.draw_obstacle_cones(obstacles_global_poses)
-        # rects = self.occupancy_grid.compute_cone_rectangles(
-        #     obstacles_global_poses,
-        # )
 
-        # print("RECTANGLES", rects)
         if DEBUG:
             print("Route Planner's mission:", mission_plan.planner_type.value)
             print("type of mission plan:", type(PlannerEnum.RRT_STAR))
@@ -679,7 +675,7 @@ class RoutePlanningComponentExample(Component):
                     waypoint_start_pose = waypoint_global_pose.to_frame(
                         ObjectFrameEnum.START, start_pose_abs=mission_plan.start_vehicle_pose
                     )
-                    waypoints.append((waypoint_start_pose.x, waypoint_start_pose.y))
+                    waypoints.append((waypoint_start_pose.y, waypoint_start_pose.x))
                 
                 self.route = Route(
                     frame=ObjectFrameEnum.START, points=waypoints)
