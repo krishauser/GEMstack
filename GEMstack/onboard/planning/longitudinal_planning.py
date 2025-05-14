@@ -1123,8 +1123,8 @@ class YieldTrajectoryPlanner(Component):
     ):
         self.route_progress = None
         self.t_last = None
-        self.acceleration = 1.0
-        self.desired_speed = 1.0
+        self.acceleration = 2.0
+        self.desired_speed = 5.0
         self.deceleration = 2.0
 
         self.min_deceleration = 1.0

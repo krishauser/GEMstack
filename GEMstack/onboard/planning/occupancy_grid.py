@@ -43,7 +43,7 @@ class OccupancyGrid:
         self.lon_start_l  = -88.236365 # -88.23628
 
         # Gazebo
-        # self.lat_scale    = 0.000428581
+        # self.lat_scale    = 0.000428581 
         # self.lon_scale    = -0.000267982
         # self.lat_start_bt = -0.0001 # Needs Tuning
         # self.lon_start_l  = -0.0004
@@ -296,7 +296,7 @@ class OccupancyGrid:
         """
         # 1) GNSS → image pixels
         valid = []
-        for lat, lon in cones_gnss_list:
+        for lon,lat in cones_gnss_list:
             x = int(self.img_width  * (lon - self.lon_start_l) / self.lon_scale)
             y = int(self.img_height - self.img_height * (lat - self.lat_start_bt) / self.lat_scale)
             if 0 <= x < self.img_width and 0 <= y < self.img_height:

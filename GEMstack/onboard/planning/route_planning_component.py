@@ -558,13 +558,13 @@ class RoutePlanningComponentExample(Component):
         if DEBUG:
             print("Number of Detected Obstacles: ", len(obstacles))
         for n, o in obstacles.items():
-            if o.type == ObstacleMaterialEnum.TRAFFIC_CONE:
+            if o.material == ObstacleMaterialEnum.TRAFFIC_CONE:
                 obstacle_global_pose = o.pose.to_frame(self.frame, start_pose_abs=mission_plan.start_vehicle_pose)
-                obstacles_global_poses.append((obstacle_global_pose.y, obstacle_global_pose.x))
+                obstacles_global_poses.append((obstacle_global_pose.x, obstacle_global_pose.y))
             
 
         rects = self.occupancy_grid.draw_obstacle_cones(obstacles_global_poses)
-
+        print("RECTS: ", rects)
         if DEBUG:
             print("Route Planner's mission:", mission_plan.planner_type.value)
             print("type of mission plan:", type(PlannerEnum.RRT_STAR))
@@ -602,7 +602,7 @@ class RoutePlanningComponentExample(Component):
             start_yaw = vehicle.pose.yaw + math.pi
             if DEBUG:
                 print("Start image coordinates", start_x, start_y, "yaw", start_yaw)
-
+            print("frame", self.frame, "start vehicle pose", mission_plan.start_vehicle_pose)
             # ## Step 3. Convert goal to global frame
 
             goal_global_pose = mission_plan.goal_vehicle_pose.to_frame(
@@ -675,7 +675,7 @@ class RoutePlanningComponentExample(Component):
                     waypoint_start_pose = waypoint_global_pose.to_frame(
                         ObjectFrameEnum.START, start_pose_abs=mission_plan.start_vehicle_pose
                     )
-                    waypoints.append((waypoint_start_pose.y, waypoint_start_pose.x))
+                    waypoints.append((waypoint_start_pose.x, waypoint_start_pose.y))
                 
                 self.route = Route(
                     frame=ObjectFrameEnum.START, points=waypoints)

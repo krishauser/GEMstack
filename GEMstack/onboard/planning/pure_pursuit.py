@@ -38,6 +38,7 @@ class PurePursuit(object):
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
+        self.reached = False
 
     def set_path(self, path : Path):
         if path == self.path_arg:
@@ -121,6 +122,7 @@ class PurePursuit(object):
         angle_i = np.arctan((k * 2 * self.wheelbase * np.sin(alpha)) / L) 
         angle   = angle_i*self.front_wheel_angle_scale
         # ----------------- tuning this part as needed -----------------
+        print("F DELTA ", angle, self.wheel_angle_range[0], self.wheel_angle_range[1])
 
         f_delta = np.clip(angle, self.wheel_angle_range[0], self.wheel_angle_range[1])
         
@@ -134,14 +136,17 @@ class PurePursuit(object):
         
         desired_speed = self.desired_speed
         feedforward_accel = 0.0
+        print("Desired speed source is",self.desired_speed_source)
         if self.desired_speed_source in ['path','trajectory']:
             #determine desired speed from trajectory
-            if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
-                if component is not None:
-                    component.debug_event('Past the end of trajectory')
+            # print("CHecking if end of path: ", self.trajectory.points)
+            if len(self.trajectory.points) <= 5 or self.current_path_parameter >= self.path.domain()[1]:
+                self.reached = True
+                # if component is not None:
+                #     component.debug_event('Past the end of trajectory')
                 #past the end, just stop
                 desired_speed = 0.0
-                feedforward_accel = -2.0
+                feedforward_accel = -4.0
             else:
                 if self.desired_speed_source=='path':
                     current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
@@ -187,7 +192,7 @@ class PurePursuit(object):
             output_accel = -self.max_decel
 
         self.t_last = t
-        return (output_accel, f_delta)
+        return (output_accel, f_delta, self.reached)
 
 
 class PurePursuitTrajectoryTracker(Component):
@@ -206,11 +211,17 @@ class PurePursuitTrajectoryTracker(Component):
 
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
         self.pure_pursuit.set_path(trajectory)
-        accel,wheel_angle = self.pure_pursuit.compute(vehicle, self)
+        accel,wheel_angle, reached = self.pure_pursuit.compute(vehicle, self)
         #print("Desired wheel angle",wheel_angle)
         steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
         #print("Desired steering angle",steering_angle)
-        self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
+        print("Reached",reached)
+        if reached:
+            print("Reached end of path")
+            vehicle.brake_pedal_position = 1.0
+            self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
+        else:
+            self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
     
     def healthy(self):
         return self.pure_pursuit.path is not None

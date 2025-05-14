@@ -28,14 +28,15 @@ class PlanningComponentExample(Component):
         return ["mission_plan"]
     
     def update(self, state: AllState):
+        print(self.mode)
         if DEBUG:
             print("PARKING COMPONENT: Entering RRT mode")
         if self.goal_start_pose == None:
             self.goal_start_pose = ObjectPose(
                 frame=ObjectFrameEnum.START,
                 t=state.start_vehicle_pose.t,
-                x=state.vehicle.pose.x,
-                y=state.vehicle.pose.y+ 35,
+                x=state.vehicle.pose.x + 35,
+                y=state.vehicle.pose.y,
                 yaw=state.vehicle.pose.yaw + math.pi,
             )
         mission_plan = MissionPlan(PlannerEnum.RRT_STAR, self.goal_start_pose, state.start_vehicle_pose, self.mode)

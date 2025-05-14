@@ -682,7 +682,7 @@ class OptimizedKinodynamicRRT:
         plt.figure(figsize=(13, 13))
         # Plot occupancy grid
         plt.imshow(
-            self.occupancy_grid, cmap='gray',
+            self.occupancy_grid[::-1], cmap='gray',
             extent=[0, self.grid_dimensions[1], 0, self.grid_dimensions[0]]
         )
 
