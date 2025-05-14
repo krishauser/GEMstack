@@ -23,7 +23,7 @@ class CornerDetector3D(Component):
         # Initial variables
         self.vehicle_interface = vehicle_interface
         self.bridge = CvBridge()
-        self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/parking_spot.pt'
+        self.model_path = os.getcwd() + '/GEMstack/knowledge/detection/parking_spot_8n.pt'
         self.model = YOLO(self.model_path)
         self.model.to('cuda')
         self.parking_spots_corners = []

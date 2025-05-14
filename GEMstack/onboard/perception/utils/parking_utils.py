@@ -46,7 +46,7 @@ def cvtCenter2VehiclePos(center, cornerPts):
     pt1, pt2 = findMaxLenEdgePoints(cornerPts)
     near, far = (pt1, pt2) if np.linalg.norm(pt1) < np.linalg.norm(pt2) else (pt2, pt1)
     directionNorm = (near - far) / np.linalg.norm(near - far)
-    vehicle = center + directionNorm * (GEM_E4_LENGTH / 2)
+    vehicle = center + directionNorm * BASE_VEHICLE_DIST
     return vehicle
 
 
@@ -189,7 +189,8 @@ def order_points_all(points_2d):
 
 def detect_parking_spot(cone_3d_centers):
     # Initial variables
-    goal_parking_spot = None
+    parking_goal = None
+    best_parking_spot = None
     parking_obstacles_pose = []
     parking_obstacles_dim = []
 
@@ -201,7 +202,7 @@ def detect_parking_spot(cone_3d_centers):
 
     # Check if points can form a polygon, if not then there is no goal parking spot
     if len(cone_3d_centers) != len(ordered_cone_ground_centers_2D):
-        return None, [], [], []
+        return None, [], [], [], []
     
     # Find the valid candidates
     candidates = find_all_candidate_parking_spots(ordered_cone_ground_centers_2D)
@@ -211,10 +212,10 @@ def detect_parking_spot(cone_3d_centers):
     if len(candidates) > 0:
         parking_obstacles_pose, parking_obstacles_dim = get_parking_obstacles(ordered_cone_ground_centers_2D)
         # print(f"-----parking_obstacles: {self.parking_obstacles_pose}")
-        best_candidate = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
-        # print(f"-----best_parking_spot: {best_candidate}")
-        goal_xy = cvtCenter2VehiclePos(best_candidate[0:2], ordered_cone_ground_centers_2D)
-        goal_yaw = best_candidate[2]
-        goal_parking_spot = (goal_xy[0], goal_xy[1], goal_yaw)
-        # print(f"-----goal_parking_spot: {goal_parking_spot}")
-    return goal_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D
+        best_parking_spot = select_best_candidate(candidates, ordered_cone_ground_centers_2D)
+        # print(f"-----best_parking_spot: {best_parking_spot}")
+        goal_xy = cvtCenter2VehiclePos(best_parking_spot[0:2], ordered_cone_ground_centers_2D)
+        goal_yaw = best_parking_spot[2]
+        parking_goal = (goal_xy[0], goal_xy[1], goal_yaw)
+        # print(f"-----parking_goal: {parking_goal}")
+    return parking_goal, best_parking_spot, parking_obstacles_pose, parking_obstacles_dim, ordered_cone_ground_centers_2D

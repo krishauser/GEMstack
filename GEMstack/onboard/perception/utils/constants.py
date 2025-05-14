@@ -13,6 +13,7 @@ with open('./GEMstack/knowledge/vehicle/gem_e4_geometry.yaml', 'r') as f:
 # Vehicle geometry constants
 GEM_E4_LENGTH = 3.2
 GEM_E4_WIDTH = 1.7
+BASE_VEHICLE_DIST = 1.10
 if vehicle_geometry:
     GEM_E4_LENGTH = vehicle_geometry['length']
     GEM_E4_WIDTH = vehicle_geometry['width']
@@ -33,4 +34,5 @@ LIDAR_PC_COLOR = (255, 0, 0)
 CONE_CENTER_PC_COLOR = (255, 0, 255)
 MAX_POLYGON_MARKERS = 5
 MAX_PARKING_SPOT_MARKERS = 5
+MAX_PARKING_GOAL_MARKERS = 5
 MAX_OBSTACLE_MARKERS = 10
