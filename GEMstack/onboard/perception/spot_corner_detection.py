@@ -6,7 +6,7 @@ from ultralytics import YOLO
 from cv_bridge import CvBridge
 from ..component import Component
 from ..interface.gem import GEMInterface
-from ...state import VehicleState, Obstacle, ObjectPose, ObjectFrameEnum, ObstacleState, ObstacleMaterialEnum
+from ...state import VehicleState, Obstacle, ObjectPose, ObjectFrameEnum, ObstacleMaterialEnum
 from sensor_msgs.msg import Image
 from .utils.constants import *
 from .utils.detection_utils import *
@@ -147,7 +147,7 @@ class CornerDetector3D(Component):
     def state_outputs(self) -> list:
         return ['obstacles']
 
-    def update(self, vehicle: VehicleState) -> Dict[str, ObstacleState]:
+    def update(self, vehicle: VehicleState) -> Dict[str, Obstacle]:
         # Constructing corner obstacles
         current_time = self.vehicle_interface.time()
         obstacle_id = 0
