@@ -199,7 +199,7 @@ class ParkingSolverFirstOrderDubins(AStar):
         theta = state[2]
         t = state[3]
 
-        pose = ObjectPose(frame=ObjectFrameEnum.CURRENT,t=t, x=x,y=y,z=0,yaw=theta)
+        pose = ObjectPose(frame=ObjectFrameEnum.START,t=t, x=x,y=y,z=0,yaw=theta)
         
         temp_obj = PhysicalObject(pose=pose,
                                dimensions=self.vehicle.to_object().dimensions,
@@ -296,9 +296,9 @@ class ParkingPlanner():
         agents = state.agents # type: Dict[str, AgentState]
         all_obstacles = {**agents, **obstacles}
         goal_pose = state.parking_goal
-        assert goal_pose.frame == ObjectFrameEnum.CURRENT
+        assert goal_pose.frame == ObjectFrameEnum.START
         print("Routing to goal", goal_pose)
-        start_state = state.vehicle.to_frame(ObjectFrameEnum.CURRENT, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
+        start_state = state.vehicle.to_frame(ObjectFrameEnum.START, current_pose = state.vehicle.pose,start_pose_abs = state.start_vehicle_pose)
 
 
         start = self.vehicle_state_to_first_order(start_state)

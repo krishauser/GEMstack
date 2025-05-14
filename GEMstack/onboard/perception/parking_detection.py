@@ -4,7 +4,7 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2
 from typing import Dict
 from ..component import Component 
-from ...state import ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleStateEnum
+from ...state import ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleStateEnum, AllState
 from ..interface.gem import GEMInterface
 from .utils.constants import *
 from .utils.detection_utils import *
@@ -76,7 +76,7 @@ class ParkingSpotsDetector3D(Component):
         return 10.0  # Hz
 
     def state_inputs(self) -> list:
-        return ['obstacles']
+        return ['all']
 
     def state_outputs(self) -> list:
         return ['parking_goal', 'obstacles']
@@ -147,8 +147,9 @@ class ParkingSpotsDetector3D(Component):
             self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
 
-    def update(self, agents: Dict[str, Obstacle]):
+    def update(self, state: AllState):
         # Initial variables
+        agents = state.obstacles
         parking_goal = None
         best_parking_spot = None
         parking_obstacles_pose = []
@@ -214,8 +215,17 @@ class ParkingSpotsDetector3D(Component):
                         yaw=yaw,
                         pitch=0.0,
                         roll=0.0,
-                        frame=ObjectFrameEnum.CURRENT
+                        frame=ObjectFrameEnum.START
                     )
         
+        dist = self.euclidean_distance((x,y), state)
+        if dist > 10:
+            return None
+
         new_state = [goal_pose, parking_obstacles]
         return new_state
+
+    def euclidean_distance(self, point, state): # point is a tuple (x,y)
+        vehicle_x = state.vehicle.pose.x
+        vehicle_y = state.vehicle.pose.y
+        return np.sqrt((point[0] - vehicle_x)**2 + (point[1] - vehicle_y)**2)

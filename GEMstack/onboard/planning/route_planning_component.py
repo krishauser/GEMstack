@@ -9,7 +9,7 @@ from GEMstack.state.physical_object import ObjectFrameEnum
 from GEMstack.state.route import PlannerEnum, Route, Path
 from .parking_route_planner import ParkingPlanner
 from .longitudinal_planning import longitudinal_plan
-
+import time
 
 
 
@@ -52,12 +52,14 @@ class RoutePlanningComponent(Component):
             state.vehicle.pose.yaw = 0 # needed this to avoid a weird error in the parking planner
             
             if not self.already_computed:
+                time.sleep(4.0)
                 self.planner = ParkingPlanner()
                 self.done_computing = True
                 self.route = self.planner.update(state)
                 self.route = self.route.to_frame(ObjectFrameEnum.START, current_pose=state.vehicle.pose, start_pose_abs=state.start_vehicle_pose)
                 self.planner.visualize_trajectory(self.route)
                 self.already_computed = True
+                
             
             print(self.route)
             return self.route
