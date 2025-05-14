@@ -14,6 +14,7 @@ from ..interface.gem import GNSSReading
 import numpy as np
 import open3d as o3d
 import copy
+import utm
 import time
 import argparse
 import os
@@ -23,7 +24,6 @@ from scipy.spatial.transform import Rotation as R
 def load_map(map_file):
     """Load a .ply map file."""
     try:
-        print(map_file)
         map_pcd = o3d.io.read_point_cloud(map_file)
         points = np.asarray(map_pcd.points)
         
@@ -132,7 +132,6 @@ def prepare_scan_for_global_registration(scan_pcd, map_pcd, scale_ratio=None):
     aligned_scan = o3d.geometry.PointCloud()
     aligned_scan.points = o3d.utility.Vector3dVector(scaled_points)
     
-    print(f"Dynamic scaling ratio: {scale_ratio}")
     return aligned_scan
 
 def preprocess_point_cloud(pcd, voxel_size, radius_normal=None, radius_feature=None):
@@ -172,7 +171,6 @@ def execute_global_registration(source_down, target_down, source_fpfh, target_fp
 def execute_fast_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size):
     """Perform Fast Global Registration."""
     distance_threshold = voxel_size * 0.5
-    print(f":: Apply fast global registration with distance threshold {distance_threshold:.3f}")
     
     try:
         result = o3d.pipelines.registration.registration_fast_based_on_feature_matching(
@@ -181,7 +179,6 @@ def execute_fast_global_registration(source_down, target_down, source_fpfh, targ
                 maximum_correspondence_distance=distance_threshold))
         return result
     except RuntimeError as e:
-        print(f"Error in FGR: {e}")
         # Return dummy result with identity transformation in case of failure
         dummy_result = o3d.pipelines.registration.RegistrationResult()
         dummy_result.transformation = np.identity(4)
@@ -193,11 +190,9 @@ def execute_fast_global_registration(source_down, target_down, source_fpfh, targ
 def multi_scale_icp(source, target, voxel_sizes=[2.0, 1.0, 0.5], max_iterations=[50, 30, 14], 
                    initial_transform=np.eye(4)):
     """Perform multi-scale ICP for robust alignment."""
-    print("Running multi-scale ICP...")
     current_transform = initial_transform
     
     for i, (voxel_size, max_iter) in enumerate(zip(voxel_sizes, max_iterations)):
-        print(f"ICP Scale {i+1}/{len(voxel_sizes)}: voxel_size={voxel_size}, max_iterations={max_iter}")
         
         # Downsample based on current voxel size
         source_down = source.voxel_down_sample(voxel_size)
@@ -223,7 +218,9 @@ def multi_scale_icp(source, target, voxel_sizes=[2.0, 1.0, 0.5], max_iterations=
     
     return current_transform
 
-def transform_to_pose(transformation_matrix):
+
+
+def transform_to_pose(transformation_matrix,origin):
     """Convert transformation matrix to position and orientation (RPY)."""
     # Extract translation
     x, y, z = transformation_matrix[:3, 3]
@@ -233,8 +230,10 @@ def transform_to_pose(transformation_matrix):
     rotation_matrix = np.array(transformation_matrix[:3, :3], copy=True)
     r = R.from_matrix(rotation_matrix)
     roll, pitch, yaw = r.as_euler('xyz', degrees=True)
+     
+    lat_deg,lon_deg = utm.to_latlon(x, y, 16, "N")
     
-    return x, y, z, roll, pitch, yaw
+    return lon_deg,lat_deg,z,roll,pitch,yaw
 
 class MapBasedStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
@@ -250,7 +249,7 @@ class MapBasedStateEstimator(Component):
 
         # TODO: Change these to be some form of variable
         self.map_scale_ratio = 1.0
-        self.voxel_size = 1.0
+        self.voxel_size = 0.5
         self.scan_voxel_size = 0.5
         self.normal_radius_factor = 2.0
         self.feature_radius_factor = 5.0
@@ -292,45 +291,33 @@ class MapBasedStateEstimator(Component):
             return
         
         scan_time = self.vehicle_interface.time()
-        print("Initialized", self.vehicle_interface.time() - scan_time)
 
         # Load scans
         scan_pcd = load_lidar_scan(self.points)
 
-        print("Load scan", self.vehicle_interface.time() - scan_time)
         
-        # Scale and translate the scan to match map scale and center
-        scaled_scan_pcd = prepare_scan_for_global_registration(
-            scan_pcd, 
-            self.map, 
-            self.map_scale_ratio
-        )
+        # # Scale and translate the scan to match map scale and center
+        # scaled_scan_pcd = prepare_scan_for_global_registration(
+        #     scan_pcd, 
+        #     self.map, 
+        #     self.map_scale_ratio
+        # )
 
-        print("Prepare scan", self.vehicle_interface.time() - scan_time)
+        # print("Prepare scan", self.vehicle_interface.time() - scan_time)
         
         scan_down, scan_fpfh = preprocess_point_cloud(
-            scaled_scan_pcd, self.scan_voxel_size, self.normal_radius_factor, self.feature_radius_factor)
+            scan_pcd, self.scan_voxel_size, self.normal_radius_factor, self.feature_radius_factor)
 
-        print("Process scan", self.vehicle_interface.time() - scan_time)
         
         # Global registration
         transformation = np.identity(4)
-        
-        # RANSAC
-        ransac_result = execute_global_registration(
-            scan_down, self.map_down, scan_fpfh, self.map_fpfh, self.voxel_size)
-        
-        transformation = ransac_result.transformation
-        print("RANSAC", self.vehicle_interface.time() - scan_time)
         
         # Fast Global Registration
         fgr_result = execute_fast_global_registration(
             scan_down, self.map_down, scan_fpfh, self.map_fpfh, self.voxel_size)
         
         # Use the better result based on fitness
-        if fgr_result.fitness > ransac_result.fitness:
-            transformation = fgr_result.transformation
-        print("Fast", self.vehicle_interface.time() - scan_time)
+        transformation = fgr_result.transformation
         
         # Refine with ICP
         icp_transformation = multi_scale_icp(
@@ -340,10 +327,11 @@ class MapBasedStateEstimator(Component):
             initial_transform=transformation)
         
         final_transformation = icp_transformation
-        print("ICP", self.vehicle_interface.time() - scan_time)
         
         # Extract position and orientation
-        x, y, z, roll, pitch, yaw = transform_to_pose(final_transformation)
+        lat,lon, *_ = utm.from_latlon(0,-90,16,'N')
+        origin90w0n = [lat,lon,0]
+        x, y, z, roll, pitch, yaw = transform_to_pose(final_transformation,origin90w0n)
         # TODO: Estimate speed
         if self.map_based_pose != None:
             translation = np.array([x - self.map_based_pose.x, y - self.map_based_pose.y, z - self.map_based_pose.z])
@@ -365,7 +353,7 @@ class MapBasedStateEstimator(Component):
         readings = self.vehicle_interface.get_reading()
         raw = readings.to_state(self.map_based_pose)
 
-        print("Extraction", self.vehicle_interface.time() - scan_time)
+        print("Time:", self.vehicle_interface.time() - scan_time)
         print(x, y, z, yaw)
 
         #filtering speed
@@ -391,6 +379,6 @@ class MapBasedStateEstimator(Component):
                                       y=center_xyhead[1],
                                       yaw=center_xyhead[2])
 
-        print(vehicle_pose_global.x, vehicle_pose_global.y, vehicle_pose_global.z, vehicle_pose_global.yaw)
+        print(self.gnss_pose.x, self.gnss_pose.y, self.gnss_pose.z, self.gnss_pose.yaw)
         
         return raw

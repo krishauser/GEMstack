@@ -18,6 +18,7 @@ import time
 import argparse
 import os
 import glob
+import utm
 from scipy.spatial.transform import Rotation as R
 
 def load_map(map_file):
@@ -233,10 +234,12 @@ def transform_to_pose(transformation_matrix):
     rotation_matrix = np.array(transformation_matrix[:3, :3], copy=True)
     r = R.from_matrix(rotation_matrix)
     roll, pitch, yaw = r.as_euler('xyz', degrees=True)
+     
+    lon_deg,lat_deg = utm.to_latlon(x, y, 16, "N")
     
-    return x, y, z, roll, pitch, yaw
+    return lon_deg,lat_deg,z,roll,pitch,yaw
 
-class MapBasedStateEstimator(Component):
+class AltMapBasedStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
     def __init__(self, map_fn : str, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
@@ -247,10 +250,11 @@ class MapBasedStateEstimator(Component):
         self.map_based_speed = None
         self.points = None
         self.map = load_map(map_fn)
+        self.first = True
 
         # TODO: Change these to be some form of variable
         self.map_scale_ratio = 1.0
-        self.voxel_size = 1.0
+        self.voxel_size = 0.5
         self.scan_voxel_size = 0.5
         self.normal_radius_factor = 2.0
         self.feature_radius_factor = 5.0
@@ -299,22 +303,23 @@ class MapBasedStateEstimator(Component):
 
         print("Load scan", self.vehicle_interface.time() - scan_time)
         
-        # Scale and translate the scan to match map scale and center
-        scaled_scan_pcd = prepare_scan_for_global_registration(
-            scan_pcd, 
-            self.map, 
-            self.map_scale_ratio
-        )
+        # # Scale and translate the scan to match map scale and center
+        # scaled_scan_pcd = prepare_scan_for_global_registration(
+        #     scan_pcd, 
+        #     self.map, 
+        #     self.map_scale_ratio
+        # )
 
-        print("Prepare scan", self.vehicle_interface.time() - scan_time)
+        # print("Prepare scan", self.vehicle_interface.time() - scan_time)
         
         scan_down, scan_fpfh = preprocess_point_cloud(
-            scaled_scan_pcd, self.scan_voxel_size, self.normal_radius_factor, self.feature_radius_factor)
+            scan_pcd, self.scan_voxel_size, self.normal_radius_factor, self.feature_radius_factor)
 
         print("Process scan", self.vehicle_interface.time() - scan_time)
 
         # Global registration
-        if self.transformation == np.identity(4):
+        self.transformation = np.identity(4)
+        if self.first:
             # RANSAC
             ransac_result = execute_global_registration(
                 scan_down, self.map_down, scan_fpfh, self.map_fpfh, self.voxel_size)
@@ -330,6 +335,8 @@ class MapBasedStateEstimator(Component):
             if fgr_result.fitness > ransac_result.fitness:
                 self.transformation = fgr_result.transformation
             print("Fast", self.vehicle_interface.time() - scan_time)
+
+            self.first = False
         
         # Refine with ICP
         icp_transformation = multi_scale_icp(
