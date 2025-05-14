@@ -1,15 +1,14 @@
+"use client";
+
 import { useEffect, useState, useRef } from "react";
 import { useThree, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { FrameData } from "@/types/FrameData";
 import { cameraConfig } from "@/config/cameraConfig";
 
 type CameraModeKey = "chase" | "top" | "side" | "free" | "first";
 
 export function useCameraController(
-  carRef: React.RefObject<THREE.Object3D | null>,
-  timeline: FrameData[] = [],
-  time: number
+  carRef: React.RefObject<THREE.Object3D | null>
 ): CameraModeKey {
   const { camera, gl } = useThree();
   const [mode, setMode] = useState<CameraModeKey>("chase");
@@ -19,98 +18,67 @@ export function useCameraController(
   const smoothedPos = useRef(new THREE.Vector3());
   const smoothedLookAt = useRef(new THREE.Vector3());
 
-  useEffect(() => {
-    modeRef.current = mode;
-  }, [mode]);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
 
-  // Allow switching between all modes at any time
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       switch (e.key) {
-        case "1":
-          setMode("first");
-          break;
-        case "2":
-          setMode("chase");
-          break;
-        case "3":
-          setMode("top");
-          break;
-        case "4":
-          setMode("side");
-          break;
-        case "5":
-          lastMode.current = modeRef.current;
-          setMode("free");
-          break;
-        case "0":
-          if (lastMode.current !== "free") {
-            setMode(lastMode.current);
-          }
-          break;
+        case "1": setMode("first"); break;
+        case "2": setMode("chase"); break;
+        case "3": setMode("top"); break;
+        case "4": setMode("side"); break;
+        case "5": lastMode.current = modeRef.current; setMode("free"); break;
+        case "0": if (lastMode.current !== "free") setMode(lastMode.current); break;
       }
     };
-
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, []);
 
-  // Switch to free mode on scroll or click
   useEffect(() => {
     const dom = gl.domElement;
-
-    const activateFreeMode = () => {
+    const activateFree = () => {
       if (modeRef.current !== "free") {
         lastMode.current = modeRef.current;
         setMode("free");
       }
     };
-
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) activateFreeMode(); // Left click
-    };
-
-    const onWheel = () => {
-      activateFreeMode(); // Scroll
-    };
+    const onMouseDown = (e: MouseEvent) => { if (e.button === 0) activateFree(); };
+    const onWheel = () => activateFree();
 
     dom.addEventListener("mousedown", onMouseDown);
     dom.addEventListener("wheel", onWheel);
-
     return () => {
       dom.removeEventListener("mousedown", onMouseDown);
       dom.removeEventListener("wheel", onWheel);
     };
   }, [gl.domElement]);
 
-  useFrame(() => {
-    if (modeRef.current === "free") return;
-    if (!carRef.current) return;
-
-    // Always fallback to a stable frame if timeline is empty
-    const frame =
-      timeline.find((f) => f.time >= time) ??
-      timeline.at(-1) ??
-      { x: 0, y: 0, yaw: 0 };
+  useFrame((_, delta) => {
+    if (modeRef.current === "free" || !carRef.current) return;
 
     const config = cameraConfig[modeRef.current];
-    if (!config?.position || !config?.lookAt) return;
+    if (!config) return;
 
-    const carPos = new THREE.Vector3(frame.x, 0, frame.y);
-    const carQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -frame.yaw, 0));
+    const alpha = 1 - Math.exp(-10.0 * delta);
 
-    const damping = config.damping ?? 0.1;
+    const carPos = new THREE.Vector3();
+    carRef.current.getWorldPosition(carPos);
+    const carQuat = new THREE.Quaternion();
+    carRef.current.getWorldQuaternion(carQuat);
 
-    // camera offset (relative to vehicle) and final position
-    const offset = new THREE.Vector3(...config.position).applyQuaternion(carQuat);
-    const camTargetPos = carPos.clone().add(offset);
-    smoothedPos.current.lerp(camTargetPos, damping);
+    const [px, py, pz] = config.position ?? [0, 0, 0];
+    const camTargetPos = carPos.clone().add(
+      new THREE.Vector3(px, py, pz).applyQuaternion(carQuat)
+    );
+    smoothedPos.current.lerp(camTargetPos, alpha);
     camera.position.copy(smoothedPos.current);
 
-    // look at offset
-    const lookAtOffset = new THREE.Vector3(...config.lookAt).applyQuaternion(carQuat);
-    const camLookAt = carPos.clone().add(lookAtOffset);
-    smoothedLookAt.current.lerp(camLookAt, damping);
+    const [lx, ly, lz] = config.lookAt ?? [0, 0, 0];
+    const camLookAt = carPos.clone().add(
+      new THREE.Vector3(lx, ly, lz).applyQuaternion(carQuat)
+    );
+    smoothedLookAt.current.lerp(camLookAt, alpha);
     camera.lookAt(smoothedLookAt.current);
   });
 

@@ -1,11 +1,19 @@
 "use client";
 
-import { useRef, useMemo, useEffect, useState } from "react";
+import React, { useRef, useMemo, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Mesh, Object3D, MeshStandardMaterial } from "three";
+import {
+  Mesh,
+  Object3D,
+  MeshStandardMaterial,
+  Vector3,
+  Quaternion,
+  Euler,
+} from "three";
 import { useGLTF } from "@react-three/drei";
 import { FrameData } from "@/types/FrameData";
 import { currentTrafficCone } from "@/config/trafficConeConfig";
+import { getInterpolatedFrame } from "@/utils/getInterpolatedFrame";
 
 interface TrafficConeProps {
   id: string;
@@ -15,11 +23,13 @@ interface TrafficConeProps {
 
 export default function TrafficCone({ id, timeline, time }: TrafficConeProps) {
   const [mounted, setMounted] = useState(false);
-
   const ref = useRef<Mesh>(null);
   const { modelPath, scale, rotation, offset, bodyColor } = currentTrafficCone;
   const { scene } = useGLTF(modelPath);
   const clonedScene = useMemo(() => scene.clone(true), [scene]);
+
+  const targetPosition = useMemo(() => new Vector3(), []);
+  const targetQuaternion = useMemo(() => new Quaternion(), []);
 
   useEffect(() => {
     setMounted(true);
@@ -38,11 +48,13 @@ export default function TrafficCone({ id, timeline, time }: TrafficConeProps) {
   }, [clonedScene, bodyColor]);
 
   useFrame(() => {
-    const frame = timeline.find((f) => f.time >= time);
-    if (frame && ref.current) {
-      ref.current.position.set(frame.x, frame.z, frame.y);
-      ref.current.rotation.y = -frame.yaw;
-    }
+    if (!ref.current || timeline.length === 0) return;
+    const frame = getInterpolatedFrame(timeline, time);
+    if (!frame) return;
+    targetPosition.set(frame.x, frame.z, frame.y);
+    ref.current.position.lerp(targetPosition, 0.2);
+    targetQuaternion.setFromEuler(new Euler(0, -frame.yaw, 0));
+    ref.current.quaternion.slerp(targetQuaternion, 0.2);
   });
 
   const hasSpawned = timeline.length > 0 && timeline[0].time <= time;

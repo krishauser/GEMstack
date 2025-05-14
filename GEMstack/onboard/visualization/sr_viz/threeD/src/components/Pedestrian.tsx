@@ -1,11 +1,19 @@
 "use client";
 
-import { useRef, useMemo, useEffect, useState } from "react";
+import React, { useRef, useMemo, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Mesh, Object3D, MeshStandardMaterial } from "three";
+import {
+  Mesh,
+  Object3D,
+  MeshStandardMaterial,
+  Vector3,
+  Quaternion,
+  Euler,
+} from "three";
 import { useGLTF } from "@react-three/drei";
 import { FrameData } from "@/types/FrameData";
 import { currentPedestrian } from "@/config/pedestrianConfig";
+import { getInterpolatedFrame } from "@/utils/getInterpolatedFrame";
 
 interface PedestrianProps {
   id: string;
@@ -15,11 +23,14 @@ interface PedestrianProps {
 
 export default function Pedestrian({ id, timeline, time }: PedestrianProps) {
   const [mounted, setMounted] = useState(false);
-
   const ref = useRef<Mesh>(null);
+
   const { modelPath, scale, rotation, offset, bodyColor } = currentPedestrian;
   const { scene } = useGLTF(modelPath);
   const clonedScene = useMemo(() => scene.clone(true), [scene]);
+
+  const targetPosition = useMemo(() => new Vector3(), []);
+  const targetQuaternion = useMemo(() => new Quaternion(), []);
 
   useEffect(() => {
     setMounted(true);
@@ -39,12 +50,12 @@ export default function Pedestrian({ id, timeline, time }: PedestrianProps) {
 
   useFrame(() => {
     if (!ref.current || timeline.length === 0) return;
-
-    const frame = timeline.find((f) => f.time >= time) ?? timeline.at(-1);
+    const frame = getInterpolatedFrame(timeline, time);
     if (!frame) return;
-
-    ref.current.position.set(frame.x, 0, frame.y);
-    ref.current.rotation.y = -frame.yaw;
+    targetPosition.set(frame.x, 0, frame.y);
+    ref.current.position.lerp(targetPosition, 0.2);
+    targetQuaternion.setFromEuler(new Euler(0, -frame.yaw, 0));
+    ref.current.quaternion.slerp(targetQuaternion, 0.2);
   });
 
   const hasSpawned = timeline.length > 0 && timeline[0].time <= time;
