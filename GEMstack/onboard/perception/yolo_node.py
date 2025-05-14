@@ -24,20 +24,21 @@ class YoloNode():
     and return only detections from the current frame.
     """
 
-    def __init__(
-        self,
-    ):
-        self.latest_image        = None
-        self.latest_lidar        = None
-        self.bridge              = CvBridge()
+    def __init__(self):
+        self.latest_image = None
+        self.latest_lidar = None
+        self.bridge = CvBridge()
         self.camera_name = 'front'
-        self.camera_front = (self.camera_name=='front')
+        self.camera_front = (self.camera_name == 'front')
         self.score_threshold = 0.4
         self.debug = True
+        # self.undistort_map1 = None
+        # self.undistort_map2 = None
         self.initialize()
 
     def initialize(self):
-        # --- Determine the correct RGB topic for this camera ---
+        """Initialize the YOLO node with camera calibration and ROS connections."""
+        # # --- Determine the correct RGB topic for this camera ---
         rgb_topic_map = {
             'front': '/oak/rgb/image_raw',
             'front_right': '/camera_fr/arena_camera_node/image_raw',
@@ -50,29 +51,31 @@ class YoloNode():
 
         # Initialize YOLO node
         rospy.init_node('yolo_box_publisher')
+        
         # Create bounding box publisher
         self.pub = rospy.Publisher('/yolo_boxes', BoundingBoxArray, queue_size=1)
         rospy.loginfo("YOLO node initialized and waiting for messages.")
 
+        # Set camera intrinsic parameters based on camera
         if self.camera_front:
             self.K = np.array([[684.83331299, 0., 573.37109375],
                                [0., 684.60968018, 363.70092773],
                                [0., 0., 1.]])
+            self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
         else:
             self.K = np.array([[1.17625545e+03, 0.00000000e+00, 9.66432645e+02],
                                [0.00000000e+00, 1.17514569e+03, 6.08580326e+02],
                                [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+            self.D = np.array([-2.70136325e-01, 1.64393255e-01, -1.60720782e-03, 
+                              -7.41246708e-05, -6.19939758e-02])
 
-        if self.camera_front:
-            self.D = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
-        else:
-            self.D = np.array([-2.70136325e-01, 1.64393255e-01, -1.60720782e-03, -7.41246708e-05,
-                               -6.19939758e-02])
-
+        # Transformation matrix from LiDAR to vehicle frame 
         self.T_l2v = np.array([[0.99939639, 0.02547917, 0.023615, 1.1],
                                [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
                                [-0.02379784, 0.00689664, 0.999693, 1.95320223],
                                [0., 0., 0., 1.]])
+                               
+        # Transformation matrix from LiDAR to camera frame
         if self.camera_front:
             self.T_l2c = np.array([
                 [0.001090, -0.999489, -0.031941, 0.149698],
@@ -86,12 +89,14 @@ class YoloNode():
                                    [0.68884317, -0.7061996, -0.16363744, -1.04767285],
                                    [0., 0., 0., 1.]]
                                   )
+                                  
+        # Compute inverse transformation (camera to LiDAR)
         self.T_c2l = np.linalg.inv(self.T_l2c)
         self.R_c2l = self.T_c2l[:3, :3]
         self.camera_origin_in_lidar = self.T_c2l[:3, 3]
 
-        # Initialize the YOLO detector
-        self.detector = YOLO('yolov8n.pt') # 'GEMstack/knowledge/detection/cone.pt')
+        # Initialize the YOLO detector and move to GPU if available
+        self.detector = YOLO('yolov8n.pt')
         self.detector.to('cuda')
 
         # Subscribe to the RGB and LiDAR streams
@@ -103,28 +108,31 @@ class YoloNode():
         self.sync.registerCallback(self.synchronized_callback)
 
     def synchronized_callback(self, image_msg, lidar_msg):
+        """Process synchronized RGB and LiDAR messages to detect pedestrians."""
         rospy.loginfo("Received synchronized RGB and LiDAR messages")
+        
+        # Convert image message to OpenCV format
         try:
             self.latest_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
         except Exception as e:
-            rospy.logerr("Failed to convert image: {}".format(e))
+            rospy.logerr(f"Failed to convert image: {e}")
             self.latest_image = None
+            
+        # Convert LiDAR message to numpy array
         self.latest_lidar = pc2_to_numpy(lidar_msg, want_rgb=False)
 
         # Gate guards against data not being present for both sensors:
         if self.latest_image is None or self.latest_lidar is None:
-            return {}
-        lastest_image = self.latest_image.copy()
+            return {} # Skip
+            
+        latest_image = self.latest_image.copy()
 
+        # Optionally downsample LiDAR points
         downsample = False
         if downsample:
             lidar_down = downsample_points(self.latest_lidar, voxel_size=0.1)
         else:
             lidar_down = self.latest_lidar.copy()
-
-        # if self.start_time is None:
-        #     self.start_time = current_time
-        # time_elapsed = current_time - self.start_time
         
         if self.camera_front == False:
             start = time.time()
@@ -137,10 +145,12 @@ class YoloNode():
             # --- Begin modifications for three-angle detection ---
             img_normal = undistorted_img
         else:
-            img_normal = lastest_image.copy()
-            undistorted_img = lastest_image.copy()
-            orig_H, orig_W = lastest_image.shape[:2]
+            img_normal = latest_image.copy()
+            undistorted_img = latest_image.copy()
+            orig_H, orig_W = latest_image.shape[:2]
             self.current_K = self.K
+            
+        # Run YOLO detection on the image
         results_normal = self.detector(img_normal, conf=0.4, classes=[0])
         combined_boxes = []
 
@@ -158,6 +168,7 @@ class YoloNode():
         # projected_pts[:, 0]: u-coordinate in the image (horizontal pixel position)
         # projected_pts[:, 1]: v-coordinate in the image (vertical pixel position)
         # projected_pts[:, 2:5]: original X, Y, Z coordinates in the LiDAR frame
+
 
         # Create empty list of bounding boxes to fill and publish later
         boxes = BoundingBoxArray()
@@ -181,8 +192,8 @@ class YoloNode():
             bottom = int(cy + h / 2)
 
             # Find LiDAR points that project to this box
-            mask = (projected_pts[:, 0] >= left) & (projected_pts[:, 0] <= right) & \
-                (projected_pts[:, 1] >= top) & (projected_pts[:, 1] <= bottom)
+            mask = ((projected_pts[:, 0] >= left) & (projected_pts[:, 0] <= right) & 
+                   (projected_pts[:, 1] >= top) & (projected_pts[:, 1] <= bottom))
             roi_pts = projected_pts[mask]
             
             # Ignore regions with too few points
@@ -220,31 +231,36 @@ class YoloNode():
             # yaw, pitch, roll = R.from_matrix(R_vehicle).as_euler('zyx', degrees=False)
             yaw = np.arctan2(R_vehicle[1, 0], R_vehicle[0, 0])
 
-            refined_center = refined_center_vehicle
-
-            boxes = add_bounding_box(boxes=boxes, 
+            # Add the bounding box
+            boxes = add_bounding_box(
+                boxes=boxes, 
                 frame_id='currentVehicleFrame', 
                 stamp=lidar_msg.header.stamp, 
                 x=refined_center_vehicle[0], 
                 y=refined_center_vehicle[1], 
                 z=refined_center_vehicle[2], 
-                l=dims[2], # length 
-                w=dims[1], # width 
-                h=dims[0], # height 
+                l=dims[2],  # length 
+                w=dims[1],  # width 
+                h=dims[0],  # height 
                 yaw=yaw,
                 conf_score=float(conf_scores[i]),
-                label=0 # person/pedestrian class
+                label=0  # person/pedestrian class
             )
             
-            rospy.loginfo(f"Person detected at ({refined_center_vehicle[0]:.2f}, {refined_center_vehicle[1]:.2f}, {refined_center_vehicle[2]:.2f}) with score {conf_scores[i]:.2f}")
+            rospy.loginfo(f"Person detected at ({refined_center_vehicle[0]:.2f}, "
+                         f"{refined_center_vehicle[1]:.2f}, {refined_center_vehicle[2]:.2f}) "
+                         f"with score {conf_scores[i]:.2f}")
         
         # Publish the bounding boxes
         rospy.loginfo(f"Publishing {len(boxes.boxes)} person bounding boxes")
         self.pub.publish(boxes)
 
     def undistort_image(self, image, K, D):
+        """Undistort an image using the camera calibration parameters."""
         h, w = image.shape[:2]
         newK, _ = cv2.getOptimalNewCameraMatrix(K, D, (w, h), 1, (w, h))
+        
+        # Initialize undistortion maps if not already done
         if self.undistort_map1 is None or self.undistort_map2 is None:
             self.undistort_map1, self.undistort_map2 = cv2.initUndistortRectifyMap(K, D, R=None,
                                                                                    newCameraMatrix=newK, size=(w, h),
