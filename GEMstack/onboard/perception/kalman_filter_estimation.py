@@ -36,7 +36,7 @@ class KFStateEstimator(Component):
         self.filter.update(rospy.get_time(),reading.pose,reading.speed,0.98)
 
     def map_based_estimation_callback(self, msg : INSNavGeod):
-        pose = ObjectPose(ObjectFrameEnum.GLOBAL,
+        self.pose = ObjectPose(ObjectFrameEnum.GLOBAL,
                     t=rospy.get_time(),
                     x=math.degrees(msg.longitude),   #Septentrio GNSS uses radians rather than degrees
                     y=math.degrees(msg.latitude),
@@ -45,8 +45,8 @@ class KFStateEstimator(Component):
                     roll=math.radians(msg.roll),
                     pitch=math.radians(msg.pitch),
                     )
-        speed = np.sqrt(msg.ve**2 + msg.vn**2)
-        self.filter.update(rospy.get_time(),pose,speed,0.93)
+        self.speed = np.sqrt(msg.ve**2 + msg.vn**2)
+        self.new_update = True
 
     def rate(self):
         return 1.0
@@ -58,10 +58,17 @@ class KFStateEstimator(Component):
         return self.filter.is_initialized
 
     def update(self) -> VehicleState:
-        pose = self.filter.update(rospy.get_time())[0]
+        new_pose = None
+        new_speed = None
+        if self.new_update:
+            new_pose, new_speed = self.filter.update(rospy.get_time(),self.pose,self.speed,0.93)
+            self.new_update = False
+        else:
+            new_pose, new_speed = self.filter.update(rospy.get_time())
         readings = self.vehicle_interface.get_reading()
-        raw = readings.to_state(pose)
+        raw = readings.to_state(new_pose)
+        raw.v = new_speed
 
-        print(pose.x, pose.y, pose.z, pose.yaw)
+        print(new_pose.x, new_pose.y, new_pose.z, new_pose.yaw)
         return raw
             
