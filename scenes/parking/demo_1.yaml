@@ -1,8 +1,9 @@
-vehicle_state: [5.0, 5.0, 0.0, 0.0, 0.0]
+vehicle_state: [-1.0, -2.0, 0.0, 0.0, 0.0]
+
 agents:
   cone1:
     type: cone
-    position: [50.0, 8.0]
+    position: [3, 10.0]
     nominal_velocity: 0.0
     target: [60.0, 8.0]
     behavior: loop
@@ -10,7 +11,7 @@ agents:
 
   cone2:
     type: cone
-    position: [56.0, 8.0]
+    position: [7, 10.0]
     nominal_velocity: 0.0
     target: [60.0, 8.0]
     behavior: loop
@@ -18,7 +19,7 @@ agents:
 
   cone3:
     type: cone
-    position: [50.0, 4.0]
+    position: [3, 4.0]
     nominal_velocity: 0.0
     target: [60.0, 8.0]
     behavior: loop
@@ -26,8 +27,24 @@ agents:
 
   cone4:
     type: cone
-    position: [56.0, 4.0]
+    position: [7, 4.0]
     nominal_velocity: 0.0
     target: [60.0, 8.0]
     behavior: loop
     yaw: 0
+
+  # ped1:
+  #   type: medium_truck
+  #   position: [2.25, 8.0]
+  #   nominal_velocity: 0.0
+  #   target: [20.0, 8.0]
+  #   behavior: loop
+  #   yaw: 1.5708
+
+  # ped2:
+  #   type: medium_truck
+  #   position: [7.75, 8.0]
+  #   nominal_velocity: 0.0
+  #   target: [15.0, 4.0]
+  #   behavior: loop
+  #   yaw: 1.5708

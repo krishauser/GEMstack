@@ -1,19 +1,34 @@
 vehicle_state: [0.0, 0.0, 0.0, 0.0, 0.0]
+
 agents:
-  ped1:
-    type: medium_truck
-    position: [2.5, 8.0]
+  cone1:
+    type: cone
+    position: [20, 10.0]
     nominal_velocity: 0.0
-    target: [20.0, 8.0]
+    target: [60.0, 8.0]
     behavior: loop
-    yaw: 1.5708
+    yaw: 0
 
-  ped2:
-    type: medium_truck
-    position: [7.5, 8.0]
+  cone2:
+    type: cone
+    position: [26, 10.0]
     nominal_velocity: 0.0
-    target: [15.0, 4.0]
+    target: [60.0, 8.0]
     behavior: loop
-    yaw: 1.5708
+    yaw: 0
 
-    
+  cone3:
+    type: cone
+    position: [20, 6.0]
+    nominal_velocity: 0.0
+    target: [60.0, 8.0]
+    behavior: loop
+    yaw: 0
+
+  cone4:
+    type: cone
+    position: [26, 6.0]
+    nominal_velocity: 0.0
+    target: [60.0, 8.0]
+    behavior: loop
+    yaw: 0

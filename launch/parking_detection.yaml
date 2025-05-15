@@ -161,7 +161,7 @@ variants:
                                 tolerance: 0.25
                         astar:
                             iterations: 10000 # We should have some sort of max iterations/timeout
-                            heuristic: reeds_shepp
+                            heuristic: reeds_shepp # euclidean, approximate_reeds_shepp, reeds_shepp, astar
 
 
                     # route_planning:
