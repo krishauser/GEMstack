@@ -173,15 +173,13 @@ class SummoningMissionPlanner(Component):
             if route:
                 if route.points[-1] != self.end_of_driving_route:
                     _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
-                    if vehicle.v < 0.01 and (closest_index == len(route.points) - 1 or check_distance(route.points[-1], vehicle.pose) < 0.5):
-                        print("Distance to the end to the route.", check_distance(route.points[-1], vehicle.pose))
+                    print("=============================================================")
+                    print(closest_index, len(route.points) - 1, vehicle.v)
+                    print(check_distance(route.points[-1], vehicle.pose))
+                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+                    if vehicle.v < 0.01 and (closest_index >= len(route.points) - 1 or check_distance(route.points[-1], vehicle.pose) < 0.5):
                         # Set everything to idle
                         mission.type = self.state_machine.next_state()
-                        self.new_goal = False
-                        self.goal_pose = None
-                        self.goal_location = None
-                        self.goal_frame = None
-                        mission.goal_pose = self.goal_pose
                         print("============== Next state:", mission.type)
             else:
                 self.search_count += 1

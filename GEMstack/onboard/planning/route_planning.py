@@ -403,9 +403,6 @@ class SummoningRoutePlanner(Component):
 
                 self.parking_velocity_is_zero = True
 
-                # TODO: Test only. Remove it later.
-                # self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(10, -3),(40, -3)]
-                # self.obstacle_list= [(12.44, -3), (17.32, -3)]
                 print("Parking area start and end:", self.reedssheppparking.static_horizontal_curb_xy_coordinates)
                 print("Obstacle list:", self.obstacle_list)
 
@@ -414,7 +411,7 @@ class SummoningRoutePlanner(Component):
                     self.route = None
 
                 elif not self.parking_route_existed:
-                    self.current_pose = [vehicle.pose.x+10, vehicle.pose.y, vehicle.pose.yaw]
+                    self.current_pose = [vehicle.pose.x, vehicle.pose.y, vehicle.pose.yaw]
                     self.reedssheppparking.find_available_parking_spots_and_search_vector(self.obstacle_list,
                                                                                           self.current_pose)
                     self.reedssheppparking.find_collision_free_trajectory_to_park(self.obstacle_list, self.current_pose, True)
@@ -422,8 +419,10 @@ class SummoningRoutePlanner(Component):
 
                 else:
                     self.waypoints_to_go = self.reedssheppparking.waypoints_to_go
-                    self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
-                    if self.route is None:
+                    if len(self.waypoints_to_go) > 0:
+                        self.route = Route(frame=ObjectFrameEnum.START, points=self.waypoints_to_go.tolist())
+                    else:
+                        self.route = None
                         print("No route found, stop.")
             else:
                 print("No parking lots, stop.")
