@@ -6,6 +6,7 @@ import { currentVehicle } from "@/config/vehicleConfig";
 import { FrameData } from "@/types/FrameData";
 import { OrbitControls } from "@react-three/drei";
 import URDFLoader from "urdf-loader";
+import { getInterpolatedFrame } from "@/utils/getInterpolatedFrame";
 
 interface VehicleProps {
   timeline: FrameData[];
@@ -15,7 +16,7 @@ interface VehicleProps {
 export default function Vehicle({ timeline, time }: VehicleProps) {
   const ref = useRef<THREE.Group>(null);
   const vehicleGroup = useRef<THREE.Group>(new THREE.Group());
-  const mode = useCameraController(ref, timeline, time);
+  const mode = useCameraController(ref);
 
   const targetPosition = useMemo(() => new THREE.Vector3(), []);
   const targetQuaternion = useMemo(() => new THREE.Quaternion(), []);
@@ -55,14 +56,11 @@ export default function Vehicle({ timeline, time }: VehicleProps) {
 
   useFrame(() => {
     if (!ref.current || timeline.length === 0) return;
-
-    const frame = timeline.find((f) => f.time >= time) ?? timeline.at(-1);
-    if (!frame) return;
-
-    targetPosition.set(frame.x, 0, frame.y);
+    const interp = getInterpolatedFrame(timeline, time);
+    if (!interp) return;
+    targetPosition.set(interp.x, 0, interp.y);
     ref.current.position.lerp(targetPosition, 0.2);
-
-    targetQuaternion.setFromEuler(new THREE.Euler(0, -frame.yaw, 0));
+    targetQuaternion.setFromEuler(new THREE.Euler(0, -interp.yaw, 0));
     ref.current.quaternion.slerp(targetQuaternion, 0.2);
   });
 
