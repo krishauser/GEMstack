@@ -173,10 +173,6 @@ class SummoningMissionPlanner(Component):
             if route:
                 if route.points[-1] != self.end_of_driving_route:
                     _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
-                    print("=============================================================")
-                    print(closest_index, len(route.points) - 1, vehicle.v)
-                    print(check_distance(route.points[-1], vehicle.pose))
-                    print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
                     if vehicle.v < 0.01 and (closest_index >= len(route.points) - 1 or check_distance(route.points[-1], vehicle.pose) < 0.5):
                         # Set everything to idle
                         mission.type = self.state_machine.next_state()
@@ -188,12 +184,14 @@ class SummoningMissionPlanner(Component):
             raise ValueError("Invalid mission type")
 
         # Can not find a path, stop mission.
-        if self.search_count > 10:
-            mission.type = MissionEnum.IDLE
-            self.goal_pose = None
-            self.goal_location = None
-            self.goal_frame = None
-            self.search_count = 0
+        if mission.type != MissionEnum.IDLE:
+            print("Route searching times:", self.search_count)
+            if self.search_count > 10:
+                mission.type = MissionEnum.IDLE
+                self.goal_pose = None
+                self.goal_location = None
+                self.goal_frame = None
+                self.search_count = 0
 
 
         if self.flag_use_webapp:

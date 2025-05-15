@@ -67,43 +67,53 @@ def get_lane_points_from_roadgraph(roadgraph: Roadgraph) -> List:
 def find_available_pose_in_lane(position: list, roadgraph: Roadgraph, goal_yaw=None, map_type='roadgraph'):
     goal = np.array(position)
     if map_type == 'roadgraph':
-        left_x, left_y = goal
-        right_x, right_y = goal
         goal_lane = None
         min_right_dist = np.inf
+        goal_lane_right_seg_idx = None
         min_right_idx = None
         for lane in roadgraph.lanes.values():
-            for pts in lane.right.segments:
-                pts = np.array(pts)
-                dists = np.linalg.norm(pts[:, :2] - goal, axis=1)
-                min_right_idx = np.argmin(dists)
-                dist = dists[min_right_idx]
+            for seg_idx, right_pts in enumerate(lane.right.segments):
+                right_pts = np.array(right_pts)
+                dists = np.linalg.norm(right_pts[:, :2] - goal, axis=1)
+                min_idx = np.argmin(dists)
+                dist = dists[min_idx]
                 if dist < min_right_dist:
                     min_right_dist = dist
-                    right_x, right_y, _ = pts[min_right_idx]
+                    min_right_idx = min_idx
+                    goal_lane_right_seg_idx = seg_idx
                     goal_lane = lane
+        goal_lane_right_boundary = goal_lane.right.segments[goal_lane_right_seg_idx]
+        right_x, right_y = goal_lane_right_boundary[min_right_idx][:2]
 
         # Find the closest point in left boundary to the point in right boundary
         min_left_dist = np.inf
-        for pts in goal_lane.left.segments:
-            pts = np.array(pts)
-            dists = np.linalg.norm(pts[:, :2] - np.array([right_x, right_y]), axis=1)
-            min_left_idx = np.argmin(dists)
-            dist = dists[min_left_idx]
+        goal_lane_left_seg_idx = None
+        min_left_idx = None
+        for seg_idx, left_pts in enumerate(goal_lane.left.segments):
+            left_pts = np.array(left_pts)
+            dists = np.linalg.norm(left_pts[:, :2] - np.array([right_x, right_y]), axis=1)
+            min_idx = np.argmin(dists)
+            dist = dists[min_idx]
             if dist < min_left_dist:
-                left_x, left_y, _ = pts[min_left_idx]
+                min_left_dist = dist
+                min_left_idx = min_idx
+                goal_lane_left_seg_idx = seg_idx
+        goal_lane_left_boundary = goal_lane.left.segments[goal_lane_left_seg_idx]
+        left_x, left_y = goal_lane_left_boundary[min_left_idx][:2]
 
         goal_x = (left_x + right_x) / 2
         goal_y = (left_y + right_y) / 2
 
+        # Find the heading along the lane
         if goal_yaw is None:
             # Find orientation
-            if 0 < min_right_idx < len(pts) - 1:
-                tangent = pts[min_right_idx + 1] - pts[min_right_idx - 1]
+            goal_lane_right_boundary = np.array(goal_lane_right_boundary)
+            if 0 < min_right_idx < len(goal_lane_right_boundary) - 1:
+                tangent = goal_lane_right_boundary[min_right_idx + 1] - goal_lane_right_boundary[min_right_idx - 1]
             elif min_right_idx == 0:
-                tangent = pts[1] - pts[0]
+                tangent = goal_lane_right_boundary[1] - goal_lane_right_boundary[0]
             else:  # idx == last point
-                tangent = pts[-1] - pts[-2]
+                tangent = goal_lane_right_boundary[-1] - goal_lane_right_boundary[-2]
             tangent_unit = tangent / np.linalg.norm(tangent)
             goal_yaw = np.arctan2(tangent_unit[1], tangent_unit[0])
 
@@ -166,7 +176,7 @@ def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, star
     farthest_idx = None
     min_dist = np.inf
     max_dist = -np.inf
-    # Find the parking lots that attached to the lane
+    # Find the parking lots attached to the lane in current frame of the goal pose
     parking_lots = []
     for region in roadgraph.regions.values():
         if region.type == RoadgraphRegionEnum.PARKING_LOT:
