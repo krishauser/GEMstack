@@ -14,21 +14,17 @@ from ..interface.gem import GNSSReading
 import numpy as np
 import open3d as o3d
 import copy
-import utm
 import time
 import argparse
 import os
 import glob
+import utm
 from scipy.spatial.transform import Rotation as R
 
 def load_map(map_file):
     """Load a .ply map file."""
     try:
         map_pcd = o3d.io.read_point_cloud(map_file)
-        points = np.asarray(map_pcd.points)
-        
-        # Calculate map center for later use
-        map_center = np.mean(points, axis=0)
         
         return map_pcd
     except Exception as e:
@@ -42,17 +38,6 @@ def load_lidar_scan(points):
         scan_pcd = o3d.geometry.PointCloud()
         points = np.ascontiguousarray(points[:, :3], dtype=np.float64)
         scan_pcd.points = o3d.utility.Vector3dVector(points)
-
-        
-        # # Add intensity as colors if available (4th column)
-        # if points.shape[1] >= 4:
-        #     intensities = points[:, 3]
-        #     normalized_intensity = (intensities - np.min(intensities)) / (np.max(intensities) - np.min(intensities) + 1e-10)
-        #     colors = np.zeros((points.shape[0], 3))
-        #     colors[:, 0] = normalized_intensity  # Map intensity to red channel
-        #     colors[:, 1] = normalized_intensity  # Map intensity to green channel
-        #     colors[:, 2] = normalized_intensity  # Map intensity to blue channel
-        #     scan_pcd.colors = o3d.utility.Vector3dVector(colors)
         
         return scan_pcd
     except Exception as e:
@@ -107,33 +92,6 @@ def extract_structural_features(pcd, voxel_size):
         
     return structural_pcd
 
-def prepare_scan_for_global_registration(scan_pcd, map_pcd, scale_ratio=None):
-    """Improved scaling/translation using actual map bounds"""
-    # Get map dimensions
-    map_points = np.asarray(map_pcd.points)
-    map_min = np.min(map_points, axis=0)
-    map_max = np.max(map_points, axis=0)
-    map_center = (map_min + map_max) / 2
-    
-    # Get scan dimensions
-    scan_points = np.asarray(scan_pcd.points)
-    scan_min = np.min(scan_points, axis=0)
-    scan_max = np.max(scan_points, axis=0)
-    
-    # Calculate dynamic scale ratio
-    if not scale_ratio:
-        map_range = map_max - map_min
-        scan_range = scan_max - scan_min
-        scale_ratio = np.min(map_range / scan_range) * 0.8  # Use 80% of map size
-    
-    # Apply scaling and center alignment
-    scaled_points = (scan_points - scan_min) * scale_ratio + map_min
-    
-    aligned_scan = o3d.geometry.PointCloud()
-    aligned_scan.points = o3d.utility.Vector3dVector(scaled_points)
-    
-    return aligned_scan
-
 def preprocess_point_cloud(pcd, voxel_size, radius_normal=None, radius_feature=None):
     """Modified feature parameters for better matching"""
     pcd_down = pcd.voxel_down_sample(voxel_size)
@@ -150,23 +108,6 @@ def preprocess_point_cloud(pcd, voxel_size, radius_normal=None, radius_feature=N
         o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
     
     return pcd_down, pcd_fpfh
-
-def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, 
-                               voxel_size, max_iterations=1000000):
-    """Improved RANSAC registration with configurable iterations."""
-    distance_threshold = voxel_size * 15  # Increased for initial alignment
-    
-    result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
-        source_down, target_down, source_fpfh, target_fpfh, True,
-        distance_threshold,
-        o3d.pipelines.registration.TransformationEstimationPointToPoint(False),
-        4,
-        [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
-         o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold),
-         o3d.pipelines.registration.CorrespondenceCheckerBasedOnNormal(0.5)],
-        o3d.pipelines.registration.RANSACConvergenceCriteria(max_iterations, 500))
-    
-    return result
 
 def execute_fast_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size):
     """Perform Fast Global Registration."""
@@ -233,7 +174,7 @@ def transform_to_pose(transformation_matrix):
     
     return lon_deg,lat_deg,z,roll,pitch,yaw
 
-class MapBasedStateEstimator(Component):
+class AltMapBasedStateEstimator(Component):
     """Just looks at the GNSS reading to estimate the vehicle state"""
     def __init__(self, map_fn : str, vehicle_interface : GEMInterface):
         self.vehicle_interface = vehicle_interface
@@ -244,6 +185,7 @@ class MapBasedStateEstimator(Component):
         self.map_based_speed = None
         self.points = None
         self.map = load_map(map_fn)
+        self.first = True
 
         # TODO: Change these to be some form of variable
         self.map_scale_ratio = 1.0
@@ -255,28 +197,14 @@ class MapBasedStateEstimator(Component):
         self.map_down, self.map_fpfh = preprocess_point_cloud(
             self.map, self.voxel_size, self.normal_radius_factor, self.feature_radius_factor)
 
-        if 'gnss' not in vehicle_interface.sensors():
-            raise RuntimeError("GNSS sensor not available")
-        vehicle_interface.subscribe_sensor('gnss',self.gnss_callback,GNSSReading)
-        self.gnss_pose = None
-        self.location = settings.get('vehicle.calibration.gnss_location')[:2]
-        self.yaw_offset = settings.get('vehicle.calibration.gnss_yaw')
-        self.speed_filter  = OnlineLowPassFilter(1.2, 30, 4)
-        self.status = None
-        self.transformation = None
-
-    # Get GNSS information
-    def gnss_callback(self, reading : GNSSReading):
-        self.gnss_pose = reading.pose
-        self.gnss_speed = reading.speed
-        self.status = reading.status
+        self.transformation = np.identity(4)
 
     # Get lidar information
     def lidar_callback(self, reading : np.ndarray):
         self.points = reading
     
     def rate(self):
-        return 1
+        return 1/2.5
     
     def state_outputs(self) -> List[str]:
         return ['vehicle']
@@ -292,91 +220,46 @@ class MapBasedStateEstimator(Component):
 
         # Load scans
         scan_pcd = load_lidar_scan(self.points)
-
-        
-        # # Scale and translate the scan to match map scale and center
-        # scaled_scan_pcd = prepare_scan_for_global_registration(
-        #     scan_pcd, 
-        #     self.map, 
-        #     self.map_scale_ratio
-        # )
-
-        # print("Prepare scan", self.vehicle_interface.time() - scan_time)
         
         scan_down, scan_fpfh = preprocess_point_cloud(
             scan_pcd, self.scan_voxel_size, self.normal_radius_factor, self.feature_radius_factor)
 
-        
+
         # Global registration
-        transformation = np.identity(4)
-        
-        # Fast Global Registration
-        fgr_result = execute_fast_global_registration(
-            scan_down, self.map_down, scan_fpfh, self.map_fpfh, self.voxel_size)
-        
-        # Use the better result based on fitness
-        transformation = fgr_result.transformation
+        if self.first:
+            self.transformation = np.identity(4)
+            
+            # Fast Global Registration
+            fgr_result = execute_fast_global_registration(
+                scan_down, self.map_down, scan_fpfh, self.map_fpfh, self.voxel_size)
+            self.transformation = fgr_result.transformation
+
+            self.first = False
         
         # Refine with ICP
         icp_transformation = multi_scale_icp(
             scan_down, self.map_down, 
             voxel_sizes=[2.0, 1.0, 0.5], 
             max_iterations=[100, 50, 25],
-            initial_transform=transformation)
+            initial_transform=self.transformation)
         
-        final_transformation = icp_transformation
+        self.transformation = icp_transformation
         
         # Extract position and orientation
-        lat,lon, *_ = utm.from_latlon(0,-90,16,'N')
-        origin90w0n = [lat,lon,0]
-        x, y, z, roll, pitch, yaw = transform_to_pose(final_transformation,origin90w0n)
+        x, y, z, roll, pitch, yaw = transform_to_pose(icp_transformation)
         # TODO: Estimate speed
         if self.map_based_pose != None:
             translation = np.array([x - self.map_based_pose.x, y - self.map_based_pose.y, z - self.map_based_pose.z])
             self.map_based_speed = np.linalg.norm(translation) / (scan_time - self.map_based_pose.t)
         self.map_based_pose = ObjectPose(ObjectFrameEnum.GLOBAL, scan_time, x, y, z, yaw, pitch, roll)
 
-        # # vehicle gnss heading (yaw) in radians
-        # # vehicle x, y position in fixed local frame, in meters
-        # # reference point is located at the center of GNSS antennas
-        # localxy = transforms.rotate2d(self.location,-self.yaw_offset)
-        # gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
-        # center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
-        # vehicle_pose_global = replace(self.gnss_pose,
-        #                               t=self.vehicle_interface.time(),
-        #                               x=center_xyhead[0],
-        #                               y=center_xyhead[1],
-        #                               yaw=center_xyhead[2])
-
         readings = self.vehicle_interface.get_reading()
         raw = readings.to_state(self.map_based_pose)
-
-        print("Time:", self.vehicle_interface.time() - scan_time)
-        print(x, y, z, yaw)
 
         #filtering speed
         if self.map_based_speed != None:
             raw.v = self.map_based_speed
         else:
             raw.v = 0.0
-
-        if self.gnss_pose is None:
-            return
-        #TODO: figure out what this status means
-        #print("INS status",self.status)
-
-        # vehicle gnss heading (yaw) in radians
-        # vehicle x, y position in fixed local frame, in meters
-        # reference point is located at the center of GNSS antennas
-        localxy = transforms.rotate2d(self.location,-self.yaw_offset)
-        gnss_xyhead_inv = (-localxy[0],-localxy[1],-self.yaw_offset)
-        center_xyhead = self.gnss_pose.apply_xyhead(gnss_xyhead_inv)
-        vehicle_pose_global = replace(self.gnss_pose,
-                                      t=self.vehicle_interface.time(),
-                                      x=center_xyhead[0],
-                                      y=center_xyhead[1],
-                                      yaw=center_xyhead[2])
-
-        print(self.gnss_pose.x, self.gnss_pose.y, self.gnss_pose.z, self.gnss_pose.yaw)
         
         return raw

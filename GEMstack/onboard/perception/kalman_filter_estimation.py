@@ -29,7 +29,7 @@ class KFStateEstimator(Component):
         self.vehicle_interface = vehicle_interface
         self.filter = GNSSKalmanFilter()
         vehicle_interface.subscribe_sensor('gnss',self.gnss_callback,GNSSReading)
-        _ = rospy.Subscriber("/map_estimator/navsatfix", INSNavGeod, self.map_based_estimation_callback)
+        _ = rospy.Subscriber("/map_estimator/insnavgeod", INSNavGeod, self.map_based_estimation_callback)
         
     # Get GNSS information
     def gnss_callback(self, reading : GNSSReading):

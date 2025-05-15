@@ -25,9 +25,6 @@ def load_map(map_file):
         map_pcd = o3d.io.read_point_cloud(map_file)
         points = np.asarray(map_pcd.points)
         
-        # Calculate map center for later use
-        map_center = np.mean(points, axis=0)
-        
         return map_pcd
     except Exception as e:
         print(f"Error loading map: {e}")
@@ -40,17 +37,6 @@ def load_lidar_scan(points):
         scan_pcd = o3d.geometry.PointCloud()
         points = np.ascontiguousarray(points[:, :3], dtype=np.float64)
         scan_pcd.points = o3d.utility.Vector3dVector(points)
-
-        
-        # # Add intensity as colors if available (4th column)
-        # if points.shape[1] >= 4:
-        #     intensities = points[:, 3]
-        #     normalized_intensity = (intensities - np.min(intensities)) / (np.max(intensities) - np.min(intensities) + 1e-10)
-        #     colors = np.zeros((points.shape[0], 3))
-        #     colors[:, 0] = normalized_intensity  # Map intensity to red channel
-        #     colors[:, 1] = normalized_intensity  # Map intensity to green channel
-        #     colors[:, 2] = normalized_intensity  # Map intensity to blue channel
-        #     scan_pcd.colors = o3d.utility.Vector3dVector(colors)
         
         return scan_pcd
     except Exception as e:
@@ -105,33 +91,6 @@ def extract_structural_features(pcd, voxel_size):
         
     return structural_pcd
 
-def prepare_scan_for_global_registration(scan_pcd, map_pcd, scale_ratio=None):
-    """Improved scaling/translation using actual map bounds"""
-    # Get map dimensions
-    map_points = np.asarray(map_pcd.points)
-    map_min = np.min(map_points, axis=0)
-    map_max = np.max(map_points, axis=0)
-    map_center = (map_min + map_max) / 2
-    
-    # Get scan dimensions
-    scan_points = np.asarray(scan_pcd.points)
-    scan_min = np.min(scan_points, axis=0)
-    scan_max = np.max(scan_points, axis=0)
-    
-    # Calculate dynamic scale ratio
-    if not scale_ratio:
-        map_range = map_max - map_min
-        scan_range = scan_max - scan_min
-        scale_ratio = np.min(map_range / scan_range) * 0.8  # Use 80% of map size
-    
-    # Apply scaling and center alignment
-    scaled_points = (scan_points - scan_min) * scale_ratio + map_min
-    
-    aligned_scan = o3d.geometry.PointCloud()
-    aligned_scan.points = o3d.utility.Vector3dVector(scaled_points)
-    
-    return aligned_scan
-
 def preprocess_point_cloud(pcd, voxel_size, radius_normal=None, radius_feature=None):
     """Modified feature parameters for better matching"""
     pcd_down = pcd.voxel_down_sample(voxel_size)
@@ -148,23 +107,6 @@ def preprocess_point_cloud(pcd, voxel_size, radius_normal=None, radius_feature=N
         o3d.geometry.KDTreeSearchParamHybrid(radius=radius_feature, max_nn=100))
     
     return pcd_down, pcd_fpfh
-
-def execute_global_registration(source_down, target_down, source_fpfh, target_fpfh, 
-                               voxel_size, max_iterations=1000000):
-    """Improved RANSAC registration with configurable iterations."""
-    distance_threshold = voxel_size * 15  # Increased for initial alignment
-    
-    result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
-        source_down, target_down, source_fpfh, target_fpfh, True,
-        distance_threshold,
-        o3d.pipelines.registration.TransformationEstimationPointToPoint(False),
-        4,
-        [o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(0.9),
-         o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(distance_threshold),
-         o3d.pipelines.registration.CorrespondenceCheckerBasedOnNormal(0.5)],
-        o3d.pipelines.registration.RANSACConvergenceCriteria(max_iterations, 500))
-    
-    return result
 
 def execute_fast_global_registration(source_down, target_down, source_fpfh, target_fpfh, voxel_size):
     """Perform Fast Global Registration."""
@@ -243,7 +185,7 @@ class MapBasedGNSSEstimator(Component):
         self.points = None
         self.map = load_map(map_fn)
 
-        self.pub = rospy.Publisher('/map_estimator/navsatfix', INSNavGeod)
+        self.pub = rospy.Publisher('/map_estimator/insnavgeod', INSNavGeod)
 
         # TODO: Change these to be some form of variable
         self.map_scale_ratio = 1.0
@@ -254,12 +196,6 @@ class MapBasedGNSSEstimator(Component):
 
         self.map_down, self.map_fpfh = preprocess_point_cloud(
             self.map, self.voxel_size, self.normal_radius_factor, self.feature_radius_factor)
-
-    # Get GNSS information
-    def gnss_callback(self, reading : GNSSReading):
-        self.gnss_pose = reading.pose
-        self.gnss_speed = reading.speed
-        self.status = reading.status
 
     # Get lidar information
     def lidar_callback(self, reading : np.ndarray):
@@ -279,21 +215,10 @@ class MapBasedGNSSEstimator(Component):
 
         # Load scans
         scan_pcd = load_lidar_scan(self.points)
-
-        
-        # # Scale and translate the scan to match map scale and center
-        # scaled_scan_pcd = prepare_scan_for_global_registration(
-        #     scan_pcd, 
-        #     self.map, 
-        #     self.map_scale_ratio
-        # )
-
-        # print("Prepare scan", self.vehicle_interface.time() - scan_time)
         
         scan_down, scan_fpfh = preprocess_point_cloud(
             scan_pcd, self.scan_voxel_size, self.normal_radius_factor, self.feature_radius_factor)
 
-        
         # Global registration
         transformation = np.identity(4)
         
@@ -328,7 +253,5 @@ class MapBasedGNSSEstimator(Component):
         fix.roll = roll
         fix.pitch = pitch
         fix.heading = yaw
-
-        print(x, y, z, yaw)
 
         self.pub.publish(fix)
