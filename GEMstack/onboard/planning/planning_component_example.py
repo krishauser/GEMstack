@@ -39,7 +39,7 @@ class PlanningComponentExample(Component):
                 yaw=state.vehicle.pose.yaw + math.pi,
             )
 
-        mission_plan = MissionPlan(PlannerEnum.RRT_STAR, self.goal_start_pose, state.start_vehicle_pose, self.mode)
+        mission_plan = MissionPlan(PlannerEnum.RRT_STAR, self.goal_start_pose, state.start_vehicle_pose)
 
         if DEBUG:
             print("Planning component update with state:",mission_plan)

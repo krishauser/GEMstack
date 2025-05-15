@@ -2,7 +2,7 @@ from ...mathutils.control import PID
 from ...utils import settings
 from ...mathutils import transforms
 from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
-from ...state.vehicle import VehicleState,ObjectFrameEnum
+from ...state.vehicle import VehicleState,ObjectFrameEnum, VehicleGearEnum
 from ...state.trajectory import Path,Trajectory,compute_headings
 from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
@@ -105,9 +105,13 @@ class PurePursuit(object):
         else:
             desired_x,desired_y = self.path.eval(des_parameter)
         desired_yaw = np.arctan2(desired_y-curr_y,desired_x-curr_x)
-        #print("Desired point",(desired_x,desired_y)," with lookahead distance",self.look_ahead + self.look_ahead_scale * speed)
-        #print("Current yaw",curr_yaw,"desired yaw",desired_yaw)
-
+        
+        print("Desired point",(desired_x,desired_y)," with lookahead distance",self.look_ahead + self.look_ahead_scale * speed)
+        print("Current x",curr_x,"Current y",curr_y)
+        print("Current yaw",curr_yaw,"Desired yaw",desired_yaw)
+        print("Parameter : ", self.current_path_parameter)
+        print("Last index : ",  self.path.domain()[1])
+        
         # distance between the desired point and the vehicle
         L = transforms.vector2_dist((desired_x,desired_y),(curr_x,curr_y))
 
@@ -142,6 +146,7 @@ class PurePursuit(object):
                 #past the end, just stop
                 desired_speed = 0.0
                 feedforward_accel = -2.0
+                f_delta = 0
             else:
                 if self.desired_speed_source=='path':
                     current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
@@ -165,6 +170,17 @@ class PurePursuit(object):
         else:
             #decay speed when crosstrack error is high
             desired_speed *= np.exp(-abs(ct_error)*0.4)
+            
+            if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
+                if component is not None:
+                    component.debug_event('Past the end of trajectory')
+                #past the end, just stop
+                desired_speed = 0.0
+                feedforward_accel = -2.0
+                f_delta = 0
+            
+            
+            
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
@@ -205,6 +221,7 @@ class PurePursuitTrajectoryTracker(Component):
         return []
 
     def update(self, vehicle : VehicleState, trajectory: Trajectory):
+        vehicle.gear = 1
         self.pure_pursuit.set_path(trajectory)
         accel,wheel_angle = self.pure_pursuit.compute(vehicle, self)
         #print("Desired wheel angle",wheel_angle)
