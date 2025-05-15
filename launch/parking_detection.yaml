@@ -146,15 +146,16 @@ variants:
                                 max_turning_rate: 0.3
                                 tolerance: 0.25
                         astar:
-                            iterations: 500
+                            iterations: 200
                             heuristic: reeds_shepp
                     motion_planning:
-                        type: parking_motion_planning.YieldTrajectoryPlanner
-                        # type: yield_spline_planner.SplinePlanner
-                        largs:
-                            acceleration: 5
-                            deceleration: 2
-                            desired_speed: 2
+                        # type: parking_motion_planning.YieldTrajectoryPlanner
+                        type: yield_spline_planner.SplinePlanner
+                        # type: creep_planning.CreepTrajectoryPlanner
+                        # largs:
+                        #     acceleration: 5
+                        #     deceleration: 2
+                        #     desired_speed: 2
                     trajectory_tracking:
                         type: pure_pursuit.PurePursuitTrajectoryTracker
                         print: False

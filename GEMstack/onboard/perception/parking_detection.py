@@ -247,8 +247,8 @@ class ParkingSpotsDetector3D(Component):
         x, y, yaw = self.parking_goal
         goal_pose = ObjectPose(
                         t=current_time,
-                        x=x,
-                        y=y,
+                        x=x+1,
+                        y=y+1,
                         z=0.0,
                         yaw=yaw,
                         pitch=0.0,
@@ -256,7 +256,7 @@ class ParkingSpotsDetector3D(Component):
                         frame=ObjectFrameEnum.START
                     )
         
-        DISTANCE_THRESHOLD = 8.0
+        DISTANCE_THRESHOLD = 20
         if self.euclidean_distance((x,y), state) > DISTANCE_THRESHOLD: # we are not close enough to the parking spot
             return None
 
