@@ -174,7 +174,7 @@ def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, star
             available = True
             for pt in region_current.outline:
                 # Remove not available regions
-                if pt[1] > 0 or pt[1] < -10 or pt[0] > farthest_parking_distance or pt[0] < 0:
+                if pt[1] > 0 or pt[1] < -10 or pt[0] > farthest_parking_distance or pt[0] < 3:
                     available = False
             if available:
                 parking_lots.append(region.outline)
