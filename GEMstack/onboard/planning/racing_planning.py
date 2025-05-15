@@ -12,7 +12,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import CubicSpline, splprep, splev
+from scipy.spatial import cKDTree
 import signal
 import threading
 
@@ -28,26 +29,303 @@ from datetime import datetime
 
 _TRAJ_BUF = []
 
-def make_reference_slalom(cones, amp=2.0, tail=10.0, pts_per_seg=50):
+# def make_reference_slalom(cones, amp=2.0, tail=10.0, pts_per_seg=50):
+#     """
+#     Quick centre-line generator that weaves around a cone list.
+
+#     orientation keywords may be lower/upper case.
+
+#     LEFT  → pass on +amp   |  RIGHT → amp   |  STANDING → back to 0
+#     """
+#     xk, yk = [0.0], [0.0]                     # start at (0,0)
+#     for c in cones:
+#         o = c['orientation'].lower()
+#         y = +amp if o == 'left' else -amp if o == 'right' else 0.0
+#         xk.append(c['x']); yk.append(y)
+#     # monotone in x ⇒ cubic spline works well
+#     spline = CubicSpline(xk, yk, bc_type="natural")
+#     x_ref = np.linspace(xk[0], xk[-1], pts_per_seg*len(cones))
+#     y_ref = spline(x_ref)
+#     return x_ref, y_ref
+# def make_reference_slalom_roundtrip(
+#         cones_fwd,
+#         amp      = 2.0,     # lateral swing around cones
+#         tail_out = 10.0,    # extra between last cone-and-turn-in
+#         r_turn   = 15.0,    # radius of the wide half-circle turn-around
+#         pts_per_seg = 80    # resolution per cone
+# ):
+#     """
+#     Build a ‘centre-line’ that
+
+#       1. weaves around *cones_fwd* (forward leg),
+#       2. continues for *tail_out* m,
+#       3. makes a wide half-circle (radius *r_turn*),
+#       4. slaloms back around the same cones in the opposite sense
+#          and finishes near the origin.
+
+#     Returned arrays are already densely sampled – no monotonic-x assumption.
+#     """
+#     #
+#     # 1) ------------- forward leg -----------------------------------------
+#     #
+#     xf, yf = [0.0], [0.0]
+#     for c in cones_fwd:
+#         sign = +1 if c['orientation'].lower() == 'left' else \
+#                -1 if c['orientation'].lower() == 'right' else 0
+#         xf.append(c['x'])
+#         yf.append(sign * amp)
+#     # little straight before the big U-turn
+#     xf.append(cones_fwd[-1]['x'] + tail_out)
+#     yf.append(0.0)
+
+#     #
+#     # 2) ------------- wide half-circle turn -------------------------------
+#     #
+#     n_arc   = 120
+#     x_end   = xf[-1]
+#     y0      = yf[-1]
+#     theta   = np.linspace(-np.pi/2, +np.pi/2, n_arc)   # clockwise
+#     xa      = x_end + r_turn * np.cos(theta)
+#     ya      = y0   + r_turn * np.sin(theta)
+
+#     #
+#     # 3) ------------- return leg (cones reversed & orientation flipped) ---
+#     #
+#     cones_back = cones_fwd[-2::-1]     # skip standing cone, reverse others
+#     xb, yb = [], []
+#     for c in cones_back:
+#         sign = -1 if c['orientation'].lower() == 'left' else \
+#                +1 if c['orientation'].lower() == 'right' else 0
+#         xb.append(c['x'])
+#         yb.append(sign * amp)
+#     xb.append(0.0); yb.append(0.0)     # come back near origin
+
+#     #
+#     # 4) ------------- concatenate & re-parametrise ------------------------
+#     #
+#     x_path = np.r_[xf, xa, xb]
+#     y_path = np.r_[yf, ya, yb]
+
+#     # param s in [0,1] proportional to cumulative distance
+#     ds   = np.hypot(np.diff(x_path), np.diff(y_path))
+#     s    = np.insert(np.cumsum(ds), 0, 0.0)
+#     s   /= s[-1]
+
+#     # create *smooth* reference using cubic splines in s-space
+#     s_dense = np.linspace(0.0, 1.0, pts_per_seg * len(x_path))
+#     cs_x = CubicSpline(s, x_path, bc_type='natural')
+#     cs_y = CubicSpline(s, y_path, bc_type='natural')
+
+#     x_ref = cs_x(s_dense)
+#     y_ref = cs_y(s_dense)
+#     return x_ref, y_ref
+
+# def make_reference_slalom_roundtrip_smooth(
+#         cones_fwd,
+#         amp        = 2.0,     # lateral swing around each cone
+#         tail_out   = 10.0,    # straight after the last cone
+#         r_turn     = 8.0,    # radius of the half-circle
+#         pts_per_seg= 80,      # resolution
+#         smooth     = 0.4      # 0 = interpolate exactly, >0 = smoother
+# ):
+#     """
+#     Build a smooth centre-line that
+#       • slaloms round every cone *except* the final standing one,
+#       • adds a straight, a wide half-circle U-turn, then
+#       • returns around the cones in reverse order.
+#     Returns dense numpy arrays (x_ref, y_ref).
+#     """
+
+#     xf, yf = [0.0], [0.0]
+#     # for c in cones_fwd[:-1]:
+#     for c in cones_fwd:
+#         sgn = +1 if c['orientation'].lower() == 'left'  else \
+#               -1 if c['orientation'].lower() == 'right' else 0
+#         xf.append(c['x']);  yf.append(sgn * amp)
+
+#     # xf.append(cones_fwd[-1]['x'] + tail_out);  yf.append(0.0)
+
+#     # ── 2 ▸ wide half-circle U-turn ───────────────────────────────────────
+#     θ = np.linspace(-np.pi/2, +np.pi/2, 120)
+#     # x_end, y0 = xf[-1], yf[-1]
+#     # y_offset = -3.5 
+#     # xa = x_end + r_turn * np.cos(θ)
+#     # # ya = y0    + r_turn * np.sin(θ)
+#     # ya = y_offset + r_turn * np.sin(θ)
+
+#     last_cone = cones_fwd[-1]
+#     arc_cx, arc_cy = last_cone['x'], last_cone['y']
+
+#     xa = arc_cx + r_turn * np.cos(θ)
+#     ya = arc_cy + r_turn * np.sin(θ)
+
+
+#     # # ── 3 ▸ return leg (reverse list, skip standing cone) ─────────────────
+#     # xb, yb = [], []
+#     # for c in cones_fwd[-2::-1]:                     # start with cone-3
+#     #     sgn = -1 if c['orientation'].lower() == 'left'  else \
+#     #            +1 if c['orientation'].lower() == 'right' else 0
+#     #     xb.append(c['x']);  yb.append(sgn * amp)
+#     # xb.append(0.0);  yb.append(0.0)                 # finish near origin
+
+#     xb, yb = [], []
+#     # for c in cones_fwd[-2:0:-1]:  # cone[-1] down to cone[1]
+#     # for c in cones_fwd[-2::-1]: 
+#     for i in reversed(range(len(cones_fwd) - 1)):  # cone indices: 2,1,0
+#         c = cones_fwd[i]
+#         sgn = -1 if c['orientation'].lower() == 'left' else \
+#             +1 if c['orientation'].lower() == 'right' else 0
+#         xb.append(c['x'])
+#         yb.append(sgn * amp)
+
+#     # Now add cone[0] again to finish with the correct wraparound
+#     # first = cones_fwd[0]
+#     # sgn = -1 if first['orientation'].lower() == 'left' else \
+#     #     +1 if first['orientation'].lower() == 'right' else 0
+#     # xb.append(first['x'])
+#     # yb.append(sgn * amp)
+
+#     # Back to origin
+#     xb.append(0.0)
+#     yb.append(0.0)
+
+#     # ── 4 ▸ concatenate & smooth in chord-length parameter space ──────────
+#     x_ctrl = np.r_[xf, xa, xb]
+#     y_ctrl = np.r_[yf, ya, yb]
+
+#     s  = np.insert(np.cumsum(np.hypot(np.diff(x_ctrl), np.diff(y_ctrl))), 0, 0.0)
+#     s /= s[-1]                                       # normalise to [0, 1]
+
+#     # ← FIX ①  proper unpacking of splprep
+#     tck, _  = splprep([x_ctrl, y_ctrl], u=s,
+#                       s=smooth * len(x_ctrl), k=3)
+
+#     s_dense = np.linspace(0.0, 1.0, pts_per_seg * len(x_ctrl))
+#     x_ref, y_ref = splev(s_dense, tck)
+
+#     # ← FIX ②  guarantee numpy arrays
+#     return np.asarray(x_ref), np.asarray(y_ref)
+
+def make_reference_slalom_roundtrip_smooth(
+        cones_fwd,
+        amp        = 2.0,
+        tail_out   = 10.0,
+        r_turn     = 8.0,
+        pts_per_seg= 80,
+        smooth     = 0.4
+):
+    xf, yf = [0.0], [0.0]
+    for c in cones_fwd:
+        sgn = +1 if c['orientation'].lower() == 'left'  else \
+              -1 if c['orientation'].lower() == 'right' else 0
+        xf.append(c['x'])
+        yf.append(sgn * amp)
+
+    # ── U-turn arc at standing cone ─────────────────────────────
+    θ = np.linspace(-np.pi/2, +np.pi/2, 120)
+    last_cone = cones_fwd[-1]
+    arc_cx, arc_cy = last_cone['x'], last_cone['y']
+    xa = arc_cx + r_turn * np.cos(θ)
+    ya = arc_cy + r_turn * np.sin(θ)
+
+    # ── Return leg: retrace same sides in reverse ───────────────
+    xb, yb = [], []
+    for c in reversed(cones_fwd[:-1]):            # skip standing cone
+        sgn = +1 if c['orientation'].lower() == 'left' else \
+              -1 if c['orientation'].lower() == 'right' else 0
+        xb.append(c['x'])
+        yb.append(sgn * amp)   
+    xb.append(0.0)
+    yb.append(0.0)
+
+    # ── Stitch and smooth ───────────────────────────────────────
+    x_ctrl = np.r_[xf, xa, xb]
+    y_ctrl = np.r_[yf, ya, yb]
+    s  = np.insert(np.cumsum(np.hypot(np.diff(x_ctrl), np.diff(y_ctrl))), 0, 0.0)
+    s /= s[-1]
+
+    tck, _ = splprep([x_ctrl, y_ctrl], u=s, s=smooth * len(x_ctrl), k=3)
+    s_dense = np.linspace(0.0, 1.0, pts_per_seg * len(x_ctrl))
+    x_ref, y_ref = splev(s_dense, tck)
+
+    return np.asarray(x_ref), np.asarray(y_ref)
+
+def make_reference_slalom_roundtrip_sym(
+        cones,
+        amp        = 2.0,   # lateral swing
+        tail_out   = 10.0,  # straight before U-turn
+        r_turn     = 8.0,   # half-circle radius
+        pts_per_seg= 90,    # resolution
+        smooth     = 0.3):  # spline smoothing
     """
-    Quick centre-line generator that weaves around a cone list.
-
-    orientation keywords may be lower/upper case.
-
-    LEFT  → pass on +amp   |  RIGHT → amp   |  STANDING → back to 0
+    • Slalom around cones[0:-1] on their declared side.
+    • Straight + half-circle U-turn around last cone.
+    • Slalom back around cones[-2:0] on THE SAME WORLD SIDE.
+    • Finish at the origin.
+    Returns dense (x_ref , y_ref) arrays.
     """
-    xk, yk = [0.0], [0.0]                     # start at (0,0)
-    for c in cones:
-        o = c['orientation'].lower()
-        y = +amp if o == 'left' else -amp if o == 'right' else 0.0
-        xk.append(c['x']); yk.append(y)
-    xk.append(cones[-1]['x'] + tail); yk.append(0.0)   # little exit tail
+    # 1 ── forward slalom ────────────────────────────────────────────────
+    x_fw, y_fw = [0.0], [0.0]
+    for c in cones[:-1]:                                   # skip STANDING
+        sign = +1 if c['orientation'].lower() == 'left' else -1
+        x_fw.append(c['x'])
+        y_fw.append(sign * amp)
+    # straight before the turn-in
+    last = cones[-1]
+    x_fw.append(last['x'] + tail_out)
+    y_fw.append(0.0)
 
-    # monotone in x ⇒ cubic spline works well
-    spline = CubicSpline(xk, yk, bc_type="natural")
-    x_ref = np.linspace(xk[0], xk[-1], pts_per_seg*len(cones))
-    y_ref = spline(x_ref)
-    return x_ref, y_ref
+    # 2 ── half-circle U-turn (clockwise, centred below the track) ──────
+    θ      = np.linspace( 0, np.pi, 140)         # 0→π = clockwise
+    c_x    = last['x'] + tail_out                # centre X
+    c_y    = -r_turn                             # put centre below cones
+    x_arc  = c_x + r_turn * np.cos(θ)
+    y_arc  = c_y + r_turn * np.sin(θ)
+
+    # 3 ── return slalom (reverse order, SAME sign) ─────────────────────
+    x_bw, y_bw = [], []
+    for c in reversed(cones[:-1]):               # cone 3 → cone 1
+        sign = +1 if c['orientation'].lower() == 'left' else -1
+        x_bw.append(c['x'])
+        y_bw.append(sign * amp)
+    x_bw.append(0.0);  y_bw.append(0.0)          # home
+
+    # 4 ── concatenate & smooth with B-spline in arc-length param space ─
+    x_ctrl = np.r_[x_fw, x_arc, x_bw]
+    y_ctrl = np.r_[y_fw, y_arc, y_bw]
+
+    s      = np.insert(np.cumsum(np.hypot(np.diff(x_ctrl), np.diff(y_ctrl))),
+                       0, 0.0)
+    s     /= s[-1]                               # normalise to [0,1]
+
+    (tck, _),  = splprep([x_ctrl, y_ctrl],
+                          u=s, s=smooth * len(x_ctrl), k=3)
+
+    s_dense     = np.linspace(0.0, 1.0,
+                              pts_per_seg * len(cones) * 2)  # forward+back
+    x_ref, y_ref = splev(s_dense, tck)
+
+    return np.asarray(x_ref), np.asarray(y_ref)
+
+def make_reference_hardcoded(pts, pts_per_seg=80, smooth=0.0):
+    """
+    pts : list[tuple]  – ordered control points [(x0,y0), (x1,y1), …]
+    smooth : 0 → exact interpolation, >0 → smoothing spline
+    returns dense x_ref, y_ref arrays (same length)
+    """
+    pts = np.asarray(pts)
+    x_ctrl, y_ctrl = pts[:,0], pts[:,1]
+
+    # chord-length parameterisation  s ∈ [0,1]
+    s = np.insert(np.cumsum(np.hypot(np.diff(x_ctrl), np.diff(y_ctrl))), 0, 0.0)
+    s /= s[-1]
+
+    # B-spline through the control points
+    tck, _ = splprep([x_ctrl, y_ctrl], u=s, s=smooth*len(pts), k=3)
+    s_dense = np.linspace(0.0, 1.0, pts_per_seg*len(pts))
+    x_ref, y_ref = splev(s_dense, tck)
+    return np.asarray(x_ref), np.asarray(y_ref)
+
 
 def buffer_slalom_trajectory(
         x, y, c,
@@ -68,119 +346,247 @@ def buffer_slalom_trajectory(
     ))
 
 
+# def _render_slalom_buffer(
+#     save_dir="/home/hbst/RACING/GEMstack/GEMstack/onboard/planning/test_slalom",
+# ):
+#     if not _TRAJ_BUF:
+#         print("[slalom-plot] nothing buffered – no figure created")
+#         return
+
+#     os.makedirs(save_dir, exist_ok=True)
+#     fname = os.path.join(save_dir, f"slalom_{datetime.now():%Y%m%d_%H%M%S}.png")
+
+#     fig, axs  = plt.subplots(2, 2, figsize=(14, 10))
+#     ax_path, ax_rad = axs[0, 0], axs[0, 1]
+#     ax_cmp,  ax_err = axs[1, 0], axs[1, 1]
+#     R_MAX_PLOT   = 50.0 
+#     R_SCALE      = 5.0
+#     step_offset = 0
+#     step_offset_err  = 0  
+#     plotted_cones = False 
+#     plotted_gen   = False   
+#     def plot_cones(ax, cones):
+#         for cone in cones:
+#             ax.plot(cone['x'], cone['y'],
+#                     marker='^', ms=10, mfc='orange', mec='darkorange')
+
+#     for d in _TRAJ_BUF:
+#         x, y = d["x"], d["y"]
+#         s  = np.concatenate(([0.0], np.cumsum(np.hypot(np.diff(x), np.diff(y)))))
+#         dx = np.gradient(x, s)
+#         dy = np.gradient(y, s)
+#         ddx = np.gradient(dx, s)
+#         ddy = np.gradient(dy, s)
+#         kappa = np.abs(dx*ddy - dy*ddx) / np.power(dx*dx + dy*dy, 1.5)
+#         r = 1.0 / np.where(kappa < 1e-9, np.inf, kappa)
+
+#         # path panel
+#         ax_path.plot(x, y, label=d["tag"])
+#         if d["cones"] and not plotted_cones:
+#             # for cone in d["cones"]:
+#             #     ax_path.plot(cone['x'], cone['y'],
+#             #     marker='^', ms=6, mfc='gold', mec='black')
+#             plot_cones(ax_path, d["cones"])
+#             plotted_cones = True
+#         # for wp in d["waypoints"]:
+#             # ax_path.plot(*wp, "rx")
+
+#         # radius panel
+#         # ax_rad.plot(r, label=d["tag"])
+#         r_plot = r.copy()
+#         r_plot[r_plot > R_MAX_PLOT] = np.nan
+#         r_plot = r_plot / R_SCALE                  
+#         steps   = np.arange(len(r_plot)) + step_offset
+#         ax_rad.plot(steps, r_plot, label=d["tag"])
+#         step_offset += len(r_plot)
+
+#         if d["x_ref"] is not None:
+#             # resample reference to same length as generated path
+#             # t_gen = np.linspace(0, 1, len(x))
+#             # t_ref = np.linspace(0, 1, len(d["x_ref"]))
+#             # x_ref = np.interp(t_gen, t_ref, d["x_ref"])
+#             # y_ref = np.interp(t_gen, t_ref, d["y_ref"])
+
+#             ax_cmp.plot(d["x_ref"], d["y_ref"],
+#                         lw=2, ls="--", color="black",
+#                         label=None if plotted_gen else "expected")
+
+#             # generated (always blue)
+#             ax_cmp.plot(x, y,
+#                         color="tab:blue",
+#                         label=None if plotted_gen else "generated")
+#             plotted_gen = True
+
+
+#             if d["cones"]:
+#                 # for cone in d["cones"]:
+#                 #     ax_cmp.plot(cone['x'], cone['y'],
+#                 #                 marker='^', ms=6, mfc='gold', mec='black')
+#                 plot_cones(ax_cmp, d["cones"])
+
+#             # ax_cmp.plot(x_ref, y_ref, lw=2, ls='--', label=f'{d["tag"]} ref')
+#             # ax_cmp.plot(x,     y,     label=f'{d["tag"]} gen')
+
+#             # err = np.hypot(x_ref - x, y_ref - y)
+#             # err = np.hypot(d["x_ref"] - x, d["y_ref"] - y)
+#             # ax_err.plot(err, label=d["tag"])
+
+#             # t_gen = np.linspace(0.0, 1.0, len(x))
+#             # t_ref = np.linspace(0.0, 1.0, len(d["x_ref"]))
+#             # x_ref_rs = np.interp(t_gen, t_ref, d["x_ref"])
+#             # y_ref_rs = np.interp(t_gen, t_ref, d["y_ref"])
+
+#             # err = np.hypot(x_ref_rs - x, y_ref_rs - y)
+#             # ax_err.plot(err, label=d["tag"])
+#             # if d["x_ref"] is not None:
+#             #     t_gen = np.linspace(0, 1, len(x))
+#             #     t_ref = np.linspace(0, 1, len(d["x_ref"]))
+#             #     x_ref_rs = np.interp(t_gen, t_ref, d["x_ref"])
+#             #     y_ref_rs = np.interp(t_gen, t_ref, d["y_ref"])
+
+#             #     err = np.hypot(x_ref_rs - x, y_ref_rs - y)
+
+#             #     # plot this segment *in place* along the growing timeline
+#             #     seg_steps = np.arange(len(err)) + step_offset_err
+#             #     ax_err.plot(seg_steps, err, color="tab:blue")   # one colour, no per-seg legend
+#             #     step_offset_err += len(err)      
+#             # ax_err.set(title="absolute lateral error",
+#             #    xlabel="step", ylabel="error (m)")
+#             if d["x_ref"] is not None:
+#     # build KD-tree once per segment
+#                 ref_tree = cKDTree(np.column_stack([d["x_ref"], d["y_ref"]]))
+
+#                 # query all generated points at once → array of nearest-neighbour dists
+#                 dist, _  = ref_tree.query(np.column_stack([x, y]), k=1)
+
+#                 seg_steps = np.arange(len(dist)) + step_offset_err
+#                 ax_err.plot(seg_steps, dist, color="tab:blue")
+#                 step_offset_err += len(dist)
+
+#             # if d["cones"]:
+#             #     cum_s   = np.cumsum(np.hypot(np.diff(x), np.diff(y)))
+#             #     cum_s   = np.insert(cum_s, 0, 0.0)
+#             #     # for cone in d["cones"]:
+#             #     #     idx = np.argmin(np.hypot(x - cone['x'], y - cone['y']))
+#             #     #     ax_err.plot(idx, err[idx], marker='^',
+#             #     #                 ms=5, mfc='gold', mec='black')
+#             #     plot_cones(ax_err, d["cones"])
+
+#     # styling  –  keep it tidy
+#     ax_path.set(title="generated paths", xlabel="x", ylabel="y");       ax_path.grid(); ax_path.legend(); ax_path.axhline(0, ls="--", c="gray")
+#     ax_rad.set(title="turn-radius profile", xlabel="step", ylabel="radius (m)"); ax_rad.grid(); ax_rad.legend(); ax_rad.axhline(11.0, ls="--", c="red", label="min safe R")
+#     ax_cmp.set(title="expected vs generated path", xlabel="x", ylabel="y");       ax_cmp.grid();  ax_cmp.legend()
+#     ax_err.set(title="absolute lateral error",    xlabel="step", ylabel="error (m)"); ax_err.grid(); ax_err.legend()
+
+#     fig.tight_layout()
+#     fig.savefig(fname)
+#     print(f"[slalom-plot] saved → {fname}")
+#     plt.close(fig)
+
 def _render_slalom_buffer(
-    save_dir="/home/hbst/RACING/GEMstack/GEMstack/onboard/planning/test_slalom",
+    save_dir="/home/hbst/RACING/GEMstack/GEMstack/onboard/planning/test_slalom/final2",
 ):
     if not _TRAJ_BUF:
         print("[slalom-plot] nothing buffered – no figure created")
         return
 
     os.makedirs(save_dir, exist_ok=True)
-    fname = os.path.join(save_dir, f"slalom_{datetime.now():%Y%m%d_%H%M%S}.png")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    fig, axs  = plt.subplots(2, 2, figsize=(14, 10))
-    ax_path, ax_rad = axs[0, 0], axs[0, 1]
-    ax_cmp,  ax_err = axs[1, 0], axs[1, 1]
-    R_MAX_PLOT   = 50.0 
-    R_SCALE      = 5.0
+    R_MAX_PLOT = 50.0
+    R_SCALE = 5.0
     step_offset = 0
-    plotted_cones = False 
-    plotted_gen   = False   
+    step_offset_err = 0
+    plotted_cones = False
+    plotted_gen = False
+
+    fig_path, ax_path = plt.subplots(figsize=(9, 5))
+    fig_rad, ax_rad = plt.subplots(figsize=(9, 5))
+    fig_cmp, ax_cmp = plt.subplots(figsize=(9, 5))
+    fig_err, ax_err = plt.subplots(figsize=(9, 5))
+
+    fig_path.tight_layout(rect=[0, 0, 0.85, 1])
+    fig_rad.tight_layout(rect=[0, 0, 0.85, 1])
+    fig_cmp.tight_layout(rect=[0, 0, 0.85, 1])
+    fig_err.tight_layout(rect=[0, 0, 0.85, 1])
+
+    def plot_cones(ax, cones):
+        for cone in cones:
+            ax.plot(cone['x'], cone['y'], marker='^', ms=10, mfc='orange', mec='darkorange')
 
     for d in _TRAJ_BUF:
         x, y = d["x"], d["y"]
-        s  = np.concatenate(([0.0], np.cumsum(np.hypot(np.diff(x), np.diff(y)))))
+        s = np.concatenate(([0.0], np.cumsum(np.hypot(np.diff(x), np.diff(y)))))
         dx = np.gradient(x, s)
         dy = np.gradient(y, s)
         ddx = np.gradient(dx, s)
         ddy = np.gradient(dy, s)
-        kappa = np.abs(dx*ddy - dy*ddx) / np.power(dx*dx + dy*dy, 1.5)
+        kappa = np.abs(dx * ddy - dy * ddx) / np.power(dx * dx + dy * dy, 1.5)
         r = 1.0 / np.where(kappa < 1e-9, np.inf, kappa)
 
-        # s = np.concatenate(([0.0], np.cumsum(np.hypot(np.diff(x), np.diff(y)))))
-        # dx  = np.gradient(x, s)
-        # dy  = np.gradient(y, s)
-        # ddx = np.gradient(dx, s)
-        # ddy = np.gradient(dy, s)
-        # kappa = np.abs(dx*ddy - dy*ddx) / np.power(dx*dx + dy*dy, 1.5)
-        # r = 1.0 / np.clip(kappa, 1e-3, None)
-
-        # path panel
         ax_path.plot(x, y, label=d["tag"])
         if d["cones"] and not plotted_cones:
-            for cone in d["cones"]:
-                ax_path.plot(cone['x'], cone['y'],
-                marker='^', ms=6, mfc='gold', mec='black')
+            plot_cones(ax_path, d["cones"])
             plotted_cones = True
-        # for wp in d["waypoints"]:
-            # ax_path.plot(*wp, "rx")
 
-        # radius panel
-        # ax_rad.plot(r, label=d["tag"])
         r_plot = r.copy()
         r_plot[r_plot > R_MAX_PLOT] = np.nan
-        r_plot = r_plot / R_SCALE                  
-        steps   = np.arange(len(r_plot)) + step_offset
+        r_plot /= R_SCALE
+        steps = np.arange(len(r_plot)) + step_offset
         ax_rad.plot(steps, r_plot, label=d["tag"])
         step_offset += len(r_plot)
 
         if d["x_ref"] is not None:
-            # resample reference to same length as generated path
-            # t_gen = np.linspace(0, 1, len(x))
-            # t_ref = np.linspace(0, 1, len(d["x_ref"]))
-            # x_ref = np.interp(t_gen, t_ref, d["x_ref"])
-            # y_ref = np.interp(t_gen, t_ref, d["y_ref"])
-
-            ax_cmp.plot(d["x_ref"], d["y_ref"],
-                        lw=2, ls="--", color="black",
-                        label=None if plotted_gen else "expected")
-
-            # generated (always blue)
-            ax_cmp.plot(x, y,
-                        color="tab:blue",
-                        label=None if plotted_gen else "generated")
+            ax_cmp.plot(d["x_ref"], d["y_ref"], lw=2, ls="--", color="black", label=None if plotted_gen else "expected")
+            ax_cmp.plot(x, y, color="tab:blue", label=None if plotted_gen else "generated")
             plotted_gen = True
-
-
             if d["cones"]:
-                for cone in d["cones"]:
-                    ax_cmp.plot(cone['x'], cone['y'],
-                                marker='^', ms=6, mfc='gold', mec='black')
+                plot_cones(ax_cmp, d["cones"])
 
-            # ax_cmp.plot(x_ref, y_ref, lw=2, ls='--', label=f'{d["tag"]} ref')
-            # ax_cmp.plot(x,     y,     label=f'{d["tag"]} gen')
+            from scipy.spatial import cKDTree
+            ref_tree = cKDTree(np.column_stack([d["x_ref"], d["y_ref"]]))
+            dist, _ = ref_tree.query(np.column_stack([x, y]), k=1)
+            seg_steps = np.arange(len(dist)) + step_offset_err
+            ax_err.plot(seg_steps, dist, color="tab:blue")
+            step_offset_err += len(dist)
 
-            # err = np.hypot(x_ref - x, y_ref - y)
-            # err = np.hypot(d["x_ref"] - x, d["y_ref"] - y)
-            # ax_err.plot(err, label=d["tag"])
+    ax_path.set(title="generated paths", xlabel="x", ylabel="y")
+    ax_path.grid(); ax_path.legend(); ax_path.axhline(0, ls="--", c="gray")
+    fig_path.tight_layout()
+    fig_path.savefig(os.path.join(save_dir, f"slalom_path_{timestamp}.png"))
 
-            t_gen = np.linspace(0.0, 1.0, len(x))
-            t_ref = np.linspace(0.0, 1.0, len(d["x_ref"]))
-            x_ref_rs = np.interp(t_gen, t_ref, d["x_ref"])
-            y_ref_rs = np.interp(t_gen, t_ref, d["y_ref"])
+    v_safe = 7.4
+    ay_max = 5.0
+    safe_radius = (v_safe ** 2) / ay_max
 
-            err = np.hypot(x_ref_rs - x, y_ref_rs - y)
-            ax_err.plot(err, label=d["tag"])
+    ax_rad.set(title="turn-radius profile", xlabel="step", ylabel="radius (m)")
+    ax_rad.grid()
+    ax_rad.axhline(11.0, ls="--", c="red", label="safe turning radius (ay = 5.0 m/s²)")
+
+    # Move legend directly adjacent to plot (no padding)
+    ax_rad.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), borderaxespad=0., fontsize='small')
+
+    # Maximize the plot width
+    fig_rad.set_size_inches(10, 5)
+    fig_rad.tight_layout(rect=[0, 0, 0.85, 1])  # Shrink plot area to allow tight legend fit
+    fig_rad.savefig(os.path.join(save_dir, f"slalom_radius_{timestamp}.png"))
 
 
-            if d["cones"]:
-                cum_s   = np.cumsum(np.hypot(np.diff(x), np.diff(y)))
-                cum_s   = np.insert(cum_s, 0, 0.0)
-                for cone in d["cones"]:
-                    idx = np.argmin(np.hypot(x - cone['x'], y - cone['y']))
-                    ax_err.plot(idx, err[idx], marker='^',
-                                ms=5, mfc='gold', mec='black')
 
-    # styling  –  keep it tidy
-    ax_path.set(title="generated paths", xlabel="x", ylabel="y");       ax_path.grid(); ax_path.legend(); ax_path.axhline(0, ls="--", c="gray")
-    ax_rad.set(title="turn-radius profile", xlabel="step", ylabel="radius (m)"); ax_rad.grid(); ax_rad.legend(); ax_rad.axhline(11.0, ls="--", c="red", label="min safe R")
-    ax_cmp.set(title="expected vs generated path", xlabel="x", ylabel="y");       ax_cmp.grid();  ax_cmp.legend()
-    ax_err.set(title="absolute lateral error",    xlabel="step", ylabel="error (m)"); ax_err.grid(); ax_err.legend()
 
-    fig.tight_layout()
-    fig.savefig(fname)
-    print(f"[slalom-plot] saved → {fname}")
-    plt.close(fig)
+    ax_cmp.set(title="expected vs generated path", xlabel="x", ylabel="y")
+    ax_cmp.grid(); ax_cmp.legend()
+    fig_cmp.tight_layout()
+    fig_cmp.savefig(os.path.join(save_dir, f"slalom_cmp_{timestamp}.png"))
+
+    ax_err.set(title="absolute lateral error", xlabel="step", ylabel="error (m)")
+    ax_err.grid(); ax_err.legend()
+    fig_err.tight_layout()
+    fig_err.savefig(os.path.join(save_dir, f"slalom_error_{timestamp}.png"))
+
+    print(f"[slalom-plot] saved → {save_dir}/slalom_*_{timestamp}.png")
+    plt.close("all")
+
 
 atexit.register(_render_slalom_buffer)
 
@@ -497,7 +903,37 @@ def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
         {'x': 50, 'y': 0.0, 'orientation': 'left'},
         {'x': 70, 'y': 1.0, 'orientation': 'standing'},
     ]
-    x_ref, y_ref = make_reference_slalom(cones, amp=2.0, tail=10.0, pts_per_seg=80)
+    # x_ref, y_ref = make_reference_slalom(cones, amp=2.0, tail=10.0, pts_per_seg=80)
+    # x_ref, y_ref = make_reference_slalom_roundtrip(cones,
+    #                                            amp=2.0,
+    #                                            tail_out=10.0,
+    #                                            r_turn=15.0,
+    #                                            pts_per_seg=100)
+    # x_ref, y_ref = make_reference_slalom_roundtrip_smooth(
+    #               cones,
+    #               amp=2.0,
+    #               tail_out=10.0,
+    #               r_turn=4.0,   
+    #               smooth=0.25) 
+    
+    ctrl_pts = [
+    (0, 0),
+    (10, 1.8),
+    (30, -0.8),
+    (50, 2.0),
+    (70, -2.0),
+    (75, 2.0),   # start of U-turn
+    (70, 6.0),
+    (50, 2.0),
+    (30, -0.8),
+    (10, 1.8),
+    (0, 0)
+    ]
+
+    x_ref, y_ref = make_reference_hardcoded(ctrl_pts,
+                                            pts_per_seg=100,  # finer curve
+                                            smooth=0.0)    
+                  
     buffer_slalom_trajectory(x_full, y_full, c_full,
                          waypoints=waypoints,
                          ref={'x': x_ref, 'y': y_ref},
