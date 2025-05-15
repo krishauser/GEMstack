@@ -1,8 +1,5 @@
-# Calibration for front rgb camera->vehicle on GEM e4
-# Calibration Date: 02/25/2025 05:09
-
-reference: rear_axle_center  # rear axle center
-rotation: [[ 0.00349517, -0.03239524, 0.99946903], # rotation component of camera -> vehicle matrix
-          [-0.99996547,  0.00742285,  0.0037375],
-          [-0.00753999, -0.99944757, -0.03236817]] # rotation matrix mapping z to forward, x to left, y to down, guesstimated
-center_position: [ 1.75864913, 0.01238124, 1.54408419] # translation component of camera -> vehicle matrix (in meters)
+position: [1.8680678362969751, 0.03483728869549903, 1.6545932338230158]
+reference: rear_axle_center
+rotation: [[0.020064651878799838, -0.013111205776054045, 0.99971271174677], [-0.9997929081548379,
+    0.0031358785499412617, 0.020107388418472497], [-0.003398609756043868, -0.9999091271454714,
+    -0.013045570240818732]]

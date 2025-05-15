@@ -2,7 +2,7 @@
 # Calibration Date: 02/25/2025 05:09
 
 reference: rear_axle_center  # rear axle center
-position: [1.1, 0.03773044170906172, 1.9525244316515322] # top lidar to vehicle matrix translation component
-rotation: [[ 0.99941328,  0.02547416,  0.02289458], # top lidar to vehicle matrix rotation component
-       [-0.02530855,  0.99965159, -0.00749488],
-       [-0.02307753,  0.00691106,  0.99970979]]
+position: [1.10, 0.03773583, 1.95320223] # meters, calibrated by Hang's watchful eye
+rotation: [[0.99939639, 0.02547917, 0.023615], 
+           [-0.02530848, 0.99965156, -0.00749882],
+           [-0.02379784, 0.00689664, 0.999693]]  #rotation matrix mapping lidar frame to vehicle frame

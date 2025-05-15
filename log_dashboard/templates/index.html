@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>GEMstack Log Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1 class="my-4">GEMstack Log Dashboard</h1>
+        <form id="filter-form" class="form-inline mb-4">
+            <label class="mr-2">Start Date:</label>
+            <input type="date" name="start_date" id="start_date" class="form-control mr-3">
+            <label class="mr-2">End Date:</label>
+            <input type="date" name="end_date" id="end_date" class="form-control mr-3">
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </form>
+        <table class="table table-bordered table-striped">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Date</th>
+                    <th>Run Duration (s)</th>
+                    <th>Termination Reason</th>
+                    <th>Sim vs Real</th>
+                    <th>Launch Command</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="log-table-body">
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.date }}</td>
+                    <td>{{ log.run_duration }}</td>
+                    <td>{{ log.exit_reason }}</td>
+                    <td>{{ log.mode }}</td>
+                    <td>{{ log.launch_command }}</td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="{{ url_for('view_log', log_folder=log.date) }}" class="btn btn-info btn-sm">View
+                                Details</a>
+                            <button onclick="openFolder('{{ log.date }}')" class="btn btn-secondary btn-sm">Open
+                                Folder</button>
+
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+        // Store the base URL for view_log
+        const viewLogBaseUrl = "{{ url_for('view_log', log_folder='PLACEHOLDER') }}".replace('PLACEHOLDER', '');
+        $(document).ready(function () {
+            $("#filter-form").submit(function (e) {
+                e.preventDefault();
+                let startDate = $("#start_date").val();
+                let endDate = $("#end_date").val();
+
+                $.ajax({
+                    url: "/filter_logs",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ start_date: startDate, end_date: endDate }),
+                    success: function (data) {
+                        let tableBody = $("#log-table-body").empty();
+
+
+                        data.forEach(log => {
+                            tableBody.append(`
+                                <tr>
+                                    <td>${log.date}</td>
+                                    <td>${log.run_duration}</td>
+                                    <td>${log.exit_reason}</td>
+                                    <td>${log.mode}</td>
+                                    <td>${log.launch_command}</td>
+                                    <td>
+                                         <div class="btn-group">
+                                            <a href="${viewLogBaseUrl}${log.date}" class="btn btn-info btn-sm">View Details</a>
+                                            <button onclick="openFolder('${log.date}')" class="btn btn-secondary btn-sm">Open Folder</button>
+
+                                         </div>
+                                    </td>
+                                </tr>
+                            `);
+                        });
+                    },
+                    error: function (error) {
+
+                        console.error("Error filtering logs:", error);
+                    }
+                });
+            });
+        });
+
+        function openFolder(folder) {
+            window.location.href = `/open_folder/${encodeURIComponent(folder)}`;
+        }
+    </script>
+</body>
+
+
+</html>

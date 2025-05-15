@@ -16,17 +16,25 @@ fi
 source /opt/ros/noetic/setup.bash
 
 #install Zed SDK
-echo "Select CUDA version:"
+echo "To install the ZED SDK, select the CUDA version:"
 echo "1) CUDA 11.8"
 echo "2) CUDA 12+"
-read -p "Enter choice [1-2]: " choice
+echo "3) No GPU (Skip ZED SDK installation)"
+read -p "Enter choice [1-3]: " choice
 
 case $choice in
     1)
         wget https://download.stereolabs.com/zedsdk/4.0/cu118/ubuntu20 -O zed_sdk.run
+        chmod +x zed_sdk.run
+        ./zed_sdk.run -- silent
         ;;
     2)
         wget https://stereolabs.sfo2.cdn.digitaloceanspaces.com/zedsdk/4.2/ZED_SDK_Ubuntu20_cuda12.1_v4.2.4.zstd.run -O zed_sdk.run
+        chmod +x zed_sdk.run
+        ./zed_sdk.run -- silent
+        ;;
+    3)
+        echo "Skipping ZED SDK installation..."
         ;;
     *)
         echo "Invalid choice"
@@ -34,14 +42,12 @@ case $choice in
         ;;
 esac
 
-chmod +x zed_sdk.run
-./zed_sdk.run -- silent
-
 #create ROS Catkin workspace
 mkdir -p ~/catkin_ws/src
 
 # Store current working directory
 CURRENT_DIR=$(pwd)
+echo "CURRENT_DIR: $CURRENT_DIR"
 
 #install ROS dependencies and packages
 cd ~/catkin_ws/src
@@ -60,9 +66,26 @@ catkin_make -DCMAKE_BUILD_TYPE=Release
 source devel/setup.bash
 
 cd $CURRENT_DIR
-cd ..
 #install GEMstack Python dependencies
-python3 -m pip install -r requirements.txt
+
+# Ask the user if they want to install ultralytics
+read -p "Do you want to install ultralytics? (y/n): " install_ultralytics
+
+# Create a temporary requirements file
+temp_requirements="temp_requirements.txt"
+
+# Copy all lines except ultralytics if the user chooses to skip it
+if [ "$install_ultralytics" == "y" ]; then
+    cp requirements.txt $temp_requirements
+else
+    grep -v "ultralytics" requirements.txt > $temp_requirements
+fi
+
+# Install the packages from the temporary requirements file
+pip3 install -r $temp_requirements
+
+# Clean up the temporary file
+rm $temp_requirements
 
 #install other dependencies
-sudo apt-get install -y ros-noetic-septentrio-gnss-driver
+sudo apt-get install -y ros-noetic-septentrio-gnss-driver ros-noetic-ackermann-msgs ros-noetic-novatel-gps-msgs ros-noetic-gazebo-msgs
