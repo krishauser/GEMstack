@@ -16,8 +16,7 @@ from cv_bridge import CvBridge
 import time
 import os
 import yaml
-import json
-import matplotlib.pyplot as plt
+
 
 class ConeDetector3D(Component):
     """
@@ -274,6 +273,7 @@ class ConeDetector3D(Component):
                 continue
 
             points_3d = roi_pts[:, 2:5]
+
             points_3d = filter_points_within_threshold(points_3d, 40)
             points_3d = remove_ground_by_min_range(points_3d, z_range=0.08)
             points_3d = filter_depth_points(points_3d, max_depth_diff=0.5)
