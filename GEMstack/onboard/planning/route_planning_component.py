@@ -13,7 +13,7 @@ from GEMstack.state.agent import AgentState
 from GEMstack.state.intent import VehicleIntentEnum
 from GEMstack.state.mission_plan import MissionPlan, ModeEnum
 from GEMstack.state.obstacle import Obstacle, ObstacleMaterialEnum
-from .planner import optimized_kinodynamic_rrt_planning
+from .rrt_star_entrypoint import optimized_kinodynamic_rrt_planning
 from typing import List
 from ..component import Component
 from ...state import Route, ObjectFrameEnum
