@@ -1,9 +1,9 @@
 mass: 700.0  #kg
 gravity: 9.81 #m/s^2
-longitudinal_friction : 1.0  # unitless TODO find make/model of tires 
-lateral_friction : 1.0       # unitless (I will bet these things do not have 1 coefficent of fricition)
-max_brake_deceleration: 8.0  #m/s^2.  Deceleration at max brake pedal TODO (un cap this cap)
-max_accelerator_acceleration: #m/s^2. Acceleration at max accelerator pedal, by gear (un cap this cap)
+longitudinal_friction : 1.0  # unitless
+lateral_friction : 1.0       # unitless
+max_brake_deceleration: 8.0  #m/s^2.  Deceleration at max brake pedal
+max_accelerator_acceleration: #m/s^2. Acceleration at max accelerator pedal, by gear
   - 0.0
   - 5.0
 max_accelerator_acceleration_reverse: 2.5 #m/s^2. Acceleration (backwards) in reverse gear
