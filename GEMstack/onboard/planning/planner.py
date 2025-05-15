@@ -3,6 +3,7 @@ import argparse
 import time
 import matplotlib
 import matplotlib.pyplot as plt
+import math
 
 from .collision import build_collision_lookup
 from .kinodynamic_rrt_star import OptimizedKinodynamicRRT

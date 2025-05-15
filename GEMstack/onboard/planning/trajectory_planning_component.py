@@ -496,17 +496,17 @@ class LongitudinalPlanner(Component):
         route = state.route  # type: Route
         t = state.t
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: t =", t)
+            print("[DEBUG] LongitudinalPlanner.update: t =", t)
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: dt =", dt)
+            print("[DEBUG] LongitudinalPlanner.update: dt =", dt)
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
         curr_v = vehicle.v
         if DEBUG:
-            print(f"[DEBUG] YieldTrajectoryPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}, ")
+            print(f"[DEBUG] LongitudinalPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}, ")
         # Determine progress along the route.
         if self.route_progress is None:
             self.route_progress = 0.0
@@ -515,12 +515,12 @@ class LongitudinalPlanner(Component):
             (self.route_progress - 5.0, self.route_progress + 5.0)
         )
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: Closest parameter on route =", closest_parameter)
+            print("[DEBUG] LongitudinalPlanner.update: Closest parameter on route =", closest_parameter)
         self.route_progress = closest_parameter
         # Extract a 10 m segment of the route for planning lookahead.
         route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
+            print("[DEBUG] LongitudinalPlanner.update: Route Lookahead =", route_with_lookahead)
         print("[DEBUG] state", state.relations)
         # Check whether any yield relations (e.g. due to pedestrians) require braking.
         stay_braking = False
@@ -540,37 +540,37 @@ class LongitudinalPlanner(Component):
         ) if should_brake == False else False
         should_accelerate = (not should_brake and not should_decelerate and curr_v < self.desired_speed)
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: stay_braking =", stay_braking)
-            print("[DEBUG] YieldTrajectoryPlanner.update: should_brake =", should_brake)
-            print("[DEBUG] YieldTrajectoryPlanner.update: should_accelerate =", should_accelerate)
-            print("[DEBUG] YieldTrajectoryPlanner.update: should_decelerate =", should_decelerate)
+            print("[DEBUG] LongitudinalPlanner.update: stay_braking =", stay_braking)
+            print("[DEBUG] LongitudinalPlanner.update: should_brake =", should_brake)
+            print("[DEBUG] LongitudinalPlanner.update: should_accelerate =", should_accelerate)
+            print("[DEBUG] LongitudinalPlanner.update: should_decelerate =", should_decelerate)
         if stay_braking:
             traj = longitudinal_brake(route_with_lookahead, 0.0, 0.0, 0.0, planner_type="standard")
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake (stay braking).")
+                print("[DEBUG] LongitudinalPlanner.update: Using longitudinal_brake (stay braking).")
         elif should_brake:
             traj = longitudinal_brake(route_with_lookahead, self.emergency_brake, curr_v, planner_type="standard")
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+                print("[DEBUG] LongitudinalPlanner.update: Using longitudinal_brake.")
         elif should_decelerate:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v, planner_type="standard")
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+                print("[DEBUG] LongitudinalPlanner.update: Using longitudinal_brake.")
         elif should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration,
                                      self.deceleration, self.desired_speed, curr_v, planner_type="standard")
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan (accelerate).")
+                print("[DEBUG] LongitudinalPlanner.update: Using longitudinal_plan (accelerate).")
         else:
             # Maintain current speed if not accelerating or braking.
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v, planner_type="standard")
             if DEBUG:
                 print(
-                    "[DEBUG] YieldTrajectoryPlanner.update: Maintaining current speed with longitudinal_plan (0 accel).")
+                    "[DEBUG] LongitudinalPlanner.update: Maintaining current speed with longitudinal_plan (0 accel).")
         self.t_last = t
         if DEBUG:
             print('[DEBUG] Current Velocity of the Car: LOOK!', curr_v, self.desired_speed)
-            print("[DEBUG] YieldTrajectoryPlanner.update: Returning trajectory with", len(traj.points), "points.")
+            print("[DEBUG] LongitudinalPlanner.update: Returning trajectory with", len(traj.points), "points.")
         return traj
 
 class QuinticSplineScurveTrajectoryPlanner(Component):
@@ -604,19 +604,19 @@ class QuinticSplineScurveTrajectoryPlanner(Component):
         route = state.route  # type: Route
         t = state.t
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: t =", t)
+            print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: t =", t)
 
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
 
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: dt =", dt)
+            print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: dt =", dt)
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
         curr_v = vehicle.v
         if DEBUG:
-            print(f"[DEBUG] YieldTrajectoryPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}, ")
+            print(f"[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}, ")
             
         # Determine progress along the route.
         if self.route_progress is None:
@@ -626,13 +626,13 @@ class QuinticSplineScurveTrajectoryPlanner(Component):
             (self.route_progress - 5.0, self.route_progress + 5.0)
         )
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: Closest parameter on route =", closest_parameter)
+            print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: Closest parameter on route =", closest_parameter)
         self.route_progress = closest_parameter
         # Extract a 10 m segment of the route for planning lookahead.
         # route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
         route_with_lookahead = route.trim(self.route_progress, self.route_progress + self.lookahead_dist)
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
+            print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
         raw_points = [list(p) for p in route_with_lookahead.points]
         #Generate spline-smoothed path
         spline_pts, _ = self._spline.build(raw_points)
@@ -656,35 +656,35 @@ class QuinticSplineScurveTrajectoryPlanner(Component):
         ) if should_brake == False else False
         should_accelerate = (not should_brake and not should_decelerate and curr_v < self.desired_speed)
         if DEBUG:
-            print("[DEBUG] YieldTrajectoryPlanner.update: stay_braking =", stay_braking)
-            print("[DEBUG] YieldTrajectoryPlanner.update: should_brake =", should_brake)
-            print("[DEBUG] YieldTrajectoryPlanner.update: should_accelerate =", should_accelerate)
-            print("[DEBUG] YieldTrajectoryPlanner.update: should_decelerate =", should_decelerate)
+            print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: stay_braking =", stay_braking)
+            print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: should_brake =", should_brake)
+            print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: should_accelerate =", should_accelerate)
+            print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: should_decelerate =", should_decelerate)
         if stay_braking:
             traj = longitudinal_brake(spline_path, 0.0, 0.0, 0.0, planner_type="scurve")
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake (stay braking).")
+                print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: Using longitudinal_brake (stay braking).")
         elif should_brake:
             traj = longitudinal_brake(spline_path, self.emergency_brake, curr_v, planner_type="scurve")
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+                print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: Using longitudinal_brake.")
         elif should_decelerate:
             traj = longitudinal_brake(spline_path, self.deceleration, curr_v, planner_type="scurve")
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_brake.")
+                print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: Using longitudinal_brake.")
         elif should_accelerate:
             traj = longitudinal_plan(spline_path, self.acceleration,
                                      self.deceleration, self.desired_speed, curr_v, planner_type="scurve")
             if DEBUG:
-                print("[DEBUG] YieldTrajectoryPlanner.update: Using longitudinal_plan (accelerate).")
+                print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: Using longitudinal_plan (accelerate).")
         else:
             # Maintain current speed if not accelerating or braking.
             traj = longitudinal_plan(spline_path, 0.0, self.deceleration, self.desired_speed, curr_v, planner_type="scurve")
             if DEBUG:
                 print(
-                    "[DEBUG] YieldTrajectoryPlanner.update: Maintaining current speed with longitudinal_plan (0 accel).")
+                    "[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: Maintaining current speed with longitudinal_plan (0 accel).")
         self.t_last = t
         if DEBUG:
             print('[DEBUG] Current Velocity of the Car: LOOK!', curr_v, self.desired_speed)
-            print("[DEBUG] YieldTrajectoryPlanner.update: Returning trajectory with", len(traj.points), "points.")
+            print("[DEBUG] QuinticSplineScurveTrajectoryPlanner.update: Returning trajectory with", len(traj.points), "points.")
         return traj

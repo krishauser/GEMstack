@@ -658,4 +658,3 @@ class InspectRoutePlanner(Component):
 
         print("-------------------------------------------------")
         return [self.route, state.mission]
-    

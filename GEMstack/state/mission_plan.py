@@ -17,4 +17,3 @@ class ModeEnum:
     """Enum for different modes of operation."""
     HARDWARE = "hardware"
     SIMULATION = "simulation"
-    
