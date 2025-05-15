@@ -5,7 +5,6 @@ from ...state import AllState, Roadgraph, Route, MissionEnum, ObjectFrameEnum, P
 import os
 import numpy as np
 from .RRT import BiRRT
-from .reeds_shepp_parking import ReedsSheppParking
 
 
 class StaticRoutePlanner(Component):
@@ -216,6 +215,8 @@ class SummoningRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
 
     def __init__(self, roadgraphfn: str = None, map_type: str = 'roadgraph', map_frame: str = 'start'):
+        # Moving this import here to avoid dependency error related to reeds-shepp python package
+        from .reeds_shepp_parking import ReedsSheppParking
         self.planner = None
         self.route = None
         self.map_type = map_type

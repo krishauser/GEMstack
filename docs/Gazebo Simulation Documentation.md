@@ -25,7 +25,7 @@ Follow the instructions in the linked repo to build and run the Docker container
 Install the required ROS packages:
 
 ```bash
-sudo apt-get install -y ros-noetic-ackermann-msgs
+sudo apt-get install -y ros-noetic-ackermann-msgs ros-noetic-gazebo-msgs
 ```
 
 ---
@@ -98,5 +98,69 @@ You can replace `fixed_route.yaml` with your specific launch file.
 GEMstack/knowledge/defaults/
 - `current.yaml` - Default configuration (GEM e4)
 - `e2.yaml` - GEM e2 configuration
+
+## Entity Detection in Gazebo
+
+The Gazebo simulation environment supports detection of various types of entities - both agents (pedestrians, vehicles, etc.) and obstacles (traffic cones, barriers, etc.) that can be spawned in the simulation world.
+
+For detailed information about entity detection, including configuration options, usage examples, and implementation details, see the [Entity Detection Documentation](gazebo_entity_detection.md).
+
+### Quick Start for Entity Detection
+
+To enable entity detection in your Gazebo simulation, add the following to your launch file's `gazebo` variant:
+
+```yaml
+drive:
+    perception:
+        state_estimation: GNSSStateEstimator  # Matches your Gazebo GNSS implementation
+        agent_detection:
+            type: agent_detection.GazeboAgentDetector
+            args:
+                tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
+        obstacle_detection:
+            type: obstacle_detection.GazeboObstacleDetector
+            args:
+                tracked_obstacle_prefixes: ['cone']
+```
+
+#### Configuration Options
+
+- **Agent Detection**:
+  - `type`: Specify the detector class (`agent_detection.GazeboAgentDetector`)
+  - `args`: Additional arguments:
+    - `tracked_model_prefixes`: Array of prefixes for models to track as agents
+  
+- **Obstacle Detection**:
+  - `type`: Specify the detector class (`obstacle_detection.GazeboObstacleDetector`)
+  - `args`: Additional arguments:
+    - `tracked_obstacle_prefixes`: Array of prefixes for models to track as obstacles
+
+The prefixes in the configuration arrays define which entities will be tracked. For example:
+- A model named `pedestrian1` will be detected as a pedestrian agent
+- A model named `cone5` will be detected as a traffic cone obstacle
+
+You can customize these arrays based on the entities present in your simulation environment.
+
+### Spawning Entities in Gazebo
+
+You can spawn both agents and obstacles in Gazebo using a YAML configuration file.
+
+Follow the instructions in the [POLARIS GEM Simulator](https://github.com/harishkumarbalaji/POLARIS_GEM_Simulator/tree/main) repository to spawn entities in Gazebo.
+
+The naming conventions for entities are important as they determine how models are detected and classified. Refer to the [Entity Detection Documentation](gazebo_entity_detection.md) for details on model naming and the detection process.
+
+## Collision Logging in Gazebo
+
+To enable collision logging in your Gazebo simulation, add the following to your launch file's `gazebo` variant:
+
+```yaml
+run:
+    collision_logging: True  # Enable collision logging
+```
+
+When enabled, the collision logger will:
+- Monitor collisions between the vehicle and other objects in the simulation
+- Log collision details including colliding objects, contact position, normal, and depth
+- Output logs to `GazeboCollisionLogger.stdout.log` in your log directory
 
 ---
