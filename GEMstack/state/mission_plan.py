@@ -10,7 +10,6 @@ class MissionPlan:
     planner_type : PlannerEnum = PlannerEnum.RRT_STAR
     goal_vehicle_pose : Optional[ObjectPose] = None
     start_vehicle_pose : Optional[ObjectPose] = None
-    mode: str = "simulation"
     # other mission-specific parameters can be added here
 
 class ModeEnum:

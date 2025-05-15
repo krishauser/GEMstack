@@ -10,6 +10,7 @@ from GEMstack.state.physical_object import ObjectFrameEnum, ObjectPose
 from GEMstack.state.route import PlannerEnum, Route, Path
 from .parking_route_planner import ParkingPlanner
 from .longitudinal_planning import longitudinal_plan
+from GEMstack.utils import settings
 
 from GEMstack.state.vehicle import VehicleState
 from GEMstack.state.agent import AgentState
@@ -44,6 +45,7 @@ class RoutePlanningComponentExample(Component):
         self.img_pub = rospy.Publisher("/occupancy_grid", Image, queue_size=1)
         self.previous_obstacles = None
         self.frame = None
+        self.mode = settings.get("run.mode")
 
     def state_inputs(self):
         return ["vehicle", "mission_plan", "obstacles"]
@@ -58,7 +60,7 @@ class RoutePlanningComponentExample(Component):
     def update(self, vehicle: VehicleState, mission_plan: MissionPlan, obstacles: Obstacle) -> Route:
 
         if self.frame is None:
-            if mission_plan.mode == ModeEnum.HARDWARE:
+            if self.mode == ModeEnum.HARDWARE:
                 self.frame = ObjectFrameEnum.GLOBAL
             else: #simulation
                 self.frame = ObjectFrameEnum.ABSOLUTE_CARTESIAN
