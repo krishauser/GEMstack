@@ -25,12 +25,14 @@ def plot_mpc_debug(csv_path):
     yaw = df['mpc/state_yaw']
     target_theta = df['mpc/target_theta']
 
+    position_error = df['mpc/position_error']
+    heading_error = df['mpc/heading_error']
+
     jerk_time = time[1:]
     jerk = np.diff(accel) / np.diff(time)
-    heading_acc = np.diff(yaw) / np.diff(time)
 
     fig, axs = plt.subplots(2, 2, figsize=(12, 8))
-    fig.subplots_adjust(hspace=0.4, wspace=0.3)
+    fig.subplots_adjust(hspace=0.5, wspace=0.3)
 
     axs[0,0].plot(jerk_time, jerk, color='blue')
     axs[0,0].set_title("Vehicle Jerk Over Time")
@@ -38,17 +40,17 @@ def plot_mpc_debug(csv_path):
     axs[0,0].set_ylabel("Jerk (m/s³)")
     axs[0,0].grid(True)
 
-    axs[0,1].plot(jerk_time, heading_acc, color='orange')
-    axs[0,1].set_title("Heading Acceleration Over Time")
+    axs[0,1].plot(time, position_error, label="Position Error", color='green')
+    axs[0,1].set_title("Position Error Over Time")
     axs[0,1].set_xlabel("Time (s)")
-    axs[0,1].set_ylabel("Heading Acceleration (rad/s²)")
+    axs[0,1].set_ylabel("Error (m)")
+    axs[0,1].legend()
     axs[0,1].grid(True)
 
-    axs[1,0].plot(time, state_x - target_x, label="CTE X", color='green')
-    axs[1,0].plot(time, state_y - target_y, label="CTE Y", color='purple')
-    axs[1,0].set_title("Cross Track Error Over Time")
+    axs[1,0].plot(time, heading_error, label="Heading Error", color='red')
+    axs[1,0].set_title("Heading Error Over Time")
     axs[1,0].set_xlabel("Time (s)")
-    axs[1,0].set_ylabel("CTE (m)")
+    axs[1,0].set_ylabel("Error (rad)")
     axs[1,0].legend()
     axs[1,0].grid(True)
 
@@ -61,6 +63,13 @@ def plot_mpc_debug(csv_path):
     axs[1,1].grid(True)
 
     plt.show()
+
+    print("Max (abs) position error:", np.max(np.abs(position_error)))
+    print("Avg position error:", np.mean(np.abs(position_error)))
+    print("Max (abs) heading error:", np.max(np.abs(heading_error)))
+    print("Avg heading error:", np.mean(np.abs(heading_error)))
+    print("Max (abs) jerk:", np.max(np.abs(jerk)))
+    print("Avg jerk:", np.mean(np.abs(jerk)))
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
@@ -79,4 +88,3 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
-
