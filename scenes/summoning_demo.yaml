@@ -1,4 +1,4 @@
-vehicle_state: [15.0, 14.0, 3.14, 0.0, 0.0]
+vehicle_state: [10.0, 0.0, 0.0, 0.0, 0.0]
 agents:
   car1:
     type: car
