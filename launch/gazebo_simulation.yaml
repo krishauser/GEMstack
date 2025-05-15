@@ -68,11 +68,42 @@ variants:
                 type: gem_gazebo.GEMGazeboInterface
                 # args:
                 #     scene: !relative_path '../scenes/gazebo.yaml'
+            collision_logging: True  # Enable collision logging for gazebo simulation
 
             drive: 
                 perception:
                     state_estimation : GNSSStateEstimator
                     agent_detection : test_yolo_gazebo_simulation.ObjectDetection
+                    perception_normalization : StandardPerceptionNormalizer
+
+                planning:
+                    # Adding your custom relation estimation
+                    # relations_estimation: pedestrian_yield_logic.PedestrianYielder
+                    # Fixed route with pure pursuit
+                    route_planning:
+                        type: StaticRoutePlanner
+                        args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv'] # Fixed path
+                    motion_planning:
+                        type: RouteToTrajectoryPlanner
+                        args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+                    trajectory_tracking:
+                        type: pure_pursuit.PurePursuitTrajectoryTracker
+                        args: {desired_speed: 2.5}  #approximately 5mph
+                        print: True
+            # visualization: !include "klampt_visualization.yaml"
+            # visualization: !include "mpl_visualization.yaml"
+    gazebo_sensor_check:
+        run:
+            mode: simulation
+            vehicle_interface:
+                type: gem_gazebo.GEMGazeboInterface
+                # args:
+                #     scene: !relative_path '../scenes/gazebo.yaml'
+
+            drive: 
+                perception:
+                    state_estimation : GNSSStateEstimator
+                    agent_detection : test_gazebo_sensors.SensorCheck
                     perception_normalization : StandardPerceptionNormalizer
 
                 planning:

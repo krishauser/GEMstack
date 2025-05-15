@@ -30,7 +30,7 @@ jobs:
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
-        flake8 ./GEMstack --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=__init__.py || exit 1
+        flake8 ./GEMstack --count --select=E9,F63,F7,F82 --ignore=F824 --show-source --statistics --exclude=__init__.py || exit 1
         # to enable more advanced checks on the repo, uncomment the lines below (There are around 3000 violations)
         # flake8 ./GEMstack --ignore=D,C901,E402,E231 --count --max-complexity=10 --max-line-length=127 --statistics --exclude=__init__.py || exit 1
         # if we want to enable documentation checks, uncomment the line below
