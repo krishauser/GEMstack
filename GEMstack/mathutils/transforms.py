@@ -127,7 +127,7 @@ def xy_to_lat_lon(x_east : float, y_north : float, lat_reference : float, lon_re
 
     Returns (lat,lon), where lat and lon are in degrees.
     """
-    import alvinxy.alvinxy as axy 
+    import alvinxy.alvinxy as axy
     # convert GNSS waypoints into local fixed frame reprented in x and y
     lat, lon = axy.xy2ll(x_east, y_north, lat_reference, lon_reference)
     return lat, lon
