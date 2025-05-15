@@ -12,7 +12,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.optimize import minimize
-from scipy.interpolate import CubicSpline, splprep, splev
+from scipy.interpolate import CubicSpline, splprep, splev, interp1d
+
 from scipy.spatial import cKDTree
 import signal
 import threading
@@ -71,7 +72,7 @@ def buffer_slalom_trajectory(
 
 
 def _render_slalom_buffer(
-    save_dir="/home/hbst/RACING/GEMstack/GEMstack/onboard/planning/test_slalom/final2",
+    save_dir="./slalom_results",
 ):
     if not _TRAJ_BUF:
         print("[slalom-plot] nothing buffered – no figure created")
@@ -109,18 +110,36 @@ def _render_slalom_buffer(
         ddx = np.gradient(dx, s)
         ddy = np.gradient(dy, s)
         kappa = np.abs(dx * ddy - dy * ddx) / np.power(dx * dx + dy * dy, 1.5)
-        r = 1.0 / np.where(kappa < 1e-9, np.inf, kappa)
+        # r = 1.0 / np.where(kappa < 1e-9, np.inf, kappa)
+
+
+        x_ref, y_ref = d["x_ref"], d["y_ref"]
+        s_ref = np.concatenate(([0.0], np.cumsum(np.hypot(np.diff(x_ref), np.diff(y_ref)))))
+        dx_ref = np.gradient(x_ref, s_ref)
+        dy_ref = np.gradient(y_ref, s_ref)
+        ddx_ref = np.gradient(dx_ref, s_ref)
+        ddy_ref = np.gradient(dy_ref, s_ref)
+        kappa_ref = np.abs(dx_ref * ddy_ref - dy_ref * ddx_ref) / np.power(dx_ref * dx_ref + dy_ref * dy_ref, 1.5)
+
 
         ax_path.plot(x, y, label=d["tag"])
         if d["cones"] and not plotted_cones:
             plot_cones(ax_path, d["cones"])
             plotted_cones = True
 
-        r_plot = r.copy()
+        r_plot = kappa.copy()
         r_plot[r_plot > R_MAX_PLOT] = np.nan
-        r_plot /= R_SCALE
+        # r_plot /= R_SCALE
         steps = np.arange(len(r_plot)) + step_offset
         ax_rad.plot(steps, r_plot, label=d["tag"])
+        # ax_rad.plot(steps, kappa_ref, lw=2, ls="--", color="black", label=None if plotted_gen else "expected")
+        s_ref = np.linspace(0, 1, len(kappa_ref))
+        s_target = np.linspace(0, 1, len(steps))
+
+        interp_kappa = interp1d(s_ref, kappa_ref, kind='linear')
+        kappa_ref_resampled = interp_kappa(s_target)
+
+        ax_rad.plot(steps, kappa_ref_resampled, lw=2, ls="--", color="black", label="expected")
         step_offset += len(r_plot)
 
         if d["x_ref"] is not None:
@@ -139,6 +158,7 @@ def _render_slalom_buffer(
 
     ax_path.set(title="generated paths", xlabel="x", ylabel="y")
     ax_path.grid(); ax_path.legend(); ax_path.axhline(0, ls="--", c="gray")
+    fig_path.set_size_inches(32, 5)
     fig_path.tight_layout()
     fig_path.savefig(os.path.join(save_dir, f"slalom_path_{timestamp}.png"))
 
@@ -148,13 +168,13 @@ def _render_slalom_buffer(
 
     ax_rad.set(title="turn-radius profile", xlabel="step", ylabel="radius (m)")
     ax_rad.grid()
-    ax_rad.axhline(11.0, ls="--", c="red", label="safe turning radius (ay = 5.0 m/s²)")
+    ax_rad.axhline(1/4.39, ls="--", c="red", label="safe curvature (ay = 0.2 1/m)")
 
     
     ax_rad.legend(loc='center left', bbox_to_anchor=(1.0, 0.5), borderaxespad=0., fontsize='small')
 
     
-    fig_rad.set_size_inches(10, 5)
+    fig_rad.set_size_inches(30, 5)
     fig_rad.tight_layout(rect=[0, 0, 0.85, 1])  
     fig_rad.savefig(os.path.join(save_dir, f"slalom_radius_{timestamp}.png"))
 
@@ -163,6 +183,7 @@ def _render_slalom_buffer(
 
     ax_cmp.set(title="expected vs generated path", xlabel="x", ylabel="y")
     ax_cmp.grid(); ax_cmp.legend()
+    fig_cmp.set_size_inches(32, 5)
     fig_cmp.tight_layout()
     fig_cmp.savefig(os.path.join(save_dir, f"slalom_cmp_{timestamp}.png"))
 
@@ -175,7 +196,7 @@ def _render_slalom_buffer(
     plt.close("all")
 
 
-atexit.register(_render_slalom_buffer)
+# atexit.register(_render_slalom_buffer)
 
 def _sig_flush_then_exit(signum, frame):
     _render_slalom_buffer()
@@ -183,8 +204,8 @@ def _sig_flush_then_exit(signum, frame):
     signal.signal(signum, signal.SIG_DFL)
     os.kill(os.getpid(), signum)
 
-signal.signal(signal.SIGINT,  _sig_flush_then_exit) 
-signal.signal(signal.SIGTERM, _sig_flush_then_exit) 
+# signal.signal(signal.SIGINT,  _sig_flush_then_exit) 
+# signal.signal(signal.SIGTERM, _sig_flush_then_exit) 
 
 def scenario_check(vehicle_state, cone_state):
     """
@@ -231,7 +252,7 @@ def waypoint_generate(vehicle_state, cones, cone_idx, next_cone_idx, prev_cone_i
     target_heading = car_heading
 
     # ===== Parameters =====
-    u_turn_radius = 8      # Radius for U-turn
+    u_turn_radius = 7.5      # Radius for U-turn
     offset = 2.0                # Offset for left/right pass
     lookahead_distance = 10.0   # Distance ahead for fixed point
     # ======================
@@ -502,29 +523,6 @@ def trajectory_generation(init_state, final_state, N=30, T=0.1, Lr=1.5,
     #               tail_out=10.0,
     #               r_turn=4.0,   
     #               smooth=0.25) 
-    
-    ctrl_pts = [
-    (0, 0),
-    (10, 1.8),
-    (30, -0.8),
-    (50, 2.0),
-    (70, -2.0),
-    (75, 2.0),   # start of U-turn
-    (70, 6.0),
-    (50, 2.0),
-    (30, -0.8),
-    (10, 1.8),
-    (0, 0)
-    ]
-
-    x_ref, y_ref = make_reference_hardcoded(ctrl_pts,
-                                            pts_per_seg=100,  # finer curve
-                                            smooth=0.0)    
-                  
-    buffer_slalom_trajectory(x_full, y_full, c_full,
-                         waypoints=waypoints,
-                         ref={'x': x_ref, 'y': y_ref},
-                         cones=cones)  
 
 
     return x_full, y_full, psi_full, c_full, v_full, eps_, final_error
@@ -771,7 +769,7 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
     current_heading = vehicle_state['heading']
 
     for cone_idx, cone in enumerate(cones):
-        scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, cones, cone_idx)
+        scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, cones, cone_idx, None, None)
         print(f"Scenario: {scenario}, Cone: {cone}, Flex WP: {flex_wps}, Fixed WP: {fixed_wp}")
         if not flex_wps or fixed_wp is None:
             continue
@@ -822,9 +820,59 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
     combined_xy = [[x, y] for x, y in zip(x_all, y_all)]
     # print(combined_xy)
     path = Path(ObjectFrameEnum.START,combined_xy)
-    path = compute_headings(path)
+    path = compute_headings(path, smoothed=True)
     path = path.arc_length_parameterize()
-    # print(path)
+
+    # # Plot cones
+    # for i, cone in enumerate(cones):
+    #     if i <= 3:
+    #         plt.scatter(cone['x'], cone['y'], color='orange', s=10, label='Cone' if i == 0 else "")
+    #         plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
+    # # print(path)
+    xs = [p[0] for p in path.points]
+    ys = [p[1] for p in path.points]
+    s = np.concatenate(([0.0], np.cumsum(np.hypot(np.diff(xs), np.diff(ys)))))
+    dx = np.gradient(xs, s)
+    dy = np.gradient(ys, s)
+    ddx = np.gradient(dx, s)
+    ddy = np.gradient(dy, s)
+    cs = np.abs(dx * ddy - dy * ddx) / np.power(dx**2 + dy**2, 1.5)
+
+    # plt.plot(xs, ys, label='Trajectory')
+    # plt.title('4-Cone Slalom Trajectory')
+    # plt.xlabel('X')
+    # plt.ylabel('Y')
+    # plt.legend()
+    # plt.axis('equal')
+    # plt.grid(True)
+    # plt.show()
+
+    ctrl_pts = [
+    (0, 0),
+    (10, 1.8),
+    (30, -0.8),
+    (50, 2.0),
+    (70, -2.0),
+    (75, 2.0),   # start of U-turn
+    (70, 6.0),
+    (50, 2.0),
+    (30, -0.8),
+    (10, 1.8),
+    (0, 0)
+    ]
+
+    x_ref, y_ref = make_reference_hardcoded(ctrl_pts,
+                                            pts_per_seg=100,  # finer curve
+                                            smooth=0.0)  
+                  
+    buffer_slalom_trajectory(xs, ys, cs,
+                         ref={'x': x_ref, 'y': y_ref},
+                         cones=[
+                            {'x': 10, 'y': 0.0, 'orientation': 'left'},
+                            {'x': 30, 'y': 1.0, 'orientation': 'right'},
+                            {'x': 50, 'y': 0.0, 'orientation': 'left'},
+                            {'x': 70, 'y': 1.0, 'orientation': 'standing'},
+                        ])  
     return path.racing_velocity_profile()
     # return to_gemstack_trajectory(x_all, y_all, v_all)
 
@@ -1117,28 +1165,47 @@ class SlalomTrajectoryPlanner(Component):
                     y_full = np.concatenate([old_y, y_new])
                     v_full = np.concatenate([old_v, v_new])
 
-                    # if current_cone_idx == 6:
-                    #     # Plot overall trajectory
-                    #     plt.figure()
-                    #     plt.plot(x_full, y_full, label='Overall Trajectory')
+                    if current_cone_idx == 6:
+                        combined_xy = [[x, y] for x, y in zip(x_full, y_full)]
+                        path = Path(ObjectFrameEnum.START,combined_xy)
+                        path = compute_headings(path, smoothed=True)
+                        path = path.arc_length_parameterize()
+                        xs = [p[0] for p in path.points]
+                        ys = [p[1] for p in path.points]
+                        s = np.concatenate(([0.0], np.cumsum(np.hypot(np.diff(xs), np.diff(ys)))))
+                        dx = np.gradient(xs, s)
+                        dy = np.gradient(ys, s)
+                        ddx = np.gradient(dx, s)
+                        ddy = np.gradient(dy, s)
+                        cs = np.abs(dx * ddy - dy * ddx) / np.power(dx**2 + dy**2, 1.5)
 
-                    #     # Plot cones
-                    #     for i, cone in enumerate(self.cones):
-                    #         plt.scatter(cone['x'], cone['y'], color='orange', s=10, label='Cone' if i == 0 else "")
-                    #         plt.text(cone['x'], cone['y'] + 0.5, f'C{i+1}', ha='center', fontsize=9, color='darkorange')
+                        ctrl_pts = [
+                        (0, 0),
+                        (10, 1.8),
+                        (30, -0.8),
+                        (50, 2.0),
+                        (70, -2.0),
+                        (75, 2.0),   # start of U-turn
+                        (70, 6.0),
+                        (50, 2.0),
+                        (30, -0.8),
+                        (10, 1.8),
+                        (0, 0)
+                        ]
 
-                    #     # Plot fixed waypoint
-                    #     if fixed_wp is not None:
-                    #         plt.plot(fixed_wp[0], fixed_wp[1], 'ro', label='Fixed Waypoint')
-                    #         plt.text(fixed_wp[0], fixed_wp[1] + 0.5, 'Fixed', fontsize=9, color='red')
-
-                    #     plt.title('4-Cone Full Course Trajectory')
-                    #     plt.xlabel('X')
-                    #     plt.ylabel('Y')
-                    #     plt.legend()
-                    #     plt.axis('equal')
-                    #     plt.grid(True)
-                    #     plt.show()
+                        x_ref, y_ref = make_reference_hardcoded(ctrl_pts,
+                                                                pts_per_seg=100,  # finer curve
+                                                                smooth=0.0)  
+                                    
+                        buffer_slalom_trajectory(xs, ys, cs,
+                                            ref={'x': x_ref, 'y': y_ref},
+                                            cones=[
+                                                {'x': 10, 'y': 0.0, 'orientation': 'left'},
+                                                {'x': 30, 'y': 1.0, 'orientation': 'right'},
+                                                {'x': 50, 'y': 0.0, 'orientation': 'left'},
+                                                {'x': 70, 'y': 1.0, 'orientation': 'standing'},
+                                            ])  
+                        # return to_gemstack_trajectory(x_all, y_all, v_all)
 
                     # 4. Create trajectory
                     self.trajectory = to_gemstack_trajectory(x_full, y_full, v_full)

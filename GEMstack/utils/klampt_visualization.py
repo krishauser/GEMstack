@@ -75,7 +75,7 @@ def plot_object(name : str, obj : PhysicalObject, type=None, axis_len=None, outl
     If bbox is True, shows the object's bounding box.
     """
     height = obj.dimensions[2]
-    core_color = OBJECT_COLORS[type]
+    core_color = (1,0.5,0,0.8)
     bbox_color = AUX_BBOX_COLOR
     if label:
         #add a point at the object's origin
@@ -203,10 +203,11 @@ def plot_vehicle(vehicle : VehicleState, vehicle_model=None, axis_len=1.0):
             vehicle_model.link('rear_left_stop_light_link').appearance().setColor(0.3,0,0,1)
 
 def plot_path(name : str, path : Path, color=(0,0,0), width=1):
-    if len(path.points) > MAX_POINTS_IN_CURVE:  # downsample due to OpenGL error?
-        vis.add(name,[list(p) for p in path.points[::len(path.points)//MAX_POINTS_IN_CURVE]],color=color,width=width)
-    else:
-        vis.add(name,[list(p) for p in path.points],color=color,width=width)
+    flat_points = [[p[0], p[1], 0.05] for p in path.points]  # flatten z
+    if len(flat_points) > MAX_POINTS_IN_CURVE:
+        flat_points = flat_points[::len(flat_points)//MAX_POINTS_IN_CURVE]
+    vis.add(name, flat_points, color=color, width=width)
+
 
 def plot_curve(name : str, curve : RoadgraphCurve, color=None, width=None):
     style = CURVE_TO_STYLE.get(curve.type,CURVE_TO_STYLE[None])
