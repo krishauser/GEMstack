@@ -7,7 +7,7 @@ from calib_util import load_ex, load_in
 #
 
 # Destination files name
-output_file = 'new_cameras.yaml'
+output_file = 'gem_e4_perception_cameras.yaml'
 
 # Collect names of all sensors and associated extrinsic/intrinsic files
 camera_files = {'front': ['gem_e4_oak.yaml', 'gem_e4_oak_in.yaml'],
