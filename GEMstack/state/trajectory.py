@@ -384,9 +384,6 @@ class Trajectory(Path):
         e = self.eval(end)
         return replace(self,points=[s]+self.points[sind+1:eind]+[e],times=[start]+self.times[sind+1:eind]+[end])
 
-
-
-
 def compute_headings(path : Path, smoothed = False) -> Path:
     """Converts a 2D (x,y) path into a 3D path (x,y,heading) or a 3D
     (x,y,z) path into a 5D path (x,y,z,heading,pitch).
@@ -414,24 +411,6 @@ def compute_headings(path : Path, smoothed = False) -> Path:
 
         path.points = np.vstack((x_smooth, y_smooth)).T
 
-        # raise NotImplementedError("Smoothing not done yet")
-        points = np.array(path.points)
-        x = points[:, 0]
-        y = points[:, 1]
-       
-        dx = np.diff(x)
-        dy = np.diff(y)
-        ds = np.hypot(dx, dy)
-        s = np.insert(np.cumsum(ds), 0, 0)
-
-        tck_x = splrep(s, x, s=0.5)
-        tck_y = splrep(s, y, s=0.5)
-
-        s_fine = np.linspace(0, s[-1], 200)
-        x_smooth = splev(s_fine, tck_x)
-        y_smooth = splev(s_fine, tck_y)
-
-        path.points = np.vstack((x_smooth, y_smooth)).T
     if len(path.points) < 2:
         raise ValueError("Path must have at least 2 points")
     derivs = []
