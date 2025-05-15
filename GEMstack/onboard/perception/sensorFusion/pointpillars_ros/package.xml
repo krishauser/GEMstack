@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>pointpillars_ros</name>
+  <version>0.1.0</version>
+  <description>ROS wrapper for PointPillars 3D object detection.</description>
+  <maintainer email="lukasd2@illinois.edu">Your Name</maintainer> <license>Apache-2.0</license> <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>message_filters</depend>
+  <depend>tf2_ros</depend>
+  <depend>cv_bridge</depend>
+  <depend>ros_numpy</depend>
+
+
+  <export>
+    </export>
+</package>

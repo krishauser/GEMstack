@@ -1,0 +1,26 @@
+cmake_minimum_required(VERSION 3.0.2)
+project(pointpillars_ros)
+
+## Find required ROS packages
+find_package(catkin REQUIRED COMPONENTS
+  cv_bridge
+  geometry_msgs
+  message_filters
+  ros_numpy
+  rospy
+  sensor_msgs
+  std_msgs
+  tf2_ros
+  visualization_msgs
+)
+
+## Declare Python scripts installation
+catkin_install_python(PROGRAMS
+  scripts/pointpillars_ros_node.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+## Declare launch files installation
+install(DIRECTORY launch/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
