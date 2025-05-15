@@ -1,8 +1,8 @@
 # ********* Main settings entry point for behavior stack ***********
- 
+
 # Configure settings for the vehicle / vehicle model
 vehicle:  !include ../vehicle/gem_e4.yaml
- 
+
 #arguments for algorithm components here
 model_predictive_controller:
     dt: 0.1
