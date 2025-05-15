@@ -14,9 +14,6 @@ drive:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
     planning:
-        route_planning:
-            type: StaticRoutePlanner
-            args: [!relative_path '../GEMstack/knowledge/routes/forward_50m.csv']
         motion_planning:
             type: racing_planning.SlalomTrajectoryPlanner
         trajectory_tracking:
