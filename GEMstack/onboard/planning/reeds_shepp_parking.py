@@ -204,6 +204,7 @@ class ReedsSheppParking:
             List of (x, y, yaw) poses for each parking spot.
         """
         if len(static_horizontal_curb) != 2:
+            return None
             raise ValueError("Exactly two curb endpoints are required.")
 
         # Extract center points of the curb rectangles
@@ -225,6 +226,7 @@ class ReedsSheppParking:
         spacing = spot_length 
 
         if total_length < spot_length:
+            return None
             raise ValueError("Insufficient curb length to place even one spot.")
 
         # Number of full spots that can fit along the curb
@@ -398,6 +400,7 @@ class ReedsSheppParking:
         # 2) Compute its magnitude |v|
         length = math.hypot(v_x, v_y)
         if length == 0:
+            return None, None, None
             raise ValueError("p1 and p2 must be distinct points to define a direction.")
         
         # 3) Normalize v to get unit direction v̂ = (v_x, v_y) / |v|
@@ -453,6 +456,7 @@ class ReedsSheppParking:
         dot_vv = v_x * v_x + v_y * v_y      # v · v
 
         if dot_vv == 0:
+            return (None, None)
             raise ValueError("p1 and p2 must be distinct to define an axis.")
 
         # Parameter t gives the position along the line: p_proj = p1 + t * v
@@ -486,6 +490,7 @@ class ReedsSheppParking:
         # Compute the length of the direction vector
         length = math.hypot(dx, dy)
         if length == 0:
+            print(None, None)
             raise ValueError("Direction vector must be non-zero to define a movement direction.")
 
         # Normalize the direction vector to unit length
@@ -627,12 +632,18 @@ class ReedsSheppParking:
             self.parking_lot_axis_shift_margin
         )
 
+        if self.curb_0_xy_shifted is None:
+            return
+        
         # Horizontal axis search direction
         _ , _, self.horizontal_search_axis_direction = self.shift_points_perpendicular_ccw(
             self.static_horizontal_curb_xy_coordinates[0],
             self.curb_0_xy_shifted,
             self.parking_lot_axis_shift_margin
         )
+        
+        if self.horizontal_search_axis_direction is None:
+            return
 
         # Project vehicle pose onto the search axis
         self.vehicle_pose_proj = self.project_point_on_axis(
@@ -640,7 +651,9 @@ class ReedsSheppParking:
             self.curb_1_xy_shifted,
             self.vehicle_pose[0:2]
         )
-
+        
+        if self.vehicle_pose_proj is None:
+            return
         # Compute bounds for the search axis
         self.upper_bound_xy = self.move_point_along_vector(
             self.curb_1_xy_shifted,
@@ -680,7 +693,9 @@ class ReedsSheppParking:
             self.vehicle_pose[0:2]
         )
 
-
+            if self.vehicle_pose_proj is None:
+                return
+        
             while True:
                 # Move projected pose along the search axis
                 self.vehicle_pose_proj = self.move_point_along_vector(
@@ -751,7 +766,8 @@ class ReedsSheppParking:
                     # Use self.horizontal_search_axis_direction_var
                     break  # Give up in this direction
 
-        # If both directions fail        
+        # If both directions fail
+        return
         raise ValueError("No collision-free trajectory available in either direction for parking.")   
 
                                                                             
@@ -767,7 +783,9 @@ class ReedsSheppParking:
             self.curb_0_xy_shifted,
             self.curb_1_xy_shifted,
             self.vehicle_pose[0:2]
-        )           
+        )      
+        if self.vehicle_pose_proj is None:
+            return
 
         # Move projected pose along the search axis
         self.vehicle_pose_proj = self.move_point_along_vector(
@@ -824,5 +842,6 @@ class ReedsSheppParking:
             if dist_to_upper_bound < self.search_bound_threshold or dist_to_lower_bound < self.search_bound_threshold:
                 break  # Give up in this direction
 
-        # If both directions fail        
+        # If both directions fail 
+        return       
         raise ValueError("No collision-free trajectory available for unparking.")       
