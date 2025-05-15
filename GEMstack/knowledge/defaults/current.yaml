@@ -35,7 +35,7 @@ control:
 
     # Shared longitudinal control parameters
     longitudinal_control:
-        pid_p: 20.0                      # Proportional gain for speed PID controller
+        pid_p: 1.0                      # Proportional gain for speed PID controller
         pid_i: 0.1                       # Integral gain for speed PID controller
         pid_d: 1.0                       # Derivative gain for speed PID controller
 
