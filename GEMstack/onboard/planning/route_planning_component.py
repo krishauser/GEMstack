@@ -13,8 +13,8 @@ from .longitudinal_planning import longitudinal_plan
 
 from GEMstack.state.vehicle import VehicleState
 from GEMstack.state.intent import VehicleIntentEnum
-from .planner import optimized_kinodynamic_rrt_planning
-from .map_utils import load_pgm_to_occupancy_grid
+# from .planner import optimized_kinodynamic_rrt_planning
+# from .map_utils import load_pgm_to_occupancy_grid
 from .rrt_star import RRTStar
 from typing import List
 from ..component import Component
@@ -26,7 +26,7 @@ import requests
 import rospy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-from .occupancy_grid2 import OccupancyGrid2
+# from .occupancy_grid2 import OccupancyGrid2
 import cv2
 
 

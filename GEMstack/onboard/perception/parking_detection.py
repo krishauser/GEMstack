@@ -240,7 +240,7 @@ class ParkingSpotsDetector3D(Component):
                                 material=ObstacleMaterialEnum.BARRIER,
                                 collidable=True
                             )
-            parking_obstacles[obstacle_id] = new_obstacle
+            parking_obstacles[f"parking_obstacle_{obstacle_id}"] = new_obstacle
             obstacle_id += 1
         
         # Constructing goal pose
@@ -256,7 +256,7 @@ class ParkingSpotsDetector3D(Component):
                         frame=ObjectFrameEnum.START
                     )
         
-        DISTANCE_THRESHOLD = 12.0
+        DISTANCE_THRESHOLD = 8.0
         if self.euclidean_distance((x,y), state) > DISTANCE_THRESHOLD: # we are not close enough to the parking spot
             return None
 
