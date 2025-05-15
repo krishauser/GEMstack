@@ -147,7 +147,7 @@ class MPCController(object):
         overcorrection_guard = 5
         for i in range(len(traj_points)):
             s = i / (len(traj_points) + overcorrection_guard)  # Normalized [0, 1] and add some offset to prevent overcorrection
-            decay_ratio = (1 - s) ** 1      # linear decay on each iteration to perform quadratic offset correction over time
+            decay_ratio = (1 - s) ** 1      # linear decay on each iteration to perform smooth offset correction over time
             
             # Get direction of trajectory at this point
             if i < len(traj_points) - 1:
