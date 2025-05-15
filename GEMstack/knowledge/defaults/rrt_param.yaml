@@ -1,0 +1,19 @@
+# arguments for BiRRT* algorithm
+# map parameters
+map:
+    lower_x: -15 
+    upper_x: 40 
+    lower_y: -10
+    upper_y: 30
+    grid_resolution: 10 # grids per meter for occupency grid
+    lane_boundary_radius: 0.2 # radius in meter for determining the size of the lane boundary in occupency grid
+    obstacle_radius: 0.2 # radius in meter for determining the size of the obstacle in occupency grid
+# vehicle info 
+vehicle:
+    heading_limit: 0.5235987756  # vehicle heading difference limit per rrt step_size (pi/6 in radians)
+    half_width: 0.6 # vehicle half width in meter
+# algorithm parameters
+rrt:
+    time_limit: 10 # in sec
+    step_size: 0.5 # length in meter for local planner to explore
+    search_r: 1.4 # radius in meter for rewiring

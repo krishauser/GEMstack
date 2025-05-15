@@ -1,0 +1,41 @@
+version: '3.9'
+
+services:
+  gem-stack-ubuntu-20.04-CUDA:
+    image: gem_stack
+    container_name: gem_stack-container
+    build:
+      context: ..
+      dockerfile: ${DOCKERFILE:-setup/Dockerfile.cuda11.8}  # Default to cuda11.8 if not specified
+      args:
+        USER: ${USER}
+        USER_UID: ${UID:-1000}  # Pass host UID
+        USER_GID: ${GID:-1000}  # Pass host GID
+    stdin_open: true
+    tty: true
+    volumes:
+      # - "/etc/group:/etc/group:ro"
+      # - "/etc/passwd:/etc/passwd:ro"
+      # - "/etc/shadow:/etc/shadow:ro"
+      # - "/etc/sudoers.d:/etc/sudoers.d:ro"
+      - "~:/home/${USER}/host"
+      - "/tmp/.X11-unix:/tmp/.X11-unix:rw"
+    environment:
+      - DISPLAY=${DISPLAY}
+      - XDG_RUNTIME_DIR=/tmp/runtime-${USER}
+      - DBUS_SYSTEM_BUS_ADDRESS=unix:path=/var/run/dbus/system_bus_socket
+      - DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${UID}/bus
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - NVIDIA_VISIBLE_DEVICES=all
+      # - LIBGL_ALWAYS_SOFTWARE=1 # Uncomment if you want to use software rendering (No GPU)
+    network_mode: host
+    ipc: host
+    user: "${USER}:${USER}"
+    # Un-Comment the following lines if you want to use Nvidia GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all # alternatively, use `count: all` for all GPUs
+              capabilities: [gpu]
