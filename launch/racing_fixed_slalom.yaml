@@ -1,4 +1,4 @@
-description: "Use the sensors to detect cones and drive a slalom route around them."
+description: "Use the sensors to detect cones and drive a slalom route around them. Use this file for Sim."
 mode: hardware
 vehicle_interface: gem_hardware.GEMHardwareInterface
 mission_execution: StandardExecutor
