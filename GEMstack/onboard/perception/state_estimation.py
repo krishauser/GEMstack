@@ -37,6 +37,7 @@ class GNSSStateEstimator(Component):
         return ['vehicle']
 
     def healthy(self):
+        # return True
         return self.gnss_pose is not None
 
     def update(self) -> VehicleState:
@@ -62,11 +63,6 @@ class GNSSStateEstimator(Component):
 
         #filtering speed
         raw.v = self.gnss_speed
-
-        # Assume no backward slide, use gear to decide velocity sign 
-        if raw.gear == -1:
-            raw.v *= -1
-
         #filt_vel     = self.speed_filter(raw.v)
         #raw.v = filt_vel
         return raw

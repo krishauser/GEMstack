@@ -3,6 +3,7 @@ from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, Obstac
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .perception_utils import *
+from .perception_utils_gem import *
 from ultralytics import YOLO
 import cv2
 from typing import Dict
@@ -87,6 +88,7 @@ class ConeDetector3D(Component):
     def rate(self) -> float:
         return 8
 
+
     def state_inputs(self) -> list:
         return ['vehicle']
 
@@ -94,6 +96,7 @@ class ConeDetector3D(Component):
         return ['obstacles']
 
     def initialize(self):
+
         # --- Determine the correct RGB topic for this camera ---
         rgb_topic_map = {
             'front': '/oak/rgb/image_raw',
@@ -165,6 +168,7 @@ class ConeDetector3D(Component):
         if self.start_time is None:
             self.start_time = current_time
         time_elapsed = current_time - self.start_time
+
 
         # Ensure data/ exists and build timestamp
         if self.save_data:
@@ -243,6 +247,7 @@ class ConeDetector3D(Component):
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             cv2.imshow("Detection - Cone 2D", undistorted_img)
 
+
         start = time.time()
         # Transform the lidar points from lidar frame of reference to camera EXTRINSIC frame of reference.
         # Then project the pixels onto the lidar points to "paint them" (essentially determine which points are associated with detected objects)
@@ -271,6 +276,7 @@ class ConeDetector3D(Component):
             # print(roi_pts)
             if roi_pts.shape[0] < 5:
                 continue
+
 
             points_3d = roi_pts[:, 2:5]
 
@@ -361,7 +367,7 @@ class ConeDetector3D(Component):
                             outline=None,
                             material=ObstacleMaterialEnum.TRAFFIC_CONE,
                             state=state,
-                            collidable=True
+                            collidable=False
                         )
                     else:
                         updated_obstacle = old_state
@@ -376,7 +382,7 @@ class ConeDetector3D(Component):
                         outline=None,
                         material=ObstacleMaterialEnum.TRAFFIC_CONE,
                         state=state,
-                        collidable=True
+                        collidable=False
                     )
                     obstacles[obstacle_id] = new_obstacle
                     self.tracked_obstacles[obstacle_id] = new_obstacle
@@ -389,7 +395,7 @@ class ConeDetector3D(Component):
                     outline=None,
                     material=ObstacleMaterialEnum.TRAFFIC_CONE,
                     state=state,
-                    collidable = True
+                    collidable=False
                 )
                 obstacles[obstacle_id] = new_obstacle
 
@@ -502,7 +508,7 @@ def box_to_fake_obstacle(box):
     pose = ObjectPose(t=0, x=x + w / 2, y=y + h / 2, z=0, yaw=0, pitch=0, roll=0, frame=ObjectFrameEnum.CURRENT)
     dims = (w, h, 0)
     return Obstacle(pose=pose, dimensions=dims, outline=None,
-                         material=ObstacleMaterialEnum.TRAFFIC_CONE, state=ObstacleStateEnum.STANDING, collidable=True)
+                         material=ObstacleMaterialEnum.TRAFFIC_CONE, state=ObstacleStateEnum.STANDING)
 
 
 if __name__ == '__main__':

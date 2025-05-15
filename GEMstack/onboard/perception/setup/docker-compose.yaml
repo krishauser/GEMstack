@@ -1,0 +1,45 @@
+version: '3.9'
+
+services:
+  point-pillars:
+    image: point_pillars
+    container_name: point_pillars_container
+    build:
+      context: ..
+      dockerfile: ${DOCKERFILE:-setup/Dockerfile.cuda111}  # Default to cuda111 if not specified
+      args:
+        USER: ppuser  # Fixed username to avoid conflicts
+        USER_UID: ${UID:-1000}  # Pass host UID
+        USER_GID: ${GID:-1000}  # Pass host GID
+    stdin_open: true
+    tty: true
+    volumes:
+      # Mount the point_pillars_node.py file, shared helper functions, and model weights
+      - "../point_pillars_node.py:/home/ppuser/pointpillars_ws/point_pillars_node.py:ro"
+      - "../combined_detection_utils.py:/home/ppuser/pointpillars_ws/combined_detection_utils.py:ro"
+      - "../epoch_160.pth:/home/ppuser/pointpillars_ws/epoch_160.pth:ro"
+      # Mount host home directory (optional)
+      - "~:/home/ppuser/host:ro"
+      - "/tmp/.X11-unix:/tmp/.X11-unix:rw"
+    environment:
+      - DISPLAY=${DISPLAY}
+      # ROS master settings to connect to external roscore
+      - ROS_MASTER_URI=http://host.docker.internal:11311
+      - ROS_HOSTNAME=localhost
+      - ROS_IP=
+      - NVIDIA_DRIVER_CAPABILITIES=all
+      - NVIDIA_VISIBLE_DEVICES=all
+    network_mode: "host"  # Use host network for direct ROS communication
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Added this line to resolve host.docker.internal
+    ipc: host
+    user: "ppuser:ppuser"  # Fixed username to match Dockerfile
+    restart: unless-stopped  # Auto-restart if the container stops
+    # GPU configuration
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
