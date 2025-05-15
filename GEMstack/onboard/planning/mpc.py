@@ -7,6 +7,10 @@ import numpy as np
 import casadi
 import math
 
+###########################
+#    Bo-Hao Wu's code     #
+###########################
+
 class MPCController(object):
     """Model Predictive Controller for trajectory tracking."""
     def __init__(self, T=None, dt=None, desired_speed=None):
@@ -275,9 +279,25 @@ class MPCController(object):
             delta = float(sol.value(x[1,4]))
             self.prev_x = sol.value(x)
             self.prev_u = sol.value(u)
+            ###Jugal's Code start here###
+            ###adding heading error and position error(similar to cross track error) for evaluation metric###
+            # NEW: Position and Heading Error
+            vehicle_x = state.pose.x
+            vehicle_y = state.pose.y
+            vehicle_yaw = state.pose.yaw
+
+            path_x = self.path.points[self.current_path_parameter][0]
+            path_y = self.path.points[self.current_path_parameter][1]
+            path_yaw = target_angles[0]
+
+            position_error = np.linalg.norm([vehicle_x - path_x, vehicle_y - path_y])
+            heading_error = ((vehicle_yaw - path_yaw + np.pi) % (2 * np.pi)) - np.pi
+            ###Jugal's code end here###
             if component is not None:
                 component.debug("mpc/accel", acc)
                 component.debug("mpc/delta", delta)
+                component.debug("mpc/position_error", position_error)
+                component.debug("mpc/heading_error", heading_error)
                 component.debug("mpc/closest_time", closest_time)
                 component.debug("mpc/state_x", state.pose.x)
                 component.debug("mpc/state_y", state.pose.y)
