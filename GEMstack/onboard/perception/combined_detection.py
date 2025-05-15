@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation as R
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from geometry_msgs.msg import Quaternion
 
-from .sensorFusion.eval_3d_bbox_performance import calculate_3d_iou
+from .sensorFusion.eval_3d_model_performance import calculate_3d_iou
 import copy
 
 
