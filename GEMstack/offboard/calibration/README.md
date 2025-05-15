@@ -1,158 +1,231 @@
-# Data Capture
-
-### Data Capture Script (`capture_ouster_oak.py`)
-
-Set up on vehicle:
-
-1. Run roscore in a terminal
-2. Run catkin_make in gem stack
-3. Run source /demo_ws/devel/setup.bash
-4. Run roslaunch basic_launch sensor_init.launch to get all sensors running
-
-Default script usage:
-
-    python3 capture_ouster_oak.py
-
-Additional Options:
-1. To specify directory to save data, use --folder "path to save location" (default save folder is data)
-2. To specify frequency of data capture, use --frequency put_frequency_in_hz_here (default is 2 hz)
-3. To specify the what index the data should start being saved as, use --start_index desired_index_here (default is 1)
-
-
-# GEMstack Offboard Calibration 
-
-This section explains tools for offline calibration of LiDAR and camera sensors to the vehicle coordinate system on the GEM E4 platform. The calibration pipeline consists of three stages:
-
-1. **LiDAR-to-Vehicle**  
-2. **Camera-to-Vehicle**  
-3. **LiDAR-to-Camera**
-
-## Dependencies
-
-```
-pip install opencv-python scipy numpy matplotlib argparse pyyaml pyvis
-
-# If getting some issues, try:
-pip install trame ipywidgets trame-vuetify
-```
-
+## Table of Contents
+- [Pipeline](#Pipeline)
+- [img2pc.py](#img2pcpy) - Camera-to-LiDAR extrinsic calibration
+- [test_transforms.py](#test_transformspy) - Manual tuning of calibrations
+- [capture_ouster_oak.py](#capture_ouster_oakpy) - Sensor data capture script
+- [camera_info.py](#camera_infopy) - Intrinsic retrieval from hardware
+- [get_intrinsic_by_chessboard.py](#get_intrinsic_by_chessboardpy) - Intrinsic calibration using chessboard
+- [get_intrinsic_by_SfM.py](#get_intrinsic_by_sfmpy) - Intrinsic calibration using SfM
+- [undistort_images.py](#undistort_imagespy) - Create rectified copies of distorted images
 ---
 
+# Pipeline
+**Data collection**
 
-## Calibration Pipeline
+Use the `capture_ouster_oak.py` script to collect a series of scans combining both camera images and lidar pointclouds. The two sensors are not activated at the same time, so it is best to stay in place for a few seconds at each position to ensure you get aligned scans.
 
-### 1. LiDAR-to-Vehicle Calibration (`lidar_to_vehicle.py`)
-**Method**:  
-- **Ground Plane Detection**:  
-  1. Crop LiDAR points near ground (Z ∈ [-3, -2])  
-  2. Use RANSAC to fit a plane to ground points  
-  3. Compute vehicle height (`tz`) using plane equation and axel height offset (0.2794m)  
-  4. Derive pitch (`rx`) and roll (`ry`) from plane normal vector  
+Some cameras may have calibrated hardware: use the `camera_info.py` script to extract their intrinsics if needed. An output containing all zeros means the hardware is not calibrated, and so you will need to calibrate yourself.
 
-- **Frontal Object Alignment**:  
-  1. Crop LiDAR data to frontal area (X ∈ [0,20], Y ∈ [-1,1])  
-  2. Fit line to object points for yaw (`rz`) estimation  
-  3. Compute translation (`tx`, `ty`) using vehicle dimensions  
+**Intrinsic Calibration**
 
-**Usage**:  
+There are two ways to calibrate the intrinsics, depending on what data you have.
 
-Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. x is chosen using the --index flag seen below. Set it based on what data sample you want to use for calibration. 
+To use the `get_intrinsic_by_chessboard.py` script, collect a series of images with a large chessboard using either the data collection scripts or a rosbag. Select images where the chessboard is at different points in the camera frame, different distances including filling the entire frame, and at different angles. The script detects internal corners where four squares meet, so the extreme edge of the chessboard does not need to be in frame.
 
-    python3 lidar_to_vehicle.py --data_path "path to data folder" --index INDEX_NUM
+To use the `get_intrinsic_by_SfM.py` script, prepare a set of images recorded from the same camera going through a continuous movement, and follow [this](#get_intrinsic_by_sfmpy)
 
-Optionally, use --vis flag for visualizations throughout the computation process
+The `undistort_images.py` script can then be used to rectify a set of images using the calibrated intrinsics to evaluate or use in other applications.
 
+**Extrinsic Calibration**
 
-### 2. CAMERA-to-Vehicle Calibration (`camera_to_vehicle_manual.py`)
-**Method**:  
-  1. Capture camera intrinsics using camera_info.py (ROS node)  
-  2. Manually select 8 matching points in RGB image and LiDAR cloud (can adjust variable to select more pairs)
-  3. Solve PnP problem to compute camera extrinsics  
+These scripts use a package within another folder in GEMstack: as such, you may need to add GEMstack to your python path. On Linux, this can be done by running `export PYTHONPATH=<$PATH_TO_GEMSTACK>:PYTHONPATH`, replacing `<$PATH_TO_GEMSTACK>` with the absolute path to the main GEMstack directory.
 
-**Usage**:
-  1. Get camera intrinsics:
-    rosrun offboard\calibration\camera_info.py  # Prints intrinsic matrix
-  2. Update camera_in in script with intrinsics
-  3. Our script assumes data is formated as: colorx.png, lidarx.npz, depthx.tif where x is some index number. x is chosen using the --index flag seen below. Set it based on what data sample you want to use for calibration. 
-  
-  The script also reads the lidar_to_vehicle matrix from the gem_e4_ouster.yaml file so ensure that is up to date.
-  
-  4. Run calibration:
-    
-    python3 camera_to_vehicle_manual.py --data_path "path to data folder" --index INDEX_NUM --config "path to gem_e4_ouster.yaml"
+The `img2pc.py` file contains the main part of the extrinsic calibration process. Select a synchronized camera image and lidar pointcloud to align, ideally containing features that are easy to detect in both, such as boards or signs with corners. Alignment can be done with 4 feature pairs(must be coplanar) or 6+ points. The first screen will ask you to select points on the image, and will close on its own once *n_features* points are selected. The second screen will ask you to select points in the point cloud, and will need to be closed manually once exactly *n_features* points are selected, or it will prompt you again. The extrinsic matrices will then be displayed, and if an *out_path* is provided they will also be saved.
 
-  5. There will be a pop-up of the rgb image depending on the data index you chose. Left click and select as many points as manually specified in the script.
-  6. The window will automatically close and reveal a pop-up of the lidar point cloud.
-  7. Choose the corresponding lidar points with hovering over the point and right-clicking, or pressing P
-  8. Once selected all corresponding points, close the window and the output will be printed.
+The `test_transforms.py` file can then be used to manually fine-tune the calculated intrinsics. Use the sliders to change the translation and rotation to project the lidar points onto the image more accurately.
 
-### 3. LIDAR-to-CAMERA Calibration (`lidar_to_camera.py`)
-**Method**:  
-  1. Invert Camera-to-Vehicle matrix  
-  2. Multiply with LiDAR-to-Vehicle matrix
+## img2pc.py
+**Camera-to-LiDAR Extrinsic Calibration Tool**
 
-**Usage**:
-```
-python3 lidar_to_camera.py   # Ensure T_lidar_vehicle and T_camera_vehicle matrices are updated
+Compute camera extrinsic parameters by manually selecting corresponding features in an image and point cloud.
+
+**Note**: On the img prompt, click n points and the window closed itself. On the pc prompt, right click n points and close the window manually.
+
+### Usage
+```bash
+python3 img2pc.py \
+    --img_path IMG_PATH \
+    --pc_path PC_PATH \
+    --img_intrinsic_path IMG_INTRINSICS_PATH \
+    [--pc_transform_path PC_TRANSFORM_PATH] \
+    [--out_path OUT_PATH] \
+    [--n_features N_FEATURES]
+    [--undistort]
 ```
 
-### Visualization Tools
+#### Parameters
+| Parameter | Description | Format | Required | Default |
+|-----------|-------------|--------|----------|---------|
+| `--img_path` | Input image path | .png | Yes | - |
+| `--pc_path` | Point cloud path | .npz | Yes | - |
+| `--img_intrinsic_path` | Camera intrinsics file | .yaml | Yes | - |
+| `--pc_transform_path` | LiDAR extrinsic transform | .yaml | No | Identity |
+| `--n_features` | Manual feature points | int | No | 8 |
+| `--out_path` | Output extrinsic path | .yaml | No | None |
+| `--no_undistort` | to undistort | - | - | False |
+| `--show` | visualize reprojection | - | - | False |
 
-**3D Alignment Check**:
- 1. Use vis() function in scripts to view calibrated LiDAR/camera clouds
- 2. Use --vis flag when running lidar_to_vehicle.py for ground plane/object visualization
- 3. Use test_transforms.py to visualize the transformed lidar point cloud to camera frame on top of the corresponding png image. Helps verify accuracy of lidar->camera.
+*`--no_undistort True` is rare because it's almost sure that extrinsic solving performs better after undistortion*
 
-Usage of test_transforms.py:
+### Example
+```bash
+root='/mnt/GEMstack'
+python3 img2pc.py \
+    --img_path $root/data/calib1/img/fl/fl16.png \
+    --pc_path $root/data/calib1/pc/ouster16.npz \
+    --pc_transform_path $root/GEMstack/knowledge/calibration/gem_e4_ouster.yaml \
+    --img_intrinsic_path $root/GEMstack/knowledge/calibration/gem_e4_oak_in.yaml \
+    --n_features 4 \
+    --out_path $root/GEMstack/knowledge/calibration/gem_e4_oak.yaml
 ```
-python3 test_transforms.py --data_path "path to data folder" --index INDEX_NUM
+
+## test_transforms.py
+Script used for testing and fine-tuning extrinsics.
+
+### Usage
+```bash
+python3 test_transforms.py \
+    --img_path IMG_PATH \
+    --lidar_path LIDAR_PATH \
+    --lidar_transform_path LIDAR_TRANSFORM_PATH \
+    --camera_transform_path CAMERA_TRANSFORM_PATH \
+    --img_intrinsics_path IMG_INTRINSICS_PATH \
+    [--out_path OUT_PATH] \
+    [--undistort]
 ```
-Data path is the directory where lidar npz and color png files are located, index number is whichever lidar/png pair you want to evaluate. Ex. lidar1.npz color1.png where INDEX_NUM is 1 (--index 1)
 
-**Projection Validation**:
- 1. RGB image overlaid with transformed LiDAR points (Z-buffered)
- 2. Frontal view comparison of camera and LiDAR data
+#### Parameters
+| Parameter | Description | Format | Required | Default |
+|-----------|-------------|--------|----------|---------|
+| `--img_path` | Input image path | .png | Yes | - |
+| `--lidar_path` | Point cloud path | .npz | Yes | - |
+| `--lidar_transform_path` | LiDAR extrinsic transform | .yaml | Yes | - |
+| `--camera_transform_path` | Camera extrinsic transform | .yaml | Yes | - |
+| `--img_intrinsics_path` | Camera intrinsics file | .yaml | Yes | - |
+| `--out_path` | Output extrinsic path | .yaml | No | None |
+| `--undistort` | Flag for using distortion coefficients | - | - | - |
 
-
-
-
-
-
-### Assumption and Notes
-
-1. The sensor data should be time-aligned.
-2. The flat surface should be detectable in the Lidar scan
-3. Magic Numbers:
-    Axel height (0.2794m) from physical measurements
-    Frontal crop areas based on vehicle dimensions
-4. Validation: Use pyvista visualizations to verify alignment
-
-
-### Results
-
-Our resultant transformation matrices are the following:
+### Example
+```bash
+root='/mnt/GEMstack'
+python3 test_transforms.py \
+    --img_path $root/data/fl16.png \
+    --lidar_path $root/data/ouster16.npz \
+    --lidar_transform_path $root/GEMstack/knowledge/calibration/gem_e4_ouster.yaml \
+    --camera_transform_path $root/GEMstack/knowledge/calibration/gem_e4_fl.yaml \
+    --img_intrinsics_path $root/GEMstack/knowledge/calibration/gem_e4_fl_in.yaml \
+    --out_path $root/GEMstack/knowledge/calibration/gem_e4_fl.yaml \
+    --undistort
 ```
-T_camera_vehicle = np.array([[ 0.00349517, -0.03239524,  0.99946903, 1.75864913],
-                             [-0.99996547,  0.00742285,  0.0037375, 0.01238124],
-                             [-0.00753999, -0.99944757, -0.03236817, 1.54408419],
-                             [0.000000000,  0.00000000,  0.00000000, 1.0]])
 
-T_lidar_vehicle = np.array([[ 0.99941328,  0.02547416,  0.02289458, 1.1],
-                            [-0.02530855,  0.99965159, -0.00749488, 0.03773044170906172],
-                            [-0.02307753,  0.00691106,  0.99970979, 1.9525244316515322],
-                            [0.000000000,  0.00000000,  0,00000000, 1.0]])
+## capture_ouster_oak.py
+Collect synchronized data from all initialized sensors on the e4 vehicle. Requires oak camera to be running.
 
-T_lidar_camera = np.array([
-        [ 2.89748006e-02, -9.99580136e-01,  3.68439439e-05, -3.07300513e-02],
-        [-9.49930618e-03, -3.12215512e-04, -9.99954834e-01, -3.86689354e-01],
-        [ 9.99534999e-01,  2.89731321e-02, -9.50437214e-03, -6.71425124e-01],
-        [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00]
-    ])
+### Usage
+```bash
+python3 capture_ouster_oak.py [FOLDER] [START_INDEX]
 ```
-We find that these matrices are very accurate and worked well with perceptions task of identifying pedestrains using camera and lidar. Perception team makes use of our lidar->camera matrix. Below is an image showcasing the effectiveness of our lidar->camera matrix. You can see the lidar pointcloud corresponds very well to the pixels in the image.
 
-<img width="260" alt="Screenshot 2025-02-26 at 11 07 16 PM" src="https://github.com/user-attachments/assets/65322674-c715-47d4-bbef-880022ba1a5d" />
+#### Parameters
+| Parameter | Description | Format | Required | Default |
+|-----------|-------------|--------|----------|---------|
+| `FOLDER` | Output data folder path | directory | No | data |
+| `START_INDEX` | Start index for scans | int | No | 1 |
 
-We calculate this lidar->camera matrix by doing a matrix multiplication between the inverted camera->vehicle matrix and lidar->vehicle matrix. To evaluate the effectiveness of both of these matrices individually, we use visualizations in their respective calculations scripts.
+## camera_info.py
+Read camera info from ROS publishers to capture intrinsics. If the hardware is not calibrated, the subscriber will receive all zeros. Intrinsics will be saved in a file titled by camera.
 
-For basic sanity check purposes, we also ensure that the determinant of the rotation matrices we get is 1.
+### Usage
+```bash
+python3 camera_info.py [FOLDER]
+```
+
+#### Parameters
+| Parameter | Description | Format | Required | Default |
+|-----------|-------------|--------|----------|---------|
+| `FOLDER` | Output data folder path | directory | No | data |
+
+## get_intrinsic_by_chessboard.py
+Chessboard-based Intrinsic Calibration
+
+Compute camera intrinsic parameters using multiple images of a chessboard pattern.
+
+### Usage
+```bash
+python3 get_intrinsic_by_chessboard.py \
+    --img_folder_path IMG_FOLDER_PATH \
+    [--camera_name CAMERA_NAME] \
+    [--out_path OUT_PATH] \
+    [--board_width BOARD_WIDTH] \
+    [--board_height BOARD_HEIGHT]
+```
+
+#### Parameters
+| Parameter | Description | Format | Required | Default |
+|-----------|-------------|--------|----------|---------|
+| `--img_folder_path` | Input image folder path | directory | Yes | - |
+| `--camera_name` | Camera prefix used to identify images | string | No | empty string |
+| `--out_path` | Output extrinsic path | .yaml | No | None |
+| `--board_width` | Chessboard width (squares - 1) | int | No | 8 |
+| `--board_height` | Chessboard height (squares - 1) | int | No | 6 |
+
+
+## get_intrinsic_by_SfM.py 
+
+Compute camera intrinsic parameters using Structure-from-Motion on a sequence of images.
+
+### Usage
+```bash
+python3 intrinsic_calibration_chessboard.py \
+    --input_imgs INPUT_IMGS [INPUT_IMGS ...] \
+    --workspace WORKSPACE \
+    [--out_file OUT_FILE]
+```
+### Parameters
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `--input_imgs` | Input images (glob pattern) | Yes |
+| `--workspace` | Temporary directory path (default `/tmp/colmap_tmp`) | No |
+| `--out_file` | Output .yaml path | No |
+
+*note:`--workspace` allows you to save running time for continuing/redoing a previous job. you can clean it up after. check [colmap](https://colmap.github.io/) for more infomation*
+### Example
+```bash
+root='/mnt/GEMstack'
+python3 intrinsic_calibration_chessboard.py \
+    --input_imgs data/fl/images/0000[0-8][147].png \
+    --workspace /tmp/SfM_intrinsic_fl \
+    --out_file $root/GEMstack/knowledge/calibration/camera_intrinsics2/gem_e4_fl_in.yaml
+```
+
+## undistort_images.py
+Script to remove distortion from images.
+
+### Usage
+```bash
+python3 undistort_images.py \
+    --img_intrinsics_path IMG_INTRINSICS_PATH \
+    --img_folder_path IMG_FOLDER_PATH \
+    --camera_name CAMERA_NAME 
+```
+
+#### Parameters
+| Parameter | Description | Format | Required | Default |
+|-----------|-------------|--------|----------|---------|
+| `--img_intrinsics_path` | Camera intrinsics file | .yaml | Yes | - |
+| `--img_folder_path` | Input image folder path | directory | Yes | - |
+| `--camera_name` | Camera prefix used to identify images | string | No | empty string |
+
+### Example
+```bash
+root='/mnt/GEMstack'
+python3 undistort_images.py \
+    --img_intrinsics_path $root/GEMstack/knowledge/calibration/gem_e4_fr_in.yaml \
+    --img_folder_path $root/data \
+    --camera_name fr
+```
+
+# Credit
+Michal Juscinski, [Renjie Sun](https://github.com/rjsun06), Dev Sakaria
+
+

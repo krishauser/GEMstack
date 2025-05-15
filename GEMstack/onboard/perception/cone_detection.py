@@ -88,7 +88,6 @@ class ConeDetector3D(Component):
     def rate(self) -> float:
         return 8
 
-
     def state_inputs(self) -> list:
         return ['vehicle']
 
@@ -96,7 +95,6 @@ class ConeDetector3D(Component):
         return ['obstacles']
 
     def initialize(self):
-
         # --- Determine the correct RGB topic for this camera ---
         rgb_topic_map = {
             'front': '/oak/rgb/image_raw',
@@ -168,7 +166,6 @@ class ConeDetector3D(Component):
         if self.start_time is None:
             self.start_time = current_time
         time_elapsed = current_time - self.start_time
-
 
         # Ensure data/ exists and build timestamp
         if self.save_data:
@@ -247,7 +244,6 @@ class ConeDetector3D(Component):
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
             cv2.imshow("Detection - Cone 2D", undistorted_img)
 
-
         start = time.time()
         # Transform the lidar points from lidar frame of reference to camera EXTRINSIC frame of reference.
         # Then project the pixels onto the lidar points to "paint them" (essentially determine which points are associated with detected objects)
@@ -276,7 +272,6 @@ class ConeDetector3D(Component):
             # print(roi_pts)
             if roi_pts.shape[0] < 5:
                 continue
-
 
             points_3d = roi_pts[:, 2:5]
 

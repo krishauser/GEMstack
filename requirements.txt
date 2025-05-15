@@ -12,3 +12,4 @@ dacite
 ultralytics
 open3d
 sklearn
+lap==0.5.12
