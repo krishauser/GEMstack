@@ -2,7 +2,7 @@
 This folder contains code that is used to detect objects in 3D space and subsequently notify other GEMstack components of the detected objects. It is split up into 3 main areas: Pedestrian detection code created at the beginning-middle of the course, Cone Detection code that is used to detect cones (optionally with orientation), and Sensor Fusion code which fuses YOLO + painted lidar data and PointPillars 3D bounding boxes to detect pedestrians.
 
 ## Cone Detection
-Description goes here.
+A YOLO model was trained to detect the orientations of traffic cones in 3D space to support the Vertical Groups.
 
 ### Relevant Files
 - cone_detection.py
@@ -31,8 +31,10 @@ To improve the quality of the detected pedestrians, we decided to fuse detection
 ### Local Installation Steps for PointPillars Docker Container
 #### READ BEFOREHAND: 
 - Before perfoming installation steps, please make sure you source ALL terminal windows (except for docker terminal window). 
-$ source /opt/ros/noetic/setup.bash
-$ source ~/catkin_ws/devel/setup.bash
+```
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+```
 - These instructions were written with the assumption that you are running them inside of the outermost GEMstack folder.
 - If you have set up issues please read the "Set Up Issues Known Fixes" section at the bottom.
 
@@ -40,44 +42,72 @@ $ source ~/catkin_ws/devel/setup.bash
 1. Install Docker
 2. Install Docker Compose
 3. A bash script was created to handle docker permissions issues and make the set up process simpler:
-$ cd GEMstack/onboard/perception
-$ bash build_point_pillars.sh
+```
+cd GEMstack/onboard/perception
+bash build_point_pillars.sh
+```
 4. Start the container (use sudo if you run into permissions issues)
-$ docker compose -f setup/docker-compose.yaml up
+```
+docker compose -f setup/docker-compose.yaml up
+```
 5. Run roscore on local machine (make sure you source first)
-$ roscore
+```
+roscore
+```
 6. Start up YOLO node (make sure you source first):
-$ python3 GEMstack/onboard/perception/yolo_node.py
+```
+python3 GEMstack/onboard/perception/yolo_node.py
+```
 7. Run yaml file to start up the CombinedDetector3D GEMstack Component (make sure you source first):
-$ python3 main.py --variant=detector_only launch/combined_detection.yaml
+```
+python3 main.py --variant=detector_only launch/combined_detection.yaml
+```
 8. Run a rosbag on a loop (make sure you source first):
-$ rosbag play -l yourRosbagNameGoesHere.bag 
+```
+rosbag play -l yourRosbagNameGoesHere.bag 
+```
 
 ### Vehicle Installation Steps for PointPillars Docker Container
 Perform the same setup steps as the above section with the below exceptions:
 1. Ensure you source instead with the following command:
-$ source ~/demo_ws/devel/setup.bash 
+```
+source ~/demo_ws/devel/setup.bash 
+```
 2. Initialize the sensors:
-$ roslaunch basic_launch sensor_init.launch
+```
+roslaunch basic_launch sensor_init.launch
+```
 3. Initialize GNSS (if you need it)
-$ roslaunch basic_launch visualization.launch
+```
+roslaunch basic_launch visualization.launch
+```
 4. Do not run a rosbag in Step 8 above (it's not needed since you'll be getting live data from the vehicle)
 
 #### Known Fixes for Set Up Issues
 1. If you get a shape error when creating the "results_normal" variable in yolo_node.py, please downgrade your Ultralytics version to 8.1.5 (this is the version used on the car at the time of writing this):
-$ pip install 'ultralytics==8.1.5'
+```
+pip install 'ultralytics==8.1.5'
+```
 2. If you run into communication issues with ROS, please make sure you have sourced EVERY terminal window (except for docker window there's no need to): 
-$ source /opt/ros/noetic/setup.bash
-$ source ~/catkin_ws/devel/setup.bash
+```
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+```
 
 ### Visualization Steps:
 Please make sure you source each new terminal window after creating it (local source commands are below):
-$ source /opt/ros/noetic/setup.bash
-$ source ~/catkin_ws/devel/setup.bash
+```
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+```
 
 1. Start rviz:
-$ rviz
+```
+rviz
+```
 2. Publish a static transform from the map to visualize the published bounding box data:
-$ rosrun tf2_ros static_transform_publisher 0 0 0 0 0 0 map currentVehicleFrame
+```
+rosrun tf2_ros static_transform_publisher 0 0 0 0 0 0 map currentVehicleFrame
+```
 3. In Rviz, click "add" in the bottom left corner. In "By display type", under "jsk_rviz_plugins" select BoundingBoxArray.
 4. Expand BoundingBoxArray on the left. Under it you will see "Topic" with a blank space to the right of it. Click the blank space (it's a hidden drop down box) and select the BoundingBoxArray topic to visualize
