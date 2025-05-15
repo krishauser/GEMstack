@@ -1,4 +1,4 @@
-# File: GEMstack/onboard/planning/longitudinal_planning.py
+# File: GEMstack/onboard/planning/creep_planning.py
 from typing import List, Tuple
 import math
 from ..component import Component
