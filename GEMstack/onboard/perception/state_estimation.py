@@ -1,6 +1,6 @@
 from dataclasses import replace
 import math
-from typing import List
+from typing import List, Optional
 from ...utils import settings
 from ...mathutils import transforms
 from ...state.vehicle import VehicleState,VehicleGearEnum
@@ -75,7 +75,6 @@ class OmniscientStateEstimator(Component):
         if 'gnss' not in vehicle_interface.sensors():
             raise RuntimeError("GNSS sensor not available")
         vehicle_interface.subscribe_sensor('gnss',self.fake_gnss_callback)
-        self.vehicle_state = None
 
     # Get GNSS information
     def fake_gnss_callback(self, vehicle_state):

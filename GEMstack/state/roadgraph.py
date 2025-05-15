@@ -107,7 +107,7 @@ class RoadgraphLane:
     end : Optional[RoadgraphCurve] = None                           # Optional curve that ends at the end of the lane
 
     def to_frame(self, orig_frame : ObjectFrameEnum, new_frame : ObjectFrameEnum,
-                 current_origin = None, global_origin = None) -> RoadgraphCurve:
+                 current_origin = None, global_origin = None) -> RoadgraphLane:
         return replace(self,left=self.left.to_frame(orig_frame,new_frame,current_origin,global_origin) if self.left is not None else None,
                         right=self.right.to_frame(orig_frame,new_frame,current_origin,global_origin) if self.right is not None else None,
                         center=self.center.to_frame(orig_frame,new_frame,current_origin,global_origin) if self.center is not None else None,
@@ -145,7 +145,7 @@ class RoadgraphRegion:
     crossable : bool = True
     
     def to_frame(self, orig_frame : ObjectFrameEnum, new_frame : ObjectFrameEnum,
-                 current_origin = None, global_origin = None) -> RoadgraphCurve:
+                 current_origin = None, global_origin = None) -> RoadgraphRegion:
         return replace(self,outline=[convert_point(p,orig_frame,new_frame,current_origin,global_origin) for p in self.outline])
 
 
@@ -160,7 +160,7 @@ class RoadgraphConnection:
     location : List[Tuple[float,float]] = field(default_factory=list)         # a polyline defining when this transition occurs
 
     def to_frame(self, orig_frame : ObjectFrameEnum, new_frame : ObjectFrameEnum,
-                 current_origin = None, global_origin = None) -> RoadgraphCurve:
+                 current_origin = None, global_origin = None) -> RoadgraphConnection:
         return replace(self,location=[convert_point(p,orig_frame,new_frame,current_origin,global_origin) for p in self.location])
 
 

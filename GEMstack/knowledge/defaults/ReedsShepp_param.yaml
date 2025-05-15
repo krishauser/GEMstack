@@ -6,13 +6,13 @@ vehicle:
 reeds_shepp_parking:
     shift_from_center_to_rear_axis: 1.25 # in meter
     search_step_size: 0.1 # in meter
-    closest: True # If True, the closest parking spot will be selected, otherwise the farthest one will be selected
+    closest: False # If True, the closest parking spot will be selected, otherwise the farthest one will be selected
     parking_lot_axis_shift_margin: 2.44 # in meter
     search_bound_threshold: 0.5 
     clearance_step: 0.5
     clearance: 0
-    add_static_vertical_curb_as_obstacle: True
-    add_static_horizontal_curb_as_obstacle: True
+    add_static_vertical_curb_as_obstacle: False
+    add_static_horizontal_curb_as_obstacle: False
     static_horizontal_curb_size: [2.44, 0.5]
     static_vertical_curb_size: [2.44, 24.9]
     compact_parking_spot_size: [2.44, 4.88] # US Compact Space for parking (2.44, 4.88)

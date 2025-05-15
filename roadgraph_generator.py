@@ -392,15 +392,15 @@ if __name__ == '__main__':
                                                 resolution=resolution,
                                                 route_name=''
                                                 )
-    roadgraph.lanes['westward'] = create_lane(right_forward=(-88.235905*2-(-88.235968), 40.0927433+lat_ratio*1.5, 0.0),
-                                              right_back=(-88.235317*2+88.235252, 40.0927516+lat_ratio*1.5, 0.0),
-                                              left_forward=(-88.235968, 40.0927432-lat_ratio*1.5, 0.0),
-                                              left_back=(-88.235252, 40.0927527-lat_ratio*1.5, 0.0),
-                                              left_crossable=False,
-                                              right_crossable=False,
-                                              resolution=resolution,
-                                              route_name=''
-                                              )
+    # roadgraph.lanes['westward'] = create_lane(right_forward=(-88.235905*2-(-88.235968), 40.0927433+lat_ratio*1.5, 0.0),
+    #                                           right_back=(-88.235317*2+88.235252, 40.0927516+lat_ratio*1.5, 0.0),
+    #                                           left_forward=(-88.235968, 40.0927432-lat_ratio*1.5, 0.0),
+    #                                           left_back=(-88.235252, 40.0927527-lat_ratio*1.5, 0.0),
+    #                                           left_crossable=False,
+    #                                           right_crossable=False,
+    #                                           resolution=resolution,
+    #                                           route_name=''
+    #                                           )
     roadgraph.lanes['west_cycle_1'] = create_lane(left_back=(-88.235968, 40.0927432-lat_ratio*1.5, 0.0),
                                                   left_forward=(-88.235968, 40.0928604+lat_ratio*1.5, 0.0),
                                                   right_back=(-88.235968, 40.0927432+lat_ratio*1.5, 0.0),
@@ -435,7 +435,13 @@ if __name__ == '__main__':
                                                 route_name=''
                                                 )
 
+    parking_edge_lat = 40.0927436 + 2 * lat_ratio
+    print(parking_edge_lat)
+    roadgraph.regions['lane0_parallel_parking_lot_1'] = create_rectangle_region([-88.235527-p_l*lon_ratio*3, parking_edge_lat], p_l*lon_ratio, p_w*lat_ratio, 'right')
+    roadgraph.regions['lane0_parallel_parking_lot_2'] = create_rectangle_region([-88.235527-p_l*lon_ratio*2, parking_edge_lat], p_l*lon_ratio, p_w*lat_ratio, 'right')
+    roadgraph.regions['lane0_parallel_parking_lot_3'] = create_rectangle_region([-88.235527-p_l*lon_ratio, parking_edge_lat], p_l*lon_ratio, p_w*lat_ratio, 'right')
+    roadgraph.regions['lane0_parallel_parking_lot_4'] = create_rectangle_region([-88.235527, parking_edge_lat], p_l*lon_ratio, p_w*lat_ratio, 'right')
+
     with open(filename, 'w') as f:
         serialization.save(roadgraph, f)
         print('File saved:', filename)
-

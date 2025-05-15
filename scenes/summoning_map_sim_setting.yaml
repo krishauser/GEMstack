@@ -1,0 +1,4 @@
+start_pose_global: [-88.235164, 40.0927934, 3.14]    # Global pose for global map simulation
+obstacles:
+    frame: 'global'
+    positions: [[-88.235500, 40.0927650]]

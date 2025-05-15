@@ -6,7 +6,8 @@ import os
 import numpy as np
 from .RRT import BiRRT
 from .reeds_shepp_parking import ReedsSheppParking
-import time
+import yaml
+import os
 
 
 class StaticRoutePlanner(Component):
@@ -152,32 +153,41 @@ def find_closest_lane(position: list, roadgraph: Roadgraph, traffic_rule='right'
     return closest_lane
 
 
-def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, max_lane_to_parking_lot_gap=1.0):
+def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, start_vehicle_pose, farthest_parking_distance=40):
     # Find the lane where the goal position is.
     goal_lane = find_closest_lane([goal_pose.x, goal_pose.y], roadgraph)
     goal_lane_points = np.array(goal_lane.right.segments[0])
 
+    closest_lot = None
+    farthest_lot = None
+    closest_point = None
+    farthest_point = None
+    closest_idx = None
+    farthest_idx = None
+    min_dist = np.inf
+    max_dist = -np.inf
     # Find the parking lots that attached to the lane
     parking_lots = []
     for region in roadgraph.regions.values():
         if region.type == RoadgraphRegionEnum.PARKING_LOT:
-            for pt in region.outline:
-                dist = np.linalg.norm(goal_lane_points[:, :2] - np.array(pt[:2]), axis=1)
-                if np.min(dist) < max_lane_to_parking_lot_gap:
-                    parking_lots.append(region.outline)
-                    break
-
-    # Find the closest and farthest parking lots and the middle points of the start and end curves as the parking area
-    # Assume that the closest lot is close to the start of the lane, and the farthest lot is close to the end.
-    closest_lot = None
-    farthest_lot = None
-    closest_start_point = None
-    closest_start_index = None
-    closest_end_point = None
-    closest_end_index = None
-    min_start_dist = np.inf
-    min_end_dist = np.inf
-    parking_area_start_end = None
+            region_current = region.to_frame(roadgraph.frame, ObjectFrameEnum.CURRENT, current_origin=goal_pose, global_origin=start_vehicle_pose)
+            available = True
+            for pt in region_current.outline:
+                # Remove not available regions
+                if pt[1] > 0 or pt[1] < -10 or pt[0] > farthest_parking_distance or pt[0] < 0:
+                    available = False
+            if available:
+                parking_lots.append(region.outline)
+                for i, pt in enumerate(region_current.outline):
+                    dist = np.sqrt(pt[0]**2 + pt[1]**2)
+                    if dist > max_dist:
+                        max_dist = dist
+                        farthest_idx = i
+                        farthest_lot = region.outline
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_idx = i
+                        closest_lot = region.outline
 
     def next_point(index, outline, direction='ccw'):
         if direction == 'ccw':
@@ -188,26 +198,16 @@ def find_parallel_parking_lots(roadgraph: Roadgraph, goal_pose: ObjectPose, max_
             next_index = 0
         return outline[next_index]
 
+    # Find the closest and farthest parking lots and the middle points of the start and end curves as the parking area
+    parking_area_start_end = None
     if len(parking_lots) > 0:
-        for outline in parking_lots:
-            for idx, pt in enumerate(outline):
-                start_dist = np.linalg.norm(goal_lane_points[0, :2] - np.array(pt[:2]))
-                end_dist = np.linalg.norm(goal_lane_points[-1, :2] - np.array(pt[:2]))
-                if start_dist < min_start_dist:
-                    min_start_dist = start_dist
-                    closest_start_point = pt
-                    closest_start_index = idx
-                    closest_lot = outline
-                if end_dist < min_end_dist:
-                    min_end_dist = end_dist
-                    closest_end_point = pt
-                    closest_end_index = idx
-                    farthest_lot = outline
         # Find the middle point of the start curve and the end curve of the parking area
-        parking_area_start = (np.array(closest_start_point) + np.array(
-            next_point(closest_start_index, closest_lot, direction='ccw'))) / 2
-        parking_area_end = (np.array(closest_end_point) + np.array(
-            next_point(closest_end_index, farthest_lot, direction='cw'))) / 2
+        closest_point = closest_lot[closest_idx]
+        closest_next = next_point(closest_idx, closest_lot, direction='ccw')
+        parking_area_start = [(closest_point[0]+closest_next[0])/2, (closest_point[1]+closest_next[1])/2]
+        farthest_point = farthest_lot[farthest_idx]
+        farthest_next = next_point(farthest_idx, farthest_lot, direction='ccw')
+        parking_area_end = [(farthest_point[0]+farthest_next[0])/2, (farthest_point[1]+farthest_next[1])/2]
         parking_area_start_end = [parking_area_start, parking_area_end]
 
     return parking_lots, parking_area_start_end
@@ -222,6 +222,8 @@ class SummoningRoutePlanner(Component):
         self.map_type = map_type
         self.lane_points = []
         self.map_boundary = None
+        self.obstacle_list = []
+        self.goal_pose = None
 
         print(map_type, map_frame)
 
@@ -282,11 +284,18 @@ class SummoningRoutePlanner(Component):
         print("Vehicle pose:", vehicle.pose)
 
         """ Transform offline map to start frame """
-        # self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
+        start_vehicle_pose = state.start_vehicle_pose
+        if start_vehicle_pose.frame == ObjectFrameEnum.ABSOLUTE_CARTESIAN and self.map_frame == ObjectFrameEnum.GLOBAL:
+            # For global map simulation test
+            print(os.getcwd())
+            with open("scenes/summoning_map_sim_setting.yaml", "r") as f:
+                data = yaml.safe_load(f)
+                start = data['start_pose_global']
+            # Convert roadgraph to start frame
+            start_vehicle_pose = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=start_vehicle_pose.t,
+                                    x=start[0], y=start[1], yaw=start[2])
 
-        # For global map test in simulation only
-        start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=time.time(), x=-88.235252, y=40.0927516, yaw=-1.57079633)
-        self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose_global)
+        self.roadgraph = self.roadgraph.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
 
         # Get all the points of lanes
         if self.map_type == 'roadgraph':
@@ -302,10 +311,27 @@ class SummoningRoutePlanner(Component):
 
         """ Get obstacle list """
         # TODO: Include dimension
-        obstacle_list = []
+        # Predefined offline obstacles
+        with open("scenes/summoning_map_sim_setting.yaml", "r") as f:
+            data = yaml.safe_load(f)
+            obs_frame = data['obstacles']['frame']
+            offline_obstacles = data['obstacles']['positions']
+        # Convert obstacles ot start frame
+        for obstacle in obstacles:
+            if obs_frame == 'cartesian':
+                obs_pose = ObjectPose(frame=ObjectFrameEnum.ABSOLUTE_CARTESIAN, t=start_vehicle_pose.t, x=offline_obstacles[0], y=offline_obstacles[1])
+            elif obs_frame == 'start':
+                obs_pose = ObjectPose(frame=ObjectFrameEnum.START, t=start_vehicle_pose.t, x=offline_obstacles[0], y=offline_obstacles[1])
+            elif obs_frame == 'global':
+                obs_pose = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=start_vehicle_pose.t, x=offline_obstacles[0], y=offline_obstacles[1])
+            else:
+                raise ValueError("Unknown obstacle frame", obs_frame)
+            obs_pose = obs_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
+            self.obstacle_list.append([obs_pose.x, obs_pose.y])
+
+        # Online obstacles
         for obstacle in obstacles.values():
-            obstacle_list.append([obstacle.pose.x, obstacle.pose.y])
-        self.obstacle_list = np.array(obstacle_list)
+            self.obstacle_list.append([obstacle.pose.x, obstacle.pose.y])
 
         """ Route planing in different mission states """
         # Idle mode. No mission, no driving. (Added by Summoning)
@@ -315,7 +341,6 @@ class SummoningRoutePlanner(Component):
                 self.route = None
 
         # Summoning driving mode.
-        # elif mission.type == MissionEnum.SUMMONING_DRIVE:
         elif mission.type == MissionEnum.SUMMON_DRIVING:
             print("I am in SUMMON_DRIVING mode")
             if self.route is None:
@@ -323,15 +348,35 @@ class SummoningRoutePlanner(Component):
                 start_pose = find_available_pose_in_lane([vehicle.pose.x, vehicle.pose.y],
                                                          self.roadgraph, goal_yaw=vehicle.pose.yaw,
                                                          map_type=self.map_type)
-                goal_pose = find_available_pose_in_lane([mission.goal_pose.x, mission.goal_pose.y],
+                goal_pose1 = find_available_pose_in_lane([mission.goal_pose.x, mission.goal_pose.y],
                                                         self.roadgraph, map_type=self.map_type)
+                # Reverse direction of goal_pose1
+                goal_pose2 = [goal_pose1[0], goal_pose1[1], (goal_pose1[2] + np.pi*2) % (2 * np.pi) - np.pi]
+
+                # Search for waypoints. search for two goal yaws and choose the shorter path.
+                searcher = BiRRT(self.lane_points, self.map_boundary, update_rate=self.update_rate)
+                waypoints1 = searcher.search(start_pose, goal_pose1, obstacle_list=self.obstacle_list)
+                waypoints2 = searcher.search(start_pose, goal_pose2, obstacle_list=self.obstacle_list)
+                if len(waypoints1) != 0 and len(waypoints2) != 0:
+                    if len(waypoints1) <= len(waypoints2):
+                        waypoints = waypoints1
+                        goal_pose = goal_pose1
+                    else:
+                        waypoints = waypoints2
+                        goal_pose = goal_pose2
+                elif len(waypoints1) != 0:
+                    waypoints = waypoints1
+                    goal_pose = goal_pose1
+                elif len(waypoints2) != 0:
+                    waypoints = waypoints2
+                    goal_pose = goal_pose2
+                else:
+                    waypoints = []
+                    goal_pose = goal_pose1
+
                 print('Start pose:', start_pose)
                 print('Goal pose:', goal_pose)
-
-                # Search for waypoints
-                searcher = BiRRT(self.lane_points, self.map_boundary, update_rate=self.update_rate)
-                waypoints = searcher.search(start_pose, goal_pose, obstacle_list=self.obstacle_list.tolist())
-
+                self.goal_pose = ObjectPose(frame=ObjectFrameEnum.START, t=start_vehicle_pose.t, x=goal_pose[0], y=goal_pose[1], yaw=goal_pose[2])
                 # For now, waypoints of [x, y, heading] is not working in longitudinal_planning. Use [x, y] instead.
                 if waypoints:
                     waypoints = np.array(waypoints)
@@ -347,26 +392,25 @@ class SummoningRoutePlanner(Component):
         # Parallel parking mode.
         elif mission.type == MissionEnum.PARALLEL_PARKING:
             print("I am in PARALLEL_PARKING mode")
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 
             if self.parking_velocity_is_zero == False and state.vehicle.v > 0.01:
-                print("Vehicle is moving, stop it first.")
+                print("Vehicle is moving, wait to stop.")
                 self.route = Route(frame=ObjectFrameEnum.START, points=[[vehicle.pose.x, vehicle.pose.y],[vehicle.pose.x, vehicle.pose.y]])
 
             elif self.map_type == 'roadgraph':
-                parking_lots, parking_area_start_end = find_parallel_parking_lots(self.roadgraph, vehicle.pose)
+                parking_lots, parking_area_start_end = find_parallel_parking_lots(self.roadgraph, self.goal_pose, start_vehicle_pose)
                 self.reedssheppparking.static_horizontal_curb_xy_coordinates = parking_area_start_end
 
                 self.parking_velocity_is_zero = True
 
                 # TODO: Test only. Remove it later.
-                self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(40, -3),(70, -3)]
-                # self.obstacle_list= [(4, -3),(24, -3)]
+                # self.reedssheppparking.static_horizontal_curb_xy_coordinates = [(10, -3),(40, -3)]
+                # self.obstacle_list= [(12.44, -3), (17.32, -3)]
                 print("Parking area start and end:", self.reedssheppparking.static_horizontal_curb_xy_coordinates)
                 print("Obstacle list:", self.obstacle_list)
 
                 if not self.reedssheppparking.static_horizontal_curb_xy_coordinates:
-                    print("No parking area found, start parking here.")
+                    print("No parking area found, stop.")
                     self.route = None
 
                 elif not self.parking_route_existed:
