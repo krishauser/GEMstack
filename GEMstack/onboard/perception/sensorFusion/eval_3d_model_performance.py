@@ -8,15 +8,16 @@ from collections import defaultdict
 import math
 import warnings
 import traceback
+import csv
 
-######  Bbox coord mapping ######
+########  Bbox coord mapping
 IDX_X, IDX_Y, IDX_Z = 0, 1, 2
 IDX_L, IDX_W, IDX_H = 3, 4, 5
 IDX_YAW = 6
 IDX_CLASS = 7
 IDX_SCORE = 8
 
-######  Helper Functions ######
+########  Helper Functions
 
 def parse_box_line(line, is_gt=False):
     """
@@ -26,7 +27,7 @@ def parse_box_line(line, is_gt=False):
     """
     parts = line.strip().split()
     try:
-        # Parses standard KITTI format:
+        # Parse KITTI format:
         # type truncated occluded alpha bbox_2d(4) dims(3) loc(3) rotation_y (score)
         # 0    1          2        3     4-7       8-10    11-13  14           (15)
 
@@ -130,9 +131,8 @@ def calculate_3d_iou(box1, box2, get_corners_cb, get_volume_cb):
         box1, box2: List or tuple representing a 3D bounding box in the
                     *internal standardized format*: [cx, cy, cz, l, w, h, yaw, ...]
                     where cy is the geometric center y.
-        OR box1 and box2 are BoundingBox objects
-        get_corners_cb is a callback that is used to extract the parameters 
-            from the box1 and box2 arguments
+        get_corners_cb: Callback function to extract AABB corners from a box
+        get_volume_cb: Callback function to calculate volume of a box
 
     Returns:
         float: The 3D IoU value.
@@ -140,7 +140,7 @@ def calculate_3d_iou(box1, box2, get_corners_cb, get_volume_cb):
     Doesn't consider yaw
     """
 
-    ####### Simple Axis-Aligned Bounding Box (AABB) IoU #######
+    ######### Simple Axis-Aligned Bounding Box (AABB) IoU#
     min_x1, max_x1, min_y1, max_y1, min_z1, max_z1 = get_corners_cb(box1)
     min_x2, max_x2, min_y2, max_y2, min_z2, max_z2 = get_corners_cb(box2)
 
@@ -198,8 +198,24 @@ def calculate_ap(precision, recall):
     ap = np.sum((recall[indices] - recall[indices-1]) * precision[indices])
     return ap
 
-def evaluate_detector(gt_boxes_all_samples, pred_boxes_all_samples, classes, iou_threshold):
-    """Evaluates a single detector's predictions against ground truth."""
+def evaluate_detector(gt_boxes_all_samples, pred_boxes_all_samples, classes, iou_threshold, confidence_thresholds=None):
+    """Evaluates a single detector's predictions against ground truth.
+    
+    Args:
+        gt_boxes_all_samples: Ground truth boxes dictionary by sample_id and class
+        pred_boxes_all_samples: Prediction boxes dictionary by sample_id and class
+        classes: List of classes to evaluate
+        iou_threshold: IoU threshold for matching predictions to ground truth
+        confidence_thresholds: List of confidence thresholds to use for evaluation
+                               If None, uses [0.0] (all predictions)
+    
+    Returns:
+        Dictionary of results by class
+    """
+    # Default to single threshold that includes all predictions
+    if confidence_thresholds is None:
+        confidence_thresholds = [0.0]
+    
     results_by_class = {}
     sample_ids = list(gt_boxes_all_samples.keys()) # Get fixed order of sample IDs
 
@@ -207,6 +223,7 @@ def evaluate_detector(gt_boxes_all_samples, pred_boxes_all_samples, classes, iou
         all_pred_boxes_cls = []
         num_gt_cls = 0
         pred_sample_indices = [] # Store index from sample_ids for each prediction
+        pred_scores = [] # Store confidence scores for each prediction
 
         # Collect all GTs and Preds for this class across samples
         for i, sample_id in enumerate(sample_ids):
@@ -218,6 +235,11 @@ def evaluate_detector(gt_boxes_all_samples, pred_boxes_all_samples, classes, iou
             for box in pred_boxes:
                 all_pred_boxes_cls.append(box)
                 pred_sample_indices.append(i) # Store the original sample index
+                # Extract score safely
+                if len(box) > IDX_SCORE and isinstance(box[IDX_SCORE], (int, float)):
+                    pred_scores.append(box[IDX_SCORE])
+                else:
+                    pred_scores.append(0.0)  # Default score if missing
 
         if not all_pred_boxes_cls: # Handle case with no predictions for this class
              results_by_class[cls] = {
@@ -225,123 +247,185 @@ def evaluate_detector(gt_boxes_all_samples, pred_boxes_all_samples, classes, iou
                 'recall': np.array([]),
                 'ap': 0.0,
                 'num_gt': num_gt_cls,
-                'num_pred': 0
+                'num_pred': 0,
+                'confusion_matrix': {},  # Empty confusion matrix
+                'thresholds': confidence_thresholds
              }
              continue # Skip to next class
 
-        # Sort detections by confidence score (descending)
-        # Ensure scores exist and are numeric before sorting
-        scores = []
-        valid_indices_for_sorting = []
-        for idx, box in enumerate(all_pred_boxes_cls):
-             if len(box) > IDX_SCORE and isinstance(box[IDX_SCORE], (int, float)):
-                 scores.append(-box[IDX_SCORE]) # Use negative score for descending sort with argsort
-                 valid_indices_for_sorting.append(idx)
-             else:
-                  warnings.warn(f"Class {cls}: Prediction missing score or invalid score type. Excluding from evaluation: {box}")
-
-        if not valid_indices_for_sorting: # If filtering removed all boxes
-            results_by_class[cls] = {'precision': np.array([]),'recall': np.array([]),'ap': 0.0,'num_gt': num_gt_cls,'num_pred': 0}
-            continue
-
-        # Filter lists based on valid scores
-        all_pred_boxes_cls = [all_pred_boxes_cls[i] for i in valid_indices_for_sorting]
-        pred_sample_indices = [pred_sample_indices[i] for i in valid_indices_for_sorting]
-        # Scores list is already built correctly
-
-        # Get the sorted order based on scores
-        sorted_indices = np.argsort(scores) # argsort sorts ascending on negative scores -> descending order of original scores
-
+        # Sort all predictions by score (descending)
+        sorted_indices = np.argsort(pred_scores)[::-1]
+        
         # Reorder the lists based on sorted scores
         all_pred_boxes_cls = [all_pred_boxes_cls[i] for i in sorted_indices]
         pred_sample_indices = [pred_sample_indices[i] for i in sorted_indices]
+        pred_scores = [pred_scores[i] for i in sorted_indices]
 
-
-        tp = np.zeros(len(all_pred_boxes_cls))
-        fp = np.zeros(len(all_pred_boxes_cls))
-        # Track matched GTs per sample: gt_matched[sample_idx][gt_box_idx] = True/False
-        gt_matched = defaultdict(lambda: defaultdict(bool)) # Indexed by sample_idx, then gt_idx
-
-        # Match predictions
-        for det_idx, pred_box in enumerate(all_pred_boxes_cls):
-            sample_idx = pred_sample_indices[det_idx] # Get the original sample index (0 to num_samples-1)
-            sample_id = sample_ids[sample_idx] # Get the sample_id string using the index
-            gt_boxes = gt_boxes_all_samples.get(sample_id, {}).get(cls, [])
-
-            best_iou = -1.0
-            best_gt_idx = -1 # Index relative to gt_boxes for this sample/class
-
-            if not gt_boxes: # No GT for this class in this specific sample
-                fp[det_idx] = 1
+        # Store results for each confidence threshold
+        threshold_results = {}
+        
+        # For each confidence threshold
+        for threshold in confidence_thresholds:
+            # Filter predictions above threshold
+            threshold_indices = [i for i, score in enumerate(pred_scores) if score >= threshold]
+            if not threshold_indices:
+                # No predictions above this threshold
+                threshold_results[threshold] = {
+                    'precision': np.array([]),
+                    'recall': np.array([]),
+                    'ap': 0.0,
+                    'tp': np.array([]),
+                    'fp': np.array([]),
+                    'tn': 0,  # TN doesn't apply directly to object detection (no explicit negatives)
+                    'fn': num_gt_cls,  # All GT boxes are missed
+                    'confusion_matrix': {
+                        'TP': 0,
+                        'FP': 0,
+                        'FN': num_gt_cls,
+                        'TN': 0  # Included for completeness
+                    }
+                }
                 continue
+                
+            # Get predictions above this threshold
+            filtered_pred_boxes = [all_pred_boxes_cls[i] for i in threshold_indices]
+            filtered_sample_indices = [pred_sample_indices[i] for i in threshold_indices]
+            filtered_scores = [pred_scores[i] for i in threshold_indices]
+            
+            tp = np.zeros(len(filtered_pred_boxes))
+            fp = np.zeros(len(filtered_pred_boxes))
+            # Track matched GTs per sample: gt_matched[sample_idx][gt_box_idx] = True/False
+            gt_matched = defaultdict(lambda: defaultdict(bool)) # Indexed by sample_idx, then gt_idx
 
-            for gt_idx, gt_box in enumerate(gt_boxes):
-                # Explicitly check class match (belt-and-suspenders)
-                if pred_box[IDX_CLASS] == gt_box[IDX_CLASS]:
-                     iou = calculate_3d_iou(pred_box, gt_box, get_aabb_corners)
-                     if iou > best_iou:
-                         best_iou = iou
-                         best_gt_idx = gt_idx
-                # else: # Should not happen if inputs are correctly filtered by class
-                #     pass
+            # Match predictions
+            for det_idx, pred_box in enumerate(filtered_pred_boxes):
+                sample_idx = filtered_sample_indices[det_idx]
+                sample_id = sample_ids[sample_idx]
+                gt_boxes = gt_boxes_all_samples.get(sample_id, {}).get(cls, [])
 
+                best_iou = -1.0
+                best_gt_idx = -1
 
-            if best_iou >= iou_threshold:
-                # Check if this GT box was already matched *in this sample*
-                if not gt_matched[sample_idx].get(best_gt_idx, False):
-                    tp[det_idx] = 1
-                    gt_matched[sample_idx][best_gt_idx] = True # Mark as matched for this sample
+                if not gt_boxes: # No GT for this class in this specific sample
+                    fp[det_idx] = 1
+                    continue
+
+                for gt_idx, gt_box in enumerate(gt_boxes):
+                    # Explicitly check class match (belt-and-suspenders)
+                    if pred_box[IDX_CLASS] == gt_box[IDX_CLASS]:
+                        iou = calculate_3d_iou(pred_box, gt_box, get_aabb_corners, get_volume)
+                        if iou > best_iou:
+                            best_iou = iou
+                            best_gt_idx = gt_idx
+
+                if best_iou >= iou_threshold:
+                    # Check if this GT box was already matched *in this sample*
+                    if not gt_matched[sample_idx].get(best_gt_idx, False):
+                        tp[det_idx] = 1
+                        gt_matched[sample_idx][best_gt_idx] = True # Mark as matched
+                    else:
+                        fp[det_idx] = 1 # Already matched by higher-scored prediction
                 else:
-                    fp[det_idx] = 1 # Matched a GT box already covered by a higher-scored prediction
-            else:
-                fp[det_idx] = 1 # Did not match any available GT box with sufficient IoU
+                    fp[det_idx] = 1 # No match with sufficient IoU
 
-        # Calculate precision/recall
-        fp_cumsum = np.cumsum(fp)
-        tp_cumsum = np.cumsum(tp)
+            # Calculate confusion matrix metrics
+            total_tp = int(np.sum(tp))
+            total_fp = int(np.sum(fp))
+            
+            # Count false negatives (GT boxes that weren't matched)
+            total_fn = num_gt_cls - sum(len(matched) for matched in gt_matched.values())
+            # True negatives don't apply well to object detection, but included for completeness
+            total_tn = 0  # Placeholder
+            
+            # Calculate precision/recall
+            fp_cumsum = np.cumsum(fp)
+            tp_cumsum = np.cumsum(tp)
 
-        # Avoid division by zero if num_gt_cls is 0
-        recall = tp_cumsum / num_gt_cls if num_gt_cls > 0 else np.zeros_like(tp_cumsum, dtype=float)
+            # Avoid division by zero if num_gt_cls is 0
+            recall = tp_cumsum / num_gt_cls if num_gt_cls > 0 else np.zeros_like(tp_cumsum, dtype=float)
 
-        # Avoid division by zero if no predictions were made or matched (tp + fp = 0)
-        denominator = tp_cumsum + fp_cumsum
-        precision = np.divide(tp_cumsum, denominator, out=np.zeros_like(tp_cumsum, dtype=float), where=denominator!=0)
+            # Avoid division by zero if no predictions were made or matched (tp + fp = 0)
+            denominator = tp_cumsum + fp_cumsum
+            precision = np.divide(tp_cumsum, denominator, out=np.zeros_like(tp_cumsum, dtype=float), where=denominator!=0)
 
+            ap = calculate_ap(precision, recall)
+            
+            # Store results for this threshold
+            threshold_results[threshold] = {
+                'precision': precision,
+                'recall': recall,
+                'ap': ap,
+                'tp': tp,
+                'fp': fp,
+                'fn': total_fn,
+                'tn': total_tn,
+                'confusion_matrix': {
+                    'TP': total_tp,
+                    'FP': total_fp,
+                    'FN': total_fn,
+                    'TN': total_tn
+                },
+                'scores': filtered_scores
+            }
 
-        ap = calculate_ap(precision, recall)
-
+        # Find best AP score across thresholds
+        best_threshold = max(threshold_results.keys(), 
+                            key=lambda t: threshold_results[t]['ap'] if not np.isnan(threshold_results[t]['ap']) else 0.0)
+        best_result = threshold_results[best_threshold]
+        
+        # Store overall results for this class
         results_by_class[cls] = {
-            'precision': precision, # Store as numpy arrays
-            'recall': recall,
-            'ap': ap,
+            'precision': best_result['precision'],
+            'recall': best_result['recall'],
+            'ap': best_result['ap'],
             'num_gt': num_gt_cls,
-            'num_pred': len(all_pred_boxes_cls) # Number of predictions *with valid scores*
+            'num_pred': len(all_pred_boxes_cls),
+            'best_threshold': best_threshold,
+            'thresholds': confidence_thresholds,
+            'threshold_results': threshold_results,
+            'confusion_matrix': best_result['confusion_matrix']
         }
 
     return results_by_class
 
 
 def plot_pr_curves(results_all_detectors, classes, output_dir):
-    """Plots Precision-Recall curves for each class."""
+    """
+    Plots Precision-Recall curves for each class.
+    
+    Creates:
+    1. Overall PR curves comparing all detectors at their best threshold
+    2. PR curves for each detector showing performance at different confidence thresholds
+    """
     if not os.path.exists(output_dir):
         try:
             os.makedirs(output_dir)
         except OSError as e:
              print(f"[LOG] Error creating output directory {output_dir} for plots: {e}")
              return # Cannot save plots
+    
+    pr_curves_dir = os.path.join(output_dir, 'pr_curves')
+    if not os.path.exists(pr_curves_dir):
+        try:
+            os.makedirs(pr_curves_dir)
+        except OSError as e:
+            print(f"[LOG] Error creating PR curves directory {pr_curves_dir}: {e}")
+            return
 
     detector_names = list(results_all_detectors.keys())
 
+    # Overall PR curves comparing detectors
     for cls in classes:
         plt.figure(figsize=(10, 7))
         any_results_for_class = False # Track if any detector had results for this class
 
         for detector_name, results_by_class in results_all_detectors.items():
-            if cls in results_by_class and results_by_class[cls]['num_pred'] > 0 : # Check if there were predictions
+            if cls in results_by_class and results_by_class[cls]['num_pred'] > 0: # Check if there were predictions
                 res = results_by_class[cls]
                 precision = res['precision']
                 recall = res['recall']
                 ap = res['ap']
+                best_threshold = res.get('best_threshold', 0.0)
 
                 # Ensure plotting works even if precision/recall are empty arrays
                 if recall.size > 0 and precision.size > 0:
@@ -349,51 +433,213 @@ def plot_pr_curves(results_all_detectors, classes, output_dir):
                     plot_recall = np.concatenate(([0.], recall))
                     # Use precision[0] if available, else 0.
                     plot_precision = np.concatenate(([precision[0] if precision.size > 0 else 0.], precision))
-                    plt.plot(plot_recall, plot_precision, marker='.', markersize=4, linestyle='-', label=f'{detector_name} (AP={ap:.3f})')
+                    plt.plot(plot_recall, plot_precision, marker='.', markersize=4, linestyle='-', 
+                             label=f'{detector_name} (AP={ap:.3f}, t={best_threshold:.2f})')
                     any_results_for_class = True
                 else: # Handle case where num_pred > 0 but P/R arrays somehow ended up empty
-                     plt.plot([0], [0], marker='s', markersize=5, linestyle='', label=f'{detector_name} (AP={ap:.3f}, No P/R data?)')
+                     plt.plot([0], [0], marker='s', markersize=5, linestyle='', 
+                              label=f'{detector_name} (AP={ap:.3f}, No P/R data?)')
                      any_results_for_class = True # Still mark as having results
-
 
             elif cls in results_by_class: # Class exists in evaluation, but no predictions were made for it
                  num_gt = results_by_class[cls]['num_gt']
                  if num_gt > 0:
                       # Plot a marker indicating no predictions were made for this GT class
-                      plt.plot([0], [0], marker='x', markersize=6, linestyle='', label=f'{detector_name} (No Pred, GT={num_gt})')
-                 # else: # No GT and no predictions for this class, don't plot anything specific
-                 #     pass
-            # else: # Class not even in results dict for this detector (e.g., error during eval?)
-                 # Could happen if detector had no files or all files failed parsing for this class
-                 # Might indicate an issue, but avoid cluttering plot unless needed.
-                 pass
-
+                      plt.plot([0], [0], marker='x', markersize=6, linestyle='', 
+                               label=f'{detector_name} (No Pred, GT={num_gt})')
 
         if any_results_for_class:
             plt.xlabel('Recall')
             plt.ylabel('Precision')
             plt.title(f'Precision-Recall Curve for Class: {cls}')
-            plt.legend(loc='lower left')
+            plt.legend(loc='lower left', fontsize='small')
             plt.grid(True)
             plt.xlim([-0.05, 1.05])
             plt.ylim([-0.05, 1.05])
-            plot_path = os.path.join(output_dir, f'pr_curve_{cls}.png')
+            plot_path = os.path.join(pr_curves_dir, f'pr_curve_{cls}_overview.png')
             try:
                 plt.savefig(plot_path)
-                print(f"[LOG]  Generated PR curve: {plot_path}")
+                print(f"[LOG]  Generated PR curve overview: {plot_path}")
             except Exception as e:
                 print(f"[LOG]  Error saving PR curve plot for class '{cls}': {e}")
             finally:
                  plt.close() # Close the figure regardless of save success
         else:
             # Check if there was any GT data for this class across all detectors
-            # Use .get() chain safely
             num_gt_total = sum(results_by_class.get(cls, {}).get('num_gt', 0) for results_by_class in results_all_detectors.values())
             if num_gt_total > 0:
                  print(f"  Skipping PR plot for class '{cls}': No predictions found across detectors (GT={num_gt_total}).")
             else:
                  print(f"  Skipping PR plot for class '{cls}': No ground truth found.")
             plt.close() # Close the empty figure
+    
+    # Plots showing PR curves at different thresholds for each detector and class
+    for detector_name, results_by_class in results_all_detectors.items():
+        detector_dir = os.path.join(pr_curves_dir, detector_name)
+        if not os.path.exists(detector_dir):
+            try:
+                os.makedirs(detector_dir)
+            except OSError as e:
+                print(f"[LOG] Error creating directory for {detector_name}: {e}")
+                continue
+        
+        for cls in classes:
+            if cls not in results_by_class or results_by_class[cls]['num_pred'] == 0:
+                continue
+                
+            res = results_by_class[cls]
+            threshold_results = res.get('threshold_results', {})
+            
+            if not threshold_results:
+                continue
+                
+            plt.figure(figsize=(10, 7))
+            
+            # Plot PR curve for each threshold
+            thresholds = sorted(threshold_results.keys())
+            for threshold in thresholds:
+                threshold_res = threshold_results[threshold]
+                
+                # Skip thresholds with no predictions
+                if 'precision' not in threshold_res or len(threshold_res['precision']) == 0:
+                    continue
+                    
+                precision = threshold_res['precision']
+                recall = threshold_res['recall']
+                ap = threshold_res['ap']
+                
+                # Get TP/FP counts for label
+                cm = threshold_res.get('confusion_matrix', {})
+                tp = cm.get('TP', 0)
+                fp = cm.get('FP', 0)
+                
+                # Mark best threshold with a different line style
+                is_best = threshold == res.get('best_threshold', 0.0)
+                linestyle = '-' if is_best else '--'
+                linewidth = 2 if is_best else 1
+                
+                # Prepend points for better visualization
+                plot_recall = np.concatenate(([0.], recall))
+                plot_precision = np.concatenate(([precision[0] if precision.size > 0 else 0.], precision))
+                
+                plt.plot(plot_recall, plot_precision, marker='.', markersize=3, 
+                         linestyle=linestyle, linewidth=linewidth,
+                         label=f'thresh={threshold:.2f} (AP={ap:.3f}, TP={tp}, FP={fp})')
+            
+            plt.xlabel('Recall')
+            plt.ylabel('Precision')
+            plt.title(f'{detector_name}: PR Curves at Different Thresholds for {cls}')
+            plt.legend(loc='lower left', fontsize='small')
+            plt.grid(True)
+            plt.xlim([-0.05, 1.05])
+            plt.ylim([-0.05, 1.05])
+            
+            plot_path = os.path.join(detector_dir, f'pr_curve_{cls}_thresholds.png')
+            try:
+                plt.savefig(plot_path)
+                print(f"[LOG]  Generated threshold PR curves for {detector_name}/{cls}: {plot_path}")
+            except Exception as e:
+                print(f"[LOG]  Error saving threshold PR curves for {detector_name}/{cls}: {e}")
+            finally:
+                plt.close()
+
+def export_confusion_matrix(results_all_detectors, output_dir, classes):
+    """
+    Exports confusion matrix metrics for all detectors and classes to CSV files.
+    
+    Args:
+        results_all_detectors: Dictionary of results by detector and class
+        output_dir: Directory to save results
+        classes: List of classes to evaluate
+    """
+    confusion_dir = os.path.join(output_dir, 'confusion_matrices')
+    if not os.path.exists(confusion_dir):
+        os.makedirs(confusion_dir)
+    
+    # Create a summary file for all detectors
+    summary_path = os.path.join(confusion_dir, 'confusion_matrix_summary.csv')
+    with open(summary_path, 'w', newline='') as f:
+        writer = csv.writer(f)
+        # Write header
+        writer.writerow(['Detector', 'Class', 'Threshold', 'TP', 'FP', 'FN', 'TN', 'Precision', 'Recall', 'AP'])
+        
+        # Write data for each detector, class, and threshold
+        for detector_name, results_by_class in results_all_detectors.items():
+            for cls in classes:
+                if cls in results_by_class:
+                    cls_results = results_by_class[cls]
+                    best_threshold = cls_results.get('best_threshold', 0.0)
+                    threshold_results = cls_results.get('threshold_results', {})
+                    
+                    for threshold, result in threshold_results.items():
+                        # Skip if no predictions at this threshold
+                        if 'confusion_matrix' not in result:
+                            continue
+                            
+                        cm = result['confusion_matrix']
+                        tp = cm['TP']
+                        fp = cm['FP']
+                        fn = cm['FN']
+                        tn = cm['TN']
+                        
+                        # Calculate precision and recall
+                        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+                        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+                        
+                        # Write row
+                        is_best = '* ' if threshold == best_threshold else ''
+                        writer.writerow([
+                            detector_name,
+                            cls,
+                            f"{is_best}{threshold:.3f}",
+                            tp,
+                            fp,
+                            fn,
+                            tn,
+                            f"{precision:.4f}",
+                            f"{recall:.4f}",
+                            f"{result['ap']:.4f}"
+                        ])
+    
+    print(f"[LOG] Confusion matrix metrics saved to: {summary_path}")
+    
+    # Create detailed files for each detector with per-threshold metrics
+    for detector_name, results_by_class in results_all_detectors.items():
+        detector_file = os.path.join(confusion_dir, f'{detector_name}_detailed.csv')
+        with open(detector_file, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Class', 'Threshold', 'TP', 'FP', 'FN', 'TN', 'Precision', 'Recall', 'AP'])
+            
+            for cls in classes:
+                if cls in results_by_class:
+                    cls_results = results_by_class[cls]
+                    threshold_results = cls_results.get('threshold_results', {})
+                    
+                    # Sort thresholds for better readability
+                    thresholds = sorted(threshold_results.keys())
+                    
+                    for threshold in thresholds:
+                        result = threshold_results[threshold]
+                        if 'confusion_matrix' not in result:
+                            continue
+                            
+                        cm = result['confusion_matrix']
+                        precision = cm['TP'] / (cm['TP'] + cm['FP']) if (cm['TP'] + cm['FP']) > 0 else 0
+                        recall = cm['TP'] / (cm['TP'] + cm['FN']) if (cm['TP'] + cm['FN']) > 0 else 0
+                        
+                        writer.writerow([
+                            cls,
+                            f"{threshold:.3f}",
+                            cm['TP'],
+                            cm['FP'],
+                            cm['FN'],
+                            cm['TN'],
+                            f"{precision:.4f}",
+                            f"{recall:.4f}",
+                            f"{result['ap']:.4f}"
+                        ])
+        
+        print(f"[LOG] Detailed metrics for {detector_name} saved to: {detector_file}")
 
 def main():
     parser = argparse.ArgumentParser(description='Evaluate N 3D Object Detectors using KITTI format labels.')
@@ -404,10 +650,12 @@ def main():
     parser.add_argument('--iou_threshold', type=float, default=0.5, help='3D IoU threshold for matching (default: 0.5). KITTI examples: 0.5 (Car Easy/Mod), 0.7 (Car Hard), 0.5 (Ped/Cyc Easy/Mod), 0.5 (Ped/Cyc Hard).')
     parser.add_argument('--classes', type=str, nargs='*', default=['Car', 'Pedestrian', 'Cyclist'], help='List of classes to evaluate (default: KITTI common classes). Case sensitive.')
     parser.add_argument('--file_extension', type=str, default='.txt', help='Extension of the label files (default: .txt).')
+    parser.add_argument('--confidence_thresholds', type=float, nargs='*', default=[0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9], 
+                        help='Confidence thresholds for evaluation (default: 0.0-0.9 in 0.1 increments).')
 
     args = parser.parse_args()
 
-    ######  Argument Validation and Setup ######
+    ########  Argument Validation and Setup
     if not os.path.isdir(args.gt_dir):
       print(f"[LOG] Error: Ground truth directory not found: {args.gt_dir}")
       return
@@ -447,9 +695,10 @@ def main():
     print(f"IoU Threshold: {args.iou_threshold}")
     print(f"Classes: {args.classes}")
     print(f"File Extension: {args.file_extension}")
+    print(f"Confidence Thresholds: {args.confidence_thresholds}")
     print("=====================\n")
 
-    ######  Load Data ######
+    ########  Load Data
     print("[LOG] Loading data...")
     try:
         gt_files = sorted([f for f in os.listdir(args.gt_dir) if f.endswith(args.file_extension)])
@@ -492,7 +741,7 @@ def main():
         traceback.print_exc()
         return
 
-    ######  Evaluation ######
+    ########  Evaluation
     print("[LOG] Evaluating detectors...")
     results_all_detectors = {} # {detector_name: {class: {'ap':, 'p':, 'r':, 'gt':, 'pred':}}}
     try:
@@ -500,7 +749,7 @@ def main():
             print(f"  Evaluating: {detector_name}")
             # Check if prediction data was actually loaded for this detector
             if detector_name not in pred_boxes_all_detectors:
-                 print(f" [LOG]   Skipping {detector_name} - No prediction data  loaded (check LOG)")
+                 print(f" [LOG]   Skipping {detector_name} - No prediction data loaded (check LOG)")
                  results_all_detectors[detector_name] = {} # Store empty results
                  continue
 
@@ -516,7 +765,8 @@ def main():
                 gt_boxes_all_samples,
                 pred_boxes_all_samples,
                 args.classes, # Pass the user-specified classes
-                args.iou_threshold
+                args.iou_threshold,
+                args.confidence_thresholds
             )
             results_all_detectors[detector_name] = results_by_class
         print("[LOG] Evaluation complete.\n")
@@ -526,7 +776,7 @@ def main():
         return # Stop execution on evaluation error
 
 
-    ######  Report Results & Save ######
+    ########  Report Results & Save
     print("[LOG] Results")
     results_file_path = os.path.join(args.output_dir, 'evaluation_metrics.txt')
 
@@ -534,6 +784,7 @@ def main():
         with open(results_file_path, 'w') as f:
             f.write(f"Evaluation Results (IoU Threshold: {args.iou_threshold})\n")
             f.write(f"Evaluated Classes: {', '.join(args.classes)}\n")
+            f.write(f"Confidence Thresholds: {args.confidence_thresholds}\n")
             f.write("="*60 + "\n")
 
             overall_mAPs = {} # Store mAP for each detector {detector_name: mAP_value}
@@ -549,8 +800,8 @@ def main():
                 results_by_class = results_all_detectors[detector_name]
                 print(f"\nDetector: {detector_name}")
                 f.write(f"\nDetector: {detector_name}\n")
-                f.write(f"{'Class':<15} | {'AP':<10} | {'Num GT':<10} | {'Num Pred':<10}\n")
-                f.write("-" * 55 + "\n")
+                f.write(f"{'Class':<15} | {'AP':<10} | {'Num GT':<10} | {'Num Pred':<10} | {'Best Thresh':<11} | {'TP':<5} | {'FP':<5} | {'FN':<5}\n")
+                f.write("-" * 85 + "\n")
 
                 detector_aps = [] # AP values for classes with GT > 0 for this detector
                 evaluated_classes_with_gt = [] # Class names with GT > 0 for this detector
@@ -566,8 +817,17 @@ def main():
                         ap = res['ap']
                         num_gt = res['num_gt'] # Should match num_gt_total_for_class if evaluated correctly
                         num_pred = res['num_pred'] # Number of valid predictions for this class
-                        print(f"{cls:<15} | {ap:<10.4f} | {num_gt:<10} | {num_pred:<10}")
-                        f.write(f"{cls:<15} | {ap:<10.4f} | {num_gt:<10} | {num_pred:<10}\n")
+                        best_threshold = res.get('best_threshold', 0.0)
+                        
+                        # Get confusion matrix from best threshold
+                        cm = res.get('confusion_matrix', {})
+                        tp = cm.get('TP', 0)
+                        fp = cm.get('FP', 0)
+                        fn = cm.get('FN', 0)
+                        
+                        print(f"{cls:<15} | {ap:<10.4f} | {num_gt:<10} | {num_pred:<10} | {best_threshold:<11.3f} | {tp:<5} | {fp:<5} | {fn:<5}")
+                        f.write(f"{cls:<15} | {ap:<10.4f} | {num_gt:<10} | {num_pred:<10} | {best_threshold:<11.3f} | {tp:<5} | {fp:<5} | {fn:<5}\n")
+                        
                         # Include in mAP calculation only if there were GT boxes for this class
                         if num_gt > 0:
                            detector_aps.append(ap)
@@ -576,8 +836,8 @@ def main():
                     else:
                         # No results entry for this class, implies 0 valid predictions processed.
                         # Report AP as 0.0000 if GT existed, otherwise N/A.
-                        print(f"{cls:<15} | {'0.0000' if num_gt_total_for_class > 0 else 'N/A':<10} | {num_gt_total_for_class:<10} | {'0':<10}")
-                        f.write(f"{cls:<15} | {'0.0000' if num_gt_total_for_class > 0 else 'N/A':<10} | {num_gt_total_for_class:<10} | {'0':<10}\n")
+                        print(f"{cls:<15} | {'0.0000' if num_gt_total_for_class > 0 else 'N/A':<10} | {num_gt_total_for_class:<10} | {'0':<10} | {'N/A':<11} | {'0':<5} | {'0':<5} | {num_gt_total_for_class:<5}")
+                        f.write(f"{cls:<15} | {'0.0000' if num_gt_total_for_class > 0 else 'N/A':<10} | {num_gt_total_for_class:<10} | {'0':<10} | {'N/A':<11} | {'0':<5} | {'0':<5} | {num_gt_total_for_class:<5}\n")
                         # If GT existed, this class contributes 0 to the mAP average.
                         if num_gt_total_for_class > 0:
                             detector_aps.append(0.0)
@@ -589,19 +849,40 @@ def main():
                     overall_mAPs[detector_name] = mAP
                     # Report which classes contributed to the mAP
                     mAP_info = f"(Classes w/ GT: {', '.join(evaluated_classes_with_gt)})" if evaluated_classes_with_gt else ""
-                    print("-" * 55)
+                    print("-" * 85)
                     print(f"{'mAP':<15} | {mAP:<10.4f} {mAP_info}")
-                    f.write("-" * 55 + "\n")
+                    f.write("-" * 85 + "\n")
                     f.write(f"{'mAP':<15} | {mAP:<10.4f} {mAP_info}\n")
+
+                    # Add confusion matrix section for this detector
+                    f.write("\nConfusion Matrix Summary (at best threshold per class):\n")
+                    f.write(f"{'Class':<15} | {'Threshold':<10} | {'TP':<5} | {'FP':<5} | {'FN':<5} | {'Precision':<10} | {'Recall':<10}\n")
+                    f.write("-" * 75 + "\n")
+                    
+                    for cls in evaluated_classes_with_gt:
+                        if cls in results_by_class:
+                            res = results_by_class[cls]
+                            best_thresh = res.get('best_threshold', 0.0)
+                            cm = res.get('confusion_matrix', {})
+                            
+                            tp = cm.get('TP', 0)
+                            fp = cm.get('FP', 0)
+                            fn = cm.get('FN', 0)
+                            
+                            precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+                            recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+                            
+                            f.write(f"{cls:<15} | {best_thresh:<10.3f} | {tp:<5} | {fp:<5} | {fn:<5} | {precision:<10.4f} | {recall:<10.4f}\n")
+                    
                 else:
                     overall_mAPs[detector_name] = np.nan # Indicate mAP couldn't be computed
-                    print("-" * 55)
+                    print("-" * 85)
                     print(f"{'mAP':<15} | {'N/A (No GT in evaluated classes)':<10}")
-                    f.write("-" * 55 + "\n")
+                    f.write("-" * 85 + "\n")
                     f.write(f"{'mAP':<15} | {'N/A (No GT in evaluated classes)':<10}\n")
 
 
-            ######  Overall Comparison Table ######
+            ########  Overall Comparison Table
             # Check if there are results to compare
             if len(final_detector_names) > 0 and results_all_detectors:
                  print("\n[LOG] Overall Class AP Comparison")
@@ -639,7 +920,7 @@ def main():
                      print(line)
                      f.write(line + "\n")
 
-                 ######  Overall mAP Comparison ######
+                 ########  Overall mAP Comparison
                  print("-" * len(header))
                  f.write("-" * len(header) + "\n")
                  map_str = ""
@@ -653,16 +934,22 @@ def main():
                  print("\n[LOG] Skipping overall comparison table - no results available.")
                  f.write("\n[LOG] Skipping overall comparison table - no results available.\n")
 
-
         print(f"\nMetrics saved to: {results_file_path}")
 
     except Exception as e:
         print(f"[LOG] Error during results reporting/saving: {e}")
         traceback.print_exc()
-        # Continue to plotting if possible
-        # return # Or stop here
+        # Plot
+        # return # Or stop
+    
+    ##########  Export Confusion Matrix CSV
+    try:
+        export_confusion_matrix(results_all_detectors, args.output_dir, args.classes)
+    except Exception as e:
+        print(f"[LOG] Error exporting confusion matrix: {e}")
+        traceback.print_exc()
 
-    ######  Plotting ######
+    ##########  Plotting
     print("\n[LOG] Generating PR curves...")
     try:
         # Check if results_all_detectors has data before plotting
