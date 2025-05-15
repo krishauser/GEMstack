@@ -236,7 +236,7 @@ def plot_x_y(axis, x, y, x_label, y_label):
     axis.set_ylabel(y_label)
     axis.grid(True)
 
-def compute_velocity_profile(points, plot=True):
+def compute_velocity_profile(points, plot=False):
     """
     Compute a vehicle dynamics limited velocity profile for a set path
     
