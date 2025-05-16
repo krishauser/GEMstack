@@ -22,7 +22,7 @@ components:
       inputs: [vehicle, roadgraph]
       outputs: vehicle_lane
   - parking_detection:
-      inputs: obstacles
+      inputs: all
       outputs: [goal, obstacles]
   - sign_detection: 
       inputs: [vehicle, roadgraph]
