@@ -68,8 +68,7 @@ variants:
             vehicle_interface:
                 type: gem_simulator.GEMDoubleIntegratorSimulationInterface
                 args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
-
+                    scene: !relative_path '../scenes/xyhead_demo.yaml'            
             drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
@@ -81,6 +80,7 @@ variants:
             mode: simulation
             vehicle_interface:
                 type: gem_gazebo.GEMGazeboInterface
+            collision_logging: True
             drive:
                 perception:
                     state_estimation: GNSSStateEstimator  # Matches your Gazebo GNSS implementation

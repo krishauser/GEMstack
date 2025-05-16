@@ -20,8 +20,7 @@ control:
     stanley:
         control_gain: 1.5
         softening_gain: 0.2
-        desired_speed: racing        # Speed reference source: can be "trajectory", "path", "racing" or a constant value
-    
+        desired_speed: trajectory       # Speed reference source: can be "trajectory", "path", "racing" or a constant value
     longitudinal_control:
         pid_p: 1.0
         pid_i: 0.7
