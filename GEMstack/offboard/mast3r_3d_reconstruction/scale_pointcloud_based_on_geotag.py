@@ -72,11 +72,9 @@ def get_gps_from_exif(image_path):
     gps_info = {}
     for tag, value in exif.items():
         decoded = TAGS.get(tag)
-        # print(decoded)
         if decoded == "GPSInfo":
             for t in value:
                 sub_decoded = GPSTAGS.get(t)
-                # print(sub_decoded)
                 gps_info[sub_decoded] = value[t]
     
     return gps_info
@@ -112,9 +110,9 @@ def parse_gps_info(image_path):
         'date': datestamp
     }
 
-def gps_to_xyz(gps_lookup):
+def gps_to_xyz(gps_lookup, crs_from, crs_to):
     xyz_lookup = {}
-    transformer = Transformer.from_crs("EPSG:4979", "EPSG:32616", always_xy=True)  # includes altitude
+    transformer = Transformer.from_crs(crs_from, crs_to, always_xy=True)  # includes altitude
     for image_name, (lat, lon, alt) in gps_lookup.items():
         xyz = transformer.transform(lon, lat, alt)
         xyz_lookup[image_name] = xyz
@@ -138,8 +136,6 @@ def estimate_3d_scale_from_gps(camera_centers, gps_xyz, camera_image_names, min_
         file_name_i = camera_image_names[i]
         file_name_j = camera_image_names[j]
         d_sfm = np.linalg.norm(camera_centers[i] - camera_centers[j])
-        # print(file_name_i, file_name_j)
-        # print(gps_xyz[file_name_i], gps_xyz[file_name_j])
         d_gps = np.linalg.norm(np.array(gps_xyz[file_name_i]) - np.array(gps_xyz[file_name_j]))
 
         if d_gps > min_dist_threshold:
@@ -222,8 +218,12 @@ def collect_gps_data(data_folder):
 
 
 def run_mast3r(args):
-    model = AsymmetricMASt3R.from_pretrained(args.weights_path).to(args.device)
-    chkpt_tag = hash_md5(args.weights_path)
+    if args.weights is not None:
+        weights_path = args.weights
+    else:
+        weights_path = "naver/" + args.model_name
+    model = AsymmetricMASt3R.from_pretrained(weights_path).to(args.device)
+    chkpt_tag = hash_md5(weights_path)
 
     def get_context(tmp_dir):
         return tempfile.TemporaryDirectory(suffix='_mast3r_context') if tmp_dir is None \
@@ -232,41 +232,64 @@ def run_mast3r(args):
         cache_path = os.path.join(tmpdirname, chkpt_tag)
         os.makedirs(cache_path, exist_ok=True)
         inputfiles = [os.path.join(args.folder_path, f) for f in os.listdir(args.folder_path) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-        scene_state, outfile = get_reconstructed_scene(tmpdirname, False, model,
+        scene_state = get_reconstructed_scene(tmpdirname, False, model,
                                   args.retrieval_model, args.device, args.silent, args.image_size, None, inputfiles, args.optim_level, args.lr1, args.niter1, args.lr2, args.niter2, args.min_conf_thr, args.matching_conf_thr,
                                   True, False, args.clean_depth,
                                   args.scenegraph_type, args.winsize, args.win_cyclic, args.refid, 0, args.shared_intrinsics)
-    return scene_state, outfile
+    return scene_state
 
 def add_parse_args(parser, is_scene_path=False):
     parser.add_argument('--folder_path', type=str, required=True, help='Path to the folder containing the images')
     parser.add_argument('--output_path', type=str, required=True, help='Path to the output file')
     parser.add_argument('--scale_method', type=str, required=True, help='Method to use for scale estimation')
     parser.add_argument('--scene_path', type=str, required=False, help='Path to the scene file')
+    parser.add_argument('--crs_from', type=str, required=False, default='EPSG:4979', help='EPSG code of the input CRS')
+    parser.add_argument('--crs_to', type=str, required=False, default='EPSG:32616', help='EPSG code of the output CRS')
     if not is_scene_path:
-        parser.add_argument('--weights_path', type=str, required=True, help='Path to the core mast3rweights file')
-        # parser.add_argument('--retrieval_model', type=str, required=True, help='Retrieval model weights path that is used to make image pairs')
-        # parser.add_argument('--device', type=str, required=True, help='Device to run the model on')
+        # parser.add_argument('--retrieval_model', type=str, required=False, default=None, help='Retrieval model weights path that is used to make image pairs')
+        # parser.add_argument('--device', type=str, required=False, default='cuda:0', help='Device to run the model on')
         # parser.add_argument('--silent', type=bool, required=True, help='Whether to run the model silently')
         # parser.add_argument('--image_size', type=int, required=True, help='Image size')
-        parser.add_argument('--optim_level', type=int, required=True, help='Optimization level')
-        parser.add_argument('--lr1', type=float, required=True, help='Learning rate for the first refinement iteration stage')
-        parser.add_argument('--niter1', type=int, required=True, help='Number of iterations for the first refinement iteration stage')
-        parser.add_argument('--lr2', type=float, required=True, help='Learning rate for the second refinement iteration stage')
-        parser.add_argument('--niter2', type=int, required=True, help='Number of iterations for the second refinement iteration stage')
-        parser.add_argument('--min_conf_thr', type=float, required=True, help='Minimum confidence threshold')
-        parser.add_argument('--matching_conf_thr', type=float, required=True, help='Matching confidence threshold')
+        parser.add_argument('--optim_level', type=str, required=False, default='refine+depth', choices=['coarse', 'refine', 'refine+depth'], help='Optimization level')
+        parser.add_argument('--lr1', type=float, required=False, default=0.07, help='Learning rate for the first refinement iteration stage')
+        parser.add_argument('--niter1', type=int, required=False, default=300, help='Number of iterations for the first refinement iteration stage')
+        parser.add_argument('--lr2', type=float, required=False, default=0.01, help='Learning rate for the second refinement iteration stage')
+        parser.add_argument('--niter2', type=int, required=False, default=300, help='Number of iterations for the second refinement iteration stage')
+        parser.add_argument('--min_conf_thr', type=float, required=False, default=1.5, help='Minimum confidence threshold')
+        parser.add_argument('--matching_conf_thr', type=float, required=False, default=0., help='Matching confidence threshold')
         # parser.add_argument('--as_pointcloud', type=bool, required=True, help='Whether to output a pointcloud')
         # parser.add_argument('--mask_sky', type=bool, required=True, help='Whether to mask the sky')
-        parser.add_argument('--clean_depth', type=bool, required=True, help='Whether to clean the depth')
-        parser.add_argument('--transparent_cams', type=bool, required=True, help='Whether to make the cameras transparent')
-        parser.add_argument('--cam_size', type=float, required=True, help='Camera size')
-        parser.add_argument('--scenegraph_type', type=str, required=True, help='Scenegraph type')
-        parser.add_argument('--winsize', type=int, required=True, help='Window size for sliding window pair making scenegraph_type')
-        parser.add_argument('--win_cyclic', type=bool, required=True, help='Whether to use a cyclic sliding window')
-        parser.add_argument('--refid', type=str, required=True, help='Reference image for retrieval')
-        # parser.add_argument('--TSDF_thresh', type=float, required=True, help='TSDF refinement threshold')
-        parser.add_argument('--shared_intrinsics', type=bool, required=True, help='Whether to use a shared intrinsics model')
+        parser.add_argument('--clean_depth', type=bool, required=False, default=True, help='Whether to clean the depth')
+        # parser.add_argument('--transparent_cams', type=bool, required=True, help='Whether to make the cameras transparent')
+        # parser.add_argument('--cam_size', type=float, required=True, help='Camera size')
+        
+        available_scenegraph_type = [
+            ("complete: all possible image pairs", "complete"),
+            ("swin: sliding window", "swin"),
+            ("logwin: sliding window with long range", "logwin"),
+            ("oneref: match one image with all", "oneref"),
+            ("retrieval: connect views based on similarity", "retrieval")
+        ]
+
+        # Extract the actual values for argparse
+        scenegraph_choices = [val for _, val in available_scenegraph_type]
+
+        # Construct help string
+        help_msg = "Type of scene graph:\n" + "\n".join([f"  {val}: {desc.split(':', 1)[1].strip()}" for desc, val in available_scenegraph_type])
+
+        parser.add_argument(
+            '--scenegraph_type',
+            type=str,
+            choices=scenegraph_choices,
+            required=False,
+            default='complete',
+            help=help_msg
+        )
+        parser.add_argument('--winsize', type=int, required=False, default=1, help='Window size for sliding window pair making scenegraph_type')
+        parser.add_argument('--win_cyclic', type=bool, required=False, default=False, help='Whether to use a cyclic sliding window')
+        parser.add_argument('--refid', type=str, required=False, default=0, help='Reference image for retrieval. For retrieval scenegraph_type, this indicates the number of neighbors.')
+        parser.add_argument('--TSDF_thresh', type=float, required=False, default=0, help='TSDF refinement threshold')
+        parser.add_argument('--shared_intrinsics', type=bool, required=False, default=False, help='Whether to use a shared intrinsics model')
     
     
     return parser
@@ -284,14 +307,12 @@ def scale_pointcloud_based_on_geotag():
         args_parser = get_args_parser()
         args_parser = add_parse_args(args_parser, is_scene_path=False)
         args = args_parser.parse_args()
-        scene, outfile = run_mast3r(args)
-        scene.get_dense_pts3d()
+        scene = run_mast3r(args)
         data = scene
     else:
         args_parser = argparse.ArgumentParser()
         args_parser = add_parse_args(args_parser, is_scene_path=True)
         args = args_parser.parse_args()
-        print('cwd', os.getcwd())
         with open(args.scene_path, 'rb') as f:
                     data = pickle.load(f)
     
@@ -305,21 +326,16 @@ def scale_pointcloud_based_on_geotag():
         for row in image_gps_data
     }
     image_names = extract_image_names(data.img_paths)
-    xyz_lookup = gps_to_xyz(gps_lookup)
+    xyz_lookup = gps_to_xyz(gps_lookup, args.crs_from, args.crs_to)
     scale = 1.0
-    for method in ['ransac', 'median']:
-        if method == 'ransac':
-            # print('camera_centers', camera_centers, )
-            # print('xyz_lookup', xyz_lookup)
-            # print('image_names', image_names)
-            scale, sfm_dists, gps_dists = estimate_scale_ransac(camera_centers.cpu().numpy(), xyz_lookup, image_names)
-            print('scale', scale)
-            print('sfm_dists', sfm_dists)
-            print('gps_dists', gps_dists)
-        else:
-            scale, sfm_dists, gps_dists = estimate_3d_scale_from_gps(camera_centers.cpu().numpy(), xyz_lookup, image_names)
-        print(f"Estimated scale: {scale}")
-    convert_scene_output_to_ply(args.output_path, data, scale=scale, apply_y_flip=False)
+    if args.scale_method == 'ransac':
+        scale, sfm_dists, gps_dists = estimate_scale_ransac(camera_centers.cpu().numpy(), xyz_lookup, image_names)
+    elif args.scale_method == 'median':
+        scale, sfm_dists, gps_dists = estimate_3d_scale_from_gps(camera_centers.cpu().numpy(), xyz_lookup, image_names)
+    else:
+        raise ValueError(f"Invalid scale method: {args.scale_method}")
+    print(f"Estimated scale: {scale}")
+    convert_scene_output_to_ply(args.output_path, data, scale=scale, apply_y_flip=False, min_conf_thr=args.min_conf_thr, clean=args.clean_depth, TSDF_thresh=args.TSDF_thresh)
 
 if __name__ == "__main__":
     scale_pointcloud_based_on_geotag()

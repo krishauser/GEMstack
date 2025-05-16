@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# Copyright (C) 2024-present Naver Corporation. All rights reserved.
-# Licensed under CC BY-NC-SA 4.0 (non-commercial use only).
-#
-# --------------------------------------------------------
-# sparse gradio demo functions
-# --------------------------------------------------------
 import math
 import gradio
 import os
@@ -301,10 +294,7 @@ def convert_scene_output_to_ply_impl(outfile, imgs, pts3d, mask, scale=1.0, appl
 
     # Concatenate across all views
     all_pts = np.concatenate(all_pts, axis=0)
-    print(all_pts.shape)
     all_colors = np.concatenate(all_colors, axis=0)
-    print(all_colors.shape)
-    print(all_colors[5])
 
     apply_y_flip = True
     if apply_y_flip:
@@ -314,19 +304,26 @@ def convert_scene_output_to_ply_impl(outfile, imgs, pts3d, mask, scale=1.0, appl
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(all_pts)
     pcd.colors = o3d.utility.Vector3dVector(all_colors)
-    print('cwd', os.getcwd())
     # Save to .ply
-    o3d.io.write_point_cloud(os.path.join(os.getcwd(), outfile), pcd)
+    final_outfile = os.path.join(os.getcwd(), outfile)
+    os.makedirs(os.path.dirname(final_outfile), exist_ok=True)
+    o3d.io.write_point_cloud(final_outfile, pcd)
     if not silent:
         print(f"✅ Exported scaled point cloud to: {outfile}")
 
     return outfile
 
-def convert_scene_output_to_ply(outfile, data, scale=1.0, apply_y_flip=False, min_conf_thr=1.5, clean=True):
-    confs = data.confs_dense_clean if clean else data.confs_dense
-    msk = to_numpy([c > min_conf_thr for c in confs])
+def convert_scene_output_to_ply(outfile, data, scale=1.0, apply_y_flip=False, min_conf_thr=1.5, clean=True, TSDF_thresh=0):
     imgs = to_numpy(data.imgs)
-    dense_pts3d = to_numpy(data.pts3d_dense)
+    if TSDF_thresh > 0:
+        tsdf = TSDFPostProcess(data, TSDF_thresh=TSDF_thresh)
+        dense_pts3d, _, confs = to_numpy(tsdf.get_dense_pts3d(clean_depth=clean))
+        msk = to_numpy([c > min_conf_thr for c in confs])
+    else :
+        confs = data.confs_dense_clean if clean else data.confs_dense
+        dense_pts3d = to_numpy(data.pts3d_dense)
+        msk = to_numpy([c > min_conf_thr for c in confs])
+    # 3D pointcloud from depthmap, poses and intrinsics
     return convert_scene_output_to_ply_impl(outfile, imgs, dense_pts3d, msk, scale=scale, apply_y_flip=apply_y_flip)
 
 def get_3D_model_from_scene(silent, scene_state, min_conf_thr=2, as_pointcloud=False, mask_sky=False,
@@ -400,7 +397,6 @@ def get_reconstructed_scene(outdir, gradio_delete_cache, model, retrieval_model,
     elif scenegraph_type == "retrieval":
         scene_graph_params.append(str(winsize))  # Na
         scene_graph_params.append(str(refid))  # k
-
     if scenegraph_type in ["swin", "logwin"] and not win_cyclic:
         scene_graph_params.append('noncyclic')
     scene_graph = '-'.join(scene_graph_params)
@@ -433,16 +429,17 @@ def get_reconstructed_scene(outdir, gradio_delete_cache, model, retrieval_model,
                                     model, lr1=lr1, niter1=niter1, lr2=lr2, niter2=niter2, device=device,
                                     opt_depth='depth' in optim_level, shared_intrinsics=shared_intrinsics,
                                     matching_conf_thr=matching_conf_thr, **kw)
-    if current_scene_state is not None and \
-        not current_scene_state.should_delete and \
-            current_scene_state.outfile_name is not None:
-        outfile_name = current_scene_state.outfile_name
-    else:
-        outfile_name = tempfile.mktemp(suffix='_scene.glb', dir=outdir)
+    # if current_scene_state is not None and \
+    #     not current_scene_state.should_delete and \
+    #         current_scene_state.outfile_name is not None:
+    #     outfile_name = current_scene_state.outfile_name
+    # else:
+    #     outfile_name = tempfile.mktemp(suffix='_scene.glb', dir=outdir)
 
     # scene_state = SparseGAState(scene, gradio_delete_cache, cache_dir, outfile_name)
     # outfile = get_3D_model_from_scene(silent, scene_state, min_conf_thr, as_pointcloud, mask_sky,
     #                                   clean_depth, transparent_cams, cam_size, TSDF_thresh)
-    outfile = convert_scene_output_to_ply(outfile_name, scene, scale=1.0, apply_y_flip=False, min_conf_thr=min_conf_thr, clean=clean_depth)
-    return scene, outfile
+    scene.get_dense_pts3d()
+    # outfile = convert_scene_output_to_ply(outfile_name, scene, scale=1.0, apply_y_flip=False, min_conf_thr=min_conf_thr, clean=clean_depth)
+    return scene
 
