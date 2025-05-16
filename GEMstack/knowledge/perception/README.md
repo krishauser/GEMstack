@@ -112,6 +112,9 @@ plt.axis('off'); plt.show()
 
 ```
 ![Example Output](/download-9.png)
+![download-8](https://github.com/user-attachments/assets/89b43330-fe4d-419f-be21-fe2c9a6a7fb4)
+
+
 ---
 
 ### 4. Min-Area Rotated Bounding Boxes
