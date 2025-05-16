@@ -22,10 +22,11 @@ drive:
                 save_data: False        # Save raw images & LiDAR for offline debugging
                 orientation: True         # Also detect cones when image is rotated
                 use_start_frame: True         # Report cone poses in the START frame
-
+                # If you want to change a detection model, edit the path here
+                model_path: ./GEMstack/knowledge/detection/cone.pt
                 # In most cases you don’t need to change the settings below
                 # they’ve been fine-tuned based on data from the vertical teams.
-                use_cyl_roi: False         # Apply an additional cylindrical ROI filter
+                use_cyl_roi: False         # Apply an additional cylindrical ROI filter. Useful when calibration is not reliable
                 downsample: False         # Voxel-downsample LiDAR points for faster processing
                 conf_normal: 0.35          # YOLO confidence threshold for upright cones
                 conf_left: 0.10          # YOLO confidence threshold for left-rotated cones

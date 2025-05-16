@@ -36,6 +36,7 @@ class ConeDetector3D(Component):
             orientation: bool = True,
             use_start_frame: bool = True,
             # Processing parameters with defaults
+            model_path: str = 'GEMstack/knowledge/detection/cone.pt',
             downsample: bool = False,
             conf_normal: float = 0.35,
             conf_left: float = 0.15,
@@ -82,7 +83,7 @@ class ConeDetector3D(Component):
         self.max_depth_diff = max_depth_diff
         self.alpha = alpha
         self.expiring_time = expiring_time
-
+        self.model_path = model_path
         # --- Load camera calibration (intrinsics/extrinsics) ---
         with open(camera_calib_file, 'r') as f:
             calib = yaml.safe_load(f)
@@ -114,6 +115,7 @@ class ConeDetector3D(Component):
         rgb_topic_map = {
             'front': '/oak/rgb/image_raw',
             'front_right': '/camera_fr/arena_camera_node/image_raw',
+            'front_left': '/camera_fl/arena_camera_node/image_raw',
         }
         rgb_topic = rgb_topic_map.get(
             self.camera_name,
@@ -129,7 +131,7 @@ class ConeDetector3D(Component):
         self.sync.registerCallback(self.synchronized_callback)
 
         # Initialize the YOLO detector model on GPU
-        self.detector = YOLO('GEMstack/knowledge/detection/cone.pt')
+        self.detector = YOLO(self.model_path)
         self.detector.to('cuda')
 
         # Precompute camera-to-lidar transform and camera origin
