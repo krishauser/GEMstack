@@ -10,53 +10,59 @@ recovery:
 
 # Driving behavior for the GEM vehicle.  Runs real pedestrian perception, yield planner, but does not send commands to real vehicle.
 drive:
-    perception:
-        state_estimation : GNSSStateEstimator
-        obstacle_detection :
-            type: cone_detection.ConeDetector3D
-            args:
-                camera_name: front        # [front, front_right]
-                camera_calib_file: ./GEMstack/knowledge/calibration/gem_e4_perception_cameras.yaml
-                enable_tracking: True         # Enable persistent cone tracking
-                visualize_2d: False        # Display 2D bounding‐box overlays if True
-                save_data: False        # Save raw images & LiDAR for offline debugging
-                orientation: True         # Also detect cones when image is rotated
-                use_start_frame: True         # Report cone poses in the START frame
-                # If you want to change a detection model, edit the path here
-                model_path: ./GEMstack/knowledge/detection/cone.pt
-                # In most cases you don’t need to change the settings below
-                # they’ve been fine-tuned based on data from the vertical teams.
-                use_cyl_roi: False         # Apply an additional cylindrical ROI filter. Useful when calibration is not reliable
-                downsample: False         # Voxel-downsample LiDAR points for faster processing
-                conf_normal: 0.35          # YOLO confidence threshold for upright cones
-                conf_left: 0.10          # YOLO confidence threshold for left-rotated cones
-                conf_right: 0.10          # YOLO confidence threshold for right-rotated cones
-                max_depth: 40            # Maximum LiDAR range (meters) to include in ROI
-                z_range: 0.08          # Minimum height above ground to remove ground plane
-                max_depth_diff: 0.50          # Maximum local depth variance to cone pointcloud cluster
-                alpha: 0.10          # EMA smoothing weight for updating tracked poses
-                expiring_time: 20            # Time (seconds) after which a tracked cone is removed
 
-        perception_normalization : StandardPerceptionNormalizer
+    perception:
+        state_estimation: GNSSStateEstimator
+        agent_detection:
+            type: pedestrian_detection.PedestrianDetector3D
+            args:
+                camera_name: front #[front, front_right]
+                camera_calib_file: ./GEMstack/knowledge/calibration/gem_e4_perception_cameras.yaml
+
+                enable_tracking: True   # True if you want to enable tracking
+                visualize_2d: False  # True to see 2D detection visualization
+                use_cyl_roi: False  # True to use a cylinder ROI
+                save_data: False  # True to save sensor input data
+                orientation: False   # True to detect flipped cones
+                use_start_frame: True   # True to output in START frame
+
+        perception_normalization: StandardPerceptionNormalizer
     planning:
+        relations_estimation: 
+            type: pedestrian_yield_logic.PedestrianYielder
+            args:
+                mode: 'real'
+                params: {
+                    'yielder':       'expert', # 'expert', 'analytic', or 'simulation'
+                    'planner':       'milestone', # 'milestone', 'dt', or 'dx'
+                    'desired_speed': 1.0,  # m/s, 1.5 m/s seems max speed? Feb24
+                    'acceleration':  0.75  # m/s2, 0.5 is not enough to start moving. Feb24
+                    }
+        route_planning:
+            type: StaticRoutePlanner
+            args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv','start']
+        motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+        trajectory_tracking:
+            type: pure_pursuit.PurePursuitTrajectoryTracker
+            print: False
 
 
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
-    #folder : 'logs'
+    #folder : 'logs' 
     # If prefix is specified, then the log folder will be named with the prefix followed by the date and time. Default no prefix
-    #prefix : 'fixed_route_'
+    #prefix : 'fixed_route_'  
     # If suffix is specified, then logs will output to folder/prefix+suffix. Default uses date and time as the suffix
-    #suffix : 'test3'
+    #suffix : 'test3'  
     # Specify which ros topics to record to vehicle.bag. Default records nothing. This records the "standard" ROS topics.
-    ros_topics :
+    ros_topics : 
     # Specify options to pass to rosbag record. Default is no options.
-    #rosbag_options : '--split --size=1024'
+    #rosbag_options : '--split --size=1024' 
     # If True, then record all readings / commands of the vehicle interface. Default False
     vehicle_interface : True
     # Specify which components to record to behavior.json. Default records nothing
-    components : ['state_estimation','obstacle_detection','motion_planning']
-    # Specify which components of state to record to state.json. Default records nothing
+    components : ['state_estimation','agent_detection','motion_planning']
+    # Specify which components of state to record to state.json. Default records nothing 
     #state: ['all']
     # Specify the rate in Hz at which to record state to state.json. Default records at the pipeline's rate
     #state_rate: 10
@@ -64,7 +70,7 @@ log:
     #auto_plot : True
 replay:  # Add items here to set certain topics / inputs to be replayed from logs
     # Specify which log folder to replay from
-    log:
+    log: 
     ros_topics : []
     components : []
 
@@ -89,11 +95,11 @@ variants:
             mission_execution: StandardExecutor
             require_engaged: False
             visualization: !include "klampt_visualization.yaml"
-            drive:
+            drive: 
                 perception:
                     state_estimation : OmniscientStateEstimator
                 planning:
-                    relations_estimation:
+                    relations_estimation: 
                         type: pedestrian_yield_logic.PedestrianYielder
                         args:
                             mode: 'sim'
@@ -103,7 +109,7 @@ variants:
             description: "Run the yielding trajectory planner on the real vehicle with faked perception"
             drive:
                 perception:
-                    obstacle_detection : cone_detection.FakeConeDetector2D
+                    agent_detection : pedestrian_detection.FakePedestrianDetector2D
 
     fake_sim:
         run:
@@ -114,13 +120,13 @@ variants:
                 args:
                     scene: !relative_path '../scenes/xyhead_demo.yaml'
             visualization: !include "klampt_visualization.yaml"
-            drive:
+            drive: 
                 perception:
                     # agent_detection : pedestrian_detection.FakePedestrianDetector2D
                     agent_detection : OmniscientAgentDetector  #this option reads agents from the simulator
                     state_estimation : OmniscientStateEstimator
                 planning:
-                    relations_estimation:
+                    relations_estimation: 
                         type: pedestrian_yield_logic.PedestrianYielder
                         args:
                             mode: 'sim'
