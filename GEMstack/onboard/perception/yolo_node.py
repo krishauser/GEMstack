@@ -35,15 +35,7 @@ class YoloNode():
         self.score_threshold = 0.4
         self.debug = True
 
-        # 1) Load LiDAR-to-vehicle transform
-        self.T_l2v = np.array([
-            [0.99939639, 0.02547917, 0.023615, 1.1],
-            [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
-            [-0.02379784, 0.00689664, 0.999693, 1.95320223],
-            [0.0, 0.0, 0.0, 1.0]
-        ])
-
-        # 2) Load camera intrinsics/extrinsics from YAML
+        # Load camera intrinsics/extrinsics from YAML
         with open(camera_calib_file, 'r') as f:
             calib = yaml.safe_load(f)
 
