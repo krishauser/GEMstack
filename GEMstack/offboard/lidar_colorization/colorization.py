@@ -17,6 +17,9 @@ def parse_args():
 
 
 def save_ply_with_open3d(points, filename):
+    '''
+    Save the point cloud to a PLY file using Open3D
+    '''
     pc = o3d.geometry.PointCloud()
     pc.points = o3d.utility.Vector3dVector(points[:, :3])
     if points.shape[1] == 6:
@@ -25,6 +28,9 @@ def save_ply_with_open3d(points, filename):
     o3d.io.write_point_cloud(filename, pc)
 
 def get_camera_extrinsic_matrix(camera_type):
+    '''
+    Get the camera extrinsic matrix for the given camera type
+    '''
     if camera_type == "front_right" or camera_type == "fr":
         # From the settings
         rotation = np.array(settings.get("calibration.front_right_camera.extrinsics.rotation"))
@@ -69,6 +75,9 @@ def get_camera_extrinsic_matrix(camera_type):
         raise ValueError(f"Camera type {camera_type} not supported")
     
 def get_camera_intrinsic_matrix(camera_type):
+    '''
+    Get the camera intrinsic matrix for the given camera type
+    '''
     if camera_type == "front_right" or camera_type == "fr":
         # Provided intrinsics
         focal = settings.get("calibration.front_right_camera.intrinsics.focal")  # fx, fy
@@ -141,15 +150,14 @@ def get_camera_intrinsic_matrix(camera_type):
         raise ValueError(f"Camera type {camera_type} not supported")
     
 def get_lidar_extrinsic_matrix(lidar_type):
+    '''
+    Get the lidar extrinsic matrix for the given lidar type
+    '''
     if lidar_type == "ouster":
-        # From your file
-        rotation = np.array([
-            [1,0,0],
-            [0,1,0],
-            [0,0,1]
-        ])
+        # From the settings
+        rotation = np.array(settings.get("calibration.top_lidar.rotation"))
 
-        translation = np.array([1.10,0,2.03])
+        translation = np.array(settings.get("calibration.top_lidar.position"))
 
         # Build 4x4 homogeneous transformation matrix
         ouster_to_vehicle = np.eye(4)
