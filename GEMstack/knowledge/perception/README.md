@@ -94,7 +94,8 @@ plt.axis('off')
 plt.show()
 
 ```
-![Example Output](/download-8.png)
+![Example Output](https://github.com/user-attachments/assets/2e8529c5-e093-41d7-9bd4-e8821c0fb071)
+
 ---
 
 ### 3. Axis-Aligned Bounding Box Overlay
@@ -111,9 +112,7 @@ for poly in r.masks.xy:
 plt.axis('off'); plt.show()
 
 ```
-![Example Output](/download-9.png)
-![download-8](https://github.com/user-attachments/assets/89b43330-fe4d-419f-be21-fe2c9a6a7fb4)
-
+![Example Output](https://github.com/user-attachments/assets/fb3cfabd-9433-4bd5-afa9-e24bb354e075)
 
 ---
 
@@ -156,4 +155,4 @@ plt.show()
 ```
 
 ---
-![Example Output](GEMstack/knowledge/perception/download-10.png)
+![Example Output](https://github.com/user-attachments/assets/d5559703-e14d-4a2d-87db-8772fbc87bec)
