@@ -163,3 +163,4 @@ class ObjectDetection(Component):
     
     def state_outputs(self):
         return ['agents']
+
