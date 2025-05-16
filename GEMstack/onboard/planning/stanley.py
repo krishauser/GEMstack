@@ -84,6 +84,13 @@ class Stanley(object):
         else:
             self.desired_speed = None
 
+        if (self.desired_speed_source == 'racing'):
+            self.k = settings.get('control.racing.stanley.control_gain')
+            self.k_soft = settings.get('control.racing.stanley.softening_gain')
+            p = settings.get('control.racing.longitudinal_control.pid_p')
+            d = settings.get('control.racing.longitudinal_control.pid_d')
+            i = settings.get('control.racing.longitudinal_control.pid_i')
+
         # For path/trajectory
         self.path_arg = None
         self.path = None
@@ -327,7 +334,7 @@ class StanleyTrajectoryTracker(Component):
 
         launch_control_enabled = self.stanley.launch_control
         if launch_control_enabled:
-            stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
+            stage_duration = settings.get('control.racing.launch_control.stage_duration', 0.5)
             self.launch_control = LaunchControl(stage_duration, stop_threshold=0.1)
         else:
             self.launch_control = None

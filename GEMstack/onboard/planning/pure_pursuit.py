@@ -32,6 +32,12 @@ class PurePursuit(object):
         self.max_decel     = settings.get('vehicle.limits.max_deceleration') # m/s^2
         self.pid_speed     = PID(settings.get('control.longitudinal_control.pid_p',0.5), settings.get('control.longitudinal_control.pid_d',0.0), settings.get('control.longitudinal_control.pid_i',0.1), windup_limit=20)
 
+        if (self.desired_speed_source == 'racing'):
+            self.look_ahead = settings.get('control.racing.pure_pursuit.lookahead',4.0)
+            self.look_ahead_scale = settings.get('control.racing.pure_pursuit.lookahead_scale')
+            self.crosstrack_gain = settings.get('control.racing.pure_pursuit.crosstrack_gain',0.41)
+            self.pid_speed     = PID(settings.get('control.racing.longitudinal_control.pid_p',0.5), settings.get('control.racing.longitudinal_control.pid_d',0.0), settings.get('control.racing.longitudinal_control.pid_i',0.1), windup_limit=20)
+
         self.path_arg = None
         self.path = None         # type: Trajectory  
         #if trajectory = None, then only an untimed path was provided and we can't use the path velocity as the reference
@@ -42,6 +48,7 @@ class PurePursuit(object):
         self.t_last = None
 
         self.launch_control = launch_control
+
 
     def set_path(self, path : Path):
         if path == self.path_arg:
@@ -212,7 +219,7 @@ class PurePursuitTrajectoryTracker(Component):
         self.vehicle_interface = vehicle_interface
         launch_control_enabled = self.pure_pursuit.launch_control
         if launch_control_enabled:
-            stage_duration = settings.get('control.launch_control.stage_duration', 0.5)
+            stage_duration = settings.get('control.racing.launch_control.stage_duration', 0.5)
             self.launch_control = LaunchControl(stage_duration, stop_threshold=0.1)
         else:
             self.launch_control = None

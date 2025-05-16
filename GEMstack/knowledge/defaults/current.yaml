@@ -13,14 +13,12 @@ control:
         brake_speed : 2.0
     pure_pursuit:
         lookahead: 2.0
-        lookahead_scale: 2.0
-        crosstrack_gain: 0.3
+        lookahead_scale: 3.0
+        crosstrack_gain: 1.0
         desired_speed: trajectory #racing
-    launch_control:
-        stage_duration: 0.5
     # Stanley controller parameters (fine tune this)
     stanley:
-        control_gain: 0.12
+        control_gain: 1.5
         softening_gain: 0.2
         desired_speed: racing        # Speed reference source: can be "trajectory", "path", "racing" or a constant value
     
@@ -28,6 +26,20 @@ control:
         pid_p: 1.0
         pid_i: 0.7
         pid_d: 0.1
+    racing: # These tuning parameters will be used if the speed source is 'racing'
+        pure_pursuit:
+            lookahead: 2.0
+            lookahead_scale: 2.0
+            crosstrack_gain: 0.3
+        stanley:
+            control_gain: 0.12
+            softening_gain: 0.2
+        longitudinal_control:
+            pid_p: 1.0
+            pid_i: 0.7
+            pid_d: 0.1
+        launch_control:
+            stage_duration: 0.5
 planning:
     longitudinal_plan:
         mode:               'real' # 'real' or 'sim'
