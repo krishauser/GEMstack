@@ -54,18 +54,16 @@ class Stanley(object):
         :param desired_speed:      Desired speed (float) or 'path'/'trajectory'.
         """
 
-        # 1) Lower Gains
         self.k = control_gain if control_gain is not None else settings.get('control.stanley.control_gain')
         self.k_soft = softening_gain if softening_gain is not None else settings.get('control.stanley.softening_gain')
 
-        # Typically, this is the max front-wheel steering angle in radians
         self.max_steer = settings.get('vehicle.geometry.max_wheel_angle')
         self.wheelbase = settings.get('vehicle.geometry.wheelbase')
 
-        # Basic longitudinal constraints
         self.speed_limit = settings.get('vehicle.limits.max_speed')
-        self.max_accel   = settings.get('vehicle.limits.max_acceleration')
-        self.max_decel   = settings.get('vehicle.limits.max_deceleration')
+        self.reverse_speed_limit = settings.get('vehicle.limits.max_reverse_speed')
+        self.max_accel = settings.get('vehicle.limits.max_acceleration')
+        self.max_decel = settings.get('vehicle.limits.max_deceleration')
 
         # PID for longitudinal speed tracking
         p = settings.get('control.longitudinal_control.pid_p')
@@ -91,27 +89,29 @@ class Stanley(object):
             d = settings.get('control.racing.longitudinal_control.pid_d')
             i = settings.get('control.racing.longitudinal_control.pid_i')
 
-        # For path/trajectory
+        # Initialize state variables
         self.path_arg = None
         self.path = None
         self.trajectory = None
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
+        self.reverse = None
+        self.sharp_turn = False
 
         self.launch_control = launch_control
 
     def set_path(self, path: Path):
-        """Sets the path or trajectory to track."""
+        # Sets the path for the controller.
         if path == self.path_arg:
             return
         self.path_arg = path
 
-        # If the path has more than 2D, reduce to (x,y)
+        # Ensure path is 2D
         if len(path.points[0]) > 2:
             path = path.get_dims([0,1])
 
-        # If no timing info, we can't rely on 'path'/'trajectory' speed
+        # Parameterize path by arc length
         if not isinstance(path, Trajectory):
             self.path = path.arc_length_parameterize()
             self.trajectory = None
@@ -257,11 +257,13 @@ class Stanley(object):
         return False
 
     def compute(self, state: VehicleState, component: Component = None):
-        """Compute the control outputs: (longitudinal acceleration, front wheel angle)."""
+        # Computes the control commands (acceleration and steering angle).
         t = state.pose.t
         if self.t_last is None:
             self.t_last = t
-        dt = t - self.t_last
+            dt = 0
+        else:
+            dt = t - self.t_last
 
         # Current vehicle states
         curr_x = state.pose.x
@@ -269,12 +271,15 @@ class Stanley(object):
         curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
         speed = state.v
 
+        # Handle no path case
         if self.path is None:
             if component:
                 component.debug_event("No path provided to Stanley controller. Doing nothing.")
+            self.t_last = t
+            self.pid_speed.reset()
             return (0.0, 0.0)
 
-        # Ensure same frame
+        # Transform path and trajectory to vehicle frame if necessary   
         if self.path.frame != state.pose.frame:
             if component:
                 component.debug_event(f"Transforming path from {self.path.frame.name} to {state.pose.frame.name}")
@@ -285,103 +290,190 @@ class Stanley(object):
                 component.debug_event(f"Transforming trajectory from {self.trajectory.frame.name} to {state.pose.frame.name}")
             self.trajectory = self.trajectory.to_frame(state.pose.frame, current_pose=state.pose)
 
-        # 1) Closest point
-        fx, fy = self._find_front_axle_position(curr_x, curr_y, curr_yaw)
-        search_start = self.current_path_parameter - 10
-        search_end   = self.current_path_parameter + 10
+       # Initialize reverse direction if not set
+        if self.reverse is None:
+            self.reverse = self.initialize_state_and_direction(state)
+
+        # Find front or rear axle position based on direction
+        if self.reverse:
+            fx, fy = self._find_rear_axle_position(curr_x, curr_y, curr_yaw)
+        else:
+            fx, fy = self._find_front_axle_position(curr_x, curr_y, curr_yaw)
+
+       # Find the closest point on the path
+        search_start = self.current_path_parameter - 10.0
+        search_end   = self.current_path_parameter + 10.0
         closest_dist, closest_parameter = self.path.closest_point_local((fx, fy), [search_start, search_end])
-        self.current_path_parameter = closest_parameter        
+        self.current_path_parameter = closest_parameter     
 
         # 2) Path heading
-        target_x, target_y = self.path.eval(closest_parameter)
-        index, u = self.path.time_to_index(closest_parameter)
-        tangent = self.path.eval_tangent(closest_parameter)
+        # Get target point and tangent on the path
+        target_x, target_y = self.path.eval(self.current_path_parameter)
+        tangent = self.path.eval_tangent(self.current_path_parameter)
         path_yaw = atan2(tangent[1], tangent[0])
-        desired_x = target_x
-        desired_y = target_y
-        # 3) Lateral error
+
         dx = fx - target_x
         dy = fy - target_y
-        left_vec = np.array([sin(curr_yaw), -cos(curr_yaw)])
-        cross_track_error = np.sign(np.dot(np.array([dx, dy]), left_vec)) * closest_dist
+        desired_x = target_x
+        desired_y = target_y
 
-        # 4) Heading error
+        # Check for sharp turn ahead and potentially switch to reverse
+        if not self.reverse:
+            try:
+                is_sharp_turn_ahead = self._check_sharp_turn_ahead(
+                    lookahead_s=2.0,     
+                    threshold_angle=np.pi/2.0
+                )
+            except Exception as e:
+                is_sharp_turn_ahead = False
+            if is_sharp_turn_ahead and not self.sharp_turn:
+                self.sharp_turn = True
+            use_reverse = self.is_target_behind_vehicle(state.pose, (target_x, target_y))
+            if use_reverse and self.sharp_turn:
+                self.reverse = True
+                self.sharp_turn = False
+        
+        # Calculate cross-track error based on direction
+        if self.reverse:
+            cross_track_error = dx * (-tangent[1]) + dy * tangent[0]
+        else:
+            left_vec = np.array([sin(curr_yaw), -cos(curr_yaw)])
+            cross_track_error = np.sign(np.dot(np.array([dx, dy]), left_vec)) * closest_dist
+
+        # Calculate yaw error
         yaw_error = normalise_angle(path_yaw - curr_yaw)
 
-        # 5) Standard Stanley terms
-        cross_term = atan2(self.k * cross_track_error, self.k_soft + speed)
-        desired_steering_angle = yaw_error + cross_term
 
-        desired_speed = self.desired_speed
+# ~~~~~~~~298
+        if (self.desired_speed):
+            desired_speed = abs(self.desired_speed)
+        else:
+            desired_speed = None
         feedforward_accel = 0.0
-        
-        if self.trajectory and self.desired_speed_source in ['path', 'trajectory', 'racing']:
-            if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
-                # End of trajectory -> stop
-                if component:
-                    component.debug_event("Stanley: Past the end of trajectory, stopping.")
+
+        # Stanley control logic for reverse direction
+        if self.reverse:
+            heading_term = -yaw_error
+            cross_term_input = self.k * (-cross_track_error) / (self.k_soft + abs(speed))
+            cross_term = atan2(cross_term_input, 1.0)
+            desired_steering_angle = heading_term + cross_term
+
+            # Determine desired speed from trajectory in reverse
+            if self.trajectory and self.desired_speed_source in ['path', 'trajectory']:
+                current_trajectory_param_for_eval = self.current_path_parameter
+                if hasattr(self.trajectory, 'parameter_to_time'):
+                    current_trajectory_param_for_eval = self.trajectory.parameter_to_time(self.current_path_parameter)
+
+                if self.trajectory is not None:
+                    deriv = self.trajectory.eval_derivative(current_trajectory_param_for_eval)
+                    path_speed_magnitude = np.linalg.norm(deriv)
+                else:
+                    path_speed_magnitude = 0.0
+
+                desired_speed = min(path_speed_magnitude, self.reverse_speed_limit)
+
+            desired_speed = desired_speed * -1.0
+
+            # Handle reaching the start in reverse
+            is_at_start_backward = self.current_path_parameter <= self.path.domain()[0] + 1e-3
+
+            if is_at_start_backward:
                 desired_speed = 0.0
-                feedforward_accel = -2.0    
-                desired_steering_angle = 0.0
+                feedforward_accel = -2.0 * -1.0
 
+            # Calculate feedforward acceleration for reverse
             else:
-                if self.desired_speed_source == 'path':
-                    current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
-                else:
-                    self.current_traj_parameter += dt
-                    current_trajectory_time = self.current_traj_parameter
-                    print(current_trajectory_time)
-
-                deriv = self.trajectory.eval_derivative(current_trajectory_time)
-
-                # deriv 0 at time 0
-                if np.isnan(deriv[0]):
-                    desired_speed = 0.0
-                else:
-                    desired_speed = min(np.linalg.norm(deriv), self.speed_limit)
-
                 difference_dt = 0.1
-                future_t = current_trajectory_time + difference_dt
-                if future_t > self.trajectory.domain()[1]:
-                    future_t = self.trajectory.domain()[1]
-                future_deriv = self.trajectory.eval_derivative(future_t)
-                next_desired_speed = min(np.linalg.norm(future_deriv), self.speed_limit)
+                current_speed_abs = abs(speed)
+                if current_speed_abs < 0.1: estimated_path_step = 0.1 * difference_dt * -1.0
+                else: estimated_path_step = current_speed_abs * difference_dt * -1.0
+
+                future_parameter = self.current_path_parameter + estimated_path_step
+
+                future_parameter = np.clip(future_parameter, self.path.domain()[0], self.path.domain()[-1])
+
+                future_trajectory_param_for_eval = future_parameter
+                if hasattr(self.trajectory, 'parameter_to_time'):
+                    future_trajectory_param_for_eval = self.trajectory.parameter_to_time(future_parameter)
+
+                if self.trajectory is not None:
+                    future_deriv = self.trajectory.eval_derivative(future_trajectory_param_for_eval)
+                    next_path_speed_magnitude = min(np.linalg.norm(future_deriv), self.speed_limit)
+                else:
+                    next_path_speed_magnitude = 0.0
+
+                next_desired_speed = next_path_speed_magnitude * -1.0
+
                 feedforward_accel = (next_desired_speed - desired_speed) / difference_dt
                 feedforward_accel = np.clip(feedforward_accel, -self.max_decel, self.max_accel)
-        else:
-            if desired_speed is None:
-                desired_speed = 4.0
 
-            # Cross-track-based slowdown (less aggressive than before). More aggressive for racing
-            if self.desired_speed_source in ['racing']:
-                desired_speed *= np.exp(-abs(cross_track_error) * 1.5)
+            # Reduce speed based on cross-track error in reverse
+            desired_speed_magnitude_slowed = abs(desired_speed) * np.exp(-abs(cross_track_error) * 0.6)
+            desired_speed = desired_speed_magnitude_slowed * -1.0 if desired_speed_magnitude_slowed != 0 else 0.0
+
+        # Stanley control logic for forward direction
+        else:
+            cross_term = atan2(self.k * cross_track_error, self.k_soft + speed)
+            desired_steering_angle = yaw_error + cross_term
+
+            # Determine desired speed from trajectory in forward
+            if self.trajectory and self.desired_speed_source in ['path', 'trajectory', 'racing']:
+                if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
+                    if component:
+                        component.debug_event("Stanley: Past the end of trajectory, stopping.")
+                    desired_speed = 0.0
+                    feedforward_accel = -2.0
+                else:
+                    if self.desired_speed_source == 'path':
+                        current_trajectory_time = self.trajectory.parameter_to_time(self.current_path_parameter)
+                    else:
+                        self.current_traj_parameter += dt
+                        current_trajectory_time = self.current_traj_parameter
+
+                    deriv = self.trajectory.eval_derivative(current_trajectory_time)
+                    desired_speed = min(np.linalg.norm(deriv), self.speed_limit)
+
+                    # Calculate feedforward acceleration for forward
+                    difference_dt = 0.1
+                    future_t = current_trajectory_time + difference_dt
+                    if future_t > self.trajectory.domain()[1]:
+                        future_t = self.trajectory.domain()[1]
+                    future_deriv = self.trajectory.eval_derivative(future_t)
+                    next_desired_speed = min(np.linalg.norm(future_deriv), self.speed_limit)
+                    feedforward_accel = (next_desired_speed - desired_speed) / difference_dt
+                    feedforward_accel = np.clip(feedforward_accel, -self.max_decel, self.max_accel)
+            # Use constant desired speed if no trajectory or source is not path/trajectory
             else:
+                if desired_speed is None:
+                    desired_speed = 4.0
+
+                # Reduce speed based on cross-track error in forward
                 desired_speed *= np.exp(-abs(cross_track_error) * 0.6)
 
-        # Clip to speed limit
-        if desired_speed > self.speed_limit:
+        # Apply speed limits
+        if self.reverse and abs(desired_speed) > self.reverse_speed_limit:
+            desired_speed = self.reverse_speed_limit * -1.0 if desired_speed != 0 else 0.0
+        elif not self.reverse and desired_speed > self.speed_limit:
             desired_speed = self.speed_limit
 
-        # PID for longitudinal control
+        # Longitudinal control using PID
         speed_error = desired_speed - speed
         output_accel = self.pid_speed.advance(e=speed_error, t=t, feedforward_term=feedforward_accel)
-
-        # Clip acceleration
+        # Clamp acceleration to limits
         if output_accel > self.max_accel:
             output_accel = self.max_accel
         elif output_accel < -self.max_decel:
             output_accel = -self.max_decel
 
-        # Avoid negative accel when fully stopped
+        # Stop acceleration if at target speed and decelerating
         if desired_speed == 0 and abs(speed) < 0.01 and output_accel < 0:
             output_accel = 0.0
 
-        # Debug
+        # Debugging information
         if component is not None:
-            # component.debug("Stanley: fx, fy", (fx, fy))
             component.debug('curr pt',(curr_x,curr_y))
-            component.debug("desired_x",desired_x)
-            component.debug("desired_y",desired_y)
+            component.debug("desired_x",target_x)
+            component.debug("desired_y",target_y)
             component.debug("Stanley: path param", self.current_path_parameter)
             component.debug("Stanley: crosstrack dist", closest_dist)
             component.debug("crosstrack error", cross_track_error)
@@ -390,15 +482,6 @@ class Stanley(object):
             component.debug("Stanley: desired_speed (m/s)", desired_speed)
             component.debug("Stanley: feedforward_accel (m/s^2)", feedforward_accel)
             component.debug("Stanley: output_accel (m/s^2)", output_accel)
-            component.debug('Stanley: current yaw (rad)', curr_yaw)
-            component.debug('Stanley: current speed (m/s)', speed)
-
-
-        if output_accel > self.max_accel:
-            output_accel = self.max_accel
-
-        if output_accel < -self.max_decel:
-            output_accel = -self.max_decel
 
         self.t_last = t
         return (output_accel, desired_steering_angle)
