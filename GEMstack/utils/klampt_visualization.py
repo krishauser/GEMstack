@@ -16,7 +16,6 @@ OBJECT_COLORS = {
     AgentEnum.BICYCLIST : (0,0,1,1),
     AgentEnum.MEDIUM_TRUCK : (1,0,1,1),
     AgentEnum.LARGE_TRUCK : (0,1,1,1),
-    AgentEnum.CONE : (0,1,0,1),
     None: (0.7,0.7,0.7,1),
 }
 

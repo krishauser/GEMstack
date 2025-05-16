@@ -20,7 +20,6 @@ AGENT_DIMENSIONS = {
     'car' : (4.0,2.5,1.4),
     'medium_truck': (6.0,2.5,3.0),
     'large_truck': (10.0,2.5,3.5),
-    'cone' : (0.5,0.5,1.0)
 }
 
 AGENT_TYPE_TO_ENUM = {
@@ -29,7 +28,6 @@ AGENT_TYPE_TO_ENUM = {
     'car' : AgentEnum.CAR,
     'medium_truck': AgentEnum.MEDIUM_TRUCK,
     'large_truck': AgentEnum.LARGE_TRUCK,
-    'cone': AgentEnum.CONE
 }
 
 AGENT_NOMINAL_VELOCITY = {
@@ -38,7 +36,6 @@ AGENT_NOMINAL_VELOCITY = {
     'car' : 20.0,
     'medium_truck': 15.0,
     'large_truck': 10.0,
-    'cone' : 0.0
 }
 
 AGENT_NOMINAL_ACCELERATION = {
@@ -47,7 +44,6 @@ AGENT_NOMINAL_ACCELERATION = {
     'car' : 5.0,
     'medium_truck': 3.0,
     'large_truck': 2.0,
-    'cone' : 0.0
 }
 
 class AgentSimulation:
