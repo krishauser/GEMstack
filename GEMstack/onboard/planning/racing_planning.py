@@ -503,7 +503,7 @@ def waypoint_search_optimization(vehicle_state, cones, search_attempts=3):
     cones_copy = cones.copy()
 
     for i in range(min(search_attempts, len(cones_copy))):
-        scenario, flex_wps, fixed_wp = waypoint_generate(current_state, cones_copy)
+        scenario, flex_wps, fixed_wp = waypoint_generate(current_state, cones_copy, cone_idx=i, next_cone_idx=i+1, prev_cone_idx=i-1)
 
         if flex_wps is None or fixed_wp is None:
             break
@@ -524,7 +524,7 @@ def waypoint_search_optimization(vehicle_state, cones, search_attempts=3):
             }
 
             try:
-                x, y, psi, c, v, eps, final_error = trajectory_generation(init_state, final_state, waypoint=flex_wp)
+                x, y, psi, c, v, eps, final_error = trajectory_generation(init_state, final_state, waypoints=flex_wp)
                 trajectory = list(zip(y, psi, c))
                 feasible, collisions, x_vals, y_vals = feasibility_check(trajectory, [(cone['x'], cone['y']) for cone in cones])
                 # print(f"Checking waypoint: {flex_wp}, Fixed: {fixed_wp}, Feasible: {feasible}, Collisions: {collisions}")
@@ -556,7 +556,7 @@ def plan_full_slalom_trajectory(vehicle_state, cones):
     current_heading = vehicle_state['heading']
 
     for cone_idx, cone in enumerate(cones):
-        scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, cones, cone_idx)
+        scenario, flex_wps, fixed_wp, target_heading = waypoint_generate(vehicle_state, cones, cone_idx, next_cone_idx=cone_idx+1, prev_cone_idx=cone_idx-1)
         print(f"Scenario: {scenario}, Cone: {cone}, Flex WP: {flex_wps}, Fixed WP: {fixed_wp}")
         if not flex_wps or fixed_wp is None:
             continue
@@ -1027,7 +1027,7 @@ if __name__ == "__main__":
             final_state = {
                 'x': fixed_wp[0], 'y': fixed_wp[1], 'psi': vehicle_state['heading'], 'c': 0.0
             }
-            x, y, psi, c, v, eps, final_error = trajectory_generation(init_state, final_state, waypoint=flex_wp)
+            x, y, psi, c, v, eps, final_error = trajectory_generation(init_state, final_state, waypoints=flex_wp)
 
             print(f"\nSegment {idx + 1}:")
             print(f"  Waypoint: {flex_wp}")
@@ -1082,7 +1082,7 @@ if __name__ == "__main__":
 
         for cone_idx, cone in enumerate(cones):
             print("current cone: ", cone)
-            scenario, flex_wps, fixed_wp = waypoint_generate(vehicle_state, [cone])
+            scenario, flex_wps, fixed_wp = waypoint_generate(vehicle_state, [cone], cone_idx, next_cone_idx=cone_idx+1, prev_cone_idx=cone_idx-1)
             if not flex_wps or fixed_wp is None:
                 continue
 
@@ -1200,11 +1200,11 @@ if __name__ == "__main__":
         # Init and final
         init_state = {'x': 0.0, 'y': 0.0, 'psi': 0.0, 'c': 0.0, 'v': 5.0}
         final_state = {'x': 15.0, 'y': 0.0, 'psi': np.pi / 20000000, 'c': np.pi / 20000000}
-        waypoint = (8.0, 6.0)
+        waypoint = [(8.0, 6.0)]
 
         # Solve
         x, y, psi, c, v, eps, final_error = trajectory_generation(
-            init_state, final_state, waypoint=waypoint
+            init_state, final_state, waypoints=waypoint
         )
         plot_trajectory(x, y, v, c, eps, waypoint)
 
@@ -1218,11 +1218,11 @@ if __name__ == "__main__":
         # Init and final
         init_state = {'x': 0.0, 'y': 0.0, 'psi': 0.0, 'c': 0.0, 'v': 5.0}
         final_state = {'x': 15.0, 'y': 15.0, 'psi': np.pi / 2, 'c': np.pi / 2}
-        waypoint = (13.0, 3.0)
+        waypoint = [(13.0, 3.0)]
 
         # Solve
         x, y, psi, c, v, eps, final_error = trajectory_generation(
-            init_state, final_state, waypoint=waypoint
+            init_state, final_state, waypoints=waypoint
         )
         plot_trajectory(x, y, v, c, eps, waypoint)
 
@@ -1353,7 +1353,7 @@ if __name__ == "__main__":
         for i in range(test_loop):
             scenario = scenario_check(vehicle_state, cones)
             scenario_label = f"Scenario: {scenario}"
-            scenario, wpt_flexes, wpt_fixed  = waypoint_generate(vehicle_state, cones)
+            scenario, wpt_flexes, wpt_fixed  = waypoint_generate(vehicle_state, cones, cone_idx=i, next_cone_idx=i+1, prev_cone_idx=i-1)
             plot_results(vehicle_state, cones, wpt_flexes, wpt_fixed, scenario_label)
             vehicle_state = drive(vehicle_state)
             if case == 'slalom':
@@ -1367,7 +1367,7 @@ if __name__ == "__main__":
             # Way Points
             scenario = scenario_check(vehicle_state, cones)
             scenario_label = f"Scenario: {scenario}"
-            scenario, wpt_flexes, wpt_fixed  = waypoint_generate(vehicle_state, cones)
+            scenario, wpt_flexes, wpt_fixed  = waypoint_generate(vehicle_state, cones, cone_idx=i, next_cone_idx=i+1, prev_cone_idx=i-1)
             plot_results(vehicle_state, cones, wpt_flexes, wpt_fixed, scenario_label)
             # Trajectory
             init_state = {'y': wpt_flexes[0][1], 'psi': 0.0, 'c': 0.0}
