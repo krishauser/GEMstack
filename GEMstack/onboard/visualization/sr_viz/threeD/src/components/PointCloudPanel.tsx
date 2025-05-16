@@ -7,9 +7,10 @@ import { OrbitControls } from "three-stdlib";
 import { Select, SelectChangeEvent, MenuItem } from "@mui/material";
 
 function parsePointCloud2(msg: any): THREE.Points {
-    const { data, point_step, fields } = msg;
+    const { data, point_step, is_bigendian, fields } = msg;
     const positions: number[] = [];
     const colors: number[] = [];
+    const littleEndian = !is_bigendian;
 
     const fieldMap = Object.fromEntries(
         fields.map((f: any) => [f.name, f.offset])
@@ -17,9 +18,9 @@ function parsePointCloud2(msg: any): THREE.Points {
     const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
 
     for (let i = 0; i < data.length; i += point_step) {
-        const x = dv.getFloat32(i + fieldMap["x"], true);
-        const y = dv.getFloat32(i + fieldMap["y"], true);
-        const z = dv.getFloat32(i + fieldMap["z"], true);
+        const x = dv.getFloat32(i + fieldMap["x"], littleEndian);
+        const y = dv.getFloat32(i + fieldMap["y"], littleEndian);
+        const z = dv.getFloat32(i + fieldMap["z"], littleEndian);
 
         if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z))
             continue;
@@ -27,13 +28,13 @@ function parsePointCloud2(msg: any): THREE.Points {
         positions.push(x, y, z);
 
         if ("rgba" in fieldMap) {
-            const rgba = dv.getUint32(i + fieldMap["rgba"], true);
+            const rgba = dv.getUint32(i + fieldMap["rgba"], littleEndian);
             const r = (rgba >> 24) & 0xff;
             const g = (rgba >> 16) & 0xff;
             const b = (rgba >> 8) & 0xff;
             colors.push(r / 255, g / 255, b / 255);
         } else if ("rgb" in fieldMap) {
-            const rgb = dv.getUint32(i + fieldMap["rgb"], true);
+            const rgb = dv.getUint32(i + fieldMap["rgb"], littleEndian);
             const r = (rgb >> 16) & 0xff;
             const g = (rgb >> 8) & 0xff;
             const b = rgb & 0xff;

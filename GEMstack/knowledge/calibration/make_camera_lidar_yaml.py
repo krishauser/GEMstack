@@ -11,7 +11,7 @@ output_file = 'gem_e4_perception_cameras.yaml'
 
 # Collect names of all sensors and associated extrinsic/intrinsic files
 camera_files = {'front': ['gem_e4_oak.yaml', 'gem_e4_oak_in.yaml'],
-                'front_right': ['gem_e4_fr.yaml', 'gem_e4_oak_in.yaml'],
+                'front_right': ['gem_e4_fr.yaml', 'gem_e4_fr_in.yaml'],
                 'front_left': ['gem_e4_fl.yaml', 'gem_e4_fl_in.yaml'],
                 'back_right': ['gem_e4_rr.yaml', 'gem_e4_rr_in.yaml'],
                 'back_left': ['gem_e4_rl.yaml', 'gem_e4_rl_in.yaml']}

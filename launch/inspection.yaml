@@ -14,7 +14,7 @@ drive:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
     planning:
-        route_planning_component:
+        planning_route:
             type: InspectRoutePlanner
             args: 
                 state_machine: ['IDLE', 'NAV', 'INSPECT', 'FINISH']
@@ -83,4 +83,3 @@ variants:
             drive:
                 perception:
                     state_estimation: GNSSStateEstimator  # Matches your Gazebo GNSS implementation
-            # visualization: !include "mpl_visualization.yaml"
