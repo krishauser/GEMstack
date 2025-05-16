@@ -90,45 +90,6 @@ class RoadgraphCurve:
 
 @dataclass
 @register
-class RoadgraphSimpleLane:
-    """A lane in the roadgrap represented by points.
-
-    By convention, the left and right boundaries are oriented in back to
-    forward order.  The end boundary is from right to left, and the start
-    boundary is from left to right.
-    """
-    type : RoadgraphLaneEnum = RoadgraphLaneEnum.LANE               # type of lane
-    surface : RoadgraphSurfaceEnum = RoadgraphSurfaceEnum.PAVEMENT  # surface of lane
-    route_name : str = ''                                           # name of the route (e.g., street name) that this lane is on
-    points : List[Tuple[float,float,float]] = field(default_factory=list) # points of the lane
-
-    def to_frame(self, orig_frame : ObjectFrameEnum, new_frame : ObjectFrameEnum,
-                 current_origin = None, global_origin = None) -> RoadgraphSimpleLane:
-        return replace(self,points=[convert_point(p,orig_frame,new_frame,current_origin,global_origin) for p in self.points])
-
-    def outline(self) -> List[Tuple[float,float,float]]:
-        """Produces a 2D outline of the lane, including elevation.
-
-        The first point is the beginning-right of the lane, and the points
-        proceed CCW around the lane.
-
-        If the begin and end are None, then straight lines are used to connect
-        the left and right boundaries.  Otherwise, the begin and end curves
-        are used to connect the boundaries.
-        """
-        if self.left is None or self.right is None:
-            raise RuntimeError("Cannot produce outline of lane with missing left or right boundary")
-        points = self.right.polyline()
-        if self.end is not None:
-            points += self.end.polyline()
-        points += self.left.polyline()[::-1]
-        if self.begin is not None:
-            points += self.begin.polyline()[::-1]
-        return [key for key, _group in itertools.groupby(points)]
-    
-
-@dataclass
-@register
 class RoadgraphLane:
     """A lane in the roadgraph.
 
