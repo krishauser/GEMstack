@@ -61,10 +61,16 @@ def to_cpu(x): return todevice(x, 'cpu')
 def to_cuda(x): return todevice(x, 'cuda')
 
 def dms_to_decimal(d, m, s, ref):
+    '''
+    Convert degrees, minutes, seconds to decimal degrees.
+    '''
     dd = d + m / 60 + s / 3600
     return -dd if ref in ['S', 'W'] else dd
 
 def get_gps_from_exif(image_path):
+    '''
+    Get GPS information from an image file.
+    '''
     img = Image.open(image_path)
     exif = img._getexif()
     if not exif:
@@ -80,6 +86,9 @@ def get_gps_from_exif(image_path):
     return gps_info
 
 def parse_gps_info(image_path):
+    '''
+    Parse GPS information from an image file.
+    '''
     gps_info = get_gps_from_exif(image_path)
     # Latitude
     lat_ref = gps_info.get('GPSLatitudeRef', 'N')
@@ -111,6 +120,9 @@ def parse_gps_info(image_path):
     }
 
 def gps_to_xyz(gps_lookup, crs_from, crs_to):
+    '''
+    Convert GPS coordinates to xyz coordinates.
+    '''
     xyz_lookup = {}
     transformer = Transformer.from_crs(crs_from, crs_to, always_xy=True)  # includes altitude
     for image_name, (lat, lon, alt) in gps_lookup.items():
@@ -125,6 +137,8 @@ def estimate_3d_scale_from_gps(camera_centers, gps_xyz, camera_image_names, min_
     Inputs:
         camera_centers: (N, 3) array in MASt3r units (arbitrary scale)
         gps_xyz: (N, 3) array in meters [x, y, z] from lat/lon/alt
+        camera_image_names: list of camera image names
+        min_dist_threshold: minimum distance threshold for valid GPS pairs
     Returns:
         scale: estimated meters-per-unit scale factor
     """
@@ -153,6 +167,19 @@ def estimate_3d_scale_from_gps(camera_centers, gps_xyz, camera_image_names, min_
 
 
 def estimate_scale_ransac(camera_centers, gps_xyz, camera_image_names, threshold=0.05, iterations=1000, min_dist=1.0):
+    '''
+    Estimate scale factor between MASt3r's camera centers and GPS 3D coordinates using RANSAC.
+
+    Inputs:
+        camera_centers: (N, 3) array in MASt3r units (arbitrary scale)
+        gps_xyz: (N, 3) array in meters [x, y, z] from lat/lon/alt
+        camera_image_names: list of camera image names
+        threshold: threshold for inliers
+        iterations: number of RANSAC iterations
+        min_dist: minimum distance threshold for valid GPS pairs
+    Returns:
+        scale: estimated meters-per-unit scale factor
+    '''
     scales = []
     pairs = []
 
@@ -191,11 +218,17 @@ def estimate_scale_ransac(camera_centers, gps_xyz, camera_image_names, threshold
     return best_scale, len(best_inliers), len(scales)
 
 def extract_image_names(image_paths):
+    '''
+    Extract image names from a list of image paths.
+    '''
     return [path.split('/')[-1] for path in image_paths]
 
 
 
 def collect_gps_data(data_folder):
+    '''
+    Collect GPS data with extra metadata from a folder of images.
+    '''
     records = []
     for fname in sorted(os.listdir(data_folder)):
         if fname.lower().endswith(('.jpg', '.jpeg', '.png')):
@@ -218,6 +251,9 @@ def collect_gps_data(data_folder):
 
 
 def run_mast3r(args):
+    '''
+    Run MASt3R on a folder of images.
+    '''
     if args.weights is not None:
         weights_path = args.weights
     else:
@@ -246,10 +282,6 @@ def add_parse_args(parser, is_scene_path=False):
     parser.add_argument('--crs_from', type=str, required=False, default='EPSG:4979', help='EPSG code of the input CRS')
     parser.add_argument('--crs_to', type=str, required=False, default='EPSG:32616', help='EPSG code of the output CRS')
     if not is_scene_path:
-        # parser.add_argument('--retrieval_model', type=str, required=False, default=None, help='Retrieval model weights path that is used to make image pairs')
-        # parser.add_argument('--device', type=str, required=False, default='cuda:0', help='Device to run the model on')
-        # parser.add_argument('--silent', type=bool, required=True, help='Whether to run the model silently')
-        # parser.add_argument('--image_size', type=int, required=True, help='Image size')
         parser.add_argument('--optim_level', type=str, required=False, default='refine+depth', choices=['coarse', 'refine', 'refine+depth'], help='Optimization level')
         parser.add_argument('--lr1', type=float, required=False, default=0.07, help='Learning rate for the first refinement iteration stage')
         parser.add_argument('--niter1', type=int, required=False, default=300, help='Number of iterations for the first refinement iteration stage')
@@ -257,11 +289,7 @@ def add_parse_args(parser, is_scene_path=False):
         parser.add_argument('--niter2', type=int, required=False, default=300, help='Number of iterations for the second refinement iteration stage')
         parser.add_argument('--min_conf_thr', type=float, required=False, default=1.5, help='Minimum confidence threshold')
         parser.add_argument('--matching_conf_thr', type=float, required=False, default=0., help='Matching confidence threshold')
-        # parser.add_argument('--as_pointcloud', type=bool, required=True, help='Whether to output a pointcloud')
-        # parser.add_argument('--mask_sky', type=bool, required=True, help='Whether to mask the sky')
         parser.add_argument('--clean_depth', type=bool, required=False, default=True, help='Whether to clean the depth')
-        # parser.add_argument('--transparent_cams', type=bool, required=True, help='Whether to make the cameras transparent')
-        # parser.add_argument('--cam_size', type=float, required=True, help='Camera size')
         
         available_scenegraph_type = [
             ("complete: all possible image pairs", "complete"),
@@ -295,6 +323,9 @@ def add_parse_args(parser, is_scene_path=False):
     return parser
 
 def scale_pointcloud_based_on_geotag():
+    '''
+    Scale a pointcloud based on GPS data. If no scene file is provided, MASt3R will be run to generate a scene file.
+    '''
     parser = argparse.ArgumentParser()
 
     # Add known args
@@ -316,9 +347,11 @@ def scale_pointcloud_based_on_geotag():
         with open(args.scene_path, 'rb') as f:
                     data = pickle.load(f)
     
-    
+    # Get camera centers
     cam2w = data.get_im_poses()
     camera_centers = cam2w[:, :3, 3]  # Extract translation component from [R|t]
+
+    # Collect GPS data
     df = collect_gps_data(args.folder_path)
     image_gps_data = df.to_numpy()
     gps_lookup = {
@@ -327,6 +360,8 @@ def scale_pointcloud_based_on_geotag():
     }
     image_names = extract_image_names(data.img_paths)
     xyz_lookup = gps_to_xyz(gps_lookup, args.crs_from, args.crs_to)
+
+    # Estimate scale
     scale = 1.0
     if args.scale_method == 'ransac':
         scale, sfm_dists, gps_dists = estimate_scale_ransac(camera_centers.cpu().numpy(), xyz_lookup, image_names)
@@ -335,6 +370,8 @@ def scale_pointcloud_based_on_geotag():
     else:
         raise ValueError(f"Invalid scale method: {args.scale_method}")
     print(f"Estimated scale: {scale}")
+
+    # Convert scene output to PLY
     convert_scene_output_to_ply(args.output_path, data, scale=scale, apply_y_flip=False, min_conf_thr=args.min_conf_thr, clean=args.clean_depth, TSDF_thresh=args.TSDF_thresh)
 
 if __name__ == "__main__":

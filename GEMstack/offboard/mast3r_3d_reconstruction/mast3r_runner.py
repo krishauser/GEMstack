@@ -50,6 +50,9 @@ from pathlib import Path
 
 
 class SparseGA():
+    '''
+    PointCloud class.
+    '''
     def __init__(self, img_paths, pairs_in, res_fine, anchors, canonical_paths=None):
         def fetch_img(im):
             def torgb(x): return (x[0].permute(1, 2, 0).numpy() * .5 + .5).clip(min=0., max=1.)
@@ -87,6 +90,9 @@ class SparseGA():
         return self.pts3d
 
     def get_dense_pts3d(self, clean_depth=True, subsample=8):
+        '''
+        Get dense 3D points.
+        '''
         assert self.canonical_paths, 'cache_path is required for dense 3d points'
         device = self.cam2w.device
         confs = []
@@ -223,6 +229,9 @@ def sparse_global_alignment(imgs, pairs_in, cache_path, model, subsample=8, desc
 def _convert_scene_output_to_glb(outfile, imgs, pts3d, mask, focals, cams2world, cam_size=0.05,
                                  cam_color=None, as_pointcloud=False,
                                  transparent_cams=False, silent=False):
+    '''
+    Convert scene output to GLB file.
+    '''
     assert len(pts3d) == len(mask) <= len(imgs) <= len(cams2world) == len(focals)
     pts3d = to_numpy(pts3d)
     imgs = to_numpy(imgs)
@@ -275,6 +284,7 @@ def convert_scene_output_to_ply_impl(outfile, imgs, pts3d, mask, scale=1.0, appl
         pts3d (list of np.ndarray): 3D points per view, shape (H * W, 3).
         mask (list of np.ndarray): Boolean masks indicating valid points per view (H, W).
         scale (float): Scale factor to apply to the 3D points.
+        apply_y_flip (bool): If True, apply a y-axis flip to the 3D points.
         silent (bool): If False, print export message.
 
     Returns:
@@ -314,6 +324,9 @@ def convert_scene_output_to_ply_impl(outfile, imgs, pts3d, mask, scale=1.0, appl
     return outfile
 
 def convert_scene_output_to_ply(outfile, data, scale=1.0, apply_y_flip=False, min_conf_thr=1.5, clean=True, TSDF_thresh=0):
+    '''
+    Convert scene output to PLY file. This is to filter out points that are not visible in the images either using TSDF or normal confidence thresholding.
+    '''
     imgs = to_numpy(data.imgs)
     if TSDF_thresh > 0:
         tsdf = TSDFPostProcess(data, TSDF_thresh=TSDF_thresh)
@@ -352,28 +365,6 @@ def get_3D_model_from_scene(silent, scene_state, min_conf_thr=2, as_pointcloud=F
     msk = to_numpy([c > min_conf_thr for c in confs])
     return _convert_scene_output_to_glb(outfile, rgbimg, pts3d, msk, focals, cams2world, as_pointcloud=as_pointcloud,
                                         transparent_cams=transparent_cams, cam_size=cam_size, silent=silent)
-
-def sort_images_from_longest_endpoint(D_square, data_length):
-    D_square = D_square.copy()
-    # Find the two farthest points
-    i, j = np.unravel_index(np.argmax(D_square), D_square.shape)
-    start_idx = i  # or j — either works
-
-    # Greedy traversal using the precomputed distance matrix
-    N = data_length
-    visited = np.zeros(N, dtype=bool)
-    visited[start_idx] = True
-    path = [start_idx]
-
-    current_idx = start_idx
-    for _ in range(N - 1):
-        dists = D_square[current_idx]
-        dists[visited] = np.inf  # Ignore visited
-        next_idx = np.argmin(dists)
-        path.append(next_idx)
-        visited[next_idx] = True
-        current_idx = next_idx
-    return path
 
 def get_reconstructed_scene(outdir, gradio_delete_cache, model, retrieval_model, device, silent, image_size,
                             current_scene_state, filelist, optim_level, lr1, niter1, lr2, niter2, min_conf_thr,
@@ -429,17 +420,7 @@ def get_reconstructed_scene(outdir, gradio_delete_cache, model, retrieval_model,
                                     model, lr1=lr1, niter1=niter1, lr2=lr2, niter2=niter2, device=device,
                                     opt_depth='depth' in optim_level, shared_intrinsics=shared_intrinsics,
                                     matching_conf_thr=matching_conf_thr, **kw)
-    # if current_scene_state is not None and \
-    #     not current_scene_state.should_delete and \
-    #         current_scene_state.outfile_name is not None:
-    #     outfile_name = current_scene_state.outfile_name
-    # else:
-    #     outfile_name = tempfile.mktemp(suffix='_scene.glb', dir=outdir)
-
-    # scene_state = SparseGAState(scene, gradio_delete_cache, cache_dir, outfile_name)
-    # outfile = get_3D_model_from_scene(silent, scene_state, min_conf_thr, as_pointcloud, mask_sky,
-    #                                   clean_depth, transparent_cams, cam_size, TSDF_thresh)
+    
     scene.get_dense_pts3d()
-    # outfile = convert_scene_output_to_ply(outfile_name, scene, scale=1.0, apply_y_flip=False, min_conf_thr=min_conf_thr, clean=clean_depth)
     return scene
 
