@@ -6,6 +6,7 @@ from ..component import Component
 import numpy as np
 import casadi
 import math
+import time
 
 ###########################
 #    Bo-Hao Wu's code     #
@@ -83,6 +84,7 @@ class MPCController(object):
 
     def compute(self, state: VehicleState, component: Component = None):
         """Compute the control commands using MPC."""
+        start_time = time.time()
         if self.iter < 10 and self.prev_x is not None:
             self.iter += 1
             # return float(self.prev_u[self.iter, 0]), float(self.prev_x[self.iter + 1, 4])
@@ -292,6 +294,8 @@ class MPCController(object):
 
             position_error = np.linalg.norm([vehicle_x - path_x, vehicle_y - path_y])
             heading_error = ((vehicle_yaw - path_yaw + np.pi) % (2 * np.pi)) - np.pi
+
+            total_time_elapse = time.time() - start_time
             ###Jugal's code end here###
             if component is not None:
                 component.debug("mpc/accel", acc)
@@ -305,6 +309,7 @@ class MPCController(object):
                 component.debug("mpc/target_x", self.path.points[self.current_path_parameter][0])
                 component.debug("mpc/target_y", self.path.points[self.current_path_parameter][1])
                 component.debug("mpc/target_theta", target_angles[0])
+                component.debug("mpc/time_elapsed", total_time_elapse)
 
             # xy_array = [f"np.array([{round(self.prev_x[t,0],8)}, {round(self.prev_x[t,1],8)}])" for t in range(self.prev_x.shape[0])]
             # print("mpc = [", ", ".join(xy_array), "]")
