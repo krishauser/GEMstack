@@ -151,6 +151,111 @@ class Stanley(object):
         fy = y + self.wheelbase * sin(yaw)
         return fx, fy
 
+    def _find_rear_axle_position(self, x, y, yaw):
+        """Compute rear-axle world position from the vehicle's reference point and yaw."""
+        rx = x - self.wheelbase * cos(yaw)
+        ry = y - self.wheelbase * sin(yaw)
+        return rx, ry
+
+    def initialize_state_and_direction(self, state: VehicleState):
+        # Initializes the controller's state and determines initial driving direction (forward/reverse).
+        if self.path is None:
+            raise ValueError("Stanley: Path must be set before initializing state and direction.")
+        curr_x = state.pose.x
+        curr_y = state.pose.y
+        curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
+        fx, fy = self._find_front_axle_position(curr_x, curr_y, curr_yaw)
+        path_domain_start, path_domain_end = self.path.domain()
+        search_end = min(path_domain_end, path_domain_start + 5.0)
+        search_domain_start = [path_domain_start, search_end]
+        _, closest_param_at_start = self.path.closest_point_local((fx, fy), search_domain_start)
+        tangent_at_start = self.path.eval_tangent(closest_param_at_start)
+        initial_reverse = False
+        if np.linalg.norm(tangent_at_start) > 1e-6:
+            path_yaw_at_start = atan2(tangent_at_start[1], tangent_at_start[0])
+            heading_diff = normalise_angle(path_yaw_at_start - curr_yaw)
+            initial_reverse = abs(heading_diff) > (np.pi / 2.0)
+        self.pid_speed.reset()
+        self.current_path_parameter = closest_param_at_start
+        if self.trajectory:
+            self.current_traj_parameter = self.trajectory.domain()[0]
+        return initial_reverse
+
+    def is_target_behind_vehicle(self, vehicle_pose, target_point_coords):
+        """Checks if a target point is behind the vehicle."""
+        curr_x = vehicle_pose.x
+        curr_y = vehicle_pose.y
+        curr_yaw = vehicle_pose.yaw
+        if curr_yaw is None:
+            return False
+        target_x = target_point_coords[0]
+        target_y = target_point_coords[1]
+        vec_x = target_x - curr_x
+        vec_y = target_y - curr_y
+        if abs(vec_x) < 1e-6 and abs(vec_y) < 1e-6:
+            return False
+        heading_x = cos(curr_yaw)
+        heading_y = sin(curr_yaw)
+        dot_product = vec_x * heading_x + vec_y * heading_y
+        return (dot_product < 0)
+
+    def _check_sharp_turn_ahead(self, lookahead_s=3.0, threshold_angle=np.pi/2.0, num_steps=4):
+        """Checks for sharp turns within a lookahead distance on the path."""
+        if not self.path:
+            return False
+
+        path = self.path
+        current_s = self.current_path_parameter
+        domain_start, domain_end = path.domain()
+
+        if current_s >= domain_end - 1e-3:
+            return False
+
+        step_s = lookahead_s / num_steps
+        s_prev = current_s
+        
+        try:
+            tangent_prev = path.eval_tangent(s_prev)
+            if np.linalg.norm(tangent_prev) < 1e-6:
+                s_prev_adjusted = min(s_prev + step_s / 2, domain_end)
+                if s_prev_adjusted <= s_prev:
+                    return False
+                tangent_prev = path.eval_tangent(s_prev_adjusted)
+                if np.linalg.norm(tangent_prev) < 1e-6:
+                    return False
+                s_prev = s_prev_adjusted
+                
+            angle_prev = atan2(tangent_prev[1], tangent_prev[0])
+
+        except Exception as e:
+            return False
+
+        for i in range(num_steps):
+            s_next = s_prev + step_s
+            s_next = min(s_next, domain_end)
+
+            if s_next <= s_prev + 1e-6:
+                break
+
+            try:
+                tangent_next = path.eval_tangent(s_next)
+                if np.linalg.norm(tangent_next) < 1e-6:
+                    s_prev = s_next
+                    continue 
+
+                angle_next = atan2(tangent_next[1], tangent_next[0])
+            except Exception as e:
+                break
+
+            angle_change = abs(normalise_angle(angle_next - angle_prev))
+
+            if angle_change > threshold_angle:
+                return True
+
+            angle_prev = angle_next
+            s_prev = s_next
+        return False
+
     def compute(self, state: VehicleState, component: Component = None):
         """Compute the control outputs: (longitudinal acceleration, front wheel angle)."""
         t = state.pose.t
