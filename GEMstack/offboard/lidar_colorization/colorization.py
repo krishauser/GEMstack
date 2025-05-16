@@ -6,11 +6,13 @@ import open3d as o3d
 import cv2
 import open3d as o3d
 
+from ...utils import settings
+
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--folder_path", type=str, required=True)
-    parser.add_argument("--output_path", type=str, required=True)
-    parser.add_argument("--camera_types", type=str, required=True)
+    parser.add_argument("--folder_path", type=str, required=True, help="Path to the folder containing the point clouds and images")
+    parser.add_argument("--output_path", type=str, required=True, help="Path to save the output point cloud")
+    parser.add_argument("--camera_types", type=str, required=True, help="Comma-separated list of supported camera types (fr, rr, fl, rl) to colorize")
     return parser.parse_args()
 
 
@@ -24,14 +26,10 @@ def save_ply_with_open3d(points, filename):
 
 def get_camera_extrinsic_matrix(camera_type):
     if camera_type == "front_right" or camera_type == "fr":
-        # From your file
-        rotation = np.array([
-            [-0.7168464770690616, -0.10046018208578958,  0.6899557088168523],
-            [-0.6970911725372957,  0.12308618950445319, -0.7063382243117325],
-            [-0.01396515249660048, -0.9872981017750231, -0.15826380744561577]
-        ])
+        # From the settings
+        rotation = np.array(settings.get("calibration.front_right_camera.extrinsics.rotation"))
 
-        translation = np.array([1.8861563355156226, -0.7733611068168774, 1.6793040225335112])
+        translation = np.array(settings.get("calibration.front_right_camera.extrinsics.position"))
 
         # Build 4x4 homogeneous transformation matrix
         fr_to_vehicle = np.eye(4)
@@ -39,31 +37,44 @@ def get_camera_extrinsic_matrix(camera_type):
         fr_to_vehicle[:3, 3] = translation
         return fr_to_vehicle
     elif camera_type == "rear_right" or camera_type == "rr":
-        # From your file
-        rotation = np.array([
-            [-0.7359657309159472, 0.15986191414426415, -0.6578743127098735], 
-            [0.6768157805459531, 0.14993386619459964, -0.7207220233709469], 
-            [-0.016578363047300385, -0.9756864271752846, -0.21854325362408236]
-        ])
+        # From the settings
+        rotation = np.array(settings.get("calibration.rear_right_camera.extrinsics.rotation"))
 
-        translation = np.array([0.11419591502518789, -0.6896311735924415, 1.711181163333824])
+        translation = np.array(settings.get("calibration.rear_right_camera.extrinsics.position"))
 
         # Build 4x4 homogeneous transformation matrix
         rr_to_vehicle = np.eye(4)
         rr_to_vehicle[:3, :3] = rotation
         rr_to_vehicle[:3, 3] = translation
         return rr_to_vehicle 
+    elif camera_type == "front_left" or camera_type == "fl":
+        rotation = np.array(settings.get("calibration.front_left_camera.extrinsics.rotation"))
+        translation = np.array(settings.get("calibration.front_left_camera.extrinsics.position"))
+        
+        # Build 4x4 homogeneous transformation matrix
+        fl_to_vehicle = np.eye(4)
+        fl_to_vehicle[:3, :3] = rotation
+        fl_to_vehicle[:3, 3] = translation
+        return fl_to_vehicle
+    elif camera_type == "rear_left" or camera_type == "rl":
+        rotation = np.array(settings.get("calibration.rear_left_camera.extrinsics.rotation"))
+        translation = np.array(settings.get("calibration.rear_left_camera.extrinsics.position"))
+        
+        # Build 4x4 homogeneous transformation matrix
+        rl_to_vehicle = np.eye(4)
+        rl_to_vehicle[:3, :3] = rotation
+        rl_to_vehicle[:3, 3] = translation
+        return rl_to_vehicle
     else:
         raise ValueError(f"Camera type {camera_type} not supported")
     
 def get_camera_intrinsic_matrix(camera_type):
     if camera_type == "front_right" or camera_type == "fr":
         # Provided intrinsics
-        focal = [1176.2554468073797, 1175.1456876174707]  # fx, fy
-        center = [966.4326452411585, 608.5803255934914]   # cx, cy
-        fr_cam_distort = [-0.2701363254469883, 0.16439325523243875, -0.001607207824773341, -7.412467081891699e-05,
-        -0.06199397580030171]
-        skew = 0  # assume no skew
+        focal = settings.get("calibration.front_right_camera.intrinsics.focal")  # fx, fy
+        center = settings.get("calibration.front_right_camera.intrinsics.center")   # cx, cy
+        fr_cam_distort = settings.get("calibration.front_right_camera.intrinsics.distort")
+        skew = settings.get("calibration.front_right_camera.intrinsics.skew")
 
         fx, fy = focal
         cx, cy = center
@@ -77,11 +88,10 @@ def get_camera_intrinsic_matrix(camera_type):
         return fr_cam_K, np.array(fr_cam_distort)
     elif camera_type == "rear_right" or camera_type == "rr":
         # Provided intrinsics
-        focal = [1162.3787554048329, 1162.855381183851]  # fx, fy
-        center = [956.2663906909728, 569.2039945552984]   # cx, cy
-        rr_cam_distort = [-0.25040910859151444, 0.1109210921906881, -0.00041247665414900384, 0.0008205455176671751,
-        -0.026395952816984845]
-        skew = 0  # assume no skew
+        focal = settings.get("calibration.rear_right_camera.intrinsics.focal")  # fx, fy
+        center = settings.get("calibration.rear_right_camera.intrinsics.center")   # cx, cy
+        rr_cam_distort = settings.get("calibration.rear_right_camera.intrinsics.distort")
+        skew = settings.get("calibration.rear_right_camera.intrinsics.skew")
 
         fx, fy = focal
         cx, cy = center
@@ -93,6 +103,40 @@ def get_camera_intrinsic_matrix(camera_type):
             [0,   0,    1]
         ])
         return rr_cam_K, np.array(rr_cam_distort)
+    elif camera_type == "front_left" or camera_type == "fl":
+        # Provided intrinsics
+        focal = settings.get("calibration.front_left_camera.intrinsics.focal")  # fx, fy
+        center = settings.get("calibration.front_left_camera.intrinsics.center")   # cx, cy
+        fl_cam_distort = settings.get("calibration.front_left_camera.intrinsics.distort")
+        skew = settings.get("calibration.front_left_camera.intrinsics.skew")
+
+        fx, fy = focal
+        cx, cy = center
+
+        # Build K matrix
+        fl_cam_K = np.array([
+            [fx, skew, cx],
+            [0,  fy,   cy],
+            [0,   0,    1]
+        ])
+        return fl_cam_K, np.array(fl_cam_distort)
+    elif camera_type == "rear_left" or camera_type == "rl":
+        # Provided intrinsics
+        focal = settings.get("calibration.rear_left_camera.intrinsics.focal")  # fx, fy
+        center = settings.get("calibration.rear_left_camera.intrinsics.center")   # cx, cy
+        rl_cam_distort = settings.get("calibration.rear_left_camera.intrinsics.distort")
+        skew = settings.get("calibration.rear_left_camera.intrinsics.skew")
+
+        fx, fy = focal
+        cx, cy = center
+
+        # Build K matrix
+        rl_cam_K = np.array([
+            [fx, skew, cx],
+            [0,  fy,   cy],
+            [0,   0,    1]
+        ])
+        return rl_cam_K, np.array(rl_cam_distort)
     else:
         raise ValueError(f"Camera type {camera_type} not supported")
     
