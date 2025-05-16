@@ -31,7 +31,6 @@ class PedestrianDetector3D(Component):
             enable_tracking: bool = True,
             visualize_2d: bool = False,
             use_cyl_roi: bool = False,
-            T_l2v: list = None,
             save_data: bool = True,
             use_start_frame: bool = True,
             **kwargs
