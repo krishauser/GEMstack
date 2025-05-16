@@ -46,18 +46,28 @@ components:
   - mission_planning:
       inputs: all
       outputs: mission
+  - mission_planning_example: # one way
+      inputs: all
+      outputs: mission_plan
   - route_planning:
       inputs: all
       outputs: route
-  - route_planning_component:
-      inputs: all
-      outputs: [ route, mission ]
+  - planning_route: # one way
+      inputs: [vehicle,mission_plan, agents, obstacles]
+      outputs: route
   - save_lidar_data:
       inputs: all
       outputs:
   - driving_logic:
       inputs: 
       outputs: intent
+  - parking_component: # one way
+      inputs: all
+      outputs: mission_plan
+  - summon_component: # one way
+      inputs: all
+      outputs: route
+      outputs: route
   - _mission_planner: # one way
       inputs: all
       outputs: mission_plan
