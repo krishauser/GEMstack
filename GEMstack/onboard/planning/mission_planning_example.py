@@ -11,7 +11,7 @@ import math
 
 DEBUG = True
 
-class PlanningComponentExample(Component):
+class MissionPlanningExample(Component):
     def __init__(self):
         self.start_time = time.time()
         self.goal_start_pose = None

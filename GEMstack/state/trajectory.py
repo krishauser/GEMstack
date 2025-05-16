@@ -169,7 +169,6 @@ class Path:
 class Trajectory(Path):
     """A timed, piecewise linear path."""
     times : List[float]
-    velocities : Optional[List[float]] = None 
 
     def domain(self) -> Tuple[float,float]:
         """Returns the time parameter domain"""

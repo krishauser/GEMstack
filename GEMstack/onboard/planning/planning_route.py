@@ -34,7 +34,7 @@ import cv2
 ######################################################################
 #################### PLANNING HORIZONTAL #############################
 ######################################################################
-class RoutePlanningComponentExample(Component):
+class PlanningRoutePlanner(Component):
     """Reads a route from disk and returns it as the desired route."""
     def __init__(self):
         print("Route Planning Component init")
