@@ -153,4 +153,4 @@ plt.show()
 ```
 
 ---
-![Example Output](/download-10.png)
+![Example Output](GEMstack/knowledge/perception/download-10.png)
