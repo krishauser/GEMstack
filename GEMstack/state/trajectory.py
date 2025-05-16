@@ -88,7 +88,7 @@ class Path:
         times = [0.0]
         points = self.points
         times, velocities = compute_velocity_profile(points)
-        return Trajectory(frame=self.frame,points=points,times=times, velocities=velocities)
+        return Trajectory(frame=self.frame,points=points,times=times)
 
     def closest_point(self, x : List[float], edges = True) -> Tuple[float,float]:
         """Returns the closest point on the path to the given point.  If
@@ -273,7 +273,6 @@ class Path:
 class Trajectory(Path):
     """A timed, piecewise linear path."""
     times : List[float]
-    velocities : Optional[List[float]] = None 
 
     def domain(self) -> Tuple[float,float]:
         """Returns the time parameter domain"""
