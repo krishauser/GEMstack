@@ -34,7 +34,7 @@ Then, make sure your project directory has the following structure:
 download the checkpoints and put them under a folder called 'checkpoints'
 ```
 your_project/
-├── run_lane_detection.py          # The main lane detection script
+├── lane_detection.py          # The main lane detection script
 ├── clrernet/                      # The cloned CLRerNet repo
     └── checkpoints                # The checkpoint folder
 ├── image_data/
