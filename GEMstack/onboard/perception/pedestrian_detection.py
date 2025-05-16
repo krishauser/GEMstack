@@ -56,14 +56,6 @@ class PedestrianDetector3D(Component):
         self.save_data = save_data
         self.use_start_frame = use_start_frame
 
-        # 1) Load LiDAR-to-vehicle transform
-        self.T_l2v = np.array(T_l2v) if T_l2v is not None else np.array([
-            [0.99939639, 0.02547917, 0.023615, 1.1],
-            [-0.02530848, 0.99965156, -0.00749882, 0.03773583],
-            [-0.02379784, 0.00689664, 0.999693, 1.95320223],
-            [0.0, 0.0, 0.0, 1.0]
-        ])
-
         # 2) Load camera intrinsics/extrinsics from YAML
         with open(camera_calib_file, 'r') as f:
             calib = yaml.safe_load(f)
@@ -71,6 +63,7 @@ class PedestrianDetector3D(Component):
         self.K = np.array(cam_cfg['K'])
         self.D = np.array(cam_cfg['D'])
         self.T_l2c = np.array(cam_cfg['T_l2c'])
+        self.T_l2v = np.array(cam_cfg['T_l2v'])  # LiDAR-to-vehicle transform
 
         self.undistort_map1 = None
         self.undistort_map2 = None
@@ -213,7 +206,7 @@ class PedestrianDetector3D(Component):
                     self.start_pose_abs = vehicle.pose
                 start_pose = vehicle.pose.to_frame(
                     ObjectFrameEnum.START, vehicle.pose, self.start_pose_abs)
-                T_vs = pose_to_matrix(start_pose)
+                T_vs = start_pose.transform()
                 xp, yp, zp = (T_vs @ np.append(veh_center, 1))[:3]
                 frame = ObjectFrameEnum.START
             else:

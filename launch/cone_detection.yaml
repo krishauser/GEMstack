@@ -19,14 +19,26 @@ drive:
         obstacle_detection :
             type: cone_detection.ConeDetector3D
             args:
-                camera_name: front #[front, front_right]
-                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
-                enable_tracking:  True   # True if you want to enable tracking
-                visualize_2d:     False  # True to see 2D detection visualization
-                use_cyl_roi:      False  # True to use a cylinder ROI
-                save_data:        False  # True to save sensor input data
-                orientation:      True   # True to detect flipped cones
-                use_start_frame:  True   # True to output in START frame
+                camera_name: front        # [front, front_right]
+                camera_calib_file: ./GEMstack/knowledge/calibration/gem_e4_perception_cameras.yaml
+                enable_tracking: True         # Enable persistent cone tracking
+                visualize_2d: False        # Display 2D bounding‐box overlays if True
+                save_data: False        # Save raw images & LiDAR for offline debugging
+                orientation: True         # Also detect cones when image is rotated
+                use_start_frame: True         # Report cone poses in the START frame
+
+                # In most cases you don’t need to change the settings below
+                # they’ve been fine-tuned based on data from the vertical teams.
+                use_cyl_roi: False         # Apply an additional cylindrical ROI filter
+                downsample: False         # Voxel-downsample LiDAR points for faster processing
+                conf_normal: 0.35          # YOLO confidence threshold for upright cones
+                conf_left: 0.10          # YOLO confidence threshold for left-rotated cones
+                conf_right: 0.10          # YOLO confidence threshold for right-rotated cones
+                max_depth: 40            # Maximum LiDAR range (meters) to include in ROI
+                z_range: 0.08          # Minimum height above ground to remove ground plane
+                max_depth_diff: 0.50          # Maximum local depth variance to cone pointcloud cluster
+                alpha: 0.10          # EMA smoothing weight for updating tracked poses
+                expiring_time: 20            # Time (seconds) after which a tracked cone is removed
 
         perception_normalization : StandardPerceptionNormalizer
     planning:

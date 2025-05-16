@@ -17,13 +17,8 @@ drive:
             type: pedestrian_detection.PedestrianDetector3D
             args:
                 camera_name: front #[front, front_right]
-                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+                camera_calib_file: ./GEMstack/knowledge/calibration/gem_e4_perception_cameras.yaml
 
-                T_l2v:
-                    - [ 0.99939639,  0.02547917,  0.023615,    1.1 ]
-                    - [ -0.02530848, 0.99965156, -0.00749882,  0.03773583 ]
-                    - [ -0.02379784, 0.00689664,  0.999693,     1.95320223 ]
-                    - [ 0.0,         0.0,         0.0,          1.0 ]
                 enable_tracking: True   # True if you want to enable tracking
                 visualize_2d: False  # True to see 2D detection visualization
                 use_cyl_roi: False  # True to use a cylinder ROI
