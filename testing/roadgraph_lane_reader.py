@@ -53,8 +53,8 @@ def plot_roadgraph(roadgraphfn, scale) -> None:
     if map_type == 'roadgraph':
         if len(outlines) > 0:
             outlines = np.array(outlines)
-            p_x = outlines[:, 0] * scale
-            p_y = outlines[:, 1] * scale
+            p_x = outlines[:, 0]
+            p_y = outlines[:, 1]
             plt.scatter(p_x, p_y)
     plt.show()
 

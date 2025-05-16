@@ -217,13 +217,20 @@ if __name__ == '__main__':
                                            route_name=''
                                            )
     roadgraph.lanes['t_1_1'] = create_lane(left_back=(33.0, 10.5, 0.0), left_forward=(30.0, 7.5, 0.0),
-                                            right_back=(24.0, 10.5, 0.0), right_forward=(27.0, 7.5, 0.0),
+                                            right_back=(33.0, 13.5, 0.0), right_forward=(28.5, 13.5, 0.0),
                                             left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
-                                            right_crossable=False, right_type='arc', right_radius=3.0, right_direction='cw',
+                                            right_crossable=False,
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['t_1_2'] = create_lane(left_back=(30.0, 7.5, 0.0), left_forward=(24.0, 1.5, 0.0),
+    roadgraph.lanes['t_1_2'] = create_lane(left_back=(27.0, 7.5, 0.0), left_forward=(24.0, 10.5, 0.0),
+                                            right_back=(28.5, 13.5, 0.0), right_forward=(24.0, 13.5, 0.0),
+                                            left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
+                                            right_crossable=False,
+                                            resolution=resolution,
+                                            route_name=''
+                                            )
+    roadgraph.lanes['t_1_3'] = create_lane(left_back=(30.0, 7.5, 0.0), left_forward=(24.0, 1.5, 0.0),
                                             right_back=(27.0, 7.5, 0.0), right_forward=(24.0, 4.5, 0.0),
                                             left_crossable=False, left_type='arc', left_radius=6.0, left_direction='cw',
                                             right_crossable=False, right_type='arc', right_radius=3.0, right_direction='cw',
@@ -244,16 +251,22 @@ if __name__ == '__main__':
                                             resolution=resolution,
                                             route_name=''
                                             )
-    roadgraph.lanes['t_2_2'] = create_lane(left_back=(0.0, 7.5, 0.0), left_forward=(-3.0, 10.5, 0.0),
-                                            right_back=(3.0, 7.5, 0.0), right_forward=(6.0, 10.5, 0.0),
+    roadgraph.lanes['t_2_2'] = create_lane(left_back=(6.0, 10.5, 0.0), left_forward=(3.0, 7.5, 0.0),
+                                            right_back=(6.0, 13.5, 0.0), right_forward=(1.5, 13.5, 0.0),
                                             left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
-                                            right_crossable=False, right_type='arc', right_radius=3.0, right_direction='cw',
+                                            right_crossable=False,
+                                            resolution=resolution,
+                                            route_name=''
+                                            )
+    roadgraph.lanes['t_2_3'] = create_lane(left_back=(0.0, 7.5, 0.0), left_forward=(-3.0, 10.5, 0.0),
+                                            right_back=(1.5, 13.5, 0.0), right_forward=(-3.0, 13.5, 0.0),
+                                            left_crossable=False, left_type='arc', left_radius=3.0, left_direction='ccw',
+                                            right_crossable=False,
                                             resolution=resolution,
                                             route_name=''
                                             )
     roadgraph.lanes['lane_2'] = create_lane(left_back=(24.0, 10.5, 0.0), left_forward=(6.0, 10.5, 0.0),
-                                            # right_back=(24.0, 13.5, 0.0), right_forward=(6.0, 13.5, 0.0),
-                                            right_back=(33.0, 13.5, 0.0), right_forward=(-3.0, 13.5, 0.0),
+                                            right_back=(24.0, 13.5, 0.0), right_forward=(6.0, 13.5, 0.0),
                                             left_crossable=False,
                                             right_crossable=False,
                                             resolution=resolution,
@@ -392,15 +405,15 @@ if __name__ == '__main__':
                                                 resolution=resolution,
                                                 route_name=''
                                                 )
-    # roadgraph.lanes['westward'] = create_lane(right_forward=(-88.235905*2-(-88.235968), 40.0927433+lat_ratio*1.5, 0.0),
-    #                                           right_back=(-88.235317*2+88.235252, 40.0927516+lat_ratio*1.5, 0.0),
-    #                                           left_forward=(-88.235968, 40.0927432-lat_ratio*1.5, 0.0),
-    #                                           left_back=(-88.235252, 40.0927527-lat_ratio*1.5, 0.0),
-    #                                           left_crossable=False,
-    #                                           right_crossable=False,
-    #                                           resolution=resolution,
-    #                                           route_name=''
-    #                                           )
+    roadgraph.lanes['westward'] = create_lane(right_forward=(-88.235905*2-(-88.235968), 40.0927433+lat_ratio*1.5, 0.0),
+                                              right_back=(-88.235317*2+88.235252, 40.0927516+lat_ratio*1.5, 0.0),
+                                              left_forward=(-88.235968, 40.0927432-lat_ratio*1.5, 0.0),
+                                              left_back=(-88.235252, 40.0927527-lat_ratio*1.5, 0.0),
+                                              left_crossable=False,
+                                              right_crossable=False,
+                                              resolution=resolution,
+                                              route_name=''
+                                              )
     roadgraph.lanes['west_cycle_1'] = create_lane(left_back=(-88.235968, 40.0927432-lat_ratio*1.5, 0.0),
                                                   left_forward=(-88.235968, 40.0928604+lat_ratio*1.5, 0.0),
                                                   right_back=(-88.235968, 40.0927432+lat_ratio*1.5, 0.0),
@@ -435,13 +448,7 @@ if __name__ == '__main__':
                                                 route_name=''
                                                 )
 
-    parking_edge_lat = 40.0927436 + 2 * lat_ratio
-    print(parking_edge_lat)
-    roadgraph.regions['lane0_parallel_parking_lot_1'] = create_rectangle_region([-88.235527-p_l*lon_ratio*3, parking_edge_lat], p_l*lon_ratio, p_w*lat_ratio, 'right')
-    roadgraph.regions['lane0_parallel_parking_lot_2'] = create_rectangle_region([-88.235527-p_l*lon_ratio*2, parking_edge_lat], p_l*lon_ratio, p_w*lat_ratio, 'right')
-    roadgraph.regions['lane0_parallel_parking_lot_3'] = create_rectangle_region([-88.235527-p_l*lon_ratio, parking_edge_lat], p_l*lon_ratio, p_w*lat_ratio, 'right')
-    roadgraph.regions['lane0_parallel_parking_lot_4'] = create_rectangle_region([-88.235527, parking_edge_lat], p_l*lon_ratio, p_w*lat_ratio, 'right')
-
     with open(filename, 'w') as f:
         serialization.save(roadgraph, f)
         print('File saved:', filename)
+

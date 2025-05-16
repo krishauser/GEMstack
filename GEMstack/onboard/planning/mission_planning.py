@@ -1,11 +1,12 @@
 from typing import List, Union
 from klampt.vis import scene
 from ..component import Component
+from ...utils import serialization
 from ...state import Route, ObjectFrameEnum, AllState, VehicleState, Roadgraph, MissionObjective, MissionEnum, ObjectPose
 import numpy as np
 import requests
+import json
 import time
-import yaml
 
 
 def check_distance(goal_pose: Union[ObjectPose, list], current_pose : ObjectPose):
@@ -34,18 +35,14 @@ class StateMachine:
 
 
 class SummoningMissionPlanner(Component):
-    def __init__(self, use_webapp, webapp_url, goal=None, state_machine=None):
+    def __init__(self, use_webapp, webapp_url, goal, state_machine):
         self.state_machine = StateMachine([eval(s) for s in state_machine])
-
-        # if use_webapp is True, goal should be None
-        self.goal_location = goal['location'] if not use_webapp else None
-        self.goal_frame = goal['frame'] if not use_webapp else None
+        self.goal_location = goal['location']
+        self.goal_frame = goal['frame']
         self.new_goal = False
         self.goal_pose = None
         self.start_pose = None
         self.start_time = time.time()
-        self.end_of_driving_route =  None
-        self.search_count = 0
 
         self.flag_use_webapp = use_webapp
         self.url_status = f"{webapp_url}/api/status"
@@ -97,7 +94,7 @@ class SummoningMissionPlanner(Component):
                     goal_location = None
                     goal_frame = None
                 else:
-                    goal_location = [data['lon'] , data['lat']]
+                    goal_location = [data['lat'] , data['lon']]
                     goal_frame = 'global'
                     print("Goal location:", goal_location)
                     print("Goal frame:", goal_frame)
@@ -112,8 +109,6 @@ class SummoningMissionPlanner(Component):
             self.new_goal = True
             goal_location = self.goal_location
             goal_frame = self.goal_frame
-
-        start_vehicle_pose = state.start_vehicle_pose
 
         if goal_frame == 'global':
             self.goal_pose = ObjectPose(t=time.time(), x=goal_location[0], y=goal_location[1],
@@ -130,16 +125,7 @@ class SummoningMissionPlanner(Component):
             raise ValueError("Invalid frame argument")
 
         if self.goal_pose:
-            if start_vehicle_pose.frame == ObjectFrameEnum.ABSOLUTE_CARTESIAN and goal_frame == 'global':
-                # For global map simulation test
-                with open("scenes/summoning_map_sim_setting.yaml", "r") as f:
-                    data = yaml.safe_load(f)
-                    start= data['start_pose_global']
-                start_pose_global = ObjectPose(frame=ObjectFrameEnum.GLOBAL, t=start_vehicle_pose.t, x=start[0], y=start[1], yaw=start[2])
-                self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_pose_global)
-            else:
-                self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=start_vehicle_pose)
-            print("Goal pose:", self.goal_pose)
+            self.goal_pose = self.goal_pose.to_frame(ObjectFrameEnum.START, start_pose_abs=state.start_vehicle_pose)
 
         # Initiate state
         if mission is None:
@@ -151,52 +137,34 @@ class SummoningMissionPlanner(Component):
             if self.new_goal:
                 mission.goal_pose = self.goal_pose
                 mission.type = self.state_machine.next_state()
-                self.new_goal = False
                 print("============== Next state:", mission.type)
 
         # Reach the end of the route, begin to search for parking
-        # elif mission.type == MissionEnum.SUMMONING_DRIVE:
-        elif mission.type == MissionEnum.SUMMON_DRIVING:
+        elif mission.type == MissionEnum.SUMMONING_DRIVE:
             mission.goal_pose = self.goal_pose
             if route:
                 _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
-                if closest_index == len(route.points) - 1 or check_distance(mission.goal_pose, vehicle.pose) < 5:
-                    if vehicle.v < 0.1:
-                        mission.type = self.state_machine.next_state()
-                        print("============== Next state:", mission.type)
-                self.end_of_driving_route = route.points[-1]
-            else:
-                self.search_count += 1
+                if closest_index == len(route.points) - 1 or check_distance(mission.goal_pose, vehicle.pose) < 1:
+                    mission.type = self.state_machine.next_state()
+                    print("============== Next state:", mission.type)
 
         # Finish parking, back to idle and wait for the next goal location
         elif mission.type == MissionEnum.PARALLEL_PARKING:
             if route:
-                if route.points[-1] != self.end_of_driving_route:
-                    _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
-                    if vehicle.v < 0.01 and (closest_index >= len(route.points) - 1 or check_distance(route.points[-1], vehicle.pose) < 0.5):
-                        # Set everything to idle
-                        mission.type = self.state_machine.next_state()
-                        print("============== Next state:", mission.type)
-            else:
-                self.search_count += 1
+                _, closest_index = route.closest_point([vehicle.pose.x, vehicle.pose.y], edges=False)
+                if closest_index == len(route.points) - 1 or check_distance(route.points[-1], vehicle.pose) < 0.1:
+                    mission.type = self.state_machine.next_state()
+                    self.goal_pose = None
+                    mission.goal_pose = self.goal_pose
+                    print("============== Next state:", mission.type)
 
         else:
             raise ValueError("Invalid mission type")
 
-        # Can not find a path, stop mission.
-        if mission.type != MissionEnum.IDLE:
-            print("Route searching times:", self.search_count)
-            if self.search_count > 10:
-                mission.type = MissionEnum.IDLE
-                self.goal_pose = None
-                self.goal_location = None
-                self.goal_frame = None
-                self.search_count = 0
-
 
         if self.flag_use_webapp:
             data = {
-                "status": mission.type.name
+                "status": mission.planner_type.name
             }
             print("POST:", data)
             response = requests.post(url=self.url_status, json=data)

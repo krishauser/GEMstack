@@ -4,7 +4,7 @@ import numpy as np
 from sensor_msgs.msg import PointCloud2
 from typing import Dict
 from ..component import Component 
-from ...state import ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum, ObstacleStateEnum, AllState
+from ...state import ObjectPose, ObjectFrameEnum, Obstacle, ObstacleMaterialEnum
 from ..interface.gem import GEMInterface
 from .utils.constants import *
 from .utils.math_utils import *
@@ -77,7 +77,7 @@ class ParkingSpotsDetector3D(Component):
         return 10.0  # Hz
 
     def state_inputs(self) -> list:
-        return ['all']
+        return ['obstacles']
 
     def state_outputs(self) -> list:
         return ['goal', 'obstacles']
@@ -149,14 +149,14 @@ class ParkingSpotsDetector3D(Component):
         self.pub_cones_centers_pc2.publish(ros_cones_centers_pc2)
 
 
-    def update(self, state: AllState):
+    def update(self, cone_obstacles: Dict[str, Obstacle]):
         # Initial variables
         parking_goals = []
         best_parking_spots = []
         parking_obstacles_poses = []
         parking_obstacles_dims = []
         grouped_ordered_ground_centers_2D = []
-        cone_obstacles = state.obstacles
+
         # Populate cone points
         cone_pts_3D = []
         for cone in cone_obstacles.values():
@@ -231,7 +231,7 @@ class ParkingSpotsDetector3D(Component):
                                 yaw=yaw,
                                 pitch=0.0,
                                 roll=0.0,
-                                frame=ObjectFrameEnum.START
+                                frame=ObjectFrameEnum.CURRENT
                             )
             new_obstacle = Obstacle(
                                 pose=obstacle_pose,
@@ -240,7 +240,7 @@ class ParkingSpotsDetector3D(Component):
                                 material=ObstacleMaterialEnum.BARRIER,
                                 collidable=True
                             )
-            parking_obstacles[f"parking_obstacle_{obstacle_id}"] = new_obstacle
+            parking_obstacles[obstacle_id] = new_obstacle
             obstacle_id += 1
         
         # Constructing goal pose
@@ -253,19 +253,8 @@ class ParkingSpotsDetector3D(Component):
                         yaw=yaw,
                         pitch=0.0,
                         roll=0.0,
-                        frame=ObjectFrameEnum.START
+                        frame=ObjectFrameEnum.CURRENT
                     )
         
-        DISTANCE_THRESHOLD = 8.0
-        if self.euclidean_distance((x,y), state) > DISTANCE_THRESHOLD: # we are not close enough to the parking spot
-            return None
-
         new_state = [goal_pose, parking_obstacles]
         return new_state
-    
-    def euclidean_distance(self, point, state):
-        x, y = point
-        vehicle_x = state.vehicle.pose.x
-        vehicle_y = state.vehicle.pose.y
-        distance = np.sqrt((x - vehicle_x) ** 2 + (y - vehicle_y) ** 2)
-        return distance

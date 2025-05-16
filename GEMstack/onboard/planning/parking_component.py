@@ -24,6 +24,10 @@ class ParkingSim(Component):
         # Calculate elapsed time since initialization.
         elapsed_time = time.time() - self.start_time
 
+        # Reading goal from state
+        # print(f"\n AllState (parking goal): {state.goal} \n")
+        # print(f"AllState (parking obstacles): {state.obstacles} \n")
+
         # After a goal is detected, change the mission plan to use PARKING.
         if state.goal:
             print("\n Parking goal available. Entering PARKING mode......")

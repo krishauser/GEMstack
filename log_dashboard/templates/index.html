@@ -37,11 +37,8 @@
                     <td>{{ log.launch_command }}</td>
                     <td>
                         <div class="btn-group">
-                            <a href="{{ url_for('view_log', log_folder=log.date) }}" class="btn btn-info btn-sm">View
-                                Details</a>
-                            <button onclick="openFolder('{{ log.date }}')" class="btn btn-secondary btn-sm">Open
-                                Folder</button>
-
+                            <a href="{{ url_for('view_log', log_folder=log.date) }}" class="btn btn-info btn-sm">View Details</a>
+                            <button onclick="openFolder('{{ log.folder }}')" class="btn btn-secondary btn-sm">Open Folder</button>
                         </div>
                     </td>
                 </tr>
@@ -52,21 +49,21 @@
     <script>
         // Store the base URL for view_log
         const viewLogBaseUrl = "{{ url_for('view_log', log_folder='PLACEHOLDER') }}".replace('PLACEHOLDER', '');
-        $(document).ready(function () {
-            $("#filter-form").submit(function (e) {
+        
+        $(document).ready(function() {
+            $("#filter-form").submit(function(e) {
                 e.preventDefault();
                 let startDate = $("#start_date").val();
                 let endDate = $("#end_date").val();
-
+                
                 $.ajax({
                     url: "/filter_logs",
                     type: "POST",
                     contentType: "application/json",
-                    data: JSON.stringify({ start_date: startDate, end_date: endDate }),
-                    success: function (data) {
+                    data: JSON.stringify({start_date: startDate, end_date: endDate}),
+                    success: function(data) {
                         let tableBody = $("#log-table-body").empty();
-
-
+                        
                         data.forEach(log => {
                             tableBody.append(`
                                 <tr>
@@ -78,27 +75,23 @@
                                     <td>
                                          <div class="btn-group">
                                             <a href="${viewLogBaseUrl}${log.date}" class="btn btn-info btn-sm">View Details</a>
-                                            <button onclick="openFolder('${log.date}')" class="btn btn-secondary btn-sm">Open Folder</button>
-
+                                            <button onclick="openFolder('${log.folder}')" class="btn btn-secondary btn-sm">Open Folder</button>
                                          </div>
                                     </td>
                                 </tr>
                             `);
                         });
                     },
-                    error: function (error) {
-
+                    error: function(error) {
                         console.error("Error filtering logs:", error);
                     }
                 });
             });
         });
-
+        
         function openFolder(folder) {
-            window.location.href = `/open_folder/${encodeURIComponent(folder)}`;
+            $.get(`/open_folder/${encodeURIComponent(folder)}`);
         }
     </script>
 </body>
-
-
 </html>

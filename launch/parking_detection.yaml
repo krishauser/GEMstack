@@ -13,19 +13,20 @@ recovery:
 drive: 
     perception:
         state_estimation : GNSSStateEstimator
+        # agent_detection : cone_detection.ConeDetector3D
         obstacle_detection :
             type: cone_detection.ConeDetector3D
-            # args:
-            #     camera_name: front_right #[front, front_right]
-            #     camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+            args:
+                camera_name: front_right #[front, front_right]
+                camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
 
-            #     # optional overrides
-            #     enable_tracking: False
-            #     visualize_2d: False
-            #     use_cyl_roi: False
-            #     save_data: False
-            #     orientation: False
-            #     use_start_frame: False
+                # optional overrides
+                enable_tracking: False
+                visualize_2d: False
+                use_cyl_roi: False
+                save_data: False
+                orientation: False
+                use_start_frame: False
         parking_detection:
             type: parking_detection.ParkingSpotsDetector3D
             args:
@@ -36,30 +37,6 @@ drive:
     planning:
         _mission_planner:
             type: parking_component.ParkingSim
-        _route_planner:
-            type: route_planning_component.RoutePlanningComponent
-            dubins: 
-                integrator:
-                    timestep: 1
-                    dt: .25
-                    max_velocity: 0.75
-                    max_turning_rate: 0.3
-                    tolerance: 0.25
-            astar:
-                iterations: 20000
-                heuristic: reeds_shepp
-        motion_planning:
-            type: longitudinal_planning.YieldTrajectoryPlanner
-            # type: yield_spline_planner.SplinePlanner
-            largs:
-                acceleration: 5
-                deceleration: 2
-                desired_speed: 2
-        trajectory_tracking:
-            type: pure_pursuit.PurePursuitTrajectoryTracker
-            print: False
-
-            
 #usually can keep this constant
 computation_graph: !include "../GEMstack/knowledge/defaults/computation_graph.yaml"
 
@@ -110,55 +87,9 @@ variants:
                 planning:
                     _mission_planner:
                         type: parking_component.ParkingSim
-                    # _route_planner:
-                    #     type: route_planning_component.RoutePlanningComponent
-
-    fake_sim:
-        run:
-            mode: simulation
-            vehicle_interface:
-                type: gem_simulator.GEMDoubleIntegratorSimulationInterface
-                args:
-                    scene: !relative_path '../scenes/xyhead_demo.yaml'
-            visualization: !include "klampt_visualization.yaml"
-            drive: 
-                perception:
-                    state_estimation : OmniscientStateEstimator
-                    obstacle_detection : 
-                        type: cone_detection.FakConeDetector
-                    # agent_detection : cone_detection_simple.ConeDetectorSimple3D
-                    parking_detection:
-                        type: parking_detection.ParkingSpotsDetector3D
-                        args:
-                            camera_name: front_right #[front, front_right]
-                            camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
-                            visualize_3d: True
-                planning:
-                    _mission_planner:
-                        type: parking_component.ParkingSim
                     _route_planner:
                         type: route_planning_component.RoutePlanningComponent
-                        dubins: 
-                            integrator:
-                                timestep: 1
-                                dt: .25
-                                max_velocity: 0.75
-                                max_turning_rate: 0.3
-                                tolerance: 0.25
-                        astar:
-                            iterations: 500
-                            heuristic: reeds_shepp
-                    motion_planning:
-                        type: parking_motion_planning.YieldTrajectoryPlanner
-                        # type: yield_spline_planner.SplinePlanner
-                        largs:
-                            acceleration: 5
-                            deceleration: 2
-                            desired_speed: 2
-                    trajectory_tracking:
-                        type: pure_pursuit.PurePursuitTrajectoryTracker
-                        print: False
-
+                
     sim:
         run:
             mode: simulation
