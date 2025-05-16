@@ -2,7 +2,6 @@ from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentS
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .perception_utils import *  # If you want to alias functions for clarity, do so in perception_utils
-from .perception_utils_gem import *
 from ultralytics import YOLO
 from typing import Dict
 import open3d as o3d

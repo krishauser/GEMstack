@@ -54,15 +54,11 @@ docker compose -f setup/docker-compose.yaml up
 ```
 roscore
 ```
-6. Start up YOLO node (make sure you source first):
-```
-python3 GEMstack/onboard/perception/yolo_node.py
-```
-7. Run yaml file to start up the CombinedDetector3D GEMstack Component (make sure you source first):
+6. Run yaml file to start up the CombinedDetector3D GEMstack Component (make sure you source first):
 ```
 python3 main.py --variant=detector_only launch/combined_detection.yaml
 ```
-8. Run a rosbag on a loop (make sure you source first):
+7. Run a rosbag on a loop (make sure you source first):
 ```
 rosbag play -l yourRosbagNameGoesHere.bag 
 ```

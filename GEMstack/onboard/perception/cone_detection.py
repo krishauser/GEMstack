@@ -3,7 +3,6 @@ from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, Obstac
 from ..interface.gem import GEMInterface
 from ..component import Component
 from .perception_utils import *
-from .perception_utils_gem import *
 from ultralytics import YOLO
 import cv2
 from typing import Dict
