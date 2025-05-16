@@ -13,29 +13,44 @@ drive:
     perception:
         state_estimation : GNSSStateEstimator
         perception_normalization : StandardPerceptionNormalizer
+        # agent_detection:
+        #     type: agent_detection.GazeboAgentDetector
+        #     args:
+        #         tracked_model_prefixes: ['pedestrian', 'car', 'bicycle']
+
+        # obstacle_detection:
+        #     type: cone_detection.ConeDetector3D
+        #     # args:
+            #     camera_name: front_right #[front, front_right]
+            #     camera_calib_file: ./GEMstack/knowledge/calibration/cameras.yaml
+
+            #     # optional overrides
+            #     enable_tracking: False
+            #     visualize_2d: False
+            #     use_cyl_roi: False
+            #     save_data: False
+            #     orientation: False
+            #     use_start_frame: False
+
     planning:
-        route_planning:
-            type: StaticRoutePlanner
-            # args: [!relative_path '../GEMstack/knowledge/routes/race_track_7.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/parallel_parking.csv']
-            args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_p.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/reverse_15m.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/offset.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/forward_15m.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/backward_15m.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/forward_curve.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/backward_curve.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/yamada.csv']
-            # args: [!relative_path '../GEMstack/knowledge/routes/xyhead_highbay_backlot_oval.csv']
-        motion_planning:
-            type: RouteToTrajectoryPlanner
-            args: [null]  #desired speed in m/s.  If null, this will keep the route untimed for the trajectory tracker
+        relations_estimation: pedestrian_yield_logic.PedestrianYielder
+        mission_planning_example:
+            type: MissionPlanningExample
+        planning_route:
+            type: PlanningRoutePlanner
         trajectory_tracking:
-            # type: pure_pursuit.PurePursuitTrajectoryTracker
-            type: stanley.StanleyTrajectoryTracker
-            # type: mpc.MPCTrajectoryTracker
-            args: {desired_speed: 2.5}  #approximately 5mph {launch_control: 1}  
+            type: pure_pursuit.PurePursuitTrajectoryTracker
+            args: {desired_speed: 2.5}  #approximately 5mph
             print: False
+        
+        motion_planning: 
+            type: planning_trajectory.QuinticSplineScurveTrajectoryPlanner
+            args: 
+                accelaration: 5.0
+                desired_speed: 2.0 
+                deceleration: 2.0 
+                emergency_brake: 8.0
+        # motion_planning: yield_spline_planner.SplinePlanner
 log:
     # Specify the top-level folder to save the log files.  Default is 'logs'
     #folder : 'logs' 
@@ -91,7 +106,6 @@ variants:
             mode: simulation
             vehicle_interface:
                 type: gem_gazebo.GEMGazeboInterface
-            collision_logging: True
             drive:
                 perception:
                     state_estimation: GNSSStateEstimator  # Matches your Gazebo GNSS implementation
@@ -103,7 +117,32 @@ variants:
                         type: obstacle_detection.GazeboObstacleDetector
                         args:
                             tracked_obstacle_prefixes: ['cone']
-            # visualization: !include "mpl_visualization.yaml"
+
+
+                planning:
+                    # Adding your custom relation estimation
+                    relations_estimation: pedestrian_yield_logic.PedestrianYielder
+                    # Fixed route with pure pursuit
+                    mission_planning_example:
+                        type: MissionPlanningExample
+                    planning_route:
+                        type: PlanningRoutePlanner
+ 
+                    # motion_planning: longitudinal_planning.YieldTrajectoryPlanner
+                    # motion_planning: yield_spline_planner.SplinePlanner
+                    motion_planning: 
+                        type: planning_trajectory.QuinticSplineScurveTrajectoryPlanner
+                        args: 
+                            accelaration: 5.0
+                            desired_speed: 2.0 
+                            deceleration: 2.0 
+                            emergency_brake: 8.0              
+                trajectory_tracking:
+                        type: pure_pursuit.PurePursuitTrajectoryTracker
+                        args: {desired_speed: 'path'}  #approximately 5mph
+                        print: True
+    
+            visualization: !include "mpl_visualization.yaml"
     log_ros:
         log:
             ros_topics : !include "../GEMstack/knowledge/defaults/standard_ros_topics.yaml"

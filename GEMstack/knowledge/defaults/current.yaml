@@ -11,11 +11,13 @@ control:
     recovery:
         brake_amount : 0.5
         brake_speed : 2.0
+    
+    # Pure Pursuit controller parameters
     pure_pursuit:
-        lookahead: 2.0
-        lookahead_scale: 3.0
-        crosstrack_gain: 1.0
-        desired_speed: trajectory #racing
+        lookahead: 2.0                  # Base lookahead distance (meters)
+        lookahead_scale: 3.0             # Velocity-dependent lookahead scaling factor
+        crosstrack_gain: 0.5             # Gain for crosstrack error correction (default: 1)
+        desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
     # Stanley controller parameters (fine tune this)
     stanley:
         control_gain: 1.5
@@ -50,7 +52,20 @@ planning:
         deceleration:       2.0
         min_deceleration:   0.5
         yield_deceleration: 0.5        
- 
+        desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
+    
+    # MPC controller parameters
+    mpc:
+        dt: 0.2                          # Time step for the MPC controller (seconds)
+        horizon: 30                      # Prediction horizon for the MPC controller (number of time steps)
+        switch_gear: False                # Whether to switch gears during runtime
+        desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
+
+    # Shared longitudinal control parameters
+    longitudinal_control:
+        pid_p: 1.0                      # Proportional gain for speed PID controller
+        pid_i: 0.1                       # Integral gain for speed PID controller
+        pid_d: 1.0                       # Derivative gain for speed PID controller
 #configure the simulator, if using
 simulator:
     dt: 0.01

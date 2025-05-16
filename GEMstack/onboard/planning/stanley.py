@@ -343,8 +343,6 @@ class Stanley(object):
         # Calculate yaw error
         yaw_error = normalise_angle(path_yaw - curr_yaw)
 
-
-# ~~~~~~~~298
         if (self.desired_speed):
             desired_speed = abs(self.desired_speed)
         else:
