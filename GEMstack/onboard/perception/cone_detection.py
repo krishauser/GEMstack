@@ -367,7 +367,7 @@ class ConeDetector3D(Component):
                             outline=None,
                             material=ObstacleMaterialEnum.TRAFFIC_CONE,
                             state=state,
-                            collidable=False
+                            collidable=True
                         )
                     else:
                         updated_obstacle = old_state
@@ -382,7 +382,7 @@ class ConeDetector3D(Component):
                         outline=None,
                         material=ObstacleMaterialEnum.TRAFFIC_CONE,
                         state=state,
-                        collidable=False
+                        collidable=True
                     )
                     obstacles[obstacle_id] = new_obstacle
                     self.tracked_obstacles[obstacle_id] = new_obstacle
@@ -395,7 +395,7 @@ class ConeDetector3D(Component):
                     outline=None,
                     material=ObstacleMaterialEnum.TRAFFIC_CONE,
                     state=state,
-                    collidable=False
+                    collidable=True
                 )
                 obstacles[obstacle_id] = new_obstacle
 
