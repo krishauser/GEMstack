@@ -1,7 +1,7 @@
 from ...state import AllState, VehicleState, ObjectPose, ObjectFrameEnum, AgentState, AgentEnum, AgentActivityEnum
 from ..interface.gem import GEMInterface
 from ..component import Component
-from .perception_utils import pose_to_matrix
+from .perception_utils import pose_to_matrix, calculate_3d_iou
 from .perception_utils_gem import *
 from typing import Dict, List, Optional, Tuple
 import rospy
@@ -14,7 +14,6 @@ from scipy.spatial.transform import Rotation as R
 from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
 from geometry_msgs.msg import Quaternion
 
-from .sensorFusion.eval_3d_model_performance import calculate_3d_iou
 import copy
 
 

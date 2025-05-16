@@ -217,3 +217,51 @@ def pose_to_matrix(pose):
     T[:3, :3] = R_mat
     T[:3, 3] = np.array([x, y, z])
     return T
+
+def calculate_3d_iou(box1, box2, get_corners_cb, get_volume_cb):
+    """
+    Calculates the 3D Intersection over Union (IoU) between two bounding boxes.
+
+    Args:
+        box1, box2: List or tuple representing a 3D bounding box in the
+                    *internal standardized format*: [cx, cy, cz, l, w, h, yaw, ...]
+                    where cy is the geometric center y.
+        get_corners_cb: Callback function to extract AABB corners from a box
+        get_volume_cb: Callback function to calculate volume of a box
+
+    Returns:
+        float: The 3D IoU value.
+
+    Doesn't consider yaw
+    """
+
+    ######### Simple Axis-Aligned Bounding Box (AABB) IoU#
+    min_x1, max_x1, min_y1, max_y1, min_z1, max_z1 = get_corners_cb(box1)
+    min_x2, max_x2, min_y2, max_y2, min_z2, max_z2 = get_corners_cb(box2)
+
+    # Calculate intersection volume
+    inter_min_x = max(min_x1, min_x2)
+    inter_max_x = min(max_x1, max_x2)
+    inter_min_y = max(min_y1, min_y2)
+    inter_max_y = min(max_y1, max_y2)
+    inter_min_z = max(min_z1, min_z2)
+    inter_max_z = min(max_z1, max_z2)
+
+    inter_l = max(0, inter_max_x - inter_min_x)
+    inter_h = max(0, inter_max_y - inter_min_y)
+    inter_w = max(0, inter_max_z - inter_min_z)
+    intersection_volume = inter_l * inter_h * inter_w
+
+    # Calculate union volume
+    vol1 = get_volume_cb(box1)
+    vol2 = get_volume_cb(box2)
+    # Ensure volumes are positive and non-zero for stable IoU
+    vol1 = max(vol1, 1e-6)
+    vol2 = max(vol2, 1e-6)
+    union_volume = vol1 + vol2 - intersection_volume
+    union_volume = max(union_volume, 1e-6) # Avoid division by zero or very small numbers
+
+    iou = intersection_volume / union_volume
+    # Clamp IoU to [0, 1] range
+    iou = max(0.0, min(iou, 1.0))
+    return iou
