@@ -122,46 +122,22 @@ class CreepTrajectoryPlanner(Component):
         vehicle = state.vehicle  # type: VehicleState
         route = state.route  # type: Route
         t = state.t
-
-        if DEBUG:
-            print("[DEBUG] CreepTrajectoryPlanner.update: t =", t)
-
         if self.t_last is None:
             self.t_last = t
         dt = t - self.t_last
-        if DEBUG:
-            print("[DEBUG] CreepTrajectoryPlanner.update: dt =", dt)
-
         curr_x = vehicle.pose.x
         curr_y = vehicle.pose.y
         curr_v = vehicle.v
-        if DEBUG:
-            print(f"[DEBUG] CreepTrajectoryPlanner.update: Vehicle position = ({curr_x}, {curr_y}), speed = {curr_v}, ")
-
-        # Determine progress along the route.
         if self.route_progress is None:
             self.route_progress = 0.0
         _, closest_parameter = route.closest_point_local(
             [curr_x, curr_y],
             (self.route_progress - 5.0, self.route_progress + 5.0)
         )
-        if DEBUG:
-            print("[DEBUG] CreepTrajectoryPlanner.update: Closest parameter on route =", closest_parameter)
         self.route_progress = closest_parameter
-
-        # Check if approaching end of route and get adjusted speed
         approaching_end, target_speed = self.check_end_of_route(route, closest_parameter)
-        if DEBUG and approaching_end:
-            print("[DEBUG] CreepTrajectoryPlanner.update: Vehicle is approaching end of route")
-            print(f"[DEBUG] CreepTrajectoryPlanner.update: Target speed = {target_speed}")
-
-        # Extract a 10 m segment of the route for planning lookahead.
         route_with_lookahead = route.trim(closest_parameter, closest_parameter + 10.0)
-        if DEBUG:
-            print("[DEBUG] CreepTrajectoryPlanner.update: Route Lookahead =", route_with_lookahead)
 
-        print("[DEBUG] state", state.relations)
-        # Check whether any yield relations (e.g. due to pedestrians) require braking.
         stay_braking = False
         pointSet = set()
         for i in range(len(route_with_lookahead.points)):
@@ -179,51 +155,27 @@ class CreepTrajectoryPlanner(Component):
             for r in state.relations
         ) if should_brake == False else False
 
-        # If approaching end of route, override the target speed
         if approaching_end:
             should_accelerate = (not should_brake and not should_decelerate and curr_v < target_speed)
         else:
             should_accelerate = (not should_brake and not should_decelerate and curr_v < self.desired_speed)
 
-        if DEBUG:
-            print("[DEBUG] CreepTrajectoryPlanner.update: stay_braking =", stay_braking)
-            print("[DEBUG] CreepTrajectoryPlanner.update: should_brake =", should_brake)
-            print("[DEBUG] CreepTrajectoryPlanner.update: should_accelerate =", should_accelerate)
-            print("[DEBUG] CreepTrajectoryPlanner.update: should_decelerate =", should_decelerate)
-            print("[DEBUG] CreepTrajectoryPlanner.update: target_speed =", target_speed if approaching_end else self.desired_speed)
-
         if stay_braking:
             traj = longitudinal_brake(route_with_lookahead, 0.0, 0.0, 0.0)
-            if DEBUG:
-                print("[DEBUG] CreepTrajectoryPlanner.update: Using longitudinal_brake (stay braking).")
         elif should_brake:
             traj = longitudinal_brake(route_with_lookahead, self.emergency_brake, curr_v)
-            if DEBUG:
-                print("[DEBUG] CreepTrajectoryPlanner.update: Using longitudinal_brake.")
         elif should_decelerate:
             traj = longitudinal_brake(route_with_lookahead, self.deceleration, curr_v)
-            if DEBUG:
-                print("[DEBUG] CreepTrajectoryPlanner.update: Using longitudinal_brake.")
         elif approaching_end:
             # Use linear deceleration to stop at end of route
             traj = longitudinal_plan(route_with_lookahead, self.acceleration,
                                      self.deceleration, target_speed, curr_v)
-            if DEBUG:
-                print("[DEBUG] CreepTrajectoryPlanner.update: Using longitudinal_plan with end-of-route deceleration.")
         elif should_accelerate:
             traj = longitudinal_plan(route_with_lookahead, self.acceleration,
                                      self.deceleration, self.desired_speed, curr_v)
-            if DEBUG:
-                print("[DEBUG] CreepTrajectoryPlanner.update: Using longitudinal_plan (accelerate).")
         else:
             # Maintain current speed if not accelerating or braking.
             traj = longitudinal_plan(route_with_lookahead, 0.0, self.deceleration, self.desired_speed, curr_v)
-            if DEBUG:
-                print(
-                    "[DEBUG] CreepTrajectoryPlanner.update: Maintaining current speed with longitudinal_plan (0 accel).")
 
         self.t_last = t
-        if DEBUG:
-            print(f'[DEBUG] Current Velocity: {curr_v}, Target Speed: {target_speed if approaching_end else self.desired_speed}')
-            print("[DEBUG] CreepTrajectoryPlanner.update: Returning trajectory with", len(traj.points), "points.")
         return traj
