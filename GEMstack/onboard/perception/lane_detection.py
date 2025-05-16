@@ -36,7 +36,7 @@ class LaneDetector3D(Component):
     and return only detections from the current frame.
 
     Supports multiple cameras; each camera’s intrinsics and extrinsics are
-    loaded from a single YAML calibration file via plain PyYAML.
+    loaded from a single YAML calibration file via plain PyYAML and global settings.
     """
 
     def __init__(
@@ -87,7 +87,11 @@ class LaneDetector3D(Component):
         self.T_l2c = np.array(cam_cfg['T_l2c'])
         self.T_l2v = np.array(cam_cfg['T_l2v'])
 
-
+        # Expect structure:
+        #front_camera:
+        #  extrinsics:
+        #    rotation: [[...], [...], [...]]
+        #    position: [[...], [...], [...]]
         self.R = np.array(settings.get(f'calibration.{camera_name}_camera.extrinsics.rotation'))
         self.T = np.array(settings.get(f'calibration.{camera_name}_camera.extrinsics.position'))
 
@@ -133,6 +137,9 @@ class LaneDetector3D(Component):
         self.R_c2l = self.T_c2l[:3, :3]
 
     def synchronized_callback(self, image_msg, lidar_msg):
+        '''
+        Get the latest image.
+        '''
         step1 = time.time()
         try:
             self.latest_image = self.bridge.imgmsg_to_cv2(image_msg, "bgr8")
@@ -143,6 +150,9 @@ class LaneDetector3D(Component):
         # print('image callback: ', step2 - step1, 'lidar callback ', step3 - step2)
 
     def undistort_image(self, image, K, D):
+        '''
+        Undistort the image using the camera intrinsic matrix and distortion coefficients.
+        '''
         h, w = image.shape[:2]
         newK, _ = cv2.getOptimalNewCameraMatrix(K, D, (w, h), 1, (w, h))
         if self.undistort_map1 is None or self.undistort_map2 is None:
@@ -294,8 +304,6 @@ class LaneDetector3D(Component):
         # It draws rectangles and labels on the images:
         if getattr(self, 'visualize_2d', False):
             for (x, y) in combined_lanes:
-                color = (0, 255, 0)
-
                 # Radius of circle
                 radius = 2
                 
