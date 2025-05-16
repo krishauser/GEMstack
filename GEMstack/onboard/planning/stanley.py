@@ -1,15 +1,18 @@
 import numpy as np
+import rospy
 from math import sin, cos, atan2
 
+# These imports match your existing project structure
 from ...mathutils.control import PID
 from ...utils import settings
 from ...mathutils import transforms
 from ...knowledge.vehicle.geometry import front2steer
 from ...knowledge.vehicle.dynamics import acceleration_to_pedal_positions
 from ...state.vehicle import VehicleState, ObjectFrameEnum
-from ...state.trajectory import Path, Trajectory
+from ...state.trajectory import Path, Trajectory, compute_headings
 from ..interface.gem import GEMVehicleCommand
 from ..component import Component
+from .launch_control import LaunchControl
 
 #####################################
 # 1. Angle normalization
@@ -26,19 +29,31 @@ def normalise_angle(angle):
 # 2. Stanley-based controller with longitudinal PID
 #####################################
 class Stanley(object):
+    """
+    A Stanley controller that handles lateral control (steering)
+    plus a basic longitudinal control (PID + optional feedforward).
+    It has been modified to reduce oscillations by:
+      1) Lower gains
+      2) Steering damping
+      3) Low-pass filter on steering
+      4) Gentler speed logic when cornering
+    """
 
     def __init__(
         self,
         control_gain=None,
         softening_gain=None,
-        desired_speed=None
+        desired_speed=None,
+        launch_control=None
     ):
         """
-        Initializes the Stanley controller.
         :param control_gain:       Stanley lateral control gain k (lowered from the default to reduce overshoot).
         :param softening_gain:     Softening gain k_soft.
+        :param yaw_rate_gain:      Yaw-rate gain k_yaw_rate (helps reduce oscillations).
+        :param steering_damp_gain: Steering damping gain k_damp_steer.
         :param desired_speed:      Desired speed (float) or 'path'/'trajectory'.
         """
+
         self.k = control_gain if control_gain is not None else settings.get('control.stanley.control_gain')
         self.k_soft = softening_gain if softening_gain is not None else settings.get('control.stanley.softening_gain')
 
@@ -50,13 +65,13 @@ class Stanley(object):
         self.max_accel = settings.get('vehicle.limits.max_acceleration')
         self.max_decel = settings.get('vehicle.limits.max_deceleration')
 
-        # PID controller for longitudinal speed control
+        # PID for longitudinal speed tracking
         p = settings.get('control.longitudinal_control.pid_p')
         d = settings.get('control.longitudinal_control.pid_d')
         i = settings.get('control.longitudinal_control.pid_i')
         self.pid_speed = PID(p, d, i, windup_limit=20)
-        
-        # Determine desired speed source
+
+        # Speed source: numeric or derived from path/trajectory
         if desired_speed is not None:
             self.desired_speed_source = desired_speed
         else:
@@ -67,6 +82,13 @@ class Stanley(object):
         else:
             self.desired_speed = None
 
+        if (self.desired_speed_source == 'racing'):
+            self.k = settings.get('control.racing.stanley.control_gain')
+            self.k_soft = settings.get('control.racing.stanley.softening_gain')
+            p = settings.get('control.racing.longitudinal_control.pid_p')
+            d = settings.get('control.racing.longitudinal_control.pid_d')
+            i = settings.get('control.racing.longitudinal_control.pid_i')
+
         # Initialize state variables
         self.path_arg = None
         self.path = None
@@ -76,6 +98,8 @@ class Stanley(object):
         self.t_last = None
         self.reverse = None
         self.sharp_turn = False
+
+        self.launch_control = launch_control
 
     def set_path(self, path: Path):
         # Sets the path for the controller.
@@ -99,6 +123,26 @@ class Stanley(object):
             self.trajectory = path
             self.current_traj_parameter = self.trajectory.domain()[0]
 
+        self.current_path_parameter = 0.0
+
+    def set_racing_path(self, path: Path):
+        if path == self.path_arg:
+            return
+        self.path_arg = path
+        if len(path.points[0]) > 2:
+            path = path.get_dims([0,1])
+        if not isinstance(path, Trajectory):
+            # path = Path(ObjectFrameEnum.START,path)
+            path = compute_headings(path, True)
+            self.path = path.arc_length_parameterize()
+            self.trajectory = self.path.racing_velocity_profile()
+            self.current_traj_parameter = 0.0
+            if self.desired_speed_source not in ['racing']:
+                raise ValueError("Racing: desired speed must be set to racing, currently set to: " + str(self.desired_speed_source))
+        else:
+            self.path = path.arc_length_parameterize()
+            self.trajectory = path
+            self.current_traj_parameter = self.trajectory.domain()[0]
         self.current_path_parameter = 0.0
 
     def _find_front_axle_position(self, x, y, yaw):
@@ -221,6 +265,7 @@ class Stanley(object):
         else:
             dt = t - self.t_last
 
+        # Current vehicle states
         curr_x = state.pose.x
         curr_y = state.pose.y
         curr_yaw = state.pose.yaw if state.pose.yaw is not None else 0.0
@@ -245,7 +290,7 @@ class Stanley(object):
                 component.debug_event(f"Transforming trajectory from {self.trajectory.frame.name} to {state.pose.frame.name}")
             self.trajectory = self.trajectory.to_frame(state.pose.frame, current_pose=state.pose)
 
-        # Initialize reverse direction if not set
+       # Initialize reverse direction if not set
         if self.reverse is None:
             self.reverse = self.initialize_state_and_direction(state)
 
@@ -255,12 +300,13 @@ class Stanley(object):
         else:
             fx, fy = self._find_front_axle_position(curr_x, curr_y, curr_yaw)
 
-        # Find the closest point on the path
-        search_start = self.current_path_parameter
-        search_end   = self.current_path_parameter + 5.0
+       # Find the closest point on the path
+        search_start = self.current_path_parameter - 10.0
+        search_end   = self.current_path_parameter + 10.0
         closest_dist, closest_parameter = self.path.closest_point_local((fx, fy), [search_start, search_end])
-        self.current_path_parameter = closest_parameter
+        self.current_path_parameter = closest_parameter     
 
+        # 2) Path heading
         # Get target point and tangent on the path
         target_x, target_y = self.path.eval(self.current_path_parameter)
         tangent = self.path.eval_tangent(self.current_path_parameter)
@@ -268,6 +314,8 @@ class Stanley(object):
 
         dx = fx - target_x
         dy = fy - target_y
+        desired_x = target_x
+        desired_y = target_y
 
         # Check for sharp turn ahead and potentially switch to reverse
         if not self.reverse:
@@ -295,7 +343,10 @@ class Stanley(object):
         # Calculate yaw error
         yaw_error = normalise_angle(path_yaw - curr_yaw)
 
-        desired_speed = abs(self.desired_speed)
+        if (self.desired_speed):
+            desired_speed = abs(self.desired_speed)
+        else:
+            desired_speed = None
         feedforward_accel = 0.0
 
         # Stanley control logic for reverse direction
@@ -364,7 +415,7 @@ class Stanley(object):
             desired_steering_angle = yaw_error + cross_term
 
             # Determine desired speed from trajectory in forward
-            if self.trajectory and self.desired_speed_source in ['path', 'trajectory']:
+            if self.trajectory and self.desired_speed_source in ['path', 'trajectory', 'racing']:
                 if len(self.trajectory.points) < 2 or self.current_path_parameter >= self.path.domain()[1]:
                     if component:
                         component.debug_event("Stanley: Past the end of trajectory, stopping.")
@@ -437,29 +488,61 @@ class Stanley(object):
 # 3. Tracker component
 #####################################
 class StanleyTrajectoryTracker(Component):
+    """
+    A trajectory-tracking Component that uses the above Stanley controller
+    for lateral control plus PID-based longitudinal control.
+    It now includes measures to mitigate oscillations.
+    """
 
     def __init__(self, vehicle_interface=None, **kwargs):
-        # Initializes the Stanley trajectory tracker component.
+        """
+        :param vehicle_interface: The low-level interface to send commands to the vehicle.
+        :param kwargs: Optional parameters to pass into the Stanley(...) constructor.
+        """
         self.stanley = Stanley(**kwargs)
         self.vehicle_interface = vehicle_interface
-        
+        self.desired_speed_source = settings.get('control.stanley.desired_speed', 'path')
+
+        launch_control_enabled = self.stanley.launch_control
+        if launch_control_enabled:
+            stage_duration = settings.get('control.racing.launch_control.stage_duration', 0.5)
+            self.launch_control = LaunchControl(stage_duration, stop_threshold=0.1)
+        else:
+            self.launch_control = None
+
     def rate(self):
-        return 50.0 # Component update rate
+        """Control frequency in Hz."""
+        return 50.0
 
     def state_inputs(self):
-        return ["vehicle", "trajectory"] # Required state inputs
+        """
+        Required state inputs:
+        - Vehicle state
+        - Trajectory
+        """
+        return ["vehicle", "trajectory"]
 
     def state_outputs(self):
+        """No direct output state here."""
         return []
 
     def update(self, vehicle: VehicleState, trajectory: Trajectory):
-        # Updates the controller with current state and trajectory.
-        self.stanley.set_path(trajectory)
-
-        # Compute control commands using Stanley controller
+        """
+        Per control cycle:
+          1) Set the path/trajectory
+          2) Compute (acceleration, front wheel angle)
+          3) Convert front wheel angle to steering wheel angle (if necessary)
+          4) Send command to the vehicle
+        """
+        # path to trajectory if racing enabled and using route instead of planner
+        if self.desired_speed_source in ['racing'] and not isinstance(trajectory, Trajectory): ## conditional needed for no racing
+            self.stanley.set_racing_path(trajectory)
+        else:
+            self.stanley.set_path(trajectory)
+        
         accel, f_delta = self.stanley.compute(vehicle, self)
 
-        # Convert front wheel angle to steering angle and clip
+        # If your low-level interface expects steering wheel angle:
         steering_angle = front2steer(f_delta)
         steering_angle = np.clip(
             steering_angle,
@@ -467,8 +550,10 @@ class StanleyTrajectoryTracker(Component):
             settings.get('vehicle.geometry.max_steering_angle',  0.5)
         )
 
-        # Create and send vehicle command
         cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
+        if self.launch_control:
+            cmd = self.launch_control.apply_launch_control(cmd, vehicle.v)
+
         self.vehicle_interface.send_command(cmd)
 
     def healthy(self):

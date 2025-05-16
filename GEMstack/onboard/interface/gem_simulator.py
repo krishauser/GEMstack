@@ -3,7 +3,7 @@ from .gem import *
 from ...mathutils.dubins import SecondOrderDubinsCar
 from ...mathutils.dynamics import simulate
 from ...mathutils import transforms
-from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,Sign,AllState,VehicleGearEnum
+from ...state import VehicleState,ObjectPose,ObjectFrameEnum,Roadgraph,AgentState,AgentEnum,AgentActivityEnum,Obstacle,Sign,AllState
 from ...knowledge.vehicle.geometry import front2steer,steer2front,heading_rate
 from ...knowledge.vehicle.dynamics import pedal_positions_to_acceleration, acceleration_to_pedal_positions
 from ...utils.loops import TimedLooper
@@ -19,7 +19,7 @@ AGENT_DIMENSIONS = {
     'bicyclist' : (1.8,0.5,1.6),
     'car' : (4.0,2.5,1.4),
     'medium_truck': (6.0,2.5,3.0),
-    'large_truck': (10.0,2.5,3.5)
+    'large_truck': (10.0,2.5,3.5),
 }
 
 AGENT_TYPE_TO_ENUM = {
@@ -27,7 +27,7 @@ AGENT_TYPE_TO_ENUM = {
     'bicyclist' : AgentEnum.BICYCLIST,
     'car' : AgentEnum.CAR,
     'medium_truck': AgentEnum.MEDIUM_TRUCK,
-    'large_truck': AgentEnum.LARGE_TRUCK
+    'large_truck': AgentEnum.LARGE_TRUCK,
 }
 
 AGENT_NOMINAL_VELOCITY = {
@@ -35,7 +35,7 @@ AGENT_NOMINAL_VELOCITY = {
     'bicyclist' : 5.0,
     'car' : 20.0,
     'medium_truck': 15.0,
-    'large_truck': 10.0
+    'large_truck': 10.0,
 }
 
 AGENT_NOMINAL_ACCELERATION = {
@@ -43,7 +43,7 @@ AGENT_NOMINAL_ACCELERATION = {
     'bicyclist' : 2.0,
     'car' : 5.0,
     'medium_truck': 3.0,
-    'large_truck': 2.0
+    'large_truck': 2.0,
 }
 
 class AgentSimulation:
@@ -207,7 +207,7 @@ class GEMDoubleIntegratorSimulation:
             reading.brake_pedal_position = brake_pedal_position
             reading.accelerator_pedal_position = 0
         reading.speed = v
-        if v > 0:
+        if v >= 0:
             reading.gear = 1
         else:
             reading.gear = -1

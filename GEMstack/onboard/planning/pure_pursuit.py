@@ -7,11 +7,13 @@ from ...state.trajectory import Path,Trajectory,compute_headings
 from ...knowledge.vehicle.geometry import front2steer
 from ..interface.gem import GEMVehicleCommand
 from ..component import Component
+from .launch_control import LaunchControl
 import numpy as np
+import rospy
 
 class PurePursuit(object):   
     """Implements a pure pursuit controller on a second-order Dubins vehicle."""
-    def __init__(self, lookahead = None, lookahead_scale = None, crosstrack_gain = None, desired_speed = None):
+    def __init__(self, lookahead = None, lookahead_scale = None, crosstrack_gain = None, desired_speed = None, launch_control = None):
         self.look_ahead = lookahead if lookahead is not None else settings.get('control.pure_pursuit.lookahead',4.0)
         self.look_ahead_scale = lookahead_scale if lookahead_scale is not None else settings.get('control.pure_pursuit.lookahead_scale',3.0)
         self.crosstrack_gain = crosstrack_gain if crosstrack_gain is not None else settings.get('control.pure_pursuit.crosstrack_gain',0.41)
@@ -30,6 +32,12 @@ class PurePursuit(object):
         self.max_decel     = settings.get('vehicle.limits.max_deceleration') # m/s^2
         self.pid_speed     = PID(settings.get('control.longitudinal_control.pid_p',0.5), settings.get('control.longitudinal_control.pid_d',0.0), settings.get('control.longitudinal_control.pid_i',0.1), windup_limit=20)
 
+        if (self.desired_speed_source == 'racing'):
+            self.look_ahead = settings.get('control.racing.pure_pursuit.lookahead',4.0)
+            self.look_ahead_scale = settings.get('control.racing.pure_pursuit.lookahead_scale')
+            self.crosstrack_gain = settings.get('control.racing.pure_pursuit.crosstrack_gain',0.41)
+            self.pid_speed     = PID(settings.get('control.racing.longitudinal_control.pid_p',0.5), settings.get('control.racing.longitudinal_control.pid_d',0.0), settings.get('control.racing.longitudinal_control.pid_i',0.1), windup_limit=20)
+
         self.path_arg = None
         self.path = None         # type: Trajectory  
         #if trajectory = None, then only an untimed path was provided and we can't use the path velocity as the reference
@@ -38,6 +46,9 @@ class PurePursuit(object):
         self.current_path_parameter = 0.0
         self.current_traj_parameter = 0.0
         self.t_last = None
+
+        self.launch_control = launch_control
+
 
     def set_path(self, path : Path):
         if path == self.path_arg:
@@ -90,6 +101,7 @@ class PurePursuit(object):
         #TODO: calculate parameter that is look_ahead distance away from the closest point?
         #(rather than just advancing the parameter)
         des_parameter = closest_parameter + self.look_ahead + self.look_ahead_scale * speed
+        print("desired speed source is:", self.desired_speed_source)
         print("Closest parameter: " + str(closest_parameter),"distance to path",closest_dist)
         if closest_dist > 0.1:
             print("Closest point",self.path.eval(closest_parameter),"vs",(curr_x,curr_y))
@@ -167,6 +179,15 @@ class PurePursuit(object):
                     print("Desired speed",desired_speed,"m/s",", trying to reach desired",next_desired_speed,"m/s")
                 feedforward_accel= np.clip(feedforward_accel, -self.max_decel, self.max_accel)
                 print("Feedforward accel: " + str(feedforward_accel) + " m/s^2")
+        elif self.desired_speed_source == 'racing':
+            # get radius of the upcoming curve_points
+            # right now we can only use 3 points
+            curve_points = 3
+            curve_radius = self.path.fit_curve_radius((curr_x,curr_y), curve_points)
+            # map curve radius to desired_speed. Note curve_radius can be inf if all points are colinear
+            print("curve_radius: ", curve_radius)
+
+            desired_speed = (.5*curve_radius)**.5
         else:
             #decay speed when crosstrack error is high
             desired_speed *= np.exp(-abs(ct_error)*0.4)
@@ -183,7 +204,9 @@ class PurePursuit(object):
             
         if desired_speed > self.speed_limit:
             desired_speed = self.speed_limit 
+
         output_accel = self.pid_speed.advance(e = desired_speed - speed, t = t, feedforward_term=feedforward_accel)
+
         if component is not None:
             component.debug('curr pt',(curr_x,curr_y))
             component.debug('curr param',self.current_path_parameter)
@@ -210,6 +233,12 @@ class PurePursuitTrajectoryTracker(Component):
     def __init__(self,vehicle_interface=None, **args):
         self.pure_pursuit = PurePursuit(**args)
         self.vehicle_interface = vehicle_interface
+        launch_control_enabled = self.pure_pursuit.launch_control
+        if launch_control_enabled:
+            stage_duration = settings.get('control.racing.launch_control.stage_duration', 0.5)
+            self.launch_control = LaunchControl(stage_duration, stop_threshold=0.1)
+        else:
+            self.launch_control = None
 
     def rate(self):
         return 50.0
@@ -227,7 +256,13 @@ class PurePursuitTrajectoryTracker(Component):
         #print("Desired wheel angle",wheel_angle)
         steering_angle = np.clip(front2steer(wheel_angle), self.pure_pursuit.steering_angle_range[0], self.pure_pursuit.steering_angle_range[1])
         #print("Desired steering angle",steering_angle)
-        self.vehicle_interface.send_command(self.vehicle_interface.simple_command(accel,steering_angle, vehicle))
+
+        cmd = self.vehicle_interface.simple_command(accel, steering_angle, vehicle)
+        if self.launch_control:
+            cmd = self.launch_control.apply_launch_control(cmd, vehicle.v)
+
+
+        self.vehicle_interface.send_command(cmd)
     
     def healthy(self):
         return self.pure_pursuit.path is not None

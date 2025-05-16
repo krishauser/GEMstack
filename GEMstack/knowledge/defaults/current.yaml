@@ -18,11 +18,40 @@ control:
         lookahead_scale: 3.0             # Velocity-dependent lookahead scaling factor
         crosstrack_gain: 0.5             # Gain for crosstrack error correction (default: 1)
         desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
-    
     # Stanley controller parameters (fine tune this)
     stanley:
         control_gain: 1.5
         softening_gain: 0.2
+        desired_speed: trajectory       # Speed reference source: can be "trajectory", "path", "racing" or a constant value
+    longitudinal_control:
+        pid_p: 1.0
+        pid_i: 0.7
+        pid_d: 0.1
+    racing: # These tuning parameters will be used if the speed source is 'racing'
+        pure_pursuit:
+            lookahead: 2.0
+            lookahead_scale: 2.0
+            crosstrack_gain: 0.3
+        stanley:
+            control_gain: 0.12
+            softening_gain: 0.2
+        longitudinal_control:
+            pid_p: 1.0
+            pid_i: 0.7
+            pid_d: 0.1
+        launch_control:
+            stage_duration: 0.5
+planning:
+    longitudinal_plan:
+        mode:               'real' # 'real' or 'sim'
+        yielder:            'expert' # 'expert', 'analytic', or 'simulation'
+        planner:            'dt' # 'milestone', 'dt', or 'dx'
+        desired_speed:      1.0
+        acceleration:       0.5
+        max_deceleration:   6.0
+        deceleration:       2.0
+        min_deceleration:   0.5
+        yield_deceleration: 0.5        
         desired_speed: trajectory        # Speed reference source: can be "trajectory", "path", or a constant value
     
     # MPC controller parameters
@@ -37,13 +66,12 @@ control:
         pid_p: 1.0                      # Proportional gain for speed PID controller
         pid_i: 0.1                       # Integral gain for speed PID controller
         pid_d: 1.0                       # Derivative gain for speed PID controller
-
 #configure the simulator, if using
 simulator:
     dt: 0.01
     real_time_multiplier: 1.0    # make the simulator run faster than real time by making this > 1
     gnss_emulator: 
-        dt: 0.1    #10Hz
+        dt: 0.05    #10Hz
         #position_noise: 0.1  #10cm noise
         #orientation_noise: 0.04  #2.3 degrees noise
         #velocity_noise:
