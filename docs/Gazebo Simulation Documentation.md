@@ -149,4 +149,18 @@ Follow the instructions in the [POLARIS GEM Simulator](https://github.com/harish
 
 The naming conventions for entities are important as they determine how models are detected and classified. Refer to the [Entity Detection Documentation](gazebo_entity_detection.md) for details on model naming and the detection process.
 
+## Collision Logging in Gazebo
+
+To enable collision logging in your Gazebo simulation, add the following to your launch file's `gazebo` variant:
+
+```yaml
+run:
+    collision_logging: True  # Enable collision logging
+```
+
+When enabled, the collision logger will:
+- Monitor collisions between the vehicle and other objects in the simulation
+- Log collision details including colliding objects, contact position, normal, and depth
+- Output logs to `GazeboCollisionLogger.stdout.log` in your log directory
+
 ---
