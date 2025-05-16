@@ -36,9 +36,9 @@ def compute_spline_curvature(x, y, s=0.0, num=1000):
         kappa (float): curvature profile along the trajectory
     """
     # Fit parametric spline
-    num = len(x)
+    nums = len(x)
     tck, _ = splprep([x, y], s=s)
-    u_fine = np.linspace(0, 1, num)
+    u_fine = np.linspace(0, 1, nums)
     
     # Evaluate spline and its first and second derivatives
     dx, dy = splev(u_fine, tck, der=1)
