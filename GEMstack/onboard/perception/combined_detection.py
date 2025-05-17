@@ -231,16 +231,20 @@ class CombinedDetector3D(Component):
         camera_name,
         camera_calib_file,
         iou_threshold: float = 0.1,
+        score_threshold: float = 0.4,
         merge_mode: str = "Average",
         enable_tracking: bool = True,
         use_start_frame: bool = True,
+        slop = 0.1,
+        max_bb_buffer_size = 10,
+        visualize = True,
         **kwargs 
     ):
         self.vehicle_interface = vehicle_interface
         self.tracked_agents: Dict[str, AgentState] = {}
         self.ped_counter = 0
-        self.latest_yolo_bbxs: Optional[BoundingBoxArray] = None
         self.latest_pp_bbxs: Optional[BoundingBoxArray] = None
+        self.latest_yolo_bbxs: Optional[BoundingBoxArray] = None
         self.start_pose_abs: Optional[ObjectPose] = None
         self.start_time: Optional[float] = None
 
@@ -261,8 +265,8 @@ class CombinedDetector3D(Component):
         self.bridge = CvBridge()
         self.camera_name = camera_name
         self.camera_front = (self.camera_name == 'front')
-        self.score_threshold = 0.4
-        self.debug = True
+        self.score_threshold = score_threshold
+        self.visualize = visualize
 
         # Load camera intrinsics/extrinsics from YAML
         with open(camera_calib_file, 'r') as f:
@@ -283,7 +287,10 @@ class CombinedDetector3D(Component):
         self.undistort_map1 = None
         self.undistort_map2 = None
         self.camera_front = (self.camera_name == 'front')
-
+        self.yolo_buffer: List[BoundingBoxArray] = []
+        self.pp_buffer: List[BoundingBoxArray] = []
+        self.max_bb_buffer_size = max_bb_buffer_size
+        self.slop = slop
 
     def rate(self) -> float:
         return 8.0
@@ -324,19 +331,51 @@ class CombinedDetector3D(Component):
         self.sync.registerCallback(self.synchronized_yolo_callback)
 
         self.yolo_sub = Subscriber(self.yolo_topic, BoundingBoxArray)
-        self.pp_sub = Subscriber(self.pp_topic, BoundingBoxArray)
+        rospy.Subscriber(self.pp_topic, BoundingBoxArray, self.store_pp_array, queue_size=10)
         self.pub_fused = rospy.Publisher("/fused_boxes", BoundingBoxArray, queue_size=1)
 
-        queue_size = 10
-        slop = 0.1
-
-        self.sync = ApproximateTimeSynchronizer(
-            [self.yolo_sub, self.pp_sub],
-            queue_size=queue_size,
-            slop=slop
-        )
-        self.sync.registerCallback(self.synchronized_callback)
         rospy.loginfo("CombinedDetector3D Subscribers Initialized.")
+
+    def add_bb_array(self, bb_buffer: List[BoundingBoxArray], add_arr: BoundingBoxArray):
+        bb_buffer.append(add_arr)
+
+        # If buffer exceeds max size, remove the YOLO bounding box array with the oldest timestamp
+        if len(bb_buffer) > self.max_bb_buffer_size:
+            oldest_index = min(range(len(bb_buffer)),
+                               key=lambda i: bb_buffer[i].header.stamp.to_sec())
+            del bb_buffer[oldest_index]
+
+    def get_bb_arrays_sorted(self, bb_buffer: List[BoundingBoxArray]) -> List[BoundingBoxArray]:
+        return sorted(bb_buffer, key=lambda curr_bb_arr: curr_bb_arr.header.stamp.to_sec())
+
+    def store_pp_array(self, bbxs_msg: BoundingBoxArray):
+        self.add_bb_array(bb_buffer=self.pp_buffer, add_arr=bbxs_msg) # Store the boxes array for later comparison to YOLO bounding box array
+        self.try_match()
+
+    def store_yolo_array(self, bbxs_msg: BoundingBoxArray):
+        self.add_bb_array(bb_buffer=self.yolo_buffer, add_arr=bbxs_msg) # Store the boxes array for later comparison to PointPillars bounding box array
+        self.try_match()
+
+    def try_match(self):
+        matched = []
+
+        for i, yolo_bbxs in enumerate(self.yolo_buffer):
+            time_yolo = yolo_bbxs.header.stamp.to_sec()
+
+            for j, pp_bbxs in enumerate(self.pp_buffer):
+                time_pp = pp_bbxs.header.stamp.to_sec()
+
+                if abs(time_yolo - time_pp) <= self.slop:
+                    matched_pair = (copy.deepcopy(yolo_bbxs), copy.deepcopy(pp_bbxs))
+                    matched.append((i, j, matched_pair))
+                    break # We only want one match
+
+        # Remove the match messages 
+        for i, j, (yolo_bbxs, pp_bbxs) in reversed(matched):
+            del self.yolo_buffer[i]
+            del self.pp_buffer[j]
+            self.latest_pp_bbxs = pp_bbxs
+            self.latest_yolo_bbxs = yolo_bbxs
 
     def synchronized_yolo_callback(self, image_msg, lidar_msg):
         """Process synchronized RGB and LiDAR messages to detect pedestrians."""
@@ -482,9 +521,13 @@ class CombinedDetector3D(Component):
                          f"{refined_center_vehicle[1]:.2f}, {refined_center_vehicle[2]:.2f}) "
                          f"with score {conf_scores[i]:.2f}")
         
-        # Publish the bounding boxes
-        rospy.loginfo(f"Publishing {len(boxes.boxes)} person bounding boxes")
-        self.pub_yolo.publish(boxes)
+        
+        self.store_yolo_array(bbxs_msg=boxes) # Store the boxes array for later comparison to PointPillars bounding box array
+        
+        # Publish the bounding boxes for visualization
+        if self.visualize:
+            rospy.loginfo(f"Publishing {len(boxes.boxes)} person bounding boxes")
+            self.pub_yolo.publish(boxes)
 
     def undistort_image(self, image, K, D):
         """Undistort an image using the camera calibration parameters."""
@@ -502,11 +545,6 @@ class CombinedDetector3D(Component):
         end = time.time()
         # print('--------undistort', end-start)
         return undistorted, newK
-
-    def synchronized_callback(self, yolo_bbxs_msg: BoundingBoxArray, pp_bbxs_msg: BoundingBoxArray):
-        """Callback for synchronized YOLO and PointPillars messages."""
-        self.latest_yolo_bbxs = yolo_bbxs_msg
-        self.latest_pp_bbxs = pp_bbxs_msg
 
     def update(self, vehicle: VehicleState) -> Dict[str, AgentState]:
         """Update function called by the GEMstack pipeline."""
@@ -613,7 +651,8 @@ class CombinedDetector3D(Component):
                 agents[agent_id] = new_agent
                 self.tracked_agents[agent_id] = new_agent
 
-        self.pub_fused.publish(fused_bb_array)
+        if self.visualize:
+            self.pub_fused.publish(fused_bb_array)
 
         stale_ids = [agent_id for agent_id, agent in self.tracked_agents.items()
                     if current_time - agent.pose.t > 5.0]
